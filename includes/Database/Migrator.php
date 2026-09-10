@@ -7,7 +7,8 @@ final class Migrator {
     public function migrate(): void {
         global $wpdb; require_once ABSPATH . 'wp-admin/includes/upgrade.php'; $charset = $wpdb->get_charset_collate();
         // V2 converts the empty-string sentinel to NULL so jobs without an idempotency key can coexist.
-        if ((int) get_option('digiforge_db_schema_version', 0) < 2) {
+        $existing_jobs_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::jobs())));
+        if ($existing_jobs_table === Tables::jobs() && (int) get_option('digiforge_db_schema_version', 0) < 2) {
             $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
         }
         $sql = [
