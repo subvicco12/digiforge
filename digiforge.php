@@ -19,7 +19,7 @@ const DIGIFORGE_VERSION = '0.1.0';
 const DIGIFORGE_FILE = __FILE__;
 const DIGIFORGE_PATH = __DIR__ . '/';
 define('DIGIFORGE_URL', plugin_dir_url(__FILE__));
-const DIGIFORGE_DB_VERSION = '1';
+const DIGIFORGE_DB_VERSION = '2';
 
 /** @return void */
 function digiforge_autoload(string $class): void {
