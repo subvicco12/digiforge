@@ -5,8 +5,8 @@ namespace DigiForge\ProductFactory;
 /** Pure lifecycle policy shared by repositories, REST endpoints, and tests. */
 final class Lifecycle {
     public const TRANSITIONS = [
-        'opportunity' => ['NEW' => ['QUALIFIED', 'REJECTED', 'ARCHIVED'], 'QUALIFIED' => [], 'REJECTED' => [], 'ARCHIVED' => []],
-        'product_family' => ['DRAFT' => ['ACTIVE', 'ARCHIVED'], 'ACTIVE' => [], 'ARCHIVED' => []],
+        'opportunity' => ['NEW' => ['QUALIFIED', 'REJECTED', 'ARCHIVED'], 'QUALIFIED' => ['ARCHIVED'], 'REJECTED' => ['ARCHIVED'], 'ARCHIVED' => []],
+        'product_family' => ['DRAFT' => ['ACTIVE', 'ARCHIVED'], 'ACTIVE' => ['ARCHIVED'], 'ARCHIVED' => []],
         'product' => ['DRAFT' => ['READY'], 'READY' => ['DRAFT', 'ACTIVE'], 'ACTIVE' => ['ARCHIVED'], 'ARCHIVED' => []],
         'product_version' => ['DRAFT' => ['REVIEW'], 'REVIEW' => ['DRAFT', 'APPROVED'], 'APPROVED' => ['DRAFT', 'REVIEW', 'RELEASED'], 'RELEASED' => ['RETIRED'], 'RETIRED' => []],
     ];

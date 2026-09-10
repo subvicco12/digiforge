@@ -15,13 +15,13 @@ foreach (['product_family', 'product', 'product_version'] as $type) { pf_expect(
 pf_expect(Lifecycle::initial('unknown') === null, 'unknown entities have no initial state');
 
 $valid = [
-    'opportunity' => [['NEW','QUALIFIED'], ['NEW','REJECTED'], ['NEW','ARCHIVED']],
-    'product_family' => [['DRAFT','ACTIVE'], ['DRAFT','ARCHIVED']],
+    'opportunity' => [['NEW','QUALIFIED'], ['NEW','REJECTED'], ['NEW','ARCHIVED'], ['QUALIFIED','ARCHIVED'], ['REJECTED','ARCHIVED']],
+    'product_family' => [['DRAFT','ACTIVE'], ['DRAFT','ARCHIVED'], ['ACTIVE','ARCHIVED']],
     'product' => [['DRAFT','READY'], ['READY','DRAFT'], ['READY','ACTIVE'], ['ACTIVE','ARCHIVED']],
     'product_version' => [['DRAFT','REVIEW'], ['REVIEW','DRAFT'], ['REVIEW','APPROVED'], ['APPROVED','DRAFT'], ['APPROVED','REVIEW'], ['APPROVED','RELEASED'], ['RELEASED','RETIRED']],
 ];
 foreach ($valid as $type => $transitions) { foreach ($transitions as [$from, $to]) { pf_expect(Lifecycle::can_transition($type, $from, $to), "$type permits $from to $to"); } }
-$invalid = [['opportunity','QUALIFIED','ARCHIVED'], ['product_family','ACTIVE','DRAFT'], ['product','DRAFT','ACTIVE'], ['product','ARCHIVED','READY'], ['product_version','DRAFT','RELEASED'], ['product_version','RELEASED','APPROVED']];
+$invalid = [['opportunity','QUALIFIED','REJECTED'], ['opportunity','REJECTED','QUALIFIED'], ['product_family','ACTIVE','DRAFT'], ['product','DRAFT','ACTIVE'], ['product','ARCHIVED','READY'], ['product_version','DRAFT','RELEASED'], ['product_version','RELEASED','APPROVED']];
 foreach ($invalid as [$type, $from, $to]) { pf_expect(! Lifecycle::can_transition($type, $from, $to), "$type rejects $from to $to"); }
 
 $migration = pf_source('includes/Database/Migrator.php');
