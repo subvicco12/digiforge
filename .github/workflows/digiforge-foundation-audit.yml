@@ -38,7 +38,7 @@ jobs:
 
       - name: FIELDORA scan
         run: |
-          if grep -Rni --exclude-dir=.git 'fieldora' .; then
+          if grep -Rni --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' 'fieldora' .; then
             echo 'FIELDORA identifier found'
             exit 1
           fi
