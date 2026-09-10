@@ -66,7 +66,8 @@ final class Repository {
         if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; }
         $data = $this->sanitize($input);
         if (is_wp_error($data)) { return $data; }
-        foreach ($definition['required'] as $field) { if (! isset($data[$field]) || $data[$field] === '' || $data[$field] === 0) { return $this->error('validation', "$field is required."); } }
+        $required = $this->validate_required($definition, $data);
+        if (is_wp_error($required)) { return $required; }
         $relationship = $this->validate_relationships($type, $data);
         if (is_wp_error($relationship)) { return $relationship; }
         if ($type === 'digital_product') { $data['state'] = 'DRAFT'; $data['readiness'] = wp_json_encode(Lifecycle::readiness()); }
@@ -93,6 +94,8 @@ final class Repository {
         if (is_wp_error($validated)) { return $validated; }
         $data = $validated;
         $prospective = $data + $current;
+        $required = $this->validate_required($definition, $prospective);
+        if (is_wp_error($required)) { return $required; }
         $relationship = $this->validate_relationships($type, $prospective); if (is_wp_error($relationship)) { return $relationship; }
         $descendants = $this->validate_descendants($type, $id, $prospective); if (is_wp_error($descendants)) { return $descendants; }
         $data['updated_at'] = current_time('mysql', true); global $wpdb;
@@ -125,6 +128,14 @@ final class Repository {
         $unknown = array_diff(array_keys($input), $allowed);
         return $unknown === [] ? true : $this->error('invalid_field', 'Unknown or immutable field: ' . implode(', ', array_map(static fn(mixed $field): string => sanitize_key((string) $field), $unknown)) . '.');
     }
+    private function validate_required(array $definition, array $data): true|\WP_Error {
+        foreach ($definition['required'] as $field) {
+            if (! array_key_exists($field, $data) || $data[$field] === null || $data[$field] === '' || $data[$field] === 0) {
+                return $this->error('validation', "$field is required.");
+            }
+        }
+        return true;
+    }
     private function sanitize(array $input): array|\WP_Error {
         $data = [];
         foreach ($input as $field => $value) {
@@ -143,7 +154,13 @@ final class Repository {
         if (! is_array($value)) { return $this->error('validation', 'Structured fields must contain a JSON object or array.'); }
         $sanitize = function (mixed $item) use (&$sanitize): mixed {
             if (is_object($item)) { $item = get_object_vars($item); }
-            if (is_array($item)) { $clean = []; foreach ($item as $key => $value) { $clean[is_int($key) ? $key : sanitize_key((string) $key)] = $sanitize($value); } return $clean; }
+            if (is_array($item)) {
+                $clean = [];
+                foreach ($item as $key => $child) {
+                    $clean[$key] = $sanitize($child);
+                }
+                return $clean;
+            }
             if (is_string($item)) { return sanitize_text_field($item); }
             return is_int($item) || is_float($item) || is_bool($item) || $item === null ? $item : sanitize_text_field((string) $item);
         };
