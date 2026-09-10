@@ -15,10 +15,17 @@ final class Controller {
     }
     public function can_view(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge') || Capabilities::can('view_digiforge_analytics'); }
     public function can_manage(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge_automation'); }
-    public function health(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(['status' => 'ok', 'version' => DIGIFORGE_VERSION, 'automation_enabled' => false, 'stop_all' => (bool) Settings::get('stop_all', false)], 200); }
-    public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['stop_all' => (bool) Settings::get('stop_all', false), 'controls' => $result], 200); }
+    public function health(\WP_REST_Request $request): \WP_REST_Response {
+        $automation_enabled = false;
+        foreach (Config::SWITCHES as $switch) {
+            if ($switch !== 'stop_all' && Settings::is_enabled($switch)) { $automation_enabled = true; break; }
+        }
+        return new \WP_REST_Response(['status' => 'ok', 'version' => DIGIFORGE_VERSION, 'automation_enabled' => $automation_enabled, 'stop_all' => (bool) Settings::get('stop_all', false)], 200);
+    }
+    public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['controls' => $result], 200); }
     public function update_control(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $key = $request->get_param('key'); if ($key !== 'stop_all' && ! Config::allowed_switch($key)) { return new \WP_Error('digiforge_invalid_control', __('Unknown control.', 'digiforge'), ['status' => 400]); }
-        $enabled = rest_sanitize_boolean($request->get_param('enabled')); Settings::set($key, $enabled, 'boolean'); Logger::audit('control_updated', ['control' => $key, 'enabled' => $enabled], 'setting', $key); return new \WP_REST_Response(['key' => $key, 'enabled' => $enabled], 200);
+        $enabled = rest_sanitize_boolean($request->get_param('enabled')); if (! Settings::set($key, $enabled, 'boolean')) { return new \WP_Error('digiforge_control_save_failed', __('Unable to save control.', 'digiforge'), ['status' => 500]); }
+        Logger::audit('control_updated', ['control' => $key, 'enabled' => $enabled], 'setting', $key); return new \WP_REST_Response(['key' => $key, 'enabled' => $enabled], 200);
     }
 }
