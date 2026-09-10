@@ -1,0 +1,72 @@
+name: DigiForge Foundation Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [codex/build-digiforge-wordpress-plugin-foundation]
+
+jobs:
+  foundation-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: PHP syntax checks
+        shell: bash
+        run: |
+          set +e
+          status=0
+          while IFS= read -r -d '' file; do
+            echo "Linting $file"
+            php -l "$file" || status=1
+          done < <(find . -name '*.php' -not -path './.git/*' -print0)
+          exit "$status"
+
+      - name: Foundation tests
+        run: php tests/test-foundation.php
+
+      - name: Git diff check
+        run: git diff --check
+
+      - name: FIELDORA scan
+        run: |
+          if grep -Rni --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' 'fieldora' .; then
+            echo 'FIELDORA identifier found'
+            exit 1
+          fi
+
+      - name: Secret-pattern scan
+        shell: bash
+        run: |
+          set -e
+          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' --include='*.php' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{20,}["'"']' digiforge.php includes modules automation admin; then
+            echo 'Potential hard-coded credential found'
+            exit 1
+          fi
+
+      - name: External HTTP client scan
+        run: |
+          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' .; then
+            echo 'Unexpected external HTTP client usage found in foundation'
+            exit 1
+          fi
+
+      - name: Plugin packaging check
+        run: |
+          set -e
+          test -f digiforge.php
+          test -f uninstall.php
+          test -d includes
+          test -d modules
+          test -d admin
+          test -d automation
+          test -f README.md
+          test -f tests/test-foundation.php
