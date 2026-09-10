@@ -31,8 +31,8 @@ final class Migrator {
             'CREATE TABLE ' . Tables::digital_download_checks() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, target_type varchar(32) NOT NULL, target_id bigint(20) unsigned NOT NULL, check_type varchar(64) NOT NULL, validation_result varchar(20) NOT NULL DEFAULT 'PENDING', failure_reason varchar(255) NOT NULL DEFAULT '', review_status varchar(20) NOT NULL DEFAULT 'UNREVIEWED', details longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_result (digital_product_id,validation_result), KEY target_check (target_type,target_id,check_type), KEY review_updated (review_status,updated_at)) $charset;",
         ];
         foreach ($sql as $statement) { dbDelta($statement); }
-        // Versioned upgrades must grant capabilities introduced after initial activation.
-        Capabilities::add();
+        // Versioned upgrades grant only the capability introduced by the Digital Factory migration.
+        Capabilities::addDigital();
         update_option('digiforge_db_schema_version', 4, false);
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
     }
