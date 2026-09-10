@@ -8,12 +8,25 @@ df_expect(Lifecycle::can_transition('DRAFT','FILES_PENDING'),'digital workflow s
 df_expect(Lifecycle::can_transition('QA_PENDING','QA_FAILED'),'technical QA may fail');
 df_expect(!Lifecycle::can_transition('DRAFT','PUBLISH_READY'),'workflow cannot skip QA and approval');
 df_expect(count(Lifecycle::readiness())===12,'all readiness gates are represented');
+$readiness=Lifecycle::readiness();
+$readiness=Lifecycle::advance_readiness($readiness,'QA_PENDING');
+df_expect($readiness['files']===true&&$readiness['technical_qa']===false,'QA pending marks files ready only');
+$readiness=Lifecycle::advance_readiness($readiness,'QA_PASSED');
+df_expect($readiness['technical_qa']===true,'QA pass synchronizes technical readiness');
+$readiness=Lifecycle::advance_readiness($readiness,'VISUAL_REVIEW');
+df_expect($readiness['content_qa']===true,'visual review synchronizes completed content QA');
+$readiness=Lifecycle::advance_readiness($readiness,'QA_FAILED');
+df_expect($readiness['technical_qa']===false,'QA failure clears technical readiness');
 $m=df_source('includes/Database/Migrator.php');
 foreach(['digital_products()','digital_files()','digital_file_versions()','digital_packages()','digital_previews()','digital_templates()','digital_licenses()','digital_download_checks()'] as $t){df_expect(str_contains($m,$t),"$t schema exists");}
 foreach(['UNIQUE KEY product_version','UNIQUE KEY file_version','UNIQUE KEY idempotency_key','checksum_sha256','validation_result','failure_reason','review_status'] as $rule){df_expect(str_contains($m,$rule),"$rule schema contract exists");}
 df_expect(str_contains($m,"digiforge_db_schema_version', 4"),'schema version 4 is installed');
+df_expect(str_contains($m,'Capabilities::add()'),'versioned upgrade grants the digital capability');
 $r=df_source('includes/DigitalFactory/Repository.php');
 foreach(['invalid_relationship','Product version must belong to the product','Preview must match the product and file','QA target must belong','sanitize_text_field','sanitize_textarea_field','absint','find_by_key','idempotent_replay','Logger::audit','LIMIT %d OFFSET %d','MAX_PAGE_SIZE = 100','license_code_hash'] as $rule){df_expect(str_contains($r,$rule),"repository provides $rule");}
+df_expect(str_contains($r,"\$target_type === 'digital_file_version'")&&str_contains($r,"\$target['digital_file_id']"),'file-version QA resolves its parent file before ownership validation');
+df_expect(str_contains($r,"\$type === 'digital_file_version') { unset(\$data['version_label'])"),'file-version labels are immutable on update');
+df_expect(str_contains($r,'Lifecycle::advance_readiness')&&str_contains($r,"'readiness' => wp_json_encode(\$readiness)"),'lifecycle transitions persist readiness');
 foreach(['pdf_integrity','pdf_page_count','pdf_dimensions','pdf_resolution','pdf_fonts','pdf_rendering','pdf_blank_pages','pdf_links','pdf_file_size','image_dimensions','image_transparency','image_corruption','archive_integrity','archive_required_files','archive_folder_structure','archive_file_naming','archive_package_size','template_reference','template_access_instructions','template_preview_relationship','preview_relationship','checksum','package_generation'] as $check){df_expect(str_contains(df_source('includes/DigitalFactory/Validator.php'),$check),"$check is supported");}
 $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-products','digital-files','digital-file-versions','digital-packages','digital-previews','digital-templates','digital-licenses','digital-download-checks','permission_callback','manage_digiforge_digital','Idempotency-Key','X-WP-Total','X-WP-TotalPages'] as $v){df_expect(str_contains($api,$v),"REST exposes $v");}
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}

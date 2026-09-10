@@ -52,6 +52,7 @@ final class Repository {
     public function update(string $type, int $id, array $input): array|\WP_Error {
         $current = $this->find($type, $id); if ($current === null) { return $this->error('not_found', 'Digital entity not found.', 404); }
         $data = $this->sanitize($input); unset($data['id'], $data['state'], $data['readiness'], $data['created_by'], $data['created_at'], $data['idempotency_key']);
+        if ($type === 'digital_file_version') { unset($data['version_label']); }
         if ($type === 'digital_download_check') { foreach (['validation_result' => 'result', 'review_status' => 'review', 'check_type' => 'check'] as $field => $method) { if (isset($input[$field])) { $data[$field] = Validator::$method((string) $input[$field]); if ($data[$field] === '') { return $this->error('validation', "Invalid $field."); } } } }
         if (isset($input['checksum_sha256'])) { $data['checksum_sha256'] = Validator::checksum((string) $input['checksum_sha256']); if ($data['checksum_sha256'] === '' && $input['checksum_sha256'] !== '') { return $this->error('validation', 'Checksum must be SHA-256.'); } }
         if ($data === []) { return $this->error('validation', 'No writable fields supplied.'); }
@@ -66,9 +67,10 @@ final class Repository {
         $entity = $this->find('digital_product', $id); $to = strtoupper(sanitize_key($to));
         if ($entity === null) { return $this->error('not_found', 'Digital product not found.', 404); }
         $from = (string) $entity['state']; if (! Lifecycle::can_transition($from, $to)) { return $this->error('invalid_transition', "Cannot transition digital product from $from to $to.", 409); }
-        global $wpdb; $updated = $wpdb->update(Tables::digital_products(), ['state' => $to, 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s'], ['%d', '%s']);
+        $readiness = Lifecycle::advance_readiness(is_array($entity['readiness'] ?? null) ? $entity['readiness'] : [], $to);
+        global $wpdb; $updated = $wpdb->update(Tables::digital_products(), ['state' => $to, 'readiness' => wp_json_encode($readiness), 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s', '%s'], ['%d', '%s']);
         if ($updated !== 1) { return $this->error('transition_conflict', 'Digital product changed concurrently.', 409); }
-        Logger::audit('digital_product_state_changed', ['from' => $from, 'to' => $to], 'digital_product', (string) $id);
+        Logger::audit('digital_product_state_changed', ['from' => $from, 'to' => $to, 'readiness' => $readiness], 'digital_product', (string) $id);
         return $this->find('digital_product', $id) ?? $this->error('not_found', 'Digital product not found.', 404);
     }
     public function find(string $type, int $id): ?array { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); return is_array($row) ? $this->normalize($row) : null; }
@@ -94,7 +96,13 @@ final class Repository {
         if (isset($data['digital_product_id'])) { $dp = $this->find('digital_product', (int) $data['digital_product_id']); if ($dp === null) { return $this->error('invalid_relationship', 'Digital product does not exist.'); } if (isset($data['product_version_id']) && (int) $dp['product_version_id'] !== (int) $data['product_version_id']) { return $this->error('invalid_relationship', 'Product version does not match the digital product.'); } }
         if (isset($data['digital_file_id'])) { $file = $this->find('digital_file', (int) $data['digital_file_id']); if ($file === null || (isset($data['digital_product_id']) && (int) $file['digital_product_id'] !== (int) $data['digital_product_id'])) { return $this->error('invalid_relationship', 'File must belong to the digital product.'); } }
         if (isset($data['digital_preview_id'])) { $preview = $this->find('digital_preview', (int) $data['digital_preview_id']); if ($preview === null || (int) $preview['digital_product_id'] !== (int) $data['digital_product_id'] || (int) $preview['digital_file_id'] !== (int) $data['digital_file_id']) { return $this->error('invalid_relationship', 'Preview must match the product and file.'); } }
-        if ($type === 'digital_download_check') { $targets = ['file' => 'digital_file', 'file_version' => 'digital_file_version', 'package' => 'digital_package', 'preview' => 'digital_preview', 'template' => 'digital_template', 'license' => 'digital_license']; $target_type = $targets[$data['target_type']] ?? null; $target = $target_type === null ? null : $this->find($target_type, (int) $data['target_id']); if ($target === null || (isset($target['digital_product_id']) && (int) $target['digital_product_id'] !== (int) $data['digital_product_id'])) { return $this->error('invalid_relationship', 'QA target must belong to the digital product.'); } }
+        if ($type === 'digital_download_check') {
+            $targets = ['file' => 'digital_file', 'file_version' => 'digital_file_version', 'package' => 'digital_package', 'preview' => 'digital_preview', 'template' => 'digital_template', 'license' => 'digital_license'];
+            $target_type = $targets[$data['target_type']] ?? null;
+            $target = $target_type === null ? null : $this->find($target_type, (int) $data['target_id']);
+            if ($target_type === 'digital_file_version' && $target !== null) { $target = $this->find('digital_file', (int) $target['digital_file_id']); }
+            if ($target === null || ! isset($target['digital_product_id']) || (int) $target['digital_product_id'] !== (int) $data['digital_product_id']) { return $this->error('invalid_relationship', 'QA target must belong to the digital product.'); }
+        }
         return true;
     }
     private function key(?string $key): string|null|\WP_Error { if ($key === null || trim($key) === '') { return null; } $key = sanitize_text_field($key); return strlen($key) > 191 ? $this->error('validation', 'Idempotency key is too long.') : $key; }
