@@ -28,7 +28,7 @@ final class Admin {
     }
     private function render_entities(string $type, string $label): void {
         if (! current_user_can('manage_digiforge_products')) { wp_die(esc_html__('You are not allowed to manage products.', 'digiforge')); }
-        $items = (new Repository())->all($type); ?>
+        $items = (new Repository())->all($type)['items']; ?>
         <div class="wrap"><h1><?php echo esc_html($label); ?></h1><p><?php esc_html_e('Records are created and transitioned through the authenticated Product Factory REST API.', 'digiforge'); ?></p>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('ID', 'digiforge'); ?></th><th><?php esc_html_e('Name / version', 'digiforge'); ?></th><th><?php esc_html_e('State', 'digiforge'); ?></th><th><?php esc_html_e('Updated (UTC)', 'digiforge'); ?></th></tr></thead><tbody>
         <?php if ($items === []) : ?><tr><td colspan="4"><?php esc_html_e('No records found.', 'digiforge'); ?></td></tr><?php endif; ?>

@@ -10,6 +10,10 @@ use DigiForge\ProductFactory\Lifecycle;
 function pf_expect(bool $condition, string $message): void { if (! $condition) { fwrite(STDERR, "FAIL: $message\n"); exit(1); } }
 function pf_source(string $path): string { return (string) file_get_contents(__DIR__ . '/../' . $path); }
 
+$bootstrap = pf_source('digiforge.php');
+pf_expect(str_contains($bootstrap, '* Version: 0.2.0'), 'plugin header version matches the runtime version');
+pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '0.2.0'"), 'runtime version is 0.2.0');
+
 pf_expect(Lifecycle::initial('opportunity') === 'NEW', 'opportunities begin NEW');
 foreach (['product_family', 'product', 'product_version'] as $type) { pf_expect(Lifecycle::initial($type) === 'DRAFT', "$type begins DRAFT"); }
 pf_expect(Lifecycle::initial('unknown') === null, 'unknown entities have no initial state');
@@ -33,10 +37,13 @@ $repository = pf_source('includes/ProductFactory/Repository.php');
 foreach (['sanitize_text_field', 'sanitize_textarea_field', 'absint', 'invalid_relationship', 'idempotent_replay', 'find_by_key', 'Logger::audit', 'invalid_transition'] as $contract) { pf_expect(str_contains($repository, $contract), "$contract repository contract exists"); }
 pf_expect(str_contains($repository, "['id' => \$id, 'state' => \$from]"), 'state transition uses optimistic concurrency');
 pf_expect(str_contains($repository, "unset(\$row['idempotency_key'])"), 'idempotency keys are not exposed');
+foreach (['DEFAULT_PAGE_SIZE = 20', 'MAX_PAGE_SIZE = 100', 'LIMIT %d OFFSET %d', 'total_items', 'total_pages'] as $pagination) { pf_expect(str_contains($repository, $pagination), "$pagination bounded pagination contract exists"); }
+pf_expect(! str_contains($repository, 'ORDER BY id DESC LIMIT 100'), 'repository has no unconditional 100-record limit');
 
 $rest = pf_source('includes/REST/ProductFactoryController.php');
 foreach (['opportunities', 'product-families', 'products', 'product-versions', "'digiforge/v1'", 'Idempotency-Key', 'permission_callback', 'manage_digiforge_products'] as $route) { pf_expect(str_contains($rest, $route), "$route REST contract exists"); }
 pf_expect(str_contains($rest, "'state' => ['required' => true"), 'state is required and sanitized');
+foreach (["'page' =>", "'per_page' =>", 'Repository::MAX_PAGE_SIZE', 'X-WP-Total', 'X-WP-TotalPages'] as $pagination) { pf_expect(str_contains($rest, $pagination), "$pagination REST pagination contract exists"); }
 
 $admin = pf_source('includes/Core/Admin.php');
 pf_expect(str_contains($admin, 'digiforge-product-factory'), 'Product Factory admin page is registered');

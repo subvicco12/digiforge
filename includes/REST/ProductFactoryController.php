@@ -14,7 +14,10 @@ final class ProductFactoryController {
     public function routes(): void {
         foreach (self::ROUTES as $route => $type) {
             register_rest_route('digiforge/v1', '/' . $route, [
-                ['methods' => 'GET', 'callback' => fn(\WP_REST_Request $request) => $this->index($request, $type), 'permission_callback' => [$this, 'can_view']],
+                ['methods' => 'GET', 'callback' => fn(\WP_REST_Request $request) => $this->index($request, $type), 'permission_callback' => [$this, 'can_view'], 'args' => [
+                    'page' => ['default' => 1, 'sanitize_callback' => 'absint', 'validate_callback' => static fn($value) => is_numeric($value) && (int) $value >= 1],
+                    'per_page' => ['default' => Repository::DEFAULT_PAGE_SIZE, 'sanitize_callback' => 'absint', 'validate_callback' => static fn($value) => is_numeric($value) && (int) $value >= 1 && (int) $value <= Repository::MAX_PAGE_SIZE],
+                ]],
                 ['methods' => 'POST', 'callback' => fn(\WP_REST_Request $request) => $this->create($request, $type), 'permission_callback' => [$this, 'can_manage']],
             ]);
             register_rest_route('digiforge/v1', '/' . $route . '/(?P<id>\d+)', ['methods' => 'GET', 'callback' => fn(\WP_REST_Request $request) => $this->show($request, $type), 'permission_callback' => [$this, 'can_view'], 'args' => ['id' => ['sanitize_callback' => 'absint']]]);
@@ -23,7 +26,13 @@ final class ProductFactoryController {
     }
     public function can_view(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge') || Capabilities::can('manage_digiforge_products'); }
     public function can_manage(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge_products'); }
-    private function index(\WP_REST_Request $request, string $type): \WP_REST_Response { return new \WP_REST_Response(['items' => $this->repository->all($type)], 200); }
+    private function index(\WP_REST_Request $request, string $type): \WP_REST_Response {
+        $result = $this->repository->all($type, absint($request->get_param('page')), absint($request->get_param('per_page')));
+        $response = new \WP_REST_Response($result, 200);
+        $response->header('X-WP-Total', (string) $result['pagination']['total_items']);
+        $response->header('X-WP-TotalPages', (string) $result['pagination']['total_pages']);
+        return $response;
+    }
     private function show(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error { $item = $this->repository->find($type, absint($request['id'])); return $item === null ? new \WP_Error('digiforge_not_found', __('Entity not found.', 'digiforge'), ['status' => 404]) : new \WP_REST_Response($item, 200); }
     private function create(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
         $key = sanitize_text_field((string) ($request->get_header('Idempotency-Key') ?: $request->get_param('idempotency_key')));

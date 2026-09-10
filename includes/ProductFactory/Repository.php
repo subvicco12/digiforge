@@ -7,6 +7,8 @@ use DigiForge\Security\Logger;
 
 /** Persistence boundary for Product Factory entities. Relationships are validated before writes. */
 final class Repository {
+    public const DEFAULT_PAGE_SIZE = 20;
+    public const MAX_PAGE_SIZE = 100;
     private const DEFINITIONS = [
         'opportunity' => ['table' => 'opportunities', 'label' => 'title', 'text' => 'description'],
         'product_family' => ['table' => 'product_families', 'label' => 'name', 'text' => 'description', 'parent' => 'opportunity_id', 'parent_type' => 'opportunity'],
@@ -44,10 +46,19 @@ final class Repository {
         global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A);
         return is_array($row) ? $this->normalize($row) : null;
     }
-    public function all(string $type): array {
-        if (! isset(self::DEFINITIONS[$type])) { return []; }
-        global $wpdb; $rows = $wpdb->get_results('SELECT * FROM ' . $this->table($type) . ' ORDER BY id DESC LIMIT 100', ARRAY_A);
-        return array_map([$this, 'normalize'], is_array($rows) ? $rows : []);
+    public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
+        if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => ['page' => 1, 'per_page' => self::DEFAULT_PAGE_SIZE, 'total_items' => 0, 'total_pages' => 0]]; }
+        $page = max(1, $page);
+        $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
+        $offset = ($page - 1) * $per_page;
+        global $wpdb;
+        $table = $this->table($type);
+        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
+        $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
+        return [
+            'items' => array_map([$this, 'normalize'], is_array($rows) ? $rows : []),
+            'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => (int) ceil($total / $per_page)],
+        ];
     }
     public function transition(string $type, int $id, string $to): array|\WP_Error {
         $entity = $this->find($type, $id); $to = strtoupper(sanitize_key($to));
