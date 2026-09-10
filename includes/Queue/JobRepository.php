@@ -21,7 +21,13 @@ final class JobRepository {
             $formats[] = null;
         }
         $ok = $wpdb->insert(Tables::jobs(), $data, $formats);
-        return $ok ? (int) $wpdb->insert_id : false;
+        if ($ok) { return (int) $wpdb->insert_id; }
+        // A concurrent request may have won the unique-key race after our SELECT.
+        if ($idempotency_key !== '') {
+            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotency_key));
+            if ($found) { return (int) $found; }
+        }
+        return false;
     }
     public function transition(int $id, string $state): bool { if (! JobState::valid($state)) { return false; } global $wpdb; return false !== $wpdb->update(Tables::jobs(), ['state' => $state, 'updated_at' => current_time('mysql', true)], ['id' => $id], ['%s','%s'], ['%d']); }
 }
