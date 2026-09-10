@@ -8,7 +8,7 @@ if (! get_option('digiforge_cleanup_on_uninstall', false)) { return; }
 require_once __DIR__ . '/includes/Core/Capabilities.php';
 \DigiForge\Core\Capabilities::remove();
 global $wpdb;
-foreach (['settings','audit_log','jobs','idempotency'] as $table) { $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($wpdb->prefix . 'digiforge_' . $table) . '`'); }
+foreach (['settings','audit_log','jobs','idempotency','opportunities','product_families','products','product_versions'] as $table) { $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($wpdb->prefix . 'digiforge_' . $table) . '`'); }
 delete_option('digiforge_db_version');
 delete_option('digiforge_db_schema_version');
 delete_option('digiforge_cleanup_on_uninstall');
