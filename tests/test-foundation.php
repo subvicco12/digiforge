@@ -33,7 +33,7 @@ $job_repository = source('includes/Queue/JobRepository.php');
 expect(str_contains($job_repository, "'idempotency_key'] = null"), 'jobs without idempotency keys insert NULL');
 $logger = source('includes/Security/Logger.php');
 foreach (['password','secret','token','accesstoken','refreshtoken','clientsecret','authorization','apikey','credential','privatekey','signingkey'] as $credential_key) { expect(str_contains($logger, "'$credential_key'"), "$credential_key redaction rule declared"); }
-expect(str_contains($logger, "preg_replace('/[^a-z0-9]/i", 'credential key normalization is present');
+expect(str_contains($logger, "preg_replace('/[^a-z0-9]/i"), 'credential key normalization is present');
 $uninstall = source('uninstall.php');
 expect(str_contains($uninstall, 'if (is_multisite()) { return; }'), 'multisite uninstall is non-destructive');
 expect(str_contains($uninstall, "'digiforge_db_schema_version'"), 'schema version cleanup is present');
