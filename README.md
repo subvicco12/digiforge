@@ -15,6 +15,7 @@ DigiForge is a WordPress-native foundation for a future digital-product and prin
 * `digiforge.php` is a small bootstrap and internal PSR-4-style autoloader for the `DigiForge\` namespace. Composer is not required.
 * `includes/Core` owns lifecycle hooks, capabilities, configuration, settings and the admin entry point.
 * `includes/Database` contains table names and versioned, additive `dbDelta` migrations.
+* `includes/ProductFactory` owns the Opportunity → Product Family → Product → Product Version lifecycle and repositories.
 * `includes/Security` supplies append-oriented audit logging with recursive credential redaction.
 * `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints.
 * `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
@@ -28,8 +29,9 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_audit_log`
 * `{$wpdb->prefix}digiforge_jobs`
 * `{$wpdb->prefix}digiforge_idempotency`
+* `{$wpdb->prefix}digiforge_opportunities`, `digiforge_product_families`, `digiforge_products`, and `digiforge_product_versions`
 
-Schema versions are tracked in the `digiforge_db_version` option. The current foundation schema is version 2. Migration converts legacy empty-string job idempotency keys to `NULL`, allowing jobs without an idempotency key to coexist while retaining uniqueness for supplied keys. Migrations are additive and can be safely invoked on subsequent plugin boots. Tables use indexed state/time and lookup columns, plus UTC timestamps.
+Schema versions are tracked in the `digiforge_db_version` option. The current foundation schema is version 3. Migration converts legacy empty-string job idempotency keys to `NULL`, allowing jobs without an idempotency key to coexist while retaining uniqueness for supplied keys. Product Factory migrations add indexed relationship and lifecycle columns, plus UTC timestamps. Migrations are additive and can be safely invoked on subsequent plugin boots.
 
 ## Security model
 
@@ -45,4 +47,4 @@ No live connection, workflow, publishing, or automation exists for Etsy, Printif
 
 ## Development checks
 
-Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l` and `php tests/test-foundation.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.
+Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l`, `php tests/test-foundation.php`, and `php tests/test-product-factory.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.

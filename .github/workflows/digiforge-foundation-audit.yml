@@ -33,6 +33,9 @@ jobs:
       - name: Foundation tests
         run: php tests/test-foundation.php
 
+      - name: Product Factory tests
+        run: php tests/test-product-factory.php
+
       - name: Git diff check
         run: git diff --check
 
@@ -70,3 +73,4 @@ jobs:
           test -d automation
           test -f README.md
           test -f tests/test-foundation.php
+          test -f tests/test-product-factory.php
