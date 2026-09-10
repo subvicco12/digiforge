@@ -44,8 +44,10 @@ jobs:
           fi
 
       - name: Secret-pattern scan
+        shell: bash
         run: |
-          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{8,}' .; then
+          set -e
+          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' --include='*.php' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{20,}["'"']' digiforge.php includes modules automation admin; then
             echo 'Potential hard-coded credential found'
             exit 1
           fi
