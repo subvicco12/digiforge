@@ -19,10 +19,22 @@ foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_resea
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '2'"), 'database schema version is current');
 $settings = source('includes/Core/Settings.php');
 expect(str_contains($settings, "'cleanup_on_uninstall'"), 'uninstall cleanup is explicit');
 $rest = source('includes/REST/Controller.php');
 expect(str_contains($rest, "'digiforge/v1'"), 'REST namespace is registered');
 expect(str_contains($rest, "'permission_callback'"), 'REST permission callbacks are present');
 expect(str_contains($rest, "'manage_digiforge_automation'"), 'control writes require automation capability');
+$jobs = source('includes/Database/Migrator.php');
+expect(str_contains($jobs, 'idempotency_key varchar(191) NULL DEFAULT NULL'), 'job idempotency key permits NULL');
+expect(str_contains($jobs, "SET idempotency_key = NULL WHERE idempotency_key = ''"), 'legacy empty idempotency keys are migrated to NULL');
+$job_repository = source('includes/Queue/JobRepository.php');
+expect(str_contains($job_repository, "'idempotency_key'] = null"), 'jobs without idempotency keys insert NULL');
+$logger = source('includes/Security/Logger.php');
+foreach (['password','secret','token','accesstoken','refreshtoken','clientsecret','authorization','apikey','credential','privatekey','signingkey'] as $credential_key) { expect(str_contains($logger, "'$credential_key'"), "$credential_key redaction rule declared"); }
+expect(str_contains($logger, "preg_replace('/[^a-z0-9]/i", 'credential key normalization is present');
+$uninstall = source('uninstall.php');
+expect(str_contains($uninstall, 'if (is_multisite()) { return; }'), 'multisite uninstall is non-destructive');
+expect(str_contains($uninstall, "'digiforge_db_schema_version'"), 'schema version cleanup is present');
 echo "DigiForge foundation tests passed.\n";
