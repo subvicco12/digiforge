@@ -44,6 +44,8 @@ $encoded=$structured->invoke($repository,['files'=>[['name'=>'<b>Guide.pdf</b>',
 df_expect(is_string($encoded)&&json_decode($encoded,true)===['files'=>[['name'=>'Guide.pdf','pages'=>12]],'required'=>true],'nested structured JSON is sanitized and round-trips');
 $object_encoded=$structured->invoke($repository,(object)['result'=>(object)['reason'=>'<i>Valid</i>','attempts'=>2]]);
 df_expect(is_string($object_encoded)&&json_decode($object_encoded,true)===['result'=>['reason'=>'Valid','attempts'=>2]],'nested JSON objects round-trip as structured data');
+$keyed=$structured->invoke($repository,['a.b'=>1,'ab'=>2,'Case.Key'=>'<b>Value</b>']);
+df_expect(is_string($keyed)&&json_decode($keyed,true)===['a.b'=>1,'ab'=>2,'Case.Key'=>'Value'],'structured JSON preserves punctuation and case-sensitive keys while sanitizing values');
 $invalid_json=$structured->invoke($repository,'not-json');
 df_expect(is_wp_error($invalid_json)&&$invalid_json->get_error_data()['status']===400,'invalid structured JSON returns a validation response');
 $sanitize=new ReflectionMethod($repository,'sanitize');
@@ -53,6 +55,13 @@ $field_validation=new ReflectionMethod($repository,'validate_fields');
 $unknown=$field_validation->invoke($repository,['manifest'=>[]],['name']);
 df_expect(is_wp_error($unknown)&&$unknown->get_error_data()['status']===400,'cross-entity and unknown fields return a REST-compatible 400 validation error');
 df_expect($field_validation->invoke($repository,['name'=>'Valid'],['name'])===true,'valid create and update fields remain accepted');
+$required_validation=new ReflectionMethod($repository,'validate_required');
+$empty_required=$required_validation->invoke($repository,['required'=>['name','category']],['name'=>'','category'=>'planner']);
+df_expect(is_wp_error($empty_required)&&$empty_required->get_error_data()['status']===400,'updates cannot empty required fields');
+$zero_required=$required_validation->invoke($repository,['required'=>['digital_product_id']],['digital_product_id'=>0]);
+df_expect(is_wp_error($zero_required)&&$zero_required->get_error_data()['status']===400,'updates cannot zero required identifiers');
+df_expect($required_validation->invoke($repository,['required'=>['name','category']],['name'=>'Planner','category'=>'planner'])===true,'valid prospective required fields remain accepted');
+df_expect(str_contains($r,'$required = $this->validate_required($definition, $prospective);'),'updates validate prospective required fields before writing');
 df_expect(str_contains($r,"'update' => ['digital_file_id', 'storage_reference'")&&!str_contains($r,"'update' => ['version_label', 'digital_file_id'"),'file-version labels remain immutable through explicit allowlists');
 df_expect(str_contains($r,'validate_descendants')&&str_contains($r,'Parent reassignment would invalidate existing descendants.'),'parent reassignment validates descendants and returns a conflict');
 foreach(['digital_files()','digital_packages()','digital_previews()','digital_templates()','digital_download_checks()'] as $descendant){df_expect(str_contains($r,$descendant),"descendant ownership validates through $descendant");}
