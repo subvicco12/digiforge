@@ -1,9 +1,21 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/../includes/DigitalFactory/Lifecycle.php';
+if (! class_exists('WP_Error')) { class WP_Error { public function __construct(public string $code, public string $message, public array $data=[]) {} public function get_error_data(): array { return $this->data; } } }
+if (! function_exists('is_wp_error')) { function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; } }
+if (! function_exists('__')) { function __(string $value,string $domain=''): string { return $value; } }
+if (! function_exists('sanitize_key')) { function sanitize_key(string $value): string { return strtolower((string)preg_replace('/[^a-z0-9_\-]/i','',$value)); } }
+if (! function_exists('sanitize_text_field')) { function sanitize_text_field(string $value): string { return trim(strip_tags($value)); } }
+if (! function_exists('sanitize_textarea_field')) { function sanitize_textarea_field(string $value): string { return trim(strip_tags($value)); } }
+if (! function_exists('absint')) { function absint(mixed $value): int { return abs((int)$value); } }
+if (! function_exists('wp_json_encode')) { function wp_json_encode(mixed $value): string|false { return json_encode($value); } }
+require __DIR__.'/../includes/Database/Tables.php';
+require __DIR__.'/../includes/DigitalFactory/Validator.php';
+require __DIR__.'/../includes/DigitalFactory/Repository.php';
 function df_expect(bool $c,string $m):void{if(!$c){fwrite(STDERR,"FAIL: $m\n");exit(1);}}
 function df_source(string $p):string{return (string)file_get_contents(__DIR__.'/../'.$p);}
 use DigiForge\DigitalFactory\Lifecycle;
+use DigiForge\DigitalFactory\Repository;
 df_expect(Lifecycle::can_transition('DRAFT','FILES_PENDING'),'digital workflow starts with files');
 df_expect(Lifecycle::can_transition('QA_PENDING','QA_FAILED'),'technical QA may fail');
 df_expect(!Lifecycle::can_transition('DRAFT','PUBLISH_READY'),'workflow cannot skip QA and approval');
@@ -25,8 +37,37 @@ df_expect(str_contains($m,'Capabilities::add()'),'versioned upgrade grants the d
 $r=df_source('includes/DigitalFactory/Repository.php');
 foreach(['invalid_relationship','Product version must belong to the product','Preview must match the product and file','QA target must belong','sanitize_text_field','sanitize_textarea_field','absint','find_by_key','idempotent_replay','Logger::audit','LIMIT %d OFFSET %d','MAX_PAGE_SIZE = 100','license_code_hash'] as $rule){df_expect(str_contains($r,$rule),"repository provides $rule");}
 df_expect(str_contains($r,"\$target_type === 'digital_file_version'")&&str_contains($r,"\$target['digital_file_id']"),'file-version QA resolves its parent file before ownership validation');
-df_expect(str_contains($r,"\$type === 'digital_file_version') { unset(\$data['version_label'])"),'file-version labels are immutable on update');
 df_expect(str_contains($r,'Lifecycle::advance_readiness')&&str_contains($r,"'readiness' => wp_json_encode(\$readiness)"),'lifecycle transitions persist readiness');
+$repository=new Repository();
+$structured=new ReflectionMethod($repository,'structured_json');
+$encoded=$structured->invoke($repository,['files'=>[['name'=>'<b>Guide.pdf</b>','pages'=>12]],'required'=>true]);
+df_expect(is_string($encoded)&&json_decode($encoded,true)===['files'=>[['name'=>'Guide.pdf','pages'=>12]],'required'=>true],'nested structured JSON is sanitized and round-trips');
+$object_encoded=$structured->invoke($repository,(object)['result'=>(object)['reason'=>'<i>Valid</i>','attempts'=>2]]);
+df_expect(is_string($object_encoded)&&json_decode($object_encoded,true)===['result'=>['reason'=>'Valid','attempts'=>2]],'nested JSON objects round-trip as structured data');
+$invalid_json=$structured->invoke($repository,'not-json');
+df_expect(is_wp_error($invalid_json)&&$invalid_json->get_error_data()['status']===400,'invalid structured JSON returns a validation response');
+$sanitize=new ReflectionMethod($repository,'sanitize');
+$text=$sanitize->invoke($repository,['terms'=>" <b>Personal</b> use\nonly "]);
+df_expect($text['terms']==="Personal use\nonly",'genuinely textual long fields use textarea sanitization');
+$field_validation=new ReflectionMethod($repository,'validate_fields');
+$unknown=$field_validation->invoke($repository,['manifest'=>[]],['name']);
+df_expect(is_wp_error($unknown)&&$unknown->get_error_data()['status']===400,'cross-entity and unknown fields return a REST-compatible 400 validation error');
+df_expect($field_validation->invoke($repository,['name'=>'Valid'],['name'])===true,'valid create and update fields remain accepted');
+df_expect(str_contains($r,"'update' => ['digital_file_id', 'storage_reference'")&&!str_contains($r,"'update' => ['version_label', 'digital_file_id'"),'file-version labels remain immutable through explicit allowlists');
+df_expect(str_contains($r,'validate_descendants')&&str_contains($r,'Parent reassignment would invalidate existing descendants.'),'parent reassignment validates descendants and returns a conflict');
+foreach(['digital_files()','digital_packages()','digital_previews()','digital_templates()','digital_download_checks()'] as $descendant){df_expect(str_contains($r,$descendant),"descendant ownership validates through $descendant");}
+class DigitalFactoryWpdbStub {
+    public string $prefix='wp_';
+    public bool $has_mismatch=true;
+    public function prepare(string $query,mixed ...$args): string { return $query; }
+    public function get_var(string $query): int { return $this->has_mismatch&&str_contains($query,'product_version_id <>')?1:0; }
+}
+$wpdb=new DigitalFactoryWpdbStub();
+$descendant_validation=new ReflectionMethod($repository,'validate_descendants');
+$blocked=$descendant_validation->invoke($repository,'digital_product',10,['product_version_id'=>22]);
+df_expect(is_wp_error($blocked)&&$blocked->get_error_data()['status']===409,'parent reassignment with inconsistent descendants is rejected');
+$wpdb->has_mismatch=false;
+df_expect($descendant_validation->invoke($repository,'digital_product',10,['product_version_id'=>22])===true,'ownership reassignment is accepted when descendants remain consistent');
 foreach(['pdf_integrity','pdf_page_count','pdf_dimensions','pdf_resolution','pdf_fonts','pdf_rendering','pdf_blank_pages','pdf_links','pdf_file_size','image_dimensions','image_transparency','image_corruption','archive_integrity','archive_required_files','archive_folder_structure','archive_file_naming','archive_package_size','template_reference','template_access_instructions','template_preview_relationship','preview_relationship','checksum','package_generation'] as $check){df_expect(str_contains(df_source('includes/DigitalFactory/Validator.php'),$check),"$check is supported");}
 $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-products','digital-files','digital-file-versions','digital-packages','digital-previews','digital-templates','digital-licenses','digital-download-checks','permission_callback','manage_digiforge_digital','Idempotency-Key','X-WP-Total','X-WP-TotalPages'] as $v){df_expect(str_contains($api,$v),"REST exposes $v");}
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}
