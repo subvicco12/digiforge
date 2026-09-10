@@ -62,6 +62,12 @@ $zero_required=$required_validation->invoke($repository,['required'=>['digital_p
 df_expect(is_wp_error($zero_required)&&$zero_required->get_error_data()['status']===400,'updates cannot zero required identifiers');
 df_expect($required_validation->invoke($repository,['required'=>['name','category']],['name'=>'Planner','category'=>'planner'])===true,'valid prospective required fields remain accepted');
 df_expect(str_contains($r,'$required = $this->validate_required($definition, $prospective);'),'updates validate prospective required fields before writing');
+$special_validation=new ReflectionMethod($repository,'validate_special_fields');
+$partial_check=$special_validation->invoke($repository,'digital_download_check',['details'=>'{"note":"kept"}'],['details'=>['note'=>'kept']],false);
+df_expect(!array_key_exists('validation_result',$partial_check)&&!array_key_exists('review_status',$partial_check),'partial QA updates preserve omitted validation and review statuses');
+$created_check=$special_validation->invoke($repository,'digital_download_check',[],[],true);
+df_expect($created_check['validation_result']==='PENDING'&&$created_check['review_status']==='UNREVIEWED','new QA checks still receive default statuses');
+df_expect(str_contains($r,'validate_special_fields($type, $data, $input, true)')&&str_contains($r,'validate_special_fields($type, $data, $input, false)'),'create applies QA defaults while update does not');
 df_expect(str_contains($r,"'update' => ['digital_file_id', 'storage_reference'")&&!str_contains($r,"'update' => ['version_label', 'digital_file_id'"),'file-version labels remain immutable through explicit allowlists');
 df_expect(str_contains($r,'validate_descendants')&&str_contains($r,'Parent reassignment would invalidate existing descendants.'),'parent reassignment validates descendants and returns a conflict');
 foreach(['digital_files()','digital_packages()','digital_previews()','digital_templates()','digital_download_checks()'] as $descendant){df_expect(str_contains($r,$descendant),"descendant ownership validates through $descendant");}
