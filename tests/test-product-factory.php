@@ -11,8 +11,8 @@ function pf_expect(bool $condition, string $message): void { if (! $condition) {
 function pf_source(string $path): string { return (string) file_get_contents(__DIR__ . '/../' . $path); }
 
 $bootstrap = pf_source('digiforge.php');
-pf_expect(str_contains($bootstrap, '* Version: 0.2.0'), 'plugin header version matches the runtime version');
-pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '0.2.0'"), 'runtime version is 0.2.0');
+pf_expect(str_contains($bootstrap, '* Version: 0.3.0'), 'plugin header version matches the runtime version');
+pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '0.3.0'"), 'runtime version is 0.3.0');
 
 pf_expect(Lifecycle::initial('opportunity') === 'NEW', 'opportunities begin NEW');
 foreach (['product_family', 'product', 'product_version'] as $type) { pf_expect(Lifecycle::initial($type) === 'DRAFT', "$type begins DRAFT"); }
@@ -31,7 +31,7 @@ foreach ($invalid as [$type, $from, $to]) { pf_expect(! Lifecycle::can_transitio
 $migration = pf_source('includes/Database/Migrator.php');
 foreach (['opportunities()', 'product_families()', 'products()', 'product_versions()'] as $table) { pf_expect(str_contains($migration, $table), "$table migration exists"); }
 foreach (['opportunity_id', 'product_family_id', 'product_id', 'UNIQUE KEY idempotency_key', 'UNIQUE KEY product_version'] as $schema) { pf_expect(str_contains($migration, $schema), "$schema schema rule exists"); }
-pf_expect(str_contains($migration, "digiforge_db_schema_version', 3"), 'schema migration is versioned');
+pf_expect(str_contains($migration, "digiforge_db_schema_version', 4"), 'schema migration is versioned');
 
 $repository = pf_source('includes/ProductFactory/Repository.php');
 foreach (['sanitize_text_field', 'sanitize_textarea_field', 'absint', 'invalid_relationship', 'idempotent_replay', 'find_by_key', 'Logger::audit', 'invalid_transition'] as $contract) { pf_expect(str_contains($repository, $contract), "$contract repository contract exists"); }
