@@ -7,9 +7,10 @@ final class Migrator {
     public function maybe_migrate(): void { if ((string) get_option('digiforge_db_version', '0') !== DIGIFORGE_DB_VERSION) { $this->migrate(); } }
     public function migrate(): void {
         global $wpdb; require_once ABSPATH . 'wp-admin/includes/upgrade.php'; $charset = $wpdb->get_charset_collate();
+        $schema_version = (int) get_option('digiforge_db_schema_version', 0);
         // V2 converts the empty-string sentinel to NULL so jobs without an idempotency key can coexist.
         $existing_jobs_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::jobs())));
-        if ($existing_jobs_table === Tables::jobs() && (int) get_option('digiforge_db_schema_version', 0) < 2) {
+        if ($existing_jobs_table === Tables::jobs() && $schema_version < 2) {
             $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
         }
         $sql = [
@@ -29,11 +30,12 @@ final class Migrator {
             'CREATE TABLE ' . Tables::digital_templates() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, digital_file_id bigint(20) unsigned NOT NULL, digital_preview_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, template_reference varchar(255) NOT NULL DEFAULT '', access_instructions longtext NULL, status varchar(32) NOT NULL DEFAULT 'DRAFT', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_file (digital_product_id,digital_file_id), KEY preview_status (digital_preview_id,status)) $charset;",
             'CREATE TABLE ' . Tables::digital_licenses() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, license_type varchar(64) NOT NULL, terms longtext NULL, license_code_hash char(64) NOT NULL DEFAULT '', status varchar(32) NOT NULL DEFAULT 'ACTIVE', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_status (digital_product_id,status)) $charset;",
             'CREATE TABLE ' . Tables::digital_download_checks() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, target_type varchar(32) NOT NULL, target_id bigint(20) unsigned NOT NULL, check_type varchar(64) NOT NULL, validation_result varchar(20) NOT NULL DEFAULT 'PENDING', failure_reason varchar(255) NOT NULL DEFAULT '', review_status varchar(20) NOT NULL DEFAULT 'UNREVIEWED', details longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_result (digital_product_id,validation_result), KEY target_check (target_type,target_id,check_type), KEY review_updated (review_status,updated_at)) $charset;",
+            'CREATE TABLE ' . Tables::integrations() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, provider varchar(32) NOT NULL, connection_key varchar(100) NOT NULL, display_name varchar(191) NOT NULL, status varchar(20) NOT NULL DEFAULT 'DISCONNECTED', enabled tinyint(1) unsigned NOT NULL DEFAULT 0, config longtext NULL, last_health_status varchar(20) NOT NULL DEFAULT '', last_health_at datetime NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY provider_connection (provider,connection_key), KEY provider_status (provider,status), KEY enabled_updated (enabled,updated_at)) $charset;",
+            'CREATE TABLE ' . Tables::integration_secrets() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, integration_id bigint(20) unsigned NOT NULL, secret_name varchar(100) NOT NULL, ciphertext longtext NOT NULL, fingerprint char(16) NOT NULL, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY integration_secret (integration_id,secret_name), KEY integration_updated (integration_id,updated_at)) $charset;",
         ];
         foreach ($sql as $statement) { dbDelta($statement); }
-        // Versioned upgrades grant only the capability introduced by the Digital Factory migration.
-        Capabilities::addDigital();
-        update_option('digiforge_db_schema_version', 4, false);
+        if ($schema_version < 4) { Capabilities::addDigital(); }
+        update_option('digiforge_db_schema_version', 5, false);
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
     }
 }
