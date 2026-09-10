@@ -45,14 +45,14 @@ jobs:
 
       - name: Secret-pattern scan
         run: |
-          if grep -RniE --exclude-dir=.git '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{8,}' .; then
+          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{8,}' .; then
             echo 'Potential hard-coded credential found'
             exit 1
           fi
 
       - name: External HTTP client scan
         run: |
-          if grep -RniE --exclude-dir=.git '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' .; then
+          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' .; then
             echo 'Unexpected external HTTP client usage found in foundation'
             exit 1
           fi
