@@ -50,6 +50,7 @@ final class Repository {
             'update' => ['digital_product_id', 'target_type', 'target_id', 'check_type', 'validation_result', 'failure_reason', 'review_status', 'details'],
         ],
     ];
+    private const RELATIONSHIP_IDS = ['product_id', 'product_version_id', 'digital_product_id', 'digital_file_id', 'digital_preview_id', 'target_id'];
     private const IDS = ['product_id', 'product_version_id', 'digital_product_id', 'digital_file_id', 'digital_preview_id', 'target_id', 'byte_size'];
     private const TEXT = ['name', 'category', 'file_type', 'mime_type', 'storage_reference', 'version_label', 'generation_status', 'preview_reference', 'template_reference', 'license_type', 'target_type', 'failure_reason', 'status'];
     private const TEXTAREA = ['access_instructions', 'terms'];
@@ -139,7 +140,16 @@ final class Repository {
     private function sanitize(array $input): array|\WP_Error {
         $data = [];
         foreach ($input as $field => $value) {
-            if (in_array($field, self::IDS, true)) { if (! is_scalar($value)) { return $this->error('validation', "$field must be numeric."); } $data[$field] = absint($value); }
+            if (in_array($field, self::RELATIONSHIP_IDS, true)) {
+                if (is_int($value)) { if ($value < 1) { return $this->error('validation', "$field must be a positive integer."); } $data[$field] = $value; }
+                elseif (is_string($value) && preg_match('/^[1-9][0-9]*$/', $value) === 1) { $data[$field] = (int) $value; }
+                else { return $this->error('validation', "$field must be a positive integer."); }
+            }
+            elseif ($field === 'byte_size') {
+                if (is_int($value)) { if ($value < 0) { return $this->error('validation', 'byte_size must be a non-negative integer.'); } $data[$field] = $value; }
+                elseif (is_string($value) && preg_match('/^(0|[1-9][0-9]*)$/', $value) === 1) { $data[$field] = (int) $value; }
+                else { return $this->error('validation', 'byte_size must be a non-negative integer.'); }
+            }
             elseif (in_array($field, self::TEXT, true)) { if (! is_scalar($value)) { return $this->error('validation', "$field must be text."); } $data[$field] = sanitize_text_field((string) $value); }
             elseif (in_array($field, self::TEXTAREA, true)) { if (! is_scalar($value)) { return $this->error('validation', "$field must be text."); } $data[$field] = sanitize_textarea_field((string) $value); }
             elseif (in_array($field, self::STRUCTURED, true)) { $encoded = $this->structured_json($value); if (is_wp_error($encoded)) { return $encoded; } $data[$field] = $encoded; }
@@ -156,9 +166,7 @@ final class Repository {
             if (is_object($item)) { $item = get_object_vars($item); }
             if (is_array($item)) {
                 $clean = [];
-                foreach ($item as $key => $child) {
-                    $clean[$key] = $sanitize($child);
-                }
+                foreach ($item as $key => $child) { $clean[$key] = $sanitize($child); }
                 return $clean;
             }
             if (is_string($item)) { return sanitize_text_field($item); }
