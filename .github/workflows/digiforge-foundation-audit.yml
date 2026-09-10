@@ -39,6 +39,9 @@ jobs:
       - name: Digital Product Factory tests
         run: php tests/test-digital-product-factory.php
 
+      - name: Integrations Foundation tests
+        run: php tests/test-integrations-foundation.php
+
       - name: Git diff check
         run: git diff --check
 
@@ -76,3 +79,4 @@ jobs:
           test -d automation
           test -f README.md
           test -f tests/test-foundation.php
+          test -f tests/test-integrations-foundation.php
