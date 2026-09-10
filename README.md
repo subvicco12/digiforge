@@ -17,6 +17,7 @@ DigiForge is a WordPress-native foundation for a future digital-product and prin
 * `includes/Database` contains table names and versioned, additive `dbDelta` migrations.
 * `includes/Security` supplies append-oriented audit logging with recursive credential redaction.
 * `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints.
+* `includes/DigitalFactory` owns digital-product lifecycle/readiness policy, local QA vocabularies, persistence, and WordPress admin views.
 * `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
 * `modules`, `automation`, and `admin` reserve stable module boundaries for future implementation.
 
@@ -32,12 +33,26 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_product_families`
 * `{$wpdb->prefix}digiforge_products`
 * `{$wpdb->prefix}digiforge_product_versions`
+* `{$wpdb->prefix}digiforge_digital_products`
+* `{$wpdb->prefix}digiforge_digital_files`
+* `{$wpdb->prefix}digiforge_digital_file_versions`
+* `{$wpdb->prefix}digiforge_digital_packages`
+* `{$wpdb->prefix}digiforge_digital_previews`
+* `{$wpdb->prefix}digiforge_digital_templates`
+* `{$wpdb->prefix}digiforge_digital_licenses`
+* `{$wpdb->prefix}digiforge_digital_download_checks`
 
-Schema versions are tracked in the `digiforge_db_version` option. The current schema is version 3. Version 2 converted legacy empty-string job idempotency keys to `NULL`; version 3 adds Product Factory records and their indexed parent relationships. Migrations are additive and can be safely invoked on subsequent plugin boots. Tables use indexed state/time and lookup columns, plus UTC timestamps.
+Schema versions are tracked in the `digiforge_db_version` option. The current schema is version 4. Version 2 converted legacy empty-string job idempotency keys to `NULL`; version 3 added Product Factory records; version 4 adds Digital Product Factory records and indexed relationships. Migrations are additive and can be safely invoked on subsequent plugin boots. Tables use indexed state/time and lookup columns, plus UTC timestamps.
 
 ## Product Factory
 
 The local-only Product Factory models the chain **Opportunity → Product Family → Product → Product Version**. Creation accepts an `Idempotency-Key` header, validates that each parent exists, and starts every record in its defined initial state. Strict lifecycle transitions are enforced by the repository and every successful creation or state change is written to the audit log. Capability-gated collection, item, and state endpoints are available below `/wp-json/digiforge/v1/`; no endpoint performs external HTTP requests or starts automation.
+
+## Digital Product Factory
+
+The Digital Product Factory extends a Product Version with local digital products, files and immutable file-version labels, packages, previews, editable-template references, hashed license codes, and technical QA/download-check records. Categories are sanitized configurable slugs, so planners, journals, worksheets, graphics, templates, bundles, and future categories use the same model. Cross-record writes reject mismatched Product Factory versions, products, files, and previews.
+
+Its internal readiness path covers file preparation, technical/content/visual/commercial/copyright-policy-profitability QA, listing readiness, human approval, platform-draft intent, and final validation. `PUBLISH_READY` is only an internal state: this release contains no publisher. QA records support PDF, image, archive, template, relationship, checksum, and package-generation checks while deliberately doing no live processing. Authenticated REST collection/detail/create/update/state routes use bounded pagination and the `manage_digiforge_digital` capability; matching wp-admin pages remain part of DigiForge rather than a separate application.
 
 ## Security model
 
@@ -53,4 +68,4 @@ No live connection, workflow, publishing, or automation exists for Etsy, Printif
 
 ## Development checks
 
-Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l`, `php tests/test-foundation.php`, and `php tests/test-product-factory.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.
+Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l`, `php tests/test-foundation.php`, `php tests/test-product-factory.php`, and `php tests/test-digital-product-factory.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.

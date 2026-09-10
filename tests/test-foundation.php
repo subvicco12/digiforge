@@ -15,11 +15,11 @@ foreach (['QUEUED','RUNNING','WAITING','RETRY','SUCCESS','FAILED','BLOCKED','CAN
 expect(JobState::terminal('SUCCESS'), 'success is terminal');
 expect(! JobState::terminal('RUNNING'), 'running is non-terminal');
 $capabilities = source('includes/Core/Capabilities.php');
-foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_research','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) { expect(str_contains($capabilities, "'$capability'"), "$capability capability declared"); }
+foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digital','manage_digiforge_research','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) { expect(str_contains($capabilities, "'$capability'"), "$capability capability declared"); }
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '3'"), 'database schema version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '4'"), 'database schema version is current');
 $settings = source('includes/Core/Settings.php');
 expect(str_contains($settings, "'cleanup_on_uninstall'"), 'uninstall cleanup is explicit');
 $rest = source('includes/REST/Controller.php');

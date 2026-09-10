@@ -11,4 +11,12 @@ final class Tables {
     public static function product_families(): string { return self::name('product_families'); }
     public static function products(): string { return self::name('products'); }
     public static function product_versions(): string { return self::name('product_versions'); }
+    public static function digital_products(): string { return self::name('digital_products'); }
+    public static function digital_files(): string { return self::name('digital_files'); }
+    public static function digital_file_versions(): string { return self::name('digital_file_versions'); }
+    public static function digital_packages(): string { return self::name('digital_packages'); }
+    public static function digital_previews(): string { return self::name('digital_previews'); }
+    public static function digital_templates(): string { return self::name('digital_templates'); }
+    public static function digital_licenses(): string { return self::name('digital_licenses'); }
+    public static function digital_download_checks(): string { return self::name('digital_download_checks'); }
 }

@@ -36,6 +36,9 @@ jobs:
       - name: Product Factory tests
         run: php tests/test-product-factory.php
 
+      - name: Digital Product Factory tests
+        run: php tests/test-digital-product-factory.php
+
       - name: Git diff check
         run: git diff --check
 
