@@ -28,8 +28,16 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_audit_log`
 * `{$wpdb->prefix}digiforge_jobs`
 * `{$wpdb->prefix}digiforge_idempotency`
+* `{$wpdb->prefix}digiforge_opportunities`
+* `{$wpdb->prefix}digiforge_product_families`
+* `{$wpdb->prefix}digiforge_products`
+* `{$wpdb->prefix}digiforge_product_versions`
 
-Schema versions are tracked in the `digiforge_db_version` option. The current foundation schema is version 2. Migration converts legacy empty-string job idempotency keys to `NULL`, allowing jobs without an idempotency key to coexist while retaining uniqueness for supplied keys. Migrations are additive and can be safely invoked on subsequent plugin boots. Tables use indexed state/time and lookup columns, plus UTC timestamps.
+Schema versions are tracked in the `digiforge_db_version` option. The current schema is version 3. Version 2 converted legacy empty-string job idempotency keys to `NULL`; version 3 adds Product Factory records and their indexed parent relationships. Migrations are additive and can be safely invoked on subsequent plugin boots. Tables use indexed state/time and lookup columns, plus UTC timestamps.
+
+## Product Factory
+
+The local-only Product Factory models the chain **Opportunity → Product Family → Product → Product Version**. Creation accepts an `Idempotency-Key` header, validates that each parent exists, and starts every record in its defined initial state. Strict lifecycle transitions are enforced by the repository and every successful creation or state change is written to the audit log. Capability-gated collection, item, and state endpoints are available below `/wp-json/digiforge/v1/`; no endpoint performs external HTTP requests or starts automation.
 
 ## Security model
 
@@ -45,4 +53,4 @@ No live connection, workflow, publishing, or automation exists for Etsy, Printif
 
 ## Development checks
 
-Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l` and `php tests/test-foundation.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.
+Run `find . -name '*.php' -print0 | xargs -0 -n1 php -l`, `php tests/test-foundation.php`, and `php tests/test-product-factory.php` from the plugin root. The tests are lightweight and PHP-only so they can run without a WordPress installation.
