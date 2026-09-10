@@ -71,7 +71,7 @@ final class Repository {
         $relationship = $this->validate_relationships($type, $data);
         if (is_wp_error($relationship)) { return $relationship; }
         if ($type === 'digital_product') { $data['state'] = 'DRAFT'; $data['readiness'] = wp_json_encode(Lifecycle::readiness()); }
-        $validated = $this->validate_special_fields($type, $data, $input);
+        $validated = $this->validate_special_fields($type, $data, $input, true);
         if (is_wp_error($validated)) { return $validated; }
         $data = $validated;
         $now = current_time('mysql', true); $data += ['idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
@@ -90,7 +90,7 @@ final class Repository {
         $data = $this->sanitize($input);
         if (is_wp_error($data)) { return $data; }
         if ($data === []) { return $this->error('validation', 'No writable fields supplied.'); }
-        $validated = $this->validate_special_fields($type, $data, $input);
+        $validated = $this->validate_special_fields($type, $data, $input, false);
         if (is_wp_error($validated)) { return $validated; }
         $data = $validated;
         $prospective = $data + $current;
@@ -167,14 +167,14 @@ final class Repository {
         $encoded = wp_json_encode($sanitize($value));
         return is_string($encoded) ? $encoded : $this->error('validation', 'Structured field could not be encoded.');
     }
-    private function validate_special_fields(string $type, array $data, array $input): array|\WP_Error {
+    private function validate_special_fields(string $type, array $data, array $input, bool $apply_defaults = false): array|\WP_Error {
         if (isset($input['checksum_sha256'])) { $checksum = Validator::checksum((string) $input['checksum_sha256']); if ($checksum === '' && $input['checksum_sha256'] !== '') { return $this->error('validation', 'Checksum must be SHA-256.'); } $data['checksum_sha256'] = $checksum; }
         if ($type === 'digital_download_check') {
             foreach (['check_type' => 'check', 'validation_result' => 'result', 'review_status' => 'review'] as $field => $method) {
                 if (isset($input[$field])) { $data[$field] = Validator::$method((string) $input[$field]); if ($data[$field] === '') { return $this->error('validation', "Invalid $field."); } }
             }
-            if (! isset($data['validation_result'])) { $data['validation_result'] = 'PENDING'; }
-            if (! isset($data['review_status'])) { $data['review_status'] = 'UNREVIEWED'; }
+            if ($apply_defaults && ! isset($data['validation_result'])) { $data['validation_result'] = 'PENDING'; }
+            if ($apply_defaults && ! isset($data['review_status'])) { $data['review_status'] = 'UNREVIEWED'; }
         }
         return $data;
     }
