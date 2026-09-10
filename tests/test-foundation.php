@@ -19,7 +19,7 @@ foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digit
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '4'"), 'database schema version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '5'"), 'database schema version is current');
 $settings = source('includes/Core/Settings.php');
 expect(str_contains($settings, "'cleanup_on_uninstall'"), 'uninstall cleanup is explicit');
 $rest = source('includes/REST/Controller.php');
