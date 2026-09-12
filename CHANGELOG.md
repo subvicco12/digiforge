@@ -6,6 +6,10 @@ All notable DigiForge changes are recorded here.
 
 ### Added
 
+- Ordered and resumable schema migration plan through version 5.
+- Compare-and-set job transitions, bounded leases, retry scheduling, and dead-letter controls.
+- Structured health snapshots and observable audit-write failures.
+- WordPress and MariaDB schema integration testing.
 - Fail-closed automation arming guard.
 - Typed non-secret settings registry and validation.
 - PHPUnit unit-test foundation and WordPress integration-test bootstrap.
