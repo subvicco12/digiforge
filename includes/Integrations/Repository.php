@@ -50,7 +50,8 @@ final class Repository {
         if (! $this->find($integrationId)) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '' || $plaintext === '') { return new \WP_Error('invalid_secret', __('Secret name and value are required.', 'digiforge'), ['status' => 400]); }
-        try { $ciphertext = CredentialVault::encrypt($plaintext); $fingerprint = CredentialVault::fingerprint($plaintext); }
+        $context = self::secretContext($integrationId, $name);
+        try { $ciphertext = CredentialVault::encrypt($plaintext, $context); $fingerprint = CredentialVault::fingerprint($plaintext, $context); }
         catch (\Throwable $e) { return new \WP_Error('secret_encryption_failed', __('Credential encryption is unavailable.', 'digiforge'), ['status' => 500]); }
         $now = current_time('mysql', true);
         $existing = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s', $integrationId, $name));
@@ -64,6 +65,10 @@ final class Repository {
     public function secretMetadata(int $integrationId): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare('SELECT secret_name,fingerprint,updated_at FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d ORDER BY secret_name', $integrationId), ARRAY_A) ?: [];
+    }
+
+    public static function secretContext(int $integrationId, string $name): string {
+        return 'integration:' . $integrationId . ':secret:' . sanitize_key($name);
     }
 
     private function containsCredentialField(array $data): bool {
