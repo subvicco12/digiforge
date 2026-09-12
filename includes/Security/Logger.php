@@ -63,11 +63,16 @@ final class Logger
         return is_array($persisted) ? array_map('strval', $persisted) : null;
     }
 
+    public static function isCredentialKey(string $key): bool
+    {
+        $normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $key));
+        return in_array($normalized, self::REDACT, true);
+    }
+
     public static function redact(array $context): array
     {
         foreach ($context as $key => $value) {
-            $normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
-            if (in_array($normalized, self::REDACT, true)) {
+            if (self::isCredentialKey((string) $key)) {
                 $context[$key] = '[REDACTED]';
             } elseif (is_array($value)) {
                 $context[$key] = self::redact($value);
