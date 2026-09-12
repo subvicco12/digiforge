@@ -1,0 +1,8 @@
+parameters:
+    level: 8
+    paths:
+        - includes/Core/Config.php
+        - includes/ProductFactory/Lifecycle.php
+        - includes/DigitalFactory/Lifecycle.php
+    tmpDir: .phpstan.cache
+    treatPhpDocTypesAsCertain: false

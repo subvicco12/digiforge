@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<ruleset name="DigiForge">
+    <description>DigiForge baseline coding standard for safety policy and tests.</description>
+    <file>includes/Core/Config.php</file>
+    <file>tests/unit</file>
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <arg name="colors"/>
+    <arg value="p"/>
+    <rule ref="PSR12"/>
+</ruleset>

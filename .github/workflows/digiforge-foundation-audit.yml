@@ -1,16 +1,28 @@
-name: DigiForge Foundation Audit
+name: DigiForge Engineering and Safety Audit
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [codex/build-digiforge-wordpress-plugin-foundation]
+    branches:
+      - main
+      - 'build/**'
+      - 'phase-**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: digiforge-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  foundation-audit:
+  engineering-safety-audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout PR source
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up PHP 8.3
@@ -18,6 +30,13 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer manifest
+        run: composer validate --strict --no-check-lock
+
+      - name: Install quality tools
+        run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: PHP syntax checks
         shell: bash
@@ -27,25 +46,19 @@ jobs:
           while IFS= read -r -d '' file; do
             echo "Linting $file"
             php -l "$file" || status=1
-          done < <(find . -name '*.php' -not -path './.git/*' -print0)
+          done < <(find . -name '*.php' -not -path './.git/*' -not -path './vendor/*' -print0)
           exit "$status"
 
-      - name: Foundation tests
-        run: php tests/test-foundation.php
-
-      - name: Product Factory tests
-        run: php tests/test-product-factory.php
-
-      - name: Digital Product Factory tests
-        run: php tests/test-digital-product-factory.php
+      - name: Legacy and unit tests
+        run: composer test
 
       - name: Git diff check
         run: git diff --check
 
-      - name: FIELDORA scan
+      - name: Legacy FIELDORA scan
         run: |
-          if grep -Rni --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' 'fieldora' .; then
-            echo 'FIELDORA identifier found'
+          if grep -Rni --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' 'fieldora' .; then
+            echo 'Legacy FIELDORA identifier found'
             exit 1
           fi
 
@@ -53,26 +66,36 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' --include='*.php' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{20,}["'"']' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --include='*.php' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{20,}["'"']' digiforge.php includes modules automation admin; then
             echo 'Potential hard-coded credential found'
             exit 1
           fi
 
       - name: External HTTP client scan
         run: |
-          if grep -RniE --exclude-dir=.git --exclude='digiforge-foundation-audit.yml' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' .; then
-            echo 'Unexpected external HTTP client usage found in foundation'
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+            echo 'Unexpected external HTTP client usage found'
             exit 1
           fi
 
-      - name: Plugin packaging check
+      - name: Build reproducible plugin package
+        run: bash bin/package-plugin.sh
+
+      - name: Verify package boundaries
         run: |
           set -e
-          test -f digiforge.php
-          test -f uninstall.php
-          test -d includes
-          test -d modules
-          test -d admin
-          test -d automation
-          test -f README.md
-          test -f tests/test-foundation.php
+          unzip -l build/digiforge.zip > build/package-files.txt
+          grep -q 'digiforge/digiforge.php' build/package-files.txt
+          grep -q 'digiforge/uninstall.php' build/package-files.txt
+          ! grep -Eq '(^|/)(vendor|tests|docs|\.github|bin)/' build/package-files.txt
+          sha256sum --check build/digiforge.zip.sha256
+
+      - name: Upload audited package
+        uses: actions/upload-artifact@v4
+        with:
+          name: digiforge-plugin-${{ github.sha }}
+          path: |
+            build/digiforge.zip
+            build/digiforge.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
