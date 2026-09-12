@@ -7,6 +7,7 @@ use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
 use DigiForge\REST\IntegrationsController;
+use DigiForge\REST\ResearchController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -24,6 +25,7 @@ final class Plugin {
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
         (new IntegrationsController())->register();
+        (new ResearchController())->register();
         (new Scheduler())->register();
         if (is_admin()) {
             (new Admin())->register();
