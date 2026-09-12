@@ -62,7 +62,7 @@ expect(str_contains($jobs, 'idempotency_key varchar(191) NULL DEFAULT NULL'), 'j
 expect(str_contains($jobs, "SET idempotency_key = NULL WHERE idempotency_key = ''"), 'legacy empty idempotency keys are migrated to NULL');
 
 $jobRepository = source('includes/Queue/JobRepository.php');
-expect(str_contains($jobRepository, "'idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null"), 'jobs without idempotency keys insert NULL');
+expect(str_contains($jobRepository, "'idempotency_key' => \$idempotencyKey !== '' ? \$idempotencyKey : null"), 'jobs without idempotency keys insert NULL');
 expect(str_contains($jobRepository, 'JobState::canTransition'), 'jobs enforce legal transitions');
 expect(str_contains($jobRepository, 'lease_expires_at'), 'jobs use expiring leases');
 
