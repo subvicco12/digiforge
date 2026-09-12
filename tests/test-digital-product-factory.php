@@ -41,8 +41,8 @@ df_expect(str_contains($capabilities,"add_cap('manage_digiforge_digital')"),'tar
 df_expect(str_contains($capabilities,'foreach (self::ALL as $cap)'),'fresh activation retains full DigiForge capability grant');
 $r=df_source('includes/DigitalFactory/Repository.php');
 foreach(['invalid_relationship','Product version must belong to the product','Preview must match the product and file','QA target must belong','sanitize_text_field','sanitize_textarea_field','find_by_key','idempotent_replay','Logger::audit','LIMIT %d OFFSET %d','MAX_PAGE_SIZE = 100','license_code_hash'] as $rule){df_expect(str_contains($r,$rule),"repository provides $rule");}
-df_expect(str_contains($r,"$target_type === 'digital_file_version'")&&str_contains($r,"$target['digital_file_id']"),'file-version QA resolves its parent file before ownership validation');
-df_expect(str_contains($r,'Lifecycle::advance_readiness')&&str_contains($r,"'readiness' => wp_json_encode($readiness)"),'lifecycle transitions persist readiness');
+df_expect(str_contains($r,"\$target_type === 'digital_file_version'")&&str_contains($r,"\$target['digital_file_id']"),'file-version QA resolves its parent file before ownership validation');
+df_expect(str_contains($r,'Lifecycle::advance_readiness')&&str_contains($r,"'readiness' => wp_json_encode(\$readiness)"),'lifecycle transitions persist readiness');
 $repository=new Repository();
 $structured=new ReflectionMethod($repository,'structured_json');
 $encoded=$structured->invoke($repository,['files'=>[['name'=>'<b>Guide.pdf</b>','pages'=>12]],'required'=>true]);
@@ -103,7 +103,7 @@ df_expect($descendant_validation->invoke($repository,'digital_product',10,['prod
 foreach(['pdf_integrity','pdf_page_count','pdf_dimensions','pdf_resolution','pdf_fonts','pdf_rendering','pdf_blank_pages','pdf_links','pdf_file_size','image_dimensions','image_transparency','image_corruption','archive_integrity','archive_required_files','archive_folder_structure','archive_file_naming','archive_package_size','template_reference','template_access_instructions','template_preview_relationship','preview_relationship','checksum','package_generation'] as $check){df_expect(str_contains(df_source('includes/DigitalFactory/Validator.php'),$check),"$check is supported");}
 $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-products','digital-files','digital-file-versions','digital-packages','digital-previews','digital-templates','digital-licenses','digital-download-checks','permission_callback','manage_digiforge_digital','Idempotency-Key','X-WP-Total','X-WP-TotalPages'] as $v){df_expect(str_contains($api,$v),"REST exposes $v");}
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}
-df_expect(str_contains($admin,"$_GET['paged']")&&str_contains($admin,'all($type,$page)')&&str_contains($admin,'paginate_links')&&str_contains($admin,"['total_pages']"),'admin lists provide page navigation beyond the first repository page');
+df_expect(str_contains($admin,"\$_GET['paged']")&&str_contains($admin,'all($type,$page)')&&str_contains($admin,'paginate_links')&&str_contains($admin,"['total_pages']"),'admin lists provide page navigation beyond the first repository page');
 $bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.4.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.4.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '6'"),'versions synchronized');
 require_once __DIR__.'/../includes/Core/Config.php';
 $defaults=\DigiForge\Core\Config::default_settings();
