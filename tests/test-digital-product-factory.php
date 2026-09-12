@@ -105,5 +105,8 @@ $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}
 df_expect(str_contains($admin,"\$_GET['paged']")&&str_contains($admin,'all($type,$page)')&&str_contains($admin,'paginate_links')&&str_contains($admin,"['total_pages']"),'admin lists provide page navigation beyond the first repository page');
 $bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.3.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.3.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '4'"),'versions synchronized');
-$config=df_source('includes/Core/Config.php');df_expect(!str_contains($config,"=> true"),'automation remains OFF');
+require_once __DIR__.'/../includes/Core/Config.php';
+$defaults=\DigiForge\Core\Config::default_settings();
+df_expect($defaults['stop_all']===true&&$defaults['automation_armed']===false,'automation safety defaults are fail-closed');
+foreach(\DigiForge\Core\Config::SWITCHES as $switch){if($switch!=='stop_all'){df_expect($defaults[$switch]===false,"$switch remains OFF");}}
 echo "DigiForge Digital Product Factory tests passed.\n";

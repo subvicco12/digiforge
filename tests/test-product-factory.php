@@ -48,6 +48,13 @@ foreach (["'page' =>", "'per_page' =>", 'Repository::MAX_PAGE_SIZE', 'X-WP-Total
 $admin = pf_source('includes/Core/Admin.php');
 pf_expect(str_contains($admin, 'digiforge-product-factory'), 'Product Factory admin page is registered');
 pf_expect(str_contains($admin, "'manage_digiforge_products'"), 'admin page is capability gated');
-foreach (Config::default_settings() as $key => $value) { pf_expect($value === false, "$key automation default remains OFF"); }
+$defaults = Config::default_settings();
+pf_expect($defaults['stop_all'] === true, 'STOP ALL defaults ON');
+pf_expect($defaults['automation_armed'] === false, 'automation defaults unarmed');
+foreach (Config::SWITCHES as $switch) {
+    if ($switch !== 'stop_all') {
+        pf_expect($defaults[$switch] === false, "$switch automation default remains OFF");
+    }
+}
 
 echo "DigiForge Product Factory tests passed.\n";
