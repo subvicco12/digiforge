@@ -31,6 +31,7 @@ final class Plugin {
             (new Admin())->register();
             (new \DigiForge\DigitalFactory\Admin())->register();
             (new \DigiForge\Integrations\Admin())->register();
+            (new \DigiForge\Research\Admin())->register();
         }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
