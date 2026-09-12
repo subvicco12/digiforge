@@ -24,14 +24,14 @@ expect(JobState::terminal('SUCCESS'), 'success is terminal');
 expect(! JobState::terminal('RUNNING'), 'running is non-terminal');
 
 $capabilities = source('includes/Core/Capabilities.php');
-foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digital','manage_digiforge_research','manage_digiforge_ai','manage_digiforge_production','manage_digiforge_pod','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) { expect(str_contains($capabilities, "'$capability'"), "$capability capability declared"); }
+foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digital','manage_digiforge_research','manage_digiforge_ai','manage_digiforge_production','manage_digiforge_pod','manage_digiforge_listings','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) { expect(str_contains($capabilities, "'$capability'"), "$capability capability declared"); }
 
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '10'"), 'database schema version is current');
-expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.7\.0\s*$/m', $bootstrap), 'plugin header release version is current');
-expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.7\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '11'"), 'database schema version is current');
+expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.8\.0\s*$/m', $bootstrap), 'plugin header release version is current');
+expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.8\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
 
 $settings = source('includes/Core/Settings.php');
 foreach (['automation_armed', "self::get('stop_all', true)", 'Config::valid_value', 'safety_locked'] as $guard) { expect(str_contains($settings, $guard), "$guard fail-closed guard exists"); }
@@ -54,12 +54,24 @@ $podSchema = source('includes/Database/PodSchema.php');
 foreach (['pod_catalog','pod_mappings','pod_print_areas','personalization_schemas','personalization_bindings','pod_provider_intents','pod_cost_snapshots','pod_readiness_reviews'] as $table) { expect(str_contains($podSchema, "Tables::$table()"), "$table Batch 7 table declared"); }
 expect(str_contains($podSchema, '$currentVersion === 9'), 'v9 to v10 POD-only migration is explicit');
 
+$listingSchema = source('includes/Database/ListingSchema.php');
+foreach (['listings','listing_seo','listing_media','listing_pod_bindings','etsy_draft_packages','etsy_intents','listing_readiness_reviews'] as $table) { expect(str_contains($listingSchema, "Tables::$table()"), "$table Batch 8 table declared"); }
+expect(str_contains($listingSchema, '$currentVersion === 10'), 'v10 to v11 listing-only migration is explicit');
+
 $podController = source('includes/REST/PodController.php');
 expect(str_contains($podController, "manage_digiforge_pod"), 'POD REST requires POD capability');
 expect(str_contains($podController, "Idempotency-Key"), 'POD mutations require idempotency');
 $podRepo = source('includes/POD/Repository.php');
 expect(str_contains($podRepo, "'state' => 'BLOCKED'"), 'provider intents are inert and blocked');
 expect(! str_contains($podRepo, 'wp_remote_'), 'POD repository has no external HTTP client');
+
+$listingController = source('includes/REST/ListingController.php');
+expect(str_contains($listingController, "manage_digiforge_listings"), 'listing REST requires listing capability');
+expect(str_contains($listingController, "Idempotency-Key"), 'listing mutations require idempotency');
+expect(str_contains($listingController, 'MAX_BODY_BYTES'), 'listing mutations enforce request body bounds');
+$listingRepo = source('includes/Listings/Repository.php');
+expect(str_contains($listingRepo, "'state' => 'BLOCKED'"), 'Etsy intents are inert and blocked');
+expect(! str_contains($listingRepo, 'wp_remote_'), 'listing repository has no external HTTP client');
 
 $jobRepository = source('includes/Queue/JobRepository.php');
 expect(str_contains($jobRepository, "'idempotency_key' => \$idempotencyKey !== '' ? \$idempotencyKey : null"), 'jobs without idempotency keys insert NULL');
