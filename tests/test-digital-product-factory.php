@@ -32,7 +32,7 @@ df_expect($readiness['technical_qa']===false,'QA failure clears technical readin
 $m=df_source('includes/Database/Migrator.php');
 foreach(['digital_products()','digital_files()','digital_file_versions()','digital_packages()','digital_previews()','digital_templates()','digital_licenses()','digital_download_checks()'] as $t){df_expect(str_contains($m,$t),"$t schema exists");}
 foreach(['UNIQUE KEY product_version','UNIQUE KEY file_version','UNIQUE KEY idempotency_key','checksum_sha256','validation_result','failure_reason','review_status'] as $rule){df_expect(str_contains($m,$rule),"$rule schema contract exists");}
-df_expect(str_contains($m,"digiforge_db_schema_version', 4"),'schema version 4 is installed');
+df_expect(str_contains($m,'MigrationPlan::pending'),'ordered schema migration plan is installed');
 df_expect(str_contains($m,'Capabilities::addDigital()'),'versioned upgrade grants only the digital capability');
 df_expect(!str_contains($m,'Capabilities::add();'),'versioned migration does not restore unrelated capabilities');
 $capabilities=df_source('includes/Core/Capabilities.php');
