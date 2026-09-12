@@ -12,6 +12,10 @@ final class Migrator {
         if ($existing_jobs_table === Tables::jobs() && (int) get_option('digiforge_db_schema_version', 0) < 2) {
             $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
         }
+        // The audit table is stable across schema v1-v6. Re-running dbDelta against the existing
+        // AUTO_INCREMENT primary key can make WordPress attempt an invalid empty-string default on MariaDB.
+        // Skip only that unchanged table when it already exists; fresh installs still create it below.
+        $existing_audit_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::audit_log())));
         $sql = [
             'CREATE TABLE ' . Tables::settings() . " (setting_key varchar(191) NOT NULL, setting_value longtext NOT NULL, setting_type varchar(32) NOT NULL DEFAULT 'string', updated_at datetime NOT NULL, PRIMARY KEY  (setting_key), KEY updated_at (updated_at)) $charset;",
             'CREATE TABLE ' . Tables::audit_log() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, event_type varchar(100) NOT NULL, actor_id bigint(20) unsigned NOT NULL DEFAULT 0, object_type varchar(100) NOT NULL DEFAULT '', object_id varchar(191) NOT NULL DEFAULT '', context longtext NULL, created_at datetime NOT NULL, PRIMARY KEY  (id), KEY event_created (event_type,created_at), KEY object_lookup (object_type,object_id)) $charset;",
@@ -35,6 +39,9 @@ final class Migrator {
         ];
         $schemaFailed = false;
         foreach ($sql as $statement) {
+            if ($existing_audit_table === Tables::audit_log() && str_starts_with($statement, 'CREATE TABLE ' . Tables::audit_log())) {
+                continue;
+            }
             $wpdb->last_error = '';
             dbDelta($statement);
             if ($wpdb->last_error !== '') {
