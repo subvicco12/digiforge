@@ -14,7 +14,12 @@ final class Lifecycle {
         'PLATFORM_DRAFT' => ['FINAL_VALIDATION'], 'FINAL_VALIDATION' => ['PUBLISH_READY'], 'PUBLISH_READY' => ['RETIRED'], 'RETIRED' => [],
     ];
     public static function can_transition(string $from, string $to): bool { return in_array($to, self::NEXT[$from] ?? [], true); }
+    /** @return array<string, bool> */
     public static function readiness(): array { return array_fill_keys(['files', 'technical_qa', 'content_qa', 'visual_qa', 'commercial_qa', 'copyright_ip_qa', 'policy_qa', 'profitability_qa', 'listing', 'human_approval', 'platform_draft', 'final_validation'], false); }
+    /**
+     * @param array<string, bool> $readiness
+     * @return array<string, bool>
+     */
     public static function advance_readiness(array $readiness, string $state): array {
         $readiness = array_replace(self::readiness(), array_intersect_key($readiness, self::readiness()));
         $gate = match ($state) {
