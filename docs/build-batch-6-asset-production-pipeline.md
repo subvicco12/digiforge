@@ -256,7 +256,7 @@ Minimum hosted coverage:
 - bounded pagination/payloads;
 - audit contains no secrets;
 - no external HTTP clients;
-- no FIELDORA identifier;
+- no legacy platform identifier;
 - PHP syntax, PHPUnit, PHPStan, PHPCS/policy checks;
 - deterministic ZIP/checksum and package boundaries.
 
