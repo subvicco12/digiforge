@@ -59,4 +59,10 @@ final class Tables {
     public static function etsy_draft_packages(): string { return self::name('etsy_draft_packages'); }
     public static function etsy_intents(): string { return self::name('etsy_intents'); }
     public static function listing_readiness_reviews(): string { return self::name('listing_readiness_reviews'); }
+    public static function orders(): string { return self::name('orders'); }
+    public static function order_line_items(): string { return self::name('order_line_items'); }
+    public static function personalization_submissions(): string { return self::name('personalization_submissions'); }
+    public static function fulfillment_plans(): string { return self::name('fulfillment_plans'); }
+    public static function fulfillment_intents(): string { return self::name('fulfillment_intents'); }
+    public static function fulfillment_readiness_reviews(): string { return self::name('fulfillment_readiness_reviews'); }
 }

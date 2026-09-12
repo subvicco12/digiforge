@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\Core;
 
+use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
@@ -15,6 +16,7 @@ use DigiForge\REST\AiController;
 use DigiForge\REST\ProductionController;
 use DigiForge\REST\PodController;
 use DigiForge\REST\ListingController;
+use DigiForge\REST\OrderController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -28,6 +30,7 @@ final class Plugin {
         if ($this->booted) { return; }
         $this->booted = true;
         if (! ListingSchema::migrateIfNeeded()) { return; }
+        if (! OrderSchema::migrateIfNeeded()) { return; }
         if (! PodSchema::migrateIfNeeded()) { return; }
         if (! ProductionSchema::migrateIfNeeded()) { return; }
         (new Migrator())->maybe_migrate();
@@ -40,6 +43,7 @@ final class Plugin {
         (new ProductionController())->register();
         (new PodController())->register();
         (new ListingController())->register();
+        (new OrderController())->register();
         (new Scheduler())->register();
         if (is_admin()) {
             (new Admin())->register();
@@ -50,6 +54,7 @@ final class Plugin {
             (new \DigiForge\Production\Admin())->register();
             (new \DigiForge\POD\Admin())->register();
             (new \DigiForge\Listings\Admin())->register();
+            (new \DigiForge\Orders\Admin())->register();
         }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
