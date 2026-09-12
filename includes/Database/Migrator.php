@@ -11,6 +11,7 @@ final class Migrator {
 
         if ($currentVersion >= MigrationPlan::LATEST) {
             Capabilities::addDigital();
+            Capabilities::addAi();
             delete_option('digiforge_last_migration_failure');
             update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
             return;
@@ -52,13 +53,25 @@ final class Migrator {
             'CREATE TABLE ' . Tables::research_candidate_evidence() . " (candidate_id bigint(20) unsigned NOT NULL, evidence_id bigint(20) unsigned NOT NULL, created_at datetime NOT NULL, PRIMARY KEY  (candidate_id,evidence_id), KEY evidence_id (evidence_id)) $charset;",
             'CREATE TABLE ' . Tables::research_reviews() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, candidate_id bigint(20) unsigned NOT NULL, decision varchar(20) NOT NULL, notes longtext NULL, reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0, reviewed_at datetime NOT NULL, PRIMARY KEY  (id), KEY candidate_reviewed (candidate_id,reviewed_at), KEY decision_reviewed (decision,reviewed_at)) $charset;",
         ];
+        $aiSql = [
+            'CREATE TABLE ' . Tables::ai_tasks() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, task_key varchar(100) NOT NULL, name varchar(191) NOT NULL, environment varchar(20) NOT NULL DEFAULT 'sandbox', required_capabilities longtext NULL, min_quality_tier smallint unsigned NOT NULL DEFAULT 0, max_latency_ms int unsigned NOT NULL DEFAULT 0, max_cost_per_1k decimal(12,6) NOT NULL DEFAULT 0, status varchar(20) NOT NULL DEFAULT 'ACTIVE', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY task_environment (task_key,environment), UNIQUE KEY idempotency_key (idempotency_key), KEY status_updated (status,updated_at)) $charset;",
+            'CREATE TABLE ' . Tables::ai_models() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, model_key varchar(100) NOT NULL, provider varchar(64) NOT NULL, environment varchar(20) NOT NULL DEFAULT 'sandbox', model_class varchar(64) NOT NULL, capabilities longtext NULL, quality_tier smallint unsigned NOT NULL DEFAULT 0, latency_ms int unsigned NOT NULL DEFAULT 0, cost_per_1k decimal(12,6) NOT NULL DEFAULT 0, fallback_order smallint unsigned NOT NULL DEFAULT 100, prohibited tinyint(1) NOT NULL DEFAULT 0, enabled tinyint(1) NOT NULL DEFAULT 0, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY model_environment (model_key,provider,environment), UNIQUE KEY idempotency_key (idempotency_key), KEY route_order (environment,enabled,prohibited,fallback_order)) $charset;",
+            'CREATE TABLE ' . Tables::ai_prompts() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, prompt_key varchar(100) NOT NULL, name varchar(191) NOT NULL, status varchar(20) NOT NULL DEFAULT 'ACTIVE', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY prompt_key (prompt_key), UNIQUE KEY idempotency_key (idempotency_key), KEY status_updated (status,updated_at)) $charset;",
+            'CREATE TABLE ' . Tables::ai_prompt_versions() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, prompt_id bigint(20) unsigned NOT NULL, version_label varchar(100) NOT NULL, system_text longtext NULL, instruction_text longtext NULL, template_text longtext NULL, input_schema_id varchar(100) NOT NULL DEFAULT '', input_schema_version varchar(64) NOT NULL DEFAULT '', output_schema_id varchar(100) NOT NULL DEFAULT '', output_schema_version varchar(64) NOT NULL DEFAULT '', input_schema longtext NULL, output_schema longtext NULL, status varchar(20) NOT NULL DEFAULT 'draft', checksum_sha256 char(64) NOT NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY prompt_version (prompt_id,version_label), UNIQUE KEY idempotency_key (idempotency_key), KEY checksum (checksum_sha256)) $charset;",
+            'CREATE TABLE ' . Tables::ai_runs() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, task_id bigint(20) unsigned NOT NULL, model_id bigint(20) unsigned NOT NULL, prompt_version_id bigint(20) unsigned NOT NULL, environment varchar(20) NOT NULL, routing_decision longtext NOT NULL, input_schema_id varchar(100) NOT NULL DEFAULT '', input_schema_version varchar(64) NOT NULL DEFAULT '', output_schema_id varchar(100) NOT NULL DEFAULT '', output_schema_version varchar(64) NOT NULL DEFAULT '', input_payload longtext NULL, input_fingerprint char(64) NOT NULL, state varchar(32) NOT NULL DEFAULT 'DRAFT', provenance longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY state_updated (state,updated_at), KEY task_created (task_id,created_at), KEY prompt_model (prompt_version_id,model_id)) $charset;",
+            'CREATE TABLE ' . Tables::ai_outputs() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, run_id bigint(20) unsigned NOT NULL, task_id bigint(20) unsigned NOT NULL, model_id bigint(20) unsigned NOT NULL, prompt_version_id bigint(20) unsigned NOT NULL, schema_id varchar(100) NOT NULL DEFAULT '', schema_version varchar(64) NOT NULL DEFAULT '', payload longtext NULL, source_input_fingerprint char(64) NOT NULL, review_state varchar(20) NOT NULL DEFAULT 'UNREVIEWED', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY run_created (run_id,created_at), KEY review_created (review_state,created_at)) $charset;",
+            'CREATE TABLE ' . Tables::ai_usage() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, run_id bigint(20) unsigned NOT NULL, provider varchar(64) NOT NULL, model_key varchar(100) NOT NULL, environment varchar(20) NOT NULL, metering_unit varchar(32) NOT NULL, request_units bigint(20) unsigned NOT NULL DEFAULT 0, input_units bigint(20) unsigned NOT NULL DEFAULT 0, output_units bigint(20) unsigned NOT NULL DEFAULT 0, estimated_cost decimal(14,6) NOT NULL DEFAULT 0, currency char(3) NOT NULL DEFAULT 'USD', estimate_source varchar(100) NOT NULL DEFAULT 'manual', estimate_version varchar(64) NOT NULL DEFAULT 'v1', idempotency_key varchar(191) NULL DEFAULT NULL, created_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY run_created (run_id,created_at), KEY provider_model (provider,model_key,environment)) $charset;",
+            'CREATE TABLE ' . Tables::ai_reviews() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, run_id bigint(20) unsigned NOT NULL, target_type varchar(20) NOT NULL, target_id bigint(20) unsigned NOT NULL, decision varchar(20) NOT NULL, notes longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0, reviewed_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY run_reviewed (run_id,reviewed_at), KEY target_reviewed (target_type,target_id,reviewed_at)) $charset;",
+        ];
 
-        if ($currentVersion >= 6) {
-            $sql = $researchSql;
+        if ($currentVersion >= 7) {
+            $sql = $aiSql;
+        } elseif ($currentVersion === 6) {
+            $sql = array_merge($researchSql, $aiSql);
         } elseif ($currentVersion === 5) {
-            $sql = array_merge($integrationSql, $researchSql);
+            $sql = array_merge($integrationSql, $researchSql, $aiSql);
         } else {
-            $sql = array_merge($baseSql, $integrationSql, $researchSql);
+            $sql = array_merge($baseSql, $integrationSql, $researchSql, $aiSql);
         }
 
         $schemaFailed = false;
@@ -74,6 +87,7 @@ final class Migrator {
 
         foreach (MigrationPlan::pending($currentVersion) as $version) { update_option('digiforge_db_schema_version', $version, false); }
         Capabilities::addDigital();
+        Capabilities::addAi();
         delete_option('digiforge_last_migration_failure');
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
     }

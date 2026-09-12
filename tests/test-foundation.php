@@ -37,14 +37,14 @@ expect(JobState::terminal('SUCCESS'), 'success is terminal');
 expect(! JobState::terminal('RUNNING'), 'running is non-terminal');
 
 $capabilities = source('includes/Core/Capabilities.php');
-foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digital','manage_digiforge_research','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) {
+foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digital','manage_digiforge_research','manage_digiforge_ai','manage_digiforge_automation','manage_digiforge_connections','manage_digiforge_settings','publish_digiforge','view_digiforge_analytics'] as $capability) {
     expect(str_contains($capabilities, "'$capability'"), "$capability capability declared");
 }
 
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '7'"), 'database schema version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '8'"), 'database schema version is current');
 
 $settings = source('includes/Core/Settings.php');
 foreach (['automation_armed', "self::get('stop_all', true)", 'Config::valid_value', 'safety_locked'] as $guard) {
@@ -75,5 +75,6 @@ expect(str_contains($logger, "preg_replace('/[^a-z0-9]/i"), 'credential key norm
 $uninstall = source('uninstall.php');
 expect(str_contains($uninstall, 'if (is_multisite()) { return; }'), 'multisite uninstall is non-destructive');
 expect(str_contains($uninstall, "'digiforge_db_schema_version'"), 'schema version cleanup is present');
+expect(str_contains($uninstall, "'ai_runs'"), 'Batch 5 AI tables participate in opt-in cleanup');
 
 echo "DigiForge foundation tests passed.\n";

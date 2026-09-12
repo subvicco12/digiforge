@@ -8,18 +8,19 @@ DigiForge is a WordPress-native foundation for a future digital-product and prin
 
 1. Package this directory as `digiforge.zip`, with `digiforge/` as the archive root.
 2. Install it through **Plugins → Add New → Upload Plugin**, then activate it as an administrator.
-3. Open **DigiForge** in wp-admin. Every automation switch starts **OFF**.
+3. Open **DigiForge** in wp-admin. Every automation switch starts **OFF** and **STOP ALL** starts ON.
 4. Before storing any integration credential, define `DIGIFORGE_CREDENTIAL_KEY` in `wp-config.php` with at least 32 bytes of stable, high-entropy secret material. Keep this value outside the plugin repository and do not rotate it without a planned credential re-encryption procedure.
 
 ## Architecture
 
-* `digiforge.php` is a small bootstrap and internal PSR-4-style autoloader for the `DigiForge\` namespace. Composer is not required.
+* `digiforge.php` is a small bootstrap and internal PSR-4-style autoloader for the `DigiForge\` namespace. Composer is not required at runtime.
 * `includes/Core` owns lifecycle hooks, capabilities, configuration, settings and the admin entry point.
 * `includes/Database` contains table names and versioned, additive `dbDelta` migrations.
 * `includes/Security` supplies append-oriented audit logging with recursive credential redaction.
 * `includes/Integrations` provides the local-only integration registry and encrypted credential vault for Etsy, Printify, Gelato, and AI provider classes. It performs no provider network calls.
 * `includes/Research` provides the inert Research & Opportunity Intelligence foundation: local source records, normalized observations, evidence/provenance, deterministic scoring, candidate deduplication, human review, and controlled promotion into Product Factory opportunities.
-* `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints for Product Factory, Digital Factory, integrations, and research.
+* `includes/AI` provides the inert AI governance layer: local task/model policy, deterministic routing, immutable prompt versions, schema validation, run intents, output provenance, usage/cost records, and human review gates. It contains no inference client or provider executor.
+* `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints for Product Factory, Digital Factory, integrations, research, and AI governance.
 * `includes/DigitalFactory` owns digital-product lifecycle/readiness policy, local QA vocabularies, persistence, and WordPress admin views.
 * `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
 * `modules`, `automation`, and `admin` reserve stable module boundaries for future implementation.
@@ -53,8 +54,16 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_research_candidates`
 * `{$wpdb->prefix}digiforge_research_candidate_evidence`
 * `{$wpdb->prefix}digiforge_research_reviews`
+* `{$wpdb->prefix}digiforge_ai_tasks`
+* `{$wpdb->prefix}digiforge_ai_models`
+* `{$wpdb->prefix}digiforge_ai_prompts`
+* `{$wpdb->prefix}digiforge_ai_prompt_versions`
+* `{$wpdb->prefix}digiforge_ai_runs`
+* `{$wpdb->prefix}digiforge_ai_outputs`
+* `{$wpdb->prefix}digiforge_ai_usage`
+* `{$wpdb->prefix}digiforge_ai_reviews`
 
-Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **7**. Earlier versions introduced nullable job idempotency keys, Product Factory records, Digital Product Factory records, queue/health hardening, and the local integration registry. Version 7 adds the Research & Opportunity Intelligence tables. Existing schema-v6 installations receive only the additive research tables, and an already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
+Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **8**. Earlier versions introduced queue/idempotency, Product Factory, Digital Product Factory, queue/health hardening, integration security, and Research & Opportunity Intelligence. Version 8 adds only the AI-governance tables when upgrading a current schema-v7 installation. An already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
 
 ## Product Factory
 
@@ -82,17 +91,31 @@ Research candidates begin in `PENDING` review status. Only an explicit human `AP
 
 Research REST routes require the `manage_digiforge_research` capability. Every research mutation requires an `Idempotency-Key`; duplicate mutation submissions are rejected and failed validation releases the pending reservation so a corrected retry can proceed. The **DigiForge → Research Review** admin view is read-only in this batch and exposes no automation controls.
 
+## AI Governance & Orchestration
+
+Batch 5 adds a provider-neutral governance layer without adding AI execution. AI task policies record required capabilities plus optional quality, latency, cost, and environment constraints. AI model records hold non-secret local metadata such as provider class, model key, supported capabilities, quality tier, estimated cost, fallback order, and environment. The deterministic routing policy chooses only among eligible, enabled, non-prohibited models in the same environment; it never calls the selected provider.
+
+Prompt definitions have append-only prompt versions. A prompt version stores its instruction/template text, input/output schema identifiers and versions, schemas, and a SHA-256 checksum. Once a `(prompt_id, version_label)` exists it cannot be replaced through the repository: changes require a new version label. Run intents permanently reference the selected prompt version and model so later prompt changes cannot rewrite provenance.
+
+Run intents are validated locally before creation. Supported schema controls include required properties, primitive/object/array types, enumerations, string-length limits, numeric bounds, item schemas, and optional rejection of additional properties. Credential-like keys are rejected recursively from persisted AI structured data. Output records are validated against the referenced prompt version's output schema and retain run/task/model/prompt/schema identifiers plus the originating input fingerprint.
+
+The Batch 5 lifecycle is deliberately non-executing: `DRAFT → VALIDATED → REVIEW_REQUIRED → APPROVED_FOR_EXECUTION` is governance state only. `EXECUTING`, `EXECUTED`, `COMPLETED`, `SUCCEEDED`, and `FAILED` are not reachable run states. Human approval is mandatory before `APPROVED_FOR_EXECUTION`, and no route consumes that state to perform inference.
+
+The usage ledger stores local/manual/test metering records—request/input/output units, provider/model/environment, estimated cost, currency, and estimate source/version. These records are evidence and budgeting inputs only; they are not provider invoices or live billing data.
+
+AI REST routes require `manage_digiforge_ai`. Every AI mutation requires `Idempotency-Key`; duplicate submissions are rejected at the REST mutation boundary and failed mutations release their pending reservation for a corrected retry. The **DigiForge → AI Governance** admin page is read-only and exposes local run-intent/usage/review status only.
+
 ## Security model
 
-Administrators receive DigiForge-specific capabilities on activation. REST routes use WordPress REST authentication (including normal cookie nonce validation performed by WordPress for cookie-authenticated requests) and strict permission callbacks. Integration registry routes require `manage_digiforge_connections`; Research routes require `manage_digiforge_research`; state-changing automation routes require `manage_digiforge_automation`; status requires `manage_digiforge` or `view_digiforge_analytics`.
+Administrators receive DigiForge-specific capabilities on activation. REST routes use WordPress REST authentication and strict permission callbacks. Integration registry routes require `manage_digiforge_connections`; Research routes require `manage_digiforge_research`; AI governance routes require `manage_digiforge_ai`; state-changing automation routes require `manage_digiforge_automation`; status requires `manage_digiforge` or `view_digiforge_analytics`.
 
-All state is server-side. Settings are private table records, REST responses never return secrets, and audit contexts recursively redact normalized credential field names including access/refresh tokens, client secrets, private/signing keys, API keys and authorization values. The audit log is append-oriented by plugin code. The **STOP ALL** flag prevents `Settings::is_enabled()` from reporting any individual automation as enabled, and `automation_armed` remains internal and fail-closed.
+All state is server-side. Settings are private table records, REST responses never return integration secrets, and audit contexts recursively redact normalized credential field names including access/refresh tokens, client secrets, private/signing keys, API keys and authorization values. The audit log is append-oriented by plugin code. The **STOP ALL** flag prevents `Settings::is_enabled()` from reporting any individual automation as enabled, and `automation_armed` remains internal and fail-closed.
 
-Uninstall retains all business data by default. It deletes DigiForge tables, including integration and research tables, only if the explicit `cleanup_on_uninstall` option was enabled before uninstall. Destructive uninstall is disabled during multisite/network execution.
+Uninstall retains all business data by default. It deletes DigiForge tables, including integration, research, and AI-governance tables, only if the explicit `cleanup_on_uninstall` option was enabled before uninstall. Destructive uninstall is disabled during multisite/network execution.
 
 ## Intentionally disabled integrations and execution
 
-Batch 4 remains storage, review and governance infrastructure only. No live research collector, scraper, crawler, scheduled ingestion, AI execution, OAuth exchange, webhook processing, provider health request, publishing, fulfillment, order processing, GST automation or background worker is enabled. Etsy, Printify, Gelato and AI providers remain local registry records only. Research, AI, product development, Printify, Gelato, Etsy drafts/publishing, orders and GST controls remain OFF by default. The plugin does not send requests to any external service.
+Batch 5 remains storage, validation, review, routing-policy and governance infrastructure only. There is **no AI inference executor, SDK call, provider HTTP client, worker, scheduler, collector, scraper, crawler, OAuth exchange, webhook processor, provider health request, publishing, fulfillment, order processing, GST automation, Etsy draft synchronization, or POD production action** in this build. Etsy, Printify, Gelato and AI providers remain local registry/policy records only. Research, AI, product development, Printify, Gelato, Etsy drafts/publishing, orders and GST controls remain OFF by default, with STOP ALL active. The plugin does not send requests to external services.
 
 ## Development checks
 
