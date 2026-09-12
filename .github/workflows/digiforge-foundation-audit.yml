@@ -64,9 +64,12 @@ jobs:
 
       - name: Secret-pattern scan
         shell: bash
+        env:
+          SECRET_PATTERN: >-
+            (api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'][^"']{20,}["']
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --include='*.php' '(api[_-]?key|secret|password|access[_-]?token|refresh[_-]?token|client[_-]?secret)[[:space:]]*[:=][[:space:]]*["'"'][^"'"']{20,}["'"']' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --include='*.php' "$SECRET_PATTERN" digiforge.php includes modules automation admin; then
             echo 'Potential hard-coded credential found'
             exit 1
           fi
@@ -88,7 +91,7 @@ jobs:
           grep -q 'digiforge/digiforge.php' build/package-files.txt
           grep -q 'digiforge/uninstall.php' build/package-files.txt
           ! grep -Eq '(^|/)(vendor|tests|docs|\.github|bin)/' build/package-files.txt
-          sha256sum --check build/digiforge.zip.sha256
+          (cd build && sha256sum --check digiforge.zip.sha256)
 
       - name: Upload audited package
         uses: actions/upload-artifact@v4
