@@ -57,4 +57,16 @@ final class Lifecycle
     public static function canIntent(string $from, string $to): bool { return in_array($to, self::INTENT[$from] ?? [], true); }
     public static function canRevision(string $from, string $to): bool { return in_array($to, self::REVISION[$from] ?? [], true); }
     public static function canBundle(string $from, string $to): bool { return in_array($to, self::BUNDLE[$from] ?? [], true); }
+
+    public static function can(string $entity, string $from, string $to): bool
+    {
+        return match ($entity) {
+            'spec' => self::canSpec($from, $to),
+            'plan' => self::canPlan($from, $to),
+            'intent' => self::canIntent($from, $to),
+            'revision' => self::canRevision($from, $to),
+            'bundle' => self::canBundle($from, $to),
+            default => false,
+        };
+    }
 }
