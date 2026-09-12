@@ -44,4 +44,12 @@ final class Tables {
     public static function production_qa(): string { return self::name('production_qa'); }
     public static function release_bundles(): string { return self::name('release_bundles'); }
     public static function release_bundle_revisions(): string { return self::name('release_bundle_revisions'); }
+    public static function pod_catalog(): string { return self::name('pod_catalog'); }
+    public static function pod_mappings(): string { return self::name('pod_mappings'); }
+    public static function pod_print_areas(): string { return self::name('pod_print_areas'); }
+    public static function personalization_schemas(): string { return self::name('personalization_schemas'); }
+    public static function personalization_bindings(): string { return self::name('personalization_bindings'); }
+    public static function pod_provider_intents(): string { return self::name('pod_provider_intents'); }
+    public static function pod_cost_snapshots(): string { return self::name('pod_cost_snapshots'); }
+    public static function pod_readiness_reviews(): string { return self::name('pod_readiness_reviews'); }
 }
