@@ -2,9 +2,13 @@
 declare(strict_types=1);
 namespace DigiForge\Core;
 use DigiForge\Database\Migrator;
+use DigiForge\Database\ProductionSchema;
 final class Activator {
     public static function activate(): void {
         Capabilities::add();
+        if (! ProductionSchema::migrateIfNeeded()) {
+            return;
+        }
         (new Migrator())->migrate();
         Settings::ensure_defaults();
         flush_rewrite_rules();

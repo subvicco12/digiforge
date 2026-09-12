@@ -36,4 +36,12 @@ final class Tables {
     public static function ai_outputs(): string { return self::name('ai_outputs'); }
     public static function ai_usage(): string { return self::name('ai_usage'); }
     public static function ai_reviews(): string { return self::name('ai_reviews'); }
+    public static function asset_specs(): string { return self::name('asset_specs'); }
+    public static function production_plans(): string { return self::name('production_plans'); }
+    public static function production_plan_assets(): string { return self::name('production_plan_assets'); }
+    public static function production_intents(): string { return self::name('production_intents'); }
+    public static function asset_revisions(): string { return self::name('asset_revisions'); }
+    public static function production_qa(): string { return self::name('production_qa'); }
+    public static function release_bundles(): string { return self::name('release_bundles'); }
+    public static function release_bundle_revisions(): string { return self::name('release_bundle_revisions'); }
 }
