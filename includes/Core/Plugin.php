@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Core;
 
 use DigiForge\Database\Migrator;
+use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
 use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
@@ -11,6 +12,7 @@ use DigiForge\REST\IntegrationsController;
 use DigiForge\REST\ResearchController;
 use DigiForge\REST\AiController;
 use DigiForge\REST\ProductionController;
+use DigiForge\REST\PodController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -23,6 +25,7 @@ final class Plugin {
     public function boot(): void {
         if ($this->booted) { return; }
         $this->booted = true;
+        if (! PodSchema::migrateIfNeeded()) { return; }
         if (! ProductionSchema::migrateIfNeeded()) { return; }
         (new Migrator())->maybe_migrate();
         (new Controller())->register();
@@ -32,6 +35,7 @@ final class Plugin {
         (new ResearchController())->register();
         (new AiController())->register();
         (new ProductionController())->register();
+        (new PodController())->register();
         (new Scheduler())->register();
         if (is_admin()) {
             (new Admin())->register();
@@ -40,6 +44,7 @@ final class Plugin {
             (new \DigiForge\Research\Admin())->register();
             (new \DigiForge\AI\Admin())->register();
             (new \DigiForge\Production\Admin())->register();
+            (new \DigiForge\POD\Admin())->register();
         }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
