@@ -30,7 +30,7 @@ expect(Config::setting_type('stop_all') === 'boolean', 'controls are typed');
 expect(! Config::writable_setting('automation_armed'), 'arming cannot be changed through ordinary settings');
 expect(! Config::valid_value('stop_all', '1'), 'boolean settings reject string coercion');
 
-foreach (['QUEUED','RUNNING','WAITING','RETRY','SUCCESS','FAILED','BLOCKED','CANCELLED','HUMAN_REVIEW','DEAD_LETTER' as $state) {
+foreach (['QUEUED','RUNNING','WAITING','RETRY','SUCCESS','FAILED','BLOCKED','CANCELLED','HUMAN_REVIEW','DEAD_LETTER'] as $state) {
     expect(JobState::valid($state), "$state is valid");
 }
 expect(JobState::terminal('SUCCESS'), 'success is terminal');
@@ -62,7 +62,9 @@ expect(str_contains($jobs, 'idempotency_key varchar(191) NULL DEFAULT NULL'), 'j
 expect(str_contains($jobs, "SET idempotency_key = NULL WHERE idempotency_key = ''"), 'legacy empty idempotency keys are migrated to NULL');
 
 $jobRepository = source('includes/Queue/JobRepository.php');
-expect(str_contains($jobRepository, "'idempotency_key'] = null"), 'jobs without idempotency keys insert NULL');
+expect(str_contains($jobRepository, "'idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null"), 'jobs without idempotency keys insert NULL');
+expect(str_contains($jobRepository, 'JobState::canTransition'), 'jobs enforce legal transitions');
+expect(str_contains($jobRepository, 'lease_expires_at'), 'jobs use expiring leases');
 
 $logger = source('includes/Security/Logger.php');
 foreach (['password','secret','token','accesstoken','refreshtoken','clientsecret','authorization','apikey','credential','privatekey','signingkey'] as $credentialKey) {
