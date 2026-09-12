@@ -21,7 +21,19 @@ final class OrderLifecycleTest extends TestCase
     {
         self::assertTrue(Lifecycle::can('intent', 'BLOCKED', 'READY_FOR_REVIEW'));
         self::assertTrue(Lifecycle::can('intent', 'READY_FOR_REVIEW', 'APPROVED_INTENT'));
-        foreach (['QUEUED', 'EXECUTING', 'SUBMITTED', 'ACCEPTED', 'PROCESSING', 'FULFILLED', 'SHIPPED', 'REFUNDED', 'CANCELLED_REMOTE', 'SYNCED'] as $state) {
+        $forbiddenStates = [
+            'QUEUED',
+            'EXECUTING',
+            'SUBMITTED',
+            'ACCEPTED',
+            'PROCESSING',
+            'FULFILLED',
+            'SHIPPED',
+            'REFUNDED',
+            'CANCELLED_REMOTE',
+            'SYNCED',
+        ];
+        foreach ($forbiddenStates as $state) {
             self::assertFalse(Lifecycle::can('intent', 'BLOCKED', $state));
             self::assertFalse(Lifecycle::can('intent', 'APPROVED_INTENT', $state));
         }
