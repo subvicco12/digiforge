@@ -107,24 +107,73 @@ final class JobRepository
         return $updated === 1;
     }
 
-    public function scheduleRetry(int $id, int $attempts, int $maxAttempts, int $delaySeconds, string $error): bool
+    public function scheduleRetry(int $id, int $delaySeconds, string $error): bool
     {
-        if ($attempts >= $maxAttempts) {
-            return $this->deadLetter($id, $error);
+        global $wpdb;
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                'SELECT attempts, max_attempts FROM ' . Tables::jobs() . " WHERE id = %d AND state = 'RUNNING'",
+                $id
+            ),
+            ARRAY_A
+        );
+        if (! is_array($row)) {
+            return false;
         }
 
-        global $wpdb;
+        $attempts = (int) $row['attempts'];
+        $maxAttempts = max(1, (int) $row['max_attempts']);
+        $nextAttempts = $attempts + 1;
+        $now = current_time('mysql', true);
+
+        if ($nextAttempts >= $maxAttempts) {
+            $updated = $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE " . Tables::jobs() . " SET state = 'DEAD_LETTER', attempts = %d, last_error = %s, "
+                    . 'dead_lettered_at = %s, locked_by = NULL, locked_at = NULL, lease_expires_at = NULL, '
+                    . "updated_at = %s WHERE id = %d AND state = 'RUNNING' AND attempts = %d",
+                    $nextAttempts,
+                    sanitize_text_field($error),
+                    $now,
+                    $now,
+                    $id,
+                    $attempts
+                )
+            );
+
+            return $updated === 1;
+        }
+
         $nextAttempt = gmdate('Y-m-d H:i:s', time() + max(1, min($delaySeconds, 86400)));
         $updated = $wpdb->query(
             $wpdb->prepare(
-                "UPDATE " . Tables::jobs() . " SET state = 'RETRY', attempts = %d, next_attempt_at = %s, last_error = %s, "
-                . 'locked_by = NULL, locked_at = NULL, lease_expires_at = NULL, updated_at = %s '
-                . "WHERE id = %d AND state = 'RUNNING'",
-                $attempts,
+                "UPDATE " . Tables::jobs() . " SET state = 'RETRY', attempts = %d, next_attempt_at = %s, "
+                . 'last_error = %s, locked_by = NULL, locked_at = NULL, lease_expires_at = NULL, updated_at = %s '
+                . "WHERE id = %d AND state = 'RUNNING' AND attempts = %d",
+                $nextAttempts,
                 $nextAttempt,
                 sanitize_text_field($error),
-                current_time('mysql', true),
-                $id
+                $now,
+                $id,
+                $attempts
+            )
+        );
+
+        return $updated === 1;
+    }
+
+    public function recoverExpiredLease(int $id): bool
+    {
+        global $wpdb;
+        $now = current_time('mysql', true);
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE " . Tables::jobs() . " SET state = 'HUMAN_REVIEW', last_error = 'LEASE_EXPIRED', "
+                . 'locked_by = NULL, locked_at = NULL, lease_expires_at = NULL, updated_at = %s '
+                . "WHERE id = %d AND state = 'RUNNING' AND lease_expires_at IS NOT NULL AND lease_expires_at < %s",
+                $now,
+                $id,
+                $now
             )
         );
 
