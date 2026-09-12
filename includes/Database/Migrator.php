@@ -31,8 +31,16 @@ final class Migrator {
             'CREATE TABLE ' . Tables::digital_licenses() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, license_type varchar(64) NOT NULL, terms longtext NULL, license_code_hash char(64) NOT NULL DEFAULT '', status varchar(32) NOT NULL DEFAULT 'ACTIVE', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_status (digital_product_id,status)) $charset;",
             'CREATE TABLE ' . Tables::digital_download_checks() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, target_type varchar(32) NOT NULL, target_id bigint(20) unsigned NOT NULL, check_type varchar(64) NOT NULL, validation_result varchar(20) NOT NULL DEFAULT 'PENDING', failure_reason varchar(255) NOT NULL DEFAULT '', review_status varchar(20) NOT NULL DEFAULT 'UNREVIEWED', details longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_result (digital_product_id,validation_result), KEY target_check (target_type,target_id,check_type), KEY review_updated (review_status,updated_at)) $charset;",
         ];
-        foreach ($sql as $statement) { dbDelta($statement); }
-        if ($wpdb->last_error !== '') {
+        $schemaFailed = false;
+        foreach ($sql as $statement) {
+            $wpdb->last_error = '';
+            dbDelta($statement);
+            if ($wpdb->last_error !== '') {
+                $schemaFailed = true;
+                break;
+            }
+        }
+        if ($schemaFailed) {
             update_option(
                 'digiforge_last_migration_failure',
                 ['error_code' => 'SCHEMA_UPDATE_FAILED', 'occurred_at' => current_time('mysql', true)],
