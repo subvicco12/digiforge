@@ -35,6 +35,10 @@ function digiforge_autoload(string $class): void {
 }
 spl_autoload_register('digiforge_autoload');
 
+// WordPress dbDelta expects line-oriented CREATE TABLE definitions. Register
+// the narrow DigiForge AI normalizer before activation/migration callbacks run.
+\DigiForge\Database\DbDeltaCompatibility::register();
+
 function digiforge(): \DigiForge\Core\Plugin {
     return \DigiForge\Core\Plugin::instance();
 }
