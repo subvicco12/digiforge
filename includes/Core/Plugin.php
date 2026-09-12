@@ -6,10 +6,11 @@ use DigiForge\Database\Migrator;
 use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
+use DigiForge\REST\IntegrationsController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
-/** Coordinates the WordPress-facing plugin services; integrations are intentionally not booted. */
+/** Coordinates the WordPress-facing plugin services. */
 final class Plugin {
     private static ?self $instance = null;
     private bool $booted = false;
@@ -22,8 +23,13 @@ final class Plugin {
         (new Controller())->register();
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
+        (new IntegrationsController())->register();
         (new Scheduler())->register();
-        if (is_admin()) { (new Admin())->register(); (new \DigiForge\DigitalFactory\Admin())->register(); }
+        if (is_admin()) {
+            (new Admin())->register();
+            (new \DigiForge\DigitalFactory\Admin())->register();
+            (new \DigiForge\Integrations\Admin())->register();
+        }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
 }
