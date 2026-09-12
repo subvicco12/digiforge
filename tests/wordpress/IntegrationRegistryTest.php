@@ -49,6 +49,11 @@ final class IntegrationRegistryTest extends WP_UnitTestCase
         self::assertIsArray($row);
         self::assertNotSame('test-credential-value', $row['ciphertext']);
         self::assertSame(16, strlen((string) $row['fingerprint']));
-        self::assertSame('test-credential-value', DigiForge\Integrations\CredentialVault::decrypt((string) $row['ciphertext']));
+
+        $context = DigiForge\Integrations\Repository::secretContext((int) $created['id'], 'access_token');
+        self::assertSame('test-credential-value', DigiForge\Integrations\CredentialVault::decrypt((string) $row['ciphertext'], $context));
+
+        $this->expectException(RuntimeException::class);
+        DigiForge\Integrations\CredentialVault::decrypt((string) $row['ciphertext'], 'integration:999:secret:access_token');
     }
 }
