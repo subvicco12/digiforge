@@ -28,4 +28,12 @@ final class Tables {
     public static function research_candidates(): string { return self::name('research_candidates'); }
     public static function research_candidate_evidence(): string { return self::name('research_candidate_evidence'); }
     public static function research_reviews(): string { return self::name('research_reviews'); }
+    public static function ai_tasks(): string { return self::name('ai_tasks'); }
+    public static function ai_models(): string { return self::name('ai_models'); }
+    public static function ai_prompts(): string { return self::name('ai_prompts'); }
+    public static function ai_prompt_versions(): string { return self::name('ai_prompt_versions'); }
+    public static function ai_runs(): string { return self::name('ai_runs'); }
+    public static function ai_outputs(): string { return self::name('ai_outputs'); }
+    public static function ai_usage(): string { return self::name('ai_usage'); }
+    public static function ai_reviews(): string { return self::name('ai_reviews'); }
 }
