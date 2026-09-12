@@ -20,4 +20,10 @@ final class Idempotency {
         if ($updated > 0) { return true; }
         return (bool) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::idempotency() . ' WHERE operation_key = %s', $key));
     }
+    public function release(string $key): bool {
+        global $wpdb;
+        $key = sanitize_text_field($key);
+        if ($key === '') { return false; }
+        return false !== $wpdb->delete(Tables::idempotency(), ['operation_key' => $key, 'status' => 'PENDING'], ['%s','%s']);
+    }
 }
