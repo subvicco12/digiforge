@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class MigrationTest extends WP_UnitTestCase
 {
-    public function testSchemaFiveCreatesOperationalQueueColumns(): void
+    public function testSchemaSixPreservesOperationalQueueColumns(): void
     {
         DigiForge\Core\Activator::activate();
 
@@ -15,7 +15,7 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertContains('lease_expires_at', $columns);
         self::assertContains('next_attempt_at', $columns);
         self::assertContains('dead_lettered_at', $columns);
-        self::assertSame(5, (int) get_option('digiforge_db_schema_version'));
+        self::assertSame(6, (int) get_option('digiforge_db_schema_version'));
     }
 
     public function testHealthSnapshotRemainsSafetyLocked(): void
@@ -25,7 +25,7 @@ final class MigrationTest extends WP_UnitTestCase
         $snapshot = (new DigiForge\Observability\HealthMonitor())->snapshot();
 
         self::assertTrue($snapshot['automation_locked']);
-        self::assertSame(5, $snapshot['schema']['expected']);
-        self::assertSame(5, $snapshot['schema']['current']);
+        self::assertSame(6, $snapshot['schema']['expected']);
+        self::assertSame(6, $snapshot['schema']['current']);
     }
 }
