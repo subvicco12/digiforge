@@ -20,7 +20,20 @@ concurrency:
 jobs:
   engineering-safety-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: digiforge_tests
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -51,6 +64,17 @@ jobs:
 
       - name: Legacy and unit tests
         run: composer test
+
+      - name: Install WordPress integration fixture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion default-mysql-client
+          bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 latest
+
+      - name: WordPress database integration tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: composer test:wordpress
 
       - name: Git diff check
         run: git diff --check
