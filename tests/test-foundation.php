@@ -30,7 +30,7 @@ expect(Config::setting_type('stop_all') === 'boolean', 'controls are typed');
 expect(! Config::writable_setting('automation_armed'), 'arming cannot be changed through ordinary settings');
 expect(! Config::valid_value('stop_all', '1'), 'boolean settings reject string coercion');
 
-foreach (['QUEUED','RUNNING','WAITING','RETRY','SUCCESS','FAILED','BLOCKED','CANCELLED','HUMAN_REVIEW'] as $state) {
+foreach (['QUEUED','RUNNING','WAITING','RETRY','SUCCESS','FAILED','BLOCKED','CANCELLED','HUMAN_REVIEW','DEAD_LETTER' as $state) {
     expect(JobState::valid($state), "$state is valid");
 }
 expect(JobState::terminal('SUCCESS'), 'success is terminal');
@@ -44,7 +44,7 @@ foreach (['manage_digiforge','manage_digiforge_products','manage_digiforge_digit
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '4'"), 'database schema version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '5'"), 'database schema version is current');
 
 $settings = source('includes/Core/Settings.php');
 foreach (['automation_armed', "self::get('stop_all', true)", 'Config::valid_value', 'safety_locked'] as $guard) {
