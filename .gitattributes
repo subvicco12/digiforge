@@ -5,3 +5,16 @@
 *.yaml text eol=lf
 *.sh text eol=lf
 *.zip binary
+
+/.github export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/bin export-ignore
+/docs export-ignore
+/tests export-ignore
+/composer.json export-ignore
+/composer.lock export-ignore
+/phpcs.xml.dist export-ignore
+/phpstan.neon.dist export-ignore
+/phpunit.xml.dist export-ignore
+/phpunit.wordpress.xml.dist export-ignore
