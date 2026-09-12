@@ -22,7 +22,7 @@ final class MigrationTest extends WP_UnitTestCase
         ];
     }
 
-    public function testSchemaTenPreservesOperationalTablesAndCreatesBatchSevenTables(): void
+    public function testSchemaTenPreservesOperationalTablesAndCreatesProductionAndPodTables(): void
     {
         DigiForge\Core\Activator::activate();
         global $wpdb;
@@ -44,22 +44,20 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertSame('10', (string) get_option('digiforge_db_version'));
     }
 
-    public function testSchemaEightUpgradeReachesCurrentSchemaWithoutChangingAiTable(): void
+    public function testSchemaEightUpgradeReachesCurrentWithoutChangingLegacyAiTable(): void
     {
         DigiForge\Core\Activator::activate();
         global $wpdb;
         $legacyTable = DigiForge\Database\Tables::ai_runs();
         $legacyBefore = $wpdb->get_row('SHOW CREATE TABLE ' . $legacyTable, ARRAY_N);
         self::assertIsArray($legacyBefore);
-        foreach (array_merge($this->productionTables(), $this->podTables()) as $table) {
-            $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($table) . '`');
-        }
+        foreach (array_merge($this->productionTables(), $this->podTables()) as $table) $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($table) . '`');
         update_option('digiforge_db_schema_version', 8, false);
         update_option('digiforge_db_version', '8', false);
         $wpdb->last_error = '';
 
-        self::assertTrue(DigiForge\Database\ProductionSchema::migrateIfNeeded());
         self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded());
+        self::assertTrue(DigiForge\Database\ProductionSchema::migrateIfNeeded());
         (new DigiForge\Database\Migrator())->maybe_migrate();
 
         foreach (array_merge($this->productionTables(), $this->podTables()) as $table) {
@@ -86,6 +84,7 @@ final class MigrationTest extends WP_UnitTestCase
         $wpdb->last_error = '';
 
         self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded());
+        (new DigiForge\Database\Migrator())->maybe_migrate();
 
         foreach ($this->podTables() as $table) {
             self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
