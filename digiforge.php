@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge
  * Description: Secure operational foundation for a WordPress-native product business platform.
- * Version: 0.7.0
+ * Version: 0.8.0
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Author: DigiForge
@@ -15,11 +15,11 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const DIGIFORGE_VERSION = '0.7.0';
+const DIGIFORGE_VERSION = '0.8.0';
 const DIGIFORGE_FILE = __FILE__;
 const DIGIFORGE_PATH = __DIR__ . '/';
 define('DIGIFORGE_URL', plugin_dir_url(__FILE__));
-const DIGIFORGE_DB_VERSION = '10';
+const DIGIFORGE_DB_VERSION = '11';
 
 /** @return void */
 function digiforge_autoload(string $class): void {
@@ -33,16 +33,3 @@ function digiforge_autoload(string $class): void {
         require_once $file;
     }
 }
-spl_autoload_register('digiforge_autoload');
-
-// WordPress dbDelta expects line-oriented CREATE TABLE definitions. Register
-// the narrow DigiForge AI normalizer before activation/migration callbacks run.
-\DigiForge\Database\DbDeltaCompatibility::register();
-
-function digiforge(): \DigiForge\Core\Plugin {
-    return \DigiForge\Core\Plugin::instance();
-}
-
-register_activation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'activate']);
-register_deactivation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'deactivate']);
-add_action('plugins_loaded', static function (): void { digiforge()->boot(); });
