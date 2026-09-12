@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\Core;
 
+use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
@@ -27,6 +28,7 @@ final class Plugin {
     public function boot(): void {
         if ($this->booted) { return; }
         $this->booted = true;
+        if (! OrderSchema::migrateIfNeeded()) { return; }
         if (! ListingSchema::migrateIfNeeded()) { return; }
         if (! PodSchema::migrateIfNeeded()) { return; }
         if (! ProductionSchema::migrateIfNeeded()) { return; }
