@@ -86,7 +86,7 @@ final class Repository {
         if (array_key_exists('display_name', $input)) { $out['display_name'] = sanitize_text_field((string) $input['display_name']); }
         if ($create && ($out['display_name'] ?? '') === '') { $out['display_name'] = ucwords(str_replace('_', ' ', (string) $out['connection_key'])); }
         if (array_key_exists('status', $input) || $create) {
-            $status = strtoupper(sanitize_key((string) ($input['status'] ?? 'DISCONNECTED'));
+            $status = strtoupper(sanitize_key((string) ($input['status'] ?? 'DISCONNECTED')));
             if (! in_array($status, self::STATUSES, true)) { return new \WP_Error('invalid_integration_status', __('Invalid integration status.', 'digiforge'), ['status' => 400]); }
             $out['status'] = $status;
         }
