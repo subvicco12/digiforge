@@ -78,6 +78,39 @@ final class AiGovernanceTest extends WP_UnitTestCase
         self::assertTrue($replay['idempotent_replay']);
     }
 
+    public function testPromptVersionsAreImmutableAndChecksummed(): void
+    {
+        $prompt = $this->repo->createPrompt(['prompt_key'=>'immutable','name'=>'Immutable Prompt'], 'immutable-prompt');
+        self::assertFalse(is_wp_error($prompt));
+        $first = $this->repo->createPromptVersion((int)$prompt['id'], [
+            'version_label'=>'1.0.0','system_text'=>'Original','input_schema'=>['type'=>'object'],'output_schema'=>['type'=>'object'],
+        ], 'immutable-v1');
+        self::assertFalse(is_wp_error($first));
+        self::assertSame(64, strlen((string)$first['checksum_sha256']));
+
+        $duplicate = $this->repo->createPromptVersion((int)$prompt['id'], [
+            'version_label'=>'1.0.0','system_text'=>'Changed','input_schema'=>['type'=>'object'],'output_schema'=>['type'=>'object'],
+        ], 'immutable-v1-other-key');
+        self::assertTrue(is_wp_error($duplicate));
+        self::assertSame('digiforge_ai_immutable_version', $duplicate->get_error_code());
+        self::assertSame(409, $duplicate->get_error_data()['status']);
+
+        $stored = $this->repo->find(DigiForge\Database\Tables::ai_prompt_versions(), (int)$first['id']);
+        self::assertSame('Original', $stored['system_text']);
+        self::assertSame($first['checksum_sha256'], $stored['checksum_sha256']);
+    }
+
+    public function testStructuredAiDataRejectsCredentialKeysRecursively(): void
+    {
+        $model = $this->repo->createModel([
+            'model_key'=>'credential-test','provider'=>'ai','environment'=>'sandbox','enabled'=>true,
+            'capabilities'=>['text', ['metadata'=>['client_secret'=>'must-not-store']]],
+        ], 'credential-model');
+        self::assertTrue(is_wp_error($model));
+        self::assertSame('digiforge_ai_credential_key', $model->get_error_code());
+        self::assertSame(400, $model->get_error_data()['status']);
+    }
+
     public function testRoutingPolicyIsDeterministicAndEnvironmentIsolated(): void
     {
         $policy = new DigiForge\AI\RoutingPolicy();
