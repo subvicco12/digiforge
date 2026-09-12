@@ -4,5 +4,8 @@ parameters:
         - includes/Core/Config.php
         - includes/ProductFactory/Lifecycle.php
         - includes/DigitalFactory/Lifecycle.php
+        - includes/Database/MigrationPlan.php
+        - includes/Queue/JobState.php
+        - includes/Observability/HealthStatus.php
     tmpDir: .phpstan.cache
     treatPhpDocTypesAsCertain: false
