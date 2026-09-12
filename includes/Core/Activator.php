@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Core;
+use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
@@ -8,6 +9,9 @@ use DigiForge\Database\ProductionSchema;
 final class Activator {
     public static function activate(): void {
         Capabilities::add();
+        if (! OrderSchema::migrateIfNeeded()) {
+            return;
+        }
         if (! ListingSchema::migrateIfNeeded()) {
             return;
         }
