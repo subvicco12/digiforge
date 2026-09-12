@@ -20,4 +20,6 @@ final class Tables {
     public static function digital_templates(): string { return self::name('digital_templates'); }
     public static function digital_licenses(): string { return self::name('digital_licenses'); }
     public static function digital_download_checks(): string { return self::name('digital_download_checks'); }
+    public static function integrations(): string { return self::name('integrations'); }
+    public static function integration_secrets(): string { return self::name('integration_secrets'); }
 }
