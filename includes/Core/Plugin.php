@@ -8,6 +8,7 @@ use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
 use DigiForge\REST\IntegrationsController;
 use DigiForge\REST\ResearchController;
+use DigiForge\REST\AiController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -26,12 +27,14 @@ final class Plugin {
         (new DigitalFactoryController())->register();
         (new IntegrationsController())->register();
         (new ResearchController())->register();
+        (new AiController())->register();
         (new Scheduler())->register();
         if (is_admin()) {
             (new Admin())->register();
             (new \DigiForge\DigitalFactory\Admin())->register();
             (new \DigiForge\Integrations\Admin())->register();
             (new \DigiForge\Research\Admin())->register();
+            (new \DigiForge\AI\Admin())->register();
         }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
