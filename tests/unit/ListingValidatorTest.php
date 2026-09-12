@@ -23,11 +23,14 @@ final class ListingValidatorTest extends TestCase
     public function testRecursiveCredentialKeysAreRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        Validator::structured(['nested'=>['api_key'=>'secret-value']]);
+        Validator::structured(['nested' => ['api_key' => 'secret-value']]);
     }
 
     public function testCanonicalJsonIsDeterministic(): void
     {
-        self::assertSame(Validator::canonicalJson(['b'=>2,'a'=>1]), Validator::canonicalJson(['a'=>1,'b'=>2]));
+        self::assertSame(
+            Validator::canonicalJson(['b' => 2, 'a' => 1]),
+            Validator::canonicalJson(['a' => 1, 'b' => 2])
+        );
     }
 }
