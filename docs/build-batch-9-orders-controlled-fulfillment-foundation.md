@@ -158,7 +158,7 @@ All mutations must enforce:
 - REST authorization/validation/body limits
 - audit redaction/safety
 - no external HTTP clients
-- no legacy FIELDORA identifier
+- no deprecated pre-DigiForge platform identifier
 - PHP syntax, PHPUnit, PHPStan and PHPCS
 - deterministic ZIP/checksum and package boundaries
 
