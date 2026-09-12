@@ -7,6 +7,10 @@ if (! is_string($testsDirectory) || $testsDirectory === '') {
     throw new RuntimeException('Set WP_TESTS_DIR to the WordPress PHPUnit test-library directory.');
 }
 
+if (! defined('DIGIFORGE_CREDENTIAL_KEY')) {
+    define('DIGIFORGE_CREDENTIAL_KEY', str_repeat('digiforge-test-key-', 2));
+}
+
 define('WP_TESTS_PHPUNIT_POLYFILLS_PATH', dirname(__DIR__, 2) . '/vendor/yoast/phpunit-polyfills');
 
 require_once rtrim($testsDirectory, '/\\') . '/includes/functions.php';
