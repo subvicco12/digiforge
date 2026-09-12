@@ -41,19 +41,26 @@ final class Logger
                 'occurred_at' => current_time('mysql', true),
                 'error_code' => 'AUDIT_WRITE_FAILED',
             ];
+            update_option('digiforge_last_audit_failure', self::$lastFailure, false);
             do_action('digiforge_audit_write_failed', self::$lastFailure);
             error_log('DigiForge audit persistence failed: AUDIT_WRITE_FAILED');
             return false;
         }
 
         self::$lastFailure = null;
+        delete_option('digiforge_last_audit_failure');
         return true;
     }
 
     /** @return array<string, string>|null */
     public static function lastFailure(): ?array
     {
-        return self::$lastFailure;
+        if (self::$lastFailure !== null) {
+            return self::$lastFailure;
+        }
+
+        $persisted = get_option('digiforge_last_audit_failure', null);
+        return is_array($persisted) ? array_map('strval', $persisted) : null;
     }
 
     public static function redact(array $context): array
