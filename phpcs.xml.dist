@@ -1,10 +1,13 @@
 <?xml version="1.0"?>
 <ruleset name="DigiForge">
-    <description>DigiForge baseline coding standard for safety policy and tests.</description>
+    <description>DigiForge baseline standard preserving WordPress-compatible snake_case APIs.</description>
     <file>includes/Core/Config.php</file>
     <file>tests/unit</file>
     <exclude-pattern>vendor/*</exclude-pattern>
     <arg name="colors"/>
     <arg value="p"/>
-    <rule ref="PSR12"/>
+    <rule ref="PSR12">
+        <exclude name="PSR1.Methods.CamelCapsMethodName"/>
+        <exclude name="PSR12.Files.FileHeader.SpacingAfterBlock"/>
+    </rule>
 </ruleset>
