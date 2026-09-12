@@ -52,4 +52,11 @@ final class Tables {
     public static function pod_provider_intents(): string { return self::name('pod_provider_intents'); }
     public static function pod_cost_snapshots(): string { return self::name('pod_cost_snapshots'); }
     public static function pod_readiness_reviews(): string { return self::name('pod_readiness_reviews'); }
+    public static function listings(): string { return self::name('listings'); }
+    public static function listing_seo(): string { return self::name('listing_seo'); }
+    public static function listing_media(): string { return self::name('listing_media'); }
+    public static function listing_pod_bindings(): string { return self::name('listing_pod_bindings'); }
+    public static function etsy_draft_packages(): string { return self::name('etsy_draft_packages'); }
+    public static function etsy_intents(): string { return self::name('etsy_intents'); }
+    public static function listing_readiness_reviews(): string { return self::name('listing_readiness_reviews'); }
 }
