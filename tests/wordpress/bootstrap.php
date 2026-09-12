@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 $testsDirectory = getenv('WP_TESTS_DIR');
 if (! is_string($testsDirectory) || $testsDirectory === '') {
     throw new RuntimeException('Set WP_TESTS_DIR to the WordPress PHPUnit test-library directory.');
 }
+
+define('WP_TESTS_PHPUNIT_POLYFILLS_PATH', dirname(__DIR__, 2) . '/vendor/yoast/phpunit-polyfills');
 
 require_once rtrim($testsDirectory, '/\\') . '/includes/functions.php';
 

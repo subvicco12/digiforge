@@ -15,8 +15,9 @@ final class Migrator {
         $sql = [
             'CREATE TABLE ' . Tables::settings() . " (setting_key varchar(191) NOT NULL, setting_value longtext NOT NULL, setting_type varchar(32) NOT NULL DEFAULT 'string', updated_at datetime NOT NULL, PRIMARY KEY  (setting_key), KEY updated_at (updated_at)) $charset;",
             'CREATE TABLE ' . Tables::audit_log() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, event_type varchar(100) NOT NULL, actor_id bigint(20) unsigned NOT NULL DEFAULT 0, object_type varchar(100) NOT NULL DEFAULT '', object_id varchar(191) NOT NULL DEFAULT '', context longtext NULL, created_at datetime NOT NULL, PRIMARY KEY  (id), KEY event_created (event_type,created_at), KEY object_lookup (object_type,object_id)) $charset;",
-            'CREATE TABLE ' . Tables::jobs() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, job_type varchar(100) NOT NULL, state varchar(20) NOT NULL, payload longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, scheduled_at datetime NULL, locked_at datetime NULL, completed_at datetime NULL, attempts smallint unsigned NOT NULL DEFAULT 0, last_error varchar(255) NOT NULL DEFAULT '', created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), KEY state_schedule (state,scheduled_at), KEY type_state (job_type,state), UNIQUE KEY idempotency_key (idempotency_key)) $charset;",
+            'CREATE TABLE ' . Tables::jobs() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, job_type varchar(100) NOT NULL, state varchar(20) NOT NULL, payload longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, scheduled_at datetime NULL, next_attempt_at datetime NULL, locked_by varchar(100) NULL, locked_at datetime NULL, lease_expires_at datetime NULL, completed_at datetime NULL, dead_lettered_at datetime NULL, attempts smallint unsigned NOT NULL DEFAULT 0, max_attempts smallint unsigned NOT NULL DEFAULT 3, last_error varchar(255) NOT NULL DEFAULT '', created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), KEY state_schedule (state,scheduled_at), KEY retry_schedule (state,next_attempt_at), KEY lease_expiry (state,lease_expires_at), KEY type_state (job_type,state), UNIQUE KEY idempotency_key (idempotency_key)) $charset;",
             'CREATE TABLE ' . Tables::idempotency() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, operation_key varchar(191) NOT NULL, operation_type varchar(100) NOT NULL, status varchar(20) NOT NULL, response_hash char(64) NOT NULL DEFAULT '', created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY operation_key (operation_key), KEY type_status (operation_type,status)) $charset;",
+            'CREATE TABLE ' . Tables::health_events() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, component varchar(100) NOT NULL, status varchar(20) NOT NULL, error_code varchar(100) NOT NULL DEFAULT '', details longtext NULL, observed_at datetime NOT NULL, PRIMARY KEY  (id), KEY component_observed (component,observed_at), KEY status_observed (status,observed_at)) $charset;",
             'CREATE TABLE ' . Tables::opportunities() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, title varchar(191) NOT NULL, description longtext NULL, state varchar(20) NOT NULL DEFAULT 'NEW', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY state_updated (state,updated_at)) $charset;",
             'CREATE TABLE ' . Tables::product_families() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, opportunity_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, description longtext NULL, state varchar(20) NOT NULL DEFAULT 'DRAFT', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY opportunity_state (opportunity_id,state)) $charset;",
             'CREATE TABLE ' . Tables::products() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, product_family_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, description longtext NULL, state varchar(20) NOT NULL DEFAULT 'DRAFT', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY family_state (product_family_id,state)) $charset;",
@@ -30,10 +31,32 @@ final class Migrator {
             'CREATE TABLE ' . Tables::digital_licenses() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, name varchar(191) NOT NULL, license_type varchar(64) NOT NULL, terms longtext NULL, license_code_hash char(64) NOT NULL DEFAULT '', status varchar(32) NOT NULL DEFAULT 'ACTIVE', idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_status (digital_product_id,status)) $charset;",
             'CREATE TABLE ' . Tables::digital_download_checks() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, digital_product_id bigint(20) unsigned NOT NULL, target_type varchar(32) NOT NULL, target_id bigint(20) unsigned NOT NULL, check_type varchar(64) NOT NULL, validation_result varchar(20) NOT NULL DEFAULT 'PENDING', failure_reason varchar(255) NOT NULL DEFAULT '', review_status varchar(20) NOT NULL DEFAULT 'UNREVIEWED', details longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY product_result (digital_product_id,validation_result), KEY target_check (target_type,target_id,check_type), KEY review_updated (review_status,updated_at)) $charset;",
         ];
-        foreach ($sql as $statement) { dbDelta($statement); }
+        $schemaFailed = false;
+        foreach ($sql as $statement) {
+            $wpdb->last_error = '';
+            dbDelta($statement);
+            if ($wpdb->last_error !== '') {
+                $schemaFailed = true;
+                break;
+            }
+        }
+        if ($schemaFailed) {
+            update_option(
+                'digiforge_last_migration_failure',
+                ['error_code' => 'SCHEMA_UPDATE_FAILED', 'occurred_at' => current_time('mysql', true)],
+                false
+            );
+            return;
+        }
+
+        $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
+        foreach (MigrationPlan::pending($currentVersion) as $version) {
+            update_option('digiforge_db_schema_version', $version, false);
+        }
+
         // Versioned upgrades grant only the capability introduced by the Digital Factory migration.
         Capabilities::addDigital();
-        update_option('digiforge_db_schema_version', 4, false);
+        delete_option('digiforge_last_migration_failure');
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
     }
 }

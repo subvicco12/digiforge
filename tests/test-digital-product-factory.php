@@ -32,7 +32,7 @@ df_expect($readiness['technical_qa']===false,'QA failure clears technical readin
 $m=df_source('includes/Database/Migrator.php');
 foreach(['digital_products()','digital_files()','digital_file_versions()','digital_packages()','digital_previews()','digital_templates()','digital_licenses()','digital_download_checks()'] as $t){df_expect(str_contains($m,$t),"$t schema exists");}
 foreach(['UNIQUE KEY product_version','UNIQUE KEY file_version','UNIQUE KEY idempotency_key','checksum_sha256','validation_result','failure_reason','review_status'] as $rule){df_expect(str_contains($m,$rule),"$rule schema contract exists");}
-df_expect(str_contains($m,"digiforge_db_schema_version', 4"),'schema version 4 is installed');
+df_expect(str_contains($m,'MigrationPlan::pending'),'ordered schema migration plan is installed');
 df_expect(str_contains($m,'Capabilities::addDigital()'),'versioned upgrade grants only the digital capability');
 df_expect(!str_contains($m,'Capabilities::add();'),'versioned migration does not restore unrelated capabilities');
 $capabilities=df_source('includes/Core/Capabilities.php');
@@ -104,7 +104,7 @@ foreach(['pdf_integrity','pdf_page_count','pdf_dimensions','pdf_resolution','pdf
 $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-products','digital-files','digital-file-versions','digital-packages','digital-previews','digital-templates','digital-licenses','digital-download-checks','permission_callback','manage_digiforge_digital','Idempotency-Key','X-WP-Total','X-WP-TotalPages'] as $v){df_expect(str_contains($api,$v),"REST exposes $v");}
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}
 df_expect(str_contains($admin,"\$_GET['paged']")&&str_contains($admin,'all($type,$page)')&&str_contains($admin,'paginate_links')&&str_contains($admin,"['total_pages']"),'admin lists provide page navigation beyond the first repository page');
-$bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.3.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.3.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '4'"),'versions synchronized');
+$bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.4.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.4.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '5'"),'versions synchronized');
 require_once __DIR__.'/../includes/Core/Config.php';
 $defaults=\DigiForge\Core\Config::default_settings();
 df_expect($defaults['stop_all']===true&&$defaults['automation_armed']===false,'automation safety defaults are fail-closed');

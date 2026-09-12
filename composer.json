@@ -8,8 +8,9 @@
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",
-    "phpunit/phpunit": "^12.0",
-    "squizlabs/php_codesniffer": "^4.0"
+    "phpunit/phpunit": "^9.6",
+    "squizlabs/php_codesniffer": "^4.0",
+    "yoast/phpunit-polyfills": "^3.1"
   },
   "autoload-dev": {
     "psr-4": {
@@ -30,7 +31,8 @@
     ],
     "test:unit": "phpunit --configuration phpunit.xml.dist",
     "analyse": "phpstan analyse --configuration phpstan.neon.dist --no-progress",
-    "standards": "phpcs --standard=phpcs.xml.dist"
+    "standards": "phpcs --standard=phpcs.xml.dist",
+    "test:wordpress": "phpunit --configuration phpunit.wordpress.xml.dist"
   },
   "config": {
     "allow-plugins": {},
