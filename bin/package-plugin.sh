@@ -1,35 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-output_dir="${1:-build}"
-package_root="${output_dir}/digiforge"
+repo_root="$(git rev-parse --show-toplevel)"
+output_arg="${1:-build}"
+
+if [[ "${output_arg}" = /* ]]; then
+  output_dir="${output_arg}"
+else
+  output_dir="${repo_root}/${output_arg}"
+fi
+
 archive="${output_dir}/digiforge.zip"
+checksum="${archive}.sha256"
+temporary_archive="$(mktemp "${TMPDIR:-/tmp}/digiforge.XXXXXX.zip")"
+trap 'rm -f "${temporary_archive}"' EXIT
 
-rm -rf "${package_root}" "${archive}" "${archive}.sha256"
-mkdir -p "${package_root}"
+mkdir -p "${output_dir}"
+rm -f "${archive}" "${checksum}"
 
-rsync -a ./ "${package_root}/" \
-  --exclude='.git/' \
-  --exclude='.github/' \
-  --exclude='.phpunit.cache/' \
-  --exclude='.phpstan.cache/' \
-  --exclude='build/' \
-  --exclude='bin/' \
-  --exclude='docs/' \
-  --exclude='tests/' \
-  --exclude='vendor/' \
-  --exclude='composer.json' \
-  --exclude='composer.lock' \
-  --exclude='phpcs.xml.dist' \
-  --exclude='phpstan.neon.dist' \
-  --exclude='phpunit.xml.dist' \
-  --exclude='phpunit.wordpress.xml.dist'
+git -C "${repo_root}" archive \
+  --format=zip \
+  --prefix=digiforge/ \
+  --output="${temporary_archive}" \
+  HEAD
 
+mv "${temporary_archive}" "${archive}"
 (
   cd "${output_dir}"
-  zip -qr digiforge.zip digiforge
   sha256sum digiforge.zip > digiforge.zip.sha256
 )
 
 test -s "${archive}"
-test -s "${archive}.sha256"
+test -s "${checksum}"
