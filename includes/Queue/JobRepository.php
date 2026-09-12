@@ -47,7 +47,7 @@ final class JobRepository
 
     public function transition(int $id, string $from, string $to): bool
     {
-        if (! JobState::canTransition($from, $to)) {
+        if ($to === 'RUNNING' || ! JobState::canTransition($from, $to)) {
             return false;
         }
 
@@ -59,6 +59,24 @@ final class JobRepository
                 current_time('mysql', true),
                 $id,
                 $from
+            )
+        );
+
+        return $updated === 1;
+    }
+
+    public function start(int $id, string $owner): bool
+    {
+        global $wpdb;
+        $now = current_time('mysql', true);
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE " . Tables::jobs() . " SET state = 'RUNNING', updated_at = %s "
+                . "WHERE id = %d AND state = 'QUEUED' AND locked_by = %s AND lease_expires_at >= %s",
+                $now,
+                $id,
+                sanitize_key($owner),
+                $now
             )
         );
 
