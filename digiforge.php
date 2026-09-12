@@ -33,3 +33,16 @@ function digiforge_autoload(string $class): void {
         require_once $file;
     }
 }
+spl_autoload_register('digiforge_autoload');
+
+// WordPress dbDelta expects line-oriented CREATE TABLE definitions. Register
+// the narrow DigiForge normalizer before activation/migration callbacks run.
+\DigiForge\Database\DbDeltaCompatibility::register();
+
+function digiforge(): \DigiForge\Core\Plugin {
+    return \DigiForge\Core\Plugin::instance();
+}
+
+register_activation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'activate']);
+register_deactivation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'deactivate']);
+add_action('plugins_loaded', static function (): void { digiforge()->boot(); });
