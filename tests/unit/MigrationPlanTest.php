@@ -11,11 +11,12 @@ final class MigrationPlanTest extends TestCase
 {
     public function testPendingMigrationsAreOrderedAndResumable(): void
     {
-        self::assertSame([1, 2, 3, 4, 5, 6, 7], MigrationPlan::pending(0));
-        self::assertSame([3, 4, 5, 6, 7], MigrationPlan::pending(2));
-        self::assertSame([5, 6, 7], MigrationPlan::pending(4));
-        self::assertSame([6, 7], MigrationPlan::pending(5));
-        self::assertSame([7], MigrationPlan::pending(6));
-        self::assertSame([], MigrationPlan::pending(7));
+        self::assertSame([1, 2, 3, 4, 5, 6, 7, 8], MigrationPlan::pending(0));
+        self::assertSame([3, 4, 5, 6, 7, 8], MigrationPlan::pending(2));
+        self::assertSame([5, 6, 7, 8], MigrationPlan::pending(4));
+        self::assertSame([6, 7, 8], MigrationPlan::pending(5));
+        self::assertSame([7, 8], MigrationPlan::pending(6));
+        self::assertSame([8], MigrationPlan::pending(7));
+        self::assertSame([], MigrationPlan::pending(8));
     }
 }
