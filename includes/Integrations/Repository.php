@@ -8,13 +8,14 @@ use DigiForge\Security\Logger;
 /** Local-only integration registry. No provider network requests are performed. */
 final class Repository {
     public const PROVIDERS = ['etsy','printify','gelato','ai'];
+    public const ENVIRONMENTS = ['sandbox','test','production'];
     public const STATUSES = ['DISCONNECTED','CONFIGURED','PAUSED','ERROR'];
 
     public function all(int $page = 1, int $perPage = 50): array {
         global $wpdb;
         $page = max(1, $page); $perPage = min(100, max(1, $perPage)); $offset = ($page - 1) * $perPage;
         $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . Tables::integrations());
-        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' ORDER BY provider, display_name LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A) ?: [];
+        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' ORDER BY provider, environment, display_name LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A) ?: [];
         return ['items' => array_map([$this, 'publicRow'], $rows), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'total_pages' => max(1, (int) ceil($total / $perPage))]];
     }
 
@@ -30,7 +31,8 @@ final class Repository {
         $now = current_time('mysql', true);
         $ok = $wpdb->insert(Tables::integrations(), $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now]);
         if ($ok === false) { return new \WP_Error('integration_create_failed', __('Could not create integration.', 'digiforge'), ['status' => 409]); }
-        $id = (int) $wpdb->insert_id; Logger::audit('integration_created', ['provider' => $data['provider']], 'integration', (string) $id);
+        $id = (int) $wpdb->insert_id;
+        Logger::audit('integration_created', ['provider' => $data['provider'], 'environment' => $data['environment']], 'integration', (string) $id);
         return $this->find($id) ?? [];
     }
 
@@ -80,13 +82,15 @@ final class Repository {
     }
 
     private function sanitizeConnection(array $input, bool $create): array|\WP_Error {
-        $allowed = $create ? ['provider','connection_key','display_name','status','enabled','config'] : ['display_name','status','enabled','config'];
+        $allowed = $create ? ['provider','environment','connection_key','display_name','status','enabled','config'] : ['display_name','status','enabled','config'];
         foreach ($input as $key => $_) { if (! in_array((string) $key, $allowed, true)) { return new \WP_Error('invalid_integration_field', __('Unsupported integration field.', 'digiforge'), ['status' => 400]); } }
         $out = [];
         if ($create) {
-            $provider = sanitize_key((string) ($input['provider'] ?? '')); $connectionKey = sanitize_key((string) ($input['connection_key'] ?? ''));
-            if (! in_array($provider, self::PROVIDERS, true) || $connectionKey === '') { return new \WP_Error('invalid_integration', __('A supported provider and connection key are required.', 'digiforge'), ['status' => 400]); }
-            $out['provider'] = $provider; $out['connection_key'] = $connectionKey;
+            $provider = sanitize_key((string) ($input['provider'] ?? ''));
+            $environment = sanitize_key((string) ($input['environment'] ?? 'sandbox'));
+            $connectionKey = sanitize_key((string) ($input['connection_key'] ?? ''));
+            if (! in_array($provider, self::PROVIDERS, true) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') { return new \WP_Error('invalid_integration', __('A supported provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]); }
+            $out['provider'] = $provider; $out['environment'] = $environment; $out['connection_key'] = $connectionKey;
         }
         if (array_key_exists('display_name', $input)) { $out['display_name'] = sanitize_text_field((string) $input['display_name']); }
         if ($create && ($out['display_name'] ?? '') === '') { $out['display_name'] = ucwords(str_replace('_', ' ', (string) $out['connection_key'])); }
