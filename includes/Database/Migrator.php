@@ -9,9 +9,6 @@ final class Migrator {
         global $wpdb; require_once ABSPATH . 'wp-admin/includes/upgrade.php'; $charset = $wpdb->get_charset_collate();
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
 
-        // Re-activation on an already-current schema must be a no-op. In particular, do not re-run
-        // dbDelta across stable AUTO_INCREMENT tables because MariaDB can reject WordPress's inferred
-        // empty-string default alteration for those primary keys.
         if ($currentVersion >= MigrationPlan::LATEST) {
             Capabilities::addDigital();
             delete_option('digiforge_last_migration_failure');
@@ -19,7 +16,6 @@ final class Migrator {
             return;
         }
 
-        // V2 converts the empty-string sentinel to NULL so jobs without an idempotency key can coexist.
         $existing_jobs_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::jobs())));
         if ($existing_jobs_table === Tables::jobs() && $currentVersion < 2) {
             $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
@@ -48,34 +44,35 @@ final class Migrator {
             'CREATE TABLE ' . Tables::integrations() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, provider varchar(32) NOT NULL, environment varchar(20) NOT NULL DEFAULT 'sandbox', connection_key varchar(100) NOT NULL, display_name varchar(191) NOT NULL, status varchar(20) NOT NULL DEFAULT 'DISCONNECTED', enabled tinyint(1) NOT NULL DEFAULT 0, config longtext NOT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY provider_environment_connection (provider,environment,connection_key), KEY provider_environment_status (provider,environment,status), KEY enabled_updated (enabled,updated_at)) $charset;",
             'CREATE TABLE ' . Tables::integration_secrets() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, integration_id bigint(20) unsigned NOT NULL, secret_name varchar(100) NOT NULL, ciphertext longtext NOT NULL, fingerprint char(16) NOT NULL, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY integration_secret (integration_id,secret_name), KEY integration_updated (integration_id,updated_at)) $charset;",
         ];
+        $researchSql = [
+            'CREATE TABLE ' . Tables::research_sources() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, name varchar(191) NOT NULL, source_type varchar(64) NOT NULL, environment varchar(20) NOT NULL DEFAULT 'sandbox', enabled tinyint(1) NOT NULL DEFAULT 0, config longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY type_environment (source_type,environment), KEY enabled_updated (enabled,updated_at)) $charset;",
+            'CREATE TABLE ' . Tables::research_observations() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, source_id bigint(20) unsigned NOT NULL, external_id varchar(191) NOT NULL DEFAULT '', title varchar(191) NOT NULL DEFAULT '', body longtext NULL, content_hash char(64) NOT NULL, observed_at datetime NOT NULL, provenance longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY content_hash (content_hash), UNIQUE KEY idempotency_key (idempotency_key), KEY source_observed (source_id,observed_at)) $charset;",
+            'CREATE TABLE ' . Tables::research_evidence() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, observation_id bigint(20) unsigned NOT NULL, evidence_type varchar(64) NOT NULL, value longtext NOT NULL, provenance longtext NULL, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY idempotency_key (idempotency_key), KEY observation_type (observation_id,evidence_type)) $charset;",
+            'CREATE TABLE ' . Tables::research_candidates() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, title varchar(191) NOT NULL, canonical_title varchar(255) NOT NULL, fingerprint char(64) NOT NULL, summary longtext NULL, score decimal(6,2) NOT NULL DEFAULT 0, score_version varchar(32) NOT NULL, score_inputs longtext NULL, review_status varchar(20) NOT NULL DEFAULT 'PENDING', opportunity_id bigint(20) unsigned NOT NULL DEFAULT 0, idempotency_key varchar(191) NULL DEFAULT NULL, created_by bigint(20) unsigned NOT NULL DEFAULT 0, created_at datetime NOT NULL, updated_at datetime NOT NULL, PRIMARY KEY  (id), UNIQUE KEY fingerprint (fingerprint), UNIQUE KEY idempotency_key (idempotency_key), KEY review_score (review_status,score), KEY opportunity_id (opportunity_id)) $charset;",
+            'CREATE TABLE ' . Tables::research_candidate_evidence() . " (candidate_id bigint(20) unsigned NOT NULL, evidence_id bigint(20) unsigned NOT NULL, created_at datetime NOT NULL, PRIMARY KEY  (candidate_id,evidence_id), KEY evidence_id (evidence_id)) $charset;",
+            'CREATE TABLE ' . Tables::research_reviews() . " (id bigint(20) unsigned NOT NULL AUTO_INCREMENT, candidate_id bigint(20) unsigned NOT NULL, decision varchar(20) NOT NULL, notes longtext NULL, reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0, reviewed_at datetime NOT NULL, PRIMARY KEY  (id), KEY candidate_reviewed (candidate_id,reviewed_at), KEY decision_reviewed (decision,reviewed_at)) $charset;",
+        ];
 
-        // Fresh installs create the complete schema. Existing schema-v5 installs receive only the
-        // additive v6 integration tables, so unchanged v1-v5 AUTO_INCREMENT tables are never touched.
-        // Older pre-v5 installs retain the established compatibility path that reconciles the base schema.
-        $sql = $currentVersion === 0 || $currentVersion < 5 ? array_merge($baseSql, $integrationSql) : $integrationSql;
+        if ($currentVersion >= 6) {
+            $sql = $researchSql;
+        } elseif ($currentVersion === 5) {
+            $sql = array_merge($integrationSql, $researchSql);
+        } else {
+            $sql = array_merge($baseSql, $integrationSql, $researchSql);
+        }
+
         $schemaFailed = false;
         foreach ($sql as $statement) {
             $wpdb->last_error = '';
             dbDelta($statement);
-            if ($wpdb->last_error !== '') {
-                $schemaFailed = true;
-                break;
-            }
+            if ($wpdb->last_error !== '') { $schemaFailed = true; break; }
         }
         if ($schemaFailed) {
-            update_option(
-                'digiforge_last_migration_failure',
-                ['error_code' => 'SCHEMA_UPDATE_FAILED', 'occurred_at' => current_time('mysql', true)],
-                false
-            );
+            update_option('digiforge_last_migration_failure',['error_code'=>'SCHEMA_UPDATE_FAILED','occurred_at'=>current_time('mysql',true)],false);
             return;
         }
 
-        foreach (MigrationPlan::pending($currentVersion) as $version) {
-            update_option('digiforge_db_schema_version', $version, false);
-        }
-
-        // Versioned upgrades grant only the capability introduced by the Digital Factory migration.
+        foreach (MigrationPlan::pending($currentVersion) as $version) { update_option('digiforge_db_schema_version', $version, false); }
         Capabilities::addDigital();
         delete_option('digiforge_last_migration_failure');
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);

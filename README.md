@@ -18,7 +18,8 @@ DigiForge is a WordPress-native foundation for a future digital-product and prin
 * `includes/Database` contains table names and versioned, additive `dbDelta` migrations.
 * `includes/Security` supplies append-oriented audit logging with recursive credential redaction.
 * `includes/Integrations` provides the local-only integration registry and encrypted credential vault for Etsy, Printify, Gelato, and AI provider classes. It performs no provider network calls.
-* `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints, including the local integration registry.
+* `includes/Research` provides the inert Research & Opportunity Intelligence foundation: local source records, normalized observations, evidence/provenance, deterministic scoring, candidate deduplication, human review, and controlled promotion into Product Factory opportunities.
+* `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints for Product Factory, Digital Factory, integrations, and research.
 * `includes/DigitalFactory` owns digital-product lifecycle/readiness policy, local QA vocabularies, persistence, and WordPress admin views.
 * `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
 * `modules`, `automation`, and `admin` reserve stable module boundaries for future implementation.
@@ -46,8 +47,14 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_digital_download_checks`
 * `{$wpdb->prefix}digiforge_integrations`
 * `{$wpdb->prefix}digiforge_integration_secrets`
+* `{$wpdb->prefix}digiforge_research_sources`
+* `{$wpdb->prefix}digiforge_research_observations`
+* `{$wpdb->prefix}digiforge_research_evidence`
+* `{$wpdb->prefix}digiforge_research_candidates`
+* `{$wpdb->prefix}digiforge_research_candidate_evidence`
+* `{$wpdb->prefix}digiforge_research_reviews`
 
-Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **6**. Earlier versions introduced nullable job idempotency keys, Product Factory records, Digital Product Factory records, queue/health hardening, and operational queue columns; version 6 adds the local integration registry and encrypted integration-secret store. Migrations remain additive and safe to invoke on subsequent plugin boots.
+Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **7**. Earlier versions introduced nullable job idempotency keys, Product Factory records, Digital Product Factory records, queue/health hardening, and the local integration registry. Version 7 adds the Research & Opportunity Intelligence tables. Existing schema-v6 installations receive only the additive research tables, and an already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
 
 ## Product Factory
 
@@ -61,21 +68,31 @@ Its internal readiness path covers file preparation, technical/content/visual/co
 
 ## Integration registry and credential security
 
-DigiForge stores local connection records for `etsy`, `printify`, `gelato`, and `ai` provider classes. The registry contains provider metadata, connection keys, enabled/status state, and non-secret configuration only. Configuration is recursively checked for credential-like keys; tokens, API keys, authorization values, passwords, private/signing keys, client secrets and similar values are rejected from ordinary config and must use the dedicated credential endpoint.
+DigiForge stores local connection records for `etsy`, `printify`, `gelato`, and `ai` provider classes. The registry contains provider metadata, environment, connection keys, enabled/status state, and non-secret configuration only. Configuration is recursively checked for credential-like keys; tokens, API keys, authorization values, passwords, private/signing keys, client secrets and similar values are rejected from ordinary config and must use the dedicated credential endpoint.
 
-Credentials are write-only. They are encrypted at rest using a domain-separated key derived from `DIGIFORGE_CREDENTIAL_KEY`, with XChaCha20-Poly1305 when sodium is available and AES-256-GCM as the fallback. Authenticated encryption is bound to the integration id and secret name so ciphertext cannot be moved between records or secret slots without failing authentication. Stored fingerprints are keyed HMAC-derived identifiers and are not secret hashes. REST responses and the read-only **DigiForge → Connections** admin view expose only credential metadata, never plaintext or ciphertext.
+Credentials are write-only. They are encrypted at rest using a domain-separated key derived from `DIGIFORGE_CREDENTIAL_KEY`, with XChaCha20-Poly1305 when sodium is available and AES-256-GCM as the fallback. Authenticated encryption is bound to the integration id and secret name so ciphertext cannot be moved between records or secret slots without failing authentication. Stored fingerprints are keyed HMAC-derived identifiers and are not secret hashes. REST responses and the read-only **DigiForge → Connections** admin view expose only credential metadata, never plaintext or ciphertext. Sandbox/test/production connection records are isolated by provider, environment and connection key.
+
+## Research & Opportunity Intelligence
+
+Batch 4 adds a deliberately inert research foundation. Research sources are local records only and default to `enabled = 0`; creating a source does not activate collection. Observations accept manually supplied normalized content and provenance, are deduplicated by deterministic content hashes, and can be linked to evidence records. Candidate ideas are canonicalized and deduplicated by SHA-256 fingerprints.
+
+Candidate scoring is deterministic and versioned (`v1`). The current score is a bounded 0–100 weighted calculation over demand, competition gap, margin, trend and evidence quality. The stored score inputs and score version preserve provenance for later review; no AI model is involved in this calculation.
+
+Research candidates begin in `PENDING` review status. Only an explicit human `APPROVED` review allows promotion. Promotion creates an ordinary Product Factory Opportunity through the existing Product Factory repository and uses idempotency to prevent duplicate opportunities. Rejected or unreviewed candidates cannot be promoted.
+
+Research REST routes require the `manage_digiforge_research` capability. Every research mutation requires an `Idempotency-Key`; duplicate mutation submissions are rejected and failed validation releases the pending reservation so a corrected retry can proceed. The **DigiForge → Research Review** admin view is read-only in this batch and exposes no automation controls.
 
 ## Security model
 
-Administrators receive DigiForge-specific capabilities on activation. REST routes use WordPress REST authentication (including normal cookie nonce validation performed by WordPress for cookie-authenticated requests) and strict permission callbacks. Integration registry routes require `manage_digiforge_connections`; state-changing automation routes require `manage_digiforge_automation`; status requires `manage_digiforge` or `view_digiforge_analytics`.
+Administrators receive DigiForge-specific capabilities on activation. REST routes use WordPress REST authentication (including normal cookie nonce validation performed by WordPress for cookie-authenticated requests) and strict permission callbacks. Integration registry routes require `manage_digiforge_connections`; Research routes require `manage_digiforge_research`; state-changing automation routes require `manage_digiforge_automation`; status requires `manage_digiforge` or `view_digiforge_analytics`.
 
 All state is server-side. Settings are private table records, REST responses never return secrets, and audit contexts recursively redact normalized credential field names including access/refresh tokens, client secrets, private/signing keys, API keys and authorization values. The audit log is append-oriented by plugin code. The **STOP ALL** flag prevents `Settings::is_enabled()` from reporting any individual automation as enabled, and `automation_armed` remains internal and fail-closed.
 
-Uninstall retains all business data by default. It deletes DigiForge tables, including integration registry and integration-secret tables, only if the explicit `cleanup_on_uninstall` option was enabled before uninstall. Destructive uninstall is disabled during multisite/network execution.
+Uninstall retains all business data by default. It deletes DigiForge tables, including integration and research tables, only if the explicit `cleanup_on_uninstall` option was enabled before uninstall. Destructive uninstall is disabled during multisite/network execution.
 
-## Intentionally disabled integrations
+## Intentionally disabled integrations and execution
 
-The Batch 3 integration registry is storage and administration infrastructure only. No live connection, OAuth exchange, webhook processing, workflow, health request, publishing, fulfillment, order processing, AI execution, or automation exists for Etsy, Printify, Gelato, AI services, GST portals, research, or any other external service. The controls for research, AI, product development, Printify, Gelato, Etsy drafts/publishing, orders, and GST remain OFF by default. This foundation does not send requests to any external service.
+Batch 4 remains storage, review and governance infrastructure only. No live research collector, scraper, crawler, scheduled ingestion, AI execution, OAuth exchange, webhook processing, provider health request, publishing, fulfillment, order processing, GST automation or background worker is enabled. Etsy, Printify, Gelato and AI providers remain local registry records only. Research, AI, product development, Printify, Gelato, Etsy drafts/publishing, orders and GST controls remain OFF by default. The plugin does not send requests to any external service.
 
 ## Development checks
 

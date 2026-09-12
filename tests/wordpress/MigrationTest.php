@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class MigrationTest extends WP_UnitTestCase
 {
-    public function testSchemaSixPreservesOperationalQueueColumnsAndCreatesIntegrationTables(): void
+    public function testSchemaSevenPreservesOperationalTablesAndCreatesResearchTables(): void
     {
         DigiForge\Core\Activator::activate();
 
@@ -25,7 +25,21 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertContains('provider_environment_connection', $integrationIndexes);
         self::assertContains('provider_environment_status', $integrationIndexes);
         self::assertContains('integration_secret', $secretIndexes);
-        self::assertSame(6, (int) get_option('digiforge_db_schema_version'));
+
+        foreach ([
+            DigiForge\Database\Tables::research_sources(),
+            DigiForge\Database\Tables::research_observations(),
+            DigiForge\Database\Tables::research_evidence(),
+            DigiForge\Database\Tables::research_candidates(),
+            DigiForge\Database\Tables::research_candidate_evidence(),
+            DigiForge\Database\Tables::research_reviews(),
+        ] as $table) {
+            self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
+        }
+
+        $candidateIndexes = $wpdb->get_col('SHOW INDEX FROM ' . DigiForge\Database\Tables::research_candidates(), 2);
+        self::assertContains('fingerprint', $candidateIndexes);
+        self::assertSame(7, (int) get_option('digiforge_db_schema_version'));
     }
 
     public function testHealthSnapshotRemainsSafetyLocked(): void
@@ -35,7 +49,7 @@ final class MigrationTest extends WP_UnitTestCase
         $snapshot = (new DigiForge\Observability\HealthMonitor())->snapshot();
 
         self::assertTrue($snapshot['automation_locked']);
-        self::assertSame(6, $snapshot['schema']['expected']);
-        self::assertSame(6, $snapshot['schema']['current']);
+        self::assertSame(7, $snapshot['schema']['expected']);
+        self::assertSame(7, $snapshot['schema']['current']);
     }
 }
