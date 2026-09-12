@@ -22,4 +22,10 @@ final class Tables {
     public static function digital_download_checks(): string { return self::name('digital_download_checks'); }
     public static function integrations(): string { return self::name('integrations'); }
     public static function integration_secrets(): string { return self::name('integration_secrets'); }
+    public static function research_sources(): string { return self::name('research_sources'); }
+    public static function research_observations(): string { return self::name('research_observations'); }
+    public static function research_evidence(): string { return self::name('research_evidence'); }
+    public static function research_candidates(): string { return self::name('research_candidates'); }
+    public static function research_candidate_evidence(): string { return self::name('research_candidate_evidence'); }
+    public static function research_reviews(): string { return self::name('research_reviews'); }
 }
