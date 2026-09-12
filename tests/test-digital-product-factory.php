@@ -104,7 +104,7 @@ foreach(['pdf_integrity','pdf_page_count','pdf_dimensions','pdf_resolution','pdf
 $api=df_source('includes/REST/DigitalFactoryController.php'); foreach(['digital-products','digital-files','digital-file-versions','digital-packages','digital-previews','digital-templates','digital-licenses','digital-download-checks','permission_callback','manage_digiforge_digital','Idempotency-Key','X-WP-Total','X-WP-TotalPages'] as $v){df_expect(str_contains($api,$v),"REST exposes $v");}
 $admin=df_source('includes/DigitalFactory/Admin.php');foreach(['Digital Products','Digital Files','Digital Packages','Digital Templates','Digital Licenses','Digital QA / Download Checks','manage_digiforge_digital'] as $v){df_expect(str_contains($admin,$v),"admin exposes $v");}
 df_expect(str_contains($admin,"\$_GET['paged']")&&str_contains($admin,'all($type,$page)')&&str_contains($admin,'paginate_links')&&str_contains($admin,"['total_pages']"),'admin lists provide page navigation beyond the first repository page');
-$bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.7.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.7.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '10'"),'versions synchronized');
+$bootstrap=df_source('digiforge.php');df_expect(str_contains($bootstrap,'* Version: 0.8.0')&&str_contains($bootstrap,"DIGIFORGE_VERSION = '0.8.0'")&&str_contains($bootstrap,"DIGIFORGE_DB_VERSION = '11'"),'versions synchronized');
 require_once __DIR__.'/../includes/Core/Config.php';
 $defaults=\DigiForge\Core\Config::default_settings();
 df_expect($defaults['stop_all']===true&&$defaults['automation_armed']===false,'automation safety defaults are fail-closed');
