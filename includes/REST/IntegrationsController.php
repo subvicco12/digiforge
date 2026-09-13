@@ -8,18 +8,23 @@ use DigiForge\Queue\Idempotency;
 /** Authenticated local-only integration registry API. */
 final class IntegrationsController {
     private const NS = 'digiforge/v1';
+    private const ALLOW_BATCH = ['v1' => true];
+
     public function register(): void {
         add_action('rest_api_init', function (): void {
             register_rest_route(self::NS, '/integrations', [
                 ['methods' => 'GET', 'callback' => [$this, 'index'], 'permission_callback' => [$this, 'canManage']],
                 ['methods' => 'POST', 'callback' => [$this, 'create'], 'permission_callback' => [$this, 'canManage']],
+                'allow_batch' => self::ALLOW_BATCH,
             ]);
             register_rest_route(self::NS, '/integrations/(?P<id>\d+)', [
                 ['methods' => 'GET', 'callback' => [$this, 'show'], 'permission_callback' => [$this, 'canManage']],
                 ['methods' => 'PATCH', 'callback' => [$this, 'update'], 'permission_callback' => [$this, 'canManage']],
+                'allow_batch' => self::ALLOW_BATCH,
             ]);
             register_rest_route(self::NS, '/integrations/(?P<id>\d+)/secrets/(?P<name>[a-zA-Z0-9_-]+)', [
                 ['methods' => 'PUT', 'callback' => [$this, 'putSecret'], 'permission_callback' => [$this, 'canManage']],
+                'allow_batch' => self::ALLOW_BATCH,
             ]);
         });
     }
