@@ -31,6 +31,10 @@ final class FinalReadinessStructureTest extends TestCase
     public function testInternalActivationGateIsNonWritable(): void
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/Core/Config.php');
-        self::assertStringContainsString("'activation_authorized' => ['type' => 'boolean', 'default' => false, 'writable' => false]", $source);
+        $expected = "'activation_authorized' => [" .
+            "'type' => 'boolean', 'default' => false, 'writable' => false" .
+            ']';
+
+        self::assertStringContainsString($expected, $source);
     }
 }
