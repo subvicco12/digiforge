@@ -21,6 +21,9 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString('Custom / future API', $admin);
         self::assertStringContainsString('provider_custom', $admin);
         self::assertStringContainsString('ProviderCatalog::validProviderSlug', $repository);
+        self::assertStringContainsString('MAX_PROVIDER_SLUG_LENGTH = 32', $catalog);
+        self::assertStringContainsString('OAuth 2.0 (PKCE) + app API key', $catalog);
+        self::assertStringContainsString('X-API-KEY', $catalog);
     }
 
     public function testCredentialEntryRemainsWriteOnlyAndFailClosed(): void
@@ -45,5 +48,26 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString('check_admin_referer', $admin);
         self::assertStringContainsString('wp_nonce_field', $admin);
         self::assertStringContainsString('admin_post_digiforge_integration_secret', $admin);
+    }
+
+    public function testRestIntegrationMutationsSupportSafeWordPressBatchTransport(): void
+    {
+        $controller = (string) file_get_contents(__DIR__ . '/../../includes/REST/IntegrationsController.php');
+
+        self::assertStringContainsString("private const ALLOW_BATCH = ['v1' => true]", $controller);
+        self::assertGreaterThanOrEqual(3, substr_count($controller, "'allow_batch' => self::ALLOW_BATCH"));
+        self::assertStringContainsString("get_header('Idempotency-Key')", $controller);
+        self::assertStringContainsString('missing_idempotency_key', $controller);
+    }
+
+    public function testIntegrationCreateReportsDuplicateAndSafeFailureReference(): void
+    {
+        $repository = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Repository.php');
+
+        self::assertStringContainsString('integration_exists', $repository);
+        self::assertStringContainsString('error_reference', $repository);
+        self::assertStringContainsString("stripos(\$dbError, 'Duplicate entry')", $repository);
+        self::assertStringContainsString('invalid_connection_key', $repository);
+        self::assertStringContainsString('invalid_display_name', $repository);
     }
 }
