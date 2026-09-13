@@ -19,6 +19,7 @@ use DigiForge\REST\PodController;
 use DigiForge\REST\ListingController;
 use DigiForge\REST\OrderController;
 use DigiForge\REST\FinanceController;
+use DigiForge\REST\ReadinessController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -51,6 +52,7 @@ final class Plugin {
         (new ListingController())->register();
         (new OrderController())->register();
         (new FinanceController())->register();
+        (new ReadinessController())->register();
         (new Scheduler())->register();
         if (is_admin()) {
             (new Admin())->register();
@@ -63,6 +65,7 @@ final class Plugin {
             (new \DigiForge\Listings\Admin())->register();
             (new \DigiForge\Orders\Admin())->register();
             (new \DigiForge\Finance\Admin())->register();
+            (new \DigiForge\Readiness\Admin())->register();
         }
         add_action('digiforge_log', [Logger::class, 'write'], 10, 4);
     }
