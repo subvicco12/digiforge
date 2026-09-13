@@ -9,7 +9,7 @@ use DigiForge\Security\Logger;
 final class ConnectionTester {
     private const PRINTIFY_SHOPS_URL = 'https://api.printify.com/v1/shops.json';
     private const ETSY_PING_URL = 'https://api.etsy.com/v3/application/openapi-ping';
-    private const ETSY_USER_BASE = 'https://api.etsy.com/v3/application/users/';
+    private const ETSY_USER_ME_URL = 'https://api.etsy.com/v3/application/users/me';
     private const GELATO_CATALOGS_URL = 'https://product.gelatoapis.com/v3/catalogs';
     private const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models';
 
@@ -57,15 +57,14 @@ final class ConnectionTester {
             Logger::audit('integration_connection_test_partial', ['provider' => 'etsy', 'oauth' => 'not_configured'], 'integration', (string) $integrationId);
             return ['ok' => true, 'partial' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => __('Etsy app credentials verified. OAuth shop authorization is still required before this Etsy connector is fully configured.', 'digiforge')];
         }
-        $parts = explode('.', $access, 2); $userId = isset($parts[0]) ? absint($parts[0]) : 0;
-        if ($userId <= 0) { return new \WP_Error('etsy_access_token_invalid', __('The stored Etsy access token does not contain a valid user identifier.', 'digiforge'), ['status' => 409]); }
-        $userResponse = $this->get(self::ETSY_USER_BASE . $userId, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']); unset($access, $apiKey);
+        $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']); unset($access, $apiKey);
         $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { return $checked; }
         $user = json_decode((string) wp_remote_retrieve_body($userResponse), true); if (! is_array($user)) { return $this->invalidResponse('etsy', $integrationId); }
+        $userId = absint($user['user_id'] ?? 0);
         $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'valid', 'user_id' => $userId];
         $this->record($integrationId, true, $details, true);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'etsy', 'user_id' => $userId], 'integration', (string) $integrationId);
-        return ['ok' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => sprintf(__('Etsy connection verified for authenticated user %d.', 'digiforge'), $userId)];
+        return ['ok' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => $userId > 0 ? sprintf(__('Etsy connection verified for authenticated user %d.', 'digiforge'), $userId) : __('Etsy connection verified for the authenticated account.', 'digiforge')];
     }
 
     private function testGelato(int $integrationId): array|\WP_Error {
