@@ -17,7 +17,6 @@ final class IntegrationControlCenterStructureTest extends TestCase
         foreach (['etsy', 'printify', 'gelato', 'ai'] as $provider) {
             self::assertStringContainsString("'$provider'", $catalog);
         }
-
         self::assertStringContainsString('Custom / future API', $admin);
         self::assertStringContainsString('provider_custom', $admin);
         self::assertStringContainsString('ProviderCatalog::validProviderSlug', $repository);
@@ -35,9 +34,25 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString('autocomplete="new-password"', $admin);
         self::assertStringContainsString('fingerprint', $admin);
         self::assertStringNotContainsString("['ciphertext']", $admin);
-        self::assertStringContainsString('Secrets are rejected from configuration JSON', $admin);
+        self::assertStringContainsString('Secrets must be stored in the credential vault', $repository);
         self::assertStringContainsString('integration_credentials_required', $repository);
         self::assertStringContainsString('integration_not_configured', $repository);
+    }
+
+    public function testProfessionalControlsRequireConfirmationAndFailClosed(): void
+    {
+        $admin = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Admin.php');
+        $repository = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Repository.php');
+
+        self::assertStringContainsString('admin_post_digiforge_integration_toggle', $admin);
+        self::assertStringContainsString('admin_post_digiforge_integration_delete', $admin);
+        self::assertStringContainsString('return confirm(', $admin);
+        self::assertStringContainsString('Delete this connector and all of its stored encrypted credentials?', $admin);
+        self::assertStringContainsString('setEnabled', $repository);
+        self::assertStringContainsString('integration_delete_enabled', $repository);
+        self::assertStringContainsString('START TRANSACTION', $repository);
+        self::assertStringContainsString('ROLLBACK', $repository);
+        self::assertStringContainsString('COMMIT', $repository);
     }
 
     public function testCredentialVaultCanProvisionEncryptedManagedMasterKey(): void
