@@ -34,22 +34,23 @@ expect(JobState::terminal('SUCCESS'), 'success is terminal');
 expect(! JobState::terminal('RUNNING'), 'running is non-terminal');
 
 $capabilities = source('includes/Core/Capabilities.php');
-foreach (['manage_digiforge', 'manage_digiforge_products', 'manage_digiforge_digital', 'manage_digiforge_research', 'manage_digiforge_ai', 'manage_digiforge_production', 'manage_digiforge_pod', 'manage_digiforge_listings', 'manage_digiforge_orders', 'manage_digiforge_automation', 'manage_digiforge_connections', 'manage_digiforge_settings', 'publish_digiforge', 'view_digiforge_analytics'] as $capability) {
+foreach (['manage_digiforge', 'manage_digiforge_products', 'manage_digiforge_digital', 'manage_digiforge_research', 'manage_digiforge_ai', 'manage_digiforge_production', 'manage_digiforge_pod', 'manage_digiforge_listings', 'manage_digiforge_orders', 'manage_digiforge_finance', 'manage_digiforge_automation', 'manage_digiforge_connections', 'manage_digiforge_settings', 'publish_digiforge', 'view_digiforge_analytics'] as $capability) {
     expect(str_contains($capabilities, "'$capability'"), "$capability capability declared");
 }
 
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '12'"), 'database schema version is current');
-expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.9\.0\s*$/m', $bootstrap), 'plugin header release version is current');
-expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.9\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '13'"), 'database schema version is current');
+expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.10\.0\s*$/m', $bootstrap), 'plugin header release version is current');
+expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.10\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
 
 foreach ([
     ['includes/Database/ProductionSchema.php', '$currentVersion === 8'],
     ['includes/Database/PodSchema.php', '$currentVersion === 9'],
     ['includes/Database/ListingSchema.php', '$currentVersion === 10'],
     ['includes/Database/OrderSchema.php', '$currentVersion === 11'],
+    ['includes/Database/FinanceSchema.php', '$currentVersion === 12'],
 ] as [$file, $guard]) {
     expect(str_contains(source($file), $guard), "$file exact additive migration guard exists");
 }
@@ -57,6 +58,11 @@ foreach ([
 $orderSchema = source('includes/Database/OrderSchema.php');
 foreach (['orders', 'order_line_items', 'personalization_submissions', 'fulfillment_plans', 'fulfillment_intents', 'fulfillment_readiness_reviews'] as $table) {
     expect(str_contains($orderSchema, "Tables::$table()"), "$table Batch 9 table declared");
+}
+
+$financeSchema = source('includes/Database/FinanceSchema.php');
+foreach (['finance_entries', 'fx_snapshots', 'tax_classifications', 'finance_periods', 'analytics_snapshots', 'operational_alerts', 'finance_intents'] as $table) {
+    expect(str_contains($financeSchema, "Tables::$table()"), "$table Batch 10 table declared");
 }
 
 $orderLifecycle = source('includes/Orders/Lifecycle.php');
@@ -77,9 +83,21 @@ expect(str_contains($orderRepository, 'Logger::audit'), 'order mutations are aud
 expect(! str_contains($orderRepository, 'wp_remote_'), 'order repository has no external HTTP client');
 expect(! str_contains($orderRepository, 'curl_init'), 'order repository has no curl execution');
 
+$financeController = source('includes/REST/FinanceController.php');
+expect(str_contains($financeController, 'manage_digiforge_finance'), 'finance REST requires finance capability');
+expect(str_contains($financeController, 'Idempotency-Key'), 'finance mutations require idempotency');
+expect(str_contains($financeController, 'MAX_BODY_BYTES'), 'finance mutations enforce request body bounds');
+$financeRepository = source('includes/Finance/Repository.php');
+expect(str_contains($financeRepository, "'state' => 'BLOCKED'"), 'finance intents are inert and blocked');
+expect(str_contains($financeRepository, 'Logger::audit'), 'finance mutations are audited');
+expect(! str_contains($financeRepository, 'wp_remote_'), 'finance repository has no external HTTP client');
+expect(! str_contains($financeRepository, 'curl_init'), 'finance repository has no curl execution');
+
 $plugin = source('includes/Core/Plugin.php');
 expect(str_contains($plugin, 'OrderController'), 'order REST service is wired');
 expect(str_contains($plugin, '\\DigiForge\\Orders\\Admin'), 'order admin service is wired');
+expect(str_contains($plugin, 'FinanceController'), 'finance REST service is wired');
+expect(str_contains($plugin, '\\DigiForge\\Finance\\Admin'), 'finance admin service is wired');
 
 $logger = source('includes/Security/Logger.php');
 foreach (['password', 'secret', 'token', 'accesstoken', 'refreshtoken', 'clientsecret', 'authorization', 'apikey', 'credential', 'privatekey', 'signingkey'] as $credentialKey) {
