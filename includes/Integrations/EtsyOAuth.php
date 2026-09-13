@@ -220,12 +220,13 @@ final class EtsyOAuth
                 'connection_key' => (string) $item['connection_key'],
                 'has_app_credentials' => $hasAppCredentials,
                 'authorized' => $authorized,
-                'url' => $hasAppCredentials ? wp_nonce_url(
-                    add_query_arg(
-                        ['action' => 'digiforge_etsy_oauth_start', 'integration_id' => (int) $item['id']],
-                        admin_url('admin-post.php')
-                    ),
-                    'digiforge_etsy_oauth_start'
+                'url' => $hasAppCredentials ? add_query_arg(
+                    [
+                        'action' => 'digiforge_etsy_oauth_start',
+                        'integration_id' => (int) $item['id'],
+                        '_wpnonce' => wp_create_nonce('digiforge_etsy_oauth_start'),
+                    ],
+                    admin_url('admin-post.php')
                 ) : '',
             ];
         }
