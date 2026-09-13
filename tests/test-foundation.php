@@ -78,7 +78,7 @@ expect(str_contains($orderController, 'manage_digiforge_orders'), 'order REST re
 expect(str_contains($orderController, 'Idempotency-Key'), 'order mutations require idempotency');
 expect(str_contains($orderController, 'MAX_BODY_BYTES'), 'order mutations enforce request body bounds');
 $orderRepository = source('includes/Orders/Repository.php');
-expect(str_contains($orderRepository, "'state' => 'BLOCKED'"), 'fulfillment intents are inert and blocked');
+expect((bool) preg_match("/'state'\\s*=>\\s*'BLOCKED'/", $orderRepository), 'fulfillment intents are inert and blocked');
 expect(str_contains($orderRepository, 'Logger::audit'), 'order mutations are audited');
 expect(! str_contains($orderRepository, 'wp_remote_'), 'order repository has no external HTTP client');
 expect(! str_contains($orderRepository, 'curl_init'), 'order repository has no curl execution');
@@ -88,7 +88,7 @@ expect(str_contains($financeController, 'manage_digiforge_finance'), 'finance RE
 expect(str_contains($financeController, 'Idempotency-Key'), 'finance mutations require idempotency');
 expect(str_contains($financeController, 'MAX_BODY_BYTES'), 'finance mutations enforce request body bounds');
 $financeRepository = source('includes/Finance/Repository.php');
-expect(str_contains($financeRepository, "'state' => 'BLOCKED'"), 'finance intents are inert and blocked');
+expect((bool) preg_match("/'state'\\s*=>\\s*'BLOCKED'/", $financeRepository), 'finance intents are inert and blocked');
 expect(str_contains($financeRepository, 'Logger::audit'), 'finance mutations are audited');
 expect(! str_contains($financeRepository, 'wp_remote_'), 'finance repository has no external HTTP client');
 expect(! str_contains($financeRepository, 'curl_init'), 'finance repository has no curl execution');
