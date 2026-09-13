@@ -61,7 +61,7 @@ foreach (['orders', 'order_line_items', 'personalization_submissions', 'fulfillm
 }
 
 $financeSchema = source('includes/Database/FinanceSchema.php');
-foreach (['finance_entries', 'fx_snapshots', 'tax_classifications', 'finance_periods', 'analytics_snapshots', 'operational_alerts', 'finance_intents'] as $table) {
+foreach (['finance_ledger', 'fx_snapshots', 'tax_classifications', 'finance_periods', 'analytics_snapshots', 'operational_alerts', 'finance_intents'] as $table) {
     expect(str_contains($financeSchema, "Tables::$table()"), "$table Batch 10 table declared");
 }
 
