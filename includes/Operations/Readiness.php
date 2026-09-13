@@ -25,11 +25,11 @@ final class Readiness
         $schemaCurrent = ($health['schema']['current'] ?? -1) === ($health['schema']['expected'] ?? -2);
         $stopAll = Settings::get('stop_all', true) === true;
         $recovery = RecoveryDrill::evaluate([
-            'database_backup_available' => get_option('digiforge_recovery_database_backup_available', false) === true,
-            'plugin_package_available' => get_option('digiforge_recovery_plugin_package_available', false) === true,
-            'checksum_verified' => get_option('digiforge_recovery_checksum_verified', false) === true,
+            'database_backup_available' => $this->optionEnabled('digiforge_recovery_database_backup_available'),
+            'plugin_package_available' => $this->optionEnabled('digiforge_recovery_plugin_package_available'),
+            'checksum_verified' => $this->optionEnabled('digiforge_recovery_checksum_verified'),
             'schema_version_known' => $schemaCurrent,
-            'restore_instructions_available' => get_option('digiforge_recovery_restore_instructions_available', false) === true,
+            'restore_instructions_available' => $this->optionEnabled('digiforge_recovery_restore_instructions_available'),
             'stop_all_confirmed' => $stopAll,
         ]);
 
@@ -61,5 +61,10 @@ final class Readiness
         $payload['evidence_hash'] = hash('sha256', (string) wp_json_encode($payload));
 
         return $payload;
+    }
+
+    private function optionEnabled(string $name): bool
+    {
+        return filter_var(get_option($name, false), FILTER_VALIDATE_BOOLEAN) === true;
     }
 }
