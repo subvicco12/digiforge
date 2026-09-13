@@ -14,13 +14,15 @@ final class ConnectionTesterStructureTest extends TestCase
         $admin = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Admin.php');
 
         self::assertSame(1, substr_count($tester, 'wp_remote_get'));
-        foreach ([
-            'https://api.printify.com/v1/shops.json',
-            'https://api.etsy.com/v3/application/openapi-ping',
-            'https://api.etsy.com/v3/application/users/',
-            'https://product.gelatoapis.com/v3/catalogs',
-            'https://api.openai.com/v1/models',
-        ] as $url) {
+        foreach (
+            [
+                'https://api.printify.com/v1/shops.json',
+                'https://api.etsy.com/v3/application/openapi-ping',
+                'https://api.etsy.com/v3/application/users/',
+                'https://product.gelatoapis.com/v3/catalogs',
+                'https://api.openai.com/v1/models',
+            ] as $url
+        ) {
             self::assertStringContainsString($url, $tester);
         }
         foreach (["'printify'", "'etsy'", "'gelato'", "'ai'"] as $provider) {
