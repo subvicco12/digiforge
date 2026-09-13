@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace DigiForge\Tests;
+
 use PHPUnit\Framework\TestCase;
 
 final class AdminControlCenterStructureTest extends TestCase
