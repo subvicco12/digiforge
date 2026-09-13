@@ -17,6 +17,7 @@ final class FinalReadinessStructureTest extends TestCase
         self::assertStringContainsString('digiforge_recovery_plugin_package_available', $source);
         self::assertStringContainsString('digiforge_recovery_checksum_verified', $source);
         self::assertStringContainsString('digiforge_recovery_restore_instructions_available', $source);
+        self::assertStringContainsString('FILTER_VALIDATE_BOOLEAN', $source);
         self::assertStringContainsString("'external_actions_performed' => false", $source);
     }
 
