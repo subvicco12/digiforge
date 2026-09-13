@@ -109,8 +109,13 @@ jobs:
           test "$(grep -c 'wp_remote_get' includes/Integrations/ConnectionTester.php)" -eq 1
           ! grep -nE '(wp_remote_(post|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Integrations/ConnectionTester.php
           grep -Fq "https://api.printify.com/v1/shops.json" includes/Integrations/ConnectionTester.php
+          grep -Fq "https://api.etsy.com/v3/application/openapi-ping" includes/Integrations/ConnectionTester.php
+          grep -Fq "https://api.etsy.com/v3/application/users/" includes/Integrations/ConnectionTester.php
+          grep -Fq "https://product.gelatoapis.com/v3/catalogs" includes/Integrations/ConnectionTester.php
+          grep -Fq "https://api.openai.com/v1/models" includes/Integrations/ConnectionTester.php
           grep -Fq "'redirection' => 0" includes/Integrations/ConnectionTester.php
           grep -Fq "'sslverify' => true" includes/Integrations/ConnectionTester.php
+          grep -Fq "'reject_unsafe_urls' => true" includes/Integrations/ConnectionTester.php
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh

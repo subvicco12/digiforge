@@ -68,17 +68,8 @@ final class Admin {
         $id = absint($_POST['integration_id'] ?? 0);
         $result = (new ConnectionTester())->test($id);
         if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
-        $shops = is_array($result['shops'] ?? null) ? $result['shops'] : [];
-        $parts = [];
-        foreach (array_slice($shops, 0, 5) as $shop) {
-            if (! is_array($shop)) { continue; }
-            $title = sanitize_text_field((string) ($shop['title'] ?? ''));
-            $idValue = absint($shop['id'] ?? 0);
-            $channel = sanitize_text_field((string) ($shop['sales_channel'] ?? ''));
-            $parts[] = trim($title . ($idValue ? ' #' . $idValue : '') . ($channel !== '' ? ' [' . $channel . ']' : ''));
-        }
-        $detail = $parts === [] ? __('No Printify shops were returned for this account.', 'digiforge') : implode(', ', $parts);
-        $this->redirect(sprintf(__('Printify connection verified. %1$d shop(s) returned: %2$s', 'digiforge'), count($shops), $detail));
+        $message = sanitize_text_field((string) ($result['message'] ?? __('Connection test completed successfully.', 'digiforge')));
+        $this->redirect($message);
     }
     public function render(): void {
         if (! current_user_can('manage_digiforge_connections')) { wp_die(esc_html__('You are not allowed to manage DigiForge connections.', 'digiforge')); }
@@ -130,13 +121,11 @@ final class Admin {
                         <p class="description"><?php esc_html_e('The value is encrypted at rest and never rendered back to the browser.', 'digiforge'); ?></p>
                     </form>
 
-                    <?php if (($item['provider'] ?? '') === 'printify') : ?>
-                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:12px 0;padding:12px;border-left:4px solid #2271b1;background:#f6f7f7">
-                            <input type="hidden" name="action" value="digiforge_integration_test"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_test'); ?>
-                            <?php submit_button(__('Test Printify connection', 'digiforge'), 'secondary', 'submit', false); ?>
-                            <p class="description"><?php esc_html_e('Performs one read-only GET request to Printify to list shops. It cannot publish products, place orders, disconnect shops, or enable automation.', 'digiforge'); ?></p>
-                        </form>
-                    <?php endif; ?>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:12px 0;padding:12px;border-left:4px solid #2271b1;background:#f6f7f7">
+                        <input type="hidden" name="action" value="digiforge_integration_test"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_test'); ?>
+                        <?php submit_button(sprintf(__('Test %s connection', 'digiforge'), (string) ($item['provider_label'] ?? $item['provider'])), 'secondary', 'submit', false); ?>
+                        <p class="description"><?php esc_html_e('Runs only the provider-specific audited read-only validation request. It never publishes, orders, disconnects a sales channel, or enables automation.', 'digiforge'); ?></p>
+                    </form>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <input type="hidden" name="action" value="digiforge_integration_update"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_update'); ?>
