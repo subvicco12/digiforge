@@ -38,9 +38,16 @@ final class Repository {
 
     public function update(int $id, array $input): array|\WP_Error {
         global $wpdb;
-        if (! $this->find($id)) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
+        $current = $this->find($id);
+        if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $data = $this->sanitizeConnection($input, false); if (is_wp_error($data)) { return $data; }
         if ($data === []) { return new \WP_Error('integration_empty_update', __('No writable integration fields supplied.', 'digiforge'), ['status' => 400]); }
+        if (($data['enabled'] ?? 0) === 1 && $this->secretMetadata($id) === []) {
+            return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]);
+        }
+        if (($data['enabled'] ?? 0) === 1 && (($data['status'] ?? $current['status']) !== 'CONFIGURED')) {
+            return new \WP_Error('integration_not_configured', __('Integration status must be CONFIGURED before it can be enabled.', 'digiforge'), ['status' => 409]);
+        }
         $data['updated_at'] = current_time('mysql', true);
         if ($wpdb->update(Tables::integrations(), $data, ['id' => $id]) === false) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 500]); }
         Logger::audit('integration_updated', ['fields' => array_keys($data)], 'integration', (string) $id);
@@ -52,6 +59,9 @@ final class Repository {
         if (! $this->find($integrationId)) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '' || $plaintext === '') { return new \WP_Error('invalid_secret', __('Secret name and value are required.', 'digiforge'), ['status' => 400]); }
+        if (strlen($name) > 64 || preg_match('/^[a-z][a-z0-9_-]*$/', $name) !== 1) {
+            return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]);
+        }
         $context = self::secretContext($integrationId, $name);
         try { $ciphertext = CredentialVault::encrypt($plaintext, $context); $fingerprint = CredentialVault::fingerprint($plaintext, $context); }
         catch (\Throwable $e) { return new \WP_Error('secret_encryption_failed', __('Credential encryption is unavailable.', 'digiforge'), ['status' => 500]); }
@@ -89,7 +99,9 @@ final class Repository {
             $provider = sanitize_key((string) ($input['provider'] ?? ''));
             $environment = sanitize_key((string) ($input['environment'] ?? 'sandbox'));
             $connectionKey = sanitize_key((string) ($input['connection_key'] ?? ''));
-            if (! in_array($provider, self::PROVIDERS, true) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') { return new \WP_Error('invalid_integration', __('A supported provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]); }
+            if (! ProviderCatalog::validProviderSlug($provider) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') {
+                return new \WP_Error('invalid_integration', __('A valid provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]);
+            }
             $out['provider'] = $provider; $out['environment'] = $environment; $out['connection_key'] = $connectionKey;
         }
         if (array_key_exists('display_name', $input)) { $out['display_name'] = sanitize_text_field((string) $input['display_name']); }
@@ -114,6 +126,8 @@ final class Repository {
         $row['id'] = (int) $row['id']; $row['enabled'] = (bool) $row['enabled'];
         $row['config'] = json_decode((string) ($row['config'] ?? '{}'), true) ?: [];
         $row['secrets'] = $this->secretMetadata((int) $row['id']);
+        $row['provider_label'] = ProviderCatalog::label((string) $row['provider']);
+        $row['suggested_secrets'] = ProviderCatalog::suggestedSecrets((string) $row['provider']);
         return $row;
     }
 }
