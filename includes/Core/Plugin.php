@@ -56,6 +56,7 @@ final class Plugin {
             (new Admin())->register();
             (new \DigiForge\DigitalFactory\Admin())->register();
             (new \DigiForge\Integrations\Admin())->register();
+            (new \DigiForge\Integrations\EtsyOAuth())->register();
             (new \DigiForge\Research\Admin())->register();
             (new \DigiForge\AI\Admin())->register();
             (new \DigiForge\Production\Admin())->register();
