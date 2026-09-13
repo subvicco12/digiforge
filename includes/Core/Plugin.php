@@ -52,10 +52,15 @@ final class Plugin {
         (new OrderController())->register();
         (new FinanceController())->register();
         (new Scheduler())->register();
+        add_filter('allowed_redirect_hosts', static function (array $hosts): array {
+            if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
+            return $hosts;
+        });
         if (is_admin()) {
             (new Admin())->register();
             (new \DigiForge\DigitalFactory\Admin())->register();
             (new \DigiForge\Integrations\Admin())->register();
+            (new \DigiForge\Integrations\EtsyOAuth())->register();
             (new \DigiForge\Research\Admin())->register();
             (new \DigiForge\AI\Admin())->register();
             (new \DigiForge\Production\Admin())->register();
