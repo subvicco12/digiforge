@@ -2,13 +2,14 @@
 declare(strict_types=1);
 namespace DigiForge\Integrations;
 
-/** Secure Integration Control Center for provider setup and credential rotation. */
+/** Secure Integration Control Center for provider setup, credential rotation and explicit read-only validation. */
 final class Admin {
     public function register(): void {
         add_action('admin_menu', [$this, 'menu']);
         add_action('admin_post_digiforge_integration_create', [$this, 'handleCreate']);
         add_action('admin_post_digiforge_integration_secret', [$this, 'handleSecret']);
         add_action('admin_post_digiforge_integration_update', [$this, 'handleUpdate']);
+        add_action('admin_post_digiforge_integration_test', [$this, 'handleTest']);
     }
     public function menu(): void {
         add_submenu_page('digiforge', __('Connections', 'digiforge'), __('Connections', 'digiforge'), 'manage_digiforge_connections', 'digiforge-connections', [$this, 'render']);
@@ -62,6 +63,23 @@ final class Admin {
         if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
         $this->redirect(__('Integration updated.', 'digiforge'));
     }
+    public function handleTest(): void {
+        $this->authorize('digiforge_integration_test');
+        $id = absint($_POST['integration_id'] ?? 0);
+        $result = (new ConnectionTester())->test($id);
+        if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
+        $shops = is_array($result['shops'] ?? null) ? $result['shops'] : [];
+        $parts = [];
+        foreach (array_slice($shops, 0, 5) as $shop) {
+            if (! is_array($shop)) { continue; }
+            $title = sanitize_text_field((string) ($shop['title'] ?? ''));
+            $idValue = absint($shop['id'] ?? 0);
+            $channel = sanitize_text_field((string) ($shop['sales_channel'] ?? ''));
+            $parts[] = trim($title . ($idValue ? ' #' . $idValue : '') . ($channel !== '' ? ' [' . $channel . ']' : ''));
+        }
+        $detail = $parts === [] ? __('No Printify shops were returned for this account.', 'digiforge') : implode(', ', $parts);
+        $this->redirect(sprintf(__('Printify connection verified. %1$d shop(s) returned: %2$s', 'digiforge'), count($shops), $detail));
+    }
     public function render(): void {
         if (! current_user_can('manage_digiforge_connections')) { wp_die(esc_html__('You are not allowed to manage DigiForge connections.', 'digiforge')); }
         $page = max(1, isset($_GET['paged']) ? absint(wp_unslash($_GET['paged'])) : 1);
@@ -101,6 +119,8 @@ final class Admin {
                     <h3><?php echo esc_html((string) ($item['provider_label'] ?? $item['provider'])); ?> — <?php echo esc_html((string) $item['display_name']); ?> <small>(<?php echo esc_html((string) $item['environment']); ?>)</small></h3>
                     <p><strong>Status:</strong> <?php echo esc_html((string) $item['status']); ?> &nbsp; <strong>Enabled:</strong> <?php echo $item['enabled'] ? esc_html__('Yes', 'digiforge') : esc_html__('No', 'digiforge'); ?></p>
                     <p><strong>Stored credentials:</strong> <?php if (($item['secrets'] ?? []) === []) { esc_html_e('None', 'digiforge'); } else { foreach ($item['secrets'] as $secret) { echo '<code>' . esc_html((string) $secret['secret_name']) . ' · ' . esc_html((string) $secret['fingerprint']) . '</code> '; } } ?></p>
+                    <?php $testMeta = is_array($item['config']['_connection_test'] ?? null) ? $item['config']['_connection_test'] : null; ?>
+                    <?php if ($testMeta) : ?><p><strong><?php esc_html_e('Last connection test:', 'digiforge'); ?></strong> <?php echo ! empty($testMeta['ok']) ? esc_html__('Passed', 'digiforge') : esc_html__('Failed', 'digiforge'); ?> · <?php echo esc_html((string) ($testMeta['checked_at'] ?? '')); ?></p><?php endif; ?>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:12px 0;padding:12px;background:#f6f7f7">
                         <input type="hidden" name="action" value="digiforge_integration_secret"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_secret'); ?>
@@ -109,6 +129,14 @@ final class Admin {
                         <datalist id="df-secrets-<?php echo esc_attr((string) $item['id']); ?>"><?php foreach (($item['suggested_secrets'] ?? []) as $name => $label) : ?><option value="<?php echo esc_attr((string) $name); ?>"><?php echo esc_html((string) $label); ?></option><?php endforeach; ?></datalist>
                         <p class="description"><?php esc_html_e('The value is encrypted at rest and never rendered back to the browser.', 'digiforge'); ?></p>
                     </form>
+
+                    <?php if (($item['provider'] ?? '') === 'printify') : ?>
+                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin:12px 0;padding:12px;border-left:4px solid #2271b1;background:#f6f7f7">
+                            <input type="hidden" name="action" value="digiforge_integration_test"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_test'); ?>
+                            <?php submit_button(__('Test Printify connection', 'digiforge'), 'secondary', 'submit', false); ?>
+                            <p class="description"><?php esc_html_e('Performs one read-only GET request to Printify to list shops. It cannot publish products, place orders, disconnect shops, or enable automation.', 'digiforge'); ?></p>
+                        </form>
+                    <?php endif; ?>
 
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <input type="hidden" name="action" value="digiforge_integration_update"><input type="hidden" name="integration_id" value="<?php echo esc_attr((string) $item['id']); ?>"><?php wp_nonce_field('digiforge_integration_update'); ?>
