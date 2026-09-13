@@ -99,11 +99,18 @@ jobs:
           fi
 
       - name: External HTTP client scan
+        shell: bash
         run: |
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
-            echo 'Unexpected external HTTP client usage found'
+          set -e
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+            echo 'Unexpected external HTTP client usage found outside the audited connection tester'
             exit 1
           fi
+          test "$(grep -c 'wp_remote_get' includes/Integrations/ConnectionTester.php)" -eq 1
+          ! grep -nE '(wp_remote_(post|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Integrations/ConnectionTester.php
+          grep -Fq "https://api.printify.com/v1/shops.json" includes/Integrations/ConnectionTester.php
+          grep -Fq "'redirection' => 0" includes/Integrations/ConnectionTester.php
+          grep -Fq "'sslverify' => true" includes/Integrations/ConnectionTester.php
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh
