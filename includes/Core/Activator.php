@@ -25,6 +25,15 @@ final class Activator {
         if (! ProductionSchema::migrateIfNeeded()) {
             return;
         }
+        if (! ListingSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! OrderSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! FinanceSchema::migrateIfNeeded()) {
+            return;
+        }
         (new Migrator())->migrate();
         Settings::ensure_defaults();
         flush_rewrite_rules();
