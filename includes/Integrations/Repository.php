@@ -28,47 +28,19 @@ final class Repository {
     public function create(array $input): array|\WP_Error {
         global $wpdb;
         $data = $this->sanitizeConnection($input, true); if (is_wp_error($data)) { return $data; }
-
-        $existingId = (int) $wpdb->get_var($wpdb->prepare(
-            'SELECT id FROM ' . Tables::integrations() . ' WHERE provider = %s AND environment = %s AND connection_key = %s LIMIT 1',
-            $data['provider'],
-            $data['environment'],
-            $data['connection_key']
-        ));
-        if ($existingId > 0) {
-            return new \WP_Error(
-                'integration_exists',
-                __('An integration with this provider, environment, and connection key already exists.', 'digiforge'),
-                ['status' => 409, 'integration_id' => $existingId]
-            );
-        }
-
+        $existingId = (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integrations() . ' WHERE provider = %s AND environment = %s AND connection_key = %s LIMIT 1', $data['provider'], $data['environment'], $data['connection_key']));
+        if ($existingId > 0) { return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409, 'integration_id' => $existingId]); }
         $now = current_time('mysql', true);
         $record = $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
         $ok = $wpdb->insert(Tables::integrations(), $record);
         if ($ok === false) {
             $dbError = (string) $wpdb->last_error;
             $reference = substr(hash('sha256', $dbError . '|' . $data['provider'] . '|' . $data['environment']), 0, 12);
-            Logger::audit('integration_create_failed', [
-                'provider' => $data['provider'],
-                'environment' => $data['environment'],
-                'error_reference' => $reference,
-            ], 'integration');
-
-            if (stripos($dbError, 'Duplicate entry') !== false) {
-                return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409]);
-            }
-            if (stripos($dbError, 'Data too long') !== false) {
-                return new \WP_Error('integration_field_too_long', __('One or more integration fields are too long.', 'digiforge'), ['status' => 400]);
-            }
-
-            return new \WP_Error(
-                'integration_create_failed',
-                sprintf(__('Could not create integration. Error reference: %s', 'digiforge'), $reference),
-                ['status' => 500, 'error_reference' => $reference]
-            );
+            Logger::audit('integration_create_failed', ['provider' => $data['provider'], 'environment' => $data['environment'], 'error_reference' => $reference], 'integration');
+            if (stripos($dbError, 'Duplicate entry') !== false) { return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409]); }
+            if (stripos($dbError, 'Data too long') !== false) { return new \WP_Error('integration_field_too_long', __('One or more integration fields are too long.', 'digiforge'), ['status' => 400]); }
+            return new \WP_Error('integration_create_failed', sprintf(__('Could not create integration. Error reference: %s', 'digiforge'), $reference), ['status' => 500, 'error_reference' => $reference]);
         }
-
         $id = (int) $wpdb->insert_id;
         Logger::audit('integration_created', ['provider' => $data['provider'], 'environment' => $data['environment']], 'integration', (string) $id);
         return $this->find($id) ?? [];
@@ -80,16 +52,35 @@ final class Repository {
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $data = $this->sanitizeConnection($input, false); if (is_wp_error($data)) { return $data; }
         if ($data === []) { return new \WP_Error('integration_empty_update', __('No writable integration fields supplied.', 'digiforge'), ['status' => 400]); }
-        if (($data['enabled'] ?? 0) === 1 && $this->secretMetadata($id) === []) {
-            return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]);
-        }
-        if (($data['enabled'] ?? 0) === 1 && (($data['status'] ?? $current['status']) !== 'CONFIGURED')) {
-            return new \WP_Error('integration_not_configured', __('Integration status must be CONFIGURED before it can be enabled.', 'digiforge'), ['status' => 409]);
-        }
+        if (($data['enabled'] ?? 0) === 1 && $this->secretMetadata($id) === []) { return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]); }
+        if (($data['enabled'] ?? 0) === 1 && (($data['status'] ?? $current['status']) !== 'CONFIGURED')) { return new \WP_Error('integration_not_configured', __('Integration status must be CONFIGURED before it can be enabled.', 'digiforge'), ['status' => 409]); }
         $data['updated_at'] = current_time('mysql', true);
         if ($wpdb->update(Tables::integrations(), $data, ['id' => $id]) === false) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 500]); }
         Logger::audit('integration_updated', ['fields' => array_keys($data)], 'integration', (string) $id);
         return $this->find($id) ?? [];
+    }
+
+    public function setEnabled(int $id, bool $enabled): array|\WP_Error {
+        $current = $this->find($id);
+        if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
+        return $this->update($id, ['enabled' => $enabled, 'status' => $current['status']]);
+    }
+
+    public function delete(int $id): true|\WP_Error {
+        global $wpdb;
+        $current = $this->find($id);
+        if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
+        if ((bool) $current['enabled']) { return new \WP_Error('integration_delete_enabled', __('Disable this connector before deleting it.', 'digiforge'), ['status' => 409]); }
+        $wpdb->query('START TRANSACTION');
+        $secretDeleted = $wpdb->delete(Tables::integration_secrets(), ['integration_id' => $id]);
+        $integrationDeleted = $wpdb->delete(Tables::integrations(), ['id' => $id]);
+        if ($secretDeleted === false || $integrationDeleted !== 1) {
+            $wpdb->query('ROLLBACK');
+            return new \WP_Error('integration_delete_failed', __('Could not delete the connector safely.', 'digiforge'), ['status' => 500]);
+        }
+        $wpdb->query('COMMIT');
+        Logger::audit('integration_deleted', ['provider' => $current['provider'], 'connection_key' => $current['connection_key']], 'integration', (string) $id);
+        return true;
     }
 
     public function storeSecret(int $integrationId, string $name, string $plaintext): true|\WP_Error {
@@ -97,9 +88,7 @@ final class Repository {
         if (! $this->find($integrationId)) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '' || $plaintext === '') { return new \WP_Error('invalid_secret', __('Secret name and value are required.', 'digiforge'), ['status' => 400]); }
-        if (strlen($name) > 64 || preg_match('/^[a-z][a-z0-9_-]*$/', $name) !== 1) {
-            return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]);
-        }
+        if (strlen($name) > 64 || preg_match('/^[a-z][a-z0-9_-]*$/', $name) !== 1) { return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]); }
         $context = self::secretContext($integrationId, $name);
         try { $ciphertext = CredentialVault::encrypt($plaintext, $context); $fingerprint = CredentialVault::fingerprint($plaintext, $context); }
         catch (\Throwable $e) { return new \WP_Error('secret_encryption_failed', __('Credential encryption is unavailable.', 'digiforge'), ['status' => 500]); }
@@ -112,20 +101,30 @@ final class Repository {
         return true;
     }
 
+    public function migrateSecretName(int $integrationId, string $from, string $to): true|\WP_Error {
+        global $wpdb;
+        $from = sanitize_key($from); $to = sanitize_key($to);
+        $row = $wpdb->get_row($wpdb->prepare('SELECT id,ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $from), ARRAY_A);
+        if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
+        try { $plaintext = CredentialVault::decrypt((string) $row['ciphertext'], self::secretContext($integrationId, $from)); }
+        catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); }
+        $stored = $this->storeSecret($integrationId, $to, $plaintext);
+        unset($plaintext);
+        if (is_wp_error($stored)) { return $stored; }
+        if ($wpdb->delete(Tables::integration_secrets(), ['id' => (int) $row['id']]) === false) { return new \WP_Error('credential_migration_cleanup_failed', __('Credential was migrated but the obsolete alias could not be removed.', 'digiforge'), ['status' => 500]); }
+        Logger::audit('integration_secret_name_migrated', ['from' => $from, 'to' => $to], 'integration', (string) $integrationId);
+        return true;
+    }
+
     public function secretMetadata(int $integrationId): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare('SELECT secret_name,fingerprint,updated_at FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d ORDER BY secret_name', $integrationId), ARRAY_A) ?: [];
     }
 
-    public static function secretContext(int $integrationId, string $name): string {
-        return 'integration:' . $integrationId . ':secret:' . sanitize_key($name);
-    }
+    public static function secretContext(int $integrationId, string $name): string { return 'integration:' . $integrationId . ':secret:' . sanitize_key($name); }
 
     private function containsCredentialField(array $data): bool {
-        foreach ($data as $key => $value) {
-            if (Logger::isCredentialKey((string) $key)) { return true; }
-            if (is_array($value) && $this->containsCredentialField($value)) { return true; }
-        }
+        foreach ($data as $key => $value) { if (Logger::isCredentialKey((string) $key)) { return true; } if (is_array($value) && $this->containsCredentialField($value)) { return true; } }
         return false;
     }
 
@@ -134,47 +133,23 @@ final class Repository {
         foreach ($input as $key => $_) { if (! in_array((string) $key, $allowed, true)) { return new \WP_Error('invalid_integration_field', __('Unsupported integration field.', 'digiforge'), ['status' => 400]); } }
         $out = [];
         if ($create) {
-            $provider = sanitize_key((string) ($input['provider'] ?? ''));
-            $environment = sanitize_key((string) ($input['environment'] ?? 'sandbox'));
-            $connectionKey = sanitize_key((string) ($input['connection_key'] ?? ''));
-            if (! ProviderCatalog::validProviderSlug($provider) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') {
-                return new \WP_Error('invalid_integration', __('A valid provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]);
-            }
-            if (strlen($connectionKey) > 100) {
-                return new \WP_Error('invalid_connection_key', __('Connection key must be 100 characters or fewer.', 'digiforge'), ['status' => 400]);
-            }
+            $provider = sanitize_key((string) ($input['provider'] ?? '')); $environment = sanitize_key((string) ($input['environment'] ?? 'sandbox')); $connectionKey = sanitize_key((string) ($input['connection_key'] ?? ''));
+            if (! ProviderCatalog::validProviderSlug($provider) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') { return new \WP_Error('invalid_integration', __('A valid provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]); }
+            if (strlen($connectionKey) > 100) { return new \WP_Error('invalid_connection_key', __('Connection key must be 100 characters or fewer.', 'digiforge'), ['status' => 400]); }
             $out['provider'] = $provider; $out['environment'] = $environment; $out['connection_key'] = $connectionKey;
         }
-        if (array_key_exists('display_name', $input)) {
-            $displayName = sanitize_text_field((string) $input['display_name']);
-            if (strlen($displayName) > 191) { return new \WP_Error('invalid_display_name', __('Display name must be 191 characters or fewer.', 'digiforge'), ['status' => 400]); }
-            $out['display_name'] = $displayName;
-        }
+        if (array_key_exists('display_name', $input)) { $displayName = sanitize_text_field((string) $input['display_name']); if (strlen($displayName) > 191) { return new \WP_Error('invalid_display_name', __('Display name must be 191 characters or fewer.', 'digiforge'), ['status' => 400]); } $out['display_name'] = $displayName; }
         if ($create && ($out['display_name'] ?? '') === '') { $out['display_name'] = ucwords(str_replace('_', ' ', (string) $out['connection_key'])); }
-        if (array_key_exists('status', $input) || $create) {
-            $status = strtoupper(sanitize_key((string) ($input['status'] ?? 'DISCONNECTED')));
-            if (! in_array($status, self::STATUSES, true)) { return new \WP_Error('invalid_integration_status', __('Invalid integration status.', 'digiforge'), ['status' => 400]); }
-            $out['status'] = $status;
-        }
+        if (array_key_exists('status', $input) || $create) { $status = strtoupper(sanitize_key((string) ($input['status'] ?? 'DISCONNECTED'))); if (! in_array($status, self::STATUSES, true)) { return new \WP_Error('invalid_integration_status', __('Invalid integration status.', 'digiforge'), ['status' => 400]); } $out['status'] = $status; }
         if (array_key_exists('enabled', $input) || $create) { $out['enabled'] = ! empty($input['enabled']) ? 1 : 0; }
-        if (array_key_exists('config', $input)) {
-            $config = is_string($input['config']) ? json_decode($input['config'], true) : $input['config'];
-            if (! is_array($config)) { return new \WP_Error('invalid_integration_config', __('Integration config must be an object.', 'digiforge'), ['status' => 400]); }
-            if ($this->containsCredentialField($config)) { return new \WP_Error('secret_in_config', __('Secrets must be stored in the credential vault, not integration config.', 'digiforge'), ['status' => 400]); }
-            $encodedConfig = wp_json_encode($config);
-            if (! is_string($encodedConfig)) { return new \WP_Error('invalid_integration_config', __('Integration config could not be encoded.', 'digiforge'), ['status' => 400]); }
-            $out['config'] = $encodedConfig;
-        } elseif ($create) { $out['config'] = '{}'; }
+        if (array_key_exists('config', $input)) { $config = is_string($input['config']) ? json_decode($input['config'], true) : $input['config']; if (! is_array($config)) { return new \WP_Error('invalid_integration_config', __('Integration config must be an object.', 'digiforge'), ['status' => 400]); } if ($this->containsCredentialField($config)) { return new \WP_Error('secret_in_config', __('Secrets must be stored in the credential vault, not integration config.', 'digiforge'), ['status' => 400]); } $encodedConfig = wp_json_encode($config); if (! is_string($encodedConfig)) { return new \WP_Error('invalid_integration_config', __('Integration config could not be encoded.', 'digiforge'), ['status' => 400]); } $out['config'] = $encodedConfig; }
+        elseif ($create) { $out['config'] = '{}'; }
         return $out;
     }
 
     private function publicRow(array $row): array {
         unset($row['ciphertext']);
-        $row['id'] = (int) $row['id']; $row['enabled'] = (bool) $row['enabled'];
-        $row['config'] = json_decode((string) ($row['config'] ?? '{}'), true) ?: [];
-        $row['secrets'] = $this->secretMetadata((int) $row['id']);
-        $row['provider_label'] = ProviderCatalog::label((string) $row['provider']);
-        $row['suggested_secrets'] = ProviderCatalog::suggestedSecrets((string) $row['provider']);
+        $row['id'] = (int) $row['id']; $row['enabled'] = (bool) $row['enabled']; $row['config'] = json_decode((string) ($row['config'] ?? '{}'), true) ?: []; $row['secrets'] = $this->secretMetadata((int) $row['id']); $row['provider_label'] = ProviderCatalog::label((string) $row['provider']); $row['suggested_secrets'] = ProviderCatalog::suggestedSecrets((string) $row['provider']);
         return $row;
     }
 }

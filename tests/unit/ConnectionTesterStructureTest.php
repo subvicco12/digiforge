@@ -35,7 +35,18 @@ final class ConnectionTesterStructureTest extends TestCase
         self::assertStringNotContainsString('wp_remote_request', $tester);
         self::assertStringNotContainsString('DELETE', $tester);
         self::assertStringContainsString('admin_post_digiforge_integration_test', $admin);
-        self::assertStringContainsString('Test %s connection', $admin);
-        self::assertStringContainsString('provider-specific audited read-only validation request', $admin);
+        self::assertStringContainsString("__('Test %s', 'digiforge')", $admin);
+        self::assertStringContainsString('provider-specific, read-only', $admin);
+    }
+
+    public function testGelatoLegacyCredentialCanBeNormalizedWithoutReentry(): void
+    {
+        $tester = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/ConnectionTester.php');
+        $repository = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Repository.php');
+        $migrationCall = "migrateSecretName(\$integrationId, 'personal_access_token', 'api_key')";
+
+        self::assertStringContainsString($migrationCall, $tester);
+        self::assertStringContainsString('migrateSecretName', $repository);
+        self::assertStringContainsString('integration_secret_name_migrated', $repository);
     }
 }
