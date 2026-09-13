@@ -42,20 +42,27 @@ final class IntegrationsController {
     }
     public function create(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         return $this->mutate($request, 'integration_create', function () use ($request): array|\WP_Error {
-            return (new Repository())->create((array) $request->get_json_params());
+            return (new Repository())->create($this->payload($request));
         }, 201);
     }
     public function update(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         return $this->mutate($request, 'integration_update_' . (int) $request['id'], function () use ($request): array|\WP_Error {
-            return (new Repository())->update((int) $request['id'], (array) $request->get_json_params());
+            return (new Repository())->update((int) $request['id'], $this->payload($request));
         });
     }
     public function putSecret(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         return $this->mutate($request, 'integration_secret_' . (int) $request['id'] . '_' . sanitize_key((string) $request['name']), function () use ($request): array|\WP_Error {
-            $body = (array) $request->get_json_params(); $value = (string) ($body['value'] ?? '');
+            $body = $this->payload($request); $value = (string) ($body['value'] ?? '');
             $result = (new Repository())->storeSecret((int) $request['id'], (string) $request['name'], $value);
             return is_wp_error($result) ? $result : ['stored' => true, 'secret_name' => sanitize_key((string) $request['name'])];
         });
+    }
+    /** @return array<string,mixed> */
+    private function payload(\WP_REST_Request $request): array {
+        $json = $request->get_json_params();
+        if (is_array($json) && $json !== []) { return $json; }
+        $body = $request->get_body_params();
+        return is_array($body) ? $body : [];
     }
     private function mutate(\WP_REST_Request $request, string $operation, callable $callback, int $successStatus = 200): \WP_REST_Response|\WP_Error {
         $header = trim((string) $request->get_header('Idempotency-Key'));
