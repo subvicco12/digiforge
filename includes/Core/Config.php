@@ -21,13 +21,14 @@ final class Config
     ];
 
     /**
-     * automation_armed is deliberately internal and has no REST control.
+     * Internal activation gates are deliberately non-user-writable.
      *
      * @return array<string, array{type: string, default: bool, writable: bool}>
      */
     public static function settings(): array
     {
         $settings = [
+            'activation_authorized' => ['type' => 'boolean', 'default' => false, 'writable' => false],
             'automation_armed' => ['type' => 'boolean', 'default' => false, 'writable' => false],
             'cleanup_on_uninstall' => ['type' => 'boolean', 'default' => false, 'writable' => true],
         ];

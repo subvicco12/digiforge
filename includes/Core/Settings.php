@@ -63,14 +63,16 @@ final class Settings
             return false;
         }
 
-        return self::get('automation_armed', false) === true
+        return self::get('activation_authorized', false) === true
+            && self::get('automation_armed', false) === true
             && self::get('stop_all', true) === false
             && self::get($switch, false) === true;
     }
 
     public static function safety_locked(): bool
     {
-        return self::get('automation_armed', false) !== true
+        return self::get('activation_authorized', false) !== true
+            || self::get('automation_armed', false) !== true
             || self::get('stop_all', true) === true;
     }
 
