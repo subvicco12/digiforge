@@ -14,7 +14,9 @@ final class DigitalFactoryCreateResponseStructureTest extends TestCase
         $content = (string) file_get_contents($path);
 
         $capture = '$id = (int) $wpdb->insert_id;';
-        $audit = "Logger::audit(\$type . '_created', ['idempotency_key' => \$key === null ? '' : '[PRESENT]'], \$type, (string) \$id);";
+        $audit = "Logger::audit(\$type . '_created', "
+            . "['idempotency_key' => \$key === null ? '' : '[PRESENT]'], "
+            . "\$type, (string) \$id);";
         $read = 'return $this->find($type, $id)';
 
         self::assertStringContainsString($capture, $content);
