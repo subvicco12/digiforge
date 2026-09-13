@@ -102,30 +102,32 @@ namespace {
         }
     }
 
-    if (! class_exists('DigiForgeTestWpdbStub')) {
-        final class DigiForgeTestWpdbStub
+    if (! function_exists('digiforge_test_wpdb_stub')) {
+        function digiforge_test_wpdb_stub(): object
         {
-            public string $prefix = 'wp_';
-            public string $last_error = '';
+            return new class {
+                public string $prefix = 'wp_';
+                public string $last_error = '';
 
-            public function prepare(string $query, mixed ...$args): string
-            {
-                return $query;
-            }
+                public function prepare(string $query, mixed ...$args): string
+                {
+                    return $query;
+                }
 
-            public function get_row(string $query, mixed $output = null): ?array
-            {
-                return null;
-            }
+                public function get_row(string $query, mixed $output = null): ?array
+                {
+                    return null;
+                }
 
-            public function get_var(string $query): string
-            {
-                return '0';
-            }
+                public function get_var(string $query): string
+                {
+                    return '0';
+                }
+            };
         }
     }
 
-    $GLOBALS['wpdb'] ??= new DigiForgeTestWpdbStub();
+    $GLOBALS['wpdb'] ??= digiforge_test_wpdb_stub();
 
     require_once __DIR__ . '/../../includes/Database/Tables.php';
     require_once __DIR__ . '/../../includes/Core/Settings.php';
@@ -146,7 +148,7 @@ namespace DigiForge\Tests {
             $GLOBALS['digiforge_test_menu_pages'] = [];
             $GLOBALS['digiforge_test_submenu_pages'] = [];
             $GLOBALS['digiforge_test_options'] = [];
-            $GLOBALS['wpdb'] = new \DigiForgeTestWpdbStub();
+            $GLOBALS['wpdb'] = \digiforge_test_wpdb_stub();
         }
 
         public function testMenuRegistersCentralOperationalSurfaces(): void
