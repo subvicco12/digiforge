@@ -78,8 +78,9 @@ final class Repository {
         $now = current_time('mysql', true); $data += ['idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
         global $wpdb;
         if (! $wpdb->insert($this->table($type), $data)) { if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; } return $this->error('create_failed', 'Unable to create digital entity.', 500); }
-        Logger::audit($type . '_created', ['idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $wpdb->insert_id);
-        return $this->find($type, (int) $wpdb->insert_id) ?? $this->error('create_failed', 'Unable to read created entity.', 500);
+        $id = (int) $wpdb->insert_id;
+        Logger::audit($type . '_created', ['idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $id);
+        return $this->find($type, $id) ?? $this->error('create_failed', 'Unable to read created entity.', 500);
     }
 
     public function update(string $type, int $id, array $input): array|\WP_Error {
