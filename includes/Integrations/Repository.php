@@ -101,6 +101,35 @@ final class Repository {
         return true;
     }
 
+    public function deleteSecret(int $integrationId, string $name): true|\WP_Error {
+        global $wpdb;
+        $integration = $this->find($integrationId);
+        if (! $integration) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
+        $name = sanitize_key($name);
+        if ($name === '') { return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]); }
+        $existing = (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $name));
+        if ($existing <= 0) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
+        $config = is_array($integration['config'] ?? null) ? $integration['config'] : [];
+        unset($config['_connection_test']);
+        $encoded = wp_json_encode($config);
+        if (! is_string($encoded)) { return new \WP_Error('integration_config_encode_failed', __('Connector configuration could not be updated safely.', 'digiforge'), ['status' => 500]); }
+        $wpdb->query('START TRANSACTION');
+        $deleted = $wpdb->delete(Tables::integration_secrets(), ['id' => $existing]);
+        $updated = $wpdb->update(Tables::integrations(), [
+            'status' => 'DISCONNECTED',
+            'enabled' => 0,
+            'config' => $encoded,
+            'updated_at' => current_time('mysql', true),
+        ], ['id' => $integrationId]);
+        if ($deleted !== 1 || $updated === false) {
+            $wpdb->query('ROLLBACK');
+            return new \WP_Error('credential_delete_failed', __('Could not delete the credential safely.', 'digiforge'), ['status' => 500]);
+        }
+        $wpdb->query('COMMIT');
+        Logger::audit('integration_secret_deleted', ['secret_name' => $name, 'connector_disabled' => true], 'integration', (string) $integrationId);
+        return true;
+    }
+
     public function migrateSecretName(int $integrationId, string $from, string $to): true|\WP_Error {
         global $wpdb;
         $from = sanitize_key($from); $to = sanitize_key($to);

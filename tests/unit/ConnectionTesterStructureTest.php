@@ -35,8 +35,8 @@ final class ConnectionTesterStructureTest extends TestCase
         self::assertStringNotContainsString('wp_remote_request', $tester);
         self::assertStringNotContainsString('DELETE', $tester);
         self::assertStringContainsString('admin_post_digiforge_integration_test', $admin);
-        self::assertStringContainsString("__('Test %s', 'digiforge')", $admin);
-        self::assertStringContainsString('provider-specific, read-only', $admin);
+        self::assertStringContainsString("__('Test %s connection', 'digiforge')", $admin);
+        self::assertStringContainsString('provider-specific, audited, read-only', $admin);
     }
 
     public function testGelatoLegacyCredentialCanBeNormalizedWithoutReentry(): void

@@ -46,13 +46,33 @@ final class IntegrationControlCenterStructureTest extends TestCase
 
         self::assertStringContainsString('admin_post_digiforge_integration_toggle', $admin);
         self::assertStringContainsString('admin_post_digiforge_integration_delete', $admin);
+        self::assertStringContainsString('admin_post_digiforge_integration_secret_delete', $admin);
         self::assertStringContainsString('return confirm(', $admin);
-        self::assertStringContainsString('Delete this connector and all of its stored encrypted credentials?', $admin);
+        self::assertStringContainsString('Delete this connector and all stored encrypted credentials?', $admin);
+        self::assertStringContainsString('Delete credential %s?', $admin);
+        self::assertStringContainsString('deleteSecret', $repository);
+        self::assertStringContainsString("'status' => 'DISCONNECTED'", $repository);
+        self::assertStringContainsString("'enabled' => 0", $repository);
         self::assertStringContainsString('setEnabled', $repository);
         self::assertStringContainsString('integration_delete_enabled', $repository);
         self::assertStringContainsString('START TRANSACTION', $repository);
         self::assertStringContainsString('ROLLBACK', $repository);
         self::assertStringContainsString('COMMIT', $repository);
+    }
+
+    public function testGelatoLegacyCredentialCanBeRepairedWithoutRepastingSecret(): void
+    {
+        $admin = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Admin.php');
+        $repository = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Repository.php');
+        $tester = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/ConnectionTester.php');
+        $adminMigration = "migrateSecretName(\$id, 'personal_access_token', 'api_key')";
+        $testerMigration = "migrateSecretName(\$integrationId, 'personal_access_token', 'api_key')";
+
+        self::assertStringContainsString('admin_post_digiforge_gelato_normalize_key', $admin);
+        self::assertStringContainsString('Repair Gelato key label', $admin);
+        self::assertStringContainsString($adminMigration, $admin);
+        self::assertStringContainsString('migrateSecretName', $repository);
+        self::assertStringContainsString($testerMigration, $tester);
     }
 
     public function testCredentialVaultCanProvisionEncryptedManagedMasterKey(): void
