@@ -10,6 +10,8 @@ namespace DigiForge\Integrations;
  */
 final class ProviderCatalog
 {
+    public const MAX_PROVIDER_SLUG_LENGTH = 32;
+
     /**
      * @return array<string, array{
      *   label:string,
@@ -25,7 +27,7 @@ final class ProviderCatalog
             'etsy' => [
                 'label' => 'Etsy',
                 'description' => 'Etsy Open API v3 seller integration.',
-                'auth' => 'OAuth 2.0 + app API key',
+                'auth' => 'OAuth 2.0 (PKCE) + app API key',
                 'suggested_secrets' => [
                     'keystring' => 'App API keystring',
                     'shared_secret' => 'App shared secret',
@@ -41,9 +43,9 @@ final class ProviderCatalog
             'printify' => [
                 'label' => 'Printify',
                 'description' => 'Printify merchant/POD integration.',
-                'auth' => 'Personal Access Token or OAuth 2.0',
+                'auth' => 'Bearer access token (OAuth 2.0 or supported account token)',
                 'suggested_secrets' => [
-                    'personal_access_token' => 'Personal Access Token',
+                    'personal_access_token' => 'Personal access token',
                     'access_token' => 'OAuth access token',
                     'refresh_token' => 'OAuth refresh token',
                 ],
@@ -55,7 +57,7 @@ final class ProviderCatalog
             'gelato' => [
                 'label' => 'Gelato',
                 'description' => 'Gelato POD integration.',
-                'auth' => 'API credential',
+                'auth' => 'API key in X-API-KEY header',
                 'suggested_secrets' => [
                     'api_key' => 'API key',
                 ],
@@ -104,6 +106,10 @@ final class ProviderCatalog
 
     public static function validProviderSlug(string $provider): bool
     {
-        return preg_match('/^[a-z][a-z0-9_-]{1,63}$/', $provider) === 1;
+        if (strlen($provider) > self::MAX_PROVIDER_SLUG_LENGTH) {
+            return false;
+        }
+
+        return preg_match('/^[a-z][a-z0-9_-]*$/', $provider) === 1;
     }
 }
