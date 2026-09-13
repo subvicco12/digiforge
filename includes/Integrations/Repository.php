@@ -28,9 +28,47 @@ final class Repository {
     public function create(array $input): array|\WP_Error {
         global $wpdb;
         $data = $this->sanitizeConnection($input, true); if (is_wp_error($data)) { return $data; }
+
+        $existingId = (int) $wpdb->get_var($wpdb->prepare(
+            'SELECT id FROM ' . Tables::integrations() . ' WHERE provider = %s AND environment = %s AND connection_key = %s LIMIT 1',
+            $data['provider'],
+            $data['environment'],
+            $data['connection_key']
+        ));
+        if ($existingId > 0) {
+            return new \WP_Error(
+                'integration_exists',
+                __('An integration with this provider, environment, and connection key already exists.', 'digiforge'),
+                ['status' => 409, 'integration_id' => $existingId]
+            );
+        }
+
         $now = current_time('mysql', true);
-        $ok = $wpdb->insert(Tables::integrations(), $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now]);
-        if ($ok === false) { return new \WP_Error('integration_create_failed', __('Could not create integration.', 'digiforge'), ['status' => 409]); }
+        $record = $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
+        $ok = $wpdb->insert(Tables::integrations(), $record);
+        if ($ok === false) {
+            $dbError = (string) $wpdb->last_error;
+            $reference = substr(hash('sha256', $dbError . '|' . $data['provider'] . '|' . $data['environment']), 0, 12);
+            Logger::audit('integration_create_failed', [
+                'provider' => $data['provider'],
+                'environment' => $data['environment'],
+                'error_reference' => $reference,
+            ], 'integration');
+
+            if (stripos($dbError, 'Duplicate entry') !== false) {
+                return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409]);
+            }
+            if (stripos($dbError, 'Data too long') !== false) {
+                return new \WP_Error('integration_field_too_long', __('One or more integration fields are too long.', 'digiforge'), ['status' => 400]);
+            }
+
+            return new \WP_Error(
+                'integration_create_failed',
+                sprintf(__('Could not create integration. Error reference: %s', 'digiforge'), $reference),
+                ['status' => 500, 'error_reference' => $reference]
+            );
+        }
+
         $id = (int) $wpdb->insert_id;
         Logger::audit('integration_created', ['provider' => $data['provider'], 'environment' => $data['environment']], 'integration', (string) $id);
         return $this->find($id) ?? [];
@@ -102,9 +140,16 @@ final class Repository {
             if (! ProviderCatalog::validProviderSlug($provider) || ! in_array($environment, self::ENVIRONMENTS, true) || $connectionKey === '') {
                 return new \WP_Error('invalid_integration', __('A valid provider, environment, and connection key are required.', 'digiforge'), ['status' => 400]);
             }
+            if (strlen($connectionKey) > 100) {
+                return new \WP_Error('invalid_connection_key', __('Connection key must be 100 characters or fewer.', 'digiforge'), ['status' => 400]);
+            }
             $out['provider'] = $provider; $out['environment'] = $environment; $out['connection_key'] = $connectionKey;
         }
-        if (array_key_exists('display_name', $input)) { $out['display_name'] = sanitize_text_field((string) $input['display_name']); }
+        if (array_key_exists('display_name', $input)) {
+            $displayName = sanitize_text_field((string) $input['display_name']);
+            if (strlen($displayName) > 191) { return new \WP_Error('invalid_display_name', __('Display name must be 191 characters or fewer.', 'digiforge'), ['status' => 400]); }
+            $out['display_name'] = $displayName;
+        }
         if ($create && ($out['display_name'] ?? '') === '') { $out['display_name'] = ucwords(str_replace('_', ' ', (string) $out['connection_key'])); }
         if (array_key_exists('status', $input) || $create) {
             $status = strtoupper(sanitize_key((string) ($input['status'] ?? 'DISCONNECTED')));
@@ -116,7 +161,9 @@ final class Repository {
             $config = is_string($input['config']) ? json_decode($input['config'], true) : $input['config'];
             if (! is_array($config)) { return new \WP_Error('invalid_integration_config', __('Integration config must be an object.', 'digiforge'), ['status' => 400]); }
             if ($this->containsCredentialField($config)) { return new \WP_Error('secret_in_config', __('Secrets must be stored in the credential vault, not integration config.', 'digiforge'), ['status' => 400]); }
-            $out['config'] = wp_json_encode($config);
+            $encodedConfig = wp_json_encode($config);
+            if (! is_string($encodedConfig)) { return new \WP_Error('invalid_integration_config', __('Integration config could not be encoded.', 'digiforge'), ['status' => 400]); }
+            $out['config'] = $encodedConfig;
         } elseif ($create) { $out['config'] = '{}'; }
         return $out;
     }
