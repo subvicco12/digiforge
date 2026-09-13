@@ -43,8 +43,9 @@ final class ConnectionTesterStructureTest extends TestCase
     {
         $tester = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/ConnectionTester.php');
         $repository = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Repository.php');
+        $migrationCall = "migrateSecretName(\$integrationId, 'personal_access_token', 'api_key')";
 
-        self::assertStringContainsString("migrateSecretName(\$integrationId, 'personal_access_token', 'api_key')", $tester);
+        self::assertStringContainsString($migrationCall, $tester);
         self::assertStringContainsString('migrateSecretName', $repository);
         self::assertStringContainsString('integration_secret_name_migrated', $repository);
     }
