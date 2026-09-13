@@ -58,6 +58,9 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertGreaterThanOrEqual(3, substr_count($controller, "'allow_batch' => self::ALLOW_BATCH"));
         self::assertStringContainsString("get_header('Idempotency-Key')", $controller);
         self::assertStringContainsString('missing_idempotency_key', $controller);
+        self::assertStringContainsString('get_json_params()', $controller);
+        self::assertStringContainsString('get_body_params()', $controller);
+        self::assertStringContainsString('$this->payload($request)', $controller);
     }
 
     public function testIntegrationCreateReportsDuplicateAndSafeFailureReference(): void
