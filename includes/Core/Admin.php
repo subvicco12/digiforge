@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Core;
+use DigiForge\Operations\Readiness;
 use DigiForge\ProductFactory\Repository;
 final class Admin {
     public function register(): void { add_action('admin_menu', [$this, 'menu']); }
@@ -13,9 +14,17 @@ final class Admin {
     }
     public function render(): void {
         if (! current_user_can('manage_digiforge')) { wp_die(esc_html__('You are not allowed to access DigiForge.', 'digiforge')); }
-        $switches = Config::SWITCHES; ?>
-        <div class="wrap"><h1>DigiForge</h1><p><?php esc_html_e('System foundation active. All production automation is OFF by default.', 'digiforge'); ?></p>
-        <h2><?php esc_html_e('Automation controls', 'digiforge'); ?></h2><table class="widefat"><tbody><tr><th>STOP ALL</th><td><strong><?php echo Settings::get('stop_all', false) ? 'ON' : 'OFF'; ?></strong></td></tr><?php foreach ($switches as $switch) : ?><tr><th><?php echo esc_html(ucwords(str_replace('_', ' ', $switch))); ?></th><td><?php echo Settings::get($switch, false) ? 'ON' : 'OFF'; ?></td></tr><?php endforeach; ?></tbody></table></div><?php
+        $switches = Config::SWITCHES;
+        $readiness = (new Readiness())->report(); ?>
+        <div class="wrap"><h1>DigiForge</h1><p><?php esc_html_e('Production-ready local platform. External automation remains locked until separately authorized.', 'digiforge'); ?></p>
+        <h2><?php esc_html_e('Release readiness', 'digiforge'); ?></h2><table class="widefat striped"><tbody>
+        <tr><th><?php esc_html_e('Release', 'digiforge'); ?></th><td><?php echo esc_html(DIGIFORGE_VERSION); ?></td></tr>
+        <tr><th><?php esc_html_e('Schema', 'digiforge'); ?></th><td><?php echo esc_html((string) ($readiness['schema']['current'] ?? 'unknown')); ?> / <?php echo esc_html((string) ($readiness['schema']['expected'] ?? 'unknown')); ?></td></tr>
+        <tr><th><?php esc_html_e('Readiness', 'digiforge'); ?></th><td><strong><?php echo esc_html((string) ($readiness['status'] ?? 'REVIEW_REQUIRED')); ?></strong></td></tr>
+        <tr><th><?php esc_html_e('External execution lock', 'digiforge'); ?></th><td><strong><?php echo ! empty($readiness['externally_locked']) ? 'LOCKED' : 'UNLOCKED'; ?></strong></td></tr>
+        </tbody></table>
+        <h2><?php esc_html_e('Readiness checks', 'digiforge'); ?></h2><table class="widefat striped"><tbody><?php foreach (($readiness['checks'] ?? []) as $check => $passed) : ?><tr><th><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $check))); ?></th><td><?php echo $passed ? 'PASS' : 'REVIEW'; ?></td></tr><?php endforeach; ?></tbody></table>
+        <h2><?php esc_html_e('Automation controls', 'digiforge'); ?></h2><table class="widefat"><tbody><tr><th>STOP ALL</th><td><strong><?php echo Settings::get('stop_all', true) ? 'ON' : 'OFF'; ?></strong></td></tr><?php foreach ($switches as $switch) : if ($switch === 'stop_all') { continue; } ?><tr><th><?php echo esc_html(ucwords(str_replace('_', ' ', $switch))); ?></th><td><?php echo Settings::get($switch, false) ? 'ON' : 'OFF'; ?></td></tr><?php endforeach; ?></tbody></table></div><?php
     }
     public function render_product_factory(): void {
         if (! current_user_can('manage_digiforge_products')) { wp_die(esc_html__('You are not allowed to manage products.', 'digiforge')); }
