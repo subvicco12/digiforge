@@ -43,6 +43,7 @@ final class Readiness
             'queue_query_verified' => ($health['queue']['query_ok'] ?? false) === true,
             'queue_has_no_expired_leases' => ($health['queue']['query_ok'] ?? false) === true && (int) ($health['queue']['expired_leases'] ?? 0) === 0,
             'retention_fail_closed' => RetentionPolicy::describe()['automatic_deletion_enabled'] === false,
+            'recovery_drill_available' => method_exists(RecoveryDrill::class, 'evaluate'),
             'recovery_drill_passed' => ($recovery['status'] ?? '') === 'PASS',
         ];
 
