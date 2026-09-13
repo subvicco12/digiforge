@@ -40,6 +40,22 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString('integration_not_configured', $repository);
     }
 
+    public function testCredentialVaultCanProvisionEncryptedManagedMasterKey(): void
+    {
+        $vault = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/CredentialVault.php');
+
+        self::assertStringContainsString("MANAGED_KEY_OPTION = 'digiforge_credential_key_envelope'", $vault);
+        self::assertStringContainsString("defined('DIGIFORGE_CREDENTIAL_KEY')", $vault);
+        self::assertStringContainsString('managedMasterKey()', $vault);
+        self::assertStringContainsString("wp_salt('auth')", $vault);
+        self::assertStringContainsString("wp_salt('secure_auth')", $vault);
+        self::assertStringContainsString('random_bytes(32)', $vault);
+        self::assertStringContainsString('add_option(self::MANAGED_KEY_OPTION', $vault);
+        self::assertStringContainsString('wrapManagedKey', $vault);
+        self::assertStringContainsString('unwrapManagedKey', $vault);
+        self::assertStringNotContainsString("update_option(self::MANAGED_KEY_OPTION, \$master", $vault);
+    }
+
     public function testAdminMutationsRequireCapabilityAndNonces(): void
     {
         $admin = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/Admin.php');
