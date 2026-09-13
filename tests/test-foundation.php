@@ -24,7 +24,9 @@ function source(string $path): string
 $defaults = Config::default_settings();
 expect($defaults['stop_all'] === true, 'STOP ALL must default to ON');
 expect($defaults['automation_armed'] === false, 'automation must default to unarmed');
+expect($defaults['activation_authorized'] === false, 'activation authorization must default to false');
 expect(! Config::writable_setting('automation_armed'), 'arming cannot be changed through ordinary settings');
+expect(! Config::writable_setting('activation_authorized'), 'activation authorization cannot be changed through ordinary settings');
 expect(! Config::valid_value('stop_all', '1'), 'boolean settings reject string coercion');
 
 foreach (['QUEUED', 'RUNNING', 'WAITING', 'RETRY', 'SUCCESS', 'FAILED', 'BLOCKED', 'CANCELLED', 'HUMAN_REVIEW', 'DEAD_LETTER'] as $state) {
@@ -42,8 +44,24 @@ $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
 expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '13'"), 'database schema version is current');
-expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.10\.0\s*$/m', $bootstrap), 'plugin header release version is current');
-expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.10\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
+expect((bool) preg_match('/^\s*\*\s*Version:\s*0\.11\.0\s*$/m', $bootstrap), 'plugin header release version is current');
+expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'0\\.11\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
+
+$settings = source('includes/Core/Settings.php');
+expect(str_contains($settings, "get('activation_authorized', false) === true"), 'effective switches require activation authorization');
+expect(str_contains($settings, "get('automation_armed', false) === true"), 'effective switches require automation arming');
+expect(str_contains($settings, "get('stop_all', true) === false"), 'effective switches require STOP ALL off');
+
+$controller = source('includes/REST/Controller.php');
+expect(str_contains($controller, "'/readiness'"), 'authenticated readiness endpoint is registered');
+expect(str_contains($controller, 'new Readiness()'), 'readiness endpoint uses deterministic readiness service');
+
+$readiness = source('includes/Operations/Readiness.php');
+foreach (['READY_LOCKED', 'activation_not_authorized', 'automation_unarmed', 'no_effective_feature_switches', 'retention_fail_closed', 'recovery_drill_available', 'external_actions_performed'] as $required) {
+    expect(str_contains($readiness, $required), "readiness report includes $required");
+}
+expect(! str_contains($readiness, 'wp_remote_'), 'readiness service has no external HTTP client');
+expect(! str_contains($readiness, 'curl_init'), 'readiness service has no curl execution');
 
 foreach ([
     ['includes/Database/ProductionSchema.php', '$currentVersion === 8'],
