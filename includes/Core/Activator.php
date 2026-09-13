@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Core;
+use DigiForge\Database\FinanceSchema;
 use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
@@ -15,10 +16,22 @@ final class Activator {
         if (! OrderSchema::migrateIfNeeded()) {
             return;
         }
+        if (! FinanceSchema::migrateIfNeeded()) {
+            return;
+        }
         if (! PodSchema::migrateIfNeeded()) {
             return;
         }
         if (! ProductionSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! ListingSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! OrderSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! FinanceSchema::migrateIfNeeded()) {
             return;
         }
         (new Migrator())->migrate();
