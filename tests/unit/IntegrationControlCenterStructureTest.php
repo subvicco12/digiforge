@@ -68,9 +68,9 @@ final class IntegrationControlCenterStructureTest extends TestCase
 
         self::assertStringContainsString('admin_post_digiforge_gelato_normalize_key', $admin);
         self::assertStringContainsString('Repair Gelato key label', $admin);
-        self::assertStringContainsString("migrateSecretName($id, 'personal_access_token', 'api_key')", $admin);
+        self::assertStringContainsString("migrateSecretName(\$id, 'personal_access_token', 'api_key')", $admin);
         self::assertStringContainsString('migrateSecretName', $repository);
-        self::assertStringContainsString("migrateSecretName($integrationId, 'personal_access_token', 'api_key')", $tester);
+        self::assertStringContainsString("migrateSecretName(\$integrationId, 'personal_access_token', 'api_key')", $tester);
     }
 
     public function testCredentialVaultCanProvisionEncryptedManagedMasterKey(): void
