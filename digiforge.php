@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge
  * Description: Secure operational foundation for a WordPress-native product business platform.
- * Version: 0.11.2
+ * Version: 0.12.0
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Author: DigiForge
@@ -15,7 +15,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const DIGIFORGE_VERSION = '0.11.2';
+const DIGIFORGE_VERSION = '0.12.0';
 const DIGIFORGE_FILE = __FILE__;
 const DIGIFORGE_PATH = __DIR__ . '/';
 define('DIGIFORGE_URL', plugin_dir_url(__FILE__));
