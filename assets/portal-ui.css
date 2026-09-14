@@ -1,0 +1,81 @@
+body.df-portal-active #wpadminbar{display:none!important}
+body.df-portal-active{margin:0!important;background:#f4f7fb!important}
+html:has(body.df-portal-active){margin-top:0!important}
+body.df-portal-active .wp-site-blocks,body.df-portal-active main,body.df-portal-active .entry-content,body.df-portal-active .wp-block-post-content{max-width:none!important;width:100%!important;margin:0!important;padding:0!important}
+body.df-portal-active .df-portal-shell{width:100vw!important;max-width:none!important;min-height:100vh!important;margin:0 0 0 50%!important;transform:translateX(-50%)!important;border-radius:0!important;border-left:0!important;border-right:0!important}
+body.df-portal-active .df-portal-sidebar{top:0!important;height:100vh!important}
+body.df-portal-active .df-portal-main{max-width:none!important}
+body.df-portal-active .df-mobile-nav-toggle,body.df-portal-active .df-mobile-nav-backdrop{display:none}
+body.df-portal-active .df-view-dashboard .df-panel .df-candidate>p{display:none}
+body.df-portal-active .df-view-dashboard .df-panel .df-candidate .df-signal-grid{margin-bottom:0}
+
+@media (min-width:1200px){
+ body.df-portal-active .df-portal-shell{grid-template-columns:260px minmax(0,1fr)!important}
+ body.df-portal-active .df-portal-main{padding:32px!important}
+ body.df-portal-active .df-card-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+
+@media (min-width:768px) and (max-width:1199px){
+ body.df-portal-active .df-portal-shell{grid-template-columns:210px minmax(0,1fr)!important}
+ body.df-portal-active .df-portal-sidebar{padding:18px 12px!important}
+ body.df-portal-active .df-portal-main{padding:20px!important}
+ body.df-portal-active .df-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ body.df-portal-active .df-signal-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+
+@media (max-width:767px){
+ body.df-portal-active.df-nav-lock{overflow:hidden!important}
+ body.df-portal-active .df-portal-shell.df-js{display:block!important;width:100vw!important;min-height:100vh!important;overflow:visible!important;background:#f4f7fb!important}
+ body.df-portal-active .df-portal-shell.df-js .df-portal-sidebar{position:sticky!important;top:0!important;z-index:50!important;height:64px!important;min-height:64px!important;padding:10px 14px!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;overflow:visible!important;background:#11192b!important}
+ body.df-portal-active .df-portal-shell.df-js .df-brand{padding:0!important;gap:10px!important}
+ body.df-portal-active .df-portal-shell.df-js .df-brand-mark{width:38px!important;height:38px!important;border-radius:10px!important}
+ body.df-portal-active .df-portal-shell.df-js .df-brand strong{font-size:17px!important}
+ body.df-portal-active .df-portal-shell.df-js .df-brand small{display:block!important;font-size:11px!important}
+ body.df-portal-active .df-portal-shell.df-js .df-mobile-nav-toggle{display:inline-flex!important;width:44px!important;height:44px!important;flex:0 0 44px!important;align-items:center!important;justify-content:center!important;flex-direction:column!important;gap:5px!important;border:0!important;border-radius:10px!important;background:#223052!important;cursor:pointer!important;padding:0!important;position:relative!important;z-index:73!important}
+ body.df-portal-active .df-portal-shell.df-js .df-mobile-nav-toggle span{display:block!important;width:20px!important;height:2px!important;border-radius:3px!important;background:#fff!important;transition:transform .18s ease,opacity .18s ease!important}
+ body.df-portal-active .df-portal-shell.df-js.is-nav-open .df-mobile-nav-toggle span:nth-child(1){transform:translateY(7px) rotate(45deg)!important}
+ body.df-portal-active .df-portal-shell.df-js.is-nav-open .df-mobile-nav-toggle span:nth-child(2){opacity:0!important}
+ body.df-portal-active .df-portal-shell.df-js.is-nav-open .df-mobile-nav-toggle span:nth-child(3){transform:translateY(-7px) rotate(-45deg)!important}
+ body.df-portal-active .df-portal-shell.df-js .df-nav{display:flex!important;position:fixed!important;z-index:71!important;inset:0 auto 0 0!important;width:min(84vw,320px)!important;height:100dvh!important;padding:84px 16px 24px!important;flex-direction:column!important;gap:6px!important;overflow-y:auto!important;overflow-x:hidden!important;background:#11192b!important;box-shadow:12px 0 34px rgba(8,15,31,.28)!important;transform:translateX(-104%)!important;transition:transform .2s ease!important}
+ body.df-portal-active .df-portal-shell.df-js.is-nav-open .df-nav{transform:translateX(0)!important}
+ body.df-portal-active .df-portal-shell.df-js .df-nav a{display:flex!important;min-height:48px!important;align-items:center!important;flex:0 0 auto!important;white-space:normal!important;padding:11px 14px!important;background:transparent!important;border-radius:10px!important;font-size:15px!important}
+ body.df-portal-active .df-portal-shell.df-js .df-nav a.is-active{background:#223052!important}
+ body.df-portal-active .df-portal-shell.df-js .df-sidebar-footer{display:none!important}
+ body.df-portal-active .df-portal-shell.df-js .df-mobile-nav-backdrop{display:block!important;position:fixed!important;z-index:70!important;inset:0!important;border:0!important;background:rgba(10,18,33,.56)!important;opacity:0!important;pointer-events:none!important;transition:opacity .2s ease!important}
+ body.df-portal-active .df-portal-shell.df-js.is-nav-open .df-mobile-nav-backdrop{opacity:1!important;pointer-events:auto!important}
+ body.df-portal-active .df-portal-shell.df-js .df-portal-main{padding:14px!important;width:100%!important}
+ body.df-portal-active .df-topbar{display:flex!important;flex-direction:column!important;gap:10px!important;margin-bottom:14px!important}
+ body.df-portal-active .df-topbar h1{font-size:28px!important}
+ body.df-portal-active .df-topbar-status{justify-content:flex-start!important;max-width:none!important}
+ body.df-portal-active .df-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ body.df-portal-active .df-stat-card{padding:14px!important}
+ body.df-portal-active .df-stat-card strong{font-size:26px!important}
+ body.df-portal-active .df-panel{padding:14px!important;border-radius:12px!important}
+ body.df-portal-active .df-panel-head{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+ body.df-portal-active .df-panel-head h2{font-size:18px!important}
+ body.df-portal-active .df-candidate{padding:14px!important}
+ body.df-portal-active .df-candidate-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:12px!important;align-items:start!important}
+ body.df-portal-active .df-candidate h3{font-size:17px!important;line-height:1.25!important}
+ body.df-portal-active .df-score{text-align:right!important}
+ body.df-portal-active .df-score strong{font-size:25px!important}
+ body.df-portal-active .df-signal-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ body.df-portal-active .df-review-form{max-width:none!important}
+ body.df-portal-active .df-actions{position:sticky!important;bottom:0!important;z-index:4!important;background:rgba(255,255,255,.97)!important;padding:10px 0 4px!important}
+ body.df-portal-active .df-button{min-height:46px!important;flex:1 1 130px!important}
+ body.df-portal-active .df-table{min-width:620px!important}
+ body.df-portal-active .df-view-dashboard .df-panel .df-candidate .df-signal-grid{display:none!important}
+ body.df-portal-active .df-view-dashboard .df-panel .df-candidate{margin-top:6px!important}
+}
+
+@media (max-width:479px){
+ body.df-portal-active .df-portal-shell.df-js .df-brand small{display:none!important}
+ body.df-portal-active .df-portal-main{padding:12px!important}
+ body.df-portal-active .df-card-grid{grid-template-columns:1fr 1fr!important}
+ body.df-portal-active .df-stat-card{min-height:92px!important}
+ body.df-portal-active .df-signal-grid{grid-template-columns:1fr!important}
+ body.df-portal-active .df-panel-head{align-items:flex-start!important}
+}
+
+@media (prefers-reduced-motion:reduce){
+ body.df-portal-active .df-portal-shell.df-js .df-nav,body.df-portal-active .df-portal-shell.df-js .df-mobile-nav-backdrop,body.df-portal-active .df-portal-shell.df-js .df-mobile-nav-toggle span{transition:none!important}
+}
