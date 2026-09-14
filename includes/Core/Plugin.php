@@ -19,6 +19,7 @@ use DigiForge\REST\PodController;
 use DigiForge\REST\ListingController;
 use DigiForge\REST\OrderController;
 use DigiForge\REST\FinanceController;
+use DigiForge\REST\LaunchController;
 use DigiForge\Queue\Scheduler;
 use DigiForge\Security\Logger;
 
@@ -51,6 +52,7 @@ final class Plugin {
         (new ListingController())->register();
         (new OrderController())->register();
         (new FinanceController())->register();
+        (new LaunchController())->register();
         (new Scheduler())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
             if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
