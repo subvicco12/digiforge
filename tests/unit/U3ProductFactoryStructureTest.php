@@ -19,14 +19,28 @@ final class U3ProductFactoryStructureTest extends TestCase
         self::assertStringNotContainsString('EtsyOAuth', $source);
     }
 
-    public function testProductReviewRequiresQaPassedAndDoesNotStartListing(): void
+    public function testProductReviewRequiresDeterministicAndSemanticQa(): void
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/ProductReview.php');
         self::assertStringContainsString("!== 'QA_PASSED'", $source);
-        self::assertStringContainsString("'APPROVED'", $source);
+        self::assertStringContainsString('planQaPassed', $source);
+        self::assertStringContainsString("check_type LIKE 'semantic_%%'", $source);
+        self::assertStringContainsString('total < 7', $source);
         self::assertStringContainsString('Workflow::PRODUCT_APPROVED', $source);
         self::assertStringContainsString('Etsy draft/publish remains blocked', $source);
         self::assertStringNotContainsString('ListingRepository', $source);
+    }
+
+    public function testSemanticQaIsIndependentAndFailClosed(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/SemanticQa.php');
+        self::assertStringContainsString('(new OpenAIClient())->develop(', $source);
+        self::assertStringContainsString("'specification_match'", $source);
+        self::assertStringContainsString("'ip_trademark_risk'", $source);
+        self::assertStringContainsString("'prohibited_content'", $source);
+        self::assertStringContainsString("'link_qr_integrity'", $source);
+        self::assertStringContainsString("'mockup_production_separation'", $source);
+        self::assertStringContainsString("'passed' => false", $source);
     }
 
     public function testLaunchApiExposesBuildAndHumanReviewSeparately(): void
@@ -45,5 +59,14 @@ final class U3ProductFactoryStructureTest extends TestCase
         self::assertStringContainsString("'marketing_asset' : 'product_asset'", $source);
         self::assertStringContainsString("['group' => 'product'", $source);
         self::assertStringContainsString("['group' => 'marketing'", $source);
+        self::assertStringContainsString("'product_package'", $source);
+    }
+
+    public function testApprovalAutomationChecksSchedulerResult(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/ApprovalAutomation.php');
+        self::assertStringContainsString("$scheduled = false", $source);
+        self::assertStringContainsString('scheduler_rejected_job', $source);
+        self::assertStringContainsString("'research_candidate_reviewed'", $source);
     }
 }
