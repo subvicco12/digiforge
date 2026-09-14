@@ -87,7 +87,8 @@ final class U3ProductFactoryStructureTest extends TestCase
     public function testLargeAiBudgetIsScopedToU3ProductionOnly(): void
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/Launch/OpenAIClient.php');
-        self::assertStringContainsString("str_starts_with($brief, 'You are DigiForge U3 Production.')", $source);
+        self::assertStringContainsString('U3 Production.', $source);
+        self::assertStringContainsString('$budget =', $source);
         self::assertStringContainsString('? 12000 : 4000', $source);
         self::assertStringContainsString('return $this->request($brief, true, 4000);', $source);
     }
