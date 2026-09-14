@@ -73,12 +73,18 @@ final class LocalAssetProducer
             return $this->error('zip_unavailable', 'ZIP support is unavailable on this server.', 500);
         }
         $uploads = wp_upload_dir();
+        if (! empty($uploads['error']) || empty($uploads['basedir'])) {
+            return $this->error('upload_directory', 'WordPress uploads directory is unavailable.', 500);
+        }
         $relativeDir = 'digiforge/product-factory/' . $productVersionId;
-        $directory = trailingslashit((string) ($uploads['basedir'] ?? '')) . $relativeDir;
-        if ($directory === '' || ! wp_mkdir_p($directory)) {
+        $directory = trailingslashit((string) $uploads['basedir']) . $relativeDir;
+        if (! wp_mkdir_p($directory)) {
             return $this->error('asset_directory', 'Unable to create DigiForge asset directory.', 500);
         }
         $filename = $this->filename($filename, 'zip');
+        if ($filename === '') {
+            return $this->error('invalid_filename', 'A safe ZIP filename is required.');
+        }
         $path = trailingslashit($directory) . $filename;
         $zip = new \ZipArchive();
         if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
@@ -115,13 +121,40 @@ final class LocalAssetProducer
         if (! is_string($content)) {
             return $this->error('invalid_content', 'Asset content must be text.');
         }
-        if ($format === 'svg' && ! str_contains(strtolower($content), '<svg')) {
-            return $this->error('invalid_svg', 'SVG asset must contain an SVG root element.');
+        if ($format === 'svg') {
+            if (! str_contains(strtolower($content), '<svg')) {
+                return $this->error('invalid_svg', 'SVG asset must contain an SVG root element.');
+            }
+            if ($this->containsActiveMarkup($content)) {
+                return $this->error('unsafe_svg', 'Generated SVG contains active or external content.');
+            }
         }
-        if ($format === 'html' && ! preg_match('/<(?:html|main|section|article|div|body)\b/i', $content)) {
-            return $this->error('invalid_html', 'HTML asset does not contain usable markup.');
+        if ($format === 'html') {
+            if (! preg_match('/<(?:html|main|section|article|div|body)\b/i', $content)) {
+                return $this->error('invalid_html', 'HTML asset does not contain usable markup.');
+            }
+            $content = wp_kses_post($content);
+            if ($content === '') {
+                return $this->error('unsafe_html', 'Generated HTML was removed by safety sanitization.');
+            }
         }
         return $content;
+    }
+
+    private function containsActiveMarkup(string $content): bool
+    {
+        $patterns = [
+            '/<\s*(?:script|iframe|object|embed|foreignObject)\b/i',
+            '/\bon[a-z]+\s*=/i',
+            '/\b(?:href|xlink:href)\s*=\s*["\']\s*(?:https?:|javascript:|data:)/i',
+            '/<!DOCTYPE\b/i',
+            '/<!ENTITY\b/i',
+            '/javascript\s*:/i',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content) === 1) { return true; }
+        }
+        return false;
     }
 
     /** @param mixed $content */
@@ -143,6 +176,10 @@ final class LocalAssetProducer
             $lines = $this->wrap(strip_tags($pageText), 92);
             $stream = "BT /F1 11 Tf 50 790 Td 14 TL\n";
             foreach ($lines as $line) {
+                if (function_exists('iconv')) {
+                    $converted = iconv('UTF-8', 'Windows-1252//TRANSLIT', $line);
+                    if (is_string($converted)) { $line = $converted; }
+                }
                 $safe = str_replace(['\\','(',')'], ['\\\\','\\(','\\)'], $line);
                 $stream .= '(' . $safe . ") Tj T*\n";
             }
