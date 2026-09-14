@@ -41,6 +41,7 @@ final class Plugin {
         if (! OrderSchema::migrateIfNeeded()) { return; }
         if (! FinanceSchema::migrateIfNeeded()) { return; }
         (new Migrator())->maybe_migrate();
+        \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
         (new Controller())->register();
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
@@ -54,7 +55,10 @@ final class Plugin {
         (new FinanceController())->register();
         (new LaunchController())->register();
         (new Scheduler())->register();
+        (new \DigiForge\ProductFactory\ApprovalAutomation())->register();
         (new \DigiForge\Portal\Portal())->register();
+        (new \DigiForge\Portal\U3ApprovalInbox())->register();
+        (new \DigiForge\Portal\U3AssetReview())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
             if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
             return $hosts;

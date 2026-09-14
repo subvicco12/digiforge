@@ -6,6 +6,8 @@ namespace DigiForge\REST;
 
 use DigiForge\Core\Capabilities;
 use DigiForge\Launch\ExecutionEngine;
+use DigiForge\ProductFactory\Orchestrator;
+use DigiForge\ProductFactory\ProductReview;
 use DigiForge\Queue\Idempotency;
 
 final class LaunchController
@@ -30,6 +32,16 @@ final class LaunchController
                 'permission_callback' => [$this, 'canDevelop'],
                 'callback' => [$this, 'develop'],
             ]);
+            register_rest_route(self::NS, '/launch/candidates/(?P<id>\d+)/build-product', [
+                'methods' => 'POST',
+                'permission_callback' => [$this, 'canBuildProduct'],
+                'callback' => [$this, 'buildProduct'],
+            ]);
+            register_rest_route(self::NS, '/launch/product-versions/(?P<id>\d+)/review', [
+                'methods' => 'POST',
+                'permission_callback' => [$this, 'canReviewProduct'],
+                'callback' => [$this, 'reviewProduct'],
+            ]);
         });
     }
 
@@ -48,15 +60,36 @@ final class LaunchController
         return Capabilities::can('manage_digiforge_products') && Capabilities::can('manage_digiforge_ai');
     }
 
+    public function canBuildProduct(): bool
+    {
+        return $this->canDevelop() && Capabilities::can('manage_digiforge_production');
+    }
+
+    public function canReviewProduct(): bool
+    {
+        return Capabilities::can('manage_digiforge_products') && Capabilities::can('manage_digiforge_production');
+    }
+
     public function status(): \WP_REST_Response
     {
         return new \WP_REST_Response([
-            'engine' => 'launch-execution-v1',
+            'engine' => 'launch-execution-u3',
             'research_endpoint' => '/digiforge/v1/launch/research',
             'development_endpoint' => '/digiforge/v1/launch/candidates/{id}/develop',
-            'approval_gate' => 'research candidate must be APPROVED before development',
+            'product_build_endpoint' => '/digiforge/v1/launch/candidates/{id}/build-product',
+            'product_review_endpoint' => '/digiforge/v1/launch/product-versions/{id}/review',
+            'approval_gates' => [
+                'opportunity' => 'research candidate must be APPROVED before development or production',
+                'product' => 'generated assets and QA stop at PRODUCT_REVIEW_REQUIRED until explicit review',
+                'listing_publish' => 'not executed by U3',
+            ],
+            'asset_separation' => 'product assets and marketing/listing assets are stored as distinct asset types',
             'idempotency' => 'Idempotency-Key header preferred; authenticated connector clients may send _idempotency_key in JSON body.',
             'etsy_publish_direct' => false,
+            'printify_execution' => false,
+            'gelato_execution' => false,
+            'order_execution' => false,
+            'gst_execution' => false,
         ]);
     }
 
@@ -64,25 +97,44 @@ final class LaunchController
     {
         $payload = (array) $request->get_json_params();
         unset($payload['_idempotency_key']);
-
-        return $this->mutate(
-            $request,
-            'launch_research',
-            fn(string $key) => (new ExecutionEngine())->research($payload, $key),
-            201
-        );
+        return $this->mutate($request, 'launch_research', fn(string $key) => (new ExecutionEngine())->research($payload, $key), 201);
     }
 
     public function develop(\WP_REST_Request $request): mixed
     {
         $payload = (array) $request->get_json_params();
         unset($payload['_idempotency_key']);
-
         return $this->mutate(
             $request,
             'launch_develop_' . (int) $request['id'],
             fn(string $key) => (new ExecutionEngine())->develop((int) $request['id'], $payload, $key),
             201
+        );
+    }
+
+    public function buildProduct(\WP_REST_Request $request): mixed
+    {
+        $payload = (array) $request->get_json_params();
+        unset($payload['_idempotency_key']);
+        return $this->mutate(
+            $request,
+            'u3_build_product_' . (int) $request['id'],
+            fn(string $key) => (new Orchestrator())->build((int) $request['id'], $payload, $key),
+            201
+        );
+    }
+
+    public function reviewProduct(\WP_REST_Request $request): mixed
+    {
+        $payload = (array) $request->get_json_params();
+        $decision = isset($payload['decision']) ? (string) $payload['decision'] : '';
+        $notes = isset($payload['notes']) ? (string) $payload['notes'] : '';
+        unset($payload['_idempotency_key']);
+        return $this->mutate(
+            $request,
+            'u3_product_review_' . (int) $request['id'],
+            fn(string $key) => (new ProductReview())->decide((int) $request['id'], $decision, $notes),
+            200
         );
     }
 
@@ -94,20 +146,12 @@ final class LaunchController
             $bodyKeyPresent = array_key_exists('_idempotency_key', $params);
             $bodyKey = $bodyKeyPresent ? $params['_idempotency_key'] : null;
             if ($bodyKeyPresent && ! is_string($bodyKey)) {
-                return new \WP_Error(
-                    'invalid_idempotency_key',
-                    __('The _idempotency_key JSON field must be a string.', 'digiforge'),
-                    ['status' => 400]
-                );
+                return new \WP_Error('invalid_idempotency_key', __('The _idempotency_key JSON field must be a string.', 'digiforge'), ['status' => 400]);
             }
             $idempotencyKey = is_string($bodyKey) ? trim($bodyKey) : '';
         }
         if ($idempotencyKey === '') {
-            return new \WP_Error(
-                'missing_idempotency_key',
-                __('Idempotency-Key header or _idempotency_key JSON field is required.', 'digiforge'),
-                ['status' => 400]
-            );
+            return new \WP_Error('missing_idempotency_key', __('Idempotency-Key header or _idempotency_key JSON field is required.', 'digiforge'), ['status' => 400]);
         }
         if (strlen($idempotencyKey) > 191) {
             return new \WP_Error('invalid_idempotency_key', __('Idempotency key is too long.', 'digiforge'), ['status' => 400]);

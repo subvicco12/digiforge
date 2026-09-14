@@ -18,17 +18,18 @@ final class OpenAIClient
     /** @return array<string,mixed>|\WP_Error */
     public function research(string $brief): array|\WP_Error
     {
-        return $this->request($brief, true);
+        return $this->request($brief, true, 4000);
     }
 
     /** @return array<string,mixed>|\WP_Error */
     public function develop(string $brief): array|\WP_Error
     {
-        return $this->request($brief, false);
+        $budget = str_starts_with($brief, 'You are DigiForge U3 Production.') ? 12000 : 4000;
+        return $this->request($brief, false, $budget);
     }
 
     /** @return array<string,mixed>|\WP_Error */
-    private function request(string $brief, bool $webSearch): array|\WP_Error
+    private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
     {
         $connector = $this->connector();
         if (is_wp_error($connector)) {
@@ -43,7 +44,7 @@ final class OpenAIClient
         $body = [
             'model' => self::DEFAULT_MODEL,
             'input' => $brief,
-            'max_output_tokens' => 4000,
+            'max_output_tokens' => max(1000, min(16000, $maxOutputTokens)),
         ];
         if ($webSearch) {
             $body['tools'] = [['type' => 'web_search']];
