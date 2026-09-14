@@ -26,7 +26,10 @@ final class LaunchExecutionStructureTest extends TestCase
         self::assertStringContainsString("get_header('Idempotency-Key')", $controller);
         self::assertStringContainsString("\$params['_idempotency_key']", $controller);
         self::assertStringContainsString("unset(\$payload['_idempotency_key'])", $controller);
-        self::assertStringContainsString('Idempotency-Key header or _idempotency_key JSON field is required.', $controller);
+        self::assertStringContainsString(
+            'Idempotency-Key header or _idempotency_key JSON field is required.',
+            $controller
+        );
         self::assertStringContainsString('REVIEW_APPROVED', $engine);
         self::assertStringContainsString('approval_required', $engine);
         self::assertStringContainsString("Settings::is_enabled('research')", $engine);
