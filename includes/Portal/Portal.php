@@ -62,14 +62,23 @@ final class Portal
         ?>
         <div class="df-portal-shell">
             <aside class="df-portal-sidebar">
-                <div class="df-brand"><span class="df-brand-mark">DF</span><div><strong>DigiForge</strong><small>Operations Console</small></div></div>
+                <div class="df-brand">
+                    <span class="df-brand-mark">DF</span>
+                    <div><strong>DigiForge</strong><small>Operations Console</small></div>
+                </div>
                 <nav class="df-nav">
                     <?php foreach (self::NAV as $slug => $item) : ?>
                         <?php if (! current_user_can($item['cap'])) { continue; } ?>
-                        <a class="<?php echo $view === $slug ? 'is-active' : ''; ?>" href="<?php echo esc_url($this->url($slug)); ?>"><?php echo esc_html($item['label']); ?></a>
+                        <a class="<?php echo $view === $slug ? 'is-active' : ''; ?>"
+                           href="<?php echo esc_url($this->url($slug)); ?>">
+                            <?php echo esc_html($item['label']); ?>
+                        </a>
                     <?php endforeach; ?>
                 </nav>
-                <div class="df-sidebar-footer"><span><?php echo esc_html(wp_get_current_user()->display_name); ?></span><a href="<?php echo esc_url(wp_logout_url($this->baseUrl())); ?>">Sign out</a></div>
+                <div class="df-sidebar-footer">
+                    <span><?php echo esc_html(wp_get_current_user()->display_name); ?></span>
+                    <a href="<?php echo esc_url(wp_logout_url($this->baseUrl())); ?>">Sign out</a>
+                </div>
             </aside>
             <main class="df-portal-main">
                 <?php $this->topbar($view); ?>
@@ -86,8 +95,12 @@ final class Portal
         $this->guard('manage_digiforge_research');
         check_admin_referer(self::REVIEW_ACTION);
         $id = isset($_POST['candidate_id']) ? absint($_POST['candidate_id']) : 0;
-        $decision = isset($_POST['decision']) ? strtoupper(sanitize_key(wp_unslash($_POST['decision']))) : '';
-        $notes = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
+        $decision = isset($_POST['decision'])
+            ? strtoupper(sanitize_key(wp_unslash($_POST['decision'])))
+            : '';
+        $notes = isset($_POST['notes'])
+            ? sanitize_textarea_field(wp_unslash($_POST['notes']))
+            : '';
         $result = (new ResearchRepository())->review($id, $decision, $notes);
         if (is_wp_error($result)) {
             $this->redirect('approvals', $result->get_error_message(), true);
@@ -135,9 +148,14 @@ final class Portal
         $stopAll = Settings::get('stop_all', true) === true;
         ?>
         <header class="df-topbar">
-            <div><p class="df-eyebrow">DigiCraftify automation platform</p><h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1></div>
+            <div>
+                <p class="df-eyebrow">DigiCraftify automation platform</p>
+                <h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1>
+            </div>
             <div class="df-topbar-status">
-                <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?></span>
+                <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">
+                    STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?>
+                </span>
                 <span class="df-pill"><?php echo esc_html((string) ($readiness['status'] ?? 'REVIEW_REQUIRED')); ?></span>
             </div>
         </header>
@@ -159,7 +177,8 @@ final class Portal
             echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>'
                 . esc_html((string) $value) . '</strong></article>';
         }
-        echo '</section><section class="df-panel"><div class="df-panel-head"><h2>Approval queue</h2><a href="'
+        echo '</section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><h2>Approval queue</h2><a href="'
             . esc_url($this->url('approvals')) . '">Open full queue</a></div>';
         $this->candidateCards(ResearchRepository::REVIEW_PENDING, 3, false);
         echo '</section>';
@@ -206,21 +225,37 @@ final class Portal
             ?>
             <article class="df-candidate">
                 <div class="df-candidate-head">
-                    <div><span class="df-kicker">Candidate #<?php echo esc_html((string) $row['id']); ?></span><h3><?php echo esc_html((string) $row['title']); ?></h3><span class="df-status df-status-<?php echo esc_attr(strtolower((string) $row['review_status'])); ?>"><?php echo esc_html((string) $row['review_status']); ?></span></div>
+                    <div>
+                        <span class="df-kicker">Candidate #<?php echo esc_html((string) $row['id']); ?></span>
+                        <h3><?php echo esc_html((string) $row['title']); ?></h3>
+                        <span class="df-status df-status-<?php echo esc_attr(strtolower((string) $row['review_status'])); ?>">
+                            <?php echo esc_html((string) $row['review_status']); ?>
+                        </span>
+                    </div>
                     <div class="df-score"><strong><?php echo esc_html(number_format((float) $row['score'], 2)); ?></strong><span>/100</span></div>
                 </div>
                 <p><?php echo esc_html((string) ($row['summary'] ?? '')); ?></p>
                 <?php if ($signals !== []) : ?>
                     <div class="df-signal-grid">
                         <?php foreach ($signals as $name => $value) : ?>
-                            <div><span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $name))); ?></span><b><?php echo esc_html((string) $value); ?></b></div>
+                            <div>
+                                <span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $name))); ?></span>
+                                <b><?php echo esc_html((string) $value); ?></b>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
                 <?php if ($evidence !== []) : ?>
-                    <details class="df-evidence"><summary>View evidence (<?php echo esc_html((string) count($evidence)); ?>)</summary>
+                    <details class="df-evidence">
+                        <summary>View evidence (<?php echo esc_html((string) count($evidence)); ?>)</summary>
                         <?php foreach ($evidence as $item) : ?>
-                            <div class="df-evidence-item"><strong><?php echo esc_html((string) ($item['observation_title'] ?? 'Evidence')); ?></strong><p><?php echo esc_html((string) ($item['value'] ?? '')); ?></p><?php if (! empty($item['url'])) : ?><a href="<?php echo esc_url((string) $item['url']); ?>" target="_blank" rel="noopener noreferrer">Source</a><?php endif; ?></div>
+                            <div class="df-evidence-item">
+                                <strong><?php echo esc_html((string) ($item['observation_title'] ?? 'Evidence')); ?></strong>
+                                <p><?php echo esc_html((string) ($item['value'] ?? '')); ?></p>
+                                <?php if (! empty($item['url'])) : ?>
+                                    <a href="<?php echo esc_url((string) $item['url']); ?>" target="_blank" rel="noopener noreferrer">Source</a>
+                                <?php endif; ?>
+                            </div>
                         <?php endforeach; ?>
                     </details>
                 <?php endif; ?>
@@ -239,7 +274,10 @@ final class Portal
             <input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>">
             <?php wp_nonce_field(self::REVIEW_ACTION); ?>
             <textarea name="notes" rows="2" placeholder="Optional review notes"></textarea>
-            <div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject</button></div>
+            <div class="df-actions">
+                <button class="df-button df-button-primary" name="decision" value="APPROVED">Approve</button>
+                <button class="df-button df-button-danger" name="decision" value="REJECTED">Reject</button>
+            </div>
         </form>
         <?php
     }
@@ -252,7 +290,12 @@ final class Portal
             <input type="hidden" name="action" value="<?php echo esc_attr(self::DEVELOP_ACTION); ?>">
             <input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>">
             <?php wp_nonce_field(self::DEVELOP_ACTION); ?>
-            <label>Target shop<select name="shop"><option value="digital">DigiCraftifyDigital</option><option value="goods">DigiCraftifyGoods</option></select></label>
+            <label>Target shop
+                <select name="shop">
+                    <option value="digital">DigiCraftifyDigital</option>
+                    <option value="goods">DigiCraftifyGoods</option>
+                </select>
+            </label>
             <button class="df-button df-button-primary">Develop approved candidate</button>
         </form>
         <?php
@@ -266,14 +309,17 @@ final class Portal
             . Tables::integrations() . ' ORDER BY id ASC',
             ARRAY_A
         );
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Provider integrations</h2><p>Credentials are never displayed in this portal.</p></div></div><div class="df-integration-grid">';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Provider integrations</h2>'
+            . '<p>Credentials are never displayed in this portal.</p></div></div><div class="df-integration-grid">';
         foreach (is_array($rows) ? $rows : [] as $row) {
-            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3><dl class="df-kv">'
+            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3>'
+                . '<dl class="df-kv">'
                 . '<div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div>'
                 . '<div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div>'
                 . '<div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div>'
                 . '<div><dt>Enabled</dt><dd>' . (! empty($row['enabled']) ? 'YES' : 'NO') . '</dd></div>'
-                . '<div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div></dl></article>';
+                . '<div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div>'
+                . '</dl></article>';
         }
         echo '</div></section>';
     }
@@ -282,8 +328,13 @@ final class Portal
     {
         $this->systemSummary();
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>'
-            . '<p class="df-muted">Critical activation controls remain fail-closed and read-only here.</p><div class="df-switch-list">';
-        $switches = ['stop_all','activation_authorized','automation_armed','research','ai','product_development','printify','gelato','etsy_draft','etsy_publish','order_automation','gst_automation'];
+            . '<p class="df-muted">Critical activation controls remain fail-closed and read-only here.</p>'
+            . '<div class="df-switch-list">';
+        $switches = [
+            'stop_all', 'activation_authorized', 'automation_armed', 'research', 'ai',
+            'product_development', 'printify', 'gelato', 'etsy_draft', 'etsy_publish',
+            'order_automation', 'gst_automation',
+        ];
         foreach ($switches as $name) {
             $enabled = Settings::get($name, $name === 'stop_all');
             echo '<div><span>' . esc_html(ucwords(str_replace('_', ' ', $name))) . '</span><b class="'
@@ -339,15 +390,73 @@ final class Portal
     private function tables(string $view): array
     {
         return match ($view) {
-            'products' => ['Opportunities'=>Tables::opportunities(),'Product Families'=>Tables::product_families(),'Products'=>Tables::products(),'Product Versions'=>Tables::product_versions()],
-            'digital' => ['Digital Products'=>Tables::digital_products(),'Digital Files'=>Tables::digital_files(),'File Versions'=>Tables::digital_file_versions(),'Packages'=>Tables::digital_packages(),'Previews'=>Tables::digital_previews(),'Templates'=>Tables::digital_templates(),'Licenses'=>Tables::digital_licenses(),'Download Checks'=>Tables::digital_download_checks()],
-            'production' => ['Asset Specs'=>Tables::asset_specs(),'Production Plans'=>Tables::production_plans(),'Production Intents'=>Tables::production_intents(),'Asset Revisions'=>Tables::asset_revisions(),'Production QA'=>Tables::production_qa(),'Release Bundles'=>Tables::release_bundles()],
-            'pod' => ['POD Catalog'=>Tables::pod_catalog(),'Mappings'=>Tables::pod_mappings(),'Print Areas'=>Tables::pod_print_areas(),'Personalization Schemas'=>Tables::personalization_schemas(),'Provider Intents'=>Tables::pod_provider_intents(),'Cost Snapshots'=>Tables::pod_cost_snapshots(),'Readiness Reviews'=>Tables::pod_readiness_reviews()],
-            'listings' => ['Listings'=>Tables::listings(),'Listing SEO'=>Tables::listing_seo(),'Listing Media'=>Tables::listing_media(),'POD Bindings'=>Tables::listing_pod_bindings(),'Etsy Draft Packages'=>Tables::etsy_draft_packages(),'Etsy Intents'=>Tables::etsy_intents(),'Readiness Reviews'=>Tables::listing_readiness_reviews()],
-            'orders' => ['Orders'=>Tables::orders(),'Order Line Items'=>Tables::order_line_items(),'Personalization'=>Tables::personalization_submissions(),'Fulfillment Plans'=>Tables::fulfillment_plans(),'Fulfillment Intents'=>Tables::fulfillment_intents(),'Readiness Reviews'=>Tables::fulfillment_readiness_reviews()],
-            'finance' => ['Ledger'=>Tables::finance_ledger(),'FX Snapshots'=>Tables::fx_snapshots(),'Tax Classifications'=>Tables::tax_classifications(),'Periods'=>Tables::finance_periods(),'Analytics'=>Tables::analytics_snapshots(),'Alerts'=>Tables::operational_alerts(),'Finance Intents'=>Tables::finance_intents()],
-            'reviews' => ['AI Reviews'=>Tables::ai_reviews(),'Production QA'=>Tables::production_qa(),'POD Readiness'=>Tables::pod_readiness_reviews(),'Listing Readiness'=>Tables::listing_readiness_reviews(),'Fulfillment Readiness'=>Tables::fulfillment_readiness_reviews()],
-            'audit' => ['Recent Audit Events'=>Tables::audit_log()],
+            'products' => [
+                'Opportunities' => Tables::opportunities(),
+                'Product Families' => Tables::product_families(),
+                'Products' => Tables::products(),
+                'Product Versions' => Tables::product_versions(),
+            ],
+            'digital' => [
+                'Digital Products' => Tables::digital_products(),
+                'Digital Files' => Tables::digital_files(),
+                'File Versions' => Tables::digital_file_versions(),
+                'Packages' => Tables::digital_packages(),
+                'Previews' => Tables::digital_previews(),
+                'Templates' => Tables::digital_templates(),
+                'Licenses' => Tables::digital_licenses(),
+                'Download Checks' => Tables::digital_download_checks(),
+            ],
+            'production' => [
+                'Asset Specs' => Tables::asset_specs(),
+                'Production Plans' => Tables::production_plans(),
+                'Production Intents' => Tables::production_intents(),
+                'Asset Revisions' => Tables::asset_revisions(),
+                'Production QA' => Tables::production_qa(),
+                'Release Bundles' => Tables::release_bundles(),
+            ],
+            'pod' => [
+                'POD Catalog' => Tables::pod_catalog(),
+                'Mappings' => Tables::pod_mappings(),
+                'Print Areas' => Tables::pod_print_areas(),
+                'Personalization Schemas' => Tables::personalization_schemas(),
+                'Provider Intents' => Tables::pod_provider_intents(),
+                'Cost Snapshots' => Tables::pod_cost_snapshots(),
+                'Readiness Reviews' => Tables::pod_readiness_reviews(),
+            ],
+            'listings' => [
+                'Listings' => Tables::listings(),
+                'Listing SEO' => Tables::listing_seo(),
+                'Listing Media' => Tables::listing_media(),
+                'POD Bindings' => Tables::listing_pod_bindings(),
+                'Etsy Draft Packages' => Tables::etsy_draft_packages(),
+                'Etsy Intents' => Tables::etsy_intents(),
+                'Readiness Reviews' => Tables::listing_readiness_reviews(),
+            ],
+            'orders' => [
+                'Orders' => Tables::orders(),
+                'Order Line Items' => Tables::order_line_items(),
+                'Personalization' => Tables::personalization_submissions(),
+                'Fulfillment Plans' => Tables::fulfillment_plans(),
+                'Fulfillment Intents' => Tables::fulfillment_intents(),
+                'Readiness Reviews' => Tables::fulfillment_readiness_reviews(),
+            ],
+            'finance' => [
+                'Ledger' => Tables::finance_ledger(),
+                'FX Snapshots' => Tables::fx_snapshots(),
+                'Tax Classifications' => Tables::tax_classifications(),
+                'Periods' => Tables::finance_periods(),
+                'Analytics' => Tables::analytics_snapshots(),
+                'Alerts' => Tables::operational_alerts(),
+                'Finance Intents' => Tables::finance_intents(),
+            ],
+            'reviews' => [
+                'AI Reviews' => Tables::ai_reviews(),
+                'Production QA' => Tables::production_qa(),
+                'POD Readiness' => Tables::pod_readiness_reviews(),
+                'Listing Readiness' => Tables::listing_readiness_reviews(),
+                'Fulfillment Readiness' => Tables::fulfillment_readiness_reviews(),
+            ],
+            'audit' => ['Recent Audit Events' => Tables::audit_log()],
             default => [],
         };
     }
@@ -422,22 +531,29 @@ final class Portal
 
     private function flash(): void
     {
-        $message = isset($_GET['df_message']) ? sanitize_text_field(wp_unslash($_GET['df_message'])) : '';
+        $message = isset($_GET['df_message'])
+            ? sanitize_text_field(wp_unslash($_GET['df_message']))
+            : '';
         if ($message === '') { return; }
-        $error = isset($_GET['df_error']) && rest_sanitize_boolean(wp_unslash($_GET['df_error']));
+        $error = isset($_GET['df_error'])
+            && rest_sanitize_boolean(wp_unslash($_GET['df_error']));
         echo $this->notice($message, $error); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     }
 
     private function notice(string $message, bool $error = false): string
     {
         $class = $error ? 'df-notice-error' : 'df-notice-success';
-        return '<div class="df-notice ' . $class . '">' . esc_html($message) . '</div>';
+        return '<div class="df-notice ' . esc_attr($class) . '">' . esc_html($message) . '</div>';
     }
 
     private function guard(string $capability): void
     {
         if (! is_user_logged_in() || ! current_user_can($capability)) {
-            wp_die(esc_html__('You are not authorized to perform this DigiForge action.', 'digiforge'), '', ['response' => 403]);
+            wp_die(
+                esc_html__('You are not authorized to perform this DigiForge action.', 'digiforge'),
+                '',
+                ['response' => 403]
+            );
         }
     }
 
