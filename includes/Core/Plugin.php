@@ -56,6 +56,7 @@ final class Plugin {
         (new Scheduler())->register();
         (new \DigiForge\Launch\ProductProductionWorker())->register();
         (new \DigiForge\Portal\Portal())->register();
+        (new \DigiForge\Launch\PortalProductionExtension())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
             if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
             return $hosts;
