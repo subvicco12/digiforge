@@ -24,13 +24,8 @@ final class OpenAIClient
     /** @return array<string,mixed>|\WP_Error */
     public function develop(string $brief): array|\WP_Error
     {
-        return $this->request($brief, false, 4000);
-    }
-
-    /** Higher output budget for complete product/marketing asset payloads. @return array<string,mixed>|\WP_Error */
-    public function produce(string $brief): array|\WP_Error
-    {
-        return $this->request($brief, false, 12000);
+        $budget = str_starts_with($brief, 'You are DigiForge U3 Production.') ? 12000 : 4000;
+        return $this->request($brief, false, $budget);
     }
 
     /** @return array<string,mixed>|\WP_Error */
