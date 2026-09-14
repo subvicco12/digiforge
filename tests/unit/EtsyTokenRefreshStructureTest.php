@@ -19,7 +19,8 @@ final class EtsyTokenRefreshStructureTest extends TestCase
         self::assertStringContainsString("'redirection' => 0", $manager);
         self::assertStringContainsString("'reject_unsafe_urls' => true", $manager);
         self::assertStringContainsString("'sslverify' => true", $manager);
-        self::assertStringContainsString("'refresh_mode' = 'just_in_time'", str_replace('[', '', str_replace(']', '', $manager)));
+        $normalizedManager = str_replace('[', '', str_replace(']', '', $manager));
+        self::assertStringContainsString("'refresh_mode' = 'just_in_time'", $normalizedManager);
         self::assertStringContainsString('REFRESH_SKEW_SECONDS = 120', $manager);
         self::assertStringNotContainsString('setEnabled(', $manager);
     }
