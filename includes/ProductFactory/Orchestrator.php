@@ -101,6 +101,41 @@ final class Orchestrator
 
         $planState = $this->production->transition('plan', (int) $plan['id'], 'VALIDATED');
         if (is_wp_error($planState)) { return $planState; }
+
+        // A failed deterministic QA run is not allowed into the Product Approval inbox.
+        if (! $qaPassed) {
+            Logger::audit('u3_product_factory_qa_failed', [
+                'candidate_id' => $candidateId,
+                'product_id' => (int) ($product['id'] ?? 0),
+                'product_version_id' => $productVersionId,
+                'production_plan_id' => (int) $plan['id'],
+                'asset_count' => count($outputs),
+                'workflow_status' => Workflow::QA_FAILED,
+                'external_actions' => false,
+            ], 'product_version', (string) $productVersionId);
+
+            return [
+                'candidate_id' => $candidateId,
+                'shop' => $shop,
+                'product' => $product,
+                'product_version' => $version,
+                'specification' => $spec,
+                'production_plan' => $planState,
+                'release_bundle' => null,
+                'assets' => $outputs,
+                'qa_passed' => false,
+                'workflow_status' => Workflow::QA_FAILED,
+                'product_approval_required' => false,
+                'external_actions_performed' => false,
+                'next_action' => 'Resolve QA failures and create a corrected production revision before Product Approval.',
+                'ai' => [
+                    'model' => $manifestAi['model'] ?? '',
+                    'response_id' => $manifestAi['response_id'] ?? '',
+                    'usage' => $manifestAi['usage'] ?? [],
+                ],
+            ];
+        }
+
         $planState = $this->production->transition('plan', (int) $plan['id'], 'REVIEW_REQUIRED');
         if (is_wp_error($planState)) { return $planState; }
 
@@ -115,15 +150,14 @@ final class Orchestrator
         $bundleState = $this->production->transition('bundle', (int) $bundle['id'], 'REVIEW_REQUIRED');
         if (is_wp_error($bundleState)) { return $bundleState; }
 
-        $status = $qaPassed ? Workflow::PRODUCT_REVIEW_REQUIRED : Workflow::QA_FAILED;
         Logger::audit('u3_product_factory_completed', [
             'candidate_id' => $candidateId,
             'product_id' => (int) ($product['id'] ?? 0),
             'product_version_id' => $productVersionId,
             'production_plan_id' => (int) $plan['id'],
             'asset_count' => count($outputs),
-            'qa_passed' => $qaPassed,
-            'workflow_status' => $status,
+            'qa_passed' => true,
+            'workflow_status' => Workflow::PRODUCT_REVIEW_REQUIRED,
             'external_actions' => false,
         ], 'product_version', (string) $productVersionId);
 
@@ -136,13 +170,11 @@ final class Orchestrator
             'production_plan' => $planState,
             'release_bundle' => $bundleState,
             'assets' => $outputs,
-            'qa_passed' => $qaPassed,
-            'workflow_status' => $status,
+            'qa_passed' => true,
+            'workflow_status' => Workflow::PRODUCT_REVIEW_REQUIRED,
             'product_approval_required' => true,
             'external_actions_performed' => false,
-            'next_action' => $qaPassed
-                ? 'Review the finished product in Approval Inbox. Listing production remains blocked until explicit Product Approval.'
-                : 'Resolve QA failures before Product Approval.',
+            'next_action' => 'Review the finished product in Approval Inbox. Listing production remains blocked until explicit Product Approval.',
             'ai' => [
                 'model' => $manifestAi['model'] ?? '',
                 'response_id' => $manifestAi['response_id'] ?? '',
