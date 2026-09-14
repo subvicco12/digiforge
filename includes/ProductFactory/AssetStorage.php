@@ -21,16 +21,23 @@ final class AssetStorage
         }
 
         $index = trailingslashit($root) . 'index.php';
-        if (! is_file($index)) {
-            @file_put_contents($index, "<?php\nhttp_response_code(404);\nexit;\n", LOCK_EX);
+        $indexContents = "<?php\nhttp_response_code(404);\nexit;\n";
+        if ((string) @file_get_contents($index) !== $indexContents) {
+            if (@file_put_contents($index, $indexContents, LOCK_EX) !== strlen($indexContents)) {
+                return false;
+            }
         }
 
         $htaccess = trailingslashit($root) . '.htaccess';
         $rules = "Options -Indexes\n<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n";
-        if (! is_file($htaccess) || (string) @file_get_contents($htaccess) !== $rules) {
-            @file_put_contents($htaccess, $rules, LOCK_EX);
+        if ((string) @file_get_contents($htaccess) !== $rules) {
+            if (@file_put_contents($htaccess, $rules, LOCK_EX) !== strlen($rules)) {
+                return false;
+            }
         }
-        return is_file($index) && is_file($htaccess);
+
+        return (string) @file_get_contents($index) === $indexContents
+            && (string) @file_get_contents($htaccess) === $rules;
     }
 
     public static function absolutePath(string $storageReference): ?string
