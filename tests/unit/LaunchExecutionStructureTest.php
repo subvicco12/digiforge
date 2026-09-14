@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace DigiForge\Tests;
+namespace DigiForge\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
 final class LaunchExecutionStructureTest extends TestCase
 {
-    public function test_launch_controller_is_registered_and_preserves_approval_gate(): void
+    public function testLaunchControllerIsRegisteredAndPreservesApprovalGate(): void
     {
         $plugin = file_get_contents(__DIR__ . '/../../includes/Core/Plugin.php');
         $controller = file_get_contents(__DIR__ . '/../../includes/REST/LaunchController.php');
