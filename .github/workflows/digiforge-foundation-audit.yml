@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='OpenAIClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
@@ -130,6 +130,12 @@ jobs:
           grep -Fq "'redirection' => 0" includes/Integrations/EtsyTokenManager.php
           grep -Fq "'sslverify' => true" includes/Integrations/EtsyTokenManager.php
           grep -Fq "'reject_unsafe_urls' => true" includes/Integrations/EtsyTokenManager.php
+          test "$(grep -c 'wp_remote_post' includes/Launch/OpenAIClient.php)" -eq 1
+          ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Launch/OpenAIClient.php
+          grep -Fq "https://api.openai.com/v1/responses" includes/Launch/OpenAIClient.php
+          grep -Fq "'redirection' => 0" includes/Launch/OpenAIClient.php
+          grep -Fq "'sslverify' => true" includes/Launch/OpenAIClient.php
+          grep -Fq "'reject_unsafe_urls' => true" includes/Launch/OpenAIClient.php
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh

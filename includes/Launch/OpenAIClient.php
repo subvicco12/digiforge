@@ -52,6 +52,8 @@ final class OpenAIClient
         $response = wp_remote_post(self::RESPONSES_URL, [
             'timeout' => 90,
             'redirection' => 0,
+            'sslverify' => true,
+            'reject_unsafe_urls' => true,
             'headers' => [
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
