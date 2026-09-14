@@ -24,6 +24,7 @@ final class LaunchExecutionStructureTest extends TestCase
         self::assertStringContainsString('/launch/research', $controller);
         self::assertStringContainsString('/launch/candidates/(?P<id>\\d+)/develop', $controller);
         self::assertStringContainsString("get_header('Idempotency-Key')", $controller);
+        self::assertStringContainsString("array_key_exists('_idempotency_key', \$params)", $controller);
         self::assertStringContainsString("\$params['_idempotency_key']", $controller);
         self::assertStringContainsString("unset(\$payload['_idempotency_key'])", $controller);
         self::assertStringContainsString('! is_string($bodyKey)', $controller);
