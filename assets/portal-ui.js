@@ -17,10 +17,18 @@
         document.body.classList.add('df-portal-active');
         shell.classList.add('df-js');
 
-        var params = new URLSearchParams(window.location.search);
-        var view = params.get('df_view') || 'dashboard';
-        if (!/^[a-z0-9_-]+$/.test(view)) {
-            view = 'dashboard';
+        var activeLink = nav.querySelector('a.is-active');
+        var view = 'dashboard';
+        if (activeLink) {
+            try {
+                var activeUrl = new URL(activeLink.href, window.location.href);
+                var resolvedView = activeUrl.searchParams.get('df_view') || 'dashboard';
+                if (/^[a-z0-9_-]+$/.test(resolvedView)) {
+                    view = resolvedView;
+                }
+            } catch (error) {
+                view = 'dashboard';
+            }
         }
         shell.classList.add('df-view-' + view);
 
@@ -41,34 +49,70 @@
         backdrop.setAttribute('aria-label', 'Close DigiForge navigation');
         shell.appendChild(backdrop);
 
-        function setOpen(open) {
+        var mobile = window.matchMedia('(max-width: 767px)');
+        var navLinks = Array.prototype.slice.call(nav.querySelectorAll('a'));
+
+        function syncAccessibility(open) {
+            if (mobile.matches) {
+                nav.setAttribute('aria-hidden', open ? 'false' : 'true');
+                if (open) {
+                    nav.removeAttribute('inert');
+                    navLinks.forEach(function (link) { link.removeAttribute('tabindex'); });
+                    backdrop.setAttribute('aria-hidden', 'false');
+                    backdrop.removeAttribute('tabindex');
+                } else {
+                    nav.setAttribute('inert', '');
+                    navLinks.forEach(function (link) { link.setAttribute('tabindex', '-1'); });
+                    backdrop.setAttribute('aria-hidden', 'true');
+                    backdrop.setAttribute('tabindex', '-1');
+                }
+            } else {
+                nav.removeAttribute('aria-hidden');
+                nav.removeAttribute('inert');
+                navLinks.forEach(function (link) { link.removeAttribute('tabindex'); });
+                backdrop.setAttribute('aria-hidden', 'true');
+                backdrop.setAttribute('tabindex', '-1');
+            }
+        }
+
+        function setOpen(open, restoreFocus) {
             shell.classList.toggle('is-nav-open', open);
             document.body.classList.toggle('df-nav-lock', open);
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
             toggle.setAttribute('aria-label', open ? 'Close DigiForge navigation' : 'Open DigiForge navigation');
+            syncAccessibility(open);
+            if (open && mobile.matches) {
+                var target = nav.querySelector('a.is-active') || navLinks[0];
+                if (target) {
+                    window.setTimeout(function () { target.focus(); }, 0);
+                }
+            } else if (restoreFocus === true && mobile.matches) {
+                toggle.focus();
+            }
         }
 
         toggle.addEventListener('click', function () {
-            setOpen(!shell.classList.contains('is-nav-open'));
+            setOpen(!shell.classList.contains('is-nav-open'), false);
         });
         backdrop.addEventListener('click', function () {
-            setOpen(false);
+            setOpen(false, true);
         });
         nav.addEventListener('click', function (event) {
             if (event.target.closest('a')) {
-                setOpen(false);
+                setOpen(false, false);
             }
         });
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                setOpen(false);
+            if (event.key === 'Escape' && shell.classList.contains('is-nav-open')) {
+                setOpen(false, true);
             }
         });
 
-        var mobile = window.matchMedia('(max-width: 767px)');
         function syncViewport(event) {
             if (!event.matches) {
-                setOpen(false);
+                setOpen(false, false);
+            } else {
+                setOpen(false, false);
             }
         }
         if (typeof mobile.addEventListener === 'function') {
@@ -76,6 +120,8 @@
         } else if (typeof mobile.addListener === 'function') {
             mobile.addListener(syncViewport);
         }
+
+        setOpen(false, false);
     }
 
     if (document.readyState === 'loading') {
