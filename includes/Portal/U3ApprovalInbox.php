@@ -27,6 +27,16 @@ final class U3ApprovalInbox
         }
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if ($view !== 'approvals') { return $output; }
+
+        // Gate 1 now continues automatically into U3. Remove the old second manual
+        // "Develop approved candidate" form so operators are not encouraged to
+        // start a duplicate development path.
+        $output = (string) preg_replace(
+            '~<form class="df-review-form"[^>]*>\s*<input type="hidden" name="action" value="digiforge_portal_develop_candidate">.*?</form>~s',
+            '<div class="df-muted">Approved — DigiForge Product Factory continues automatically. The next human decision appears here at Product Approval.</div>',
+            $output
+        );
+
         $panel = $this->renderPanel();
         $position = strrpos($output, '</main>');
         if ($position === false) { return $output . $panel; }
