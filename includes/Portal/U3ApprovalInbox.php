@@ -167,13 +167,27 @@ final class U3ApprovalInbox
                 'SELECT COUNT(*) FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1',
                 $planId
             ));
-            $revisionFailures = (int) $wpdb->get_var($wpdb->prepare(
-                'SELECT COUNT(*) FROM ' . Tables::production_qa() . ' q '
-                . 'INNER JOIN ' . Tables::asset_revisions() . " ar ON q.target_type='revision' AND q.target_id=ar.id "
-                . 'INNER JOIN ' . Tables::production_plan_assets() . ' pa ON pa.asset_spec_id=ar.asset_spec_id '
-                . "WHERE pa.production_plan_id=%d AND q.status NOT IN ('PASS','WAIVED')",
-                $planId
-            ));
+            $row['assets'] = $this->assetsForPlan($planId);
+            $revisionFailures = 0;
+            foreach ((array) $row['assets'] as $asset) {
+                $revisionId = (int) ($asset['revision_id'] ?? 0);
+                if ($revisionId < 1 || (string) ($asset['revision_state'] ?? '') !== 'QA_PASSED') {
+                    $revisionFailures++;
+                    continue;
+                }
+                $qaTotal = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d",
+                    $revisionId
+                ));
+                $qaBad = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')",
+                    $revisionId
+                ));
+                if ($qaTotal < 1 || $qaBad > 0) { $revisionFailures++; }
+            }
+            if (count((array) $row['assets']) < (int) $row['asset_count']) {
+                $revisionFailures += (int) $row['asset_count'] - count((array) $row['assets']);
+            }
             $semanticTotal = (int) $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
                 $planId
@@ -184,7 +198,6 @@ final class U3ApprovalInbox
             ));
             $row['qa_failures'] = $revisionFailures + $semanticFailures;
             $row['semantic_qa_status'] = $semanticTotal >= 7 && $semanticFailures === 0 ? 'PASS' : 'BLOCKED';
-            $row['assets'] = $this->assetsForPlan($planId);
         }
         unset($row);
         return $rows;
