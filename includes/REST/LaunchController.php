@@ -55,43 +55,62 @@ final class LaunchController
             'research_endpoint' => '/digiforge/v1/launch/research',
             'development_endpoint' => '/digiforge/v1/launch/candidates/{id}/develop',
             'approval_gate' => 'research candidate must be APPROVED before development',
+            'idempotency' => 'Idempotency-Key header preferred; authenticated connector clients may send _idempotency_key in JSON body.',
             'etsy_publish_direct' => false,
         ]);
     }
 
     public function research(\WP_REST_Request $request): mixed
     {
+        $payload = (array) $request->get_json_params();
+        unset($payload['_idempotency_key']);
+
         return $this->mutate(
             $request,
             'launch_research',
-            fn(string $key) => (new ExecutionEngine())->research((array) $request->get_json_params(), $key),
+            fn(string $key) => (new ExecutionEngine())->research($payload, $key),
             201
         );
     }
 
     public function develop(\WP_REST_Request $request): mixed
     {
+        $payload = (array) $request->get_json_params();
+        unset($payload['_idempotency_key']);
+
         return $this->mutate(
             $request,
             'launch_develop_' . (int) $request['id'],
-            fn(string $key) => (new ExecutionEngine())->develop((int) $request['id'], (array) $request->get_json_params(), $key),
+            fn(string $key) => (new ExecutionEngine())->develop((int) $request['id'], $payload, $key),
             201
         );
     }
 
     private function mutate(\WP_REST_Request $request, string $operation, callable $callback, int $successStatus): mixed
     {
-        $header = trim((string) $request->get_header('Idempotency-Key'));
-        if ($header === '') {
-            return new \WP_Error('missing_idempotency_key', __('Idempotency-Key header is required.', 'digiforge'), ['status' => 400]);
+        $idempotencyKey = trim((string) $request->get_header('Idempotency-Key'));
+        if ($idempotencyKey === '') {
+            $params = (array) $request->get_json_params();
+            $idempotencyKey = trim((string) ($params['_idempotency_key'] ?? ''));
         }
-        $storageKey = hash('sha256', $operation . '|' . $header);
+        if ($idempotencyKey === '') {
+            return new \WP_Error(
+                'missing_idempotency_key',
+                __('Idempotency-Key header or _idempotency_key JSON field is required.', 'digiforge'),
+                ['status' => 400]
+            );
+        }
+        if (strlen($idempotencyKey) > 191) {
+            return new \WP_Error('invalid_idempotency_key', __('Idempotency key is too long.', 'digiforge'), ['status' => 400]);
+        }
+
+        $storageKey = hash('sha256', $operation . '|' . $idempotencyKey);
         $idempotency = new Idempotency();
         if (! $idempotency->reserve($storageKey, $operation)) {
             return new \WP_Error('idempotency_conflict', __('This launch mutation has already been submitted.', 'digiforge'), ['status' => 409]);
         }
         try {
-            $result = $callback($header);
+            $result = $callback($idempotencyKey);
         } catch (\Throwable $e) {
             $idempotency->release($storageKey);
             return new \WP_Error('digiforge_launch_failed', __('Launch execution failed.', 'digiforge'), ['status' => 500]);
