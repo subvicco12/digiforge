@@ -74,7 +74,7 @@ foreach (['Digital Products', 'Digital Files', 'Digital Packages', 'Digital Temp
 }
 
 $bootstrap = df_source('digiforge.php');
-df_expect(str_contains($bootstrap, '* Version: 0.12.0') && str_contains($bootstrap, "DIGIFORGE_VERSION = '0.12.0'") && str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '13'"), 'versions synchronized');
+df_expect(str_contains($bootstrap, '* Version: 0.12.1') && str_contains($bootstrap, "DIGIFORGE_VERSION = '0.12.1'") && str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '13'"), 'versions synchronized');
 
 $defaults = Config::default_settings();
 df_expect($defaults['stop_all'] === true && $defaults['automation_armed'] === false && $defaults['activation_authorized'] === false, 'automation safety defaults are fail-closed');
