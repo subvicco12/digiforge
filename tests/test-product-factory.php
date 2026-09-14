@@ -10,9 +10,10 @@ use DigiForge\ProductFactory\Lifecycle;
 function pf_expect(bool $condition, string $message): void { if (! $condition) { fwrite(STDERR, "FAIL: $message\n"); exit(1); } }
 function pf_source(string $path): string { return (string) file_get_contents(__DIR__ . '/../' . $path); }
 
+// Release assertions intentionally track the 0.12.1 responsive cache-bust release.
 $bootstrap = pf_source('digiforge.php');
-pf_expect(str_contains($bootstrap, '* Version: 0.12.0'), 'plugin header version matches the runtime version');
-pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '0.12.0'"), 'runtime version is 0.12.0');
+pf_expect(str_contains($bootstrap, '* Version: 0.12.1'), 'plugin header version matches the runtime version');
+pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '0.12.1'"), 'runtime version is 0.12.1');
 
 pf_expect(Lifecycle::initial('opportunity') === 'NEW', 'opportunities begin NEW');
 foreach (['product_family', 'product', 'product_version'] as $type) { pf_expect(Lifecycle::initial($type) === 'DRAFT', "$type begins DRAFT"); }
