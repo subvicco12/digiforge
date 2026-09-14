@@ -63,26 +63,57 @@ final class OpenAIClient
         unset($apiKey);
 
         if (is_wp_error($response)) {
-            Logger::audit('launch_openai_request_failed', ['reason' => 'transport'], 'launch_execution');
-            return new \WP_Error('digiforge_launch_ai_transport', __('AI provider request failed.', 'digiforge'), ['status' => 502]);
+            Logger::audit(
+                'launch_openai_request_failed',
+                ['reason' => 'transport'],
+                'launch_execution'
+            );
+            return new \WP_Error(
+                'digiforge_launch_ai_transport',
+                __('AI provider request failed.', 'digiforge'),
+                ['status' => 502]
+            );
         }
 
-        $status = wp_remote_retrieve_response_code($response);
+        $status = (int) wp_remote_retrieve_response_code($response);
         $decoded = json_decode((string) wp_remote_retrieve_body($response), true);
+        if ($status === 429) {
+            return $this->rateLimitError($response, is_array($decoded) ? $decoded : []);
+        }
         if ($status < 200 || $status >= 300 || ! is_array($decoded)) {
-            Logger::audit('launch_openai_request_failed', ['http_status' => $status], 'launch_execution');
-            return new \WP_Error('digiforge_launch_ai_provider', __('AI provider rejected the request.', 'digiforge'), ['status' => 502]);
+            Logger::audit(
+                'launch_openai_request_failed',
+                ['http_status' => $status, 'request_id' => $this->requestId($response)],
+                'launch_execution'
+            );
+            return new \WP_Error(
+                'digiforge_launch_ai_provider',
+                __('AI provider rejected the request.', 'digiforge'),
+                ['status' => 502]
+            );
         }
 
         $text = $this->extractOutputText($decoded);
         if ($text === '') {
-            return new \WP_Error('digiforge_launch_ai_empty', __('AI provider returned no usable text.', 'digiforge'), ['status' => 502]);
+            return new \WP_Error(
+                'digiforge_launch_ai_empty',
+                __('AI provider returned no usable text.', 'digiforge'),
+                ['status' => 502]
+            );
         }
 
         $payload = $this->decodeJsonObject($text);
         if (! is_array($payload)) {
-            Logger::audit('launch_openai_invalid_json', ['response_id' => sanitize_text_field((string) ($decoded['id'] ?? ''))], 'launch_execution');
-            return new \WP_Error('digiforge_launch_ai_invalid_json', __('AI provider output was not valid structured JSON.', 'digiforge'), ['status' => 502]);
+            Logger::audit(
+                'launch_openai_invalid_json',
+                ['response_id' => sanitize_text_field((string) ($decoded['id'] ?? ''))],
+                'launch_execution'
+            );
+            return new \WP_Error(
+                'digiforge_launch_ai_invalid_json',
+                __('AI provider output was not valid structured JSON.', 'digiforge'),
+                ['status' => 502]
+            );
         }
 
         return [
@@ -93,16 +124,71 @@ final class OpenAIClient
         ];
     }
 
+    /**
+     * @param array<string,mixed> $response
+     * @param array<string,mixed> $decoded
+     */
+    private function rateLimitError(array $response, array $decoded): \WP_Error
+    {
+        $providerError = is_array($decoded['error'] ?? null) ? $decoded['error'] : [];
+        $providerCode = sanitize_key((string) ($providerError['code'] ?? ''));
+        $providerType = sanitize_key((string) ($providerError['type'] ?? ''));
+        $requestId = $this->requestId($response);
+        $retryAfter = sanitize_text_field(
+            (string) wp_remote_retrieve_header($response, 'retry-after')
+        );
+        $context = [
+            'http_status' => 429,
+            'provider_code' => $providerCode,
+            'provider_type' => $providerType,
+            'request_id' => $requestId,
+        ];
+        if ($retryAfter !== '') {
+            $context['retry_after'] = $retryAfter;
+        }
+        Logger::audit('launch_openai_request_failed', $context, 'launch_execution');
+
+        $quotaCodes = ['insufficient_quota', 'billing_hard_limit_reached'];
+        $quotaTypes = ['insufficient_quota'];
+        if (in_array($providerCode, $quotaCodes, true) || in_array($providerType, $quotaTypes, true)) {
+            return new \WP_Error(
+                'digiforge_launch_ai_quota',
+                __('AI provider quota or billing availability must be restored before launch research can run.', 'digiforge'),
+                ['status' => 429]
+            );
+        }
+
+        return new \WP_Error(
+            'digiforge_launch_ai_rate_limited',
+            __('AI provider is temporarily rate limited. Retry after the provider limit resets.', 'digiforge'),
+            ['status' => 429]
+        );
+    }
+
+    /** @param array<string,mixed> $response */
+    private function requestId(array $response): string
+    {
+        return sanitize_text_field(
+            (string) wp_remote_retrieve_header($response, 'x-request-id')
+        );
+    }
+
     /** @return array<string,mixed>|\WP_Error */
     private function connector(): array|\WP_Error
     {
         global $wpdb;
         $row = $wpdb->get_row(
-            "SELECT * FROM " . Tables::integrations() . " WHERE provider='ai' AND environment='production' AND status='CONFIGURED' AND enabled=1 ORDER BY id ASC LIMIT 1",
+            "SELECT * FROM " . Tables::integrations()
+            . " WHERE provider='ai' AND environment='production'"
+            . " AND status='CONFIGURED' AND enabled=1 ORDER BY id ASC LIMIT 1",
             ARRAY_A
         );
         if (! is_array($row)) {
-            return new \WP_Error('digiforge_launch_ai_connector', __('An enabled production AI connector is required.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error(
+                'digiforge_launch_ai_connector',
+                __('An enabled production AI connector is required.', 'digiforge'),
+                ['status' => 409]
+            );
         }
         return $row;
     }
@@ -111,17 +197,29 @@ final class OpenAIClient
     {
         global $wpdb;
         $ciphertext = $wpdb->get_var($wpdb->prepare(
-            'SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id=%d AND secret_name=%s LIMIT 1',
+            'SELECT ciphertext FROM ' . Tables::integration_secrets()
+            . ' WHERE integration_id=%d AND secret_name=%s LIMIT 1',
             $integrationId,
             $name
         ));
         if (! is_string($ciphertext) || $ciphertext === '') {
-            return new \WP_Error('digiforge_launch_ai_secret', __('AI connector credential is missing.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error(
+                'digiforge_launch_ai_secret',
+                __('AI connector credential is missing.', 'digiforge'),
+                ['status' => 409]
+            );
         }
         try {
-            return CredentialVault::decrypt($ciphertext, IntegrationRepository::secretContext($integrationId, $name));
+            return CredentialVault::decrypt(
+                $ciphertext,
+                IntegrationRepository::secretContext($integrationId, $name)
+            );
         } catch (\Throwable $e) {
-            return new \WP_Error('digiforge_launch_ai_secret', __('AI connector credential could not be decrypted.', 'digiforge'), ['status' => 500]);
+            return new \WP_Error(
+                'digiforge_launch_ai_secret',
+                __('AI connector credential could not be decrypted.', 'digiforge'),
+                ['status' => 500]
+            );
         }
     }
 
