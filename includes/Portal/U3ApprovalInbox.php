@@ -26,16 +26,15 @@ final class U3ApprovalInbox
             return $output;
         }
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
-        if ($view !== 'approvals') { return $output; }
 
-        // Gate 1 now continues automatically into U3. Remove the old second manual
-        // "Develop approved candidate" form so operators are not encouraged to
-        // start a duplicate development path.
-        $output = (string) preg_replace(
-            '~<form class="df-review-form"[^>]*>\s*<input type="hidden" name="action" value="digiforge_portal_develop_candidate">.*?</form>~s',
-            '<div class="df-muted">Approved — DigiForge Product Factory continues automatically. The next human decision appears here at Product Approval.</div>',
-            $output
-        );
+        if (in_array($view, ['approvals', 'research'], true)) {
+            $output = (string) preg_replace(
+                '~<form class="df-review-form"[^>]*>\s*<input type="hidden" name="action" value="digiforge_portal_develop_candidate">.*?</form>~s',
+                '<div class="df-muted">Approved — DigiForge Product Factory continues automatically. The next human decision is Product Approval.</div>',
+                $output
+            );
+        }
+        if ($view !== 'approvals') { return $output; }
 
         $panel = $this->renderPanel();
         $position = strrpos($output, '</main>');
@@ -73,7 +72,7 @@ final class U3ApprovalInbox
         <section class="df-panel df-u3-product-approvals">
             <div class="df-panel-head"><div>
                 <h2>Product approval inbox</h2>
-                <p>Gate 2 — review finished product files, marketing assets and QA before listing production.</p>
+                <p>Gate 2 — review finished product files, marketing assets, deterministic QA and semantic/policy QA before listing production.</p>
             </div><span><?php echo esc_html((string) count($rows)); ?> need decision</span></div>
             <?php if ($rows === []) : ?>
                 <div class="df-empty">No finished products currently require Product Approval.</div>
@@ -87,12 +86,13 @@ final class U3ApprovalInbox
                         </div><div class="df-score"><strong><?php echo esc_html((string) $row['asset_count']); ?></strong><span> assets</span></div></div>
                         <div class="df-signal-grid">
                             <div><span>Channel</span><b><?php echo esc_html(strtoupper((string) $row['channel'])); ?></b></div>
-                            <div><span>QA failures</span><b><?php echo esc_html((string) $row['qa_failures']); ?></b></div>
+                            <div><span>QA blockers</span><b><?php echo esc_html((string) $row['qa_failures']); ?></b></div>
+                            <div><span>Semantic QA</span><b><?php echo esc_html((string) $row['semantic_qa_status']); ?></b></div>
                             <div><span>Bundle</span><b><?php echo esc_html((string) ($row['bundle_state'] ?: 'MISSING')); ?></b></div>
                             <div><span>Workflow</span><b>PRODUCT_REVIEW_REQUIRED</b></div>
                         </div>
-                        <?php if ((int) $row['qa_failures'] > 0) : ?>
-                            <div class="df-notice df-notice-error">QA blockers exist. Approval is fail-closed until every required asset passes QA.</div>
+                        <?php if ((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS') : ?>
+                            <div class="df-notice df-notice-error">QA blockers exist. Approval remains fail-closed until deterministic and semantic QA pass.</div>
                         <?php endif; ?>
                         <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                             <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION); ?>">
@@ -100,7 +100,7 @@ final class U3ApprovalInbox
                             <?php wp_nonce_field(self::ACTION); ?>
                             <textarea name="notes" rows="2" placeholder="Optional product review notes"></textarea>
                             <div class="df-actions">
-                                <button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0); ?>>Approve Product</button>
+                                <button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS'); ?>>Approve Product</button>
                                 <button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button>
                             </div>
                         </form>
@@ -126,17 +126,28 @@ final class U3ApprovalInbox
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (! is_array($rows)) { return []; }
         foreach ($rows as &$row) {
+            $planId = (int) $row['plan_id'];
             $row['asset_count'] = (int) $wpdb->get_var($wpdb->prepare(
                 'SELECT COUNT(*) FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1',
-                (int) $row['plan_id']
+                $planId
             ));
-            $row['qa_failures'] = (int) $wpdb->get_var($wpdb->prepare(
+            $revisionFailures = (int) $wpdb->get_var($wpdb->prepare(
                 'SELECT COUNT(*) FROM ' . Tables::production_qa() . ' q '
-                . 'INNER JOIN ' . Tables::asset_revisions() . ' ar ON q.target_type=\'revision\' AND q.target_id=ar.id '
+                . 'INNER JOIN ' . Tables::asset_revisions() . " ar ON q.target_type='revision' AND q.target_id=ar.id "
                 . 'INNER JOIN ' . Tables::production_plan_assets() . ' pa ON pa.asset_spec_id=ar.asset_spec_id '
                 . "WHERE pa.production_plan_id=%d AND q.status NOT IN ('PASS','WAIVED')",
-                (int) $row['plan_id']
+                $planId
             ));
+            $semanticTotal = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
+                $planId
+            ));
+            $semanticFailures = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' AND status NOT IN ('PASS','WAIVED')",
+                $planId
+            ));
+            $row['qa_failures'] = $revisionFailures + $semanticFailures;
+            $row['semantic_qa_status'] = $semanticTotal >= 7 && $semanticFailures === 0 ? 'PASS' : 'BLOCKED';
         }
         unset($row);
         return $rows;
