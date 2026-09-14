@@ -69,4 +69,26 @@ final class U3ProductFactoryStructureTest extends TestCase
         self::assertStringContainsString('scheduler_rejected_job', $source);
         self::assertStringContainsString("'research_candidate_reviewed'", $source);
     }
+
+    public function testGeneratedAssetsAreProtectedAndServedThroughAuthenticatedReview(): void
+    {
+        $storage = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/AssetStorage.php');
+        $review = (string) file_get_contents(__DIR__ . '/../../includes/Portal/U3AssetReview.php');
+        $producer = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/LocalAssetProducer.php');
+
+        self::assertStringContainsString('Require all denied', $storage);
+        self::assertStringContainsString('ensureProtectedRoot()', $producer);
+        self::assertStringContainsString('current_user_can', $review);
+        self::assertStringContainsString('check_admin_referer', $review);
+        self::assertStringContainsString('AssetStorage::absolutePath', $review);
+        self::assertStringContainsString('Content-Security-Policy', $review);
+    }
+
+    public function testLargeAiBudgetIsScopedToU3ProductionOnly(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../includes/Launch/OpenAIClient.php');
+        self::assertStringContainsString("str_starts_with($brief, 'You are DigiForge U3 Production.')", $source);
+        self::assertStringContainsString('? 12000 : 4000', $source);
+        self::assertStringContainsString('return $this->request($brief, true, 4000);', $source);
+    }
 }
