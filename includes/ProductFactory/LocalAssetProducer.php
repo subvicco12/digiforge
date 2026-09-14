@@ -6,7 +6,7 @@ namespace DigiForge\ProductFactory;
 
 use WP_Error;
 
-/** Produces customer/product and marketing assets locally inside WordPress uploads. */
+/** Produces customer/product and marketing assets locally inside protected WordPress storage. */
 final class LocalAssetProducer
 {
     private const MAX_ASSET_BYTES = 8388608;
@@ -18,13 +18,16 @@ final class LocalAssetProducer
         if ($productVersionId < 1) {
             return $this->error('invalid_product_version', 'A valid product version is required.');
         }
+        if (! AssetStorage::ensureProtectedRoot()) {
+            return $this->error('asset_storage_protection', 'Protected DigiForge asset storage could not be established.', 500);
+        }
         $format = strtolower(sanitize_key($format));
         if (! in_array($format, self::FORMATS, true)) {
             return $this->error('unsupported_format', 'Unsupported local asset format.');
         }
         $filename = $this->filename($filename, $format);
         if ($filename === '') {
-            return $this->error('invalid_filename', 'A safe filename is required.');
+            return $this->error('invalid_filename', 'Filename and declared format must be safe and consistent.');
         }
 
         $bytes = $format === 'pdf' ? $this->pdf($content) : $this->text($format, $content);
@@ -39,12 +42,15 @@ final class LocalAssetProducer
         if (! empty($uploads['error']) || empty($uploads['basedir'])) {
             return $this->error('upload_directory', 'WordPress uploads directory is unavailable.', 500);
         }
-        $relativeDir = 'digiforge/product-factory/' . $productVersionId;
+        $relativeDir = AssetStorage::RELATIVE_ROOT . '/' . $productVersionId;
         $directory = trailingslashit((string) $uploads['basedir']) . $relativeDir;
         if (! wp_mkdir_p($directory)) {
             return $this->error('asset_directory', 'Unable to create DigiForge asset directory.', 500);
         }
         $path = trailingslashit($directory) . $filename;
+        if (is_file($path)) {
+            return $this->error('asset_collision', 'A generated asset filename already exists for this product version.', 409);
+        }
         $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
         if (file_put_contents($temp, $bytes, LOCK_EX) !== strlen($bytes)) {
             @unlink($temp);
@@ -69,6 +75,9 @@ final class LocalAssetProducer
     /** @param array<int,array<string,mixed>> $assets @return array<string,mixed>|WP_Error */
     public function package(int $productVersionId, array $assets, string $filename = 'customer-package.zip'): array|WP_Error
     {
+        if (! AssetStorage::ensureProtectedRoot()) {
+            return $this->error('asset_storage_protection', 'Protected DigiForge asset storage could not be established.', 500);
+        }
         if (! class_exists('ZipArchive')) {
             return $this->error('zip_unavailable', 'ZIP support is unavailable on this server.', 500);
         }
@@ -76,7 +85,7 @@ final class LocalAssetProducer
         if (! empty($uploads['error']) || empty($uploads['basedir'])) {
             return $this->error('upload_directory', 'WordPress uploads directory is unavailable.', 500);
         }
-        $relativeDir = 'digiforge/product-factory/' . $productVersionId;
+        $relativeDir = AssetStorage::RELATIVE_ROOT . '/' . $productVersionId;
         $directory = trailingslashit((string) $uploads['basedir']) . $relativeDir;
         if (! wp_mkdir_p($directory)) {
             return $this->error('asset_directory', 'Unable to create DigiForge asset directory.', 500);
@@ -86,8 +95,11 @@ final class LocalAssetProducer
             return $this->error('invalid_filename', 'A safe ZIP filename is required.');
         }
         $path = trailingslashit($directory) . $filename;
+        if (is_file($path)) {
+            return $this->error('asset_collision', 'A product ZIP package already exists for this product version.', 409);
+        }
         $zip = new \ZipArchive();
-        if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+        if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) {
             return $this->error('zip_create', 'Unable to create product ZIP package.', 500);
         }
         foreach ($assets as $asset) {
@@ -215,7 +227,7 @@ final class LocalAssetProducer
         foreach (preg_split('/\R/u', $text) ?: [] as $paragraph) {
             $wrapped = wordwrap(trim($paragraph), $width, "\n", true);
             foreach (explode("\n", $wrapped) as $line) {
-                $lines[] = substr($line, 0, 180);
+                $lines[] = function_exists('mb_substr') ? mb_substr($line, 0, 180) : substr($line, 0, 180);
             }
             $lines[] = '';
         }
@@ -225,11 +237,9 @@ final class LocalAssetProducer
     private function filename(string $filename, string $format): string
     {
         $filename = sanitize_file_name($filename);
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         if ($filename === '') { return ''; }
-        if ($extension !== $format) {
-            $filename = preg_replace('/\.[^.]+$/', '', $filename) . '.' . $format;
-        }
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension !== $format) { return ''; }
         return substr($filename, 0, 160);
     }
 
