@@ -72,7 +72,7 @@ final class U3ApprovalInbox
         <section class="df-panel df-u3-product-approvals">
             <div class="df-panel-head"><div>
                 <h2>Product approval inbox</h2>
-                <p>Gate 2 — review finished product files, marketing assets, deterministic QA and semantic/policy QA before listing production.</p>
+                <p>Gate 2 — inspect protected product files and marketing assets, then review deterministic and semantic/policy QA before listing production.</p>
             </div><span><?php echo esc_html((string) count($rows)); ?> need decision</span></div>
             <?php if ($rows === []) : ?>
                 <div class="df-empty">No finished products currently require Product Approval.</div>
@@ -91,6 +91,7 @@ final class U3ApprovalInbox
                             <div><span>Bundle</span><b><?php echo esc_html((string) ($row['bundle_state'] ?: 'MISSING')); ?></b></div>
                             <div><span>Workflow</span><b>PRODUCT_REVIEW_REQUIRED</b></div>
                         </div>
+                        <?php $this->renderAssets((array) $row['assets']); ?>
                         <?php if ((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS') : ?>
                             <div class="df-notice df-notice-error">QA blockers exist. Approval remains fail-closed until deterministic and semantic QA pass.</div>
                         <?php endif; ?>
@@ -110,6 +111,41 @@ final class U3ApprovalInbox
         </section>
         <?php
         return (string) ob_get_clean();
+    }
+
+    /** @param list<array<string,mixed>> $assets */
+    private function renderAssets(array $assets): void
+    {
+        $groups = [
+            'product' => ['title' => 'Customer / production assets', 'types' => ['product_asset', 'product_package']],
+            'marketing' => ['title' => 'Marketing / listing assets', 'types' => ['marketing_asset']],
+        ];
+        foreach ($groups as $group) {
+            $matches = array_values(array_filter(
+                $assets,
+                static fn(array $asset): bool => in_array((string) ($asset['asset_type'] ?? ''), $group['types'], true)
+            ));
+            if ($matches === []) { continue; }
+            ?>
+            <div class="df-subpanel">
+                <h4><?php echo esc_html((string) $group['title']); ?></h4>
+                <div class="df-stack">
+                    <?php foreach ($matches as $asset) : ?>
+                        <div class="df-row">
+                            <div>
+                                <strong><?php echo esc_html((string) $asset['filename']); ?></strong>
+                                <div class="df-muted"><?php echo esc_html((string) $asset['purpose']); ?> · <?php echo esc_html(strtoupper((string) $asset['format'])); ?> · <?php echo esc_html(size_format((int) $asset['byte_size'])); ?></div>
+                            </div>
+                            <div class="df-actions">
+                                <span class="df-status"><?php echo esc_html((string) $asset['revision_state']); ?></span>
+                                <a class="df-button" target="_blank" rel="noopener" href="<?php echo esc_url($this->assetReviewUrl((int) $asset['revision_id'])); ?>">Review file</a>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php
+        }
     }
 
     /** @return list<array<string,mixed>> */
@@ -148,9 +184,39 @@ final class U3ApprovalInbox
             ));
             $row['qa_failures'] = $revisionFailures + $semanticFailures;
             $row['semantic_qa_status'] = $semanticTotal >= 7 && $semanticFailures === 0 ? 'PASS' : 'BLOCKED';
+            $row['assets'] = $this->assetsForPlan($planId);
         }
         unset($row);
         return $rows;
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function assetsForPlan(int $planId): array
+    {
+        global $wpdb;
+        $sql = 'SELECT s.asset_key,s.asset_type,s.purpose,s.format,ar.id AS revision_id,ar.storage_reference,'
+            . 'ar.mime_type,ar.byte_size,ar.state AS revision_state '
+            . 'FROM ' . Tables::production_plan_assets() . ' pa '
+            . 'INNER JOIN ' . Tables::asset_specs() . ' s ON s.id=pa.asset_spec_id '
+            . 'INNER JOIN ' . Tables::asset_revisions() . ' ar ON ar.id=('
+            . 'SELECT ar2.id FROM ' . Tables::asset_revisions() . ' ar2 WHERE ar2.asset_spec_id=s.id ORDER BY ar2.id DESC LIMIT 1) '
+            . 'WHERE pa.production_plan_id=%d AND pa.is_required=1 ORDER BY pa.sequence_no ASC';
+        $rows = $wpdb->get_results($wpdb->prepare($sql, $planId), ARRAY_A);
+        if (! is_array($rows)) { return []; }
+        foreach ($rows as &$row) {
+            $row['filename'] = sanitize_file_name(basename((string) ($row['storage_reference'] ?? 'asset')));
+        }
+        unset($row);
+        return array_values($rows);
+    }
+
+    private function assetReviewUrl(int $revisionId): string
+    {
+        $url = add_query_arg([
+            'action' => U3AssetReview::ACTION,
+            'revision_id' => $revisionId,
+        ], admin_url('admin-post.php'));
+        return wp_nonce_url($url, U3AssetReview::nonceAction($revisionId));
     }
 
     private function redirect(string $message, bool $error = false): never
