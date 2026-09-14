@@ -25,6 +25,7 @@ final class PortalResponsiveShellV2StructureTest extends TestCase
 
         self::assertStringContainsString('body.df-portal-active #wpadminbar', $css);
         self::assertStringContainsString('@media (max-width:767px)', $css);
+        self::assertStringContainsString('transform:none!important', $css);
         self::assertStringContainsString('.df-mobile-nav-toggle', $css);
         self::assertStringContainsString('.df-mobile-nav-backdrop', $css);
         self::assertStringContainsString('.is-nav-open', $css);
@@ -32,6 +33,9 @@ final class PortalResponsiveShellV2StructureTest extends TestCase
 
         self::assertStringContainsString("document.body.classList.add('df-portal-active')", $js);
         self::assertStringContainsString("shell.classList.add('df-js')", $js);
+        self::assertStringContainsString("nav.querySelector('a.is-active')", $js);
+        self::assertStringContainsString("nav.setAttribute('inert', '')", $js);
+        self::assertStringContainsString("nav.setAttribute('aria-hidden'", $js);
         self::assertStringContainsString("aria-expanded", $js);
         self::assertStringContainsString("event.key === 'Escape'", $js);
         self::assertStringContainsString("window.matchMedia('(max-width: 767px)')", $js);
