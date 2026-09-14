@@ -31,6 +31,7 @@ final class PortalResponsiveShellV2StructureTest extends TestCase
         self::assertStringContainsString('.is-nav-open', $css);
         self::assertStringContainsString('.df-view-dashboard', $css);
 
+        // Mobile navigation must be keyboard/screen-reader safe and use the server-rendered active view.
         self::assertStringContainsString("document.body.classList.add('df-portal-active')", $js);
         self::assertStringContainsString("shell.classList.add('df-js')", $js);
         self::assertStringContainsString("nav.querySelector('a.is-active')", $js);
