@@ -54,6 +54,7 @@ final class Plugin {
         (new FinanceController())->register();
         (new LaunchController())->register();
         (new Scheduler())->register();
+        (new \DigiForge\Portal\Portal())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
             if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
             return $hosts;
