@@ -21,8 +21,8 @@ final class FrontendAdminPortalStructureTest extends TestCase
         self::assertStringContainsString("current_user_can('manage_digiforge')", $portal);
         self::assertStringContainsString('ResearchRepository())->review', $portal);
         self::assertStringContainsString('ExecutionEngine())->develop', $portal);
-        self::assertStringContainsString("'APPROVED'", $portal);
-        self::assertStringContainsString("'REJECTED'", $portal);
+        self::assertStringContainsString('value="APPROVED"', $portal);
+        self::assertStringContainsString('value="REJECTED"', $portal);
         self::assertStringContainsString("Credentials are never displayed", $portal);
         self::assertStringContainsString("Logger::isCredentialKey", $portal);
         self::assertStringNotContainsString('CredentialVault::decrypt', $portal);

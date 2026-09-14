@@ -304,7 +304,7 @@ final class Portal
         if (Logger::isCredentialKey($key) || $key === 'ciphertext') { return '[REDACTED]'; }
         if (is_array($value) || is_object($value)) { $value = wp_json_encode($value); }
         $text = wp_strip_all_tags((string) $value);
-        return mb_strlen($text) > 180 ? mb_substr($text, 0, 177) . '…W : $text;
+        return mb_strlen($text) > 180 ? mb_substr($text, 0, 177) . '…' : $text;
     }
 
     /** @return array<string,mixed> */
