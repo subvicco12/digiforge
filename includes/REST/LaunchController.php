@@ -91,7 +91,16 @@ final class LaunchController
         $idempotencyKey = trim((string) $request->get_header('Idempotency-Key'));
         if ($idempotencyKey === '') {
             $params = (array) $request->get_json_params();
-            $idempotencyKey = trim((string) ($params['_idempotency_key'] ?? ''));
+            $bodyKeyPresent = array_key_exists('_idempotency_key', $params);
+            $bodyKey = $bodyKeyPresent ? $params['_idempotency_key'] : null;
+            if ($bodyKeyPresent && ! is_string($bodyKey)) {
+                return new \WP_Error(
+                    'invalid_idempotency_key',
+                    __('The _idempotency_key JSON field must be a string.', 'digiforge'),
+                    ['status' => 400]
+                );
+            }
+            $idempotencyKey = is_string($bodyKey) ? trim($bodyKey) : '';
         }
         if ($idempotencyKey === '') {
             return new \WP_Error(
