@@ -65,7 +65,7 @@ final class U3ProductFactoryStructureTest extends TestCase
     public function testApprovalAutomationChecksSchedulerResult(): void
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/ApprovalAutomation.php');
-        self::assertStringContainsString("$scheduled = false", $source);
+        self::assertStringContainsString('$scheduled = false', $source);
         self::assertStringContainsString('scheduler_rejected_job', $source);
         self::assertStringContainsString("'research_candidate_reviewed'", $source);
     }
