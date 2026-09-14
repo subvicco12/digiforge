@@ -38,12 +38,28 @@ final class ApprovalAutomation
         }
 
         $args = [$candidateId, $shop];
+        $scheduled = false;
+        $scheduler = 'wp_cron';
         if (function_exists('as_enqueue_async_action')) {
-            as_enqueue_async_action(self::HOOK, $args, 'digiforge', true);
+            $scheduler = 'action_scheduler';
+            $actionId = as_enqueue_async_action(self::HOOK, $args, 'digiforge', true);
+            $scheduled = is_int($actionId) && $actionId > 0;
         } else {
-            wp_schedule_single_event(time() + 1, self::HOOK, $args, true);
+            $scheduled = wp_schedule_single_event(time() + 1, self::HOOK, $args, true) === true;
         }
-        Logger::audit('u3_product_build_scheduled', ['shop' => $shop], 'research_candidate', (string) $candidateId);
+
+        if (! $scheduled) {
+            Logger::audit('u3_product_build_not_scheduled', [
+                'reason' => 'scheduler_rejected_job',
+                'scheduler' => $scheduler,
+                'shop' => $shop,
+            ], 'research_candidate', (string) $candidateId);
+            return;
+        }
+        Logger::audit('u3_product_build_scheduled', [
+            'shop' => $shop,
+            'scheduler' => $scheduler,
+        ], 'research_candidate', (string) $candidateId);
     }
 
     public function run(int $candidateId, string $shop): void
@@ -65,10 +81,11 @@ final class ApprovalAutomation
             ], 'research_candidate', (string) $candidateId);
             return;
         }
-        Logger::audit('u3_product_build_ready_for_review', [
+        Logger::audit('u3_product_build_completed', [
             'shop' => $shop,
             'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
             'workflow_status' => (string) ($result['workflow_status'] ?? ''),
+            'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
         ], 'research_candidate', (string) $candidateId);
     }
 
