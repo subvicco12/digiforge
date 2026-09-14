@@ -49,7 +49,7 @@ final class LocalAssetProducer
         }
         $path = trailingslashit($directory) . $filename;
         if (is_file($path)) {
-            return $this->error('asset_collision', 'A generated asset filename already exists for this product version.', 409);
+            return $this->metadata($path, $filename, $format, $relativeDir);
         }
         $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
         if (file_put_contents($temp, $bytes, LOCK_EX) !== strlen($bytes)) {
@@ -61,15 +61,7 @@ final class LocalAssetProducer
             return $this->error('asset_commit', 'Unable to finalize generated asset.', 500);
         }
 
-        return [
-            'filename' => $filename,
-            'format' => $format,
-            'absolute_path' => $path,
-            'storage_reference' => $relativeDir . '/' . $filename,
-            'checksum_sha256' => hash_file('sha256', $path),
-            'byte_size' => (int) filesize($path),
-            'mime_type' => $this->mime($format),
-        ];
+        return $this->metadata($path, $filename, $format, $relativeDir);
     }
 
     /** @param array<int,array<string,mixed>> $assets @return array<string,mixed>|WP_Error */
@@ -96,7 +88,7 @@ final class LocalAssetProducer
         }
         $path = trailingslashit($directory) . $filename;
         if (is_file($path)) {
-            return $this->error('asset_collision', 'A product ZIP package already exists for this product version.', 409);
+            return $this->metadata($path, $filename, 'zip', $relativeDir);
         }
         $zip = new \ZipArchive();
         if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) {
@@ -112,15 +104,7 @@ final class LocalAssetProducer
             }
         }
         $zip->close();
-        return [
-            'filename' => $filename,
-            'format' => 'zip',
-            'absolute_path' => $path,
-            'storage_reference' => $relativeDir . '/' . $filename,
-            'checksum_sha256' => hash_file('sha256', $path),
-            'byte_size' => (int) filesize($path),
-            'mime_type' => 'application/zip',
-        ];
+        return $this->metadata($path, $filename, 'zip', $relativeDir);
     }
 
     /** @param mixed $content */
@@ -241,6 +225,20 @@ final class LocalAssetProducer
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         if ($extension !== $format) { return ''; }
         return substr($filename, 0, 160);
+    }
+
+    /** @return array<string,mixed> */
+    private function metadata(string $path, string $filename, string $format, string $relativeDir): array
+    {
+        return [
+            'filename' => $filename,
+            'format' => $format,
+            'absolute_path' => $path,
+            'storage_reference' => $relativeDir . '/' . $filename,
+            'checksum_sha256' => hash_file('sha256', $path),
+            'byte_size' => (int) filesize($path),
+            'mime_type' => $format === 'zip' ? 'application/zip' : $this->mime($format),
+        ];
     }
 
     private function mime(string $format): string
