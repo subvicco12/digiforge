@@ -13,6 +13,8 @@ if (! function_exists('wp_json_encode')) {
 
 require_once __DIR__ . '/../../includes/Core/Config.php';
 require_once __DIR__ . '/../../includes/ProductFactory/Lifecycle.php';
+require_once __DIR__ . '/../../includes/ProductFactory/Workflow.php';
+require_once __DIR__ . '/../../includes/ProductFactory/AutomatedQa.php';
 require_once __DIR__ . '/../../includes/DigitalFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/AI/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Listings/Lifecycle.php';
