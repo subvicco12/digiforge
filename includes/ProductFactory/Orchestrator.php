@@ -21,11 +21,13 @@ final class Orchestrator
     public function __construct(
         private ?ProductionRepository $production = null,
         private ?LocalAssetProducer $producer = null,
-        private ?AutomatedQa $qa = null
+        private ?AutomatedQa $qa = null,
+        private ?SemanticQa $semanticQa = null
     ) {
         $this->production ??= new ProductionRepository();
         $this->producer ??= new LocalAssetProducer();
         $this->qa ??= new AutomatedQa();
+        $this->semanticQa ??= new SemanticQa();
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -58,6 +60,10 @@ final class Orchestrator
         $marketingAssets = $this->assetDefinitions($manifest['marketing_assets'] ?? [], true);
         if ($productAssets === [] || $marketingAssets === []) {
             return $this->error('production_manifest', 'AI production manifest must include product and marketing assets.', 502);
+        }
+        $unique = $this->uniqueDefinitions(array_merge($productAssets, $marketingAssets));
+        if (is_wp_error($unique)) {
+            return $unique;
         }
 
         $plan = $this->production->createPlan([
@@ -99,10 +105,24 @@ final class Orchestrator
         $outputs[] = $packageResult;
         $qaPassed = $qaPassed && ($packageResult['qa_passed'] ?? false) === true;
 
+        $semantic = $this->semanticQa->inspect($spec, $outputs);
+        if (is_wp_error($semantic)) { return $semantic; }
+        foreach ($semantic['checks'] as $index => $check) {
+            $record = $this->production->addQa([
+                'target_type' => 'plan',
+                'target_id' => (int) $plan['id'],
+                'check_type' => 'semantic_' . (string) $check['name'],
+                'status' => ($check['passed'] ?? false) === true ? 'PASS' : 'FAIL',
+                'details' => (array) ($check['details'] ?? []),
+            ], $key . '-semantic-qa-' . $index);
+            if (is_wp_error($record)) { return $record; }
+        }
+        $qaPassed = $qaPassed && $semantic['passed'];
+
         $planState = $this->production->transition('plan', (int) $plan['id'], 'VALIDATED');
         if (is_wp_error($planState)) { return $planState; }
 
-        // A failed deterministic QA run is not allowed into the Product Approval inbox.
+        // Any deterministic or semantic QA failure is stopped before Product Approval.
         if (! $qaPassed) {
             Logger::audit('u3_product_factory_qa_failed', [
                 'candidate_id' => $candidateId,
@@ -110,6 +130,7 @@ final class Orchestrator
                 'product_version_id' => $productVersionId,
                 'production_plan_id' => (int) $plan['id'],
                 'asset_count' => count($outputs),
+                'semantic_qa_passed' => $semantic['passed'],
                 'workflow_status' => Workflow::QA_FAILED,
                 'external_actions' => false,
             ], 'product_version', (string) $productVersionId);
@@ -123,15 +144,19 @@ final class Orchestrator
                 'production_plan' => $planState,
                 'release_bundle' => null,
                 'assets' => $outputs,
+                'semantic_qa' => $semantic,
                 'qa_passed' => false,
                 'workflow_status' => Workflow::QA_FAILED,
                 'product_approval_required' => false,
                 'external_actions_performed' => false,
-                'next_action' => 'Resolve QA failures and create a corrected production revision before Product Approval.',
+                'next_action' => 'Resolve deterministic or semantic QA failures and create corrected production revisions before Product Approval.',
                 'ai' => [
-                    'model' => $manifestAi['model'] ?? '',
-                    'response_id' => $manifestAi['response_id'] ?? '',
-                    'usage' => $manifestAi['usage'] ?? [],
+                    'production_model' => $manifestAi['model'] ?? '',
+                    'production_response_id' => $manifestAi['response_id'] ?? '',
+                    'production_usage' => $manifestAi['usage'] ?? [],
+                    'qa_model' => $semantic['model'],
+                    'qa_response_id' => $semantic['response_id'],
+                    'qa_usage' => $semantic['usage'],
                 ],
             ];
         }
@@ -157,6 +182,7 @@ final class Orchestrator
             'production_plan_id' => (int) $plan['id'],
             'asset_count' => count($outputs),
             'qa_passed' => true,
+            'semantic_qa_passed' => true,
             'workflow_status' => Workflow::PRODUCT_REVIEW_REQUIRED,
             'external_actions' => false,
         ], 'product_version', (string) $productVersionId);
@@ -170,15 +196,19 @@ final class Orchestrator
             'production_plan' => $planState,
             'release_bundle' => $bundleState,
             'assets' => $outputs,
+            'semantic_qa' => $semantic,
             'qa_passed' => true,
             'workflow_status' => Workflow::PRODUCT_REVIEW_REQUIRED,
             'product_approval_required' => true,
             'external_actions_performed' => false,
             'next_action' => 'Review the finished product in Approval Inbox. Listing production remains blocked until explicit Product Approval.',
             'ai' => [
-                'model' => $manifestAi['model'] ?? '',
-                'response_id' => $manifestAi['response_id'] ?? '',
-                'usage' => $manifestAi['usage'] ?? [],
+                'production_model' => $manifestAi['model'] ?? '',
+                'production_response_id' => $manifestAi['response_id'] ?? '',
+                'production_usage' => $manifestAi['usage'] ?? [],
+                'qa_model' => $semantic['model'],
+                'qa_response_id' => $semantic['response_id'],
+                'qa_usage' => $semantic['usage'],
             ],
         ];
     }
@@ -237,12 +267,6 @@ final class Orchestrator
     /** @return array<string,mixed>|WP_Error */
     private function registerPackage(int $versionId, int $planId, array $file, string $key, int $sequence): array|WP_Error
     {
-        return $this->produceRegisteredFile($versionId, $planId, $file, $key, $sequence);
-    }
-
-    /** @return array<string,mixed>|WP_Error */
-    private function produceRegisteredFile(int $versionId, int $planId, array $file, string $key, int $sequence): array|WP_Error
-    {
         $spec = $this->production->createSpec([
             'product_version_id' => $versionId,
             'asset_key' => 'customer-package',
@@ -270,8 +294,11 @@ final class Orchestrator
         $qa = $this->qa->inspect($file);
         foreach ($qa['checks'] as $index => $check) {
             $record = $this->production->addQa([
-                'target_type' => 'revision', 'target_id' => (int) $revision['id'], 'check_type' => (string) $check['name'],
-                'status' => ($check['passed'] ?? false) === true ? 'PASS' : 'FAIL', 'details' => (array) ($check['details'] ?? []),
+                'target_type' => 'revision',
+                'target_id' => (int) $revision['id'],
+                'check_type' => (string) $check['name'],
+                'status' => ($check['passed'] ?? false) === true ? 'PASS' : 'FAIL',
+                'details' => (array) ($check['details'] ?? []),
             ], $key . '-package-qa-' . $index);
             if (is_wp_error($record)) { return $record; }
         }
@@ -291,9 +318,29 @@ final class Orchestrator
             if ($marketing && $format !== 'svg') { continue; }
             if (! $marketing && ! in_array($format, ['txt','html','csv','json','svg','pdf'], true)) { continue; }
             if (empty($asset['content']) && empty($asset['pages'])) { continue; }
+            $asset['asset_key'] = sanitize_key((string) ($asset['asset_key'] ?? ''));
+            $asset['filename'] = sanitize_file_name((string) ($asset['filename'] ?? ''));
+            if ($asset['asset_key'] === '' || $asset['filename'] === '') { continue; }
             $out[] = $asset;
         }
         return $out;
+    }
+
+    /** @param list<array<string,mixed>> $definitions @return true|WP_Error */
+    private function uniqueDefinitions(array $definitions): true|WP_Error
+    {
+        $keys = [];
+        $files = [];
+        foreach ($definitions as $definition) {
+            $key = (string) ($definition['asset_key'] ?? '');
+            $file = strtolower((string) ($definition['filename'] ?? ''));
+            if (isset($keys[$key]) || isset($files[$file])) {
+                return $this->error('duplicate_asset', 'Generated asset keys and filenames must be unique.', 502);
+            }
+            $keys[$key] = true;
+            $files[$file] = true;
+        }
+        return true;
     }
 
     /** @param array<string,mixed> $developed */
@@ -305,9 +352,9 @@ final class Orchestrator
         return "You are DigiForge U3 Production. Return ONLY one compact JSON object, no markdown.\n"
             . "Product: {$name}. Channel: {$channel}. Approved specification: {$spec}\n"
             . "Create ACTUAL customer/product file contents and separate Etsy marketing graphics. Do not merely describe files. "
-            . "Required keys: product_assets and marketing_assets. product_assets is 2-6 objects with asset_key, filename, format, purpose and either content or pages. "
+            . "Required keys: product_assets and marketing_assets. product_assets is 2-6 objects with unique asset_key, unique filename, format, purpose and either content or pages. "
             . "Allowed product formats: pdf, txt, csv, json, html, svg. For pdf, pages must be an array of complete page text. "
-            . "marketing_assets is 3-6 SVG objects with asset_key, filename ending .svg, format='svg', purpose and content containing a complete self-contained SVG. "
+            . "marketing_assets is 3-6 SVG objects with unique asset_key, unique filename ending .svg, format='svg', purpose and content containing a complete self-contained SVG. "
             . "Marketing assets must never be labeled or treated as customer production files. Keep copy accurate to the approved specification. "
             . "Do not include secrets, external scripts, remote image URLs, trademarked character art, or unsafe/prohibited content.";
     }
