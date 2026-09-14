@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
@@ -124,6 +124,12 @@ jobs:
           grep -Fq "'sslverify' => true" includes/Integrations/EtsyOAuth.php
           grep -Fq "'reject_unsafe_urls' => true" includes/Integrations/EtsyOAuth.php
           grep -Fq "'code_challenge_method' => 'S256'" includes/Integrations/EtsyOAuth.php
+          test "$(grep -c 'wp_remote_post' includes/Integrations/EtsyTokenManager.php)" -eq 1
+          ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Integrations/EtsyTokenManager.php
+          grep -Fq "https://api.etsy.com/v3/public/oauth/token" includes/Integrations/EtsyTokenManager.php
+          grep -Fq "'redirection' => 0" includes/Integrations/EtsyTokenManager.php
+          grep -Fq "'sslverify' => true" includes/Integrations/EtsyTokenManager.php
+          grep -Fq "'reject_unsafe_urls' => true" includes/Integrations/EtsyTokenManager.php
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh

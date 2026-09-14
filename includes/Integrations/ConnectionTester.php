@@ -50,14 +50,30 @@ final class ConnectionTester {
         $apiKey = $keystring . ':' . $shared; unset($keystring, $shared);
         $ping = $this->get(self::ETSY_PING_URL, ['x-api-key' => $apiKey, 'Accept' => 'application/json']);
         $checked = $this->checkHttp('etsy', $integrationId, $ping, false); if (is_wp_error($checked)) { return $checked; }
-        $access = $this->credential($integrationId, 'access_token');
-        if (is_wp_error($access) || $access === '') {
+
+        $manager = new EtsyTokenManager();
+        $access = $manager->accessToken($integrationId);
+        if (is_wp_error($access)) {
             $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'not_configured'];
             $this->record($integrationId, true, $details, false);
             Logger::audit('integration_connection_test_partial', ['provider' => 'etsy', 'oauth' => 'not_configured'], 'integration', (string) $integrationId);
             return ['ok' => true, 'partial' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => __('Etsy app credentials verified. OAuth shop authorization is still required before this Etsy connector is fully configured.', 'digiforge')];
         }
-        $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']); unset($access, $apiKey);
+
+        $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
+        unset($access);
+        if (! is_wp_error($userResponse) && (int) wp_remote_retrieve_response_code($userResponse) === 401) {
+            $refreshed = $manager->accessToken($integrationId, true);
+            if (is_wp_error($refreshed)) {
+                unset($apiKey);
+                $this->record($integrationId, false, ['http_status' => 401, 'reason' => 'token_refresh_failed'], false);
+                return $refreshed;
+            }
+            $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $refreshed, 'Accept' => 'application/json']);
+            unset($refreshed);
+        }
+        unset($apiKey);
+
         $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { return $checked; }
         $user = json_decode((string) wp_remote_retrieve_body($userResponse), true); if (! is_array($user)) { return $this->invalidResponse('etsy', $integrationId); }
         $userId = absint($user['user_id'] ?? 0);
