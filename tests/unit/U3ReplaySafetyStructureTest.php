@@ -15,6 +15,14 @@ final class U3ReplaySafetyStructureTest extends TestCase
         self::assertStringContainsString("if(\$from===\$to){return \$row+['idempotent_transition'=>true];}", $source);
     }
 
+    public function testProductionRepositoryRejectsIdempotencyPayloadDrift(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../includes/Production/Repository.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('replayCompatible', $source);
+        self::assertStringContainsString('idempotency_payload_conflict', $source);
+    }
+
     public function testU3StillEnforcesGeneratedAssetSafetyAndUniqueness(): void
     {
         $producer = file_get_contents(__DIR__ . '/../../includes/ProductFactory/LocalAssetProducer.php');
@@ -23,5 +31,6 @@ final class U3ReplaySafetyStructureTest extends TestCase
         self::assertIsString($orchestrator);
         self::assertStringContainsString('containsActiveMarkup', $producer);
         self::assertStringContainsString("Generated asset keys and filenames must be unique.", $orchestrator);
+        self::assertStringContainsString('if (is_file($path))', $producer);
     }
 }
