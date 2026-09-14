@@ -209,7 +209,7 @@ final class Portal
         $rows = $wpdb->get_results('SELECT id,provider,environment,connection_key,display_name,status,enabled,updated_at FROM ' . Tables::integrations() . ' ORDER BY id ASC', ARRAY_A);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Provider integrations</h2><p>Credentials are never displayed in this portal.</p></div></div><div class="df-integration-grid">';
         foreach (is_array($rows) ? $rows : [] as $row) {
-            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3><dl class="df-kv"><div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div><div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div><div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div><div><dt>Enabled</dt><dd>' . (!empty($row['enabled']) ? 'YES ' : 'NO') . '</dd></div><div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div></dl></articl>';
+            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3><dl class="df-kv"><div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div><div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div><div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div><div><dt>Enabled</dt><dd>' . (!empty($row['enabled']) ? 'YES ' : 'NO') . '</dd></div><div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div></dl></article>';
         }
         echo '</div></section>';
     }
@@ -275,7 +275,7 @@ final class Portal
         $limit = min(100, max(1, $limit));
         $sql = 'SELECT * FROM ' . Tables::research_candidates();
         if ($status !== '') { $sql .= $wpdb->prepare(' WHERE review_status=%s', $status); }
-        $sql .= $wpdb->prepare(' ORDER BY id DESC LIMIT $d', $limit);
+        $sql .= $wpdb->prepare(' ORDER BY id DESC LIMIT %d', $limit);
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
