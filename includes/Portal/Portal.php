@@ -92,7 +92,12 @@ final class Portal
         if (is_wp_error($result)) {
             $this->redirect('approvals', $result->get_error_message(), true);
         }
-        Logger::audit('portal_research_review_completed', ['candidate_id' => $id, 'decision' => $decision], 'research_candidate', (string) $id);
+        Logger::audit(
+            'portal_research_review_completed',
+            ['candidate_id' => $id, 'decision' => $decision],
+            'research_candidate',
+            (string) $id
+        );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
     }
 
@@ -108,7 +113,8 @@ final class Portal
         if (is_wp_error($result)) {
             $this->redirect('approvals', $result->get_error_message(), true);
         }
-        $this->redirect('products', sprintf('Candidate #%d developed into product #%d.', $id, (int) ($result['product']['id'] ?? 0)));
+        $productId = (int) ($result['product']['id'] ?? 0);
+        $this->redirect('products', sprintf('Candidate #%d developed into product #%d.', $id, $productId));
     }
 
     private function view(string $view): void
@@ -118,15 +124,23 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
-        $tables = $this->tables($view);
-        foreach ($tables as $label => $table) { $this->panelTable($label, $table); }
+        foreach ($this->tables($view) as $label => $table) {
+            $this->panelTable($label, $table);
+        }
     }
 
     private function topbar(string $view): void
     {
         $readiness = (new Readiness())->report();
+        $stopAll = Settings::get('stop_all', true) === true;
         ?>
-        <header class="df-topbar"><div><p class="df-eyebrow">DigiCraftify automation platform</p><h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1></div><div class="df-topbar-status"><span class="df-pill <?php echo Settings::get('stop_all', true) ? 'df-pill-danger' : 'df-pill-ok'; ?>">STOP ALL: <?php echo Settings::get('stop_all', true) ? 'ON' : 'OFF'; ?></span><span class="df-pill"><?php echo esc_html((string) ($readiness['status'] ?? 'REVIEW_REQUIRED')); ?></span></div></header>
+        <header class="df-topbar">
+            <div><p class="df-eyebrow">DigiCraftify automation platform</p><h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1></div>
+            <div class="df-topbar-status">
+                <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?></span>
+                <span class="df-pill"><?php echo esc_html((string) ($readiness['status'] ?? 'REVIEW_REQUIRED')); ?></span>
+            </div>
+        </header>
         <?php
     }
 
@@ -142,20 +156,25 @@ final class Portal
         ];
         echo '<section class="df-card-grid">';
         foreach ($cards as $label => $value) {
-            echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>' . esc_html((string) $value) . '</strong></article>';
+            echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>'
+                . esc_html((string) $value) . '</strong></article>';
         }
-        echo '</section><section class="df-panel"><div class="df-panel-head"><h2>Approval queue</h2><a href="' . esc_url($this->url('approvals')) . '">Open full queue</a></div>';
-        $this->candidateCards('PENDING', 3, false);
+        echo '</section><section class="df-panel"><div class="df-panel-head"><h2>Approval queue</h2><a href="'
+            . esc_url($this->url('approvals')) . '">Open full queue</a></div>';
+        $this->candidateCards(ResearchRepository::REVIEW_PENDING, 3, false);
         echo '</section>';
         $this->systemSummary();
     }
 
     private function approvals(): void
     {
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Research approval inbox</h2><p>Approve or reject every candidate before product development.</p></div></div>';
-        $this->candidateCards('PENDING', 50, true);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Research approval inbox</h2>'
+            . '<p>Approve or reject every candidate before product development.</p></div></div>';
+        $this->candidateCards(ResearchRepository::REVIEW_PENDING, 50, true);
         echo '</section>';
-        foreach ($this->tables('reviews') as $label => $table) { $this->panelTable($label, $table); }
+        foreach ($this->tables('reviews') as $label => $table) {
+            $this->panelTable($label, $table);
+        }
     }
 
     private function research(): void
@@ -163,7 +182,13 @@ final class Portal
         echo '<section class="df-panel"><div class="df-panel-head"><h2>All research candidates</h2></div>';
         $this->candidateCards('', 50, true);
         echo '</section>';
-        foreach (['Sources' => Tables::research_sources(), 'Observations' => Tables::research_observations(), 'Evidence' => Tables::research_evidence(), 'Reviews' => Tables::research_reviews()] as $label => $table) {
+        $researchTables = [
+            'Sources' => Tables::research_sources(),
+            'Observations' => Tables::research_observations(),
+            'Evidence' => Tables::research_evidence(),
+            'Reviews' => Tables::research_reviews(),
+        ];
+        foreach ($researchTables as $label => $table) {
             $this->panelTable($label, $table);
         }
     }
@@ -171,16 +196,34 @@ final class Portal
     private function candidateCards(string $status, int $limit, bool $details): void
     {
         $rows = $this->candidates($status, $limit);
-        if ($rows === []) { echo '<div class="df-empty">No matching research candidates.</div>'; return; }
+        if ($rows === []) {
+            echo '<div class="df-empty">No matching research candidates.</div>';
+            return;
+        }
         foreach ($rows as $row) {
             $signals = $this->decode($row['score_inputs'] ?? '');
             $evidence = $details ? $this->evidence((int) $row['id']) : [];
             ?>
             <article class="df-candidate">
-                <div class="df-candidate-head"><div><span class="df-kicker">Candidate #<?php echo esc_html((string) $row['id']); ?></span><h3><?php echo esc_html((string) $row['title']); ?></h3><span class="df-status df-status-<?php echo esc_attr(strtolower((string) $row['review_status'])); ?>"><?php echo esc_html((string) $row['review_status']); ?></span></div><div class="df-score"><strong><?php echo esc_html(number_format((float) $row['score'], 2)); ?></strong><span>/100</span></div></div>
+                <div class="df-candidate-head">
+                    <div><span class="df-kicker">Candidate #<?php echo esc_html((string) $row['id']); ?></span><h3><?php echo esc_html((string) $row['title']); ?></h3><span class="df-status df-status-<?php echo esc_attr(strtolower((string) $row['review_status'])); ?>"><?php echo esc_html((string) $row['review_status']); ?></span></div>
+                    <div class="df-score"><strong><?php echo esc_html(number_format((float) $row['score'], 2)); ?></strong><span>/100</span></div>
+                </div>
                 <p><?php echo esc_html((string) ($row['summary'] ?? '')); ?></p>
-                <?php if ($signals !== []) : ?><div class="df-signal-grid"><?php foreach ($signals as $name => $value) : ?><div><span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $name))); ?></span><b><?php echo esc_html((string) $value); ?></b></div><?php endforeach; ?></div><?php endif; ?>
-                <?php if ($evidence !== []) : ?><details class="df-evidence"><summary>View evidence (<?php echo esc_html((string) count($evidence)); ?>)</summary><?php foreach ($evidence as $item) : ?><div class="df-evidence-item"><strong><?php echo esc_html((string) ($item['observation_title'] ?? 'Evidence')); ?></strong><p><?php echo esc_html((string) ($item['value'] ?? '')); ?></p><?php if (! empty($item['url'])) : ?><a href="<?php echo esc_url((string) $item['url']); ?>" target="_blank" rel="noopener noreferrer">Source</a><?php endif; ?></div><?php endforeach; ?></details><?php endif; ?>
+                <?php if ($signals !== []) : ?>
+                    <div class="df-signal-grid">
+                        <?php foreach ($signals as $name => $value) : ?>
+                            <div><span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $name))); ?></span><b><?php echo esc_html((string) $value); ?></b></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                <?php if ($evidence !== []) : ?>
+                    <details class="df-evidence"><summary>View evidence (<?php echo esc_html((string) count($evidence)); ?>)</summary>
+                        <?php foreach ($evidence as $item) : ?>
+                            <div class="df-evidence-item"><strong><?php echo esc_html((string) ($item['observation_title'] ?? 'Evidence')); ?></strong><p><?php echo esc_html((string) ($item['value'] ?? '')); ?></p><?php if (! empty($item['url'])) : ?><a href="<?php echo esc_url((string) $item['url']); ?>" target="_blank" rel="noopener noreferrer">Source</a><?php endif; ?></div>
+                        <?php endforeach; ?>
+                    </details>
+                <?php endif; ?>
                 <?php if ((string) $row['review_status'] === ResearchRepository::REVIEW_PENDING) { $this->reviewForm((int) $row['id']); } ?>
                 <?php if ((string) $row['review_status'] === ResearchRepository::REVIEW_APPROVED) { $this->developForm((int) $row['id']); } ?>
             </article>
@@ -191,7 +234,13 @@ final class Portal
     private function reviewForm(int $id): void
     {
         ?>
-        <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::REVIEW_ACTION); ?>"><input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>"><?php wp_nonce_field(self::REVIEW_ACTION); ?><textarea name="notes" rows="2" placeholder="Optional review notes"></textarea><div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject</button></div></form>
+        <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="<?php echo esc_attr(self::REVIEW_ACTION); ?>">
+            <input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>">
+            <?php wp_nonce_field(self::REVIEW_ACTION); ?>
+            <textarea name="notes" rows="2" placeholder="Optional review notes"></textarea>
+            <div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject</button></div>
+        </form>
         <?php
     }
 
@@ -199,17 +248,32 @@ final class Portal
     {
         if (! current_user_can('manage_digiforge_products')) { return; }
         ?>
-        <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::DEVELOP_ACTION); ?>"><input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>"><?php wp_nonce_field(self::DEVELOP_ACTION); ?><label>Target shop<select name="shop"><option value="digital">DigiCraftifyDigital</option><option value="goods">DigiCraftifyGoods</option></select></label><button class="df-button df-button-primary">Develop approved candidate</button></form>
+        <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="<?php echo esc_attr(self::DEVELOP_ACTION); ?>">
+            <input type="hidden" name="candidate_id" value="<?php echo esc_attr((string) $id); ?>">
+            <?php wp_nonce_field(self::DEVELOP_ACTION); ?>
+            <label>Target shop<select name="shop"><option value="digital">DigiCraftifyDigital</option><option value="goods">DigiCraftifyGoods</option></select></label>
+            <button class="df-button df-button-primary">Develop approved candidate</button>
+        </form>
         <?php
     }
 
     private function integrations(): void
     {
         global $wpdb;
-        $rows = $wpdb->get_results('SELECT id,provider,environment,connection_key,display_name,status,enabled,updated_at FROM ' . Tables::integrations() . ' ORDER BY id ASC', ARRAY_A);
+        $rows = $wpdb->get_results(
+            'SELECT id,provider,environment,connection_key,display_name,status,enabled,updated_at FROM '
+            . Tables::integrations() . ' ORDER BY id ASC',
+            ARRAY_A
+        );
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Provider integrations</h2><p>Credentials are never displayed in this portal.</p></div></div><div class="df-integration-grid">';
         foreach (is_array($rows) ? $rows : [] as $row) {
-            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3><dl class="df-kv"><div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div><div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div><div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div><div><dt>Enabled</dt><dd>' . (!empty($row['enabled']) ? 'YES ' : 'NO') . '</dd></div><div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div></dl></article>';
+            echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3><dl class="df-kv">'
+                . '<div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div>'
+                . '<div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div>'
+                . '<div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div>'
+                . '<div><dt>Enabled</dt><dd>' . (! empty($row['enabled']) ? 'YES' : 'NO') . '</dd></div>'
+                . '<div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div></dl></article>';
         }
         echo '</div></section>';
     }
@@ -217,10 +281,13 @@ final class Portal
     private function system(): void
     {
         $this->systemSummary();
-        echo '<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div><p class="df-muted">Critical activation controls remain fail-closed and read-only here.</p><div class="df-switch-list">';
-        foreach (['stop_all','activation_authorized','automation_armed','research','ai','product_development','printify','gelato','etsy_draft','etsy_publish','order_automation','gst_automation'] as $name) {
+        echo '<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>'
+            . '<p class="df-muted">Critical activation controls remain fail-closed and read-only here.</p><div class="df-switch-list">';
+        $switches = ['stop_all','activation_authorized','automation_armed','research','ai','product_development','printify','gelato','etsy_draft','etsy_publish','order_automation','gst_automation'];
+        foreach ($switches as $name) {
             $enabled = Settings::get($name, $name === 'stop_all');
-            echo '<div><span>' . esc_html(ucwords(str_replace('_', ' ', $name))) . '</span><b class="' . ($enabled ? 'is-on' : 'is-off') . '">' . ($enabled ? 'ON' : 'OFF') . '</b></div>';
+            echo '<div><span>' . esc_html(ucwords(str_replace('_', ' ', $name))) . '</span><b class="'
+                . ($enabled ? 'is-on' : 'is-off') . '">' . ($enabled ? 'ON' : 'OFF') . '</b></div>';
         }
         echo '</div></section>';
     }
@@ -228,12 +295,18 @@ final class Portal
     private function systemSummary(): void
     {
         $report = (new Readiness())->report();
-        echo '<section class="df-panel"><div class="df-panel-head"><h2>System summary</h2></div><dl class="df-kv"><div><dt>Version</dt><dd>' . esc_html(DIGIFORGE_VERSION) . '</dd></div><div><dt>Readiness</dt><dd>' . esc_html((string) ($report['status'] ?? 'UNKNOWN')) . '</dd></div><div><dt>Schema</dt><dd>' . esc_html((string) ($report['schema']['current'] ?? '?')) . '</dd></div><div><dt>External lock</dt><dd>' . (! empty($report['externally_locked']) ? 'LOCKED' : 'UNLOCKED') . '</dd></div></dl></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><h2>System summary</h2></div><dl class="df-kv">'
+            . '<div><dt>Version</dt><dd>' . esc_html(DIGIFORGE_VERSION) . '</dd></div>'
+            . '<div><dt>Readiness</dt><dd>' . esc_html((string) ($report['status'] ?? 'UNKNOWN')) . '</dd></div>'
+            . '<div><dt>Schema</dt><dd>' . esc_html((string) ($report['schema']['current'] ?? '?')) . '</dd></div>'
+            . '<div><dt>External lock</dt><dd>' . (! empty($report['externally_locked']) ? 'LOCKED' : 'UNLOCKED') . '</dd></div>'
+            . '</dl></section>';
     }
 
     private function panelTable(string $label, string $table): void
     {
-        echo '<section class="df-panel"><div class="df-panel-head"><h2>' . esc_html($label) . '</h2><span>' . esc_html((string) $this->count($table)) . ' records</span></div>';
+        echo '<section class="df-panel"><div class="df-panel-head"><h2>' . esc_html($label) . '</h2><span>'
+            . esc_html((string) $this->count($table)) . ' records</span></div>';
         $this->table($table);
         echo '</section>';
     }
@@ -242,12 +315,23 @@ final class Portal
     {
         global $wpdb;
         $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC LIMIT 50", ARRAY_A);
-        if (! is_array($rows) || $rows === []) { echo '<div class="df-empty">No records found.</div>'; return; }
+        if (! is_array($rows) || $rows === []) {
+            echo '<div class="df-empty">No records found.</div>';
+            return;
+        }
         $columns = array_slice(array_keys($rows[0]), 0, 8);
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr>';
-        foreach ($columns as $column) { echo '<th>' . esc_html(ucwords(str_replace('_', ' ', (string) $column))) . '</th>'; }
+        foreach ($columns as $column) {
+            echo '<th>' . esc_html(ucwords(str_replace('_', ' ', (string) $column))) . '</th>';
+        }
         echo '</tr></thead><tbody>';
-        foreach ($rows as $row) { echo '<tr>'; foreach ($columns as $column) { echo '<td>' . esc_html($this->cell((string) $column, $row[$column] ?? '')) . '</td>'; } echo '</tr>'; }
+        foreach ($rows as $row) {
+            echo '<tr>';
+            foreach ($columns as $column) {
+                echo '<td>' . esc_html($this->cell((string) $column, $row[$column] ?? '')) . '</td>';
+            }
+            echo '</tr>';
+        }
         echo '</tbody></table></div>';
     }
 
@@ -274,7 +358,9 @@ final class Portal
         global $wpdb;
         $limit = min(100, max(1, $limit));
         $sql = 'SELECT * FROM ' . Tables::research_candidates();
-        if ($status !== '') { $sql .= $wpdb->prepare(' WHERE review_status=%s', $status); }
+        if ($status !== '') {
+            $sql .= $wpdb->prepare(' WHERE review_status=%s', $status);
+        }
         $sql .= $wpdb->prepare(' ORDER BY id DESC LIMIT %d', $limit);
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
@@ -284,9 +370,19 @@ final class Portal
     private function evidence(int $candidateId): array
     {
         global $wpdb;
-        $rows = $wpdb->get_results($wpdb->prepare('SELECT e.value,e.provenance,o.title AS observation_title,o.provenance AS observation_provenance FROM ' . Tables::research_candidate_evidence() . ' ce INNER JOIN ' . Tables::research_evidence() . ' e ON e.id=ce.evidence_id LEFT JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id WHERE ce.candidate_id=%d ORDER BY e.id ASC', $candidateId), ARRAY_A);
+        $sql = 'SELECT e.value,e.provenance,o.title AS observation_title,o.provenance AS observation_provenance '
+            . 'FROM ' . Tables::research_candidate_evidence() . ' ce '
+            . 'INNER JOIN ' . Tables::research_evidence() . ' e ON e.id=ce.evidence_id '
+            . 'LEFT JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id '
+            . 'WHERE ce.candidate_id=%d ORDER BY e.id ASC';
+        $rows = $wpdb->get_results($wpdb->prepare($sql, $candidateId), ARRAY_A);
         if (! is_array($rows)) { return []; }
-        foreach ($rows as &$row) { $a=$this->decode($row['provenance']??''); $b=$this->decode($row['observation_provenance']??''); $row['url']=(string)($a['url']??$b['url']??''); unset($row['provenance'],$row['observation_provenance']); }
+        foreach ($rows as &$row) {
+            $evidence = $this->decode($row['provenance'] ?? '');
+            $observation = $this->decode($row['observation_provenance'] ?? '');
+            $row['url'] = (string) ($evidence['url'] ?? $observation['url'] ?? '');
+            unset($row['provenance'], $row['observation_provenance']);
+        }
         unset($row);
         return $rows;
     }
@@ -294,10 +390,19 @@ final class Portal
     private function pendingCount(): int
     {
         global $wpdb;
-        return (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::research_candidates() . ' WHERE review_status=%s', ResearchRepository::REVIEW_PENDING));
+        return (int) $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM ' . Tables::research_candidates() . ' WHERE review_status=%s',
+                ResearchRepository::REVIEW_PENDING
+            )
+        );
     }
 
-    private function count(string $table): int { global $wpdb; return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}"); }
+    private function count(string $table): int
+    {
+        global $wpdb;
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+    }
 
     private function cell(string $key, mixed $value): string
     {
@@ -325,7 +430,8 @@ final class Portal
 
     private function notice(string $message, bool $error = false): string
     {
-        return '<div class="df-notice ' . ($error ? 'df-notice-error' : 'df-notice-success') . '">' . esc_html($message) . '</div>';
+        $class = $error ? 'df-notice-error' : 'df-notice-success';
+        return '<div class="df-notice ' . $class . '">' . esc_html($message) . '</div>';
     }
 
     private function guard(string $capability): void
@@ -337,7 +443,12 @@ final class Portal
 
     private function redirect(string $view, string $message, bool $error = false): never
     {
-        wp_safe_redirect(add_query_arg(['df_view'=>$view,'df_message'=>$message,'df_error'=>$error?1:0], $this->baseUrl()));
+        $args = [
+            'df_view' => $view,
+            'df_message' => $message,
+            'df_error' => $error ? 1 : 0,
+        ];
+        wp_safe_redirect(add_query_arg($args, $this->baseUrl()));
         exit;
     }
 
@@ -348,5 +459,8 @@ final class Portal
         return is_string($url) && $url !== '' ? $url : home_url('/');
     }
 
-    private function url(string $view): string { return add_query_arg('df_view', $view, $this->baseUrl()); }
+    private function url(string $view): string
+    {
+        return add_query_arg('df_view', $view, $this->baseUrl());
+    }
 }
