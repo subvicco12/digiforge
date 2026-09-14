@@ -51,14 +51,18 @@ final class ProductReview
             return [
                 'product_version_id' => $productVersionId,
                 'decision' => 'REJECTED',
-                'workflow_status' => Workflow::QA_FAILED,
+                'workflow_status' => Workflow::ASSET_PRODUCTION,
                 'external_actions_performed' => false,
-                'next_action' => 'Revise the product and rerun QA before another Product Approval review.',
+                'next_action' => 'Revise the product, regenerate affected assets and rerun QA before another Product Approval review.',
             ];
         }
 
+        $planQa = $this->planQaPassed((int) $plan['id']);
+        if (is_wp_error($planQa)) { return $planQa; }
         $revisions = $this->requiredQaPassedRevisions((int) $plan['id']);
         if (is_wp_error($revisions)) { return $revisions; }
+
+        // All fail-closed preconditions are checked before any approval state is written.
         foreach ($revisions as $revisionId) {
             $approvedRevision = $production->transition('revision', $revisionId, 'APPROVED');
             if (is_wp_error($approvedRevision)) { return $approvedRevision; }
@@ -97,6 +101,7 @@ final class ProductReview
             'product_version_id' => $productVersionId,
             'production_plan_id' => (int) $plan['id'],
             'release_bundle_id' => (int) $bundle['id'],
+            'semantic_qa' => 'PASS',
             'notes' => sanitize_textarea_field($notes),
             'external_actions' => false,
         ], 'product_version', (string) $productVersionId);
@@ -133,6 +138,24 @@ final class ProductReview
         return is_array($row) ? $row : null;
     }
 
+    /** @return true|WP_Error */
+    private function planQaPassed(int $planId): true|WP_Error
+    {
+        global $wpdb;
+        $total = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
+            $planId
+        ));
+        $bad = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' AND status NOT IN ('PASS','WAIVED')",
+            $planId
+        ));
+        if ($total < 7 || $bad > 0) {
+            return $this->error('semantic_qa_failed', 'All required semantic, policy and consistency QA checks must pass before Product Approval.', 409);
+        }
+        return true;
+    }
+
     /** @return list<int>|WP_Error */
     private function requiredQaPassedRevisions(int $planId): array|WP_Error
     {
@@ -147,7 +170,7 @@ final class ProductReview
         $revisions = [];
         foreach ($specIds as $specId) {
             $revision = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM " . Tables::asset_revisions() . " WHERE asset_spec_id=%d ORDER BY id DESC LIMIT 1",
+                'SELECT * FROM ' . Tables::asset_revisions() . ' WHERE asset_spec_id=%d ORDER BY id DESC LIMIT 1',
                 (int) $specId
             ), ARRAY_A);
             if (! is_array($revision) || (string) ($revision['state'] ?? '') !== 'QA_PASSED') {
