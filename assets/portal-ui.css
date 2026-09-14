@@ -25,7 +25,7 @@ body.df-portal-active .df-view-dashboard .df-panel .df-candidate .df-signal-grid
 
 @media (max-width:767px){
  body.df-portal-active.df-nav-lock{overflow:hidden!important}
- body.df-portal-active .df-portal-shell.df-js{display:block!important;width:100vw!important;min-height:100vh!important;overflow:visible!important;background:#f4f7fb!important}
+ body.df-portal-active .df-portal-shell.df-js{display:block!important;width:100vw!important;min-height:100vh!important;margin:0!important;transform:none!important;overflow:visible!important;background:#f4f7fb!important}
  body.df-portal-active .df-portal-shell.df-js .df-portal-sidebar{position:sticky!important;top:0!important;z-index:50!important;height:64px!important;min-height:64px!important;padding:10px 14px!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;overflow:visible!important;background:#11192b!important}
  body.df-portal-active .df-portal-shell.df-js .df-brand{padding:0!important;gap:10px!important}
  body.df-portal-active .df-portal-shell.df-js .df-brand-mark{width:38px!important;height:38px!important;border-radius:10px!important}
