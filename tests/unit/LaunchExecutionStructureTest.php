@@ -43,6 +43,12 @@ final class LaunchExecutionStructureTest extends TestCase
         self::assertStringContainsString("'tools'", $client);
         self::assertStringContainsString("'web_search'", $client);
         self::assertStringContainsString('CredentialVault::decrypt', $client);
+        self::assertStringContainsString("\$status === 429", $client);
+        self::assertStringContainsString('insufficient_quota', $client);
+        self::assertStringContainsString('billing_hard_limit_reached', $client);
+        self::assertStringContainsString('digiforge_launch_ai_quota', $client);
+        self::assertStringContainsString('digiforge_launch_ai_rate_limited', $client);
+        self::assertStringContainsString("wp_remote_retrieve_header(\$response, 'x-request-id')", $client);
         self::assertStringNotContainsString('api_key' . ' => ', $client);
     }
 }
