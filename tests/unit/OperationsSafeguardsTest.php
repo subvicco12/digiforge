@@ -40,7 +40,7 @@ final class OperationsSafeguardsTest extends TestCase
         ]);
         self::assertSame('PASS', $pass['status']);
         self::assertFalse($pass['external_actions_performed']);
-        self::assertRegExp('/^[a-f0-9]{64}$/', $pass['evidence_hash']);
+        self::assertSame(1, preg_match('/^[a-f0-9]{64}$/', $pass['evidence_hash']));
 
         $review = RecoveryDrill::evaluate(['database_backup_available' => true]);
         self::assertSame('REVIEW_REQUIRED', $review['status']);
