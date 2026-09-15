@@ -10,16 +10,16 @@ final class U3RepairAssetSpecIdentityStructureTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("$isRepair?'repair-'.$planToken:''", $source);
-        self::assertStringContainsString("string $variant=''", $source);
-        self::assertStringContainsString("'variant_key'=>$variant", $source);
+        self::assertStringContainsString("\$isRepair?'repair-'.\$planToken:''", $source);
+        self::assertStringContainsString("string \$variant=''", $source);
+        self::assertStringContainsString("'variant_key'=>\$variant", $source);
     }
 
     public function testInitialRunStillUsesEmptyVariantAndRepairPackageUsesSameRunVariant(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("$packageVariant=$isRepair?'repair-'.$planToken:''", $source);
-        self::assertStringContainsString("$packageVariant", $source);
+        self::assertStringContainsString("\$packageVariant=\$isRepair?'repair-'.\$planToken:''", $source);
+        self::assertStringContainsString("\$packageVariant", $source);
     }
 }
