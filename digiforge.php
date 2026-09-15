@@ -43,3 +43,12 @@ function digiforge(): \DigiForge\Core\Plugin {
 
 add_action('wp_enqueue_scripts', static function (): void {
     if (is_admin()) {
+        return;
+    }
+    wp_enqueue_style('digiforge-portal-ui', DIGIFORGE_URL . 'assets/portal-ui.css', [], DIGIFORGE_VERSION);
+    wp_enqueue_script('digiforge-portal-ui', DIGIFORGE_URL . 'assets/portal-ui.js', [], DIGIFORGE_VERSION, true);
+});
+
+register_activation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'activate']);
+register_deactivation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'deactivate']);
+add_action('plugins_loaded', static function (): void { digiforge()->boot(); });
