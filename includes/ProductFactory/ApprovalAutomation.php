@@ -64,7 +64,7 @@ final class ApprovalAutomation
         if ($shop === '') {
             return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
         }
-        $runKey = 'u3-repair-candidate-' . $candidateId . '-' . $shop . '-' . gmdate('YmdHis');
+        $runKey = 'u3-repair-candidate-' . $candidateId . '-' . $shop . '-' . gmdate('YmdHis') . '-' . wp_generate_uuid4();
         $scheduled = $this->schedule($candidateId, $shop, $runKey, true);
         if (! $scheduled) {
             return new WP_Error('u3_retry_not_scheduled', __('Product Factory retry could not be scheduled.', 'digiforge'), ['status' => 503]);
