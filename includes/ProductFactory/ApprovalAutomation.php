@@ -6,6 +6,7 @@ namespace DigiForge\ProductFactory;
 
 use DigiForge\Database\Tables;
 use DigiForge\Security\Logger;
+use WP_Error;
 
 /**
  * Continues Gate 1 approvals into U3 without another human click.
@@ -19,11 +20,6 @@ final class ApprovalAutomation
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
         add_action(self::HOOK, [$this, 'run'], 10, 2);
-
-        // U3 performs two bounded AI calls plus protected local asset/QA work. Action
-        // Scheduler otherwise marks a healthy long-running action failed at 300s.
-        // This only changes the stale-action timeout for DigiForge's WordPress process;
-        // it does not enable schedules, publishing, fulfillment, POD, orders or tax.
         add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
     }
 
@@ -47,8 +43,32 @@ final class ApprovalAutomation
             Logger::audit('u3_product_build_not_scheduled', ['reason' => 'target_shop_unknown'], 'research_candidate', (string) $candidateId);
             return;
         }
-
         $this->schedule($candidateId, $shop);
+    }
+
+    /** @return array<string,mixed>|WP_Error */
+    public function retryApproved(int $candidateId): array|WP_Error
+    {
+        global $wpdb;
+        if ($candidateId < 1) {
+            return new WP_Error('invalid_candidate', __('Candidate ID is invalid.', 'digiforge'), ['status' => 400]);
+        }
+        $status = strtoupper((string) $wpdb->get_var($wpdb->prepare(
+            'SELECT review_status FROM ' . Tables::research_candidates() . ' WHERE id=%d LIMIT 1',
+            $candidateId
+        )));
+        if ($status !== 'APPROVED') {
+            return new WP_Error('candidate_not_approved', __('Only an approved research candidate may retry Product Factory.', 'digiforge'), ['status' => 409]);
+        }
+        $shop = $this->resolveShop($candidateId);
+        if ($shop === '') {
+            return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
+        }
+        $scheduled = $this->schedule($candidateId, $shop, true);
+        if (! $scheduled) {
+            return new WP_Error('u3_retry_not_scheduled', __('Product Factory retry could not be scheduled.', 'digiforge'), ['status' => 503]);
+        }
+        return ['candidate_id' => $candidateId, 'shop' => $shop, 'scheduled' => true, 'external_actions' => false];
     }
 
     public function run(int $candidateId, string $shop): void
@@ -58,13 +78,7 @@ final class ApprovalAutomation
             Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
             return;
         }
-
-        // Ask PHP to remove its userland execution cap where the host permits it. The
-        // Action Scheduler stale-action timeout remains finite (15m) as a fail-safe.
-        if (function_exists('set_time_limit')) {
-            @set_time_limit(0);
-        }
-
+        if (function_exists('set_time_limit')) { @set_time_limit(0); }
         $result = (new Orchestrator())->build(
             $candidateId,
             ['shop' => $shop],
@@ -85,7 +99,7 @@ final class ApprovalAutomation
         ], 'research_candidate', (string) $candidateId);
     }
 
-    private function schedule(int $candidateId, string $shop): void
+    private function schedule(int $candidateId, string $shop, bool $retry = false): bool
     {
         $args = [$candidateId, $shop];
         $scheduled = false;
@@ -97,19 +111,16 @@ final class ApprovalAutomation
         } else {
             $scheduled = wp_schedule_single_event(time() + 1, self::HOOK, $args, true) === true;
         }
-
         if (! $scheduled) {
             Logger::audit('u3_product_build_not_scheduled', [
-                'reason' => 'scheduler_rejected_job',
-                'scheduler' => $scheduler,
-                'shop' => $shop,
+                'reason' => 'scheduler_rejected_job', 'scheduler' => $scheduler, 'shop' => $shop, 'retry' => $retry,
             ], 'research_candidate', (string) $candidateId);
-            return;
+            return false;
         }
-        Logger::audit('u3_product_build_scheduled', [
-            'shop' => $shop,
-            'scheduler' => $scheduler,
+        Logger::audit($retry ? 'u3_product_build_retry_scheduled' : 'u3_product_build_scheduled', [
+            'shop' => $shop, 'scheduler' => $scheduler,
         ], 'research_candidate', (string) $candidateId);
+        return true;
     }
 
     private function resolveShop(int $candidateId): string
