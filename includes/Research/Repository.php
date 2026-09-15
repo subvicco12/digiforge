@@ -82,15 +82,19 @@ final class Repository {
     }
 
     public function review(int $candidateId,string $decision,string $notes=''): array|\WP_Error {
+        $reviewer = get_current_user_id();
+        if ($reviewer < 1) return $this->error('reviewer_required','Authenticated human reviewer required.',403);
         $decision=strtoupper(sanitize_key($decision));
         if(!in_array($decision,[self::REVIEW_APPROVED,self::REVIEW_REJECTED],true)) return $this->error('validation','Decision must be APPROVED or REJECTED.');
         $candidate=$this->find(Tables::research_candidates(),$candidateId);
         if($candidate===null) return $this->error('not_found','Candidate not found.',404);
+        if (($candidate['review_status'] ?? '') === $decision) return $candidate + ['idempotent_review'=>true];
+        if (($candidate['review_status'] ?? '') !== self::REVIEW_PENDING) return $this->error('review_conflict','Candidate has already received a final review.',409);
         global $wpdb;
         $now=current_time('mysql',true);
-        $wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>get_current_user_id(),'reviewed_at'=>$now]);
-        $updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId],['%s','%s'],['%d']);
-        if($updated===false) return $this->error('review_failed','Unable to save review.',500);
+        $wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>$reviewer,'reviewed_at'=>$now]);
+        $updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId,'review_status'=>self::REVIEW_PENDING]);
+        if($updated!==1) return $this->error('review_conflict','Candidate review changed concurrently or could not be saved.',409);
         Logger::audit('research_candidate_reviewed',['decision'=>$decision],'research_candidate',(string)$candidateId);
         return $this->find(Tables::research_candidates(),$candidateId) ?? $this->error('not_found','Candidate not found.',404);
     }
