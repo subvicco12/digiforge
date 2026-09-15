@@ -5,6 +5,7 @@ namespace DigiForge\REST;
 use DigiForge\Core\Capabilities;
 use DigiForge\Queue\Idempotency;
 use DigiForge\Research\Repository;
+use DigiForge\ProductFactory\ApprovalAutomation;
 
 final class ResearchController {
     private const NS='digiforge/v1';
@@ -18,6 +19,7 @@ final class ResearchController {
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/evidence/(?P<evidence_id>\d+)',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'linkEvidence']]);
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/review',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'review']]);
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/promote',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'promote']]);
+            register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/retry-product-factory',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'retryProductFactory']]);
         });
     }
     public function canManage():bool{return Capabilities::can('manage_digiforge_research');}
@@ -32,6 +34,12 @@ final class ResearchController {
         $candidateId=(int)$r['id'];
         $key=$this->key($r) ?: 'research-candidate-'.$candidateId;
         return $this->mutate($r,'research_candidate_promote_'.$candidateId,fn()=>(new Repository())->promote($candidateId,$key),200,$key);
+    }
+    public function retryProductFactory(\WP_REST_Request $r):mixed{
+        $candidateId=(int)$r['id'];
+        $result=(new ApprovalAutomation())->retryApproved($candidateId);
+        if(is_wp_error($result))return $result;
+        return new \WP_REST_Response($result,202);
     }
     private function key(\WP_REST_Request $r):?string{$k=trim((string)$r->get_header('Idempotency-Key'));return $k===''?null:$k;}
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $successStatus=200,?string $fallbackKey=null):mixed{
