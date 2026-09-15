@@ -19,7 +19,7 @@ final class ApprovalAutomation
     public function register(): void
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
-        add_action(self::HOOK, [$this, 'run'], 10, 2);
+        add_action(self::HOOK, [$this, 'run'], 10, 3);
         add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
     }
 
@@ -43,7 +43,7 @@ final class ApprovalAutomation
             Logger::audit('u3_product_build_not_scheduled', ['reason' => 'target_shop_unknown'], 'research_candidate', (string) $candidateId);
             return;
         }
-        $this->schedule($candidateId, $shop);
+        $this->schedule($candidateId, $shop, 'u3-auto-candidate-' . $candidateId . '-' . $shop);
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -64,28 +64,36 @@ final class ApprovalAutomation
         if ($shop === '') {
             return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
         }
-        $scheduled = $this->schedule($candidateId, $shop, true);
+        $runKey = 'u3-repair-candidate-' . $candidateId . '-' . $shop . '-' . gmdate('YmdHis');
+        $scheduled = $this->schedule($candidateId, $shop, $runKey, true);
         if (! $scheduled) {
             return new WP_Error('u3_retry_not_scheduled', __('Product Factory retry could not be scheduled.', 'digiforge'), ['status' => 503]);
         }
-        return ['candidate_id' => $candidateId, 'shop' => $shop, 'scheduled' => true, 'external_actions' => false];
+        return [
+            'candidate_id' => $candidateId,
+            'shop' => $shop,
+            'scheduled' => true,
+            'run_key' => $runKey,
+            'external_actions' => false,
+        ];
     }
 
-    public function run(int $candidateId, string $shop): void
+    public function run(int $candidateId, string $shop, string $runKey = ''): void
     {
         $shop = sanitize_key($shop);
         if (! in_array($shop, ['digital', 'goods'], true)) {
             Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
             return;
         }
+        $runKey = sanitize_key($runKey);
+        if ($runKey === '') {
+            $runKey = 'u3-auto-candidate-' . $candidateId . '-' . $shop;
+        }
         if (function_exists('set_time_limit')) { @set_time_limit(0); }
-        $result = (new Orchestrator())->build(
-            $candidateId,
-            ['shop' => $shop],
-            'u3-auto-candidate-' . $candidateId . '-' . $shop
-        );
+        $result = (new Orchestrator())->build($candidateId, ['shop' => $shop], $runKey);
         if (is_wp_error($result)) {
             Logger::audit('u3_product_build_failed', [
+                'run_key' => $runKey,
                 'error_code' => $result->get_error_code(),
                 'message' => $result->get_error_message(),
             ], 'research_candidate', (string) $candidateId);
@@ -93,15 +101,17 @@ final class ApprovalAutomation
         }
         Logger::audit('u3_product_build_completed', [
             'shop' => $shop,
+            'run_key' => $runKey,
             'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
             'workflow_status' => (string) ($result['workflow_status'] ?? ''),
             'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
+            'external_actions' => false,
         ], 'research_candidate', (string) $candidateId);
     }
 
-    private function schedule(int $candidateId, string $shop, bool $retry = false): bool
+    private function schedule(int $candidateId, string $shop, string $runKey, bool $retry = false): bool
     {
-        $args = [$candidateId, $shop];
+        $args = [$candidateId, $shop, sanitize_key($runKey)];
         $scheduled = false;
         $scheduler = 'wp_cron';
         if (function_exists('as_enqueue_async_action')) {
@@ -113,12 +123,19 @@ final class ApprovalAutomation
         }
         if (! $scheduled) {
             Logger::audit('u3_product_build_not_scheduled', [
-                'reason' => 'scheduler_rejected_job', 'scheduler' => $scheduler, 'shop' => $shop, 'retry' => $retry,
+                'reason' => 'scheduler_rejected_job',
+                'scheduler' => $scheduler,
+                'shop' => $shop,
+                'retry' => $retry,
+                'run_key' => $runKey,
             ], 'research_candidate', (string) $candidateId);
             return false;
         }
         Logger::audit($retry ? 'u3_product_build_retry_scheduled' : 'u3_product_build_scheduled', [
-            'shop' => $shop, 'scheduler' => $scheduler,
+            'shop' => $shop,
+            'scheduler' => $scheduler,
+            'run_key' => $runKey,
+            'external_actions' => false,
         ], 'research_candidate', (string) $candidateId);
         return true;
     }
