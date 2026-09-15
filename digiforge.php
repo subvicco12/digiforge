@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge
  * Description: Secure operational foundation for a WordPress-native product business platform.
- * Version: 0.13.2
+ * Version: 0.13.3
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Author: DigiForge
@@ -15,7 +15,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const DIGIFORGE_VERSION = '0.13.2';
+const DIGIFORGE_VERSION = '0.13.3';
 const DIGIFORGE_FILE = __FILE__;
 const DIGIFORGE_PATH = __DIR__ . '/';
 define('DIGIFORGE_URL', plugin_dir_url(__FILE__));
@@ -43,12 +43,3 @@ function digiforge(): \DigiForge\Core\Plugin {
 
 add_action('wp_enqueue_scripts', static function (): void {
     if (is_admin()) {
-        return;
-    }
-    wp_enqueue_style('digiforge-portal-ui', DIGIFORGE_URL . 'assets/portal-ui.css', [], DIGIFORGE_VERSION);
-    wp_enqueue_script('digiforge-portal-ui', DIGIFORGE_URL . 'assets/portal-ui.js', [], DIGIFORGE_VERSION, true);
-});
-
-register_activation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'activate']);
-register_deactivation_hook(__FILE__, [\DigiForge\Core\Activator::class, 'deactivate']);
-add_action('plugins_loaded', static function (): void { digiforge()->boot(); });
