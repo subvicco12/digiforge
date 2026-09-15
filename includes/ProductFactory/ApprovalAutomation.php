@@ -19,6 +19,17 @@ final class ApprovalAutomation
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
         add_action(self::HOOK, [$this, 'run'], 10, 2);
+
+        // U3 performs two bounded AI calls plus protected local asset/QA work. Action
+        // Scheduler otherwise marks a healthy long-running action failed at 300s.
+        // This only changes the stale-action timeout for DigiForge's WordPress process;
+        // it does not enable schedules, publishing, fulfillment, POD, orders or tax.
+        add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
+    }
+
+    public function timeoutPeriod(int $seconds): int
+    {
+        return max($seconds, 900);
     }
 
     /** @param array<string,mixed> $context */
@@ -37,6 +48,45 @@ final class ApprovalAutomation
             return;
         }
 
+        $this->schedule($candidateId, $shop);
+    }
+
+    public function run(int $candidateId, string $shop): void
+    {
+        $shop = sanitize_key($shop);
+        if (! in_array($shop, ['digital', 'goods'], true)) {
+            Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
+            return;
+        }
+
+        // Ask PHP to remove its userland execution cap where the host permits it. The
+        // Action Scheduler stale-action timeout remains finite (15m) as a fail-safe.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
+        $result = (new Orchestrator())->build(
+            $candidateId,
+            ['shop' => $shop],
+            'u3-auto-candidate-' . $candidateId . '-' . $shop
+        );
+        if (is_wp_error($result)) {
+            Logger::audit('u3_product_build_failed', [
+                'error_code' => $result->get_error_code(),
+                'message' => $result->get_error_message(),
+            ], 'research_candidate', (string) $candidateId);
+            return;
+        }
+        Logger::audit('u3_product_build_completed', [
+            'shop' => $shop,
+            'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
+            'workflow_status' => (string) ($result['workflow_status'] ?? ''),
+            'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
+        ], 'research_candidate', (string) $candidateId);
+    }
+
+    private function schedule(int $candidateId, string $shop): void
+    {
         $args = [$candidateId, $shop];
         $scheduled = false;
         $scheduler = 'wp_cron';
@@ -59,33 +109,6 @@ final class ApprovalAutomation
         Logger::audit('u3_product_build_scheduled', [
             'shop' => $shop,
             'scheduler' => $scheduler,
-        ], 'research_candidate', (string) $candidateId);
-    }
-
-    public function run(int $candidateId, string $shop): void
-    {
-        $shop = sanitize_key($shop);
-        if (! in_array($shop, ['digital', 'goods'], true)) {
-            Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
-            return;
-        }
-        $result = (new Orchestrator())->build(
-            $candidateId,
-            ['shop' => $shop],
-            'u3-auto-candidate-' . $candidateId . '-' . $shop
-        );
-        if (is_wp_error($result)) {
-            Logger::audit('u3_product_build_failed', [
-                'error_code' => $result->get_error_code(),
-                'message' => $result->get_error_message(),
-            ], 'research_candidate', (string) $candidateId);
-            return;
-        }
-        Logger::audit('u3_product_build_completed', [
-            'shop' => $shop,
-            'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
-            'workflow_status' => (string) ($result['workflow_status'] ?? ''),
-            'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
         ], 'research_candidate', (string) $candidateId);
     }
 
