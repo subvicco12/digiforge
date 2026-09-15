@@ -92,9 +92,23 @@ final class Repository {
         if (($candidate['review_status'] ?? '') !== self::REVIEW_PENDING) return $this->error('review_conflict','Candidate has already received a final review.',409);
         global $wpdb;
         $now=current_time('mysql',true);
-        $wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>$reviewer,'reviewed_at'=>$now]);
-        $updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId,'review_status'=>self::REVIEW_PENDING]);
-        if($updated!==1) return $this->error('review_conflict','Candidate review changed concurrently or could not be saved.',409);
+        $wpdb->query('START TRANSACTION');
+        try {
+            $inserted=$wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>$reviewer,'reviewed_at'=>$now]);
+            if($inserted===false){
+                $wpdb->query('ROLLBACK');
+                return $this->error('review_create_failed','Unable to save candidate review.',500);
+            }
+            $updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId,'review_status'=>self::REVIEW_PENDING]);
+            if($updated!==1){
+                $wpdb->query('ROLLBACK');
+                return $this->error('review_conflict','Candidate review changed concurrently or could not be saved.',409);
+            }
+            $wpdb->query('COMMIT');
+        } catch (\Throwable $e) {
+            $wpdb->query('ROLLBACK');
+            return $this->error('review_create_failed','Unable to save candidate review.',500);
+        }
         Logger::audit('research_candidate_reviewed',['decision'=>$decision],'research_candidate',(string)$candidateId);
         return $this->find(Tables::research_candidates(),$candidateId) ?? $this->error('not_found','Candidate not found.',404);
     }
@@ -127,10 +141,25 @@ final class Repository {
     private function insertIdempotent(string $table,?string $key,array $data,string $type): array|\WP_Error {
         $key=$key===null?null:sanitize_text_field($key); if($key==='')$key=null; if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key too long.');
         global $wpdb;
-        if($key!==null){$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);if(is_array($existing))return $this->normalize($existing)+['idempotent_replay'=>true];$data['idempotency_key']=$key;}
-        if(!$wpdb->insert($table,$data))return $this->error('create_failed','Unable to create research record.',500);
+        if($key!==null){
+            $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            if(is_array($existing)) return $this->idempotentReplay($existing,$data);
+            $data['idempotency_key']=$key;
+        }
+        if(!$wpdb->insert($table,$data)){
+            if($key!==null){
+                $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+                if(is_array($existing)) return $this->idempotentReplay($existing,$data);
+            }
+            return $this->error('create_failed','Unable to create research record.',500);
+        }
         $row=$this->find($table,(int)$wpdb->insert_id); Logger::audit($type.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$type,(string)$wpdb->insert_id); return $row??$this->error('create_failed','Unable to read research record.',500);
     }
+    private function idempotentReplay(array $existing,array $data):array|\WP_Error{if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable research data.',409);return $this->normalize($existing)+['idempotent_replay'=>true];}
+    private function replayCompatible(array $existing,array $data):bool{foreach($data as $key=>$value){if(in_array($key,['id','idempotency_key','created_at','updated_at'],true))continue;if(!array_key_exists($key,$existing))continue;if(!$this->sameReplayValue($key,$existing[$key],$value))return false;}return true;}
+    private function sameReplayValue(string $key,mixed $stored,mixed $incoming):bool{if(in_array($key,['config','provenance','score_inputs'],true))return $this->canonicalJson($stored)===$this->canonicalJson($incoming);if(is_numeric($stored)&&is_numeric($incoming))return (string)(0+$stored)===(string)(0+$incoming);return (string)$stored===(string)$incoming;}
+    private function canonicalJson(mixed $value):string{if(is_string($value)){$decoded=json_decode($value,true);if(json_last_error()===JSON_ERROR_NONE)$value=$decoded;}return wp_json_encode($this->sortRecursive($value));}
+    private function sortRecursive(mixed $value):mixed{if(!is_array($value))return $value;if(array_is_list($value))return array_map([$this,'sortRecursive'],$value);ksort($value);foreach($value as $key=>$item)$value[$key]=$this->sortRecursive($item);return $value;}
     private function find(string $table,int $id):?array{global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);return is_array($row)?$this->normalize($row):null;}
     public function normalize(array $row):array{foreach(['id','source_id','observation_id','candidate_id','evidence_id','created_by','reviewed_by','opportunity_id'] as $k){if(isset($row[$k]))$row[$k]=(int)$row[$k];}if(isset($row['score']))$row['score']=(float)$row['score'];unset($row['idempotency_key']);foreach(['config','provenance','score_inputs'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);$row[$k]=is_array($d)?$d:[];}}return $row;}
     private function canonical(string $value):string{$value=strtolower(trim(preg_replace('/\s+/u',' ',wp_strip_all_tags($value))??''));return substr($value,0,255);}
