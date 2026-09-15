@@ -38,8 +38,9 @@ final class Orchestrator
             return $this->error('validation', 'shop must be digital or goods.');
         }
 
-        // Reuse the existing approval-gated development path. A PENDING candidate stops here.
-        $developed = (new ExecutionEngine())->develop($candidateId, ['shop' => $shop], $key . '-development');
+        // Keep product/version identity stable across repair runs while production keys remain unique.
+        $developmentKey = 'u3-auto-candidate-' . $candidateId . '-' . $shop . '-development';
+        $developed = (new ExecutionEngine())->develop($candidateId, ['shop' => $shop], $developmentKey);
         if (is_wp_error($developed)) {
             return $developed;
         }
@@ -61,6 +62,30 @@ final class Orchestrator
         if ($productAssets === [] || $marketingAssets === []) {
             return $this->error('production_manifest', 'AI production manifest must include product and marketing assets.', 502);
         }
+
+        // Server-generated evidence makes package contents and provenance inspectable by QA.
+        $customerFiles = array_values(array_map(static fn(array $asset): string => (string) ($asset['filename'] ?? ''), $productAssets));
+        $productAssets[] = [
+            'asset_key' => 'delivery-manifest',
+            'filename' => 'DELIVERY-MANIFEST.json',
+            'format' => 'json',
+            'purpose' => 'Machine-readable customer delivery inventory and separation evidence',
+            'content' => wp_json_encode([
+                'schema' => 'digiforge-delivery-manifest-v1',
+                'product_version_id' => $productVersionId,
+                'customer_files' => $customerFiles,
+                'marketing_assets_in_customer_package' => false,
+                'external_publish' => false,
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        ];
+        $productAssets[] = [
+            'asset_key' => 'license-provenance',
+            'filename' => 'LICENSE-AND-PROVENANCE.txt',
+            'format' => 'txt',
+            'purpose' => 'Customer package provenance and licensing evidence',
+            'content' => "DigiForge production provenance\n\nCustomer-delivery text, layouts, and generated SVG content in this package are produced locally by DigiForge for this product. No third-party creative asset is included unless it is separately identified with verifiable licensing evidence. Marketing/listing assets are excluded from the customer package. External publishing is disabled.\n",
+        ];
+
         $unique = $this->uniqueDefinitions(array_merge($productAssets, $marketingAssets));
         if (is_wp_error($unique)) {
             return $unique;
@@ -122,7 +147,6 @@ final class Orchestrator
         $planState = $this->production->transition('plan', (int) $plan['id'], 'VALIDATED');
         if (is_wp_error($planState)) { return $planState; }
 
-        // Any deterministic or semantic QA failure is stopped before Product Approval.
         if (! $qaPassed) {
             Logger::audit('u3_product_factory_qa_failed', [
                 'candidate_id' => $candidateId,
@@ -353,7 +377,10 @@ final class Orchestrator
             . "Product: {$name}. Channel: {$channel}. Approved specification: {$spec}\n"
             . "Create ACTUAL customer/product file contents and separate Etsy marketing graphics. Do not merely describe files. "
             . "Required keys: product_assets and marketing_assets. product_assets is 2-6 objects with unique asset_key, unique filename, format, purpose and either content or pages. "
-            . "Allowed product formats: pdf, txt, csv, json, html, svg. For pdf, pages must be an array of complete page text. "
+            . "Allowed product formats: pdf, txt, csv, json, html, svg. For pdf, pages must be an array of complete page text. HTML must be a complete valid document with doctype, html, head, style and body elements. "
+            . "Never emit INSERT, TODO, example.com, placeholder URLs, fake QR destinations, fake Canva links, or any claim that an external editable template exists unless the approved specification contains a verified usable URL. "
+            . "If the approved specification promises A4 and US Letter editions, language editions, bundles, links, or QR functionality, generate the actual corresponding customer files/content. If a real approved link or QR destination is unavailable, omit that capability and do not market it. "
+            . "Do not invent licensing evidence. Prefer locally generated text/layout/SVG content unless verifiable licensed provenance is supplied. "
             . "marketing_assets is 3-6 SVG objects with unique asset_key, unique filename ending .svg, format='svg', purpose and content containing a complete self-contained SVG. "
             . "Marketing assets must never be labeled or treated as customer production files. Keep copy accurate to the approved specification. "
             . "Do not include secrets, external scripts, remote image URLs, trademarked character art, or unsafe/prohibited content.";
