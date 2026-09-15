@@ -10,8 +10,8 @@ final class U3RepairCycleStructureTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/ApprovalAutomation.php');
         self::assertIsString($source);
-        self::assertStringContainsString("u3-repair-candidate-", $source);
-        self::assertStringContainsString("add_action(self::HOOK, [$this, 'run'], 10, 3)", $source);
+        self::assertStringContainsString('u3-repair-candidate-', $source);
+        self::assertStringContainsString("add_action(self::HOOK, [\$this, 'run'], 10, 3)", $source);
         self::assertStringContainsString("'external_actions' => false", $source);
     }
 
@@ -19,8 +19,8 @@ final class U3RepairCycleStructureTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("$developmentKey = 'u3-auto-candidate-'", $source);
-        self::assertStringContainsString("->develop($candidateId, ['shop' => $shop], $developmentKey)", $source);
+        self::assertStringContainsString("\$developmentKey = 'u3-auto-candidate-'", $source);
+        self::assertStringContainsString("->develop(\$candidateId, ['shop' => \$shop], \$developmentKey)", $source);
     }
 
     public function testRepairPackageHasManifestAndProvenanceEvidence(): void
