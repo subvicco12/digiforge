@@ -28,10 +28,15 @@ final class ResearchController {
     public function createCandidate(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_candidate_create',fn()=>(new Repository())->createCandidate((array)$r->get_json_params(),$this->key($r)),201);}
     public function linkEvidence(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_candidate_evidence_'.(int)$r['id'].'_'.(int)$r['evidence_id'],fn()=>(new Repository())->linkEvidence((int)$r['id'],(int)$r['evidence_id']));}
     public function review(\WP_REST_Request $r):mixed{$p=(array)$r->get_json_params();return $this->mutate($r,'research_candidate_review_'.(int)$r['id'],fn()=>(new Repository())->review((int)$r['id'],(string)($p['decision']??''),(string)($p['notes']??'')));}
-    public function promote(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_candidate_promote_'.(int)$r['id'],fn()=>(new Repository())->promote((int)$r['id'],$this->key($r)));}
+    public function promote(\WP_REST_Request $r):mixed{
+        $candidateId=(int)$r['id'];
+        $key=$this->key($r) ?: 'research-candidate-'.$candidateId;
+        return $this->mutate($r,'research_candidate_promote_'.$candidateId,fn()=>(new Repository())->promote($candidateId,$key),200,$key);
+    }
     private function key(\WP_REST_Request $r):?string{$k=trim((string)$r->get_header('Idempotency-Key'));return $k===''?null:$k;}
-    private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $successStatus=200):mixed{
+    private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $successStatus=200,?string $fallbackKey=null):mixed{
         $header=trim((string)$r->get_header('Idempotency-Key'));
+        if($header==='')$header=trim((string)$fallbackKey);
         if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
         $storageKey=hash('sha256',$operation.'|'.$header);
         $idempotency=new Idempotency();
