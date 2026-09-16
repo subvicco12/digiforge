@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace DigiForge\POD;
 
 /**
- * Provider-neutral normalization contract for future Printify catalog sync.
- *
- * This class deliberately performs no HTTP requests. It validates and normalizes
- * already-fetched provider data so the existing POD repository can persist
- * evidence without enabling provider execution, publishing, or fulfillment.
+ * Fail-closed normalization boundary for future Printify catalog sync.
+ * Shared supplier/catalog evidence is intentionally business-neutral; business
+ * and store ownership is applied only when a DigiForge program maps to it.
  */
 final class PrintifyCatalogContract
 {
     public const PROVIDER = 'printify';
+    public const PROGRAM_PERSONALIZED_POD = 'PERSONALIZED_POD';
+    public const PROGRAM_ORIGINAL_DESIGN_POD = 'ORIGINAL_DESIGN_POD';
 
     /** @return array<string,mixed> */
     public static function normalizeCatalogVariant(array $input): array
@@ -41,6 +41,26 @@ final class PrintifyCatalogContract
             'source_revision' => sanitize_text_field((string) ($input['source_revision'] ?? '')),
             'observed_at' => self::dateTime($input['observed_at'] ?? null),
             'state' => 'DRAFT',
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function normalizeBusinessScope(array $input): array
+    {
+        $businessId = self::token($input['business_id'] ?? '', 'business_id');
+        $storeId = self::token($input['store_id'] ?? '', 'store_id');
+        $program = strtoupper(trim((string) ($input['product_program'] ?? '')));
+        if (!in_array($program, [self::PROGRAM_PERSONALIZED_POD, self::PROGRAM_ORIGINAL_DESIGN_POD], true)) {
+            throw new \InvalidArgumentException('unsupported product_program');
+        }
+        if ($businessId === 'digicraftifygoods' && $program !== self::PROGRAM_PERSONALIZED_POD) {
+            throw new \InvalidArgumentException('DigiCraftifyGoods is restricted to PERSONALIZED_POD');
+        }
+
+        return [
+            'business_id' => $businessId,
+            'store_id' => $storeId,
+            'product_program' => $program,
         ];
     }
 
@@ -78,6 +98,9 @@ final class PrintifyCatalogContract
             }
             $normalizedAreas[] = self::normalizePrintArea($area);
         }
+        if ($normalizedAreas === []) {
+            throw new \InvalidArgumentException('at least one print area is required');
+        }
         usort($normalizedAreas, static fn(array $a, array $b): int => strcmp((string) $a['area_key'], (string) $b['area_key']));
         $catalog = self::normalizeCatalogVariant($variant);
         $payload = [
@@ -87,9 +110,13 @@ final class PrintifyCatalogContract
             'variant' => $catalog['provider_variant_key'],
             'areas' => $normalizedAreas,
         ];
+        $encoded = wp_json_encode($payload, JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            throw new \InvalidArgumentException('template fingerprint payload is not JSON encodable');
+        }
 
         return [
-            'fingerprint' => hash('sha256', wp_json_encode($payload, JSON_UNESCAPED_SLASHES) ?: ''),
+            'fingerprint' => hash('sha256', $encoded),
             'catalog' => $catalog,
             'areas' => $normalizedAreas,
         ];
@@ -122,18 +149,26 @@ final class PrintifyCatalogContract
 
     private static function positiveNumber(mixed $value, string $field): float
     {
-        if (!is_numeric($value) || (float) $value <= 0) {
+        if (!is_numeric($value)) {
             throw new \InvalidArgumentException($field . ' must be positive');
         }
-        return round((float) $value, 4);
+        $number = (float) $value;
+        if (!is_finite($number) || $number <= 0) {
+            throw new \InvalidArgumentException($field . ' must be finite and positive');
+        }
+        return round($number, 4);
     }
 
     private static function money(mixed $value): float
     {
-        if (!is_numeric($value) || (float) $value < 0) {
+        if (!is_numeric($value)) {
             throw new \InvalidArgumentException('base_cost must be non-negative');
         }
-        return round((float) $value, 4);
+        $number = (float) $value;
+        if (!is_finite($number) || $number < 0) {
+            throw new \InvalidArgumentException('base_cost must be finite and non-negative');
+        }
+        return round($number, 4);
     }
 
     private static function token(mixed $value, string $field): string
@@ -165,6 +200,9 @@ final class PrintifyCatalogContract
                 $clean[is_string($key) ? sanitize_key($key) : $key] = self::cleanStructured($item);
             }
             return $clean;
+        }
+        if (is_float($value) && !is_finite($value)) {
+            throw new \InvalidArgumentException('structured metadata contains a non-finite number');
         }
         if (is_bool($value) || is_int($value) || is_float($value) || $value === null) {
             return $value;
