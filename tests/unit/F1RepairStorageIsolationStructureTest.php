@@ -23,6 +23,7 @@ final class F1RepairStorageIsolationStructureTest extends TestCase
         $producer = file_get_contents(__DIR__ . '/../../includes/ProductFactory/LocalAssetProducer.php');
         self::assertIsString($producer);
         self::assertStringContainsString("hash('sha256', \$bytes)", $producer);
+        self::assertStringContainsString("hash_file('sha256', \$temp)", $producer);
         self::assertStringContainsString('asset_replay_conflict', $producer);
         self::assertStringContainsString('Existing generated asset differs from replay payload.', $producer);
     }

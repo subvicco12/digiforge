@@ -57,15 +57,23 @@ final class LocalAssetProducer
         $filename = $this->filename($filename, 'zip');
         if ($filename === '') { return $this->error('invalid_filename', 'A safe ZIP filename is required.'); }
         $path = trailingslashit($directory) . $filename;
-        if (is_file($path)) { return $this->metadata($path, $filename, 'zip', $relativeDir); }
+        $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
         $zip = new \ZipArchive();
-        if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) { return $this->error('zip_create', 'Unable to create product ZIP package.', 500); }
+        if ($zip->open($temp, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) { return $this->error('zip_create', 'Unable to create product ZIP package.', 500); }
         foreach ($assets as $asset) {
             $source = (string) ($asset['absolute_path'] ?? '');
             $name = basename((string) ($asset['filename'] ?? ''));
-            if ($source === '' || $name === '' || ! is_file($source) || ! $zip->addFile($source, $name)) { $zip->close(); @unlink($path); return $this->error('zip_asset', 'Unable to add a required product asset to ZIP.', 500); }
+            if ($source === '' || $name === '' || ! is_file($source) || ! $zip->addFile($source, $name)) { $zip->close(); @unlink($temp); return $this->error('zip_asset', 'Unable to add a required product asset to ZIP.', 500); }
         }
         $zip->close();
+        if (is_file($path)) {
+            $existingHash = hash_file('sha256', $path);
+            $newHash = hash_file('sha256', $temp);
+            if (is_string($existingHash) && is_string($newHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, 'zip', $relativeDir); }
+            @unlink($temp);
+            return $this->error('asset_replay_conflict', 'Existing generated asset differs from replay payload.', 409);
+        }
+        if (! @rename($temp, $path)) { @unlink($temp); return $this->error('asset_commit', 'Unable to finalize generated asset.', 500); }
         return $this->metadata($path, $filename, 'zip', $relativeDir);
     }
 
