@@ -13,6 +13,6 @@ final class LaunchOpenAIStructuredOutputStructureTest extends TestCase
         self::assertStringContainsString("'text'=>['format'=>['type'=>'json_object']]", $source);
         self::assertStringContainsString("'digiforge_launch_ai_invalid_json'", $source);
         self::assertStringContainsString("'json_error'=>sanitize_text_field(json_last_error_msg())", $source);
-        self::assertStringContainsString("json_decode($text,true)", $source);
+        self::assertStringContainsString('json_decode($text,true)', $source);
     }
 }
