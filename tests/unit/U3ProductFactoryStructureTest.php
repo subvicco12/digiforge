@@ -13,7 +13,7 @@ final class U3ProductFactoryStructureTest extends TestCase
         $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertStringContainsString('(new ExecutionEngine())->develop(', $source);
         self::assertStringContainsString('Workflow::PRODUCT_REVIEW_REQUIRED', $source);
-        self::assertStringContainsString("'external_actions_performed' => false", $source);
+        self::assertMatchesRegularExpression("/'external_actions_performed'\s*=>\s*false/", $source);
         self::assertStringNotContainsString('Printify', preg_replace('/\/\*.*?\*\//s', '', $source) ?? $source);
         self::assertStringNotContainsString('Gelato', preg_replace('/\/\*.*?\*\//s', '', $source) ?? $source);
         self::assertStringNotContainsString('EtsyOAuth', $source);
@@ -56,9 +56,10 @@ final class U3ProductFactoryStructureTest extends TestCase
     public function testProductAndMarketingAssetsAreDistinct(): void
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
-        self::assertStringContainsString("'marketing_asset' : 'product_asset'", $source);
-        self::assertStringContainsString("['group' => 'product'", $source);
-        self::assertStringContainsString("['group' => 'marketing'", $source);
+        $compact = preg_replace('/\s+/', '', $source) ?? $source;
+        self::assertStringContainsString("'asset_type'=>\$group==='marketing'?'marketing_asset':'product_asset'", $compact);
+        self::assertMatchesRegularExpression("/\['group'\s*=>\s*'product'/", $source);
+        self::assertMatchesRegularExpression("/\['group'\s*=>\s*'marketing'/", $source);
         self::assertStringContainsString("'product_package'", $source);
     }
 

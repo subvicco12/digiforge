@@ -27,6 +27,9 @@ final class FinanceController
             register_rest_route(self::NS, '/finance/tax', [
                 'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createTax'],
             ]);
+            register_rest_route(self::NS, '/finance/tax/(?P<id>\d+)/review', [
+                'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'reviewTax'],
+            ]);
             register_rest_route(self::NS, '/finance/periods/calculate', [
                 'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'calculatePeriod'],
             ]);
@@ -58,6 +61,14 @@ final class FinanceController
 
     public function createTax(\WP_REST_Request $request): mixed
     { return $this->mutate($request,'finance_tax_create',fn()=>(new Repository())->createTaxClassification((array)$request->get_json_params(),$this->key($request)),201); }
+
+    public function reviewTax(\WP_REST_Request $request): mixed
+    {
+        $params=(array)$request->get_json_params();
+        $decision=(string)($params['decision']??'');
+        $operation='finance_tax_review_'.(int)$request['id'].'_'.sanitize_key($decision);
+        return $this->mutate($request,$operation,fn()=>(new Repository())->reviewTaxClassification((int)$request['id'],$decision));
+    }
 
     public function calculatePeriod(\WP_REST_Request $request): mixed
     { return $this->mutate($request,'finance_period_calculate',fn()=>(new Repository())->calculatePeriod((array)$request->get_json_params(),$this->key($request)),201); }

@@ -35,11 +35,15 @@ final class ProductionRepositoryTest extends WP_UnitTestCase
         ],'spec-1-'.wp_rand(100000,999999));
         $this->assertNoProductionError($spec,'create spec');
         $replayKey='spec-replay-'.wp_rand(100000,999999);
-        $replaySeed=$this->repo->createSpec(['product_version_id'=>$this->productVersionId,'asset_key'=>'replay','asset_type'=>'print','format'=>'png'],$replayKey);
+        $replayPayload=['product_version_id'=>$this->productVersionId,'asset_key'=>'replay','asset_type'=>'print','format'=>'png'];
+        $replaySeed=$this->repo->createSpec($replayPayload,$replayKey);
         $this->assertNoProductionError($replaySeed,'create replay seed');
-        $replay=$this->repo->createSpec(['product_version_id'=>$this->productVersionId,'asset_key'=>'ignored','asset_type'=>'print','format'=>'png'],$replayKey);
+        $replay=$this->repo->createSpec($replayPayload,$replayKey);
         $this->assertNoProductionError($replay,'replay spec');
         self::assertTrue($replay['idempotent_replay']);
+        $replayConflict=$this->repo->createSpec(['product_version_id'=>$this->productVersionId,'asset_key'=>'ignored','asset_type'=>'print','format'=>'png'],$replayKey);
+        self::assertTrue(is_wp_error($replayConflict));
+        self::assertSame('digiforge_idempotency_payload_conflict',$replayConflict->get_error_code());
 
         $plan=$this->repo->createPlan(['product_version_id'=>$this->productVersionId,'plan_key'=>'launch','version_label'=>'1','channel'=>'pod','production_type'=>'artwork'],'plan-1-'.wp_rand(100000,999999));
         $this->assertNoProductionError($plan,'create plan');

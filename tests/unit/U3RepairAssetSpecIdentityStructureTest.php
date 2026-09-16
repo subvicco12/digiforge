@@ -19,7 +19,8 @@ final class U3RepairAssetSpecIdentityStructureTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("\$packageVariant=\$isRepair?'repair-'.\$planToken:''", $source);
-        self::assertStringContainsString("\$packageVariant", $source);
+        self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken:''", $source);
+        self::assertStringContainsString('$this->producer->package($productVersionId,$packageInput,$packageFilename,$repairVariant)', $source);
+        self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$key,$sequence,$repairVariant)', $source);
     }
 }

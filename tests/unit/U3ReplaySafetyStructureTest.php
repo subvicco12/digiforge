@@ -30,7 +30,8 @@ final class U3ReplaySafetyStructureTest extends TestCase
         self::assertIsString($producer);
         self::assertIsString($orchestrator);
         self::assertStringContainsString('containsActiveMarkup', $producer);
-        self::assertStringContainsString("Generated asset keys and filenames must be unique.", $orchestrator);
+        self::assertStringContainsString('AI production manifest contains duplicate asset keys or filenames.', $orchestrator);
         self::assertStringContainsString('if (is_file($path))', $producer);
+        self::assertStringContainsString('$repairVariant=$isRepair?\'repair-\'', $orchestrator);
     }
 }

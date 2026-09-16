@@ -7,6 +7,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
     public function testResearchFlowIsDeterministicDeduplicatedAndHumanGated(): void
     {
         DigiForge\Core\Activator::activate();
+        wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
         $repository = new DigiForge\Research\Repository();
 
         $source = $repository->createSource([
