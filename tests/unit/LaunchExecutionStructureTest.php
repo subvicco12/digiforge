@@ -37,7 +37,7 @@ final class LaunchExecutionStructureTest extends TestCase
         self::assertStringContainsString('billing_hard_limit_reached', $client);
         self::assertStringContainsString('digiforge_launch_ai_quota', $client);
         self::assertStringContainsString('digiforge_launch_ai_rate_limited', $client);
-        self::assertMatchesRegularExpression("/wp_remote_retrieve_header\\(\\s*\\$response\\s*,\\s*'x-request-id'\\s*\\)/", $client);
+        self::assertMatchesRegularExpression('/wp_remote_retrieve_header\\(\\s*\\$response\\s*,\\s*[\'\"]x-request-id[\'\"]\\s*\\)/', $client);
         self::assertStringNotContainsString('api_key' . ' => ', $client);
     }
 }
