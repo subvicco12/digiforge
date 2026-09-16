@@ -73,7 +73,15 @@ final class LocalAssetProducer
             @unlink($temp);
             return $this->error('asset_replay_conflict', 'Existing generated asset differs from replay payload.', 409);
         }
-        if (! @rename($temp, $path)) { @unlink($temp); return $this->error('asset_commit', 'Unable to finalize generated asset.', 500); }
+        if (! @rename($temp, $path)) {
+            if (is_file($path)) {
+                $existingHash = hash_file('sha256', $path);
+                $newHash = hash_file('sha256', $temp);
+                if (is_string($existingHash) && is_string($newHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, 'zip', $relativeDir); }
+            }
+            @unlink($temp);
+            return $this->error('asset_commit', 'Unable to finalize generated asset.', 500);
+        }
         return $this->metadata($path, $filename, 'zip', $relativeDir);
     }
 
