@@ -39,7 +39,15 @@ final class LocalAssetProducer
         }
         $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
         if (file_put_contents($temp, $bytes, LOCK_EX) !== strlen($bytes)) { @unlink($temp); return $this->error('asset_write', 'Unable to write generated asset.', 500); }
-        if (! @rename($temp, $path)) { @unlink($temp); return $this->error('asset_commit', 'Unable to finalize generated asset.', 500); }
+        if (! @rename($temp, $path)) {
+            if (is_file($path)) {
+                $existingHash = hash_file('sha256', $path);
+                $newHash = hash_file('sha256', $temp);
+                if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, $format, $relativeDir); }
+            }
+            @unlink($temp);
+            return $this->error('asset_commit', 'Unable to finalize generated asset.', 500);
+        }
         return $this->metadata($path, $filename, $format, $relativeDir);
     }
 
