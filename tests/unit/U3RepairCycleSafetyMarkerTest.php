@@ -10,8 +10,8 @@ final class U3RepairCycleSafetyMarkerTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("'external_actions' => false", $source);
-        self::assertStringContainsString("'external_actions_performed' => false", $source);
+        self::assertMatchesRegularExpression("/'external_actions'\s*=>\s*false/", $source);
+        self::assertMatchesRegularExpression("/'external_actions_performed'\s*=>\s*false/", $source);
         self::assertStringNotContainsString('new Etsy', $source);
         self::assertStringNotContainsString('new Printify', $source);
         self::assertStringNotContainsString('new Gelato', $source);
