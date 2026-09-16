@@ -39,6 +39,6 @@ final class U3ProductFactoryStructureTest extends TestCase
     }
     public function testLargeAiBudgetIsScopedToU3ProductionOnly(): void
     {
-        $source=(string)file_get_contents(__DIR__.'/../../includes/Launch/OpenAIClient.php'); self::assertStringContainsString('U3 Production.',$source); self::assertMatchesRegularExpression('/U3 Production\.\x27\)\s*\?\s*12000\s*:\s*4000/',$source); self::assertMatchesRegularExpression('/request\(\$brief\s*,\s*true\s*,\s*4000\)/',$source);
+        $source=(string)file_get_contents(__DIR__.'/../../includes/Launch/OpenAIClient.php'); self::assertStringContainsString('U3 Production.',$source); self::assertMatchesRegularExpression('/U3 Production\.\x27\)\s*\?\s*16000\s*:\s*4000/',$source); self::assertMatchesRegularExpression('/request\(\$brief\s*,\s*true\s*,\s*4000\)/',$source);
     }
 }
