@@ -25,13 +25,13 @@ final class F3PodSafetyStructureTest extends TestCase
     {
         $repo=$this->repository();
         self::assertStringContainsString("state='RELEASE_READY'",$repo);
-        self::assertStringContainsString("(int)($mapping['approved_by']??0)>0",$repo);
+        self::assertStringContainsString("(int)(\$mapping['approved_by']??0)>0",$repo);
         self::assertStringContainsString('$areas>0',$repo);
         self::assertStringContainsString('$personalizationApproved',$repo);
         self::assertStringContainsString("state='APPROVED' ORDER BY COALESCE(observed_at,created_at) DESC",$repo);
         self::assertStringContainsString('$economicEvidence',$repo);
-        self::assertStringContainsString("'economic_evidence_approved'=>$economicEvidence",$repo);
-        self::assertStringContainsString("trim((string)($cost['observed_at']??''))!==''",$repo);
+        self::assertStringContainsString("'economic_evidence_approved'=>\$economicEvidence",$repo);
+        self::assertStringContainsString("trim((string)(\$cost['observed_at']??''))!==''",$repo);
     }
 
     public function testRepositoryRejectsChangedIdempotentPayloads(): void
@@ -50,7 +50,7 @@ final class F3PodSafetyStructureTest extends TestCase
         self::assertStringContainsString("get_header('Idempotency-Key')",$controller);
         self::assertStringContainsString('missing_idempotency_key',$controller);
         self::assertStringContainsString('idempotency_conflict',$controller);
-        self::assertStringContainsString("hash('sha256',$operation.'|'.$header)",$controller);
+        self::assertStringContainsString("hash('sha256',\$operation.'|'.\$header)",$controller);
     }
 
     public function testProviderExecutionIsNotImplementedByPodRepository(): void

@@ -36,18 +36,18 @@ final class F4OrdersFulfillmentSafetyStructureTest extends TestCase
     public function testPlanCreationAndApprovalRequireCurrentReadiness(): void
     {
         $repo=$this->repository();
-        self::assertStringContainsString("empty($readiness['ready'])",$repo);
+        self::assertStringContainsString("empty(\$readiness['ready'])",$repo);
         self::assertStringContainsString('Order must pass current readiness before a fulfillment plan can be created.',$repo);
-        self::assertStringContainsString("$entity==='plan'&&$to==='APPROVED'",$repo);
+        self::assertStringContainsString("\$entity==='plan'&&\$to==='APPROVED'",$repo);
         self::assertStringContainsString('Fulfillment plan readiness is stale; rebuild the plan before approval.',$repo);
     }
 
     public function testFulfillmentIntentRequiresSameOrderApprovedCurrentPlanAndStartsBlocked(): void
     {
         $repo=$this->repository();
-        self::assertStringContainsString("(int)$plan['order_id']!==(int)$order['id']",$repo);
-        self::assertStringContainsString("(string)$plan['state']!=='APPROVED'",$repo);
-        self::assertStringContainsString("hash_equals((string)$plan['readiness_hash'],(string)($current['hash']??''))",$repo);
+        self::assertStringContainsString("(int)\$plan['order_id']!==(int)\$order['id']",$repo);
+        self::assertStringContainsString("(string)\$plan['state']!=='APPROVED'",$repo);
+        self::assertStringContainsString("hash_equals((string)\$plan['readiness_hash'],(string)(\$current['hash']??''))",$repo);
         self::assertStringContainsString("'state'=>'BLOCKED'",$repo);
     }
 
