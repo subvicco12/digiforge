@@ -23,7 +23,14 @@ final class OpenAIClient
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
         $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']]];
         if($webSearch)$body['tools']=[['type'=>'web_search']];
-        $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>90,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
+        $response=wp_remote_post(self::RESPONSES_URL,[
+            'timeout' => 90,
+            'redirection' => 0,
+            'sslverify' => true,
+            'reject_unsafe_urls' => true,
+            'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],
+            'body'=>wp_json_encode($body),
+        ]); unset($apiKey);
         if(is_wp_error($response)){Logger::audit('launch_openai_request_failed',['reason'=>'transport'],'launch_execution');return new \WP_Error('digiforge_launch_ai_transport',__('AI provider request failed.','digiforge'),['status'=>502]);}
         $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
         if($status===429)return $this->rateLimitError($response,is_array($decoded)?$decoded:[]);
