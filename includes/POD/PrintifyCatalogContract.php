@@ -73,7 +73,9 @@ final class PrintifyCatalogContract
         $height = self::positiveNumber($input['height_px'] ?? null, 'height_px');
 
         return [
-            'area_key' => $position . ':' . $method,
+            // Use a sanitize_key-safe delimiter so Repository::createPrintArea()
+            // preserves the position/decoration boundary during persistence.
+            'area_key' => $position . '-' . $method,
             'placement' => $position,
             'width_value' => $width,
             'height_value' => $height,
@@ -103,14 +105,14 @@ final class PrintifyCatalogContract
         }
         usort($normalizedAreas, static fn(array $a, array $b): int => strcmp((string) $a['area_key'], (string) $b['area_key']));
         $catalog = self::normalizeCatalogVariant($variant);
-        $payload = [
+        $payload = self::canonicalize([
             'provider' => $catalog['provider'],
             'environment' => $catalog['environment'],
             'product' => $catalog['provider_product_key'],
             'variant' => $catalog['provider_variant_key'],
             'areas' => $normalizedAreas,
-        ];
-        $encoded = wp_json_encode($payload, JSON_UNESCAPED_SLASHES);
+        ]);
+        $encoded = wp_json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($encoded === false) {
             throw new \InvalidArgumentException('template fingerprint payload is not JSON encodable');
         }
@@ -185,11 +187,19 @@ final class PrintifyCatalogContract
         if ($value === null || $value === '') {
             return null;
         }
-        $timestamp = strtotime((string) $value);
-        if ($timestamp === false) {
-            throw new \InvalidArgumentException('observed_at is invalid');
+        $raw = trim((string) $value);
+        // Provider evidence must be absolute and round-trippable. Relative strings
+        // such as "tomorrow" are deliberately rejected.
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', $raw);
+        $format = 'Y-m-d\TH:i:sP';
+        if (!$date || $date->format($format) !== $raw) {
+            $date = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP', $raw);
+            $format = 'Y-m-d H:i:sP';
         }
-        return gmdate('Y-m-d H:i:s', $timestamp);
+        if (!$date || $date->format($format) !== $raw) {
+            throw new \InvalidArgumentException('observed_at must be an absolute ISO-style timestamp with timezone');
+        }
+        return $date->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
 
     private static function cleanStructured(mixed $value): mixed
@@ -208,5 +218,20 @@ final class PrintifyCatalogContract
             return $value;
         }
         return sanitize_text_field((string) $value);
+    }
+
+    private static function canonicalize(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+        $isList = array_keys($value) === range(0, count($value) - 1);
+        if (!$isList) {
+            ksort($value, SORT_STRING);
+        }
+        foreach ($value as $key => $child) {
+            $value[$key] = self::canonicalize($child);
+        }
+        return $value;
     }
 }
