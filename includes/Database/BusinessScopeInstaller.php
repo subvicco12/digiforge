@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DigiForge\Database;
 
-/** Installs v14 business/store/program ownership tables without activating commerce. */
+/** Installs and reconciles v14 ownership tables without activating commerce. */
 final class BusinessScopeInstaller
 {
     public static function migrateIfNeeded(): bool
@@ -22,18 +22,10 @@ final class BusinessScopeInstaller
             Tables::product_programs(),
             Tables::pod_business_mappings(),
         ];
-        $allPresent = true;
-        foreach ($tables as $table) {
-            $present = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
-            if ($present !== $table) {
-                $allPresent = false;
-                break;
-            }
-        }
-        if ($currentVersion >= 14 && $allPresent) {
-            return true;
-        }
 
+        // Never trust only the stored version or table existence. dbDelta is
+        // intentionally rerun so a partial v14 table/index installation is
+        // reconciled before the ownership boundary is considered healthy.
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         $charset = $wpdb->get_charset_collate();
         foreach (BusinessScopeSchema::statements($charset) as $statement) {
