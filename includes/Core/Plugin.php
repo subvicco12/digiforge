@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\Core;
 
+use DigiForge\Database\BusinessScopeInstaller;
 use DigiForge\Database\FinanceSchema;
 use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
@@ -40,6 +41,7 @@ final class Plugin {
         if (! ListingSchema::migrateIfNeeded()) { return; }
         if (! OrderSchema::migrateIfNeeded()) { return; }
         if (! FinanceSchema::migrateIfNeeded()) { return; }
+        if (! BusinessScopeInstaller::migrateIfNeeded()) { return; }
         (new Migrator())->maybe_migrate();
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
         (new Controller())->register();
