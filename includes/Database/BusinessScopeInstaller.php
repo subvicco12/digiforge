@@ -33,10 +33,13 @@ final class BusinessScopeInstaller
             $actual=$wpdb->get_col('SHOW COLUMNS FROM '.$table,0);
             foreach ($columns as $column) if (!in_array($column,$actual,true)) return self::fail('BUSINESS_SCOPE_SCHEMA_COLUMN_VERIFY_FAILED');
         }
+        // These definitions intentionally mirror BusinessScopeSchema exactly.
+        // Verification must fail closed if dbDelta leaves a required unique
+        // ownership boundary absent or changes its column order.
         $requiredUnique=[
             Tables::businesses()=>['business_key'=>['business_key']],
             Tables::stores()=>['business_store'=>['business_id','store_key']],
-            Tables::product_programs()=>['store_program'=>['business_id','store_id','program_key']],
+            Tables::product_programs()=>['store_program'=>['store_id','program_key']],
             Tables::pod_business_mappings()=>[
                 'product_provider_owner'=>['product_version_id','provider_mapping_id'],
                 'idempotency_key'=>['idempotency_key'],
