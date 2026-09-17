@@ -25,7 +25,7 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         $source = file_get_contents(dirname(__DIR__, 2) . '/includes/POD/BusinessScopeRepository.php');
         self::assertIsString($source);
         self::assertStringContainsString('BusinessScope::resolveConfigured($input)', $source);
-        self::assertStringContainsString("\$wpdb->query('START TRANSACTION')",$controller);
+        self::assertStringContainsString("\$wpdb->query('START TRANSACTION')",$source);
         self::assertStringContainsString('FOR UPDATE', $source);
         self::assertStringContainsString('status=%s', $source);
         self::assertStringContainsString('digiforge_scope_ownership_conflict', $source);
