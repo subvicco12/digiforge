@@ -92,7 +92,7 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         $scope=file_get_contents(dirname(__DIR__,2).'/includes/POD/BusinessScopeRepository.php');
         self::assertIsString($controller);self::assertIsString($scope);
         self::assertStringContainsString("$wpdb->query('START TRANSACTION')",$controller);
-        self::assertStringContainsString("createMapping($input,$key,false)",$controller);
+        self::assertStringContainsString('createMapping($input,$key,false)',$controller);
         self::assertStringContainsString("$wpdb->query('ROLLBACK')",$controller);
         self::assertStringContainsString("$wpdb->query('COMMIT')",$controller);
         self::assertStringContainsString('bool $manageTransaction=true',$scope);
