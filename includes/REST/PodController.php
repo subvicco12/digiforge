@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DigiForge\REST;
 
+use DigiForge\POD\BusinessScopeRepository;
 use DigiForge\POD\Repository;
 use DigiForge\Queue\Idempotency;
 
@@ -39,7 +40,18 @@ final class PodController
     }
 
     public function createCatalog(\WP_REST_Request $r): mixed { return $this->mutate($r,'pod_catalog_create',fn()=>(new Repository())->createCatalog((array)$r->get_json_params(),$this->rawKey($r)),201); }
-    public function createMapping(\WP_REST_Request $r): mixed { return $this->mutate($r,'pod_mapping_create',fn()=>(new Repository())->createMapping((array)$r->get_json_params(),$this->rawKey($r)),201); }
+    public function createMapping(\WP_REST_Request $r): mixed
+    {
+        return $this->mutate($r,'pod_mapping_create',function () use ($r) {
+            $input=(array)$r->get_json_params();
+            $mapping=(new Repository())->createMapping($input,$this->rawKey($r));
+            if(is_wp_error($mapping)) return $mapping;
+            $input['provider_mapping_id']=(int)($mapping['id']??0);
+            $scoped=(new BusinessScopeRepository())->createMapping($input,$this->rawKey($r));
+            if(is_wp_error($scoped)) return $scoped;
+            return ['provider_mapping'=>$mapping,'business_mapping'=>$scoped];
+        },201);
+    }
     public function createPrintArea(\WP_REST_Request $r): mixed { return $this->mutate($r,'pod_print_area_create',fn()=>(new Repository())->createPrintArea((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createPersonalization(\WP_REST_Request $r): mixed { return $this->mutate($r,'pod_personalization_create',fn()=>(new Repository())->createPersonalizationSchema((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createBinding(\WP_REST_Request $r): mixed { return $this->mutate($r,'pod_binding_create',fn()=>(new Repository())->createBinding((array)$r->get_json_params(),$this->rawKey($r)),201); }
