@@ -21,4 +21,13 @@ final class SupplierScoringStructureTest extends TestCase
         self::assertStringNotContainsString('wp_remote_', $source);
         self::assertStringNotContainsString('etsy', strtolower($source));
     }
+
+    public function test_provider_identity_is_validated_before_normalization(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/includes/POD/SupplierScoring.php');
+        self::assertIsString($source);
+        self::assertStringContainsString("!is_string(\$input['provider'])", $source);
+        self::assertStringContainsString('provider must be a nonempty string', $source);
+        self::assertStringNotContainsString("(string)(\$input['provider']", $source);
+    }
 }
