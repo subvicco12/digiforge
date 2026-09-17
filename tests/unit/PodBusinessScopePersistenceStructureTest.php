@@ -25,9 +25,9 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         self::assertStringContainsString('BusinessScope::resolveConfigured($input)', $source);
         self::assertStringContainsString('Tables::pod_business_mappings()', $source);
         self::assertStringContainsString('Tables::pod_mappings()', $source);
-        self::assertStringContainsString("'business_id' => $scope['business_id']", $source);
-        self::assertStringContainsString("'store_id' => $scope['store_id']", $source);
-        self::assertStringContainsString("'product_program_id' => $scope['product_program_id']", $source);
+        self::assertStringContainsString("'business_id' => \$scope['business_id']", $source);
+        self::assertStringContainsString("'store_id' => \$scope['store_id']", $source);
+        self::assertStringContainsString("'product_program_id' => \$scope['product_program_id']", $source);
     }
 
     public function testSupplierCatalogRemainsGloballyShared(): void
