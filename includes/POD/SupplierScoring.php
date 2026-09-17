@@ -27,9 +27,12 @@ final class SupplierScoring
         if (!in_array($region, ['US','EU'], true)) {
             throw new \InvalidArgumentException('region must be US or EU');
         }
-        $provider = strtolower(trim((string)($input['provider'] ?? '')));
+        if (!array_key_exists('provider', $input) || !is_string($input['provider'])) {
+            throw new \InvalidArgumentException('provider must be a nonempty string');
+        }
+        $provider = strtolower(trim($input['provider']));
         if ($provider === '') {
-            throw new \InvalidArgumentException('provider is required');
+            throw new \InvalidArgumentException('provider must be a nonempty string');
         }
 
         $weighted = 0.0;
