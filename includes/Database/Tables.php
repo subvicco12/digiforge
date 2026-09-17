@@ -44,6 +44,10 @@ final class Tables {
     public static function production_qa(): string { return self::name('production_qa'); }
     public static function release_bundles(): string { return self::name('release_bundles'); }
     public static function release_bundle_revisions(): string { return self::name('release_bundle_revisions'); }
+    public static function businesses(): string { return self::name('businesses'); }
+    public static function stores(): string { return self::name('stores'); }
+    public static function product_programs(): string { return self::name('product_programs'); }
+    public static function pod_business_mappings(): string { return self::name('pod_business_mappings'); }
     public static function pod_catalog(): string { return self::name('pod_catalog'); }
     public static function pod_mappings(): string { return self::name('pod_mappings'); }
     public static function pod_print_areas(): string { return self::name('pod_print_areas'); }
