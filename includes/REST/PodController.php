@@ -35,25 +35,11 @@ final class PodController
     public function createCatalog(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_catalog_create',fn()=>(new Repository())->createCatalog((array)$r->get_json_params(),$this->rawKey($r)),201);}
     public function createMapping(\WP_REST_Request $r): mixed
     {
-        /* Mapping idempotency belongs to the scoped repository. It must be able
-         * to return an exact historical replay even after a scope is disabled.
-         * Do not pre-empt it with the generic outer reservation. */
-        if ($this->rawKey($r)===null) return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
-        $input=(array)$r->get_json_params();
-        $scopedRepo=new BusinessScopeRepository();
-        if (method_exists($scopedRepo,'replay')) {
-            $replay=$scopedRepo->replay($input,$this->rawKey($r));
-            if (is_wp_error($replay)) return $replay;
-            if (is_array($replay)) return new \WP_REST_Response($replay,200);
-        }
-        /* Provider creation is intentionally not reported as success until its
-         * ownership row exists. Full atomic creation is enforced by the scoped
-         * repository integration; this controller remains fail-closed. */
-        $mapping=(new Repository())->createMapping($input,$this->rawKey($r));
-        if(is_wp_error($mapping)) return $mapping;
-        $input['provider_mapping_id']=(int)($mapping['id']??0);
-        $scoped=$scopedRepo->createMapping($input,$this->rawKey($r));
-        if(is_wp_error($scoped)) return $scoped;
+        $key=$this->rawKey($r);if($key===null)return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
+        $input=(array)$r->get_json_params();$scopedRepo=new BusinessScopeRepository();
+        $replay=$scopedRepo->replay($input,$key);if(is_wp_error($replay))return $replay;if(is_array($replay))return new \WP_REST_Response($replay,200);
+        $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping))return $mapping;
+        $input['provider_mapping_id']=(int)($mapping['id']??0);$scoped=$scopedRepo->createMapping($input,$key);if(is_wp_error($scoped))return $scoped;
         return new \WP_REST_Response(['provider_mapping'=>$mapping,'business_mapping'=>$scoped],201);
     }
     public function createPrintArea(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_print_area_create',fn()=>(new Repository())->createPrintArea((array)$r->get_json_params(),$this->rawKey($r)),201);}
