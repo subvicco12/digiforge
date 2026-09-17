@@ -42,6 +42,19 @@ final class BusinessScopeRepository
                 $key
             ), ARRAY_A);
             if (is_array($existing)) {
+                $sameRequest =
+                    (int) ($existing['business_id'] ?? 0) === $scope['business_id'] &&
+                    (int) ($existing['store_id'] ?? 0) === $scope['store_id'] &&
+                    (int) ($existing['product_program_id'] ?? 0) === $scope['product_program_id'] &&
+                    (int) ($existing['product_version_id'] ?? 0) === $productVersionId &&
+                    (int) ($existing['provider_mapping_id'] ?? 0) === $providerMappingId;
+                if (!$sameRequest) {
+                    return new WP_Error(
+                        'digiforge_idempotency_conflict',
+                        'Idempotency key is already bound to a different business scope or mapping.',
+                        ['status' => 409]
+                    );
+                }
                 return $existing;
             }
         }
