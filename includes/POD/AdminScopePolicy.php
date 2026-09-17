@@ -12,7 +12,7 @@ use WP_Error;
  */
 final class AdminScopePolicy
 {
-    /** @return array{business_id:int,store_id:int,product_program_id:int,product_program:string}|WP_Error */
+    /** @return array{business_id:int,store_id:int,product_program_id:int,product_program:string,business_key?:string}|WP_Error */
     public static function resolve(array $input): array|WP_Error
     {
         if (! current_user_can('manage_digiforge_pod')) {
@@ -31,13 +31,12 @@ final class AdminScopePolicy
         $resolved = self::resolve($scope);
         if (is_wp_error($resolved)) return $resolved;
 
-        // DigiCraftifyGoods remains PERSONALIZED_POD only. The future original-
-        // design business must be configured as a separate business/store.
-        if (($resolved['product_program'] ?? '') === BusinessScope::ORIGINAL_DESIGN_POD) {
-            $business = sanitize_key((string)($scope['business_id'] ?? ''));
-            if ($business === BusinessScope::DIGICRAFTIFY_GOODS) {
-                return new WP_Error('digiforge_pod_program_boundary', 'DigiCraftifyGoods cannot activate ORIGINAL_DESIGN_POD.', ['status' => 409]);
-            }
+        /* The authoritative restriction is enforced by BusinessScope against
+         * the resolved ACTIVE business record. Do not re-derive ownership from
+         * the caller's raw business_id, which may legitimately be numeric. */
+        if (($resolved['product_program'] ?? '') === BusinessScope::ORIGINAL_DESIGN_POD
+            && ($resolved['business_key'] ?? '') === BusinessScope::DIGICRAFTIFY_GOODS) {
+            return new WP_Error('digiforge_pod_program_boundary', 'DigiCraftifyGoods cannot activate ORIGINAL_DESIGN_POD.', ['status' => 409]);
         }
 
         return true;
