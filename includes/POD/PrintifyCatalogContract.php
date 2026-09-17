@@ -73,15 +73,12 @@ final class PrintifyCatalogContract
         $height = self::positiveNumber($input['height_px'] ?? null, 'height_px');
 
         return [
-            // Hash the length-delimited tuple into a sanitize_key-safe identifier.
-            // This keeps the persisted key unambiguous even when either token
-            // contains characters such as hyphens that are valid in sanitize_key().
             'area_key' => self::areaKey($position, $method),
             'placement' => $position,
             'width_value' => $width,
             'height_value' => $height,
             'unit' => 'px',
-            'dpi_target' => max(0, (int) ($input['dpi_target'] ?? 0)),
+            'dpi_target' => self::dpi($input['dpi_target'] ?? 0),
             'bleed_metadata' => self::cleanStructured($input['bleed_metadata'] ?? []),
             'safe_area_metadata' => self::cleanStructured($input['safe_area_metadata'] ?? []),
             'accepted_formats' => self::cleanStructured($input['accepted_formats'] ?? []),
@@ -172,7 +169,20 @@ final class PrintifyCatalogContract
         if (!is_finite($number) || $number <= 0) {
             throw new \InvalidArgumentException($field . ' must be finite and positive');
         }
-        return round($number, 4);
+        $rounded = round($number, 4);
+        if ($rounded <= 0) {
+            throw new \InvalidArgumentException($field . ' must remain positive at persisted precision');
+        }
+        return $rounded;
+    }
+
+    private static function dpi(mixed $value): int
+    {
+        $validated = filter_var($value, FILTER_VALIDATE_INT);
+        if ($validated === false || $validated < 0 || $validated > 2400) {
+            throw new \InvalidArgumentException('dpi_target must be an integer between 0 and 2400');
+        }
+        return (int) $validated;
     }
 
     private static function money(mixed $value): float
@@ -218,8 +228,21 @@ final class PrintifyCatalogContract
     {
         if (is_array($value)) {
             $clean = [];
+            $seenKeys = [];
             foreach ($value as $key => $item) {
-                $clean[is_string($key) ? sanitize_key($key) : $key] = self::cleanStructured($item);
+                if (is_string($key)) {
+                    $normalizedKey = sanitize_key($key);
+                    if ($normalizedKey === '') {
+                        throw new \InvalidArgumentException('structured metadata contains an invalid key');
+                    }
+                    if (isset($seenKeys[$normalizedKey])) {
+                        throw new \InvalidArgumentException('structured metadata contains colliding normalized keys');
+                    }
+                    $seenKeys[$normalizedKey] = true;
+                    $clean[$normalizedKey] = self::cleanStructured($item);
+                    continue;
+                }
+                $clean[$key] = self::cleanStructured($item);
             }
             return $clean;
         }
