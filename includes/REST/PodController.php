@@ -36,11 +36,18 @@ final class PodController
     public function createMapping(\WP_REST_Request $r): mixed
     {
         $key=$this->rawKey($r);if($key===null)return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
-        $input=(array)$r->get_json_params();$scopedRepo=new BusinessScopeRepository();
-        $replay=$scopedRepo->replay($input,$key);if(is_wp_error($replay))return $replay;if(is_array($replay))return new \WP_REST_Response($replay,200);
-        $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping))return $mapping;
-        $input['provider_mapping_id']=(int)($mapping['id']??0);$scoped=$scopedRepo->createMapping($input,$key);if(is_wp_error($scoped))return $scoped;
-        return new \WP_REST_Response(['provider_mapping'=>$mapping,'business_mapping'=>$scoped],201);
+        $input=(array)$r->get_json_params();$scopedRepo=new BusinessScopeRepository();global $wpdb;
+        $wpdb->query('START TRANSACTION');
+        try{
+            // Provider mapping replay happens first because its stable database ID is part of
+            // the immutable business-scope fingerprint. Both writes share this transaction.
+            $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping)){$wpdb->query('ROLLBACK');return $mapping;}
+            $input['provider_mapping_id']=(int)($mapping['id']??0);
+            $scoped=$scopedRepo->createMapping($input,$key,false);if(is_wp_error($scoped)){$wpdb->query('ROLLBACK');return $scoped;}
+            $wpdb->query('COMMIT');
+            $status=!empty($mapping['idempotent_replay'])?200:201;
+            return new \WP_REST_Response(['provider_mapping'=>$mapping,'business_mapping'=>$scoped],$status);
+        }catch(\Throwable){$wpdb->query('ROLLBACK');return new \WP_Error('digiforge_mapping_atomicity','Provider mapping and business ownership could not be created atomically.',['status'=>500]);}
     }
     public function createPrintArea(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_print_area_create',fn()=>(new Repository())->createPrintArea((array)$r->get_json_params(),$this->rawKey($r)),201);}
     public function createPersonalization(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_personalization_create',fn()=>(new Repository())->createPersonalizationSchema((array)$r->get_json_params(),$this->rawKey($r)),201);}
