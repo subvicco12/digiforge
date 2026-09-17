@@ -16,6 +16,7 @@ final class BusinessScope
     public const PERSONALIZED_POD = 'PERSONALIZED_POD';
     public const ORIGINAL_DESIGN_POD = 'ORIGINAL_DESIGN_POD';
     public const DIGICRAFTIFY_GOODS = 'digicraftifygoods';
+    private const ACTIVE = 'ACTIVE';
 
     /** @return array{business_id:string,store_id:string,product_program:string} */
     public static function normalize(array $input): array
@@ -32,8 +33,10 @@ final class BusinessScope
     }
 
     /**
-     * Resolve the persisted ownership registry before a business-active POD
-     * record is created. Inputs may use numeric primary IDs or configured keys.
+     * Resolve an ACTIVE persisted ownership registry before a business-active
+     * POD record is created. Inputs may use numeric primary IDs or configured
+     * keys. INACTIVE registry rows are configuration only and cannot authorize
+     * business-active writes.
      *
      * @return array{business_id:int,store_id:int,product_program_id:int,product_program:string}
      */
@@ -45,10 +48,10 @@ final class BusinessScope
         $storeRef = self::requiredToken($input['store_id'] ?? null, 'store_id');
 
         $business = ctype_digit($businessRef)
-            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE id=%d LIMIT 1', (int) $businessRef), ARRAY_A)
-            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE business_key=%s LIMIT 1', $businessRef), ARRAY_A);
+            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE id=%d AND status=%s LIMIT 1', (int) $businessRef, self::ACTIVE), ARRAY_A)
+            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE business_key=%s AND status=%s LIMIT 1', $businessRef, self::ACTIVE), ARRAY_A);
         if (!is_array($business) || (int) ($business['id'] ?? 0) < 1) {
-            throw new \InvalidArgumentException('configured business is required');
+            throw new \InvalidArgumentException('active configured business is required');
         }
         $businessKey = sanitize_key((string) ($business['business_key'] ?? ''));
         if ($businessKey === self::DIGICRAFTIFY_GOODS && $program !== self::PERSONALIZED_POD) {
@@ -57,21 +60,22 @@ final class BusinessScope
 
         $businessId = (int) $business['id'];
         $store = ctype_digit($storeRef)
-            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE id=%d AND business_id=%d LIMIT 1', (int) $storeRef, $businessId), ARRAY_A)
-            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE store_key=%s AND business_id=%d LIMIT 1', $storeRef, $businessId), ARRAY_A);
+            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE id=%d AND business_id=%d AND status=%s LIMIT 1', (int) $storeRef, $businessId, self::ACTIVE), ARRAY_A)
+            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE store_key=%s AND business_id=%d AND status=%s LIMIT 1', $storeRef, $businessId, self::ACTIVE), ARRAY_A);
         if (!is_array($store) || (int) ($store['id'] ?? 0) < 1) {
-            throw new \InvalidArgumentException('configured store owned by business is required');
+            throw new \InvalidArgumentException('active configured store owned by business is required');
         }
 
         $storeId = (int) $store['id'];
         $programRow = $wpdb->get_row($wpdb->prepare(
-            'SELECT * FROM ' . Tables::product_programs() . ' WHERE business_id=%d AND store_id=%d AND program_key=%s LIMIT 1',
+            'SELECT * FROM ' . Tables::product_programs() . ' WHERE business_id=%d AND store_id=%d AND program_key=%s AND status=%s LIMIT 1',
             $businessId,
             $storeId,
-            $program
+            $program,
+            self::ACTIVE
         ), ARRAY_A);
         if (!is_array($programRow) || (int) ($programRow['id'] ?? 0) < 1) {
-            throw new \InvalidArgumentException('configured product program is required for business/store');
+            throw new \InvalidArgumentException('active configured product program is required for business/store');
         }
 
         return [
