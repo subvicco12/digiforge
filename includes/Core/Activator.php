@@ -35,10 +35,10 @@ final class Activator {
         if (! FinanceSchema::migrateIfNeeded()) {
             return;
         }
+        (new Migrator())->migrate();
         if (! BusinessScopeInstaller::migrateIfNeeded()) {
             return;
         }
-        (new Migrator())->migrate();
         Settings::ensure_defaults();
         flush_rewrite_rules();
     }
