@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DigiForge\POD;
+
+/**
+ * Fail-closed contract for a versioned supplier-specific production template.
+ * This class performs no provider calls, publishing, rendering or order action.
+ */
+final class ProductionTemplateContract
+{
+    public const STATUSES = ['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED'];
+    public const PIPELINES = ['PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'];
+
+    public static function normalize(array $input): array
+    {
+        $templateId=self::token($input['template_id']??null,'template_id');
+        $version=self::positiveInt($input['template_version']??null,'template_version');
+        $supplier=self::token($input['supplier']??null,'supplier');
+        $blueprint=self::positiveInt($input['provider_blueprint_id']??null,'provider_blueprint_id');
+        $provider=self::positiveInt($input['provider_id']??null,'provider_id');
+        $variants=self::positiveIntList($input['variant_ids']??null,'variant_ids');
+        $pipeline=strtoupper(self::token($input['personalization_pipeline']??null,'personalization_pipeline'));
+        if(!in_array($pipeline,self::PIPELINES,true)) throw new \InvalidArgumentException('unsupported personalization_pipeline');
+        $engine=strtoupper(self::token($input['personalization_engine']??null,'personalization_engine'));
+        $status=strtoupper(self::token($input['template_status']??'DRAFT','template_status'));
+        if(!in_array($status,self::STATUSES,true)) throw new \InvalidArgumentException('unsupported template_status');
+        $areas=$input['print_areas']??null;
+        if(!is_array($areas)||$areas===[]) throw new \InvalidArgumentException('print_areas is required');
+        $normalizedAreas=[];
+        foreach($areas as $area){
+            if(!is_array($area)) throw new \InvalidArgumentException('print_area must be an object');
+            $width=self::positiveInt($area['width_px']??null,'width_px');
+            $height=self::positiveInt($area['height_px']??null,'height_px');
+            $normalizedAreas[]=[
+                'position'=>self::token($area['position']??null,'position'),
+                'decoration_method'=>self::token($area['decoration_method']??null,'decoration_method'),
+                'width_px'=>$width,
+                'height_px'=>$height,
+            ];
+        }
+        $canonical=[
+            'template_id'=>$templateId,'template_version'=>$version,'supplier'=>$supplier,
+            'provider_blueprint_id'=>$blueprint,'provider_id'=>$provider,'variant_ids'=>$variants,
+            'print_areas'=>$normalizedAreas,'personalization_pipeline'=>$pipeline,
+            'personalization_engine'=>$engine,'template_status'=>$status,
+        ];
+        $canonical['fingerprint']=hash('sha256',(string)wp_json_encode($canonical));
+        return $canonical;
+    }
+
+    /** Validated production versions are immutable; catalog drift creates a new candidate version. */
+    public static function assertMutable(array $existing): void
+    {
+        $status=strtoupper(trim((string)($existing['template_status']??'')));
+        if(in_array($status,['VALIDATED','RETIRED'],true)) throw new \LogicException('validated or retired production templates are immutable');
+    }
+
+    private static function token(mixed $value,string $field): string
+    {
+        if(!is_string($value)) throw new \InvalidArgumentException($field.' must be a string');
+        $value=trim($value); if($value==='') throw new \InvalidArgumentException($field.' is required'); return $value;
+    }
+    private static function positiveInt(mixed $value,string $field): int
+    {
+        if(!is_int($value)&&!(is_string($value)&&ctype_digit($value))) throw new \InvalidArgumentException($field.' must be a positive integer');
+        $value=(int)$value; if($value<1) throw new \InvalidArgumentException($field.' must be a positive integer'); return $value;
+    }
+    private static function positiveIntList(mixed $value,string $field): array
+    {
+        if(!is_array($value)||$value===[]) throw new \InvalidArgumentException($field.' is required');
+        $out=[]; foreach($value as $item)$out[]=self::positiveInt($item,$field); $out=array_values(array_unique($out)); sort($out,SORT_NUMERIC); return $out;
+    }
+}
