@@ -10,17 +10,19 @@ final class ProductionTemplateContractStructureTest extends TestCase
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
         self::assertIsString($source);
-        self::assertStringContainsString('provider_blueprint_id',$source);
-        self::assertStringContainsString('provider_id',$source);
-        self::assertStringContainsString('variant_ids',$source);
-        self::assertStringContainsString('print_areas',$source);
-        self::assertStringContainsString('width_px',$source);
-        self::assertStringContainsString('height_px',$source);
-        self::assertStringContainsString('decoration_method',$source);
-        self::assertStringContainsString('PRINTIFY_NATIVE',$source);
-        self::assertStringContainsString('DIGIFORGE_RENDER',$source);
-        self::assertStringContainsString('DIGIFORGE_AI',$source);
+        foreach(['provider_blueprint_id','provider_id','variant_ids','print_areas','width_px','height_px','decoration_method','PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'] as $needle) self::assertStringContainsString($needle,$source);
         self::assertStringContainsString("hash('sha256'",$source);
+    }
+
+    public function testCanonicalIdentityRejectsDuplicateAreasAndOrderDrift(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString("strtolower(self::token(\$input['supplier']",$source);
+        self::assertStringContainsString("strtolower(self::token(\$area['position']",$source);
+        self::assertStringContainsString("strtolower(self::token(\$area['decoration_method']",$source);
+        self::assertStringContainsString('duplicate normalized print_area identity',$source);
+        self::assertStringContainsString('usort($normalizedAreas',$source);
+        self::assertStringContainsString('fingerprint encoding failed',$source);
     }
 
     public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
