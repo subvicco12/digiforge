@@ -13,8 +13,11 @@ final class SupplierScoringStructureTest extends TestCase
         self::assertStringContainsString("'market_opportunity' => 20", $source);
         self::assertStringContainsString("'landed_cost' => 20", $source);
         self::assertStringContainsString("['US','EU']", $source);
-        self::assertStringContainsString("EXTERNAL_PROVIDER_SEARCH", $source);
-        self::assertStringContainsString("SUPPLIER_SELECTED", $source);
+        self::assertStringContainsString('ALTERNATIVE_PROVIDER_SEARCH', $source);
+        self::assertStringContainsString('SUPPLIER_CANDIDATE', $source);
+        self::assertStringContainsString('SUPPLIER_SELECTED', $source);
+        self::assertStringNotContainsString('PRINTIFY_CANDIDATE', $source);
+        self::assertStringNotContainsString('ALT_PRINTIFY_SEARCH', $source);
         self::assertStringNotContainsString('wp_remote_', $source);
         self::assertStringNotContainsString('etsy', strtolower($source));
     }
