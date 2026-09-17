@@ -20,13 +20,18 @@ final class SupplierScoring
         'backup_availability' => 5,
     ];
 
-    /** @return array{score:float,decision:string,region:string} */
+    /** @return array{score:float,decision:string,region:string,provider:string} */
     public static function evaluate(array $input): array
     {
         $region = strtoupper(trim((string)($input['region'] ?? '')));
         if (!in_array($region, ['US','EU'], true)) {
             throw new \InvalidArgumentException('region must be US or EU');
         }
+        $provider = strtolower(trim((string)($input['provider'] ?? '')));
+        if ($provider === '') {
+            throw new \InvalidArgumentException('provider is required');
+        }
+
         $weighted = 0.0;
         foreach (self::WEIGHTS as $field => $weight) {
             if (!array_key_exists($field, $input) || !is_numeric($input[$field])) {
@@ -41,22 +46,26 @@ final class SupplierScoring
 
         $demand = (float)$input['market_opportunity'];
         $fulfillment = ((float)$input['landed_cost'] + (float)$input['fulfillment_geography'] + (float)$input['quality_reliability']) / 3;
-        $printify = strtolower(trim((string)($input['provider'] ?? ''))) === 'printify';
 
-        // Demand first: poor Printify fulfillment must trigger an alternative
-        // provider search rather than rejecting a validated product concept.
-        if ($demand >= 70 && $printify && $fulfillment < 55) {
-            $decision = 'EXTERNAL_PROVIDER_SEARCH';
+        // Demand first: a validated concept is not rejected merely because the
+        // evaluated supplier cannot fulfill it competitively in the region.
+        if ($demand >= 70 && $fulfillment < 55) {
+            $decision = 'ALTERNATIVE_PROVIDER_SEARCH';
         } elseif ($demand < 40) {
             $decision = 'REJECT';
         } elseif ($weighted >= 75) {
             $decision = 'SUPPLIER_SELECTED';
         } elseif ($weighted >= 60) {
-            $decision = 'PRINTIFY_CANDIDATE';
+            $decision = 'SUPPLIER_CANDIDATE';
         } else {
-            $decision = 'ALT_PRINTIFY_SEARCH';
+            $decision = 'ALTERNATIVE_PROVIDER_SEARCH';
         }
 
-        return ['score' => round($weighted, 2), 'decision' => $decision, 'region' => $region];
+        return [
+            'score' => round($weighted, 2),
+            'decision' => $decision,
+            'region' => $region,
+            'provider' => $provider,
+        ];
     }
 }
