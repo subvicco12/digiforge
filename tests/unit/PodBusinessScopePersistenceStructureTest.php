@@ -25,7 +25,7 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         $source = file_get_contents(dirname(__DIR__, 2) . '/includes/POD/BusinessScopeRepository.php');
         self::assertIsString($source);
         self::assertStringContainsString('BusinessScope::resolveConfigured($input)', $source);
-        self::assertStringContainsString('START TRANSACTION', $source);
+        self::assertStringContainsString("\$wpdb->query('START TRANSACTION')",$controller);
         self::assertStringContainsString('FOR UPDATE', $source);
         self::assertStringContainsString('status=%s', $source);
         self::assertStringContainsString('digiforge_scope_ownership_conflict', $source);
@@ -91,10 +91,10 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         $controller=file_get_contents(dirname(__DIR__,2).'/includes/REST/PodController.php');
         $scope=file_get_contents(dirname(__DIR__,2).'/includes/POD/BusinessScopeRepository.php');
         self::assertIsString($controller);self::assertIsString($scope);
-        self::assertStringContainsString('\$wpdb->query('START TRANSACTION')',$controller);
+        self::assertStringContainsString("\$wpdb->query('START TRANSACTION')",$controller);
         self::assertStringContainsString('createMapping($input,$key,false)',$controller);
-        self::assertStringContainsString('\$wpdb->query('ROLLBACK')',$controller);
-        self::assertStringContainsString('\$wpdb->query('COMMIT')',$controller);
+        self::assertStringContainsString("\$wpdb->query('ROLLBACK')",$controller);
+        self::assertStringContainsString("\$wpdb->query('COMMIT')",$controller);
         self::assertStringContainsString('bool $manageTransaction=true',$scope);
         self::assertStringContainsString('if($manageTransaction)',$scope);
     }
