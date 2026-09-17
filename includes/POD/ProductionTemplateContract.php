@@ -10,6 +10,17 @@ final class ProductionTemplateContract
     public const STATUSES=['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED'];
     public const PIPELINES=['PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'];
 
+    /** Build a template candidate only from normalized Printify catalog identity plus explicit geometry. */
+    public static function fromPrintifyCatalog(array $catalog,array $geometry,array $template): array
+    {
+        if(($catalog['provider']??'')!=='printify') throw new \InvalidArgumentException('normalized Printify catalog evidence is required');
+        $product=(string)($catalog['provider_product_key']??'');$variant=(string)($catalog['provider_variant_key']??'');
+        if(!ctype_digit($product)||!preg_match('/^([1-9][0-9]*):([1-9][0-9]*)$/',$variant,$match)) throw new \InvalidArgumentException('Printify catalog identity is invalid');
+        if((int)$match[1]<1||(int)$match[2]<1) throw new \InvalidArgumentException('Printify provider and variant identity must be positive');
+        $input=$template+['supplier'=>'printify','provider_blueprint_id'=>(int)$product,'provider_id'=>(int)$match[1],'variant_ids'=>[(int)$match[2]],'print_areas'=>$geometry];
+        return self::normalize($input);
+    }
+
     public static function normalize(array $input): array
     {
         $templateId=self::token($input['template_id']??null,'template_id');
