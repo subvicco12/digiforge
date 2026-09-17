@@ -13,7 +13,7 @@ final class ProductionTemplateRepository
     {
         try{$row=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
         global $wpdb;
-        $table=$wpdb->prefix.'digiforge_pod_production_templates';
+        $table=\DigiForge\Database\Tables::pod_production_templates();
         $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s AND template_version=%d LIMIT 1',$row['template_id'],$row['template_version']),ARRAY_A);
         if(is_array($existing)){
             if(hash_equals((string)($existing['fingerprint']??''),(string)$row['fingerprint'])) return $existing+['idempotent'=>true];
