@@ -25,17 +25,32 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         $source = file_get_contents(dirname(__DIR__, 2) . '/includes/POD/BusinessScopeRepository.php');
         self::assertIsString($source);
         self::assertStringContainsString('BusinessScope::resolveConfigured($input)', $source);
-        self::assertStringContainsString("START TRANSACTION", $source);
+        self::assertStringContainsString('START TRANSACTION', $source);
         self::assertStringContainsString('FOR UPDATE', $source);
-        self::assertStringContainsString("status=%s", $source);
+        self::assertStringContainsString('status=%s', $source);
         self::assertStringContainsString('digiforge_scope_ownership_conflict', $source);
         self::assertStringContainsString('digiforge_idempotency_conflict', $source);
+        self::assertStringContainsString('digiforge_scope_changed', $source);
         self::assertStringContainsString('product_version_id=%d AND provider_mapping_id=%d', $source);
         self::assertStringContainsString('Tables::pod_business_mappings()', $source);
         self::assertStringContainsString('Tables::pod_mappings()', $source);
-        self::assertStringContainsString("'business_id' => \$scope['business_id']", $source);
-        self::assertStringContainsString("'store_id' => \$scope['store_id']", $source);
-        self::assertStringContainsString("'product_program_id' => \$scope['product_program_id']", $source);
+        self::assertStringContainsString("'business_id'=>\$scope['business_id']", $source);
+        self::assertStringContainsString("'store_id'=>\$scope['store_id']", $source);
+        self::assertStringContainsString("'product_program_id'=>\$scope['product_program_id']", $source);
+    }
+
+    public function testExactReplayIsCheckedBeforeActiveResolution(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/includes/POD/BusinessScopeRepository.php');
+        self::assertIsString($source);
+        $replay = strpos($source, 'WHERE idempotency_key=%s LIMIT 1');
+        $transaction = strpos($source, "START TRANSACTION");
+        $resolution = strpos($source, 'BusinessScope::resolveConfigured($input)');
+        self::assertNotFalse($replay);
+        self::assertNotFalse($transaction);
+        self::assertNotFalse($resolution);
+        self::assertLessThan($transaction, $replay);
+        self::assertLessThan($resolution, $transaction);
     }
 
     public function testBusinessScopeSchemaMakesProductProviderOwnerUnique(): void
@@ -54,6 +69,8 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         self::assertStringNotContainsString('$allPresent', $installer);
         self::assertStringContainsString('BUSINESS_SCOPE_SCHEMA_UPDATE_FAILED', $installer);
         self::assertStringContainsString('BUSINESS_SCOPE_SCHEMA_VERIFY_FAILED', $installer);
+        self::assertStringContainsString('BUSINESS_SCOPE_SCHEMA_COLUMN_VERIFY_FAILED', $installer);
+        self::assertStringContainsString('BUSINESS_SCOPE_SCHEMA_INDEX_VERIFY_FAILED', $installer);
     }
 
     public function testSupplierCatalogRemainsGloballyShared(): void
