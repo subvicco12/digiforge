@@ -65,7 +65,7 @@ final class BusinessScopeSchema
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY scope_product_mapping (business_id,store_id,product_program_id,product_version_id,provider_mapping_id),
+  UNIQUE KEY product_provider_owner (product_version_id,provider_mapping_id),
   UNIQUE KEY idempotency_key (idempotency_key),
   KEY scope_state (business_id,store_id,product_program_id,state),
   KEY provider_mapping (provider_mapping_id)
