@@ -73,9 +73,10 @@ final class PrintifyCatalogContract
         $height = self::positiveNumber($input['height_px'] ?? null, 'height_px');
 
         return [
-            // Use a sanitize_key-safe delimiter so Repository::createPrintArea()
-            // preserves the position/decoration boundary during persistence.
-            'area_key' => $position . '-' . $method,
+            // Hash the length-delimited tuple into a sanitize_key-safe identifier.
+            // This keeps the persisted key unambiguous even when either token
+            // contains characters such as hyphens that are valid in sanitize_key().
+            'area_key' => self::areaKey($position, $method),
             'placement' => $position,
             'width_value' => $width,
             'height_value' => $height,
@@ -94,11 +95,18 @@ final class PrintifyCatalogContract
     public static function templateFingerprint(array $variant, array $areas): array
     {
         $normalizedAreas = [];
+        $seenAreaKeys = [];
         foreach ($areas as $area) {
             if (!is_array($area)) {
                 throw new \InvalidArgumentException('print areas must be arrays');
             }
-            $normalizedAreas[] = self::normalizePrintArea($area);
+            $normalized = self::normalizePrintArea($area);
+            $areaKey = (string) $normalized['area_key'];
+            if (isset($seenAreaKeys[$areaKey])) {
+                throw new \InvalidArgumentException('duplicate print-area identity');
+            }
+            $seenAreaKeys[$areaKey] = true;
+            $normalizedAreas[] = $normalized;
         }
         if ($normalizedAreas === []) {
             throw new \InvalidArgumentException('at least one print area is required');
@@ -122,6 +130,12 @@ final class PrintifyCatalogContract
             'catalog' => $catalog,
             'areas' => $normalizedAreas,
         ];
+    }
+
+    private static function areaKey(string $position, string $method): string
+    {
+        $tuple = strlen($position) . ':' . $position . '|' . strlen($method) . ':' . $method;
+        return 'pa-' . hash('sha256', $tuple);
     }
 
     private static function environment(mixed $value): string
@@ -188,8 +202,6 @@ final class PrintifyCatalogContract
             return null;
         }
         $raw = trim((string) $value);
-        // Provider evidence must be absolute and round-trippable. Relative strings
-        // such as "tomorrow" are deliberately rejected.
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', $raw);
         $format = 'Y-m-d\TH:i:sP';
         if (!$date || $date->format($format) !== $raw) {
