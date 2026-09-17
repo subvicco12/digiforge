@@ -25,6 +25,17 @@ final class ProductionTemplateContractStructureTest extends TestCase
         self::assertStringContainsString('fingerprint encoding failed',$source);
     }
 
+    public function testPrintifyBridgeRequiresNormalizedCatalogIdentityAndExplicitGeometry(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString('fromPrintifyCatalog(array $catalog,array $geometry,array $template)',$source);
+        self::assertStringContainsString("(\$catalog['provider']??'')!=='printify'",$source);
+        self::assertStringContainsString("provider_product_key",$source);
+        self::assertStringContainsString("provider_variant_key",$source);
+        self::assertStringContainsString("'print_areas'=>\$geometry",$source);
+        self::assertStringNotContainsString("\$catalog['print_areas']",$source);
+    }
+
     public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
