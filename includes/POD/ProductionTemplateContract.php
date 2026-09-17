@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace DigiForge\POD;
 
-/**
- * Fail-closed contract for a versioned supplier-specific production template.
- * This class performs no provider calls, publishing, rendering or order action.
- */
+/** Fail-closed contract for an immutable, versioned supplier-specific production template. */
 final class ProductionTemplateContract
 {
-    public const STATUSES = ['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED'];
-    public const PIPELINES = ['PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'];
+    public const STATUSES=['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED'];
+    public const PIPELINES=['PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'];
 
     public static function normalize(array $input): array
     {
         $templateId=self::token($input['template_id']??null,'template_id');
         $version=self::positiveInt($input['template_version']??null,'template_version');
-        $supplier=self::token($input['supplier']??null,'supplier');
+        $supplier=strtolower(self::token($input['supplier']??null,'supplier'));
         $blueprint=self::positiveInt($input['provider_blueprint_id']??null,'provider_blueprint_id');
         $provider=self::positiveInt($input['provider_id']??null,'provider_id');
         $variants=self::positiveIntList($input['variant_ids']??null,'variant_ids');
@@ -28,25 +25,23 @@ final class ProductionTemplateContract
         if(!in_array($status,self::STATUSES,true)) throw new \InvalidArgumentException('unsupported template_status');
         $areas=$input['print_areas']??null;
         if(!is_array($areas)||$areas===[]) throw new \InvalidArgumentException('print_areas is required');
-        $normalizedAreas=[];
+        $normalizedAreas=[];$identities=[];
         foreach($areas as $area){
             if(!is_array($area)) throw new \InvalidArgumentException('print_area must be an object');
+            $position=strtolower(self::token($area['position']??null,'position'));
+            $method=strtolower(self::token($area['decoration_method']??null,'decoration_method'));
             $width=self::positiveInt($area['width_px']??null,'width_px');
             $height=self::positiveInt($area['height_px']??null,'height_px');
-            $normalizedAreas[]=[
-                'position'=>self::token($area['position']??null,'position'),
-                'decoration_method'=>self::token($area['decoration_method']??null,'decoration_method'),
-                'width_px'=>$width,
-                'height_px'=>$height,
-            ];
+            $identity=hash('sha256',$position."\0".$method);
+            if(isset($identities[$identity])) throw new \InvalidArgumentException('duplicate normalized print_area identity');
+            $identities[$identity]=true;
+            $normalizedAreas[]=['position'=>$position,'decoration_method'=>$method,'width_px'=>$width,'height_px'=>$height];
         }
-        $canonical=[
-            'template_id'=>$templateId,'template_version'=>$version,'supplier'=>$supplier,
-            'provider_blueprint_id'=>$blueprint,'provider_id'=>$provider,'variant_ids'=>$variants,
-            'print_areas'=>$normalizedAreas,'personalization_pipeline'=>$pipeline,
-            'personalization_engine'=>$engine,'template_status'=>$status,
-        ];
-        $canonical['fingerprint']=hash('sha256',(string)wp_json_encode($canonical));
+        usort($normalizedAreas,static fn(array $a,array $b):int=>[$a['position'],$a['decoration_method'],$a['width_px'],$a['height_px']]<=>[$b['position'],$b['decoration_method'],$b['width_px'],$b['height_px']]);
+        $canonical=['template_id'=>$templateId,'template_version'=>$version,'supplier'=>$supplier,'provider_blueprint_id'=>$blueprint,'provider_id'=>$provider,'variant_ids'=>$variants,'print_areas'=>$normalizedAreas,'personalization_pipeline'=>$pipeline,'personalization_engine'=>$engine,'template_status'=>$status];
+        $encoded=wp_json_encode($canonical);
+        if(!is_string($encoded)) throw new \RuntimeException('production template fingerprint encoding failed');
+        $canonical['fingerprint']=hash('sha256',$encoded);
         return $canonical;
     }
 
@@ -60,16 +55,16 @@ final class ProductionTemplateContract
     private static function token(mixed $value,string $field): string
     {
         if(!is_string($value)) throw new \InvalidArgumentException($field.' must be a string');
-        $value=trim($value); if($value==='') throw new \InvalidArgumentException($field.' is required'); return $value;
+        $value=trim($value);if($value==='') throw new \InvalidArgumentException($field.' is required');return $value;
     }
     private static function positiveInt(mixed $value,string $field): int
     {
         if(!is_int($value)&&!(is_string($value)&&ctype_digit($value))) throw new \InvalidArgumentException($field.' must be a positive integer');
-        $value=(int)$value; if($value<1) throw new \InvalidArgumentException($field.' must be a positive integer'); return $value;
+        $value=(int)$value;if($value<1) throw new \InvalidArgumentException($field.' must be a positive integer');return $value;
     }
     private static function positiveIntList(mixed $value,string $field): array
     {
         if(!is_array($value)||$value===[]) throw new \InvalidArgumentException($field.' is required');
-        $out=[]; foreach($value as $item)$out[]=self::positiveInt($item,$field); $out=array_values(array_unique($out)); sort($out,SORT_NUMERIC); return $out;
+        $out=[];foreach($value as $item)$out[]=self::positiveInt($item,$field);$out=array_values(array_unique($out));sort($out,SORT_NUMERIC);return $out;
     }
 }
