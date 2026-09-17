@@ -19,11 +19,20 @@ final class PrintifyCatalogSyncServiceStructureTest extends TestCase
         self::assertStringContainsString('PrintifyCatalogClient',$source);
     }
 
-    public function testSyncRemainsReadOnly(): void
+    public function testSyncUsesTokenPerReadAndPersistsNormalizedVariants(): void
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/PrintifyCatalogSyncService.php');
-        self::assertStringContainsString('blueprint($blueprintId)',$source);
-        self::assertStringContainsString('providers($blueprintId)',$source);
+        self::assertStringContainsString('blueprint($token,$blueprintId)',$source);
+        self::assertStringContainsString('providers($token,$blueprintId)',$source);
+        self::assertStringContainsString('variants($token,$blueprintId,$providerId)',$source);
+        self::assertStringContainsString('new PrintifyCatalogPersistence()',$source);
+        self::assertStringContainsString('persistVariant($raw)',$source);
+        self::assertStringContainsString('unset($token)',$source);
+    }
+
+    public function testSyncRemainsProviderReadOnly(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/PrintifyCatalogSyncService.php');
         self::assertStringNotContainsString('createOrder',$source);
         self::assertStringNotContainsString('publishProduct',$source);
         self::assertStringNotContainsString('wp_remote_post',$source);
