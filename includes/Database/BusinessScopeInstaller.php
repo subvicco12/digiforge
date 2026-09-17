@@ -12,11 +12,26 @@ final class BusinessScopeInstaller
         global $wpdb;
 
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
-        if ($currentVersion >= 14) {
-            return true;
-        }
-        if ($currentVersion !== 13) {
+        if ($currentVersion < 13) {
             return false;
+        }
+
+        $tables = [
+            Tables::businesses(),
+            Tables::stores(),
+            Tables::product_programs(),
+            Tables::pod_business_mappings(),
+        ];
+        $allPresent = true;
+        foreach ($tables as $table) {
+            $present = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
+            if ($present !== $table) {
+                $allPresent = false;
+                break;
+            }
+        }
+        if ($currentVersion >= 14 && $allPresent) {
+            return true;
         }
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -27,6 +42,17 @@ final class BusinessScopeInstaller
             if ($wpdb->last_error !== '') {
                 update_option('digiforge_last_migration_failure', [
                     'error_code' => 'BUSINESS_SCOPE_SCHEMA_UPDATE_FAILED',
+                    'occurred_at' => current_time('mysql', true),
+                ], false);
+                return false;
+            }
+        }
+
+        foreach ($tables as $table) {
+            $present = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
+            if ($present !== $table) {
+                update_option('digiforge_last_migration_failure', [
+                    'error_code' => 'BUSINESS_SCOPE_SCHEMA_VERIFY_FAILED',
                     'occurred_at' => current_time('mysql', true),
                 ], false);
                 return false;
