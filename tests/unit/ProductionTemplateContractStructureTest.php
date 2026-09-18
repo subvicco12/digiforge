@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+use PHPUnit\Framework\TestCase;
+
+final class ProductionTemplateContractStructureTest extends TestCase
+{
+    public function testContractLocksSupplierGeometryAndPersonalization(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertIsString($source);
+        foreach(['provider_blueprint_id','provider_id','variant_ids','print_areas','width_px','height_px','decoration_method','PRINTIFY_NATIVE','DIGIFORGE_RENDER','DIGIFORGE_AI'] as $needle) self::assertStringContainsString($needle,$source);
+        self::assertStringContainsString("hash('sha256'",$source);
+    }
+
+    public function testCanonicalIdentityRejectsDuplicateAreasAndOrderDrift(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString("strtolower(self::token(\$input['supplier']",$source);
+        self::assertStringContainsString("strtolower(self::token(\$area['position']",$source);
+        self::assertStringContainsString("strtolower(self::token(\$area['decoration_method']",$source);
+        self::assertStringContainsString('duplicate normalized print_area identity',$source);
+        self::assertStringContainsString('usort($normalizedAreas',$source);
+        self::assertStringContainsString('fingerprint encoding failed',$source);
+    }
+
+    public function testPrintifyBridgeRequiresNormalizedCatalogIdentityAndExplicitGeometry(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString('fromPrintifyCatalog(array $catalog,array $geometry,array $template)',$source);
+        self::assertStringContainsString("(\$catalog['provider']??'')!=='printify'",$source);
+        self::assertStringContainsString("provider_product_key",$source);
+        self::assertStringContainsString("provider_variant_key",$source);
+        self::assertStringContainsString("'print_areas'=>\$geometry",$source);
+        self::assertStringContainsString("array_key_exists(\$reserved,\$template)",$source);
+        self::assertStringContainsString("is derived and cannot be overridden",$source);
+        self::assertStringContainsString("(int)\$product<1",$source);
+        self::assertStringNotContainsString("\$catalog['print_areas']",$source);
+        self::assertStringNotContainsString("\$template+['supplier'",$source);
+    }
+
+    public function testRepositoryVersionsDriftWithoutMutatingExistingTemplates(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('createDriftCandidate(array $input)',$source);
+        self::assertStringContainsString("ORDER BY template_version DESC LIMIT 1",$source);
+        self::assertStringContainsString("['template_version']+1",$source);
+        self::assertStringContainsString("['template_status']='DRAFT'",$source);
+        self::assertStringContainsString('digiforge_template_no_drift',$source);
+        self::assertStringContainsString('digiforge_template_version_conflict',$source);
+    }
+
+    public function testMaterialDriftExcludesLifecycleIdentity(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString('materialFingerprint(array $normalized)',$source);
+        self::assertStringContainsString("['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas','personalization_pipeline','personalization_engine']",$source);
+        $repo=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
+        self::assertStringContainsString('ProductionTemplateContract::materialFingerprint($priorNormalized)',$repo);
+        self::assertStringContainsString('ProductionTemplateContract::materialFingerprint($candidate)',$repo);
+        self::assertStringContainsString('digiforge_template_no_drift',$repo);
+    }
+
+    public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString("['VALIDATED','RETIRED']",$source);
+        self::assertStringContainsString('catalog drift creates a new candidate version',$source);
+        self::assertStringNotContainsString('wp_remote_',$source);
+        self::assertStringNotContainsString('createOrder',$source);
+        self::assertStringNotContainsString('publish',$source);
+    }
+}
