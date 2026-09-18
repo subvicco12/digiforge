@@ -31,7 +31,7 @@ final class PrintifyCatalogPersistenceStructureTest extends TestCase
 
     public function testConcurrentPhysicalIdentityInsertConvergesByRefetch(): void
     {
-        $source=$this->source();self::assertStringContainsString('findPhysical',$source);self::assertStringContainsString("if(\$ok===false)",$source);self::assertStringContainsString('persistExisting($winner,$data)',$source);self::assertStringNotContainsString('return $this->persistVariant($raw)',$source);
+        $source=$this->source();self::assertStringContainsString('findPhysical',$source);self::assertStringContainsString("if(\$ok===false)",$source);self::assertStringContainsString('persistExisting($winner,$data)',$source);self::assertStringContainsString("SELECT * FROM '.\$table.' WHERE id=%d",$source);self::assertStringContainsString("(is_array(\$fresh)?\$fresh:\$existing)+['catalog_change_detected'=>false,'idempotent'=>true]",$source);self::assertStringNotContainsString('return $this->persistVariant($raw)',$source);
     }
 
     public function testCatalogPersistenceCannotMutateProductionTemplatesOrExecuteProviderActions(): void
