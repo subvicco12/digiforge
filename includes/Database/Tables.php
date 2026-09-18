@@ -58,6 +58,7 @@ final class Tables {
     public static function pod_cost_snapshots(): string { return self::name('pod_cost_snapshots'); }
     public static function pod_readiness_reviews(): string { return self::name('pod_readiness_reviews'); }
     public static function pod_execution_nonces(): string { return self::name('pod_execution_nonces'); }
+    public static function pod_execution_receipts(): string { return self::name('pod_execution_receipts'); }
     public static function listings(): string { return self::name('listings'); }
     public static function listing_seo(): string { return self::name('listing_seo'); }
     public static function listing_media(): string { return self::name('listing_media'); }
