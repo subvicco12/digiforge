@@ -40,6 +40,18 @@ final class ProductionTemplateContractStructureTest extends TestCase
         self::assertStringNotContainsString("\$template+['supplier'",$source);
     }
 
+    public function testRepositoryVersionsDriftWithoutMutatingExistingTemplates(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('createDriftCandidate(array $input)',$source);
+        self::assertStringContainsString("ORDER BY template_version DESC LIMIT 1",$source);
+        self::assertStringContainsString("['template_version']+1",$source);
+        self::assertStringContainsString("['template_status']='DRAFT'",$source);
+        self::assertStringContainsString('digiforge_template_no_drift',$source);
+        self::assertStringContainsString('digiforge_template_version_conflict',$source);
+    }
+
     public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
