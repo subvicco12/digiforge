@@ -39,3 +39,4 @@ final class PrintifyCatalogPersistenceStructureTest extends TestCase
         $source=$this->source();self::assertStringNotContainsString('ProductionTemplate',$source);self::assertStringNotContainsString('pod_mappings()',$source);self::assertStringNotContainsString('wp_remote_',$source);self::assertStringNotContainsString('createOrder',$source);self::assertStringNotContainsString('publish',$source);
     }
 }
+
