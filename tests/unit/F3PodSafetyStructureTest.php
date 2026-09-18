@@ -50,6 +50,10 @@ final class F3PodSafetyStructureTest extends TestCase
         self::assertStringContainsString("get_header('Idempotency-Key')",$controller);
         self::assertStringContainsString('missing_idempotency_key',$controller);
         self::assertStringContainsString('idempotency_conflict',$controller);
+        self::assertStringContainsString('idempotency_replay',$controller);
+        self::assertStringContainsString("if(\$state==='SUCCESS')",$controller);
+        self::assertStringContainsString('already completed successfully',$controller);
+        self::assertStringContainsString('already pending',$controller);
         $idempotency=file_get_contents(__DIR__.'/../../includes/Queue/Idempotency.php');
         self::assertIsString($idempotency);
         self::assertStringContainsString('public function status(string $key): ?string',$idempotency);
