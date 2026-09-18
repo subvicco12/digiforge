@@ -40,7 +40,7 @@ final class PrintifyCatalogPersistence
     private function persistExisting(array $existing,array $data): array|WP_Error
     {
         global $wpdb;$table=Tables::pod_catalog();$data['state']=(string)($existing['state']??'DRAFT');
-        if(!$this->materialChanged($existing,$data)){$freshness=['observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false)return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);return $existing+['catalog_change_detected'=>false,'idempotent'=>true];}
+        if(!$this->materialChanged($existing,$data)){$freshness=['observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false)return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);$fresh=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$existing['id']),ARRAY_A);return (is_array($fresh)?$fresh:$existing)+['catalog_change_detected'=>false,'idempotent'=>true];}
         $ok=$wpdb->update($table,$data,['id'=>(int)$existing['id']]);if($ok===false)return new WP_Error('digiforge_printify_catalog_update','Catalog evidence could not be updated.',['status'=>500]);return $data+['id'=>(int)$existing['id'],'catalog_change_detected'=>true,'idempotent'=>false];
     }
 
