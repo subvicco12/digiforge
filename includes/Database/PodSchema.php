@@ -19,6 +19,21 @@ final class PodSchema
 
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
         if ($currentVersion >= 10) {
+            // Reconcile additive POD tables introduced after schema 10 without
+            // rewinding the current database version.
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            $charset = $wpdb->get_charset_collate();
+            foreach (self::statements($charset) as $statement) {
+                $wpdb->last_error = '';
+                dbDelta($statement);
+                if ($wpdb->last_error !== '') {
+                    update_option('digiforge_last_migration_failure', [
+                        'error_code' => 'POD_SCHEMA_UPDATE_FAILED',
+                        'occurred_at' => current_time('mysql', true),
+                    ], false);
+                    return false;
+                }
+            }
             self::grantCapability();
             return true;
         }
@@ -50,6 +65,28 @@ final class PodSchema
     public static function statements(string $charset): array
     {
         return [
+            "CREATE TABLE " . Tables::pod_production_templates() . " (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  template_id varchar(100) NOT NULL,
+  template_version int unsigned NOT NULL,
+  supplier varchar(32) NOT NULL,
+  provider_blueprint_id bigint unsigned NOT NULL,
+  provider_id bigint unsigned NOT NULL,
+  variant_ids longtext NOT NULL,
+  print_areas longtext NOT NULL,
+  personalization_pipeline varchar(32) NOT NULL,
+  personalization_engine varchar(64) NOT NULL,
+  template_status varchar(32) NOT NULL DEFAULT 'DRAFT',
+  fingerprint char(64) NOT NULL,
+  created_by bigint unsigned NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY template_version (template_id,template_version),
+  UNIQUE KEY fingerprint (fingerprint),
+  KEY supplier_blueprint (supplier,provider_blueprint_id,provider_id),
+  KEY template_status (template_status)
+) $charset;",
             "CREATE TABLE " . Tables::pod_catalog() . " (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   provider varchar(32) NOT NULL,
