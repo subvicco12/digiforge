@@ -33,7 +33,9 @@ final class ControlledExecutionTransaction
   if(($normalized['status']??'')!=='SUCCEEDED'){
    $failure=ExecutionFailureRecord::record($authorization,$permit,$normalized,$actor,$now);
    if(is_wp_error($failure))return $failure;
-   return new WP_Error('digiforge_transaction_failed','Adapter execution did not succeed; nonce remains consumed.',['status'=>502,'failure_record'=>$failure]);
+   $persistedFailure=ExecutionFailureRepository::save($failure);
+   if(is_wp_error($persistedFailure))return $persistedFailure;
+   return new WP_Error('digiforge_transaction_failed','Adapter execution did not succeed; nonce remains consumed.',['status'=>502,'failure_record'=>$failure,'persisted_failure'=>$persistedFailure]);
   }
 
   $receipt=ExecutionReceipt::record(
