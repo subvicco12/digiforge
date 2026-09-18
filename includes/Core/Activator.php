@@ -26,15 +26,6 @@ final class Activator {
         if (! ProductionSchema::migrateIfNeeded()) {
             return;
         }
-        if (! ListingSchema::migrateIfNeeded()) {
-            return;
-        }
-        if (! OrderSchema::migrateIfNeeded()) {
-            return;
-        }
-        if (! FinanceSchema::migrateIfNeeded()) {
-            return;
-        }
         (new Migrator())->migrate();
         if (! BusinessScopeInstaller::migrateIfNeeded()) {
             return;
