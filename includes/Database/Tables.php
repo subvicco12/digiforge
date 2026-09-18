@@ -49,6 +49,7 @@ final class Tables {
     public static function product_programs(): string { return self::name('product_programs'); }
     public static function pod_business_mappings(): string { return self::name('pod_business_mappings'); }
     public static function pod_catalog(): string { return self::name('pod_catalog'); }
+    public static function pod_production_templates(): string { return self::name('pod_production_templates'); }
     public static function pod_mappings(): string { return self::name('pod_mappings'); }
     public static function pod_print_areas(): string { return self::name('pod_print_areas'); }
     public static function personalization_schemas(): string { return self::name('personalization_schemas'); }
