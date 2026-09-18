@@ -4,7 +4,7 @@ namespace DigiForge\POD;
 use DigiForge\Database\Tables;
 use WP_Error;
 
-/** Read-only lookup for the immutable terminal outcome bound to one authorization. */
+/** Read-only lookup for the immutable terminal outcome bound to one authorization; conflicting terminal states fail closed. */
 final class ExecutionOutcomeRepository
 {
  /** @return array<string,mixed>|WP_Error */
