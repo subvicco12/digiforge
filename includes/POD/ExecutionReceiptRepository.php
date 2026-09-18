@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\POD;
+use DigiForge\Database\Tables;
 use WP_Error;
 
 /** Persists immutable adapter execution evidence with exact replay semantics. */
@@ -17,7 +18,7 @@ final class ExecutionReceiptRepository
   $r=$receipt['receipt'];$auth=(string)($r['authorization_hash']??'');$nonce=(string)($r['authorization_nonce_hash']??'');
   if(!preg_match('/^[a-f0-9]{64}$/',$auth)||!preg_match('/^[a-f0-9]{64}$/',$nonce))
    return new WP_Error('digiforge_receipt_binding','Receipt authorization binding is invalid.',['status'=>400]);
-  global $wpdb;$table=$wpdb->prefix.'digiforge_pod_execution_receipts';
+  global $wpdb;$table=Tables::pod_execution_receipts();
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($existing)){
    if(hash_equals((string)$existing['receipt_hash'],$hash))return $existing;
