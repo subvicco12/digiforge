@@ -31,6 +31,8 @@ final class ExecutionFailureRecord
    'executed_by'=>$executedBy,
    'recorded_at'=>$recordedAt,
    'adapter_status'=>'FAILED',
+   'failure_category'=>(string)($normalized['failure_category']??''),
+   'failure_code'=>(string)($normalized['failure_code']??''),
    'nonce_consumed'=>true,
    'retry_permitted'=>false,
   ];
