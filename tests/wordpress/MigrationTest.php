@@ -10,7 +10,7 @@ final class MigrationTest extends WP_UnitTestCase
     }
     private function podTables(): array
     {
-        return [DigiForge\Database\Tables::pod_catalog(), DigiForge\Database\Tables::pod_mappings(), DigiForge\Database\Tables::pod_print_areas(), DigiForge\Database\Tables::personalization_schemas(), DigiForge\Database\Tables::personalization_bindings(), DigiForge\Database\Tables::pod_provider_intents(), DigiForge\Database\Tables::pod_cost_snapshots(), DigiForge\Database\Tables::pod_readiness_reviews()];
+        return [DigiForge\Database\Tables::pod_execution_nonces(), DigiForge\Database\Tables::pod_execution_receipts(), DigiForge\Database\Tables::pod_catalog(), DigiForge\Database\Tables::pod_mappings(), DigiForge\Database\Tables::pod_print_areas(), DigiForge\Database\Tables::personalization_schemas(), DigiForge\Database\Tables::personalization_bindings(), DigiForge\Database\Tables::pod_provider_intents(), DigiForge\Database\Tables::pod_cost_snapshots(), DigiForge\Database\Tables::pod_readiness_reviews()];
     }
     private function businessScopeTables(): array
     {
