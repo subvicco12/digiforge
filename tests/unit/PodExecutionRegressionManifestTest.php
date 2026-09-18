@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
-/** Guards the complete controlled-execution regression surface from accidental test loss. */
+/** Guards the complete controlled-execution regression surface from accidental test loss. Exact-head certification required. */
 final class PodExecutionRegressionManifestTest extends TestCase{
  public function testCriticalRegressionSuitesExist():void{
   $root=dirname(__DIR__);
