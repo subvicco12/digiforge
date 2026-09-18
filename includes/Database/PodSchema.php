@@ -65,6 +65,22 @@ final class PodSchema
     public static function statements(string $charset): array
     {
         return [
+            "CREATE TABLE " . Tables::pod_execution_failures() . " (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  action varchar(100) NOT NULL,
+  evidence_hash char(64) NOT NULL,
+  authorization_hash char(64) NOT NULL,
+  nonce_hash char(64) NOT NULL,
+  executed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  recorded_at datetime NOT NULL,
+  failure_hash char(64) NOT NULL,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY authorization_hash (authorization_hash),
+  UNIQUE KEY failure_hash (failure_hash),
+  KEY nonce_hash (nonce_hash),
+  KEY action_recorded_at (action,recorded_at)
+) $charset;",
             "CREATE TABLE " . Tables::pod_execution_receipts() . " (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   action varchar(100) NOT NULL,
