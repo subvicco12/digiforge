@@ -8,6 +8,7 @@ on:
       - main
       - 'build/**'
       - 'phase-**'
+      - 'feature/**'
   workflow_dispatch:
 
 permissions:
