@@ -4,6 +4,46 @@ declare(strict_types=1);
 
 final class MigrationTest extends WP_UnitTestCase
 {
+    public function testPodSchemaReconcilesAdditiveTablesForExistingVersionTenInstalls(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/Database/PodSchema.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('if ($currentVersion >= 10)', $source);
+        self::assertStringContainsString('foreach (self::statements($charset) as $statement)', $source);
+        self::assertStringContainsString('dbDelta($statement)', $source);
+        self::assertStringContainsString('Tables::pod_production_templates()', $source);
+    }
+
+    public function testExistingVersionTenInstallActuallyReceivesProductionTemplateTable(): void
+    {
+        DigiForge\Core\Activator::activate();
+        global $wpdb;
+        $table=DigiForge\Database\Tables::pod_production_templates();
+        $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($table) . '`');
+        update_option('digiforge_db_schema_version',10,false);
+        $wpdb->last_error='';
+        self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded());
+        self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        self::assertSame('',(string)$wpdb->last_error);
+        self::assertSame(10,(int)get_option('digiforge_db_schema_version'));
+    }
+
+    public function testCurrentSchemaThirteenRepairsMissingProductionTemplateTableWithoutVersionRewind(): void
+    {
+        DigiForge\Core\Activator::activate();
+        global $wpdb;
+        $table=DigiForge\Database\Tables::pod_production_templates();
+        $jobsBefore=$wpdb->get_row('SHOW CREATE TABLE '.DigiForge\Database\Tables::jobs(),ARRAY_N);
+        self::assertIsArray($jobsBefore);
+        $wpdb->query('DROP TABLE IF EXISTS `'.esc_sql($table).'`');
+        update_option('digiforge_db_schema_version',13,false);update_option('digiforge_db_version','13',false);$wpdb->last_error='';
+        self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded());
+        self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        self::assertSame(13,(int)get_option('digiforge_db_schema_version'));self::assertSame('13',(string)get_option('digiforge_db_version'));
+        self::assertSame($jobsBefore,$wpdb->get_row('SHOW CREATE TABLE '.DigiForge\Database\Tables::jobs(),ARRAY_N));
+        self::assertSame('',(string)$wpdb->last_error);
+    }
+
     private function productionTables(): array
     {
         return [
@@ -16,7 +56,7 @@ final class MigrationTest extends WP_UnitTestCase
     private function podTables(): array
     {
         return [
-            DigiForge\Database\Tables::pod_catalog(), DigiForge\Database\Tables::pod_mappings(), DigiForge\Database\Tables::pod_print_areas(),
+            DigiForge\Database\Tables::pod_catalog(), DigiForge\Database\Tables::pod_production_templates(), DigiForge\Database\Tables::pod_mappings(), DigiForge\Database\Tables::pod_print_areas(),
             DigiForge\Database\Tables::personalization_schemas(), DigiForge\Database\Tables::personalization_bindings(), DigiForge\Database\Tables::pod_provider_intents(),
             DigiForge\Database\Tables::pod_cost_snapshots(), DigiForge\Database\Tables::pod_readiness_reviews(),
         ];
