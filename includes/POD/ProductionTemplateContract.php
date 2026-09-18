@@ -16,8 +16,11 @@ final class ProductionTemplateContract
         if(($catalog['provider']??'')!=='printify') throw new \InvalidArgumentException('normalized Printify catalog evidence is required');
         $product=(string)($catalog['provider_product_key']??'');$variant=(string)($catalog['provider_variant_key']??'');
         if(!ctype_digit($product)||!preg_match('/^([1-9][0-9]*):([1-9][0-9]*)$/',$variant,$match)) throw new \InvalidArgumentException('Printify catalog identity is invalid');
-        if((int)$match[1]<1||(int)$match[2]<1) throw new \InvalidArgumentException('Printify provider and variant identity must be positive');
-        $input=$template+['supplier'=>'printify','provider_blueprint_id'=>(int)$product,'provider_id'=>(int)$match[1],'variant_ids'=>[(int)$match[2]],'print_areas'=>$geometry];
+        if((int)$product<1||(int)$match[1]<1||(int)$match[2]<1) throw new \InvalidArgumentException('Printify blueprint, provider and variant identity must be positive');
+        foreach(['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas'] as $reserved){
+            if(array_key_exists($reserved,$template)) throw new \InvalidArgumentException($reserved.' is derived and cannot be overridden');
+        }
+        $input=array_merge($template,['supplier'=>'printify','provider_blueprint_id'=>(int)$product,'provider_id'=>(int)$match[1],'variant_ids'=>[(int)$match[2]],'print_areas'=>$geometry]);
         return self::normalize($input);
     }
 
