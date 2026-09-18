@@ -10,7 +10,10 @@ final class ExecutionReceipt
  public static function record(array $authorization,string $action,string $externalReference,int $executedBy,int $executedAt):array|WP_Error
  {
   $required=strtoupper(trim($action));$evidence=(string)($authorization['authorization']['evidence_hash']??'');
-  $verified=ExecutionAuthorizationVerifier::verify($authorization,$required,$evidence,$executedAt,static fn(string $nonce):bool=>true);
+  $verified=ExecutionAuthorizationVerifier::verify($authorization,$required,$evidence,$executedAt,static function(string $nonce)use($authorization):bool{
+   $expected=(string)($authorization['authorization']['nonce']??'');
+   return $expected!==''&&hash_equals($expected,$nonce);
+  });
   if(is_wp_error($verified))return $verified;
   if(!preg_match('/^[A-Za-z0-9._:\/-]{3,160}$/',$externalReference))
    return new WP_Error('digiforge_execution_reference','A valid provider reference is required.',['status'=>400]);

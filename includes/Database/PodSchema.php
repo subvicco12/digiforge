@@ -71,6 +71,8 @@ final class PodSchema
   evidence_hash char(64) NOT NULL,
   authorization_hash char(64) NOT NULL,
   nonce_hash char(64) NOT NULL,
+  failure_category varchar(64) NOT NULL DEFAULT '',
+  failure_code varchar(100) NOT NULL DEFAULT '',
   executed_by bigint(20) unsigned NOT NULL DEFAULT 0,
   recorded_at datetime NOT NULL,
   failure_hash char(64) NOT NULL,
