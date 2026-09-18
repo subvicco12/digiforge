@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
-/** Final static safety certificate for the provider-neutral execution boundary. */
+/** Final static safety certificate for the provider-neutral execution boundary. Exact-head CI must pass before merge. */
 final class PodExecutionSafetyCertificateTest extends TestCase{
  public function testCriticalExecutionSafetyComponentsRemainPresentAndProviderNeutral():void{
   $root=dirname(__DIR__,2).'/includes/POD/';
