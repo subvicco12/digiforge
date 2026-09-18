@@ -40,3 +40,4 @@ final class ProductionTemplateRepositoryStructureTest extends TestCase
         self::assertStringNotContainsString('publish',$source);
     }
 }
+
