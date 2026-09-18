@@ -33,7 +33,11 @@ final class ProductionTemplateContractStructureTest extends TestCase
         self::assertStringContainsString("provider_product_key",$source);
         self::assertStringContainsString("provider_variant_key",$source);
         self::assertStringContainsString("'print_areas'=>\$geometry",$source);
+        self::assertStringContainsString("array_key_exists(\$reserved,\$template)",$source);
+        self::assertStringContainsString("is derived and cannot be overridden",$source);
+        self::assertStringContainsString("(int)\$product<1",$source);
         self::assertStringNotContainsString("\$catalog['print_areas']",$source);
+        self::assertStringNotContainsString("\$template+['supplier'",$source);
     }
 
     public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
