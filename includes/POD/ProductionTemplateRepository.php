@@ -46,7 +46,7 @@ final class ProductionTemplateRepository
         try{$candidate=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
         if(is_array($latest)){
             $prior=$latest;$prior['variant_ids']=json_decode((string)($prior['variant_ids']??'[]'),true);$prior['print_areas']=json_decode((string)($prior['print_areas']??'[]'),true);
-            try{$priorNormalized=ProductionTemplateContract::normalize($prior);$priorMaterial=ProductionTemplateContract::materialFingerprint($priorNormalized);$candidateMaterial=ProductionTemplateContract::materialFingerprint($candidate);}catch(\\Throwable $e){return new WP_Error('digiforge_template_drift_evidence',$e->getMessage(),['status'=>500]);}
+            try{$priorNormalized=ProductionTemplateContract::normalize($prior);$priorMaterial=ProductionTemplateContract::materialFingerprint($priorNormalized);$candidateMaterial=ProductionTemplateContract::materialFingerprint($candidate);}catch(\Throwable $e){return new WP_Error('digiforge_template_drift_evidence',$e->getMessage(),['status'=>500]);}
             if(hash_equals($priorMaterial,$candidateMaterial)) return new WP_Error('digiforge_template_no_drift','No production-template drift was detected.',['status'=>409]);
         }
         return $this->save($candidate);
