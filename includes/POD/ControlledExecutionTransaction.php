@@ -26,7 +26,7 @@ final class ControlledExecutionTransaction
    return new WP_Error('digiforge_transaction_permit','Consumed adapter permit required.',['status'=>403]);
 
   $raw=$adapter->execute($permit,$payload);
-  if(is_wp_error($raw))return $raw;
+  if(is_wp_error($raw))$raw=ExecutionAdapterFailure::fromError($permit,$raw);
 
   $normalized=ExecutionAdapterResult::normalize($permit,$raw);
   if(is_wp_error($normalized))return $normalized;
