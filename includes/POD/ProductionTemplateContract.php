@@ -59,6 +59,14 @@ final class ProductionTemplateContract
         return $canonical;
     }
 
+    /** Fingerprint only production-material fields so version/status changes do not manufacture drift. */
+    public static function materialFingerprint(array $normalized): string
+    {
+        $material=[];
+        foreach(['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas','personalization_pipeline','personalization_engine'] as $field){if(!array_key_exists($field,$normalized)) throw new \\InvalidArgumentException('normalized production template material is incomplete');$material[$field]=$normalized[$field];}
+        $encoded=wp_json_encode($material);if(!is_string($encoded)) throw new \\RuntimeException('production template material fingerprint encoding failed');return hash('sha256',$encoded);
+    }
+
     /** Validated production versions are immutable; catalog drift creates a new candidate version. */
     public static function assertMutable(array $existing): void
     {
