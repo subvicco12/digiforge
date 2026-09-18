@@ -31,7 +31,8 @@ final class AdminScopePolicy
     {
         $resolved=self::resolve($scope);if(is_wp_error($resolved))return $resolved;
         $status=strtoupper(trim((string)($template['template_status']??'')));
-        if(!in_array($status,ProductionTemplateContract::STATUSES,true)) return new WP_Error('digiforge_pod_template_status','A valid production-template status is required.',['status'=>409]);
+        $statuses=['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED'];
+        if(!in_array($status,$statuses,true)) return new WP_Error('digiforge_pod_template_status','A valid production-template status is required.',['status'=>409]);
         if(in_array($status,['VALIDATED','RETIRED'],true)) return new WP_Error('digiforge_pod_template_immutable','Validated or retired production templates are immutable; create a new DRAFT version for changes.',['status'=>409]);
         return true;
     }
