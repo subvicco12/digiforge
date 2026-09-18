@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 final class MigrationTest extends WP_UnitTestCase
 {
+    public function testPodSchemaReconcilesAdditiveTablesForExistingVersionTenInstalls(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/Database/PodSchema.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('if ($currentVersion >= 10)', $source);
+        self::assertStringContainsString('foreach (self::statements($charset) as $statement)', $source);
+        self::assertStringContainsString('dbDelta($statement)', $source);
+        self::assertStringContainsString('Tables::pod_production_templates()', $source);
+    }
+
     private function productionTables(): array
     {
         return [
