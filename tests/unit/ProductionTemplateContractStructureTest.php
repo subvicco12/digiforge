@@ -52,6 +52,17 @@ final class ProductionTemplateContractStructureTest extends TestCase
         self::assertStringContainsString('digiforge_template_version_conflict',$source);
     }
 
+    public function testMaterialDriftExcludesLifecycleIdentity(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
+        self::assertStringContainsString('materialFingerprint(array $normalized)',$source);
+        self::assertStringContainsString("['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas','personalization_pipeline','personalization_engine']",$source);
+        $repo=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
+        self::assertStringContainsString('ProductionTemplateContract::materialFingerprint($priorNormalized)',$repo);
+        self::assertStringContainsString('ProductionTemplateContract::materialFingerprint($candidate)',$repo);
+        self::assertStringContainsString('digiforge_template_no_drift',$repo);
+    }
+
     public function testValidatedTemplatesAreImmutableAndContractHasNoExecution(): void
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
