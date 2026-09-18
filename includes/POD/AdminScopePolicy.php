@@ -26,6 +26,16 @@ final class AdminScopePolicy
         }
     }
 
+    /** Template lifecycle changes are admin-scoped and remain non-executing. */
+    public static function canManageTemplate(array $scope,array $template): true|WP_Error
+    {
+        $resolved=self::resolve($scope);if(is_wp_error($resolved))return $resolved;
+        $status=strtoupper(trim((string)($template['template_status']??'')));
+        if(!in_array($status,ProductionTemplateContract::STATUSES,true)) return new WP_Error('digiforge_pod_template_status','A valid production-template status is required.',['status'=>409]);
+        if(in_array($status,['VALIDATED','RETIRED'],true)) return new WP_Error('digiforge_pod_template_immutable','Validated or retired production templates are immutable; create a new DRAFT version for changes.',['status'=>409]);
+        return true;
+    }
+
     public static function canActivateProgram(array $scope): true|WP_Error
     {
         /* BusinessScope::resolveConfigured() is the canonical ACTIVE ownership
