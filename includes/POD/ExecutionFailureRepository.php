@@ -4,7 +4,7 @@ namespace DigiForge\POD;
 use DigiForge\Database\Tables;
 use WP_Error;
 
-/** Persists immutable terminal execution failure evidence with exact replay semantics. */
+/** Persists immutable terminal execution failure evidence with exact replay semantics. Divergent authorization replay is always rejected. */
 final class ExecutionFailureRepository
 {
  /** @return array<string,mixed>|WP_Error */
