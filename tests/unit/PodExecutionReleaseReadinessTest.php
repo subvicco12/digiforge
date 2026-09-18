@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
-/** Release-readiness guard for the controlled POD execution subsystem. */
+/** Release-readiness guard for the controlled POD execution subsystem. Exact-head CI certification required. */
 final class PodExecutionReleaseReadinessTest extends TestCase{
  public function testSafetyAndPersistenceLayersArePresent():void{
   $pod=dirname(__DIR__,2).'/includes/POD/';
