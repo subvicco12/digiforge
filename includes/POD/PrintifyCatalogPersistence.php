@@ -31,10 +31,17 @@ final class PrintifyCatalogPersistence
         if($ok===false){
             // A concurrent sync may have won the unique physical identity race. Refetch and
             // converge through the normal update/idempotence path instead of surfacing a false failure.
-            $winner=$this->findPhysical($row);if(is_array($winner))return $this->persistVariant($raw);
+            $winner=$this->findPhysical($row);if(is_array($winner))return $this->persistExisting($winner,$data);
             return new WP_Error('digiforge_printify_catalog_insert','Catalog evidence could not be stored.',['status'=>500]);
         }
         return $data+['id'=>(int)$wpdb->insert_id,'catalog_change_detected'=>false,'idempotent'=>false];
+    }
+
+    private function persistExisting(array $existing,array $data): array|WP_Error
+    {
+        global $wpdb;$table=Tables::pod_catalog();$data['state']=(string)($existing['state']??'DRAFT');
+        if(!$this->materialChanged($existing,$data)){$freshness=['observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false)return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);return $existing+['catalog_change_detected'=>false,'idempotent'=>true];}
+        $ok=$wpdb->update($table,$data,['id'=>(int)$existing['id']]);if($ok===false)return new WP_Error('digiforge_printify_catalog_update','Catalog evidence could not be updated.',['status'=>500]);return $data+['id'=>(int)$existing['id'],'catalog_change_detected'=>true,'idempotent'=>false];
     }
 
     private function findPhysical(array $row): ?array
