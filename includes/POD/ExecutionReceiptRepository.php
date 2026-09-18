@@ -19,6 +19,8 @@ final class ExecutionReceiptRepository
   if(!preg_match('/^[a-f0-9]{64}$/',$auth)||!preg_match('/^[a-f0-9]{64}$/',$nonce))
    return new WP_Error('digiforge_receipt_binding','Receipt authorization binding is invalid.',['status'=>400]);
   global $wpdb;$table=Tables::pod_execution_receipts();
+  $failure=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_failures().' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+  if(is_array($failure))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization already has terminal failure evidence.',['status'=>409]);
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($existing)){
    if(hash_equals((string)$existing['receipt_hash'],$hash))return $existing;
