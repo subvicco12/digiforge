@@ -25,6 +25,13 @@ final class ProductionTemplateRepositoryStructureTest extends TestCase
         self::assertStringContainsString('requires a new template_version',$source);
     }
 
+    public function testDriftEvidenceCatchUsesValidGlobalThrowableSyntax(): void
+    {
+        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
+        self::assertStringContainsString("catch(\\Throwable \$e){return new WP_Error('digiforge_template_drift_evidence'",$source);
+        self::assertStringNotContainsString('catch(\\\\Throwable $e)',$source);
+    }
+
     public function testRepositoryContainsNoProviderOrPublishingExecution(): void
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateRepository.php');
