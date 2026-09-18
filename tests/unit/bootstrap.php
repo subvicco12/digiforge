@@ -9,6 +9,13 @@ if (! function_exists('wp_json_encode')) {
         return json_encode($value, $flags);
     }
 }
+if (! function_exists('sanitize_key')) {
+    function sanitize_key(string $key): string
+    {
+        $key = strtolower($key);
+        return preg_replace('/[^a-z0-9_\-]/', '', $key) ?? '';
+    }
+}
 // phpcs:enable PSR1.Files.SideEffects.FoundWithSymbols
 
 require_once __DIR__ . '/../../includes/Core/Config.php';
@@ -26,5 +33,6 @@ require_once __DIR__ . '/../../includes/Finance/Validator.php';
 require_once __DIR__ . '/../../includes/Operations/RetentionPolicy.php';
 require_once __DIR__ . '/../../includes/Operations/RecoveryDrill.php';
 require_once __DIR__ . '/../../includes/Database/MigrationPlan.php';
+require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/Queue/JobState.php';
 require_once __DIR__ . '/../../includes/Observability/HealthStatus.php';

@@ -11,6 +11,14 @@ final class Idempotency {
         if ($key === '' || $operation_type === '') { return false; }
         return 1 === $wpdb->query($wpdb->prepare('INSERT IGNORE INTO ' . Tables::idempotency() . ' (operation_key, operation_type, status, created_at, updated_at) VALUES (%s,%s,%s,UTC_TIMESTAMP(),UTC_TIMESTAMP())', $key, $operation_type, 'PENDING'));
     }
+    /** Returns persisted reservation state for replay-aware REST boundaries. */
+    public function status(string $key): ?string {
+        global $wpdb;
+        $key = sanitize_text_field($key);
+        if ($key === '') { return null; }
+        $status = $wpdb->get_var($wpdb->prepare('SELECT status FROM ' . Tables::idempotency() . ' WHERE operation_key = %s', $key));
+        return is_string($status) && $status !== '' ? $status : null;
+    }
     public function complete(string $key, string $response_hash = ''): bool {
         global $wpdb;
         $key = sanitize_text_field($key);

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Core;
+use DigiForge\Database\BusinessScopeInstaller;
 use DigiForge\Database\FinanceSchema;
 use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
@@ -35,6 +36,9 @@ final class Activator {
             return;
         }
         (new Migrator())->migrate();
+        if (! BusinessScopeInstaller::migrateIfNeeded()) {
+            return;
+        }
         Settings::ensure_defaults();
         flush_rewrite_rules();
     }
