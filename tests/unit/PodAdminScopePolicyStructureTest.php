@@ -25,3 +25,4 @@ final class PodAdminScopePolicyStructureTest extends TestCase
         self::assertStringNotContainsString('createOrder',$source);
     }
 }
+
