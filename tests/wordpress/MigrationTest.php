@@ -14,6 +14,19 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertStringContainsString('Tables::pod_production_templates()', $source);
     }
 
+    public function testExistingVersionTenInstallActuallyReceivesProductionTemplateTable(): void
+    {
+        DigiForge\Core\Activator::activate();
+        global $wpdb;
+        $table=DigiForge\Database\Tables::pod_production_templates();
+        $wpdb->query('DROP TABLE IF EXISTS `' . esc_sql($table) . '`');
+        update_option('digiforge_db_schema_version',10,false);
+        $wpdb->last_error='';
+        self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded());
+        self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        self::assertSame('',(string)$wpdb->last_error);
+    }
+
     private function productionTables(): array
     {
         return [
