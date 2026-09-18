@@ -19,6 +19,13 @@ final class ExecutionAdapterResult
   $ref=trim((string)($result['external_reference']??''));
   if($status==='SUCCEEDED'&&!preg_match('/^[A-Za-z0-9._:\/-]{3,160}$/',$ref))
    return new WP_Error('digiforge_adapter_reference','Successful execution requires provider reference.',['status'=>400]);
-  return ['status'=>$status,'external_reference'=>$ref,'action'=>(string)$permit['action'],'authorization_hash'=>(string)$permit['authorization_hash'],'evidence_hash'=>(string)$permit['evidence_hash']];
+  $normalized=['status'=>$status,'external_reference'=>$ref,'action'=>(string)$permit['action'],'authorization_hash'=>(string)$permit['authorization_hash'],'evidence_hash'=>(string)$permit['evidence_hash']];
+  if($status==='FAILED'){
+   $category=sanitize_key((string)($result['failure_category']??''));
+   $code=sanitize_key((string)($result['failure_code']??''));
+   if($category!=='')$normalized['failure_category']=$category;
+   if($code!=='')$normalized['failure_code']=$code;
+  }
+  return $normalized;
  }
 }
