@@ -15,7 +15,8 @@ final class PodAdminScopePolicyStructureTest extends TestCase
         self::assertStringContainsString('canonical ACTIVE ownership',$source);
         self::assertStringContainsString('PERSONALIZED_POD-only',$source);
         self::assertStringContainsString('canManageTemplate(array $scope,array $template)',$source);
-        self::assertStringContainsString('ProductionTemplateContract::STATUSES',$source);
+        self::assertStringContainsString("['DRAFT','GEOMETRY_LOCKED','SAMPLE_REQUIRED','VALIDATED','RETIRED']",$source);
+        self::assertStringNotContainsString('ProductionTemplateContract::STATUSES',$source);
         self::assertStringContainsString("['VALIDATED','RETIRED']",$source);
         self::assertStringContainsString('digiforge_pod_template_immutable',$source);
         self::assertStringContainsString('create a new DRAFT version',$source);
