@@ -5,7 +5,7 @@ use WP_Error;
 
 /**
  * Single provider-neutral transaction boundary for a controlled mutating adapter.
- * No provider implementation or external HTTP is introduced here.
+ * No provider implementation or external HTTP is introduced here. The nonce is consumed before adapter invocation and remains consumed on every terminal adapter outcome.
  */
 final class ControlledExecutionTransaction
 {
