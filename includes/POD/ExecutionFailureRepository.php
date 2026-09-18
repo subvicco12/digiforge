@@ -26,7 +26,7 @@ final class ExecutionFailureRepository
    if(hash_equals((string)$existing['failure_hash'],$hash))return $existing;
    return new WP_Error('digiforge_failure_conflict','Authorization already has different terminal failure evidence.',['status'=>409]);
   }
-  $row=['action'=>(string)$r['action'],'evidence_hash'=>(string)$r['evidence_hash'],'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'executed_by'=>(int)$r['executed_by'],'recorded_at'=>gmdate('Y-m-d H:i:s',(int)$r['recorded_at']),'failure_hash'=>$hash,'created_at'=>current_time('mysql',true)];
+  $row=['action'=>(string)$r['action'],'evidence_hash'=>(string)$r['evidence_hash'],'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'failure_category'=>(string)($r['failure_category']??''),'failure_code'=>(string)($r['failure_code']??''),'executed_by'=>(int)$r['executed_by'],'recorded_at'=>gmdate('Y-m-d H:i:s',(int)$r['recorded_at']),'failure_hash'=>$hash,'created_at'=>current_time('mysql',true)];
   if($wpdb->insert($table,$row)===false){
    $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
    if(is_array($winner)&&hash_equals((string)$winner['failure_hash'],$hash))return $winner;
