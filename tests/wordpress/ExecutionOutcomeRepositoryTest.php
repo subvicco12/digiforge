@@ -14,6 +14,7 @@ final class ExecutionOutcomeRepositoryTest extends WP_UnitTestCase
   self::assertSame('EXECUTION_OUTCOME_NOT_FOUND',$x['state']);
  }
  public function testDualTerminalStateFailsClosed():void{
+  // Corrupted contradictory terminal state must be observable and rejected.
   global $wpdb;$auth=str_repeat('b',64);$nonce=str_repeat('c',64);$now=current_time('mysql',true);
   $wpdb->insert(DigiForge\Database\Tables::pod_execution_receipts(),['action'=>'X','evidence_hash'=>str_repeat('d',64),'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'external_reference'=>'ref-1','executed_by'=>1,'executed_at'=>$now,'receipt_hash'=>str_repeat('e',64),'created_at'=>$now]);
   $wpdb->insert(DigiForge\Database\Tables::pod_execution_failures(),['action'=>'X','evidence_hash'=>str_repeat('d',64),'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'executed_by'=>1,'recorded_at'=>$now,'failure_hash'=>str_repeat('f',64),'created_at'=>$now]);
