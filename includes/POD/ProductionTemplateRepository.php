@@ -40,11 +40,15 @@ final class ProductionTemplateRepository
         if($templateId==='') return new WP_Error('digiforge_template_id_required','template_id is required for catalog drift.',['status'=>400]);
         global $wpdb;
         $table=\DigiForge\Database\Tables::pod_production_templates();
-        $latest=$wpdb->get_row($wpdb->prepare('SELECT template_version,fingerprint FROM '.$table.' WHERE template_id=%s ORDER BY template_version DESC LIMIT 1',$templateId),ARRAY_A);
+        $latest=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s ORDER BY template_version DESC LIMIT 1',$templateId),ARRAY_A);
         $input['template_version']=is_array($latest)?((int)$latest['template_version']+1):1;
         $input['template_status']='DRAFT';
         try{$candidate=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
-        if(is_array($latest)&&hash_equals((string)($latest['fingerprint']??''),(string)$candidate['fingerprint'])) return new WP_Error('digiforge_template_no_drift','No production-template drift was detected.',['status'=>409]);
+        if(is_array($latest)){
+            $prior=$latest;$prior['variant_ids']=json_decode((string)($prior['variant_ids']??'[]'),true);$prior['print_areas']=json_decode((string)($prior['print_areas']??'[]'),true);
+            try{$priorNormalized=ProductionTemplateContract::normalize($prior);$priorMaterial=ProductionTemplateContract::materialFingerprint($priorNormalized);$candidateMaterial=ProductionTemplateContract::materialFingerprint($candidate);}catch(\\Throwable $e){return new WP_Error('digiforge_template_drift_evidence',$e->getMessage(),['status'=>500]);}
+            if(hash_equals($priorMaterial,$candidateMaterial)) return new WP_Error('digiforge_template_no_drift','No production-template drift was detected.',['status'=>409]);
+        }
         return $this->save($candidate);
     }
 }
