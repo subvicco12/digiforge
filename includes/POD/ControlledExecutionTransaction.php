@@ -30,8 +30,11 @@ final class ControlledExecutionTransaction
 
   $normalized=ExecutionAdapterResult::normalize($permit,$raw);
   if(is_wp_error($normalized))return $normalized;
-  if(($normalized['status']??'')!=='SUCCEEDED')
-   return new WP_Error('digiforge_transaction_failed','Adapter execution did not succeed; nonce remains consumed.',['status'=>502]);
+  if(($normalized['status']??'')!=='SUCCEEDED'){
+   $failure=ExecutionFailureRecord::record($authorization,$permit,$normalized,$actor,$now);
+   if(is_wp_error($failure))return $failure;
+   return new WP_Error('digiforge_transaction_failed','Adapter execution did not succeed; nonce remains consumed.',['status'=>502,'failure_record'=>$failure]);
+  }
 
   $receipt=ExecutionReceipt::record(
    $authorization,
