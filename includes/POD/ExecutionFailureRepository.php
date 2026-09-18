@@ -19,6 +19,8 @@ final class ExecutionFailureRepository
   if(($r['retry_permitted']??null)!==false||($r['nonce_consumed']??null)!==true)
    return new WP_Error('digiforge_failure_retry_state','Failure must remain non-retryable after nonce consumption.',['status'=>409]);
   global $wpdb;$table=Tables::pod_execution_failures();
+  $success=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_receipts().' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+  if(is_array($success))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization already has terminal success evidence.',['status'=>409]);
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($existing)){
    if(hash_equals((string)$existing['failure_hash'],$hash))return $existing;
