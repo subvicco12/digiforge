@@ -19,6 +19,15 @@ final class PodSchema
 
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
         if ($currentVersion >= 10) {
+            // Batch-7 gained additive tables after schema 10 shipped. Re-run dbDelta
+            // so existing v10 installations receive them without a destructive bump.
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            $charset = $wpdb->get_charset_collate();
+            foreach (self::statements($charset) as $statement) {
+                $wpdb->last_error = '';
+                dbDelta($statement);
+                if ($wpdb->last_error !== '') return false;
+            }
             self::grantCapability();
             return true;
         }
