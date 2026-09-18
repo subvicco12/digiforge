@@ -26,7 +26,13 @@ final class PodSchema
             foreach (self::statements($charset) as $statement) {
                 $wpdb->last_error = '';
                 dbDelta($statement);
-                if ($wpdb->last_error !== '') return false;
+                if ($wpdb->last_error !== '') {
+                    update_option('digiforge_last_migration_failure', [
+                        'error_code' => 'POD_SCHEMA_UPDATE_FAILED',
+                        'occurred_at' => current_time('mysql', true),
+                    ], false);
+                    return false;
+                }
             }
             self::grantCapability();
             return true;
