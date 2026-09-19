@@ -37,8 +37,11 @@ final class U3ProductFactoryStructureTest extends TestCase
     {
         $storage=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/AssetStorage.php'); $review=(string)file_get_contents(__DIR__.'/../../includes/Portal/U3AssetReview.php'); $producer=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/LocalAssetProducer.php'); self::assertStringContainsString('Require all denied',$storage); self::assertStringContainsString('ensureProtectedRoot()',$producer); self::assertStringContainsString('current_user_can',$review); self::assertStringContainsString('check_admin_referer',$review); self::assertStringContainsString('AssetStorage::absolutePath',$review); self::assertStringContainsString('Content-Security-Policy',$review);
     }
-    public function testLargeAiBudgetIsScopedToU3ProductionOnly(): void
+    public function testLargeAiBudgetIsScopedToProductionManifestOnly(): void
     {
-        $source=(string)file_get_contents(__DIR__.'/../../includes/Launch/OpenAIClient.php'); self::assertStringContainsString('U3 Production.',$source); self::assertMatchesRegularExpression('/U3 Production\.\x27\)\s*\?\s*16000\s*:\s*4000/',$source); self::assertMatchesRegularExpression('/request\(\$brief\s*,\s*true\s*,\s*4000\)/',$source);
+        $source=(string)file_get_contents(__DIR__.'/../../includes/Launch/OpenAIClient.php');
+        self::assertStringContainsString("str_contains(\$brief, 'production-ready DigiForge asset manifest')",$source);
+        self::assertStringContainsString('$productionManifest ? 16000 : 4000',$source);
+        self::assertMatchesRegularExpression('/request\(\$brief\s*,\s*true\s*,\s*4000\)/',$source);
     }
 }
