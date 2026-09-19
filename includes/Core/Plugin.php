@@ -58,6 +58,7 @@ final class Plugin {
         (new \DigiForge\Portal\Portal())->register();
         (new \DigiForge\Portal\U3ApprovalInbox())->register();
         (new \DigiForge\Portal\U3AssetReview())->register();
+        (new \DigiForge\Portal\FrontendControls())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
             if (! in_array('www.etsy.com', $hosts, true)) { $hosts[] = 'www.etsy.com'; }
             return $hosts;
