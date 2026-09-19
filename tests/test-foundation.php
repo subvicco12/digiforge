@@ -45,7 +45,7 @@ expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
 expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '14'"), 'database schema version is current');
 expect((bool) preg_match('/^\s*\*\s*Version:\s*1\.0\.0\s*$/m', $bootstrap), 'plugin header release version is current');
-expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'1\\.0\\.0'\\s*;/", $bootstrap), 'runtime release version is current');
+expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'1\\.0\\.1'\\s*;/", $bootstrap), 'runtime release version is current');
 
 $settings = source('includes/Core/Settings.php');
 expect(str_contains($settings, "get('activation_authorized', false) === true"), 'effective switches require activation authorization');
