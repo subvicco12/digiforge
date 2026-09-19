@@ -29,4 +29,14 @@ final class FrontendAdminPortalStructureTest extends TestCase
         self::assertStringNotContainsString('wp_remote_post', $portal);
         self::assertStringNotContainsString('wp_remote_get', $portal);
     }
+    public function testDashboardSurfacesIntegratedProductionJourney(): void
+    {
+        $portal = file_get_contents(dirname(__DIR__, 2) . '/includes/Portal/Portal.php');
+        self::assertIsString($portal);
+        self::assertStringContainsString('Pending opportunity approvals', $portal);
+        self::assertStringContainsString('Product approvals', $portal);
+        self::assertStringContainsString('Publish-ready listings', $portal);
+        self::assertStringContainsString('Production journey', $portal);
+        self::assertStringContainsString('Listing / Publish Approval', $portal);
+    }
 }
