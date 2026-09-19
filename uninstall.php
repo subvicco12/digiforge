@@ -13,4 +13,5 @@ delete_option('digiforge_db_version');
 delete_option('digiforge_db_schema_version');
 delete_option('digiforge_last_migration_failure');
 delete_option('digiforge_last_audit_failure');
+delete_option('digiforge_credential_key_envelope');
 delete_option('digiforge_cleanup_on_uninstall');
