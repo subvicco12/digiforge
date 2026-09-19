@@ -27,4 +27,17 @@ final class ProductionCommandCenterStructureTest extends TestCase
         self::assertIsString($s);
         self::assertStringContainsString('ProductionCommandCenter())->register()', $s);
     }
+
+    public function testResponsivePortalUiIsActuallyLoaded(): void
+    {
+        $portal=file_get_contents(dirname(__DIR__,2).'/includes/Portal/Portal.php');
+        $css=file_get_contents(dirname(__DIR__,2).'/assets/portal.css');
+        $js=file_get_contents(dirname(__DIR__,2).'/assets/portal-ui.js');
+        self::assertIsString($portal); self::assertIsString($css); self::assertIsString($js);
+        self::assertStringContainsString("wp_enqueue_script('digiforge-portal-ui'", $portal);
+        self::assertStringContainsString('df-mobile-nav-toggle', $css);
+        self::assertStringContainsString('is-nav-open', $css);
+        self::assertStringContainsString('setOpen(false, false)', $js);
+        self::assertStringContainsString("nav.addEventListener('click'", $js);
+    }
 }
