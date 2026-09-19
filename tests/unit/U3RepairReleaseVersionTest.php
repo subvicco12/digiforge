@@ -6,12 +6,12 @@ use PHPUnit\Framework\TestCase;
 
 final class U3RepairReleaseVersionTest extends TestCase
 {
-    public function testRepairReleaseUsesVersion0131(): void
+    public function testRepairReleaseUsesVersion0102(): void
     {
         $source = file_get_contents(__DIR__ . '/../../digiforge.php');
         self::assertIsString($source);
-        self::assertStringContainsString('Version: 1.0.1', $source);
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.1';", $source);
+        self::assertStringContainsString('Version: 1.0.2', $source);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.2';", $source);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '14';", $source);
     }
 }
