@@ -40,4 +40,21 @@ final class ProductionCommandCenterStructureTest extends TestCase
         self::assertStringContainsString('setOpen(false, false)', $js);
         self::assertStringContainsString("nav.addEventListener('click'", $js);
     }
+    public function testGateTwoToThreeAutomationRemainsLocal(): void
+    {
+        $automation=file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/ListingAutomation.php');
+        $gate3=file_get_contents(dirname(__DIR__,2).'/includes/Portal/ListingApprovalInbox.php');
+        $plugin=file_get_contents(dirname(__DIR__,2).'/includes/Core/Plugin.php');
+        self::assertIsString($automation); self::assertIsString($gate3); self::assertIsString($plugin);
+        self::assertStringContainsString("u3_product_approved", $automation);
+        self::assertStringContainsString("LISTING_REVIEW_REQUIRED", $automation);
+        self::assertStringContainsString("recommended_price_amount", $automation);
+        self::assertStringNotContainsString('wp_remote_', $automation);
+        self::assertStringContainsString("'state' => (string) ($intent['state'] ?? 'BLOCKED')", $gate3);
+        self::assertStringContainsString("'publish_authorized' => false", $gate3);
+        self::assertStringContainsString("'etsy_api_invoked' => false", $gate3);
+        self::assertStringNotContainsString('wp_remote_', $gate3);
+        self::assertStringContainsString('ListingAutomation())->register()', $plugin);
+        self::assertStringContainsString('ListingApprovalInbox())->register()', $plugin);
+    }
 }
