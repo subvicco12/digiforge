@@ -40,7 +40,7 @@ The architecture separates local preparation from external execution. Local reco
 - Migration failures must fail closed.
 - Database changes must not be used to bypass authorization or activation gates.
 - Before destructive or production-affecting migration work, a recoverable production database backup must exist.
-- Schema version 13 is the current certified baseline for release 1.0.1.
+- Schema version 14 is the current certified baseline for release 1.0.1.
 
 ## 5. Safety and external-action model
 External execution is governed by layered controls.
