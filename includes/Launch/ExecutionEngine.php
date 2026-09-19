@@ -212,7 +212,7 @@ final class ExecutionEngine
         $summary = sanitize_textarea_field((string) ($candidate['summary'] ?? ''));
         return "You are DigiForge Product Development. Return ONLY one JSON object, no markdown.\n"
             . "Approved opportunity: {$title}\nResearch summary: {$summary}\nShop: {$shop}.\n"
-            . 'Create a production-ready product concept optimized for Etsy US and European buyers. Required keys: product_name, family_name, description, target_buyer, differentiation, personalization, variants, price_strategy, estimated_cost_strategy, seo_keywords, listing_title_draft, listing_description_draft, asset_requirements, qa_checklist, ip_policy_notes. For digital products, omit POD-specific manufacturing. For goods, make the concept compatible with Printify/Gelato where practical.';
+            . 'Create a production-ready product concept optimized for Etsy US and European buyers. Required keys: product_name, family_name, description, target_buyer, differentiation, personalization, variants, recommended_price_amount (positive number), currency (3-letter code), price_strategy, estimated_cost_strategy, seo_keywords (array), etsy_tags (array, max 13), listing_title_draft, listing_description_draft, asset_requirements, qa_checklist, ip_policy_notes. For digital products, omit POD-specific manufacturing. For goods, make the concept compatible with Printify/Gelato where practical. The listing title, description, price and tags must be final enough to enter listing review without another AI drafting step.';
     }
 
     /** @return array<string,mixed> */

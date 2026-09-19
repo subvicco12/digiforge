@@ -53,6 +53,7 @@ final class Portal
         }
 
         wp_enqueue_style('digiforge-portal', DIGIFORGE_URL . 'assets/portal.css', [], DIGIFORGE_VERSION);
+        wp_enqueue_script('digiforge-portal-ui', DIGIFORGE_URL . 'assets/portal-ui.js', [], DIGIFORGE_VERSION, true);
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if (! isset(self::NAV[$view]) || ! current_user_can(self::NAV[$view]['cap'])) {
             $view = 'dashboard';
