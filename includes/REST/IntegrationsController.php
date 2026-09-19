@@ -9,6 +9,7 @@ use DigiForge\Queue\Idempotency;
 final class IntegrationsController {
     private const NS = 'digiforge/v1';
     private const ALLOW_BATCH = ['v1' => true];
+    private const MAX_BODY_BYTES = 65536;
 
     public function register(): void {
         add_action('rest_api_init', function (): void {
@@ -65,6 +66,7 @@ final class IntegrationsController {
         return is_array($body) ? $body : [];
     }
     private function mutate(\WP_REST_Request $request, string $operation, callable $callback, int $successStatus = 200): \WP_REST_Response|\WP_Error {
+        if (strlen($request->get_body()) > self::MAX_BODY_BYTES) { return new \WP_Error('payload_too_large', __('Request body exceeds the 64 KiB mutation limit.', 'digiforge'), ['status' => 413]); }
         $header = trim((string) $request->get_header('Idempotency-Key'));
         if ($header === '') { return new \WP_Error('missing_idempotency_key', __('Idempotency-Key header is required.', 'digiforge'), ['status' => 400]); }
         $storageKey = hash('sha256', $operation . '|' . $header);
