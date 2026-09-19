@@ -58,6 +58,7 @@ final class Plugin {
         (new \DigiForge\ProductFactory\ListingAutomation())->register();
         (new \DigiForge\Portal\Portal())->register();
         (new \DigiForge\Portal\U3ApprovalInbox())->register();
+        (new \DigiForge\Portal\ListingApprovalInbox())->register();
         (new \DigiForge\Portal\U3AssetReview())->register();
         (new \DigiForge\Portal\ProductionCommandCenter())->register();
         add_filter('allowed_redirect_hosts', static function (array $hosts): array {
