@@ -8,7 +8,7 @@ use DigiForge\Research\Repository;
 use DigiForge\ProductFactory\ApprovalAutomation;
 
 final class ResearchController {
-    private const NS='digiforge/v1';
+    private const NS='digiforge/v1';private const MAX_BODY_BYTES=65536;
     public function register():void{
         add_action('rest_api_init',function():void{
             register_rest_route(self::NS,'/research/(?P<entity>sources|observations|evidence|candidates|reviews)',['methods'=>'GET','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'list']]);
@@ -43,6 +43,7 @@ final class ResearchController {
     }
     private function key(\WP_REST_Request $r):?string{$k=trim((string)$r->get_header('Idempotency-Key'));return $k===''?null:$k;}
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $successStatus=200,?string $fallbackKey=null):mixed{
+        if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES)return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $header=trim((string)$r->get_header('Idempotency-Key'));
         if($header==='')$header=trim((string)$fallbackKey);
         if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
