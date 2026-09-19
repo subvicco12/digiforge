@@ -18,6 +18,10 @@ final class ExecutionFailureRepository
    return new WP_Error('digiforge_failure_binding','Failure evidence binding is invalid.',['status'=>400]);
   if(($r['retry_permitted']??null)!==false||($r['nonce_consumed']??null)!==true)
    return new WP_Error('digiforge_failure_retry_state','Failure must remain non-retryable after nonce consumption.',['status'=>409]);
+  $action=trim((string)($r['action']??''));$evidence=(string)($r['evidence_hash']??'');$actor=(int)($r['executed_by']??0);$recordedAt=(int)($r['recorded_at']??0);
+  $category=sanitize_key((string)($r['failure_category']??''));$code=sanitize_key((string)($r['failure_code']??''));
+  if($action===''||!preg_match('/^[a-f0-9]{64}$/',$evidence)||$actor<1||$recordedAt<1||$category===''||$code==='')
+   return new WP_Error('digiforge_failure_payload','Failure payload is invalid.',['status'=>400]);
   global $wpdb;$table=Tables::pod_execution_failures();
   $success=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_receipts().' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($success))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization already has terminal success evidence.',['status'=>409]);
@@ -26,7 +30,7 @@ final class ExecutionFailureRepository
    if(hash_equals((string)$existing['failure_hash'],$hash))return $existing;
    return new WP_Error('digiforge_failure_conflict','Authorization already has different terminal failure evidence.',['status'=>409]);
   }
-  $row=['action'=>(string)$r['action'],'evidence_hash'=>(string)$r['evidence_hash'],'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'failure_category'=>(string)($r['failure_category']??''),'failure_code'=>(string)($r['failure_code']??''),'executed_by'=>(int)$r['executed_by'],'recorded_at'=>gmdate('Y-m-d H:i:s',(int)$r['recorded_at']),'failure_hash'=>$hash,'created_at'=>current_time('mysql',true)];
+  $row=['action'=>$action,'evidence_hash'=>$evidence,'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'failure_category'=>$category,'failure_code'=>$code,'executed_by'=>$actor,'recorded_at'=>gmdate('Y-m-d H:i:s',$recordedAt),'failure_hash'=>$hash,'created_at'=>current_time('mysql',true)];
   if($wpdb->insert($table,$row)===false){
    $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
    if(is_array($winner)&&hash_equals((string)$winner['failure_hash'],$hash))return $winner;
