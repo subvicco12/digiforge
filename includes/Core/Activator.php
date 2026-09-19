@@ -26,7 +26,9 @@ final class Activator {
         if (! ProductionSchema::migrateIfNeeded()) {
             return;
         }
-        (new Migrator())->migrate();
+        if (! (new Migrator())->migrate()) {
+            return;
+        }
         if (! BusinessScopeInstaller::migrateIfNeeded()) {
             return;
         }

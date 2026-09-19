@@ -4,8 +4,8 @@ namespace DigiForge\Database;
 use DigiForge\Core\Capabilities;
 /** Versioned, additive schema migrations. dbDelta is used for WordPress-compatible table updates. */
 final class Migrator {
-    public function maybe_migrate(): void { if ((string) get_option('digiforge_db_version', '0') !== DIGIFORGE_DB_VERSION) { $this->migrate(); } }
-    public function migrate(): void {
+    public function maybe_migrate(): bool { return (string) get_option('digiforge_db_version', '0') === DIGIFORGE_DB_VERSION || $this->migrate(); }
+    public function migrate(): bool {
         global $wpdb; require_once ABSPATH . 'wp-admin/includes/upgrade.php'; $charset = $wpdb->get_charset_collate();
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
 
@@ -14,7 +14,7 @@ final class Migrator {
             Capabilities::addAi();
             delete_option('digiforge_last_migration_failure');
             update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
-            return;
+            return true;
         }
 
         $existing_jobs_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::jobs())));
@@ -82,7 +82,7 @@ final class Migrator {
         }
         if ($schemaFailed) {
             update_option('digiforge_last_migration_failure',['error_code'=>'SCHEMA_UPDATE_FAILED','occurred_at'=>current_time('mysql',true)],false);
-            return;
+            return false;
         }
 
         foreach (MigrationPlan::pending($currentVersion) as $version) { update_option('digiforge_db_schema_version', $version, false); }
@@ -90,5 +90,6 @@ final class Migrator {
         Capabilities::addAi();
         delete_option('digiforge_last_migration_failure');
         update_option('digiforge_db_version', DIGIFORGE_DB_VERSION, false);
+        return true;
     }
 }
