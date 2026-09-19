@@ -6,9 +6,9 @@ This guide is the production operating reference for DigiForge. It consolidates 
 ## 2. Current certified baseline
 - Product: DigiForge
 - Runtime: WordPress plugin
-- Current production host: converentis.com
-- Current plugin release baseline: 0.11.1
-- Current database schema baseline: 13
+- Current production host: digiforge.converentis.com
+- Current plugin release baseline: 1.0.1
+- Current database schema baseline: 14
 - Operating posture: LOCAL-FIRST and FAIL-CLOSED
 - STOP ALL: must remain ON until explicit activation authorization
 - Activation authorization: OFF until separately approved
@@ -40,7 +40,7 @@ The architecture separates local preparation from external execution. Local reco
 - Migration failures must fail closed.
 - Database changes must not be used to bypass authorization or activation gates.
 - Before destructive or production-affecting migration work, a recoverable production database backup must exist.
-- Schema version 13 is the current certified baseline for release 0.11.1.
+- Schema version 13 is the current certified baseline for release 1.0.1.
 
 ## 5. Safety and external-action model
 External execution is governed by layered controls.
@@ -266,8 +266,10 @@ Every production-affecting change should be traceable through:
 
 Do not merge a PR head that changed after the audited SHA without re-checking the new head and its CI result.
 
-## 23. Current production-readiness dependency
-Repository work may continue while production remains locked, but live smoke/failure testing and final recovery certification depend on a genuine current production database backup and truthful recovery evidence.
+## 23. Current production-readiness state
+The certified DigiForge 1.0.1 deployment is verified at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
+
+The remaining host-level hardening observation is `DISALLOW_FILE_EDIT=true` in `wp-config.php`; apply it only through a safe hosting configuration path.
 
 ## 24. Final production audit
 The final independent audit should include:
