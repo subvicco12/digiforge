@@ -38,9 +38,6 @@ final class Plugin {
         if (! FinanceSchema::migrateIfNeeded()) { return; }
         if (! PodSchema::migrateIfNeeded()) { return; }
         if (! ProductionSchema::migrateIfNeeded()) { return; }
-        if (! ListingSchema::migrateIfNeeded()) { return; }
-        if (! OrderSchema::migrateIfNeeded()) { return; }
-        if (! FinanceSchema::migrateIfNeeded()) { return; }
         (new Migrator())->maybe_migrate();
         if (! BusinessScopeInstaller::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
