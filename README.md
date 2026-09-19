@@ -1,6 +1,6 @@
 # DigiForge
 
-DigiForge is a WordPress-native foundation for a future digital-product and print-on-demand operations platform. It targets **WordPress 7.1** and **PHP 8.3+**, including conventional shared hosting such as Hostinger. WordPress and MySQL are the operational source of truth; this plugin has no Node.js runtime, SaaS backend, or external provider dependency.
+DigiForge is a WordPress-native digital-product and print-on-demand operations platform under active production-readiness hardening. It targets **WordPress 7.1** and **PHP 8.3+**, including conventional shared hosting such as Hostinger. WordPress and MySQL are the operational source of truth; this plugin has no Node.js runtime, SaaS backend, or external provider dependency.
 
 **V1 deployment model: single-site WordPress.** Multisite/network operation is intentionally not supported by this foundation; destructive uninstall operations are guarded against multisite execution until a dedicated multisite design is implemented and audited.
 
@@ -17,9 +17,9 @@ DigiForge is a WordPress-native foundation for a future digital-product and prin
 * `includes/Core` owns lifecycle hooks, capabilities, configuration, settings and the admin entry point.
 * `includes/Database` contains table names and versioned, additive `dbDelta` migrations.
 * `includes/Security` supplies append-oriented audit logging with recursive credential redaction.
-* `includes/Integrations` provides the local-only integration registry and encrypted credential vault for Etsy, Printify, Gelato, and AI provider classes. It performs no provider network calls.
-* `includes/Research` provides the inert Research & Opportunity Intelligence foundation: local source records, normalized observations, evidence/provenance, deterministic scoring, candidate deduplication, human review, and controlled promotion into Product Factory opportunities.
-* `includes/AI` provides the inert AI governance layer: local task/model policy, deterministic routing, immutable prompt versions, schema validation, run intents, output provenance, usage/cost records, and human review gates. It contains no inference client or provider executor.
+* `includes/Integrations` provides the integration registry and encrypted credential vault for Etsy, Printify, Gelato, and AI provider classes. Audited connection/OAuth/token clients may perform explicitly scoped provider network calls; mutating Etsy/POD execution remains separately gated.
+* `includes/Research` provides the Research & Opportunity Intelligence foundation: local source records, normalized observations, evidence/provenance, deterministic scoring, candidate deduplication, human review, and controlled promotion into Product Factory opportunities.
+* `includes/AI` provides the AI governance layer: local task/model policy, deterministic routing, immutable prompt versions, schema validation, run intents, output provenance, usage/cost records, and human review gates. It contains no inference client or provider executor.
 * `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints for Product Factory, Digital Factory, integrations, research, and AI governance.
 * `includes/DigitalFactory` owns digital-product lifecycle/readiness policy, local QA vocabularies, persistence, and WordPress admin views.
 * `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
@@ -63,7 +63,7 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_ai_usage`
 * `{$wpdb->prefix}digiforge_ai_reviews`
 
-Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **8**. Earlier versions introduced queue/idempotency, Product Factory, Digital Product Factory, queue/health hardening, integration security, and Research & Opportunity Intelligence. Version 8 adds only the AI-governance tables when upgrading a current schema-v7 installation. An already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
+Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **14**. Earlier versions introduced queue/idempotency, Product Factory, Digital Product Factory, queue/health hardening, integration security, and Research & Opportunity Intelligence. Version 8 adds only the AI-governance tables when upgrading a current schema-v7 installation. An already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
 
 ## Product Factory
 
@@ -115,7 +115,7 @@ Uninstall retains all business data by default. It deletes DigiForge tables, inc
 
 ## Intentionally disabled integrations and execution
 
-Batch 5 remains storage, validation, review, routing-policy and governance infrastructure only. There is **no AI inference executor, SDK call, provider HTTP client, worker, scheduler, collector, scraper, crawler, OAuth exchange, webhook processor, provider health request, publishing, fulfillment, order processing, GST automation, Etsy draft synchronization, or POD production action** in this build. Etsy, Printify, Gelato and AI providers remain local registry/policy records only. Research, AI, product development, Printify, Gelato, Etsy drafts/publishing, orders and GST controls remain OFF by default, with STOP ALL active. The plugin does not send requests to external services.
+External side effects remain fail-closed. The repository now includes audited provider clients for explicitly scoped functions such as Etsy OAuth/token handling, integration connection testing, Printify catalog reads, and AI launch requests. Critical POD controlled-execution classes remain provider-neutral, and the scheduler remains intentionally inert. No Etsy publishing or POD provider order-submission HTTP adapter is enabled in this build. Research, product development, Printify, Gelato, Etsy publishing, orders and GST controls remain OFF by default, with STOP ALL active; activation and automation arming require separate explicit authorization.
 
 ## Development checks
 
