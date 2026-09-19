@@ -165,7 +165,9 @@ final class Portal
     private function dashboard(): void
     {
         $cards = [
-            'Pending approvals' => $this->pendingCount(),
+            'Pending opportunity approvals' => $this->pendingCount(),
+            'Product approvals' => $this->countByState(Tables::production_plans(), 'state', 'REVIEW_REQUIRED'),
+            'Publish-ready listings' => $this->countByState(Tables::listings(), 'state', 'PUBLISH_READY'),
             'Products' => $this->count(Tables::products()),
             'Listings' => $this->count(Tables::listings()),
             'Orders' => $this->count(Tables::orders()),
@@ -182,6 +184,13 @@ final class Portal
             . esc_url($this->url('approvals')) . '">Open full queue</a></div>';
         $this->candidateCards(ResearchRepository::REVIEW_PENDING, 3, false);
         echo '</section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Production journey</h2><p>One view of the three human gates and automated work between them.</p></div></div><div class="df-signal-grid">'
+            . '<div><span>Gate 1</span><b>Opportunity Approval</b></div>'
+            . '<div><span>Automated</span><b>Product Factory + QA</b></div>'
+            . '<div><span>Gate 2</span><b>Product Approval</b></div>'
+            . '<div><span>Automated</span><b>Listing Package + Validation</b></div>'
+            . '<div><span>Gate 3</span><b>Listing / Publish Approval</b></div>'
+            . '</div><p class="df-muted">External Etsy/POD/order/tax execution remains controlled by the existing fail-closed switches.</p></section>';
         $this->systemSummary();
     }
 
@@ -511,6 +520,13 @@ final class Portal
     {
         global $wpdb;
         return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+    }
+
+    private function countByState(string $table, string $column, string $state): int
+    {
+        global $wpdb;
+        if (! preg_match('/^[a-z0-9_]+$/i', $column)) { return 0; }
+        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column}=%s", $state));
     }
 
     private function cell(string $key, mixed $value): string
