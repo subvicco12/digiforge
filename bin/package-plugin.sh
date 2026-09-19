@@ -32,3 +32,7 @@ mv "${temporary_archive}" "${archive}"
 
 test -s "${archive}"
 test -s "${checksum}"
+(
+  cd "${output_dir}"
+  sha256sum --check digiforge.zip.sha256
+)
