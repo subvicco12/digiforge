@@ -50,7 +50,8 @@ final class ProductionCommandCenterStructureTest extends TestCase
         self::assertStringContainsString("LISTING_REVIEW_REQUIRED", $automation);
         self::assertStringContainsString("recommended_price_amount", $automation);
         self::assertStringNotContainsString('wp_remote_', $automation);
-        self::assertStringContainsString("'state' => (string) ($intent['state'] ?? 'BLOCKED')", $gate3);
+        self::assertStringContainsString("'etsy_intent_state' => (string)", $gate3);
+        self::assertStringContainsString("'BLOCKED'", $gate3);
         self::assertStringContainsString("'publish_authorized' => false", $gate3);
         self::assertStringContainsString("'etsy_api_invoked' => false", $gate3);
         self::assertStringNotContainsString('wp_remote_', $gate3);
