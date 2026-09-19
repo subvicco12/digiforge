@@ -10,7 +10,7 @@ use DigiForge\Queue\Idempotency;
 
 final class PodController
 {
-    private const NS='digiforge/v1';
+    private const NS='digiforge/v1';private const MAX_BODY_BYTES=65536;
     public function register(): void
     {
         add_action('rest_api_init',function():void{
@@ -59,6 +59,7 @@ final class PodController
     private function rawKey(\WP_REST_Request $r): ?string{$k=trim((string)$r->get_header('Idempotency-Key'));return $k===''?null:$k;}
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $success=200): mixed
     {
+        if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES)return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $header=trim((string)$r->get_header('Idempotency-Key'));if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
         $storage=hash('sha256',$operation.'|'.$header);$guard=new Idempotency();
         if(!$guard->reserve($storage,$operation)){
