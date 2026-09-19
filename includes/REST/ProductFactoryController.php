@@ -37,7 +37,7 @@ final class ProductFactoryController {
     private function show(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error { $item = $this->repository->find($type, absint($request['id'])); return $item === null ? new \WP_Error('digiforge_not_found', __('Entity not found.', 'digiforge'), ['status' => 404]) : new \WP_REST_Response($item, 200); }
     private function create(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
         if (strlen((string) $request->get_body()) > self::MAX_BODY_BYTES) { return new \WP_Error('payload_too_large', __('JSON body exceeds 64 KiB.', 'digiforge'), ['status' => 413]); }
-        $key = sanitize_text_field((string) ($request->get_header('Idempotency-Key') ?: $request->get_param('idempotency_key')));
+        $key = sanitize_text_field((string) ($request->get_header('Idempotency-Key')));
         $result = $this->repository->create($type, (array) $request->get_json_params(), $key === '' ? null : $key);
         if (is_wp_error($result)) { return $result; }
         $replay = (bool) ($result['idempotent_replay'] ?? false); unset($result['idempotent_replay']);
