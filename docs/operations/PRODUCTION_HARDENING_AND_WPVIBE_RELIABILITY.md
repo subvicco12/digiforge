@@ -1,7 +1,7 @@
 # DigiForge Production Hardening & WPVibe Reliability
 
 ## Scope
-This document records Production Readiness P2 (WordPress Production Hardening) and P3 (REST / WPVibe Reliability) findings for the DigiForge production environment at https://converentis.com/.
+This document records Production Readiness P2 (WordPress Production Hardening) and P3 (REST / WPVibe Reliability) findings for the DigiForge production environment at https://digiforge.converentis.com/.
 
 ## Safety State
 The following controls must remain unchanged until separately authorized:
@@ -77,19 +77,21 @@ When WPVibe calls are available again, perform a small controlled validation set
 5. Confirm no unexpected 429 response before the account quota is exhausted.
 6. Confirm failures, if any, can be separated into account-quota, network, WordPress, or DigiForge layers.
 
-## P1 Dependency
-P1 remains incomplete only because real production database backup evidence is still pending.
+## P1 Recovery Evidence — Completed
+Post-deployment verification for DigiForge 1.0.1 confirms:
+- Database backup evidence: TRUE.
+- Plugin package evidence: TRUE.
+- Checksum evidence: TRUE.
+- Schema version: 14 / 14.
+- Recovery status: PASS.
+- Overall readiness: READY_LOCKED.
+- `externally_locked = true`.
+- `external_actions_performed = false`.
 
-Once the backup exists and is verified:
-- Set `digiforge_recovery_database_backup_available = true`.
-- Re-run `/digiforge/v1/readiness`.
-- Confirm recovery status = PASS.
-- Confirm `recovery_drill_passed = true`.
-- Confirm overall status advances to `READY_LOCKED` if no other check fails.
-- Confirm `externally_locked = true` and `external_actions_performed = false` remain unchanged.
+The remaining host-level hardening item is `DISALLOW_FILE_EDIT=true` in `wp-config.php`; it must be applied through a safe host configuration path, not emulated with a runtime snippet or database write.
 
 ## Completion Criteria
-P2/P3 can be considered operationally certified when:
+P2/P3 completion criteria:
 - Production backup evidence is complete.
 - `DISALLOW_FILE_EDIT` is enabled and verified.
 - Core checksums remain clean.

@@ -5,17 +5,16 @@ This audit evaluates the current DigiForge production-readiness baseline after c
 
 ## Audited baseline
 - Repository: `subvicco12/digiforge`
-- Production host: `https://converentis.com/`
-- Installed DigiForge version previously verified live: `0.11.1`
-- Database schema previously verified live: `13`
-- P8 merge commit used as the P9 repository baseline: `71834bd97c4a07ecb11879d9de73863ab48c7757`
-- P8 PR head: `5d6d48fceb11212689a52a788bd248a7b1cbaadb`
-- P8 Engineering and Safety Audit: run `#583`, conclusion `success`
+- Production host: `https://digiforge.converentis.com/`
+- Installed DigiForge version verified live after controlled deployment: `1.0.1`
+- Database schema verified live: `14 / 14`
+- Certified release merge commit: `60ac31681c35e21b1fdc39aa31dbeae43f79f68a`
+- Release Engineering and Safety Audit: run `#1132`, conclusion `success`
 
 ## Independent audit verdict
-**REVIEW_REQUIRED — SAFE/LOCKED, NOT YET ACTIVATION-READY**
+**READY_LOCKED — DEPLOYED, MIGRATED, RECOVERY-CERTIFIED, EXTERNAL EXECUTION STILL LOCKED**
 
-The software and repository evidence support a strong fail-closed production baseline, but final activation readiness cannot be certified until genuine production database-backup evidence is available and the recovery/readiness check is rerun successfully. This is an evidence gap, not an authorization to weaken the check.
+The certified DigiForge 1.0.1 package is deployed on the production DigiForge site. Live readiness reports schema `14 / 14`, recovery `PASS`, overall `READY_LOCKED`, `externally_locked=true`, and `external_actions_performed=false`. This certification does not authorize activation, arming, Etsy/POD execution, orders, tax actions, or other external side effects.
 
 ## Safety controls — required state
 The production system must remain in this state until separately authorized after final readiness certification:
@@ -72,13 +71,17 @@ No evidence flag may be set merely to obtain a passing readiness result. Evidenc
 - STOP ALL confirmed: TRUE
 - Formal recovery/restore runbook exists in the repository.
 
-### Outstanding evidence
-- **Production database backup available: NOT YET VERIFIED in DigiForge readiness evidence**
-
-Consequently:
-- `recovery_drill_passed` cannot yet be certified TRUE;
-- overall live readiness cannot yet be certified `READY_LOCKED`;
-- live destructive recovery testing must not be performed merely to satisfy the check.
+### Current live recovery evidence
+- Production database backup available: TRUE
+- Plugin package available: TRUE
+- Plugin checksum verified: TRUE
+- Schema version known: TRUE
+- Restore instructions available: TRUE
+- STOP ALL confirmed: TRUE
+- Recovery status: PASS
+- `recovery_drill_passed=true`
+- Overall readiness: `READY_LOCKED`
+- External actions performed: FALSE
 
 ## WordPress / hosting hardening audit
 Previously observed production state:
@@ -165,7 +168,7 @@ Final live production certification is complete only when, in addition:
 8. the overall status reaches `READY_LOCKED` while the system remains externally locked and all external feature switches remain FALSE.
 
 ## Activation decision
-**DO NOT ACTIVATE EXTERNAL AUTOMATION YET.**
+**EXTERNAL AUTOMATION REMAINS LOCKED AND REQUIRES SEPARATE EXPLICIT AUTHORIZATION.**
 
 After `READY_LOCKED` is independently verified, any future activation must still be separately authorized and executed sequentially:
 1. Research
