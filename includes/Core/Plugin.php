@@ -55,6 +55,7 @@ final class Plugin {
         (new LaunchController())->register();
         (new Scheduler())->register();
         (new \DigiForge\ProductFactory\ApprovalAutomation())->register();
+        (new \DigiForge\ProductFactory\ListingAutomation())->register();
         (new \DigiForge\Portal\Portal())->register();
         (new \DigiForge\Portal\U3ApprovalInbox())->register();
         (new \DigiForge\Portal\U3AssetReview())->register();
