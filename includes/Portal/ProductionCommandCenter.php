@@ -93,7 +93,7 @@ final class ProductionCommandCenter
             ['label' => 'Research decisions', 'value' => $this->countWhere(Tables::research_candidates(), "review_status='PENDING'"), 'view' => 'research'],
             ['label' => 'Product reviews', 'value' => $this->countWhere(Tables::production_plans(), "state='REVIEW_REQUIRED'"), 'view' => 'production'],
             ['label' => 'Listing reviews', 'value' => $this->countWhere(Tables::listings(), "state='REVIEW_REQUIRED'"), 'view' => 'listings'],
-            ['label' => 'Publish reviews', 'value' => $this->countWhere(Tables::etsy_intents(), "state='READY_FOR_REVIEW'"), 'view' => 'listings'],
+            ['label' => 'Publish prepared', 'value' => $this->countWhere(Tables::etsy_intents(), "state='BLOCKED' AND intent_type='PREPARE_DRAFT'"), 'view' => 'listings'],
             ['label' => 'Fulfillment reviews', 'value' => $this->countWhere(Tables::orders(), "state IN ('REVIEW_REQUIRED','ON_HOLD')"), 'view' => 'orders'],
             ['label' => 'Open exceptions', 'value' => $this->countWhere(Tables::operational_alerts(), "state='OPEN'"), 'view' => 'finance'],
         ];
@@ -154,7 +154,7 @@ final class ProductionCommandCenter
             ['label' => 'QA failed', 'value' => $qaFailed, 'hint' => 'Blocked until repaired', 'view' => 'production'],
             ['label' => 'Ready for product review', 'value' => $this->countWhere(Tables::production_plans(), "state='REVIEW_REQUIRED'"), 'hint' => 'Gate 2', 'view' => 'approvals'],
             ['label' => 'Ready for listing', 'value' => $readyForListing, 'hint' => 'Approved product without listing', 'view' => 'listings'],
-            ['label' => 'Ready to publish', 'value' => $this->countWhere(Tables::etsy_intents(), "state='READY_FOR_REVIEW'"), 'hint' => 'Gate 3 remains human-controlled', 'view' => 'approvals'],
+            ['label' => 'Ready to publish', 'value' => $this->countWhere(Tables::etsy_intents(), "state='BLOCKED' AND intent_type='PREPARE_DRAFT'"), 'hint' => 'Local draft prepared; external lock remains', 'view' => 'approvals'],
             ['label' => 'Orders requiring attention', 'value' => $ordersAttention, 'hint' => 'Received/review/on hold', 'view' => 'orders'],
             ['label' => 'Exceptions / alerts', 'value' => $exceptions, 'hint' => 'Open operational alerts', 'view' => 'finance'],
             ['label' => 'Integration health', 'value' => $integrationReady . '/' . $integrationTotal, 'hint' => 'Enabled and connected/configured', 'view' => 'integrations'],
