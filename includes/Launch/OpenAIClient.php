@@ -21,7 +21,7 @@ final class OpenAIClient
         // therefore need the full structured-output allowance. Keep ordinary product
         // development prompts at the smaller budget.
         $productionManifest = str_contains($brief, 'production-ready DigiForge asset manifest');
-        return $this->request($brief, false, $productionManifest ? 16000 : 4000);
+        return $this->request($brief, false, $productionManifest ? 16000 : 8000);
     }
 
     private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
