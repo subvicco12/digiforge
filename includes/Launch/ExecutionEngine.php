@@ -274,7 +274,9 @@ final class ExecutionEngine
             return !preg_match('/_(?:EN|ES|FR)_/i',$file);
         }));
         if($selectedFiles===[])$selectedFiles=$allFiles;
-        $requirements['package_structure']=$selectedFiles;
+        $machineEvidence=['DELIVERY-MANIFEST.json','LICENSE-AND-PROVENANCE.txt','provenance.json'];
+        $requirements['machine_evidence_files']=$machineEvidence;
+        $requirements['package_structure']=array_values(array_unique(array_merge($selectedFiles,$machineEvidence)));
         $svgCount=count(array_filter($selectedFiles,static fn(string $f):bool=>str_ends_with(strtolower($f),'.svg')));
         $pageCounts=is_array($requirements['expected_page_counts']??null)?$requirements['expected_page_counts']:[];
         foreach($selectedFiles as$file){if(!str_ends_with(strtolower($file),'.pdf'))continue;$existing=(int)($pageCounts[$file]??0);$pageCounts[$file]=$existing>0?$existing:max(1,$svgCount);}
@@ -288,6 +290,7 @@ final class ExecutionEngine
             'selected_files'=>$selectedFiles,
             'selection_rule'=>'reviewed-language-only production; unreviewed translations are deferred',
             'deferred_variants'=>array_map(static fn(array $v):string=>(string)($v['name']??'deferred'),$deferred),
+            'machine_evidence_files'=>$machineEvidence,
         ];
         if($deferred!==[]){
             $productName=sanitize_text_field((string)($spec['product_name']??'Digital Product'));
