@@ -47,7 +47,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_customer_flag',$orchestrator);
         self::assertStringContainsString('production_pdf_capability',$orchestrator);
         self::assertStringContainsString('production_nested_zip',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.7'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.8'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
