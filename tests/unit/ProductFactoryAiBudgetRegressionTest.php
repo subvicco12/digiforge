@@ -19,6 +19,6 @@ final class ProductFactoryAiBudgetRegressionTest extends TestCase
     {
         $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertStringContainsString('production-ready DigiForge asset manifest', $source);
-        self::assertStringContainsString('Return compact JSON only', $source);
+        self::assertStringContainsString('Return one JSON object with BOTH required top-level arrays', $source);
     }
 }
