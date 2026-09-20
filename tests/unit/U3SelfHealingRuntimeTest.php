@@ -33,6 +33,8 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("'expected_page_counts'",$engine);
         self::assertStringContainsString('requires_language_review',$engine);
         self::assertStringContainsString('English-only selected variant',$engine);
+        self::assertStringContainsString("'machine_evidence_files'",$engine);
+        self::assertStringContainsString('DELIVERY-MANIFEST.json',$engine);
     }
 
     public function test_manifest_preflight_repairs_known_failure_classes(): void
@@ -46,5 +48,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_pdf_capability',$orchestrator);
         self::assertStringContainsString('production_nested_zip',$orchestrator);
         self::assertStringContainsString("'generator_version'=>'1.0.7'",$orchestrator);
+        self::assertStringContainsString("$customerFiles=array_values(array_map",$orchestrator);
+        self::assertStringNotContainsString("array_filter($productAssets,static fn(array $asset):bool=>!preg_match",$orchestrator);
     }
 }
