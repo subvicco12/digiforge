@@ -213,7 +213,7 @@ final class ExecutionEngine
         $summary = sanitize_textarea_field((string) ($candidate['summary'] ?? ''));
         return "You are DigiForge Product Development. Return ONLY one JSON object, no markdown.\n"
             . "Approved opportunity: {$title}\nResearch summary: {$summary}\nShop: {$shop}.\n"
-            . 'Create a production-ready product concept optimized for Etsy US and European buyers. Required keys: product_name, family_name, description, target_buyer, differentiation, personalization, variants, price_strategy, estimated_cost_strategy, seo_keywords, listing_title_draft, listing_description_draft, asset_requirements, qa_checklist, ip_policy_notes. For digital products, the approved specification MUST be directly producible by DigiForge using only local html, txt, json, csv, svg, pdf and zip assets. PDF files may be required because DigiForge can generate static, non-interactive PDFs locally. Never specify, promise, or require fillable, editable, interactive, AcroForm, form-field, save/reopen-form, or typed-entry PDF behavior. Do not require Canva templates, Canva access links, editable third-party templates, remote design services, or any other external-service deliverable. Do not require QR codes, QR placeholders, maps, map placeholders, RSVP links or placeholders, registry links or placeholders, hotel links or placeholders, or other destination-dependent functionality unless a real verified destination URL is already present in the approved opportunity input. Never invent URLs or require empty destination/link fields. For locally generated files, provenance evidence may consist of deterministic DigiForge generation metadata, SHA-256 checksums, creation records and an explicit declaration that only system fonts and locally generated text/layout/SVG content are used; do not require third-party font-license records when no third-party font is embedded. Every listing title, description, feature, variant and buyer promise must be backed by an asset requirement DigiForge can actually generate locally. If editable source files are promised, require individual flat SVG files with exact filenames for each promised source; do not describe or require an SVG source ZIP because DigiForge packages the complete customer product set into the final delivery ZIP. Include explicit provenance/licensing requirements for locally generated text, layouts and SVG content and avoid unnecessary third-party brand references. Preserve useful language variants only when their complete customer-facing content can be generated in the local package. For goods, make the concept compatible with Printify/Gelato where practical.';
+            . 'Create a production-ready product concept optimized for Etsy US and European buyers. Required keys: product_name, family_name, description, target_buyer, differentiation, personalization, variants, price_strategy, estimated_cost_strategy, seo_keywords, listing_title_draft, listing_description_draft, asset_requirements, qa_checklist, ip_policy_notes. For digital products, the approved specification MUST be directly producible by DigiForge using only local html, txt, json, csv, svg, pdf and zip assets. PDF files may be required because DigiForge can generate static, non-interactive PDFs locally. Never specify, promise, or require fillable, editable, interactive, AcroForm, form-field, save/reopen-form, or typed-entry PDF behavior. Do not require Canva templates, Canva access links, editable third-party templates, remote design services, or any other external-service deliverable. Do not require QR codes, QR placeholders, maps, map placeholders, RSVP links or placeholders, registry links or placeholders, hotel links or placeholders, or other destination-dependent functionality unless a real verified destination URL is already present in the approved opportunity input. Never invent URLs or require empty destination/link fields. For locally generated files, provenance evidence may consist of deterministic DigiForge generation metadata, SHA-256 checksums, creation records and an explicit declaration that only system fonts and locally generated text/layout/SVG content are used; do not require third-party font-license records when no third-party font is embedded. Every listing title, description, feature, variant and buyer promise must be backed by an asset requirement DigiForge can actually generate locally. If editable source files are promised, require individual flat SVG files with exact filenames for each promised source; do not describe or require an SVG source ZIP because DigiForge packages the complete customer product set into the final delivery ZIP. Include explicit provenance/licensing requirements for locally generated text, layouts and SVG content and avoid unnecessary third-party brand references. Preserve useful language variants only when their complete customer-facing content can be generated in the local package. For digital products, multilingual variants are NOT production-ready merely because AI can generate them: unless the approved opportunity input contains explicit human/fluent language-review evidence, the production specification must select one English-only delivery variant and move Spanish/French/bilingual variants to deferred_variants for later review. Include delivery_selection with selected_variant, selected_language, selected_files and deferred_variants. asset_requirements must include expected_page_counts mapping every promised PDF filename to an integer page count; when a PDF corresponds to standalone SVG source pages, the count must match those source pages. Customer-facing README/quick-start prose must never expose internal machine flags. For goods, make the concept compatible with Printify/Gelato where practical.';
     }
 
     /** Build the exact development brief for resumable/background Product Factory execution. */
@@ -245,6 +245,7 @@ final class ExecutionEngine
         $shop = sanitize_key($shop); if (! in_array($shop, ['digital','goods'], true)) return $this->error('validation', 'shop must be digital or goods.');
         $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
         if ($spec === []) return $this->error('invalid_development_output', 'Development output did not contain a usable structured specification.', 502);
+        if ($shop === 'digital') { $spec = $this->normalizeDigitalSpecification($spec); }
         $productName=sanitize_text_field((string)($spec['product_name']??$candidate['title']));$familyName=sanitize_text_field((string)($spec['family_name']??($productName.' Collection')));$description=sanitize_textarea_field((string)($spec['description']??$candidate['summary']));
         $researchRepo=new ResearchRepository();$opportunity=$researchRepo->promote($candidateId,$key.'-opportunity');if(is_wp_error($opportunity))return $opportunity;
         $products=new ProductRepository();$family=$products->create('product_family',['opportunity_id'=>(int)$opportunity['id'],'name'=>$familyName,'description'=>$description],$key.'-family');if(is_wp_error($family))return $family;
@@ -252,6 +253,51 @@ final class ExecutionEngine
         $versionToken=substr(hash('sha256',$key),0,10);$version=$products->create('product_version',['product_id'=>(int)$product['id'],'version_label'=>(str_starts_with($key,'u3-auto-')||str_starts_with($key,'u3-repair-'))?'Capability Spec '.$versionToken:'Launch 1.0','notes'=>wp_json_encode(['shop'=>$shop,'spec'=>$this->sanitizeStructured($spec)])],$key.'-version');if(is_wp_error($version))return $version;
         Logger::audit('launch_product_developed',['candidate_id'=>$candidateId,'opportunity_id'=>(int)$opportunity['id'],'product_id'=>(int)$product['id'],'product_version_id'=>(int)$version['id'],'shop'=>$shop,'response_id'=>(string)($ai['response_id']??'')],'product',(string)$product['id']);
         return ['opportunity'=>$opportunity,'product_family'=>$family,'product'=>$product,'product_version'=>$version,'spec'=>$this->sanitizeStructured($spec),'shop'=>$shop,'next_action'=>'Generate production assets and listing package; Etsy publishing remains gated.'];
+    }
+
+    /** @return array<string,mixed> */
+    private function normalizeDigitalSpecification(array $spec): array
+    {
+        $variants=is_array($spec['variants']??null)?array_values(array_filter($spec['variants'],'is_array')):[];
+        if($variants===[])return $spec;
+        $selectedIndex=0;
+        foreach($variants as$i=>$variant){$name=strtolower((string)($variant['name']??''));if(str_contains($name,'english')&&!str_contains($name,'spanish')&&!str_contains($name,'french')&&!str_contains($name,'bilingual')){$selectedIndex=$i;break;}}
+        $selected=$variants[$selectedIndex];$deferred=[];
+        foreach($variants as$i=>$variant){if($i===$selectedIndex)continue;$variant['availability']='requires_language_review';$variant['defer_reason']='No explicit human/fluent translation-review evidence is attached to the approved opportunity.';$deferred[]=$variant;}
+        $selected['availability']='production_ready';$spec['variants']=[$selected];$spec['deferred_variants']=$deferred;
+
+        $requirements=is_array($spec['asset_requirements']??null)?$spec['asset_requirements']:[];
+        $allFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['package_structure']??[]))));
+        $selectedName=strtolower((string)($selected['name']??'english'));$code=str_contains($selectedName,'spanish')?'ES':(str_contains($selectedName,'french')?'FR':'EN');
+        $selectedFiles=array_values(array_filter($allFiles,static function(string $file)use($code):bool{
+            if(preg_match('/_(EN|ES|FR)_/i',$file,$m))return strtoupper($m[1])===$code;
+            return !preg_match('/_(?:EN|ES|FR)_/i',$file);
+        }));
+        if($selectedFiles===[])$selectedFiles=$allFiles;
+        $requirements['package_structure']=$selectedFiles;
+        $svgCount=count(array_filter($selectedFiles,static fn(string $f):bool=>str_ends_with(strtolower($f),'.svg')));
+        $pageCounts=is_array($requirements['expected_page_counts']??null)?$requirements['expected_page_counts']:[];
+        foreach($selectedFiles as$file){if(!str_ends_with(strtolower($file),'.pdf'))continue;$existing=(int)($pageCounts[$file]??0);$pageCounts[$file]=$existing>0?$existing:max(1,$svgCount);}
+        $requirements['expected_page_counts']=$pageCounts;
+        $requirements['content_specification']='Current production scope is the selected reviewed-language variant only. Every customer-facing file must contain complete final copy with no placeholder links, invented facts, or unreviewed translation claims.';
+        $requirements['delivery_specification']='Package only delivery_selection.selected_files in the customer ZIP. Include final deterministic metadata and SHA-256 evidence. PDFs are static; SVG sources are standalone files.';
+        $spec['asset_requirements']=$requirements;
+        $spec['delivery_selection']=[
+            'selected_variant'=>(string)($selected['name']??'English Complete Kit'),
+            'selected_language'=>strtolower($code),
+            'selected_files'=>$selectedFiles,
+            'selection_rule'=>'reviewed-language-only production; unreviewed translations are deferred',
+            'deferred_variants'=>array_map(static fn(array $v):string=>(string)($v['name']??'deferred'),$deferred),
+        ];
+        if($deferred!==[]){
+            $productName=sanitize_text_field((string)($spec['product_name']??'Digital Product'));
+            $spec['listing_title_draft']=$productName.' | Static PDF + SVG Digital Download';
+            $description=sanitize_textarea_field((string)($spec['description']??''));
+            $spec['listing_description_draft']=$description."\n\nCurrent production delivery: English-only selected variant. Includes the files listed in delivery_selection.selected_files. PDFs are static and non-interactive; SVG source files are supplied individually for compatible local vector editing. Unreviewed translated variants are not included or advertised as production-ready.";
+            foreach(['differentiation','seo_keywords','qa_checklist']as$key){if(!is_array($spec[$key]??null))continue;$spec[$key]=array_values(array_filter($spec[$key],static fn($v):bool=>!preg_match('/\b(?:spanish|french|bilingual|multilingual)\b/i',(string)$v)));}
+            foreach(['recommended_usd','recommended_eur']as$key){if(isset($spec['price_strategy'][$key])&&is_array($spec['price_strategy'][$key]))unset($spec['price_strategy'][$key]['bilingual']);}
+        }
+        return $spec;
     }
 
     /** @return array<string,mixed> */
