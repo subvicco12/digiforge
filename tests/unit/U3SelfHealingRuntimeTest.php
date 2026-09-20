@@ -33,9 +33,9 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("'expected_page_counts'",$engine);
         self::assertStringContainsString('requires_language_review',$engine);
         self::assertStringContainsString('reviewed English-language files only',$engine);
-        self::assertStringContainsString("'package_structure']=$selectedFiles",$engine);
-        self::assertStringContainsString("$pageCounts=[]",$engine);
-        self::assertStringContainsString("if($translationVariants===[])return $spec",$engine);
+        self::assertStringContainsString("'package_structure'=>\$selectedFiles",str_replace(' ','',$engine));
+        self::assertStringContainsString('$pageCounts=[]',$engine);
+        self::assertStringContainsString('if($translationVariants===[])return $spec',$engine);
         self::assertStringContainsString("'machine_evidence_files'",$engine);
         self::assertStringContainsString('DELIVERY-MANIFEST.json',$engine);
     }
@@ -51,7 +51,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_pdf_capability',$orchestrator);
         self::assertStringContainsString('production_nested_zip',$orchestrator);
         self::assertStringContainsString('production_svg_content',$orchestrator);
-        self::assertStringContainsString("['group'=>'evidence','assets'=>$evidenceAssets]",$orchestrator);
+        self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
         self::assertStringContainsString("'generator_version'=>'1.0.8'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
