@@ -8,8 +8,10 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('PAGE_BREAK',$producer);
   self::assertStringContainsString('preg_split',$producer);
   self::assertStringContainsString('normalizeGeneratedEvidence',$orchestrator);
-  self::assertStringContainsString("hash('sha256'",$orchestrator);
-  self::assertStringContainsString('serializedAssetBytes',$orchestrator);
+  self::assertStringContainsString('finalChecksumRows',$orchestrator);
+  self::assertStringContainsString("'checksum_sha256'",$orchestrator);
+  self::assertStringContainsString('finalizeProvenanceDefinitions',$orchestrator);
+  self::assertStringContainsString('finalizeChecksumDefinitions',$orchestrator);
   self::assertStringContainsString("['sha256,filename']",$orchestrator);
   self::assertStringNotContainsString("preg_replace('/\\.csv$/i','.txt'",$orchestrator);
   self::assertStringContainsString('selected-language or selected-variant customer delivery',$orchestrator);
