@@ -55,6 +55,17 @@ final class Settings
         }
     }
 
+    /**
+     * Returns the configured state of an internal-only switch without releasing
+     * the production/external execution interlock. This must never be used for
+     * publishing, POD, orders, fulfillment, tax, or other external actions.
+     */
+    public static function is_internal_enabled(string $switch): bool
+    {
+        if (! in_array($switch, ['ai', 'product_development'], true)) { return false; }
+        return self::get($switch, false) === true;
+    }
+
     public static function is_enabled(string $switch): bool
     {
         if (! Config::allowed_switch($switch) || $switch === 'stop_all') { return false; }
