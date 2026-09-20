@@ -134,6 +134,7 @@ final class ExecutionEngine
             return $ai;
         }
         $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
+        if ($shop === 'digital') { $normalized = $this->normalizeDigitalSpecification($spec); if (is_wp_error($normalized)) return $normalized; $spec = $normalized; }
         $productName = sanitize_text_field((string) ($spec['product_name'] ?? $candidate['title']));
         $familyName = sanitize_text_field((string) ($spec['family_name'] ?? ($productName . ' Collection')));
         $description = sanitize_textarea_field((string) ($spec['description'] ?? $candidate['summary']));
@@ -245,7 +246,7 @@ final class ExecutionEngine
         $shop = sanitize_key($shop); if (! in_array($shop, ['digital','goods'], true)) return $this->error('validation', 'shop must be digital or goods.');
         $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
         if ($spec === []) return $this->error('invalid_development_output', 'Development output did not contain a usable structured specification.', 502);
-        if ($shop === 'digital') { $spec = $this->normalizeDigitalSpecification($spec); }
+        if ($shop === 'digital') { $normalized = $this->normalizeDigitalSpecification($spec); if (is_wp_error($normalized)) return $normalized; $spec = $normalized; }
         $productName=sanitize_text_field((string)($spec['product_name']??$candidate['title']));$familyName=sanitize_text_field((string)($spec['family_name']??($productName.' Collection')));$description=sanitize_textarea_field((string)($spec['description']??$candidate['summary']));
         $researchRepo=new ResearchRepository();$opportunity=$researchRepo->promote($candidateId,$key.'-opportunity');if(is_wp_error($opportunity))return $opportunity;
         $products=new ProductRepository();$family=$products->create('product_family',['opportunity_id'=>(int)$opportunity['id'],'name'=>$familyName,'description'=>$description],$key.'-family');if(is_wp_error($family))return $family;
@@ -256,7 +257,7 @@ final class ExecutionEngine
     }
 
     /** @return array<string,mixed> */
-    private function normalizeDigitalSpecification(array $spec): array
+    private function normalizeDigitalSpecification(array $spec): array|\WP_Error
     {
         $variants=is_array($spec['variants']??null)?array_values(array_filter($spec['variants'],'is_array')):[];
         if($variants===[])return $spec;
@@ -268,7 +269,7 @@ final class ExecutionEngine
         $translationVariants=[];$productionVariants=[];
         foreach($variants as$variant){if($isTranslationVariant($variant))$translationVariants[]=$variant;else$productionVariants[]=$variant;}
         if($translationVariants===[])return $spec;
-        if($productionVariants===[])return $spec;
+        if($productionVariants===[])return $this->error('translation_review_required','Digital specification contains only translated/bilingual variants without a reviewed source-language production variant.',502);
 
         $selected=$productionVariants[0];
         foreach($productionVariants as$variant){$name=strtolower((string)($variant['name']??''));if(str_contains($name,'english')){$selected=$variant;break;}}
@@ -281,6 +282,7 @@ final class ExecutionEngine
         $roots=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['required_root_files']??[]))));
         $existingSelection=is_array($spec['delivery_selection']??null)?$spec['delivery_selection']:[];
         $selectedFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($existingSelection['selected_files']??[]))));
+        $selectedFiles=array_values(array_filter($selectedFiles,static fn(string $file):bool=>!preg_match('/(?:_en_(?:es|fr|de|it|pt|nl|pl|sv|no|da|fi)_|_(?:es|fr|de|it|pt|nl|pl|sv|no|da|fi)_|spanish|french|german|italian|portuguese|dutch|polish|swedish|norwegian|danish|finnish)/i',$file)));
         if($selectedFiles===[]&&is_array($requirements['english_files']??null))$selectedFiles=array_values(array_filter(array_map('sanitize_file_name',$requirements['english_files'])));
         if($selectedFiles===[]){
             $allFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['package_structure']??[]))));
