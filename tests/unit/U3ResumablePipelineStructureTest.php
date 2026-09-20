@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+use PHPUnit\Framework\TestCase;
+
+final class U3ResumablePipelineStructureTest extends TestCase
+{
+    public function test_long_manifest_generation_is_background_and_resumable(): void
+    {
+        $automation=(string)file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/ApprovalAutomation.php');
+        $client=(string)file_get_contents(dirname(__DIR__,2).'/includes/Launch/OpenAIClient.php');
+        $orchestrator=(string)file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/Orchestrator.php');
+        self::assertStringContainsString("'manifest_poll'",$automation);
+        self::assertStringContainsString("'finalize'",$automation);
+        self::assertStringContainsString('startBackgroundDevelop',$automation);
+        self::assertStringContainsString('retrieveBackground',$automation);
+        self::assertStringContainsString("'background'=>true",$client);
+        self::assertStringContainsString('public function developOnly',$orchestrator);
+        self::assertStringContainsString("'_manifest_ai'",$orchestrator);
+        self::assertStringContainsString("'external_actions'=>false",$automation);
+    }
+}
