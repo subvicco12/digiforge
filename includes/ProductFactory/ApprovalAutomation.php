@@ -25,7 +25,9 @@ final class ApprovalAutomation
 
     public function timeoutPeriod(int $seconds): int
     {
-        return max($seconds, 900);
+        // Hostinger/Action Scheduler watchdogs may enforce a hard 300s ceiling regardless of PHP set_time_limit().
+        // Keep DigiForge below that boundary so Action Scheduler does not falsely mark a healthy build failed.
+        return min(max($seconds, 240), 270);
     }
 
     /** @param array<string,mixed> $context */
@@ -89,7 +91,7 @@ final class ApprovalAutomation
         if ($runKey === '') {
             $runKey = 'u3-auto-candidate-' . $candidateId . '-' . $shop;
         }
-        if (function_exists('set_time_limit')) { @set_time_limit(0); }
+        if (function_exists('set_time_limit')) { @set_time_limit(240); }
         $result = (new Orchestrator())->build($candidateId, ['shop' => $shop], $runKey);
         if (is_wp_error($result)) {
             Logger::audit('u3_product_build_failed', [
