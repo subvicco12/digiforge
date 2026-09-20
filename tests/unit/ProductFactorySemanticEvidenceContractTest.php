@@ -16,7 +16,7 @@ final class ProductFactorySemanticEvidenceContractTest extends TestCase
         self::assertStringContainsString('marketing_assets_in_customer_package=false', $source);
         self::assertStringContainsString('Marketing assets must not be passed into customer package construction', $source);
         self::assertStringContainsString("'generation_timestamp'=>gmdate('c')", $source);
-        self::assertStringContainsString("'translation_review_status'=>'Automated semantic QA required before Product Approval'", $source);
+        self::assertStringContainsString("'translation_review_status'=>'Only reviewed-language customer files are eligible for delivery'", $source);
         self::assertStringContainsString('one complete SVG source for every promised guide page, language and paper-size variant', $source);
     }
     public function testAction54CompletenessContractIsExplicit(): void
