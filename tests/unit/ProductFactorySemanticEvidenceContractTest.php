@@ -14,6 +14,9 @@ final class ProductFactorySemanticEvidenceContractTest extends TestCase
         self::assertStringContainsString('no third-party artwork is bundled', $source);
         self::assertStringContainsString('customer package ZIP must contain product assets only', $source);
         self::assertStringContainsString('marketing_assets_in_customer_package=false', $source);
-        self::assertStringContainsString('Marketing assets must not be passed into customer package construction', $source);\n        self::assertStringContainsString("'generation_timestamp'=>gmdate('c')", $source);\n        self::assertStringContainsString("'translation_review_status'=>'Automated semantic QA required before Product Approval'", $source);\n        self::assertStringContainsString('one complete SVG source for every promised guide page, language and paper-size variant', $source);
+        self::assertStringContainsString('Marketing assets must not be passed into customer package construction', $source);
+        self::assertStringContainsString("'generation_timestamp'=>gmdate('c')", $source);
+        self::assertStringContainsString("'translation_review_status'=>'Automated semantic QA required before Product Approval'", $source);
+        self::assertStringContainsString('one complete SVG source for every promised guide page, language and paper-size variant', $source);
     }
 }
