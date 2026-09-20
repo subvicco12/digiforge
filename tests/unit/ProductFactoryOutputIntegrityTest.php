@@ -8,12 +8,20 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('PAGE_BREAK',$producer);
   self::assertStringContainsString('preg_split',$producer);
   self::assertStringContainsString('normalizeGeneratedEvidence',$orchestrator);
-  self::assertStringContainsString("hash('sha256'",$orchestrator);
-  self::assertStringContainsString('serializedAssetBytes',$orchestrator);
+  self::assertStringContainsString('finalChecksumRows',$orchestrator);
+  self::assertStringContainsString("'checksum_sha256'",$orchestrator);
+  self::assertStringContainsString('finalizeProvenanceDefinitions',$orchestrator);
+  self::assertStringContainsString('finalizeChecksumDefinitions',$orchestrator);
   self::assertStringContainsString("['sha256,filename']",$orchestrator);
   self::assertStringNotContainsString("preg_replace('/\\.csv$/i','.txt'",$orchestrator);
   self::assertStringContainsString('selected-language or selected-variant customer delivery',$orchestrator);
   self::assertStringContainsString('AI generation alone is not translation approval',$orchestrator);
+  self::assertStringContainsString("'file_checksums'",$orchestrator);
+  self::assertStringContainsString('checksum_scope',$orchestrator);
+  self::assertStringContainsString('finalizeProvenanceDefinitions',$orchestrator);
+  self::assertStringContainsString('The checksum index separately records the final provenance record hash and excludes itself.',$orchestrator);
+  self::assertStringContainsString("'evidence_assets_in_customer_package'=>false",$orchestrator);
+  self::assertStringContainsString('production_svg_content',$orchestrator);
   self::assertStringContainsString('$content=$decoded',$orchestrator);
   self::assertStringNotContainsString('GENERATED_AFTER_FINAL_EXPORT',$orchestrator);
  }

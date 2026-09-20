@@ -27,7 +27,7 @@ final class U3ProductFactoryStructureTest extends TestCase
     }
     public function testProductAndMarketingAssetsAreDistinct(): void
     {
-        $source=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/Orchestrator.php'); $compact=preg_replace('/\s+/','',$source)??$source; self::assertStringContainsString("'asset_type'=>\$group==='marketing'?'marketing_asset':'product_asset'",$compact); self::assertMatchesRegularExpression("/\['group'\s*=>\s*'product'/",$source); self::assertMatchesRegularExpression("/\['group'\s*=>\s*'marketing'/",$source); self::assertStringContainsString("'product_package'",$source);
+        $source=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/Orchestrator.php'); $compact=preg_replace('/\s+/','',$source)??$source; self::assertStringContainsString("'asset_type'=>\$group==='marketing'?'marketing_asset':(\$group==='evidence'?'evidence_asset':'product_asset')",$compact); self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$compact); self::assertMatchesRegularExpression("/\['group'\s*=>\s*'product'/",$source); self::assertMatchesRegularExpression("/\['group'\s*=>\s*'marketing'/",$source); self::assertStringContainsString("'product_package'",$source); $inbox=(string)file_get_contents(__DIR__.'/../../includes/Portal/U3ApprovalInbox.php'); self::assertStringContainsString("'evidence_asset'",$inbox); self::assertStringContainsString('Production evidence / provenance',$inbox);
     }
     public function testApprovalAutomationChecksSchedulerResult(): void
     {

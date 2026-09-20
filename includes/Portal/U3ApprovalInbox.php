@@ -73,7 +73,7 @@ final class U3ApprovalInbox
     /** @param list<array<string,mixed>> $assets */
     private function renderAssets(array $assets): void
     {
-        $groups = ['product' => ['title' => 'Customer / production assets', 'types' => ['product_asset', 'product_package']], 'marketing' => ['title' => 'Marketing / listing assets', 'types' => ['marketing_asset']]];
+        $groups = ['product' => ['title' => 'Customer / production assets', 'types' => ['product_asset', 'product_package']], 'evidence' => ['title' => 'Production evidence / provenance', 'types' => ['evidence_asset']], 'marketing' => ['title' => 'Marketing / listing assets', 'types' => ['marketing_asset']]];
         foreach ($groups as $group) {
             $matches = array_values(array_filter($assets, static fn(array $asset): bool => in_array((string) ($asset['asset_type'] ?? ''), $group['types'], true)));
             if ($matches === []) { continue; } ?>
