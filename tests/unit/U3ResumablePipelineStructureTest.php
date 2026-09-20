@@ -13,6 +13,10 @@ final class U3ResumablePipelineStructureTest extends TestCase
         $orchestrator=(string)file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/Orchestrator.php');
         self::assertStringContainsString("'manifest_poll'",$automation);
         self::assertStringContainsString("'finalize'",$automation);
+        self::assertStringContainsString('preflightManifest',$automation);
+        self::assertStringContainsString('manifestRepairBrief',$automation);
+        self::assertStringContainsString("'manifest_repair_attempts'",$automation);
+        self::assertStringContainsString('u3_product_manifest_auto_repair_scheduled',$automation);
         self::assertStringContainsString('startBackgroundDevelop',$automation);
         self::assertStringContainsString('retrieveBackground',$automation);
         self::assertStringContainsString("'background'=>true",$client);
