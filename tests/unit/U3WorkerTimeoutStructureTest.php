@@ -13,6 +13,9 @@ final class U3WorkerTimeoutStructureTest extends TestCase
         self::assertStringContainsString("action_scheduler_timeout_period", $source);
         self::assertStringContainsString("digiforge_u3_build_product_stage", $source);
         self::assertStringContainsString("scheduleStage", $source);
+        self::assertStringContainsString("development_poll", $source);
+        self::assertStringContainsString('startBackgroundDevelop($brief,8000)', $source);
+        self::assertStringNotContainsString('developOnly($candidateId,$shop,$runKey)', $source);
         self::assertStringContainsString('return min(max($seconds, 240), 270);', $source);
         self::assertStringContainsString("@set_time_limit(180);", $source);
         self::assertStringNotContainsString('etsy_publish', $source);

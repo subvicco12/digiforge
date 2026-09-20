@@ -216,6 +216,44 @@ final class ExecutionEngine
             . 'Create a production-ready product concept optimized for Etsy US and European buyers. Required keys: product_name, family_name, description, target_buyer, differentiation, personalization, variants, price_strategy, estimated_cost_strategy, seo_keywords, listing_title_draft, listing_description_draft, asset_requirements, qa_checklist, ip_policy_notes. For digital products, the approved specification MUST be directly producible by DigiForge using only local html, txt, json, csv, svg, pdf and zip assets. PDF files may be required because DigiForge can generate static, non-interactive PDFs locally. Never specify, promise, or require fillable, editable, interactive, AcroForm, form-field, save/reopen-form, or typed-entry PDF behavior. Do not require Canva templates, Canva access links, editable third-party templates, remote design services, or any other external-service deliverable. Do not require QR codes, QR placeholders, maps, map placeholders, RSVP links or placeholders, registry links or placeholders, hotel links or placeholders, or other destination-dependent functionality unless a real verified destination URL is already present in the approved opportunity input. Never invent URLs or require empty destination/link fields. For locally generated files, provenance evidence may consist of deterministic DigiForge generation metadata, SHA-256 checksums, creation records and an explicit declaration that only system fonts and locally generated text/layout/SVG content are used; do not require third-party font-license records when no third-party font is embedded. Every listing title, description, feature, variant and buyer promise must be backed by an asset requirement DigiForge can actually generate locally. If editable source files are promised, require individual flat SVG files with exact filenames for each promised source; do not describe or require an SVG source ZIP because DigiForge packages the complete customer product set into the final delivery ZIP. Include explicit provenance/licensing requirements for locally generated text, layouts and SVG content and avoid unnecessary third-party brand references. Preserve useful language variants only when their complete customer-facing content can be generated in the local package. For goods, make the concept compatible with Printify/Gelato where practical.';
     }
 
+    /** Build the exact development brief for resumable/background Product Factory execution. */
+    public function developmentBrief(int $candidateId, string $shop): string|\WP_Error
+    {
+        if (! Settings::is_internal_enabled('ai') || ! Settings::is_internal_enabled('product_development')) {
+            return $this->error('switch_disabled', 'AI and Product Development must be configured on before internal development can run.', 409);
+        }
+        $candidate = $this->candidate($candidateId);
+        if ($candidate === null) {
+            return $this->error('not_found', 'Research candidate not found.', 404);
+        }
+        if (($candidate['review_status'] ?? '') !== ResearchRepository::REVIEW_APPROVED) {
+            return $this->error('approval_required', 'Research candidate must be explicitly APPROVED before product development.', 409);
+        }
+        $shop = sanitize_key($shop);
+        if (! in_array($shop, ['digital', 'goods'], true)) {
+            return $this->error('validation', 'shop must be digital or goods.');
+        }
+        return $this->developmentPrompt($candidate, $shop);
+    }
+
+    /** Persist a completed background development payload without making another AI request. */
+    public function persistDevelopment(int $candidateId, string $shop, string $key, array $ai): array|\WP_Error
+    {
+        $candidate = $this->candidate($candidateId);
+        if ($candidate === null) return $this->error('not_found', 'Research candidate not found.', 404);
+        if (($candidate['review_status'] ?? '') !== ResearchRepository::REVIEW_APPROVED) return $this->error('approval_required', 'Research candidate must be explicitly APPROVED before product development.', 409);
+        $shop = sanitize_key($shop); if (! in_array($shop, ['digital','goods'], true)) return $this->error('validation', 'shop must be digital or goods.');
+        $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
+        if ($spec === []) return $this->error('invalid_development_output', 'Development output did not contain a usable structured specification.', 502);
+        $productName=sanitize_text_field((string)($spec['product_name']??$candidate['title']));$familyName=sanitize_text_field((string)($spec['family_name']??($productName.' Collection')));$description=sanitize_textarea_field((string)($spec['description']??$candidate['summary']));
+        $researchRepo=new ResearchRepository();$opportunity=$researchRepo->promote($candidateId,$key.'-opportunity');if(is_wp_error($opportunity))return $opportunity;
+        $products=new ProductRepository();$family=$products->create('product_family',['opportunity_id'=>(int)$opportunity['id'],'name'=>$familyName,'description'=>$description],$key.'-family');if(is_wp_error($family))return $family;
+        $product=$products->create('product',['product_family_id'=>(int)$family['id'],'name'=>$productName,'description'=>$description],$key.'-product');if(is_wp_error($product))return $product;
+        $versionToken=substr(hash('sha256',$key),0,10);$version=$products->create('product_version',['product_id'=>(int)$product['id'],'version_label'=>(str_starts_with($key,'u3-auto-')||str_starts_with($key,'u3-repair-'))?'Capability Spec '.$versionToken:'Launch 1.0','notes'=>wp_json_encode(['shop'=>$shop,'spec'=>$this->sanitizeStructured($spec)])],$key.'-version');if(is_wp_error($version))return $version;
+        Logger::audit('launch_product_developed',['candidate_id'=>$candidateId,'opportunity_id'=>(int)$opportunity['id'],'product_id'=>(int)$product['id'],'product_version_id'=>(int)$version['id'],'shop'=>$shop,'response_id'=>(string)($ai['response_id']??'')],'product',(string)$product['id']);
+        return ['opportunity'=>$opportunity,'product_family'=>$family,'product'=>$product,'product_version'=>$version,'spec'=>$this->sanitizeStructured($spec),'shop'=>$shop,'next_action'=>'Generate production assets and listing package; Etsy publishing remains gated.'];
+    }
+
     /** @return array<string,mixed> */
     private function sanitizeStructured(array $value): array
     {
