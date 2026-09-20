@@ -15,7 +15,14 @@ final class OpenAIClient
     private const DEFAULT_MODEL = 'gpt-5.6-luna';
 
     public function research(string $brief): array|\WP_Error { return $this->request($brief, true, 4000); }
-    public function develop(string $brief): array|\WP_Error { return $this->request($brief, false, str_starts_with($brief, 'You are DigiForge U3 Production.') ? 16000 : 4000); }
+    public function develop(string $brief): array|\WP_Error
+    {
+        // Product Factory manifests contain complete customer + marketing assets and
+        // therefore need the full structured-output allowance. Keep ordinary product
+        // development prompts at the smaller budget.
+        $productionManifest = str_contains($brief, 'production-ready DigiForge asset manifest');
+        return $this->request($brief, false, $productionManifest ? 16000 : 4000);
+    }
 
     private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
     {
