@@ -6,7 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 final class U3ResumablePipelineStructureTest extends TestCase
 {
-    public function test_long_manifest_generation_is_background_and_resumable(): void
+    public function test_long_manifest_generation_is_background_polled_and_resumable(): void
     {
         $automation=(string)file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/ApprovalAutomation.php');
         $client=(string)file_get_contents(dirname(__DIR__,2).'/includes/Launch/OpenAIClient.php');
