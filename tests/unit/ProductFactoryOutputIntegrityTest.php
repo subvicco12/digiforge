@@ -18,7 +18,8 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('AI generation alone is not translation approval',$orchestrator);
   self::assertStringContainsString("'file_checksums'",$orchestrator);
   self::assertStringContainsString('checksum_scope',$orchestrator);
-  self::assertStringContainsString('provenance_record.json',$orchestrator);
+  self::assertStringContainsString('finalizeProvenanceDefinitions',$orchestrator);
+  self::assertStringContainsString('The checksum index separately records the final provenance record hash and excludes itself.',$orchestrator);
   self::assertStringContainsString("'evidence_assets_in_customer_package'=>false",$orchestrator);
   self::assertStringContainsString('production_svg_content',$orchestrator);
   self::assertStringContainsString('$content=$decoded',$orchestrator);
