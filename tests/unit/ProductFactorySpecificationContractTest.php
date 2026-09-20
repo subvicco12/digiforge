@@ -11,7 +11,7 @@ final class ProductFactorySpecificationContractTest extends TestCase
 
         self::assertStringContainsString('binding production contract', $source);
         self::assertStringContainsString('Do not silently substitute a different deliverable type', $source);
-        self::assertStringContainsString('PDF deliverables may not be represented or marketed as PDFs when only HTML is produced', $source);
+        self::assertStringContainsString('PDF deliverables must be emitted as format pdf', $source);
         self::assertStringContainsString('may be claimed only when a real approved destination is available', $source);
         self::assertStringContainsString('Preserve the approved language editions and variant structure exactly', $source);
         self::assertStringContainsString('Marketing must describe only what the generated package really contains', $source);
