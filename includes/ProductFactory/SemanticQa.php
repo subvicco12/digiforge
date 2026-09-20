@@ -28,6 +28,7 @@ final class SemanticQa
                 'byte_size' => (int) ($file['byte_size'] ?? 0),
                 'checksum_sha256' => sanitize_text_field((string) ($file['checksum_sha256'] ?? '')),
                 'sample' => $this->sample((string) ($file['absolute_path'] ?? ''), (string) ($file['format'] ?? '')),
+                'deterministic_qa' => array_map(static fn(array $check): array => ['name'=>(string)($check['name']??''),'passed'=>(bool)($check['passed']??false),'details'=>(array)($check['details']??[])], (array)($asset['qa']??[])),
             ];
         }
 
@@ -133,7 +134,7 @@ final class SemanticQa
         return "You are DigiForge independent Product QA. Return ONLY one JSON object with key checks; no markdown.\n"
             . "Approved product specification: {$spec}\nProduced asset inventory, checksums and content samples: {$assets}\n"
             . "Evaluate conservatively. Required checks, each exactly once: specification_match, spelling_text_quality, ip_trademark_risk, prohibited_content, link_qr_integrity, marketing_product_consistency, mockup_production_separation. "
-            . "Each check must be {name,status,summary,findings}; status is PASS or FAIL only. FAIL whenever evidence is insufficient to verify a claimed link/QR, trademark/copyright safety, customer-file completeness, or separation of marketing from production assets. "
+            . "Each check must be {name,status,summary,findings}; status is PASS or FAIL only. Use the supplied deterministic_qa, checksum_sha256 and byte_size as valid machine evidence for binary/file integrity; do not fail merely because a binary PDF/ZIP cannot be fully rendered in the text sample. FAIL whenever the combined deterministic and semantic evidence is insufficient to verify a claimed link/QR, trademark/copyright safety, customer-file completeness, or separation of marketing from production assets. "
             . "For ip_trademark_risk, identify apparent unauthorized brands, protected characters, copyrighted franchises, celebrity/publicity-rights exploitation, copied marketplace content, or risky trademark use. "
             . "For prohibited_content, flag unsafe, illegal, hateful, sexual-minor, regulated-goods, deceptive, or policy-risk material. "
             . "For spelling_text_quality, check obvious spelling, grammar, placeholders and contradictory instructions. "
