@@ -33,7 +33,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("'expected_page_counts'",$engine);
         self::assertStringContainsString('requires_language_review',$engine);
         self::assertStringContainsString('reviewed English-language files only',$engine);
-        self::assertStringContainsString("'package_structure'=>\$selectedFiles",str_replace(' ','',$engine));
+        self::assertStringContainsString("\$requirements['package_structure']=\$selectedFiles",str_replace(' ','',$engine));
         self::assertStringContainsString('$pageCounts=[]',$engine);
         self::assertStringContainsString('if($translationVariants===[])return $spec',$engine);
         self::assertStringContainsString("'machine_evidence_files'",$engine);
