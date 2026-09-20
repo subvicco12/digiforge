@@ -139,7 +139,7 @@ final class ApprovalAutomation
     private function scheduleStage(int $candidateId,string $shop,string $runKey,string $stage='develop',int $delay=0):bool
     {
         $args=[$candidateId,$shop,sanitize_key($runKey),sanitize_key($stage)];$when=time()+max(0,$delay);
-        if(function_exists('as_schedule_single_action')){$actionId=as_schedule_single_action($when,self::STAGE_HOOK,$args,'digiforge',true);$scheduled=is_int($actionId)&&$actionId>0;}else{$scheduled=wp_schedule_single_event($when,self::STAGE_HOOK,$args,true)===true;}
+        if(function_exists('as_schedule_single_action')){$actionId=as_schedule_single_action($when,self::STAGE_HOOK,$args,'digiforge',false);$scheduled=is_int($actionId)&&$actionId>0;}else{$scheduled=wp_schedule_single_event($when,self::STAGE_HOOK,$args,true)===true;}
         Logger::audit($scheduled?'u3_product_build_stage_scheduled':'u3_product_build_stage_not_scheduled',['shop'=>$shop,'run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false],'research_candidate',(string)$candidateId);return$scheduled;
     }
 
