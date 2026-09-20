@@ -19,4 +19,12 @@ final class ProductFactorySemanticEvidenceContractTest extends TestCase
         self::assertStringContainsString("'translation_review_status'=>'Automated semantic QA required before Product Approval'", $source);
         self::assertStringContainsString('one complete SVG source for every promised guide page, language and paper-size variant', $source);
     }
+    public function testAction54CompletenessContractIsExplicit(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
+        self::assertStringContainsString('Preserve every required filename and extension from the approved specification exactly', $source);
+        self::assertStringContainsString('COMPLETE promised section set', $source);
+        self::assertStringContainsString('[[PAGE_BREAK]]', $source);
+        self::assertStringContainsString('Marketing copy may claim only features', $source);
+    }
 }
