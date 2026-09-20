@@ -25,6 +25,8 @@ final class SemanticQa
                 'filename' => sanitize_file_name((string) ($file['filename'] ?? '')),
                 'format' => sanitize_key((string) ($file['format'] ?? '')),
                 'purpose' => sanitize_text_field((string) (($asset['spec']['purpose'] ?? '') ?: '')),
+                'byte_size' => (int) ($file['byte_size'] ?? 0),
+                'checksum_sha256' => sanitize_text_field((string) ($file['checksum_sha256'] ?? '')),
                 'sample' => $this->sample((string) ($file['absolute_path'] ?? ''), (string) ($file['format'] ?? '')),
             ];
         }
@@ -129,7 +131,7 @@ final class SemanticQa
         $spec = wp_json_encode($specification, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $assets = wp_json_encode($inventory, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return "You are DigiForge independent Product QA. Return ONLY one JSON object with key checks; no markdown.\n"
-            . "Approved product specification: {$spec}\nProduced asset inventory and content samples: {$assets}\n"
+            . "Approved product specification: {$spec}\nProduced asset inventory, checksums and content samples: {$assets}\n"
             . "Evaluate conservatively. Required checks, each exactly once: specification_match, spelling_text_quality, ip_trademark_risk, prohibited_content, link_qr_integrity, marketing_product_consistency, mockup_production_separation. "
             . "Each check must be {name,status,summary,findings}; status is PASS or FAIL only. FAIL whenever evidence is insufficient to verify a claimed link/QR, trademark/copyright safety, customer-file completeness, or separation of marketing from production assets. "
             . "For ip_trademark_risk, identify apparent unauthorized brands, protected characters, copyrighted franchises, celebrity/publicity-rights exploitation, copied marketplace content, or risky trademark use. "
