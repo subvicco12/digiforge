@@ -27,7 +27,8 @@ final class SemanticQa
                 'purpose' => sanitize_text_field((string) (($asset['spec']['purpose'] ?? '') ?: '')),
                 'byte_size' => (int) ($file['byte_size'] ?? 0),
                 'checksum_sha256' => sanitize_text_field((string) ($file['checksum_sha256'] ?? '')),
-                'sample' => $this->sample((string) ($file['absolute_path'] ?? ''), (string) ($file['format'] ?? '')),\n                'deterministic_qa' => array_map(static fn(array $check): array => ['name'=>(string)($check['name']??''),'passed'=>(bool)($check['passed']??false),'details'=>(array)($check['details']??[])], (array)($asset['qa']??[])),
+                'sample' => $this->sample((string) ($file['absolute_path'] ?? ''), (string) ($file['format'] ?? '')),
+                'deterministic_qa' => array_map(static fn(array $check): array => ['name'=>(string)($check['name']??''),'passed'=>(bool)($check['passed']??false),'details'=>(array)($check['details']??[])], (array)($asset['qa']??[])),
             ];
         }
 
