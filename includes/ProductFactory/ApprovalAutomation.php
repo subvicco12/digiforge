@@ -132,6 +132,16 @@ final class ApprovalAutomation
             $manifest=(new \DigiForge\Launch\OpenAIClient())->retrieveBackground($responseId);
             if(is_wp_error($manifest)){$this->stageError($candidateId,$runKey,$manifest);return;}
             if(($manifest['status']??'')!=='completed'){$this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll',20);return;}
+            $preflight=$orchestrator->preflightManifest((array)($state['developed']??[]),$manifest);
+            if(is_wp_error($preflight)){
+                $attempt=(int)($state['manifest_repair_attempts']??0);
+                if($attempt>=2){$this->stageError($candidateId,$runKey,$preflight);return;}
+                $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($orchestrator->manifestRepairBrief((array)$state['developed'],$shop,$manifest,$preflight),16000);
+                if(is_wp_error($started)){$this->stageError($candidateId,$runKey,$started);return;}
+                $state['manifest_repair_attempts']=$attempt+1;$state['manifest_response_id']=(string)$started['response_id'];$state['last_manifest_contract_error']=$preflight->get_error_message();update_option($stateKey,$state,false);
+                $this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll',20);
+                Logger::audit('u3_product_manifest_auto_repair_scheduled',['attempt'=>$attempt+1,'reason'=>$preflight->get_error_message(),'external_actions'=>false],'research_candidate',(string)$candidateId);return;
+            }
             $state['manifest_ai']=$manifest;update_option($stateKey,$state,false);
             $this->scheduleStage($candidateId,$shop,$runKey,'finalize',1);
             Logger::audit('u3_product_build_stage_completed',['stage'=>'manifest_poll','next_stage'=>'finalize','external_actions'=>false],'research_candidate',(string)$candidateId);return;
