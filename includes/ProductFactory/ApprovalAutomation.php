@@ -21,7 +21,7 @@ final class ApprovalAutomation
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
         add_action(self::HOOK, [$this, 'run'], 10, 3);
-        add_action(self::STAGE_HOOK, [$this, 'runStage'], 10, 3);
+        add_action(self::STAGE_HOOK, [$this, 'runStage'], 10, 4);
         add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
     }
 
@@ -95,41 +95,38 @@ final class ApprovalAutomation
         }
         // Keep the legacy hook as a short dispatcher. Long Product Factory work runs in
         // resumable stages so a host watchdog cannot strand the whole pipeline.
-        $this->scheduleStage($candidateId, $shop, $runKey);
+        $this->scheduleStage($candidateId, $shop, $runKey, 'prepare');
         return;
     }
 
-    public function runStage(int $candidateId, string $shop, string $runKey = ''): void
+    public function runStage(int $candidateId, string $shop, string $runKey = '', string $stage = 'prepare'): void
     {
         $shop = sanitize_key($shop);
         $runKey = sanitize_key($runKey);
-        if ($candidateId < 1 || ! in_array($shop, ['digital', 'goods'], true) || $runKey === '') {
+        $stage = sanitize_key($stage);
+        if ($candidateId < 1 || ! in_array($shop, ['digital', 'goods'], true) || $runKey === '' || ! in_array($stage, ['prepare','assets','semantic'], true)) {
             Logger::audit('u3_product_build_failed', ['reason' => 'invalid_stage_args'], 'research_candidate', (string) $candidateId);
             return;
         }
         if (function_exists('set_time_limit')) { @set_time_limit(240); }
-        $result = (new Orchestrator())->build($candidateId, ['shop' => $shop], $runKey);
+        $result = (new Orchestrator())->buildStage($candidateId, ['shop' => $shop], $runKey, $stage);
         if (is_wp_error($result)) {
-            Logger::audit('u3_product_build_failed', [
-                'run_key' => $runKey,
-                'error_code' => $result->get_error_code(),
-                'message' => $result->get_error_message(),
-            ], 'research_candidate', (string) $candidateId);
+            Logger::audit('u3_product_build_failed', ['run_key'=>$runKey,'stage'=>$stage,'error_code'=>$result->get_error_code(),'message'=>$result->get_error_message()], 'research_candidate', (string) $candidateId);
             return;
         }
-        Logger::audit('u3_product_build_completed', [
-            'shop' => $shop,
-            'run_key' => $runKey,
-            'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
-            'workflow_status' => (string) ($result['workflow_status'] ?? ''),
-            'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
-            'external_actions' => false,
-        ], 'research_candidate', (string) $candidateId);
+        $next = sanitize_key((string)($result['next_stage'] ?? 'complete'));
+        if (in_array($next, ['assets','semantic'], true)) {
+            if (! $this->scheduleStage($candidateId, $shop, $runKey, $next)) {
+                Logger::audit('u3_product_build_failed', ['run_key'=>$runKey,'stage'=>$stage,'reason'=>'next_stage_not_scheduled'], 'research_candidate', (string) $candidateId);
+            }
+            return;
+        }
+        Logger::audit('u3_product_build_completed', ['shop'=>$shop,'run_key'=>$runKey,'product_version_id'=>(int)(($result['product_version']['id']??0)),'workflow_status'=>(string)($result['workflow_status']??''),'product_approval_required'=>(bool)($result['product_approval_required']??false),'external_actions'=>false], 'research_candidate', (string) $candidateId);
     }
 
-    private function scheduleStage(int $candidateId, string $shop, string $runKey): bool
+    private function scheduleStage(int $candidateId, string $shop, string $runKey, string $stage = 'prepare'): bool
     {
-        $args = [$candidateId, $shop, sanitize_key($runKey)];
+        $args = [$candidateId, $shop, sanitize_key($runKey), sanitize_key($stage)];
         if (function_exists('as_enqueue_async_action')) {
             $actionId = as_enqueue_async_action(self::STAGE_HOOK, $args, 'digiforge', true);
             $scheduled = is_int($actionId) && $actionId > 0;
@@ -139,6 +136,7 @@ final class ApprovalAutomation
         Logger::audit($scheduled ? 'u3_product_build_stage_scheduled' : 'u3_product_build_stage_not_scheduled', [
             'shop' => $shop,
             'run_key' => $runKey,
+            'stage' => $stage,
             'external_actions' => false,
         ], 'research_candidate', (string) $candidateId);
         return $scheduled;
