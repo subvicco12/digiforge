@@ -217,7 +217,7 @@ final class ExecutionEngine
     }
 
     /** Build the exact development brief for resumable/background Product Factory execution. */
-    public function developmentBrief(int $candidateId, string $shop): string|\\WP_Error
+    public function developmentBrief(int $candidateId, string $shop): string|\WP_Error
     {
         if (! Settings::is_internal_enabled('ai') || ! Settings::is_internal_enabled('product_development')) {
             return $this->error('switch_disabled', 'AI and Product Development must be configured on before internal development can run.', 409);
@@ -237,7 +237,7 @@ final class ExecutionEngine
     }
 
     /** Persist a completed background development payload without making another AI request. */
-    public function persistDevelopment(int $candidateId, string $shop, string $key, array $ai): array|\\WP_Error
+    public function persistDevelopment(int $candidateId, string $shop, string $key, array $ai): array|\WP_Error
     {
         $candidate = $this->candidate($candidateId);
         if ($candidate === null) return $this->error('not_found', 'Research candidate not found.', 404);
