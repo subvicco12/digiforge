@@ -12,7 +12,7 @@ final class U3RepairCycleStructureTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString('u3-repair-candidate-', $source);
         self::assertStringContainsString("add_action(self::HOOK, [\$this, 'run'], 10, 3)", $source);
-        self::assertStringContainsString("'external_actions' => false", $source);
+        self::assertStringContainsString("'external_actions'=>false", preg_replace('/\\s+/','',$source) ?? $source);
     }
 
     public function testRepairRunsRegenerateCapabilitySpecificationIdentity(): void
