@@ -21,7 +21,7 @@ final class ApprovalAutomation
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
         add_action(self::HOOK, [$this, 'run'], 10, 3);
-        add_action(self::STAGE_HOOK, [$this, 'runStage'], 10, 3);
+        add_action(self::STAGE_HOOK, [$this, 'runStage'], 10, 4);
         add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
     }
 
@@ -99,49 +99,48 @@ final class ApprovalAutomation
         return;
     }
 
-    public function runStage(int $candidateId, string $shop, string $runKey = ''): void
+    public function runStage(int $candidateId, string $shop, string $runKey = '', string $stage = 'develop'): void
     {
-        $shop = sanitize_key($shop);
-        $runKey = sanitize_key($runKey);
-        if ($candidateId < 1 || ! in_array($shop, ['digital', 'goods'], true) || $runKey === '') {
-            Logger::audit('u3_product_build_failed', ['reason' => 'invalid_stage_args'], 'research_candidate', (string) $candidateId);
-            return;
+        $shop=sanitize_key($shop);$runKey=sanitize_key($runKey);$stage=sanitize_key($stage);
+        if($candidateId<1||!in_array($shop,['digital','goods'],true)||$runKey===''){Logger::audit('u3_product_build_failed',['reason'=>'invalid_stage_args'],'research_candidate',(string)$candidateId);return;}
+        if(function_exists('set_time_limit')){@set_time_limit(180);}
+        $stateKey='digiforge_u3_'.substr(hash('sha256',$runKey),0,32);
+        $state=get_option($stateKey,[]);$state=is_array($state)?$state:[];
+        $orchestrator=new Orchestrator();
+        if($stage==='develop'){
+            $developed=$orchestrator->developOnly($candidateId,$shop,$runKey);
+            if(is_wp_error($developed)){$this->stageError($candidateId,$runKey,$developed);return;}
+            $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($orchestrator->manifestBrief($developed,$shop),16000);
+            if(is_wp_error($started)){$this->stageError($candidateId,$runKey,$started);return;}
+            update_option($stateKey,['developed'=>$developed,'manifest_response_id'=>(string)$started['response_id'],'created_at'=>time()],false);
+            $this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll',15);
+            Logger::audit('u3_product_build_stage_completed',['stage'=>'develop','next_stage'=>'manifest_poll','external_actions'=>false],'research_candidate',(string)$candidateId);return;
         }
-        if (function_exists('set_time_limit')) { @set_time_limit(240); }
-        $result = (new Orchestrator())->build($candidateId, ['shop' => $shop], $runKey);
-        if (is_wp_error($result)) {
-            Logger::audit('u3_product_build_failed', [
-                'run_key' => $runKey,
-                'error_code' => $result->get_error_code(),
-                'message' => $result->get_error_message(),
-            ], 'research_candidate', (string) $candidateId);
-            return;
+        if($stage==='manifest_poll'){
+            $responseId=sanitize_text_field((string)($state['manifest_response_id']??''));
+            if($responseId===''){Logger::audit('u3_product_build_failed',['reason'=>'missing_manifest_response'],'research_candidate',(string)$candidateId);return;}
+            $manifest=(new \DigiForge\Launch\OpenAIClient())->retrieveBackground($responseId);
+            if(is_wp_error($manifest)){$this->stageError($candidateId,$runKey,$manifest);return;}
+            if(($manifest['status']??'')!=='completed'){$this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll',20);return;}
+            $state['manifest_ai']=$manifest;update_option($stateKey,$state,false);
+            $this->scheduleStage($candidateId,$shop,$runKey,'finalize',1);
+            Logger::audit('u3_product_build_stage_completed',['stage'=>'manifest_poll','next_stage'=>'finalize','external_actions'=>false],'research_candidate',(string)$candidateId);return;
         }
-        Logger::audit('u3_product_build_completed', [
-            'shop' => $shop,
-            'run_key' => $runKey,
-            'product_version_id' => (int) (($result['product_version']['id'] ?? 0)),
-            'workflow_status' => (string) ($result['workflow_status'] ?? ''),
-            'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
-            'external_actions' => false,
-        ], 'research_candidate', (string) $candidateId);
+        if($stage!=='finalize'||!is_array($state['developed']??null)||!is_array($state['manifest_ai']??null)){Logger::audit('u3_product_build_failed',['reason'=>'invalid_resume_state','stage'=>$stage],'research_candidate',(string)$candidateId);return;}
+        $result=$orchestrator->build($candidateId,['shop'=>$shop,'_developed'=>$state['developed'],'_manifest_ai'=>$state['manifest_ai']],$runKey);
+        if(is_wp_error($result)){$this->stageError($candidateId,$runKey,$result);return;}
+        delete_option($stateKey);
+        Logger::audit('u3_product_build_completed',['shop'=>$shop,'run_key'=>$runKey,'product_version_id'=>(int)(($result['product_version']['id']??0)),'workflow_status'=>(string)($result['workflow_status']??''),'product_approval_required'=>(bool)($result['product_approval_required']??false),'external_actions'=>false],'research_candidate',(string)$candidateId);
     }
 
-    private function scheduleStage(int $candidateId, string $shop, string $runKey): bool
+    private function stageError(int $candidateId,string $runKey,WP_Error $error):void
+    {Logger::audit('u3_product_build_failed',['run_key'=>$runKey,'error_code'=>$error->get_error_code(),'message'=>$error->get_error_message()],'research_candidate',(string)$candidateId);}
+
+    private function scheduleStage(int $candidateId,string $shop,string $runKey,string $stage='develop',int $delay=0):bool
     {
-        $args = [$candidateId, $shop, sanitize_key($runKey)];
-        if (function_exists('as_enqueue_async_action')) {
-            $actionId = as_enqueue_async_action(self::STAGE_HOOK, $args, 'digiforge', true);
-            $scheduled = is_int($actionId) && $actionId > 0;
-        } else {
-            $scheduled = wp_schedule_single_event(time() + 1, self::STAGE_HOOK, $args, true) === true;
-        }
-        Logger::audit($scheduled ? 'u3_product_build_stage_scheduled' : 'u3_product_build_stage_not_scheduled', [
-            'shop' => $shop,
-            'run_key' => $runKey,
-            'external_actions' => false,
-        ], 'research_candidate', (string) $candidateId);
-        return $scheduled;
+        $args=[$candidateId,$shop,sanitize_key($runKey),sanitize_key($stage)];$when=time()+max(0,$delay);
+        if(function_exists('as_schedule_single_action')){$actionId=as_schedule_single_action($when,self::STAGE_HOOK,$args,'digiforge',true);$scheduled=is_int($actionId)&&$actionId>0;}else{$scheduled=wp_schedule_single_event($when,self::STAGE_HOOK,$args,true)===true;}
+        Logger::audit($scheduled?'u3_product_build_stage_scheduled':'u3_product_build_stage_not_scheduled',['shop'=>$shop,'run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false],'research_candidate',(string)$candidateId);return$scheduled;
     }
 
     private function schedule(int $candidateId, string $shop, string $runKey, bool $retry = false): bool
