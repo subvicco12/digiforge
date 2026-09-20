@@ -24,6 +24,38 @@ final class OpenAIClient
         return $this->request($brief, false, $productionManifest ? 16000 : 8000);
     }
 
+    /** Start a long structured generation without holding a PHP worker open. */
+    public function startBackgroundDevelop(string $brief, int $maxOutputTokens = 16000): array|\WP_Error
+    {
+        $connector=$this->connector(); if(is_wp_error($connector))return $connector;
+        $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
+        $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']],'background'=>true,'store'=>true];
+        $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
+        if(is_wp_error($response))return new \WP_Error('digiforge_launch_ai_transport',__('AI background request failed.','digiforge'),['status'=>502]);
+        $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
+        if($status<200||$status>=300||!is_array($decoded))return new \WP_Error('digiforge_launch_ai_provider',__('AI provider rejected the background request.','digiforge'),['status'=>502]);
+        $id=sanitize_text_field((string)($decoded['id']??'')); if($id==='')return new \WP_Error('digiforge_launch_ai_empty',__('AI provider did not return a response id.','digiforge'),['status'=>502]);
+        return ['response_id'=>$id,'status'=>sanitize_key((string)($decoded['status']??'queued'))];
+    }
+
+    /** Poll a background response; completed responses are decoded with the same strict JSON contract. */
+    public function retrieveBackground(string $responseId): array|\WP_Error
+    {
+        $responseId=sanitize_text_field($responseId); if(!preg_match('/^resp_[A-Za-z0-9_-]+$/',$responseId))return new \WP_Error('digiforge_launch_ai_response_id',__('AI response id is invalid.','digiforge'),['status'=>400]);
+        $connector=$this->connector(); if(is_wp_error($connector))return $connector;
+        $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
+        $response=wp_remote_get(self::RESPONSES_URL.'/'.rawurlencode($responseId),['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey]]); unset($apiKey);
+        if(is_wp_error($response))return new \WP_Error('digiforge_launch_ai_transport',__('AI background poll failed.','digiforge'),['status'=>502]);
+        $http=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
+        if($http<200||$http>=300||!is_array($decoded))return new \WP_Error('digiforge_launch_ai_provider',__('AI provider rejected the background poll.','digiforge'),['status'=>502]);
+        $status=sanitize_key((string)($decoded['status']??''));
+        if(in_array($status,['queued','in_progress'],true))return ['response_id'=>$responseId,'status'=>$status];
+        if($status==='incomplete'||$status==='failed'||$status==='cancelled')return new \WP_Error('digiforge_launch_ai_incomplete',__('AI background response did not complete successfully.','digiforge'),['status'=>502,'response_status'=>$status]);
+        $text=$this->extractOutputText($decoded);$payload=$this->decodeJsonObject($text);
+        if($status!=='completed'||!is_array($payload))return new \WP_Error('digiforge_launch_ai_invalid_json',__('AI background output was not valid structured JSON.','digiforge'),['status'=>502]);
+        return ['response_id'=>$responseId,'status'=>'completed','payload'=>$payload,'model'=>sanitize_text_field((string)($decoded['model']??self::DEFAULT_MODEL)),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[]];
+    }
+
     private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
     {
         $connector=$this->connector(); if(is_wp_error($connector))return $connector;
