@@ -49,6 +49,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('public function manifestRepairBrief',$orchestrator);
         self::assertStringContainsString('production_selected_variant',$orchestrator);
         self::assertStringContainsString('production_pdf_pages',$orchestrator);
+        self::assertStringContainsString('Required PDF missing from manifest:',$orchestrator);
         self::assertStringContainsString('production_customer_flag',$orchestrator);
         self::assertStringContainsString('production_pdf_capability',$orchestrator);
         self::assertStringContainsString('production_nested_zip',$orchestrator);
