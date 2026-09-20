@@ -108,9 +108,9 @@ final class ApprovalAutomation
         $state=get_option($stateKey,[]);$state=is_array($state)?$state:[];
         $orchestrator=new Orchestrator();
         if($stage==='develop'){
-            $engine=new \\DigiForge\\Launch\\ExecutionEngine();$brief=$engine->developmentBrief($candidateId,$shop);
+            $engine=new \DigiForge\Launch\ExecutionEngine();$brief=$engine->developmentBrief($candidateId,$shop);
             if(is_wp_error($brief)){$this->stageError($candidateId,$runKey,$brief);return;}
-            $started=(new \\DigiForge\\Launch\\OpenAIClient())->startBackgroundDevelop($brief,8000);
+            $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,8000);
             if(is_wp_error($started)){$this->stageError($candidateId,$runKey,$started);return;}
             update_option($stateKey,['development_response_id'=>(string)$started['response_id'],'created_at'=>time()],false);
             $this->scheduleStage($candidateId,$shop,$runKey,'development_poll',15);
@@ -118,11 +118,11 @@ final class ApprovalAutomation
         }
         if($stage==='development_poll'){
             $responseId=sanitize_text_field((string)($state['development_response_id']??''));if($responseId===''){Logger::audit('u3_product_build_failed',['reason'=>'missing_development_response'],'research_candidate',(string)$candidateId);return;}
-            $development=(new \\DigiForge\\Launch\\OpenAIClient())->retrieveBackground($responseId);if(is_wp_error($development)){$this->stageError($candidateId,$runKey,$development);return;}
+            $development=(new \DigiForge\Launch\OpenAIClient())->retrieveBackground($responseId);if(is_wp_error($development)){$this->stageError($candidateId,$runKey,$development);return;}
             if(($development['status']??'')!=='completed'){$this->scheduleStage($candidateId,$shop,$runKey,'development_poll',20);return;}
             $developmentKey=str_starts_with($runKey,'u3-repair-')?$runKey.'-development':'u3-auto-candidate-'.$candidateId.'-'.$shop.'-development';
-            $developed=(new \\DigiForge\\Launch\\ExecutionEngine())->persistDevelopment($candidateId,$shop,$developmentKey,$development);if(is_wp_error($developed)){$this->stageError($candidateId,$runKey,$developed);return;}
-            $started=(new \\DigiForge\\Launch\\OpenAIClient())->startBackgroundDevelop($orchestrator->manifestBrief($developed,$shop),16000);if(is_wp_error($started)){$this->stageError($candidateId,$runKey,$started);return;}
+            $developed=(new \DigiForge\Launch\ExecutionEngine())->persistDevelopment($candidateId,$shop,$developmentKey,$development);if(is_wp_error($developed)){$this->stageError($candidateId,$runKey,$developed);return;}
+            $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($orchestrator->manifestBrief($developed,$shop),16000);if(is_wp_error($started)){$this->stageError($candidateId,$runKey,$started);return;}
             $state['developed']=$developed;$state['manifest_response_id']=(string)$started['response_id'];update_option($stateKey,$state,false);
             $this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll',15);Logger::audit('u3_product_build_stage_completed',['stage'=>'development_poll','next_stage'=>'manifest_poll','external_actions'=>false],'research_candidate',(string)$candidateId);return;
         }
