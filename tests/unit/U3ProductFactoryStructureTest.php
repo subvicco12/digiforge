@@ -41,7 +41,7 @@ final class U3ProductFactoryStructureTest extends TestCase
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/Launch/OpenAIClient.php');
         self::assertStringContainsString("str_contains(\$brief, 'production-ready DigiForge asset manifest')",$source);
-        self::assertStringContainsString('$productionManifest ? 16000 : 4000',$source);
+        self::assertStringContainsString('$productionManifest ? 16000 : 8000',$source);
         self::assertMatchesRegularExpression('/request\(\$brief\s*,\s*true\s*,\s*4000\)/',$source);
     }
 }
