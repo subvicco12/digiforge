@@ -49,13 +49,14 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('public function manifestRepairBrief',$orchestrator);
         self::assertStringContainsString('production_selected_variant',$orchestrator);
         self::assertStringContainsString('production_pdf_pages',$orchestrator);
+        self::assertStringContainsString('Required PDF missing from manifest:',$orchestrator);
         self::assertStringContainsString('production_customer_flag',$orchestrator);
         self::assertStringContainsString('production_pdf_capability',$orchestrator);
         self::assertStringContainsString('production_nested_zip',$orchestrator);
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.8'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.9'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
