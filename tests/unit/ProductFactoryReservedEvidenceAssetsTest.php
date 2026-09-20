@@ -7,6 +7,8 @@ final class ProductFactoryReservedEvidenceAssetsTest extends TestCase {
   self::assertStringContainsString("['delivery-manifest','license-provenance','provenance-record']", $source);
   self::assertStringContainsString("['delivery-manifest.json','license-and-provenance.txt','provenance.json']", $source);
   self::assertStringContainsString("'asset_key'=>'delivery-manifest'", $source);
-  self::assertStringContainsString("'asset_key'=>'license-provenance'", $source);\n  self::assertStringContainsString("'asset_key'=>'provenance-record'", $source);\n  self::assertStringContainsString("'filename'=>'provenance.json'", $source);
+  self::assertStringContainsString("'asset_key'=>'license-provenance'", $source);
+  self::assertStringContainsString("'asset_key'=>'provenance-record'", $source);
+  self::assertStringContainsString("'filename'=>'provenance.json'", $source);
  }
 }
