@@ -163,7 +163,7 @@ final class ExecutionEngine
         $versionToken = substr(hash('sha256', $key), 0, 10);
         $version = $products->create('product_version', [
             'product_id' => (int) $product['id'],
-            'version_label' => str_starts_with($key, 'u3-auto-') ? 'Capability Spec ' . $versionToken : 'Launch 1.0',
+            'version_label' => (str_starts_with($key, 'u3-auto-') || str_starts_with($key, 'u3-repair-')) ? 'Capability Spec ' . $versionToken : 'Launch 1.0',
             'notes' => wp_json_encode(['shop' => $shop, 'spec' => $this->sanitizeStructured($spec)]),
         ], $key . '-version');
         if (is_wp_error($version)) {
