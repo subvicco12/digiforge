@@ -260,46 +260,64 @@ final class ExecutionEngine
     {
         $variants=is_array($spec['variants']??null)?array_values(array_filter($spec['variants'],'is_array')):[];
         if($variants===[])return $spec;
-        $selectedIndex=0;
-        foreach($variants as$i=>$variant){$name=strtolower((string)($variant['name']??''));if(str_contains($name,'english')&&!str_contains($name,'spanish')&&!str_contains($name,'french')&&!str_contains($name,'bilingual')){$selectedIndex=$i;break;}}
-        $selected=$variants[$selectedIndex];$deferred=[];
-        foreach($variants as$i=>$variant){if($i===$selectedIndex)continue;$variant['availability']='requires_language_review';$variant['defer_reason']='No explicit human/fluent translation-review evidence is attached to the approved opportunity.';$deferred[]=$variant;}
-        $selected['availability']='production_ready';$spec['variants']=[$selected];$spec['deferred_variants']=$deferred;
+
+        $isTranslationVariant=static function(array $variant):bool{
+            $name=strtolower((string)($variant['name']??''));
+            return (bool)preg_match('/\b(?:spanish|french|german|italian|portuguese|dutch|polish|swedish|norwegian|danish|finnish|bilingual|multilingual)\b/i',$name);
+        };
+        $translationVariants=[];$productionVariants=[];
+        foreach($variants as$variant){if($isTranslationVariant($variant))$translationVariants[]=$variant;else$productionVariants[]=$variant;}
+        if($translationVariants===[])return $spec;
+        if($productionVariants===[])return $spec;
+
+        $selected=$productionVariants[0];
+        foreach($productionVariants as$variant){$name=strtolower((string)($variant['name']??''));if(str_contains($name,'english')){$selected=$variant;break;}}
+        $deferred=[];
+        foreach($translationVariants as$variant){$variant['availability']='requires_language_review';$variant['defer_reason']='No explicit human/fluent translation-review evidence is attached to the approved opportunity.';$deferred[]=$variant;}
+        foreach($productionVariants as&$variant){$variant['availability']=$variant['availability']??'production_ready';}unset($variant);
+        $spec['variants']=$productionVariants;$spec['deferred_variants']=$deferred;
 
         $requirements=is_array($spec['asset_requirements']??null)?$spec['asset_requirements']:[];
-        $allFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['package_structure']??[]))));
-        $selectedName=strtolower((string)($selected['name']??'english'));$code=str_contains($selectedName,'spanish')?'ES':(str_contains($selectedName,'french')?'FR':'EN');
-        $selectedFiles=array_values(array_filter($allFiles,static function(string $file)use($code):bool{
-            if(preg_match('/_(EN|ES|FR)_/i',$file,$m))return strtoupper($m[1])===$code;
-            return !preg_match('/_(?:EN|ES|FR)_/i',$file);
-        }));
-        if($selectedFiles===[])$selectedFiles=$allFiles;
+        $roots=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['required_root_files']??[]))));
+        $existingSelection=is_array($spec['delivery_selection']??null)?$spec['delivery_selection']:[];
+        $selectedFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($existingSelection['selected_files']??[]))));
+        if($selectedFiles===[]&&is_array($requirements['english_files']??null))$selectedFiles=array_values(array_filter(array_map('sanitize_file_name',$requirements['english_files'])));
+        if($selectedFiles===[]){
+            $allFiles=array_values(array_filter(array_map('sanitize_file_name',(array)($requirements['package_structure']??[]))));
+            $selectedFiles=array_values(array_filter($allFiles,static fn(string $file):bool=>!preg_match('/(?:_en_(?:es|fr|de|it|pt|nl|pl|sv|no|da|fi)_|_(?:es|fr|de|it|pt|nl|pl|sv|no|da|fi)_|spanish|french|german|italian|portuguese|dutch|polish|swedish|norwegian|danish|finnish)/i',$file)));
+        }
+        $selectedFiles=array_values(array_unique(array_merge($roots,$selectedFiles)));
         $machineEvidence=['DELIVERY-MANIFEST.json','LICENSE-AND-PROVENANCE.txt','provenance.json'];
         $requirements['machine_evidence_files']=$machineEvidence;
-        $requirements['package_structure']=array_values(array_unique(array_merge($selectedFiles,$machineEvidence)));
-        $svgCount=count(array_filter($selectedFiles,static fn(string $f):bool=>str_ends_with(strtolower($f),'.svg')));
-        $pageCounts=is_array($requirements['expected_page_counts']??null)?$requirements['expected_page_counts']:[];
-        foreach($selectedFiles as$file){if(!str_ends_with(strtolower($file),'.pdf'))continue;$existing=(int)($pageCounts[$file]??0);$pageCounts[$file]=$existing>0?$existing:max(1,$svgCount);}
+        $requirements['package_structure']=$selectedFiles;
+
+        $pageStructure=is_array($requirements['page_structure']??null)?$requirements['page_structure']:[];
+        $defaultPageCount=count($pageStructure);
+        $existingCounts=is_array($requirements['expected_page_counts']??null)?$requirements['expected_page_counts']:[];
+        $pageCounts=[];
+        foreach($selectedFiles as$file){
+            if(!str_ends_with(strtolower($file),'.pdf'))continue;
+            $existing=(int)($existingCounts[$file]??0);
+            $pageCounts[$file]=$existing>0?$existing:max(1,$defaultPageCount);
+        }
         $requirements['expected_page_counts']=$pageCounts;
-        $requirements['content_specification']='Current production scope is the selected reviewed-language variant only. Every customer-facing file must contain complete final copy with no placeholder links, invented facts, or unreviewed translation claims.';
-        $requirements['delivery_specification']='Package only delivery_selection.selected_files in the customer ZIP. Include final deterministic metadata and SHA-256 evidence. PDFs are static; SVG sources are standalone files.';
+        $requirements['content_specification']='Current production scope contains only reviewed-language customer files. Every customer-facing file must contain complete final copy with no placeholder links, invented facts, or unreviewed translation claims.';
+        $requirements['delivery_specification']='Package only delivery_selection.selected_files in the customer ZIP. Machine audit evidence remains outside the customer ZIP. PDFs are static; SVG sources are standalone files.';
         $spec['asset_requirements']=$requirements;
         $spec['delivery_selection']=[
             'selected_variant'=>(string)($selected['name']??'English Complete Kit'),
-            'selected_language'=>strtolower($code),
+            'selected_language'=>'en',
             'selected_files'=>$selectedFiles,
             'selection_rule'=>'reviewed-language-only production; unreviewed translations are deferred',
             'deferred_variants'=>array_map(static fn(array $v):string=>(string)($v['name']??'deferred'),$deferred),
             'machine_evidence_files'=>$machineEvidence,
         ];
-        if($deferred!==[]){
-            $productName=sanitize_text_field((string)($spec['product_name']??'Digital Product'));
-            $spec['listing_title_draft']=$productName.' | Static PDF + SVG Digital Download';
-            $description=sanitize_textarea_field((string)($spec['description']??''));
-            $spec['listing_description_draft']=$description."\n\nCurrent production delivery: English-only selected variant. Includes the files listed in delivery_selection.selected_files. PDFs are static and non-interactive; SVG source files are supplied individually for compatible local vector editing. Unreviewed translated variants are not included or advertised as production-ready.";
-            foreach(['differentiation','seo_keywords','qa_checklist']as$key){if(!is_array($spec[$key]??null))continue;$spec[$key]=array_values(array_filter($spec[$key],static fn($v):bool=>!preg_match('/\b(?:spanish|french|bilingual|multilingual)\b/i',(string)$v)));}
-            foreach(['recommended_usd','recommended_eur']as$key){if(isset($spec['price_strategy'][$key])&&is_array($spec['price_strategy'][$key]))unset($spec['price_strategy'][$key]['bilingual']);}
-        }
+
+        $productName=sanitize_text_field((string)($spec['product_name']??'Digital Product'));
+        $spec['listing_title_draft']=$productName.' | Static PDF + SVG Digital Download';
+        $description=sanitize_textarea_field((string)($spec['description']??''));
+        $spec['listing_description_draft']=$description."\n\nCurrent production delivery: reviewed English-language files only. Includes the exact files listed in delivery_selection.selected_files. PDFs are static and non-interactive; SVG source files are supplied individually for compatible local vector editing. Unreviewed translated variants are deferred and are not included or advertised as production-ready.";
+        foreach(['differentiation','seo_keywords','qa_checklist']as$key){if(!is_array($spec[$key]??null))continue;$spec[$key]=array_values(array_filter($spec[$key],static fn($v):bool=>!preg_match('/\b(?:spanish|french|german|italian|portuguese|dutch|polish|swedish|norwegian|danish|finnish|bilingual|multilingual)\b/i',(string)$v)));}
         return $spec;
     }
 
