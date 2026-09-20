@@ -40,6 +40,6 @@ final class U3RepairCycleStructureTest extends TestCase
         self::assertStringContainsString('fake Canva links', $source);
         self::assertStringContainsString('placeholder URLs', $source);
         self::assertStringContainsString('Every HTML asset must be a complete document', $source);
-        self::assertStringContainsString('do not market it', $source);
+        self::assertStringContainsString('Marketing must describe only what the generated package really contains', $source);
     }
 }
