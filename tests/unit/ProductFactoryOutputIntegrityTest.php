@@ -9,6 +9,11 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('preg_split',$producer);
   self::assertStringContainsString('normalizeGeneratedEvidence',$orchestrator);
   self::assertStringContainsString("hash('sha256'",$orchestrator);
+  self::assertStringContainsString('serializedAssetBytes',$orchestrator);
+  self::assertStringContainsString("['sha256,filename']",$orchestrator);
+  self::assertStringNotContainsString("preg_replace('/\\.csv$/i','.txt'",$orchestrator);
+  self::assertStringContainsString('selected-language or selected-variant customer delivery',$orchestrator);
+  self::assertStringContainsString('AI generation alone is not translation approval',$orchestrator);
   self::assertStringContainsString('$content=$decoded',$orchestrator);
   self::assertStringNotContainsString('GENERATED_AFTER_FINAL_EXPORT',$orchestrator);
  }
