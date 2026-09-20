@@ -14,6 +14,12 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringNotContainsString("preg_replace('/\\.csv$/i','.txt'",$orchestrator);
   self::assertStringContainsString('selected-language or selected-variant customer delivery',$orchestrator);
   self::assertStringContainsString('AI generation alone is not translation approval',$orchestrator);
+  self::assertStringContainsString('normalizeManifestContract',$orchestrator);
+  self::assertStringContainsString("'evidence_assets_in_customer_package'=>false",$orchestrator);
+  self::assertStringContainsString("['group'=>'evidence','assets'=>$evidenceAssets]",$orchestrator);
+  self::assertStringContainsString('must contain exactly',$orchestrator);
+  self::assertStringContainsString('inventory\\s*marker',$orchestrator);
+  self::assertStringContainsString('Marketing and listing assets are not included in the customer download.',$orchestrator);
   self::assertStringContainsString('$content=$decoded',$orchestrator);
   self::assertStringNotContainsString('GENERATED_AFTER_FINAL_EXPORT',$orchestrator);
  }
