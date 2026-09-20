@@ -15,11 +15,11 @@ final class U3RepairCycleStructureTest extends TestCase
         self::assertStringContainsString("'external_actions' => false", $source);
     }
 
-    public function testDevelopmentIdentityIsStableAcrossRepairRuns(): void
+    public function testRepairRunsRegenerateCapabilitySpecificationIdentity(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString('$developmentKey=\'u3-auto-candidate-\'', $source);
+        self::assertStringContainsString("\$developmentKey=\$isRepair?\$key.'-development':'u3-auto-candidate-'", $source);
         self::assertStringContainsString('->develop($candidateId,[\'shop\'=>$shop],$developmentKey)', $source);
     }
 
