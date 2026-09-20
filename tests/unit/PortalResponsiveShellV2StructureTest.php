@@ -18,8 +18,8 @@ final class PortalResponsiveShellV2StructureTest extends TestCase
         self::assertIsString($css);
         self::assertIsString($js);
 
-        self::assertStringContainsString("Version: 1.0.4", $plugin);
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.4'", $plugin);
+        self::assertStringContainsString("Version: 1.0.5", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.5'", $plugin);
         self::assertStringContainsString("assets/portal-ui.css", $plugin);
         self::assertStringContainsString("assets/portal-ui.js", $plugin);
 
