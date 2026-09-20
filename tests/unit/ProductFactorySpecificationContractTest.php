@@ -16,6 +16,6 @@ final class ProductFactorySpecificationContractTest extends TestCase
         self::assertStringContainsString('Preserve the approved language editions and variant structure exactly', $source);
         self::assertStringContainsString('Marketing must describe only what the generated package really contains', $source);
         self::assertStringContainsString('fake Canva links', $source);
-        self::assertStringContainsString('external_publish'=>false, $source);
+        self::assertStringContainsString("'external_publish'=>false", $source);
     }
 }
