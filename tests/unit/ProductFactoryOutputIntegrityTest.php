@@ -9,7 +9,7 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('preg_split',$producer);
   self::assertStringContainsString('normalizeGeneratedEvidence',$orchestrator);
   self::assertStringContainsString("hash('sha256'",$orchestrator);
-  self::assertStringContainsString('\$a[\'content\']=\$decoded',$orchestrator);
+  self::assertStringContainsString('$content=$decoded',$orchestrator);
   self::assertStringNotContainsString('GENERATED_AFTER_FINAL_EXPORT',$orchestrator);
  }
 }
