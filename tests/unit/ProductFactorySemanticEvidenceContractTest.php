@@ -18,5 +18,7 @@ final class ProductFactorySemanticEvidenceContractTest extends TestCase
         self::assertStringContainsString("'generation_timestamp'=>gmdate('c')", $source);
         self::assertStringContainsString("'translation_review_status'=>'Automated semantic QA required before Product Approval'", $source);
         self::assertStringContainsString('one complete SVG source for every promised guide page, language and paper-size variant', $source);
+        self::assertStringContainsString('Do not label standalone CSS/style text as html', $source);
+        self::assertStringContainsString("preg_match('/<(?:html|main|section|article|div|body)\\\\b/i'", $source);
     }
 }
