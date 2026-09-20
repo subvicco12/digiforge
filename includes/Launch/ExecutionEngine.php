@@ -299,8 +299,12 @@ final class ExecutionEngine
         $pageCounts=[];
         foreach($selectedFiles as$file){
             if(!str_ends_with(strtolower($file),'.pdf'))continue;
-            $existing=(int)($existingCounts[$file]??0);
-            $pageCounts[$file]=$existing>0?$existing:max(1,$defaultPageCount);
+            $canonical=sanitize_file_name($file);
+            $existing=0;
+            foreach($existingCounts as$countName=>$countValue){
+                if(sanitize_file_name((string)$countName)===$canonical){$existing=(int)$countValue;break;}
+            }
+            $pageCounts[$canonical]=$existing>0?$existing:max(1,$defaultPageCount);
         }
         $requirements['expected_page_counts']=$pageCounts;
         $requirements['content_specification']='Current production scope contains only reviewed-language customer files. Every customer-facing file must contain complete final copy with no placeholder links, invented facts, or unreviewed translation claims.';
