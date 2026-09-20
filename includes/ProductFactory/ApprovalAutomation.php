@@ -15,11 +15,13 @@ use WP_Error;
 final class ApprovalAutomation
 {
     private const HOOK = 'digiforge_u3_build_product';
+    private const STAGE_HOOK = 'digiforge_u3_build_product_stage';
 
     public function register(): void
     {
         add_action('digiforge_log', [$this, 'onAudit'], 20, 4);
         add_action(self::HOOK, [$this, 'run'], 10, 3);
+        add_action(self::STAGE_HOOK, [$this, 'runStage'], 10, 3);
         add_filter('action_scheduler_timeout_period', [$this, 'timeoutPeriod']);
     }
 
@@ -91,6 +93,20 @@ final class ApprovalAutomation
         if ($runKey === '') {
             $runKey = 'u3-auto-candidate-' . $candidateId . '-' . $shop;
         }
+        // Keep the legacy hook as a short dispatcher. Long Product Factory work runs in
+        // resumable stages so a host watchdog cannot strand the whole pipeline.
+        $this->scheduleStage($candidateId, $shop, $runKey);
+        return;
+    }
+
+    public function runStage(int $candidateId, string $shop, string $runKey = ''): void
+    {
+        $shop = sanitize_key($shop);
+        $runKey = sanitize_key($runKey);
+        if ($candidateId < 1 || ! in_array($shop, ['digital', 'goods'], true) || $runKey === '') {
+            Logger::audit('u3_product_build_failed', ['reason' => 'invalid_stage_args'], 'research_candidate', (string) $candidateId);
+            return;
+        }
         if (function_exists('set_time_limit')) { @set_time_limit(240); }
         $result = (new Orchestrator())->build($candidateId, ['shop' => $shop], $runKey);
         if (is_wp_error($result)) {
@@ -109,6 +125,23 @@ final class ApprovalAutomation
             'product_approval_required' => (bool) ($result['product_approval_required'] ?? false),
             'external_actions' => false,
         ], 'research_candidate', (string) $candidateId);
+    }
+
+    private function scheduleStage(int $candidateId, string $shop, string $runKey): bool
+    {
+        $args = [$candidateId, $shop, sanitize_key($runKey)];
+        if (function_exists('as_enqueue_async_action')) {
+            $actionId = as_enqueue_async_action(self::STAGE_HOOK, $args, 'digiforge', true);
+            $scheduled = is_int($actionId) && $actionId > 0;
+        } else {
+            $scheduled = wp_schedule_single_event(time() + 1, self::STAGE_HOOK, $args, true) === true;
+        }
+        Logger::audit($scheduled ? 'u3_product_build_stage_scheduled' : 'u3_product_build_stage_not_scheduled', [
+            'shop' => $shop,
+            'run_key' => $runKey,
+            'external_actions' => false,
+        ], 'research_candidate', (string) $candidateId);
+        return $scheduled;
     }
 
     private function schedule(int $candidateId, string $shop, string $runKey, bool $retry = false): bool
