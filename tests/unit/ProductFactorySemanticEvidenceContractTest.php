@@ -13,7 +13,7 @@ final class ProductFactorySemanticEvidenceContractTest extends TestCase
         self::assertStringContainsString('LICENSE-AND-PROVENANCE.txt', $source);
         self::assertStringContainsString('no third-party artwork is bundled', $source);
         self::assertStringContainsString('customer package ZIP must contain product assets only', $source);
-        self::assertStringContainsString('marketing_assets_included=false', $source);
+        self::assertStringContainsString('marketing_assets_in_customer_package=false', $source);
         self::assertStringContainsString('Marketing assets must not be passed into customer package construction', $source);
     }
 }
