@@ -21,5 +21,6 @@ final class U3ResumablePipelineStructureTest extends TestCase
         self::assertStringContainsString('public function developOnly',$orchestrator);
         self::assertStringContainsString("'_manifest_ai'",$orchestrator);
         self::assertStringContainsString("'external_actions'=>false",$automation);
+        self::assertStringContainsString("as_schedule_single_action($when,self::STAGE_HOOK,$args,'digiforge',false)",$automation);
     }
 }
