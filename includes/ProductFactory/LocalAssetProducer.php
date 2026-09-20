@@ -113,7 +113,8 @@ final class LocalAssetProducer
     /** @param mixed $content */
     private function pdf($content): string|WP_Error
     {
-        $pages = is_array($content) ? $content : [$content];
+        $pages = is_array($content) ? $content : preg_split('/\\s*\\[\\[PAGE_BREAK\\]\\]\\s*/u', (string) $content);
+        $pages = is_array($pages) ? $pages : [(string) $content];
         $pages = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $pages), static fn(string $v): bool => $v !== ''));
         if ($pages === []) { return $this->error('invalid_pdf_content', 'PDF requires at least one text page.'); }
         $objects=[];$pageIds=[];$fontId=3;$nextId=4;
