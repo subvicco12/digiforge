@@ -32,7 +32,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         $orchestrator=file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/Orchestrator.php');
         self::assertStringContainsString("substr(\$file,0,-3).'.pdf'",$orchestrator);
         self::assertStringContainsString('$canonical=strtolower($file);$matches=[]',$orchestrator);
-        self::assertStringContainsString("count($matches)>1",$orchestrator);
+        self::assertStringContainsString('count($matches)>1',$orchestrator);
         self::assertStringContainsString("Expected-page-count filename is ambiguous after canonical matching",$orchestrator);
         self::assertStringContainsString("STATUS_FAILED",$automation);
         self::assertStringContainsString("STATUS_PENDING",$automation);
