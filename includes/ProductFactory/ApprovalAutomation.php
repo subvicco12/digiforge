@@ -102,8 +102,15 @@ final class ApprovalAutomation
         $runKey = sanitize_key((string) $active['run_key']);
         $stateKey = $this->stateKey($runKey);
         $state = get_option($stateKey, []);
-        if (! is_array($state) || ! is_array($state['terminal_error'] ?? null)) {
+        if (! is_array($state)) {
             return new WP_Error('u3_resume_not_failed', __('The persisted Product Factory run is not in a failed resumable state.', 'digiforge'), ['status' => 409]);
+        }
+        $previousError = is_array($state['terminal_error'] ?? null) ? (array) $state['terminal_error'] : [];
+        if ($previousError === []) {
+            $stage = sanitize_key((string) ($state['stage'] ?? ''));
+            $orphan = $this->orphanedFailedStage($candidateId, $shop, $runKey, $stage);
+            if (is_wp_error($orphan)) { return $orphan; }
+            $previousError = ['code'=>'u3_orphaned_failed_action','message'=>'Recovered from an Action Scheduler failure that predated terminal-error checkpointing.','action_id'=>(int)$orphan];
         }
         $createdAt = (int) ($state['created_at'] ?? 0);
         if ($createdAt < 1 || (time() - $createdAt) > self::MAX_RECOVERY_SECONDS) {
@@ -113,7 +120,6 @@ final class ApprovalAutomation
         if (! in_array($stage, ['develop', 'development_poll', 'manifest_poll', 'finalize'], true)) {
             return new WP_Error('u3_resume_invalid_stage', __('The persisted Product Factory stage cannot be resumed safely.', 'digiforge'), ['status' => 409]);
         }
-        $previousError = (array) $state['terminal_error'];
         unset($state['terminal_error']);
         $state['updated_at'] = time();
         if (! update_option($stateKey, $state, false)) {
@@ -129,6 +135,32 @@ final class ApprovalAutomation
         $this->touchActive($candidateId, $shop, $runKey, $stage);
         Logger::audit('u3_product_build_resumed', ['run_key'=>$runKey,'stage'=>$stage,'previous_error_code'=>(string)($previousError['code']??''),'external_actions'=>false], 'research_candidate', (string) $candidateId);
         return ['candidate_id'=>$candidateId,'shop'=>$shop,'resumed'=>true,'run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false];
+    }
+
+    private function orphanedFailedStage(int $candidateId, string $shop, string $runKey, string $stage): int|WP_Error
+    {
+        if (! in_array($stage, ['develop', 'development_poll', 'manifest_poll', 'finalize'], true)) {
+            return new WP_Error('u3_resume_not_failed', __('The persisted Product Factory run is not in a failed resumable state.', 'digiforge'), ['status' => 409]);
+        }
+        if (! function_exists('as_get_scheduled_actions')) {
+            return new WP_Error('u3_resume_evidence_unavailable', __('Action Scheduler evidence is unavailable; refusing orphan recovery.', 'digiforge'), ['status' => 409]);
+        }
+        $args = [$candidateId, $shop, $runKey, $stage];
+        $pending = as_get_scheduled_actions(['hook'=>self::STAGE_HOOK,'args'=>$args,'status'=>\ActionScheduler_Store::STATUS_PENDING,'per_page'=>1]);
+        $running = as_get_scheduled_actions(['hook'=>self::STAGE_HOOK,'args'=>$args,'status'=>\ActionScheduler_Store::STATUS_RUNNING,'per_page'=>1]);
+        if ($pending !== [] || $running !== []) {
+            return new WP_Error('u3_resume_stage_active', __('The persisted Product Factory stage still has active scheduler work.', 'digiforge'), ['status' => 409]);
+        }
+        $failed = as_get_scheduled_actions(['hook'=>self::STAGE_HOOK,'args'=>$args,'status'=>\ActionScheduler_Store::STATUS_FAILED,'orderby'=>'date','order'=>'DESC','per_page'=>1]);
+        if ($failed === []) {
+            return new WP_Error('u3_resume_not_failed', __('No matching failed Action Scheduler stage proves this run is resumable.', 'digiforge'), ['status' => 409]);
+        }
+        $ids = array_keys($failed);
+        $actionId = (int) reset($ids);
+        if ($actionId < 1) {
+            return new WP_Error('u3_resume_evidence_invalid', __('Failed Action Scheduler evidence is invalid.', 'digiforge'), ['status' => 409]);
+        }
+        return $actionId;
     }
 
     public function run(int $candidateId, string $shop, string $runKey = ''): void
