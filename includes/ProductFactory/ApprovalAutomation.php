@@ -125,10 +125,18 @@ final class ApprovalAutomation
             $previousError = ['code'=>'u3_orphaned_failed_action','message'=>'Recovered from an Action Scheduler failure that predated terminal-error checkpointing.','action_id'=>(int)$orphan];
         }
         $createdAt = (int) ($state['created_at'] ?? 0);
-        if ($createdAt < 1 || (time() - $createdAt) > self::MAX_RECOVERY_SECONDS) {
+        $expiredTerminal = $createdAt > 0 && (time() - $createdAt) > self::MAX_RECOVERY_SECONDS && is_array($state['terminal_error'] ?? null);
+        if ($createdAt < 1 || ((time() - $createdAt) > self::MAX_RECOVERY_SECONDS && ! $expiredTerminal)) {
             return new WP_Error('u3_resume_expired', __('The persisted Product Factory run is outside the safe recovery window.', 'digiforge'), ['status' => 409]);
         }
         $stage = sanitize_key((string) ($state['stage'] ?? ''));
+        if ($expiredTerminal) {
+            $lease = $this->expiredTerminalLease($candidateId, $shop, $runKey, $stage);
+            if (is_wp_error($lease)) { return $lease; }
+            $state['created_at'] = time();
+            $state['recovery_origin_created_at'] = $createdAt;
+            $state['recovery_lease_started_at'] = time();
+        }
         if (! in_array($stage, ['develop', 'development_poll', 'manifest_poll', 'finalize'], true)) {
             return new WP_Error('u3_resume_invalid_stage', __('The persisted Product Factory stage cannot be resumed safely.', 'digiforge'), ['status' => 409]);
         }
@@ -178,6 +186,24 @@ final class ApprovalAutomation
             return new WP_Error('u3_resume_missing_run', __('No unique persisted failed Product Factory checkpoint is available to resume.', 'digiforge'), ['status' => 409]);
         }
         return $matches[0];
+    }
+
+    private function expiredTerminalLease(int $candidateId, string $shop, string $runKey, string $stage): true|WP_Error
+    {
+        if (! in_array($stage, ['develop', 'development_poll', 'manifest_poll', 'finalize'], true)) {
+            return new WP_Error('u3_resume_invalid_stage', __('The expired Product Factory checkpoint is not at a resumable stage.', 'digiforge'), ['status' => 409]);
+        }
+        if (! function_exists('as_get_scheduled_actions')) {
+            return new WP_Error('u3_resume_evidence_unavailable', __('Action Scheduler evidence is unavailable; refusing expired checkpoint recovery.', 'digiforge'), ['status' => 409]);
+        }
+        $args = [$candidateId, $shop, $runKey, $stage];
+        foreach ([\ActionScheduler_Store::STATUS_PENDING, \ActionScheduler_Store::STATUS_RUNNING] as $status) {
+            if (as_get_scheduled_actions(['hook'=>self::STAGE_HOOK,'args'=>$args,'status'=>$status,'per_page'=>1]) !== []) {
+                return new WP_Error('u3_resume_stage_active', __('The expired Product Factory stage already has active scheduler work.', 'digiforge'), ['status' => 409]);
+            }
+        }
+        Logger::audit('u3_product_build_recovery_lease_renewed', ['run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false], 'research_candidate', (string) $candidateId);
+        return true;
     }
 
     private function orphanedFailedStage(int $candidateId, string $shop, string $runKey, string $stage): int|WP_Error
