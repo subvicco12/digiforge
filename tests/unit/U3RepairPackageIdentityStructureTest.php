@@ -16,7 +16,7 @@ final class U3RepairPackageIdentityStructureTest extends TestCase
         self::assertStringContainsString("DIGIFORGE_VERSION.'|'.\$key", $source);
         self::assertStringContainsString('$this->producer->package($productVersionId,$packageInput,$packageFilename,$repairVariant)', $source);
         self::assertStringContainsString("'variant_key'=>\$variant", $source);
-        self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$key,$sequence,$repairVariant)', $source);
+        self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$persistenceKey,$sequence,$repairVariant)', $source);
         self::assertStringContainsString("'external_publish'=>false", $source);
     }
 }
