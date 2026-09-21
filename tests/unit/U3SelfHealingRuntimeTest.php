@@ -17,7 +17,8 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('u3_product_build_auto_retry',$automation);
         self::assertStringContainsString('u3_product_build_auto_repair_scheduled',$automation);
         self::assertStringContainsString('pauseAndSchedule',$automation);
-        self::assertStringContainsString('u3_run_active',$automation);\n        self::assertStringContainsString('ACTIVE_LEASE_SECONDS = 1200',$automation);
+        self::assertStringContainsString('u3_run_active',$automation);
+        self::assertStringContainsString('ACTIVE_LEASE_SECONDS = 1200',$automation);
         self::assertStringContainsString('MAX_RECOVERY_SECONDS = 21600',$automation);
         self::assertStringNotContainsString('etsy_publish',$automation);
         self::assertStringNotContainsString('printify',$automation);
