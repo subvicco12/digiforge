@@ -23,6 +23,10 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('public function resumeFailed(int $candidateId)',$automation);
         self::assertStringContainsString('private function orphanedFailedStage(int $candidateId, string $shop, string $runKey, string $stage)',$automation);
         self::assertStringContainsString('private function terminalCheckpoint(int $candidateId, string $shop)',$automation);
+        self::assertStringContainsString('private function expiredTerminalLease(int $candidateId, string $shop, string $runKey, string $stage)',$automation);
+        self::assertStringContainsString('recovery_origin_created_at',$automation);
+        self::assertStringContainsString('recovery_lease_started_at',$automation);
+        self::assertStringContainsString('u3_product_build_recovery_lease_renewed',$automation);
         self::assertStringContainsString("candidate_not_approved",$automation);
         self::assertStringContainsString('count($matches) !== 1',$automation);
         self::assertStringContainsString("u3_product_build_failed",$automation);
@@ -85,7 +89,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.18'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.19'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
