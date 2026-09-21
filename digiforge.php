@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge
  * Description: Secure operational foundation for a WordPress-native product business platform.
- * Version: 1.0.21
+ * Version: 1.0.22
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Author: DigiForge
