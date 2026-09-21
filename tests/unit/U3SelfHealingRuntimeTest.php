@@ -31,6 +31,9 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("preg_replace('/pdf$/i','.pdf',\$countCanonical)",$engine);
         $orchestrator=file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/Orchestrator.php');
         self::assertStringContainsString("substr(\$file,0,-3).'.pdf'",$orchestrator);
+        self::assertStringContainsString('$canonical=strtolower($file);$matches=[]',$orchestrator);
+        self::assertStringContainsString('count($matches)>1',$orchestrator);
+        self::assertStringContainsString("Expected-page-count filename is ambiguous after canonical matching",$orchestrator);
         self::assertStringContainsString("STATUS_FAILED",$automation);
         self::assertStringContainsString("STATUS_PENDING",$automation);
         self::assertStringContainsString("STATUS_RUNNING",$automation);
@@ -80,7 +83,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.16'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.17'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
