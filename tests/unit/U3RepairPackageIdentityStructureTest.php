@@ -12,6 +12,7 @@ final class U3RepairPackageIdentityStructureTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken:''", $source);
         self::assertStringContainsString('$packageFilename=$this->approvedPackageFilename($spec,$productVersionId)', $source);
+        self::assertStringContainsString("DIGIFORGE_VERSION.'|'.\$key", $source);
         self::assertStringContainsString('$this->producer->package($productVersionId,$packageInput,$packageFilename,$repairVariant)', $source);
         self::assertStringContainsString("'variant_key'=>\$variant", $source);
         self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$key,$sequence,$repairVariant)', $source);
