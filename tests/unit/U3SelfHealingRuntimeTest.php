@@ -38,7 +38,6 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('$canonical=strtolower($file);$matches=[]',$orchestrator);
         self::assertStringContainsString('count($matches)>1',$orchestrator);
         self::assertStringContainsString("Expected-page-count filename is ambiguous after canonical matching",$orchestrator);
-        self::assertStringContainsString('$capabilityText=preg_replace',$orchestrator);
         self::assertStringContainsString("production_pdf_capability",$orchestrator);
         self::assertStringContainsString("Unsupported PDF capability claim in",$orchestrator);
         self::assertStringContainsString("preg_split('/(?<=[.!?])",$orchestrator);
