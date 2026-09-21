@@ -98,7 +98,14 @@ final class SemanticQa
     {
         if ($path === '' || ! is_file($path)) { return ''; }
         $format = strtolower($format);
-        if ($format === 'zip') { return '[ZIP package: binary integrity is checked separately]'; }
+        if ($format === 'zip') {
+            $zip = new \ZipArchive();
+            if ($zip->open($path, \ZipArchive::CHECKCONS) !== true) { return '[ZIP package unreadable]'; }
+            $members = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) { $members[] = (string)$zip->getNameIndex($i); }
+            $zip->close();
+            return '[ZIP members: '.implode(', ', $members).']';
+        }
         $size = min(20000, max(1, (int) filesize($path)));
         $contents = file_get_contents($path, false, null, 0, $size);
         if (! is_string($contents)) { return ''; }

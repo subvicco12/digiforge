@@ -24,5 +24,11 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString('production_svg_content',$orchestrator);
   self::assertStringContainsString('$content=$decoded',$orchestrator);
   self::assertStringNotContainsString('GENERATED_AFTER_FINAL_EXPORT',$orchestrator);
+  self::assertStringContainsString('approvedPackageFilename',$orchestrator);
+  self::assertStringContainsString("'generator_version'=>'1.0.21'",$orchestrator);
+  self::assertStringContainsString('pdfGeometry',$producer);
+  self::assertStringContainsString("'width'=>360,'height'=>640",$producer);
+  self::assertStringContainsString("'width'=>595,'height'=>842",$producer);
+  self::assertStringContainsString("'width'=>612,'height'=>792",$producer);
  }
 }

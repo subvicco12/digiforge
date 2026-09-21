@@ -22,7 +22,7 @@ final class LocalAssetProducer
         $filename = $this->filename($filename, $format);
         if ($filename === '') { return $this->error('invalid_filename', 'Filename and declared format must be safe and consistent.'); }
         $storageVariant = sanitize_key($storageVariant);
-        $bytes = $format === 'pdf' ? $this->pdf($content) : $this->text($format, $content);
+        $bytes = $format === 'pdf' ? $this->pdf($content, $filename) : $this->text($format, $content);
         if (is_wp_error($bytes)) { return $bytes; }
         if ($bytes === '' || strlen($bytes) > self::MAX_ASSET_BYTES) { return $this->error('invalid_asset_size', 'Generated asset is empty or too large.'); }
         $uploads = wp_upload_dir();
@@ -111,15 +111,24 @@ final class LocalAssetProducer
     }
 
     /** @param mixed $content */
-    private function pdf($content): string|WP_Error
+    private function pdf($content, string $filename = ''): string|WP_Error
     {
         $pages = is_array($content) ? $content : preg_split('/\\s*\\[\\[PAGE_BREAK\\]\\]\\s*/u', (string) $content);
         $pages = is_array($pages) ? $pages : [(string) $content];
         $pages = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $pages), static fn(string $v): bool => $v !== ''));
         if ($pages === []) { return $this->error('invalid_pdf_content', 'PDF requires at least one text page.'); }
-        $objects=[];$pageIds=[];$fontId=3;$nextId=4;
-        foreach($pages as $pageText){$pageId=$nextId++;$contentId=$nextId++;$pageIds[]=$pageId;$lines=$this->wrap(strip_tags($pageText),92);$stream="BT /F1 11 Tf 50 790 Td 14 TL\n";foreach($lines as $line){if(function_exists('iconv')){$converted=iconv('UTF-8','Windows-1252//TRANSLIT',$line);if(is_string($converted)){$line=$converted;}}$safe=str_replace(['\\','(',')'],['\\\\','\\(','\\)'],$line);$stream.='('.$safe.") Tj T*\n";}$stream.="ET";$objects[$pageId]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 {$fontId} 0 R >> >> /Contents {$contentId} 0 R >>";$objects[$contentId]="<< /Length ".strlen($stream)." >>\nstream\n{$stream}\nendstream";}
+        $geometry=$this->pdfGeometry($filename);$objects=[];$pageIds=[];$fontId=3;$nextId=4;
+        foreach($pages as $pageText){$pageId=$nextId++;$contentId=$nextId++;$pageIds[]=$pageId;$lines=$this->wrap(strip_tags($pageText),(int)$geometry['wrap']);$stream="BT /F1 11 Tf ".(int)$geometry['x']." ".(int)$geometry['y']." Td 14 TL\n";foreach($lines as $line){if(function_exists('iconv')){$converted=iconv('UTF-8','Windows-1252//TRANSLIT',$line);if(is_string($converted)){$line=$converted;}}$safe=str_replace(['\\','(',')'],['\\\\','\\(','\\)'],$line);$stream.='('.$safe.") Tj T*\n";}$stream.="ET";$objects[$pageId]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ".(int)$geometry['width']." ".(int)$geometry['height']."] /Resources << /Font << /F1 {$fontId} 0 R >> >> /Contents {$contentId} 0 R >>";$objects[$contentId]="<< /Length ".strlen($stream)." >>\nstream\n{$stream}\nendstream";}
         $kids=implode(' ',array_map(static fn(int $id):string=>$id.' 0 R',$pageIds));$objects[1]='<< /Type /Catalog /Pages 2 0 R >>';$objects[2]='<< /Type /Pages /Kids ['.$kids.'] /Count '.count($pageIds).' >>';$objects[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';ksort($objects);$pdf="%PDF-1.4\n";$offsets=[0];foreach($objects as $id=>$object){$offsets[$id]=strlen($pdf);$pdf.=$id." 0 obj\n".$object."\nendobj\n";}$xref=strlen($pdf);$max=max(array_keys($objects));$pdf.="xref\n0 ".($max+1)."\n0000000000 65535 f \n";for($id=1;$id<=$max;$id++){$pdf.=sprintf('%010d 00000 n ',$offsets[$id]??0)."\n";}$pdf.="trailer\n<< /Size ".($max+1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";return $pdf;
+    }
+
+    /** @return array{width:int,height:int,x:int,y:int,wrap:int} */
+    private function pdfGeometry(string $filename): array
+    {
+        $name = strtolower(sanitize_file_name($filename));
+        if (str_contains($name, 'mobile')) { return ['width'=>360,'height'=>640,'x'=>28,'y'=>602,'wrap'=>48]; }
+        if (preg_match('/(?:^|[_-])a4(?:[_-]|\.)/i', $name)) { return ['width'=>595,'height'=>842,'x'=>48,'y'=>790,'wrap'=>88]; }
+        return ['width'=>612,'height'=>792,'x'=>50,'y'=>742,'wrap'=>92];
     }
 
     /** @return list<string> */
