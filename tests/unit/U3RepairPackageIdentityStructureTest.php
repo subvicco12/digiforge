@@ -10,8 +10,9 @@ final class U3RepairPackageIdentityStructureTest extends TestCase
     {
         $source = file_get_contents(dirname(__DIR__, 2) . '/includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken:''", $source);
+        self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.substr(hash('sha256',DIGIFORGE_VERSION.'|'.\$key),0,10):''", $source);
         self::assertStringContainsString('$packageFilename=$this->approvedPackageFilename($spec,$productVersionId)', $source);
+        self::assertStringContainsString("DIGIFORGE_VERSION.'|'.\$key", $source);
         self::assertStringContainsString('$this->producer->package($productVersionId,$packageInput,$packageFilename,$repairVariant)', $source);
         self::assertStringContainsString("'variant_key'=>\$variant", $source);
         self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$key,$sequence,$repairVariant)', $source);

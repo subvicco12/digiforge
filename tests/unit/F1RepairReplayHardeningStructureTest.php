@@ -10,7 +10,7 @@ final class F1RepairReplayHardeningStructureTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../includes/ProductFactory/Orchestrator.php');
         self::assertIsString($source);
-        self::assertStringContainsString('$repairVariant=$isRepair?\'repair-\'.$planToken:\'\';', $source);
+        self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.substr(hash('sha256',DIGIFORGE_VERSION.'|'.\$key),0,10):'';", $source);
         self::assertStringContainsString('$definition,$key,$sequence++,$repairVariant', $source);
         self::assertStringContainsString('$packageFilename=$this->approvedPackageFilename($spec,$productVersionId)', $source);
         self::assertStringContainsString('$bundleKey=$isRepair?\'u3-product-review-\'.$planToken:\'u3-product-review\';', $source);
