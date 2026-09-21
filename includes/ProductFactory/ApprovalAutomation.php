@@ -230,7 +230,7 @@ final class ApprovalAutomation
         if(!$structural&&!$this->retryable($error))return false;
         if($attempt>=self::MAX_MANIFEST_REPAIRS)return false;
         $attempt++;$issues=[$error->get_error_code().': '.$error->get_error_message()];
-        $brief=$orchestrator->manifestRepairBrief($developed,$shop,$issues,$badPayload);
+        $brief=$orchestrator->manifestRepairBrief($developed,$shop,implode("\n",$issues),$badPayload);
         $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,16000);
         if(is_wp_error($started))return false;
         $state['manifest_repair_attempts']=$attempt;$state['manifest_response_id']=(string)$started['response_id'];unset($state['manifest_ai']);
