@@ -20,6 +20,7 @@ final class ResearchController {
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/review',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'review']]);
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/promote',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'promote']]);
             register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/retry-product-factory',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'retryProductFactory']]);
+            register_rest_route(self::NS,'/research/candidates/(?P<id>\d+)/resume-product-factory',['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'resumeProductFactory']]);
         });
     }
     public function canManage():bool{return Capabilities::can('manage_digiforge_research');}
