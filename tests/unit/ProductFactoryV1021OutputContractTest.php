@@ -22,7 +22,7 @@ final class ProductFactoryV1021OutputContractTest extends TestCase{
   self::assertStringContainsString("['package_filename']",$orchestrator);
   self::assertStringContainsString("['delivery_archive']",$orchestrator);
   self::assertStringContainsString("['archive_filename']",$orchestrator);
-  self::assertStringContainsString("'generator_version'=>'1.0.23'",$orchestrator);
+  self::assertStringContainsString("'generator_version'=>DIGIFORGE_VERSION",$orchestrator);
   self::assertStringContainsString("['sha256,filename']",$orchestrator);
   self::assertStringContainsString("'external_publish'=>false",$orchestrator);
  }
