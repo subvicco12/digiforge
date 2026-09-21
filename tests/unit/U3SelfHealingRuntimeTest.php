@@ -20,6 +20,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('u3_run_active',$automation);
         self::assertStringContainsString('ACTIVE_LEASE_SECONDS = 1200',$automation);
         self::assertStringContainsString('MAX_RECOVERY_SECONDS = 21600',$automation);
+        self::assertStringContainsString('implode("\\n",$issues)',$automation);
         self::assertStringNotContainsString('etsy_publish',$automation);
         self::assertStringNotContainsString('printify',$automation);
         self::assertStringNotContainsString('gelato',$automation);
@@ -57,7 +58,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.10'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.11'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
