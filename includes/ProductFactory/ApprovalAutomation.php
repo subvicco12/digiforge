@@ -94,14 +94,26 @@ final class ApprovalAutomation
         if ($shop === '') {
             return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
         }
+        global $wpdb;
+        $status = strtoupper((string) $wpdb->get_var($wpdb->prepare(
+            'SELECT review_status FROM ' . Tables::research_candidates() . ' WHERE id=%d LIMIT 1',
+            $candidateId
+        )));
+        if ($status !== 'APPROVED') {
+            return new WP_Error('candidate_not_approved', __('Only an approved research candidate may resume Product Factory.', 'digiforge'), ['status' => 409]);
+        }
         $activeKey = $this->activeKey($candidateId, $shop);
         $active = get_option($activeKey, []);
-        if (! is_array($active) || empty($active['run_key'])) {
-            return new WP_Error('u3_resume_missing_run', __('No persisted Product Factory run is available to resume.', 'digiforge'), ['status' => 409]);
+        $runKey = is_array($active) ? sanitize_key((string) ($active['run_key'] ?? '')) : '';
+        $stateKey = $runKey !== '' ? $this->stateKey($runKey) : '';
+        $state = $stateKey !== '' ? get_option($stateKey, []) : [];
+        if ($runKey === '') {
+            $checkpoint = $this->terminalCheckpoint($candidateId, $shop);
+            if (is_wp_error($checkpoint)) { return $checkpoint; }
+            $runKey = (string) $checkpoint['run_key'];
+            $stateKey = (string) $checkpoint['state_key'];
+            $state = (array) $checkpoint['state'];
         }
-        $runKey = sanitize_key((string) $active['run_key']);
-        $stateKey = $this->stateKey($runKey);
-        $state = get_option($stateKey, []);
         if (! is_array($state)) {
             return new WP_Error('u3_resume_not_failed', __('The persisted Product Factory run is not in a failed resumable state.', 'digiforge'), ['status' => 409]);
         }
@@ -135,6 +147,37 @@ final class ApprovalAutomation
         $this->touchActive($candidateId, $shop, $runKey, $stage);
         Logger::audit('u3_product_build_resumed', ['run_key'=>$runKey,'stage'=>$stage,'previous_error_code'=>(string)($previousError['code']??''),'external_actions'=>false], 'research_candidate', (string) $candidateId);
         return ['candidate_id'=>$candidateId,'shop'=>$shop,'resumed'=>true,'run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false];
+    }
+
+    /** @return array{run_key:string,state_key:string,state:array<string,mixed>}|WP_Error */
+    private function terminalCheckpoint(int $candidateId, string $shop): array|WP_Error
+    {
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name LIKE %s",
+            $wpdb->esc_like('digiforge_u3_') . '%'
+        ), ARRAY_A);
+        $matches = [];
+        foreach ((array) $rows as $row) {
+            $name = (string) ($row['option_name'] ?? '');
+            if (str_starts_with($name, 'digiforge_u3_active_')) { continue; }
+            $state = maybe_unserialize($row['option_value'] ?? '');
+            if (! is_array($state) || ! is_array($state['terminal_error'] ?? null)) { continue; }
+            $developed = is_array($state['developed'] ?? null) ? $state['developed'] : [];
+            if ((int) ($developed['product']['id'] ?? 0) < 1 || sanitize_key((string) ($developed['shop'] ?? '')) !== $shop) { continue; }
+            $audit = $wpdb->get_var($wpdb->prepare(
+                'SELECT context FROM ' . Tables::audit_log() . " WHERE event_type='u3_product_build_failed' AND object_type='research_candidate' AND object_id=%s ORDER BY id DESC LIMIT 1",
+                (string) $candidateId
+            ));
+            $context = is_string($audit) ? json_decode($audit, true) : null;
+            $runKey = is_array($context) ? sanitize_key((string) ($context['run_key'] ?? '')) : '';
+            if ($runKey === '' || $this->stateKey($runKey) !== $name) { continue; }
+            $matches[] = ['run_key'=>$runKey,'state_key'=>$name,'state'=>$state];
+        }
+        if (count($matches) !== 1) {
+            return new WP_Error('u3_resume_missing_run', __('No unique persisted failed Product Factory checkpoint is available to resume.', 'digiforge'), ['status' => 409]);
+        }
+        return $matches[0];
     }
 
     private function orphanedFailedStage(int $candidateId, string $shop, string $runKey, string $stage): int|WP_Error
