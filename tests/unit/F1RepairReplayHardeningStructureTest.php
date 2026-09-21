@@ -12,7 +12,7 @@ final class F1RepairReplayHardeningStructureTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString('$repairVariant=$isRepair?\'repair-\'.$planToken:\'\';', $source);
         self::assertStringContainsString('$definition,$key,$sequence++,$repairVariant', $source);
-        self::assertStringContainsString('$packageFilename=$isRepair?\'digicraftify-product-\'.$productVersionId.\'-\'.$repairVariant.\'.zip\'', $source);
+        self::assertStringContainsString('$packageFilename=$this->approvedPackageFilename($spec,$productVersionId)', $source);
         self::assertStringContainsString('$bundleKey=$isRepair?\'u3-product-review-\'.$planToken:\'u3-product-review\';', $source);
         self::assertStringContainsString('$bundleVersion=$isRepair?\'Repair \'.$planToken:\'Launch 1.0\';', $source);
     }
