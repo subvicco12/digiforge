@@ -40,6 +40,8 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("Expected-page-count filename is ambiguous after canonical matching",$orchestrator);
         self::assertStringContainsString('$capabilityText=preg_replace',$orchestrator);
         self::assertStringContainsString("production_pdf_capability",$orchestrator);
+        self::assertStringContainsString("Unsupported PDF capability claim in",$orchestrator);
+        self::assertStringContainsString("preg_split('/(?<=[.!?])",$orchestrator);
         self::assertStringContainsString("STATUS_FAILED",$automation);
         self::assertStringContainsString("STATUS_PENDING",$automation);
         self::assertStringContainsString("STATUS_RUNNING",$automation);
@@ -89,7 +91,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.19'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.20'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
