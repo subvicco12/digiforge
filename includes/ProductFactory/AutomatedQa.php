@@ -48,6 +48,8 @@ final class AutomatedQa
         if ($format === 'pdf') {
             $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $sample);
             $checks[] = $this->check('pdf_page_count', is_int($pageCount) && $pageCount > 0, ['page_count' => (int) $pageCount]);
+            preg_match('/\/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]/', $sample, $mediaBox);
+            $checks[] = $this->check('pdf_media_box', isset($mediaBox[1], $mediaBox[2]), ['width' => (float)($mediaBox[1] ?? 0), 'height' => (float)($mediaBox[2] ?? 0)]);
             $streams = [];
             preg_match_all('/stream\R(.*?)\Rendstream/s', $sample, $matches);
             foreach ((array) ($matches[1] ?? []) as $stream) {
@@ -81,6 +83,7 @@ final class AutomatedQa
             $zip = $this->zipReport($path);
             $checks[] = $this->check('zip_safe_members', $zip['safe_members'], ['member_count' => $zip['member_count']]);
             $checks[] = $this->check('zip_unique_members', $zip['unique_members'], ['member_count' => $zip['member_count']]);
+            $checks[] = $this->check('zip_member_inventory', $zip['member_count'] > 0, ['member_count' => $zip['member_count'], 'members' => $zip['members']]);
         }
 
         return [
@@ -95,10 +98,10 @@ final class AutomatedQa
         return ['name' => $name, 'passed' => $passed, 'details' => $details];
     }
 
-    /** @return array{valid:bool,safe_members:bool,unique_members:bool,member_count:int} */
+    /** @return array{valid:bool,safe_members:bool,unique_members:bool,member_count:int,members:list<string>} */
     private function zipReport(string $path): array
     {
-        $fallback = ['valid' => false, 'safe_members' => false, 'unique_members' => false, 'member_count' => 0];
+        $fallback = ['valid' => false, 'safe_members' => false, 'unique_members' => false, 'member_count' => 0, 'members' => []];
         if (! class_exists('ZipArchive')) { return $fallback; }
         $zip = new \ZipArchive();
         $opened = $zip->open($path, \ZipArchive::CHECKCONS);
@@ -119,6 +122,7 @@ final class AutomatedQa
             'safe_members' => $safe && $count > 0,
             'unique_members' => $count > 0 && count($names) === count(array_unique($names)),
             'member_count' => $count,
+            'members' => array_values($names),
         ];
     }
 }
