@@ -331,6 +331,21 @@ final class ApprovalAutomation
         }
 
         $buildKey=sanitize_key((string)($state['build_key']??$runKey));if($buildKey==='')$buildKey=$runKey;
+        if (is_array($state['terminal_error'] ?? null)
+            && (string) ($state['terminal_error']['code'] ?? '') === 'digiforge_u3_asset_replay_conflict') {
+            $replayRepair = max(1, (int) ($state['replay_repair_attempts'] ?? 0) + 1);
+            $state['replay_repair_attempts'] = $replayRepair;
+            $buildKey = $runKey . '-replay-repair-' . $replayRepair;
+            $state['build_key'] = $buildKey;
+            unset($state['terminal_error']);
+            update_option($stateKey, $state, false);
+            Logger::audit('u3_product_build_replay_repair_identity', [
+                'run_key'=>$runKey,
+                'repair_attempt'=>$replayRepair,
+                'build_key'=>$buildKey,
+                'external_actions'=>false,
+            ], 'research_candidate', (string) $candidateId);
+        }
         $result=$orchestrator->build($candidateId,['shop'=>$shop,'_developed'=>$state['developed'],'_manifest_ai'=>$state['manifest_ai']],$buildKey);
         if(is_wp_error($result)){
             if($this->restartManifest($candidateId,$shop,$runKey,$state['developed'],$result,$stateKey,$state,$orchestrator,is_array($state['manifest_ai']['payload']??null)?$state['manifest_ai']['payload']:[]))return;
