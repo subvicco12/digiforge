@@ -302,9 +302,13 @@ final class ExecutionEngine
             $canonical=sanitize_file_name($file);
             $existing=0;
             foreach($existingCounts as$countName=>$countValue){
-                if(sanitize_file_name((string)$countName)===$canonical){$existing=(int)$countValue;break;}
+                $countCanonical=sanitize_file_name((string)$countName);
+                $countStem=preg_replace('/pdf$/i','.pdf',$countCanonical);
+                if($countCanonical===$canonical||$countStem===$canonical){$existing=(int)$countValue;break;}
             }
-            $pageCounts[$canonical]=$existing>0?$existing:max(1,$defaultPageCount);
+            // Preserve the exact selected delivery filename as the contract key. sanitize_file_name()
+            // is for comparison only; using it as a map key corrupts legacy AI keys such as "...englishpdf".
+            $pageCounts[$file]=$existing>0?$existing:max(1,$defaultPageCount);
         }
         $requirements['expected_page_counts']=$pageCounts;
         $requirements['content_specification']='Current production scope contains only reviewed-language customer files. Every customer-facing file must contain complete final copy with no placeholder links, invented facts, or unreviewed translation claims.';
