@@ -22,6 +22,6 @@ final class U3RepairAssetSpecIdentityStructureTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.\$repairGeneration:'';", $source);
         self::assertStringContainsString('$this->producer->package($productVersionId,$packageInput,$packageFilename,$repairVariant)', $source);
-        self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$key,$sequence,$repairVariant)', $source);
+        self::assertStringContainsString('registerPackage($productVersionId,(int)$plan[\'id\'],$package,$persistenceKey,$sequence,$repairVariant)', $source);
     }
 }

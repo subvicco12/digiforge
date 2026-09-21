@@ -12,11 +12,15 @@ final class F1RepairReplayHardeningStructureTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString("\$repairGeneration=\$isRepair?substr(hash('sha256',DIGIFORGE_VERSION.'|'.\$key),0,10):'';", $source);
         self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.\$repairGeneration:'';", $source);
+        self::assertStringContainsString("\$persistenceKey=\$isRepair?\$key.'-generation-'.\$repairGeneration:\$key;", $source);
         self::assertStringContainsString("\$planKey=\$isRepair?'u3-repair-'.\$planToken.'-'.\$repairGeneration:'u3-launch';", $source);
-        self::assertStringContainsString('$definition,$key,$sequence++,$repairVariant', $source);
+        self::assertStringContainsString('$definition,$persistenceKey,$sequence++,$repairVariant', $source);
         self::assertStringContainsString('$packageFilename=$this->approvedPackageFilename($spec,$productVersionId)', $source);
-        self::assertStringContainsString('$bundleKey=$isRepair?\'u3-product-review-\'.$planToken:\'u3-product-review\';', $source);
-        self::assertStringContainsString('$bundleVersion=$isRepair?\'Repair \'.$planToken:\'Launch 1.0\';', $source);
+        self::assertStringContainsString('$bundleKey=$isRepair?\'u3-product-review-\'.$planToken.\'-\'.$repairGeneration:\'u3-product-review\';', $source);
+        self::assertStringContainsString('$bundleVersion=$isRepair?\'Repair \'.$planToken.\' \'.$repairGeneration:\'Launch 1.0\';', $source);
+        self::assertStringContainsString("],\$persistenceKey.'-plan')", $source);
+        self::assertStringContainsString("],\$persistenceKey.'-semantic-qa-'.\$index)", $source);
+        self::assertStringContainsString("],\$persistenceKey.'-bundle')", $source);
     }
 
     public function testPersistenceBoundariesNormalizeVariantAndKeepExternalActionsOff(): void
