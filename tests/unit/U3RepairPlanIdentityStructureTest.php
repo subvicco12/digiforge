@@ -15,7 +15,10 @@ final class U3RepairPlanIdentityStructureTest extends TestCase
         self::assertStringContainsString('substr(hash(\'sha256\',$key),0,12)', $source);
         self::assertStringContainsString('$planKey=$isRepair?\'u3-repair-\'', $source);
         self::assertStringContainsString('$planVersion=$isRepair?\'U3 Repair \'', $source);
-        self::assertStringContainsString('$repairVariant=$isRepair?\'repair-\'', $source);
+        self::assertStringContainsString("\$repairGeneration=\$isRepair?substr(hash('sha256',DIGIFORGE_VERSION.'|'.\$key),0,10):'';", $source);
+        self::assertStringContainsString("\$planKey=\$isRepair?'u3-repair-'.\$planToken.'-'.\$repairGeneration:'u3-launch';", $source);
+        self::assertStringContainsString("\$planVersion=\$isRepair?'U3 Repair '.\$planToken.' '.\$repairGeneration:'U3 Launch 1.0';", $source);
+        self::assertStringContainsString("\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.\$repairGeneration:'';", $source);
     }
 
     public function testExternalActionsRemainDisabled(): void
