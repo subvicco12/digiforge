@@ -24,7 +24,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('private function orphanedFailedStage(int $candidateId, string $shop, string $runKey, string $stage)',$automation);
         self::assertStringContainsString('private function terminalCheckpoint(int $candidateId, string $shop)',$automation);
         self::assertStringContainsString("candidate_not_approved",$automation);
-        self::assertStringContainsString("count($matches) !== 1",$automation);
+        self::assertStringContainsString('count($matches) !== 1',$automation);
         self::assertStringContainsString("u3_product_build_failed",$automation);
         $engine=file_get_contents(dirname(__DIR__,2).'/includes/Launch/ExecutionEngine.php');
         self::assertStringContainsString('$pageCounts[$file]=$existing>0?$existing:max(1,$defaultPageCount);',$engine);
