@@ -19,7 +19,8 @@ final class ApprovalAutomation
     private const MAX_STAGE_RETRIES = 3;
     private const MAX_MANIFEST_REPAIRS = 2;
     private const MAX_QA_REPAIRS = 2;
-    private const MAX_RUNTIME_SECONDS = 1200;
+    private const MAX_RECOVERY_SECONDS = 21600;
+    private const ACTIVE_LEASE_SECONDS = 1200;
     private const POLL_PAUSE_MICROSECONDS = 3000000;
 
     public function register(): void
@@ -72,7 +73,7 @@ final class ApprovalAutomation
             return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
         }
         $active = get_option($this->activeKey($candidateId, $shop), []);
-        if (is_array($active) && ! empty($active['run_key']) && (time() - (int) ($active['updated_at'] ?? 0)) < self::MAX_RUNTIME_SECONDS) {
+        if (is_array($active) && ! empty($active['run_key']) && (time() - (int) ($active['updated_at'] ?? 0)) < self::ACTIVE_LEASE_SECONDS) {
             return new WP_Error('u3_run_active', __('A Product Factory run is already active for this candidate.', 'digiforge'), ['status' => 409, 'run_key' => (string) $active['run_key']]);
         }
         $runKey = 'u3-repair-candidate-' . $candidateId . '-' . $shop . '-' . gmdate('YmdHis') . '-' . wp_generate_uuid4();
@@ -108,7 +109,7 @@ final class ApprovalAutomation
         $stateKey=$this->stateKey($runKey);
         $state=get_option($stateKey,[]);$state=is_array($state)?$state:[];
         $createdAt=(int)($state['created_at']??time());
-        if((time()-$createdAt)>self::MAX_RUNTIME_SECONDS){
+        if((time()-$createdAt)>self::MAX_RECOVERY_SECONDS){
             $this->terminalError($candidateId,$shop,$runKey,new WP_Error('digiforge_u3_runtime_expired','Product Factory run exceeded the safe recovery window.'),$stateKey,$state);return;
         }
         $state['created_at']=$createdAt;$state['stage']=$stage;$state['updated_at']=time();update_option($stateKey,$state,false);
@@ -228,8 +229,8 @@ final class ApprovalAutomation
         $structural=str_starts_with($error->get_error_code(),'digiforge_production_')||str_starts_with($error->get_error_code(),'digiforge_u3_');
         if(!$structural&&!$this->retryable($error))return false;
         if($attempt>=self::MAX_MANIFEST_REPAIRS)return false;
-        $attempt++;
-        $brief=$orchestrator->manifestRepairBrief($developed,$shop,$error->get_error_code().': '.$error->get_error_message(),$badPayload);
+        $attempt++;$issues=[$error->get_error_code().': '.$error->get_error_message()];
+        $brief=$orchestrator->manifestRepairBrief($developed,$shop,$issues,$badPayload);
         $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,16000);
         if(is_wp_error($started))return false;
         $state['manifest_repair_attempts']=$attempt;$state['manifest_response_id']=(string)$started['response_id'];unset($state['manifest_ai']);
@@ -238,20 +239,18 @@ final class ApprovalAutomation
         return $this->scheduleStage($candidateId,$shop,$runKey,'manifest_poll');
     }
 
+    /** @param array<string,mixed> $result @return list<string> */
+    private function qaIssues(array $result):array
+    {
+        $issues=[];$qa=is_array($result['qa']??null)?$result['qa']:[];
+        foreach($qa as$row){if(is_array($row)&&strtoupper((string)($row['status']??''))!=='PASS')$issues[]=sanitize_text_field((string)($row['check_name']??'QA check')).': '.sanitize_text_field((string)($row['details']??'failed'));}
+        return $issues===[]?['Semantic QA did not pass.']:$issues;
+    }
+
     private function pauseAndSchedule(int $candidateId,string $shop,string $runKey,string $stage):void
     {
         usleep(self::POLL_PAUSE_MICROSECONDS);
-        if(!$this->scheduleStage($candidateId,$shop,$runKey,$stage)){
-            $this->terminalError($candidateId,$shop,$runKey,new WP_Error('digiforge_u3_scheduler','Unable to schedule Product Factory poll stage.'));
-        }
-    }
-
-    /** @param array<string,mixed> $result */
-    private function qaIssues(array $result):string
-    {
-        $parts=[];$semantic=is_array($result['semantic_qa']['checks']??null)?$result['semantic_qa']['checks']:[];
-        foreach($semantic as$check){if(!is_array($check)||($check['passed']??false)===true)continue;$name=sanitize_key((string)($check['name']??'qa'));$details=$check['details']??[];$parts[]=$name.': '.substr(wp_json_encode($details,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)?:'failed',0,1200);}
-        return substr(implode("\n",$parts),0,5000);
+        $this->scheduleStage($candidateId,$shop,$runKey,$stage);
     }
 
     private function retryable(WP_Error $error):bool
