@@ -341,7 +341,8 @@ final class ApprovalAutomation
             $qaRepairs=(int)($state['qa_repair_attempts']??0);
             if($qaRepairs<self::MAX_QA_REPAIRS){
                 $qaRepairs++;$issues=$this->qaIssues($result);
-                $brief=$orchestrator->manifestRepairBrief($state['developed'],$shop,$issues,[]);
+                $issueText=implode("\n",array_map(static fn($issue):string=>sanitize_text_field((string)$issue),$issues));
+                $brief=$orchestrator->manifestRepairBrief($state['developed'],$shop,$issueText,[]);
                 $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,16000);
                 if(!is_wp_error($started)){
                     $state['qa_repair_attempts']=$qaRepairs;$state['manifest_response_id']=(string)$started['response_id'];unset($state['manifest_ai']);
