@@ -15,7 +15,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-const DIGIFORGE_VERSION = '1.0.21';
+const DIGIFORGE_VERSION = '1.0.22';
 const DIGIFORGE_FILE = __FILE__;
 const DIGIFORGE_PATH = __DIR__ . '/';
 define('DIGIFORGE_URL', plugin_dir_url(__FILE__));
