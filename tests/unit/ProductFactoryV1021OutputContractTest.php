@@ -12,6 +12,10 @@ final class ProductFactoryV1021OutputContractTest extends TestCase{
   self::assertStringContainsString("'width'=>595,'height'=>842",$producer);
   self::assertStringContainsString("'width'=>612,'height'=>792",$producer);
   self::assertStringContainsString("'pdf_media_box'",$qa);
+  self::assertStringContainsString('expectedPdfGeometry($filename)',$qa);
+  self::assertStringContainsString("'width' => 360.0, 'height' => 640.0",$qa);
+  self::assertStringContainsString("'width' => 595.0, 'height' => 842.0",$qa);
+  self::assertStringContainsString("'width' => 612.0, 'height' => 792.0",$qa);
   self::assertStringContainsString("'zip_member_inventory'",$qa);
   self::assertStringContainsString("'members' => array_values(\$names)",$qa);
   self::assertStringContainsString('[ZIP members: ',$semantic);
