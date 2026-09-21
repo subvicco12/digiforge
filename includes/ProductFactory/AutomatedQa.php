@@ -49,7 +49,19 @@ final class AutomatedQa
             $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $sample);
             $checks[] = $this->check('pdf_page_count', is_int($pageCount) && $pageCount > 0, ['page_count' => (int) $pageCount]);
             preg_match('/\/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]/', $sample, $mediaBox);
-            $checks[] = $this->check('pdf_media_box', isset($mediaBox[1], $mediaBox[2]), ['width' => (float)($mediaBox[1] ?? 0), 'height' => (float)($mediaBox[2] ?? 0)]);
+            $actualWidth = (float) ($mediaBox[1] ?? 0);
+            $actualHeight = (float) ($mediaBox[2] ?? 0);
+            $expectedGeometry = $this->expectedPdfGeometry($filename);
+            $mediaBoxValid = isset($mediaBox[1], $mediaBox[2])
+                && ($expectedGeometry === null
+                    || (abs($actualWidth - $expectedGeometry['width']) < 0.01
+                        && abs($actualHeight - $expectedGeometry['height']) < 0.01));
+            $checks[] = $this->check('pdf_media_box', $mediaBoxValid, [
+                'width' => $actualWidth,
+                'height' => $actualHeight,
+                'expected_width' => $expectedGeometry['width'] ?? null,
+                'expected_height' => $expectedGeometry['height'] ?? null,
+            ]);
             $streams = [];
             preg_match_all('/stream\R(.*?)\Rendstream/s', $sample, $matches);
             foreach ((array) ($matches[1] ?? []) as $stream) {
@@ -125,4 +137,20 @@ final class AutomatedQa
             'members' => array_values($names),
         ];
     }
+    /** @return array{width:float,height:float}|null */
+    private function expectedPdfGeometry(string $filename): ?array
+    {
+        $name = strtolower($filename);
+        if (str_contains($name, 'mobile')) {
+            return ['width' => 360.0, 'height' => 640.0];
+        }
+        if (preg_match('/(?:^|[_\\-])a4(?:[_\\-.]|$)/', $name) === 1) {
+            return ['width' => 595.0, 'height' => 842.0];
+        }
+        if (str_contains($name, 'usletter') || str_contains($name, 'us_letter') || str_contains($name, 'us-letter')) {
+            return ['width' => 612.0, 'height' => 792.0];
+        }
+        return null;
+    }
+
 }
