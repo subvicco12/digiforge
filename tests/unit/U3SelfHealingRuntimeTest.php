@@ -21,6 +21,9 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('ACTIVE_LEASE_SECONDS = 1200',$automation);
         self::assertStringContainsString('MAX_RECOVERY_SECONDS = 21600',$automation);
         self::assertStringContainsString('public function resumeFailed(int $candidateId)',$automation);
+        $controller=file_get_contents(dirname(__DIR__,2).'/includes/REST/ResearchController.php');
+        self::assertStringContainsString("/resume-product-factory",$controller);
+        self::assertStringContainsString("callback'=>[\$this,'resumeProductFactory']",$controller);
         self::assertStringContainsString("'u3_product_build_resumed'",$automation);
         self::assertStringContainsString("'u3_resume_checkpoint_failed'",$automation);
         self::assertStringContainsString("'u3_resume_not_scheduled'",$automation);
@@ -62,7 +65,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.12'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>'1.0.13'",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
