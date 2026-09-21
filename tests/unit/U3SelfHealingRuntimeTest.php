@@ -52,6 +52,10 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString("'u3_product_build_resumed'",$automation);
         self::assertStringContainsString("'u3_resume_checkpoint_failed'",$automation);
         self::assertStringContainsString("'u3_resume_not_scheduled'",$automation);
+        self::assertStringContainsString("'digiforge_u3_asset_replay_conflict'",$automation);
+        self::assertStringContainsString("'replay_repair_attempts'",$automation);
+        self::assertStringContainsString("'-replay-repair-'",$automation);
+        self::assertStringContainsString("'u3_product_build_replay_repair_identity'",$automation);
         self::assertStringContainsString('implode("\\n",$issues)',$automation);
         self::assertStringNotContainsString('etsy_publish',$automation);
         self::assertStringNotContainsString('printify',$automation);
