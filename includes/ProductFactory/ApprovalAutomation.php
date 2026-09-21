@@ -84,6 +84,53 @@ final class ApprovalAutomation
         return ['candidate_id'=>$candidateId,'shop'=>$shop,'scheduled'=>true,'run_key'=>$runKey,'external_actions'=>false];
     }
 
+    /** @return array<string,mixed>|WP_Error */
+    public function resumeFailed(int $candidateId): array|WP_Error
+    {
+        if ($candidateId < 1) {
+            return new WP_Error('invalid_candidate', __('Candidate ID is invalid.', 'digiforge'), ['status' => 400]);
+        }
+        $shop = $this->resolveShop($candidateId);
+        if ($shop === '') {
+            return new WP_Error('target_shop_unknown', __('The approved candidate does not have a valid target shop.', 'digiforge'), ['status' => 409]);
+        }
+        $activeKey = $this->activeKey($candidateId, $shop);
+        $active = get_option($activeKey, []);
+        if (! is_array($active) || empty($active['run_key'])) {
+            return new WP_Error('u3_resume_missing_run', __('No persisted Product Factory run is available to resume.', 'digiforge'), ['status' => 409]);
+        }
+        $runKey = sanitize_key((string) $active['run_key']);
+        $stateKey = $this->stateKey($runKey);
+        $state = get_option($stateKey, []);
+        if (! is_array($state) || ! is_array($state['terminal_error'] ?? null)) {
+            return new WP_Error('u3_resume_not_failed', __('The persisted Product Factory run is not in a failed resumable state.', 'digiforge'), ['status' => 409]);
+        }
+        $createdAt = (int) ($state['created_at'] ?? 0);
+        if ($createdAt < 1 || (time() - $createdAt) > self::MAX_RECOVERY_SECONDS) {
+            return new WP_Error('u3_resume_expired', __('The persisted Product Factory run is outside the safe recovery window.', 'digiforge'), ['status' => 409]);
+        }
+        $stage = sanitize_key((string) ($state['stage'] ?? ''));
+        if (! in_array($stage, ['develop', 'development_poll', 'manifest_poll', 'finalize'], true)) {
+            return new WP_Error('u3_resume_invalid_stage', __('The persisted Product Factory stage cannot be resumed safely.', 'digiforge'), ['status' => 409]);
+        }
+        $previousError = (array) $state['terminal_error'];
+        unset($state['terminal_error']);
+        $state['updated_at'] = time();
+        if (! update_option($stateKey, $state, false)) {
+            $state['terminal_error'] = $previousError;
+            return new WP_Error('u3_resume_checkpoint_failed', __('Unable to persist the Product Factory resume checkpoint.', 'digiforge'), ['status' => 500]);
+        }
+        if (! $this->scheduleStage($candidateId, $shop, $runKey, $stage)) {
+            $state['terminal_error'] = $previousError;
+            $state['updated_at'] = time();
+            update_option($stateKey, $state, false);
+            return new WP_Error('u3_resume_not_scheduled', __('The failed Product Factory stage could not be rescheduled.', 'digiforge'), ['status' => 503]);
+        }
+        $this->touchActive($candidateId, $shop, $runKey, $stage);
+        Logger::audit('u3_product_build_resumed', ['run_key'=>$runKey,'stage'=>$stage,'previous_error_code'=>(string)($previousError['code']??''),'external_actions'=>false], 'research_candidate', (string) $candidateId);
+        return ['candidate_id'=>$candidateId,'shop'=>$shop,'resumed'=>true,'run_key'=>$runKey,'stage'=>$stage,'external_actions'=>false];
+    }
+
     public function run(int $candidateId, string $shop, string $runKey = ''): void
     {
         $shop = sanitize_key($shop);

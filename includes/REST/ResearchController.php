@@ -41,6 +41,12 @@ final class ResearchController {
         if(is_wp_error($result))return $result;
         return new \WP_REST_Response($result,202);
     }
+    public function resumeProductFactory(\WP_REST_Request $r):mixed{
+        $candidateId=(int)$r['id'];
+        $result=(new ApprovalAutomation())->resumeFailed($candidateId);
+        if(is_wp_error($result))return $result;
+        return new \WP_REST_Response($result,202);
+    }
     private function key(\WP_REST_Request $r):?string{$k=trim((string)$r->get_header('Idempotency-Key'));return $k===''?null:$k;}
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $successStatus=200,?string $fallbackKey=null):mixed{
         if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES)return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
