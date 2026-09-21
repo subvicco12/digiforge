@@ -23,7 +23,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('public function resumeFailed(int $candidateId)',$automation);
         $controller=file_get_contents(dirname(__DIR__,2).'/includes/REST/ResearchController.php');
         self::assertStringContainsString("/resume-product-factory",$controller);
-        self::assertStringContainsString("callback'=>[$this,'resumeProductFactory']",$controller);
+        self::assertStringContainsString("callback'=>[\$this,'resumeProductFactory']",$controller);
         self::assertStringContainsString("'u3_product_build_resumed'",$automation);
         self::assertStringContainsString("'u3_resume_checkpoint_failed'",$automation);
         self::assertStringContainsString("'u3_resume_not_scheduled'",$automation);
