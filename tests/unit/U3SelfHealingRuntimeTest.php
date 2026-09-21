@@ -90,7 +90,7 @@ final class U3SelfHealingRuntimeTest extends TestCase
         self::assertStringContainsString('production_svg_content',$orchestrator);
         self::assertStringContainsString("['group'=>'evidence','assets'=>\$evidenceAssets]",$orchestrator);
         self::assertStringContainsString('evidence_assets_in_customer_package',$orchestrator);
-        self::assertStringContainsString("'generator_version'=>'1.0.23'",$orchestrator);
+        self::assertStringContainsString("'generator_version'=>DIGIFORGE_VERSION",$orchestrator);
         self::assertStringContainsString('$customerFiles=array_values(array_map',$orchestrator);
         self::assertStringNotContainsString('array_filter($productAssets,static fn(array $asset):bool=>!preg_match',$orchestrator);
     }
