@@ -24,8 +24,8 @@ $filename=sanitize_file_name((string)($a['filename']??''));
 $format=strtolower((string)($a['format']??''));
 if($format==='html'&&is_string($a['content']??null)){$a['content']=preg_replace('/(<label[^>]*>[^<]+<\\/label>)\\s*(?=<label)/i','$1<br>',$a['content'])??$a['content'];}
 if($format==='svg'&&is_string($a['content']??null)){
-$a['content']=preg_replace('/font-size\\s*=\\s*["\\']\\s*[^0-9.][^"\\']*["\\']/i','font-size="16"',$a['content'])??$a['content'];
-$a['content']=preg_replace('/font-size\\s*=\\s*["\\']\\s*([0-9]+(?:\\.[0-9]+)?)[^"\\']*["\\']/i','font-size="$1"',$a['content'])??$a['content'];
+$a['content']=preg_replace("/font-size\\s*=\\s*[\"']\\s*[^0-9.][^\"']*[\"']/i",'font-size="16"',$a['content'])??$a['content'];
+$a['content']=preg_replace("/font-size\\s*=\\s*[\"']\\s*([0-9]+(?:\\.[0-9]+)?)[^\"']*[\"']/i",'font-size="$1"',$a['content'])??$a['content'];
 }
 if(preg_match('/(?:readme|quick[_-]?start)/i',$filename)&&is_string($a['content']??null)){
 $a['content']=str_ireplace(['marketing_assets_in_customer_package=false','evidence_assets_in_customer_package=false'],['Marketing and listing assets are not included in the customer download.','Machine audit evidence is kept outside the customer download.'],(string)$a['content']);
@@ -35,8 +35,7 @@ if(strtolower($filename)==='generation_manifest.json'){
 $raw=$a['content']??[];
 if(is_string($raw)){$decoded=json_decode($raw,true);$raw=is_array($decoded)?$decoded:$raw;}
 if(is_array($raw)){
-$files=(array)($raw['customer_filenames']??[]);
-$rels=[];
+$files=(array)($raw['customer_filenames']??[]);$rels=[];
 foreach($files as$file){$file=(string)$file;if(!preg_match('/\\.svg$/i',$file))continue;
 if(str_starts_with($file,'mobile_page_'))$pdf='Destination_Wedding_Guest_Welcome_Guide_English_Mobile.pdf';
 elseif(str_starts_with($file,'us_letter_page_'))$pdf='Destination_Wedding_Guest_Welcome_Guide_English_US_Letter.pdf';
