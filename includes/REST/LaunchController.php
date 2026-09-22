@@ -43,6 +43,11 @@ final class LaunchController
                 'permission_callback' => [$this, 'canReviewProduct'],
                 'callback' => [$this, 'reviewProduct'],
             ]);
+            register_rest_route(self::NS, '/launch/product-versions/(?P<id>\d+)/prepare-listing', [
+                'methods' => 'POST',
+                'permission_callback' => [$this, 'canPrepareListing'],
+                'callback' => [$this, 'prepareListing'],
+            ]);
         });
     }
 
