@@ -78,10 +78,11 @@ final class LaunchController
             'development_endpoint' => '/digiforge/v1/launch/candidates/{id}/develop',
             'product_build_endpoint' => '/digiforge/v1/launch/candidates/{id}/build-product',
             'product_review_endpoint' => '/digiforge/v1/launch/product-versions/{id}/review',
+            'listing_factory_endpoint' => '/digiforge/v1/launch/product-versions/{id}/prepare-listing',
             'approval_gates' => [
                 'opportunity' => 'research candidate must be APPROVED before development or production',
                 'product' => 'generated assets and QA stop at PRODUCT_REVIEW_REQUIRED until explicit review',
-                'listing_publish' => 'not executed by U3',
+                'listing_publish' => 'listing preparation stops at LISTING_REVIEW_REQUIRED until explicit Gate 3 review',
             ],
             'asset_separation' => 'product assets and marketing/listing assets are stored as distinct asset types',
             'idempotency' => 'Idempotency-Key header preferred; authenticated connector clients may send _idempotency_key in JSON body.',
