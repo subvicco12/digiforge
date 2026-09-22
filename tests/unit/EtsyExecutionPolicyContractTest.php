@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__, 2) . '/includes/Listings/EtsyExecutionPolicy.php';
+
 use DigiForge\Listings\EtsyExecutionPolicy;
 use PHPUnit\Framework\TestCase;
 
