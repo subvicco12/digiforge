@@ -12,6 +12,10 @@ final class ProductFactoryOutputIntegrityTest extends TestCase{
   self::assertStringContainsString("'checksum_sha256'",$orchestrator);
   self::assertStringContainsString('finalizeProvenanceDefinitions',$orchestrator);
   self::assertStringContainsString('finalizeChecksumDefinitions',$orchestrator);
+  self::assertStringContainsString('sha256sums?',$orchestrator);
+  $qa=(string)file_get_contents(dirname(__DIR__,2).'/includes/ProductFactory/AutomatedQa.php');
+  self::assertStringContainsString('pdf_link_qr_map_scan',$qa);
+  self::assertStringContainsString('digiforge_local_text_pdf',$qa);
   self::assertStringContainsString("['sha256,filename']",$orchestrator);
   self::assertStringNotContainsString("preg_replace('/\\.csv$/i','.txt'",$orchestrator);
   self::assertStringContainsString('selected-language or selected-variant customer delivery',$orchestrator);
