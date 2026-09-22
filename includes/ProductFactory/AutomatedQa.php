@@ -69,6 +69,13 @@ final class AutomatedQa
             }
             $noDuplicatePages = count($streams) <= 1 || count($streams) === count(array_unique($streams));
             $checks[] = $this->check('pdf_duplicate_page_scan', $noDuplicatePages, ['content_streams' => count($streams)]);
+            $forbiddenPdfFeatures = preg_match('/\\/(?:URI|Annots|JavaScript|JS|OpenAction|AA)\\b|\\/Subtype\\s*\\/Link\\b|\\/Type\\s*\\/XObject\\b|\\/Subtype\\s*\\/Image\\b/i', $sample) === 1;
+            $checks[] = $this->check('pdf_link_qr_map_scan', ! $forbiddenPdfFeatures, [
+                'links_present' => preg_match('/\\/(?:URI|Annots)\\b|\\/Subtype\\s*\\/Link\\b/i', $sample) === 1,
+                'active_actions_present' => preg_match('/\\/(?:JavaScript|JS|OpenAction|AA)\\b/i', $sample) === 1,
+                'image_xobjects_present' => preg_match('/\\/Type\\s*\\/XObject\\b|\\/Subtype\\s*\\/Image\\b/i', $sample) === 1,
+                'generator_profile' => 'digiforge_local_text_pdf',
+            ]);
         }
 
         if ($format === 'svg') {
