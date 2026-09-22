@@ -57,13 +57,30 @@ final class ListingController
         return is_wp_error($result)?$result:new \WP_REST_Response($result,200);
     }
 
-    private function rawKey(\WP_REST_Request $r): ?string { $k=trim((string)$r->get_header('Idempotency-Key')); return $k===''?null:$k; }
+    private function rawKey(\WP_REST_Request $r): ?string
+    {
+        $k = trim((string) $r->get_header('Idempotency-Key'));
+        if ($k === '') {
+            $params = (array) $r->get_json_params();
+            $bodyKey = $params['_idempotency_key'] ?? null;
+            $k = is_string($bodyKey) ? trim($bodyKey) : '';
+        }
+        return $k === '' ? null : $k;
+    }
 
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $success=200): mixed
     {
         if(strlen((string)$r->get_body()) > Validator::MAX_BODY_BYTES) return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $header=trim((string)$r->get_header('Idempotency-Key'));
-        if($header==='') return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
+        if($header===''){
+            $params=(array)$r->get_json_params();
+            $bodyKeyPresent=array_key_exists('_idempotency_key',$params);
+            $bodyKey=$bodyKeyPresent?$params['_idempotency_key']:null;
+            if($bodyKeyPresent&&!is_string($bodyKey)) return new \WP_Error('invalid_idempotency_key',__('The _idempotency_key JSON field must be a string.','digiforge'),['status'=>400]);
+            $header=is_string($bodyKey)?trim($bodyKey):'';
+        }
+        if($header==='') return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header or _idempotency_key JSON field is required.','digiforge'),['status'=>400]);
+        if(strlen($header)>191) return new \WP_Error('invalid_idempotency_key',__('Idempotency key is too long.','digiforge'),['status'=>400]);
         $storage=hash('sha256',$operation.'|'.$header); $guard=new Idempotency();
         if(!$guard->reserve($storage,$operation)) return new \WP_Error('idempotency_conflict',__('This listing mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable){$guard->release($storage);return new \WP_Error('listing_mutation_failed',__('Listing mutation failed.','digiforge'),['status'=>500]);}
