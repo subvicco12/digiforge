@@ -6,6 +6,7 @@ namespace DigiForge\REST;
 
 use DigiForge\Core\Capabilities;
 use DigiForge\Launch\ExecutionEngine;
+use DigiForge\Listings\ListingFactory;
 use DigiForge\ProductFactory\Orchestrator;
 use DigiForge\ProductFactory\ProductReview;
 use DigiForge\Queue\Idempotency;
@@ -42,6 +43,11 @@ final class LaunchController
                 'permission_callback' => [$this, 'canReviewProduct'],
                 'callback' => [$this, 'reviewProduct'],
             ]);
+            register_rest_route(self::NS, '/launch/product-versions/(?P<id>\d+)/prepare-listing', [
+                'methods' => 'POST',
+                'permission_callback' => [$this, 'canPrepareListing'],
+                'callback' => [$this, 'prepareListing'],
+            ]);
         });
     }
 
@@ -68,6 +74,11 @@ final class LaunchController
     public function canReviewProduct(): bool
     {
         return Capabilities::can('manage_digiforge_products') && Capabilities::can('manage_digiforge_production');
+    }
+
+    public function canPrepareListing(): bool
+    {
+        return $this->canReviewProduct() && Capabilities::can('manage_digiforge_listings');
     }
 
     public function status(): \WP_REST_Response
@@ -136,6 +147,16 @@ final class LaunchController
             'u3_product_review_' . (int) $request['id'],
             fn(string $key) => (new ProductReview())->decide((int) $request['id'], $decision, $notes),
             200
+        );
+    }
+
+    public function prepareListing(\WP_REST_Request $request): mixed
+    {
+        return $this->mutate(
+            $request,
+            'u3_prepare_listing_' . (int) $request['id'],
+            fn(string $key) => (new ListingFactory())->prepare((int) $request['id'], $key),
+            201
         );
     }
 
