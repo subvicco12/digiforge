@@ -45,7 +45,7 @@ final class EtsyRetryPlan
         if (
             $oldKey === '' || strlen($oldKey) > 191 ||
             $newIdempotencyKey === '' || strlen($newIdempotencyKey) > 191 ||
-            hash_equals($oldKey, $newIdempotencyKey) ||
+            strcasecmp($oldKey, $newIdempotencyKey) === 0 ||
             !preg_match('/^[a-f0-9]{64}$/', $authorizationHash)
         ) {
             return self::error('binding', 'Retry requires a new idempotency key and valid prior authorization evidence.');
