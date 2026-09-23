@@ -33,7 +33,7 @@ final class EtsyOperationRepositoryContractTest extends TestCase
     {
         $source=$this->source();
         self::assertStringContainsString('EtsyOperationLifecycle::canTransition',$source);
-        self::assertStringContainsString("['id' => $id, 'state' => $from]",$source);
+        self::assertStringContainsString("['id' => \$id, 'state' => \$from]",$source);
         self::assertStringContainsString('transition_conflict',$source);
     }
 
