@@ -24,7 +24,7 @@ final class EtsyCredentialEnvelopeContractTest extends TestCase
         foreach(['JsonSerializable','jsonSerialize','__toString','__debugInfo',"'redacted'=>true",'[REDACTED]'] as $needle) {
             self::assertStringContainsString($needle,$s);
         }
-        self::assertStringNotContainsString("return $this->token",$s);
+        self::assertStringNotContainsString('return $this->token',$s);
     }
 
     public function testEnvelopeContainsNoPersistenceLoggingOrNetworkPrimitive(): void
