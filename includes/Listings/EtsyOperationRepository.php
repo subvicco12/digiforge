@@ -1,0 +1,133 @@
+<?php
+declare(strict_types=1);
+
+namespace DigiForge\Listings;
+
+use DigiForge\Database\Tables;
+use DigiForge\Security\Logger;
+use WP_Error;
+
+/**
+ * Persistence boundary for Etsy operation records.
+ * This repository is local-only: it never contacts Etsy or performs an external action.
+ */
+final class EtsyOperationRepository
+{
+    /** @return array<string,mixed>|WP_Error */
+    public function create(array $input): array|WP_Error
+    {
+        $record = EtsyOperationRecord::canonicalize($input);
+        if ($record instanceof WP_Error) return $record;
+
+        $scope = $this->approvedScope((int)$record['intent_id'], (int)$record['draft_package_id'], (string)$record['shop_reference']);
+        if ($scope instanceof WP_Error) return $scope;
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'digiforge_etsy_operations';
+        $existing = $this->byKey((string)$record['shop_reference'], (string)$record['idempotency_key']);
+        if (is_array($existing)) {
+            if (!$this->sameRequest($existing, $record)) {
+                return $this->error('idempotency_conflict', 'Idempotency key already belongs to a different Etsy operation.', 409);
+            }
+            return $existing + ['idempotent_replay' => true];
+        }
+
+        $now = current_time('mysql', true);
+        $data = $record + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
+        if ($wpdb->insert($table, $data) !== 1) {
+            $existing = $this->byKey((string)$record['shop_reference'], (string)$record['idempotency_key']);
+            if (is_array($existing) && $this->sameRequest($existing, $record)) return $existing + ['idempotent_replay' => true];
+            return $this->error('create_failed', 'Unable to persist Etsy operation record.', 500);
+        }
+        $id=(int)$wpdb->insert_id;
+        Logger::audit('etsy_operation_created', ['intent_id'=>(int)$record['intent_id'],'draft_package_id'=>(int)$record['draft_package_id']], 'etsy_operation', (string)$id);
+        return $this->find($id) ?? $this->error('create_failed', 'Unable to reload Etsy operation record.', 500);
+    }
+
+    /** @return array<string,mixed>|WP_Error */
+    public function transition(int $id, string $to, string $externalReference = ''): array|WP_Error
+    {
+        $row = $this->find($id);
+        if (!is_array($row)) return $this->error('not_found', 'Etsy operation record not found.', 404);
+
+        $to = strtoupper(trim($to));
+        $externalReference = trim($externalReference);
+        if (strlen($externalReference) > 191) return $this->error('invalid_external_reference', 'External reference is too long.', 400);
+        if ($to === EtsyOperationLifecycle::CONFIRMED_SUCCESS && $externalReference === '') {
+            return $this->error('external_reference_required', 'Confirmed success requires an external reference.', 409);
+        }
+
+        $from = (string)$row['state'];
+        if ($from === $to) {
+            if ($to === EtsyOperationLifecycle::CONFIRMED_SUCCESS && !hash_equals((string)$row['external_reference'], $externalReference)) {
+                return $this->error('external_reference_conflict', 'Confirmed success already has a different external reference.', 409);
+            }
+            return $row + ['idempotent_transition' => true];
+        }
+        if (!in_array($to, EtsyOperationLifecycle::states(), true) || !EtsyOperationLifecycle::canTransition($from, $to)) {
+            return $this->error('invalid_transition', 'Etsy operation lifecycle transition is not permitted.', 409);
+        }
+
+        global $wpdb;
+        $data = ['state' => $to, 'updated_at' => current_time('mysql', true)];
+        if ($externalReference !== '') $data['external_reference'] = $externalReference;
+        $updated = $wpdb->update($wpdb->prefix . 'digiforge_etsy_operations', $data, ['id' => $id, 'state' => $from]);
+        if ($updated !== 1) return $this->error('transition_conflict', 'Etsy operation state changed concurrently or update failed.', 409);
+
+        Logger::audit('etsy_operation_state_changed', [
+            'actor_id'=>get_current_user_id(),
+            'from'=>$from,
+            'to'=>$to,
+            'external_reference_present'=>$externalReference !== '',
+        ], 'etsy_operation', (string)$id);
+        return $this->find($id) ?? $this->error('not_found', 'Etsy operation record not found after transition.', 500);
+    }
+
+    /** @return array<string,mixed>|WP_Error */
+    private function approvedScope(int $intentId, int $packageId, string $shopReference): array|WP_Error
+    {
+        global $wpdb;
+        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if (!is_array($intent) || (string)($intent['state']??'') !== 'APPROVED_INTENT') return $this->error('intent_not_approved','Etsy operation requires an approved intent.',409);
+        if (!is_array($package) || (int)($package['approved_by']??0) < 1 || empty($package['approved_at'])) return $this->error('package_not_approved','Etsy operation requires an approved draft package.',409);
+        if ((int)($intent['draft_package_id']??0) !== $packageId || (int)($intent['listing_id']??0) !== (int)($package['listing_id']??0)) {
+            return $this->error('scope_mismatch','Intent and draft package must belong to the same listing scope.',409);
+        }
+        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        if (!is_array($listing) || !hash_equals((string)($listing['shop_reference']??''),$shopReference)) {
+            return $this->error('shop_scope_mismatch','Operation shop reference must match the approved listing scope.',409);
+        }
+        return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
+    }
+
+    /** @return array<string,mixed>|null */
+    public function find(int $id): ?array
+    {
+        if ($id < 1) return null;
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . 'digiforge_etsy_operations WHERE id=%d LIMIT 1',$id), ARRAY_A);
+        return is_array($row) ? $row : null;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function byKey(string $shopReference, string $idempotencyKey): ?array
+    {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . 'digiforge_etsy_operations WHERE shop_reference=%s AND idempotency_key=%s LIMIT 1',$shopReference,$idempotencyKey), ARRAY_A);
+        return is_array($row) ? $row : null;
+    }
+
+    private function sameRequest(array $existing, array $incoming): bool
+    {
+        foreach (['intent_id','draft_package_id','operation_type','request_fingerprint','authorization_hash','evidence_hash'] as $field) {
+            if ((string)($existing[$field] ?? '') !== (string)($incoming[$field] ?? '')) return false;
+        }
+        return true;
+    }
+
+    private function error(string $code, string $message, int $status): WP_Error
+    {
+        return new WP_Error('digiforge_etsy_operation_' . $code, $message, ['status' => $status]);
+    }
+}
