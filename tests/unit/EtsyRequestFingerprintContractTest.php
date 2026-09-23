@@ -26,7 +26,15 @@ final class EtsyRequestFingerprintContractTest extends TestCase
     {
         $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyOperationPreparationService.php');
         self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($payload)',$source);
-        self::assertStringNotContainsString("hash('sha256', wp_json_encode(".'$payload',$source);
+        self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($payload)',$source);
+    }
+
+    public function testPreparationPreservesLegacyPersistedFingerprints(): void
+    {
+        $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyOperationPreparationService.php');
+        self::assertStringContainsString('wp_json_encode($payload, JSON_UNESCAPED_SLASHES)',$source);
+        self::assertStringContainsString("hash('sha256', ".'$legacyJson'.")",$source);
+        self::assertStringContainsString('hash_equals($persistedFingerprint, $legacyFingerprint)',$source);
     }
 
     public function testContractIsLocalOnly(): void
