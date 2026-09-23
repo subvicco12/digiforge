@@ -66,7 +66,7 @@ final class EtsyOperationRepositoryContractTest extends TestCase
         self::assertStringContainsString('public function createFromPayload(array $input, array $payload)',$source);
         self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($payload)',$source);
         self::assertStringContainsString("request_fingerprint_conflict",$source);
-        self::assertStringContainsString("$input['request_fingerprint'] = $fingerprint",$source);
+        self::assertStringContainsString("\$input['request_fingerprint'] = \$fingerprint",$source);
         self::assertStringContainsString('return $this->create($input)',$source);
     }
 
