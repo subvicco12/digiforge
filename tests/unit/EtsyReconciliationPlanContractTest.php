@@ -21,6 +21,13 @@ final class EtsyReconciliationPlanContractTest extends TestCase
         self::assertStringContainsString("'external_execution_performed' => false",$source);
     }
 
+    public function testOperationIdRejectsBooleanCoercion(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('is_int($rawId)',$source);
+        self::assertStringContainsString("preg_match('/^[1-9][0-9]*$/', $rawId)",$source);
+    }
+
     public function testOnlyUnknownCanBePlannedForReconciliation(): void
     {
         $source=$this->source();
@@ -31,9 +38,9 @@ final class EtsyReconciliationPlanContractTest extends TestCase
     public function testPlanCarriesStableLookupIdentity(): void
     {
         $source=$this->source();
-        self::assertStringContainsString("'shop_reference' => $shop",$source);
-        self::assertStringContainsString("'idempotency_key' => $key",$source);
-        self::assertStringContainsString("'request_fingerprint' => $fingerprint",$source);
+        self::assertStringContainsString("\'shop_reference\' => $shop",$source);
+        self::assertStringContainsString("\'idempotency_key\' => $key",$source);
+        self::assertStringContainsString("\'request_fingerprint\' => $fingerprint",$source);
         self::assertStringContainsString("'provider_lookup_required' => true",$source);
     }
 
