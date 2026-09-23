@@ -17,10 +17,13 @@ final class EtsyRetryOperationServiceContractTest extends TestCase
         self::assertStringContainsString('createFromPayload($input,$payload)',$s);
     }
 
-    public function testPriorAuthorizationCannotBeReused(): void
+    public function testReuseAcrossRetryChainIsRejected(): void
     {
         $s=$this->source();
-        self::assertStringContainsString('authorization_reuse',$s);
+        self::assertStringContainsString('byKey(',$s);
+        self::assertStringContainsString('idempotency_reuse',$s);
+        self::assertStringContainsString('fresh_operation_required',$s);
+        self::assertStringContainsString('EtsyOperationLifecycle::NOT_SENT',$s);
         self::assertStringContainsString("'reuse_prior_authorization'=>false",$s);
         self::assertStringContainsString("'reuse_prior_idempotency_key'=>false",$s);
     }
