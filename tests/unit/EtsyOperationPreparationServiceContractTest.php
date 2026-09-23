@@ -49,6 +49,17 @@ final class EtsyOperationPreparationServiceContractTest extends TestCase
         self::assertStringContainsString('operation_not_supported',$source);
     }
 
+    public function testPreparationBindsApprovedIntentTypeToOperation(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString("'PREPARE_DRAFT' => in_array(\$operationType, ['DRAFT', 'CREATE_DRAFT'], true)",$source);
+        self::assertStringContainsString('intent_operation_mismatch',$source);
+        self::assertStringContainsString('intentMatchesOperation($intentType',$source);
+        foreach(['PREPARE_MEDIA','PREPARE_INVENTORY','PREPARE_PERSONALIZATION','PREPARE_UPDATE'] as $unsupported) {
+            self::assertStringNotContainsString("'".$unsupported."' =>",$source);
+        }
+    }
+
     public function testPreparationBindsPersistedEvidenceAuthorizationAndPayload(): void
     {
         $source=$this->source();
