@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Core;
 use DigiForge\Database\BusinessScopeInstaller;
 use DigiForge\Database\FinanceSchema;
+use DigiForge\Database\EtsyOperationSchema;
 use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
@@ -12,6 +13,9 @@ final class Activator {
     public static function activate(): void {
         Capabilities::add();
         if (! ListingSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! EtsyOperationSchema::migrateIfNeeded()) {
             return;
         }
         if (! OrderSchema::migrateIfNeeded()) {
