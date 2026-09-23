@@ -1,0 +1,47 @@
+<?php
+declare(strict_types=1);
+
+use PHPUnit\Framework\TestCase;
+
+final class EtsyOperationPreparationServiceContractTest extends TestCase
+{
+    private function source(): string
+    {
+        return (string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyOperationPreparationService.php');
+    }
+
+    public function testPreparationRemainsLocalOnlyAndDoesNotInvokeAdapter(): void
+    {
+        $source=$this->source();
+        foreach(['wp_remote_','curl_exec(','etsy.com','api.etsy','->execute('] as $needle) {
+            self::assertStringNotContainsString($needle,$source);
+        }
+        self::assertStringContainsString("'adapter_invoked' => false",$source);
+        self::assertStringContainsString("'external_execution_performed' => false",$source);
+    }
+
+    public function testPreparationRequiresNotSentLedgerRecordAndPolicy(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('EtsyOperationLifecycle::NOT_SENT',$source);
+        self::assertStringContainsString('EtsyExecutionPolicy::evaluate',$source);
+        self::assertStringContainsString('policy_denied',$source);
+    }
+
+    public function testPreparationBindsPersistedEvidenceAuthorizationAndPayload(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('evidence_mismatch',$source);
+        self::assertStringContainsString('authorization_mismatch',$source);
+        self::assertStringContainsString('request_mismatch',$source);
+        self::assertStringContainsString("hash('sha256', wp_json_encode(\$payload",$source);
+    }
+
+    public function testPreparationUsesConsumedControlledExecutionPermit(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('ExecutionOrchestrator::prepare',$source);
+        self::assertStringContainsString("'state' => 'ETSY_OPERATION_PREPARED'",$source);
+        self::assertStringContainsString("'permit' => \$prepared['permit']",$source);
+    }
+}
