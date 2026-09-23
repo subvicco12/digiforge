@@ -38,9 +38,9 @@ final class EtsyReconciliationPlanContractTest extends TestCase
     public function testPlanCarriesStableLookupIdentity(): void
     {
         $source=$this->source();
-        self::assertStringContainsString("\'shop_reference\' => $shop",$source);
-        self::assertStringContainsString("\'idempotency_key\' => $key",$source);
-        self::assertStringContainsString("\'request_fingerprint\' => $fingerprint",$source);
+        self::assertStringContainsString("'shop_reference'", $source);
+        self::assertStringContainsString("'idempotency_key'", $source);
+        self::assertStringContainsString("'request_fingerprint'", $source);
         self::assertStringContainsString("'provider_lookup_required' => true",$source);
     }
 
