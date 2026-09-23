@@ -44,11 +44,10 @@ final class EtsyOperationRecordTest extends TestCase
 
     public function testHashesAndScopeFailClosed(): void
     {
-        if (!class_exists('WP_Error')) { require_once dirname(__DIR__) . '/support/wp-stubs.php'; }
         $bad=$this->valid();$bad['request_fingerprint']='unsafe';
-        self::assertInstanceOf(WP_Error::class,EtsyOperationRecord::canonicalize($bad));
+        self::assertSame('WP_Error', get_debug_type(EtsyOperationRecord::canonicalize($bad)));
         $bad=$this->valid();$bad['intent_id']=0;
-        self::assertInstanceOf(WP_Error::class,EtsyOperationRecord::canonicalize($bad));
+        self::assertSame('WP_Error', get_debug_type(EtsyOperationRecord::canonicalize($bad)));
     }
 
     public function testContractDoesNotPerformPersistenceOrHttp(): void
