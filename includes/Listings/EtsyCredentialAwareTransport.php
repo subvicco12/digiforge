@@ -15,7 +15,7 @@ use WP_Error;
 final class EtsyCredentialAwareTransport
 {
     /** @return array<string,mixed>|WP_Error */
-    public function prepare(array $requestPlan,EtsyCredentialEnvelope $credential): array|WP_Error
+    public function prepare(array $requestPlan,array $scope,EtsyCredentialEnvelope $credential): array|WP_Error
     {
         if (($requestPlan['state']??'')!=='ETSY_HTTP_REQUEST_PLANNED'
             || ($requestPlan['network_request_permitted']??null)!==false
@@ -26,12 +26,16 @@ final class EtsyCredentialAwareTransport
         }
 
         $operationId=(int)($requestPlan['operation_id']??0);
-        if ($operationId<1) {
-            return self::error('operation','Valid Etsy operation identity is required.');
+        $integrationId=(int)($scope['integration_id']??0);
+        if ($operationId<1 || $integrationId<1
+            || ($scope['state']??'')!=='ETSY_SCOPED_CREDENTIAL_ACCESS_AUTHORIZED'
+            || (int)($scope['operation_id']??0)!==$operationId
+            || ($scope['credential_name']??'')!=='access_token') {
+            return self::error('operation','Valid matching Etsy credential scope and operation identity are required.');
         }
 
         $probe=$credential->consume(
-            (int)($requestPlan['integration_id']??0),
+            $integrationId,
             $operationId,
             static function(string $token): array|WP_Error {
                 if ($token==='') {
