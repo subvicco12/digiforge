@@ -13,13 +13,25 @@ use WP_Error;
  */
 final class EtsyAdapterOutcome
 {
+    private const MAX_EXTERNAL_REFERENCE_LENGTH = 191;
+    private const MAX_FAILURE_EVIDENCE_LENGTH = 64;
+
     /** @return array<string,mixed>|WP_Error */
     public static function normalize(array $result): array|WP_Error
     {
-        $state = strtoupper(trim((string)($result['state'] ?? '')));
+        $stateRaw = $result['state'] ?? null;
+        if (!is_string($stateRaw)) {
+            return self::error('state', 'Adapter result state must be a string.');
+        }
+        $state = strtoupper(trim($stateRaw));
+
         if ($state === 'CONFIRMED_SUCCESS') {
-            $reference = trim((string)($result['external_reference'] ?? ''));
-            if ($reference === '' || strlen($reference) > 191) {
+            $referenceRaw = $result['external_reference'] ?? null;
+            if (!is_string($referenceRaw)) {
+                return self::error('success_reference', 'Confirmed Etsy success requires a string external reference.');
+            }
+            $reference = trim($referenceRaw);
+            if ($reference === '' || strlen($reference) > self::MAX_EXTERNAL_REFERENCE_LENGTH) {
                 return self::error('success_reference', 'Confirmed Etsy success requires a bounded external reference.');
             }
             return [
@@ -31,10 +43,20 @@ final class EtsyAdapterOutcome
         }
 
         if ($state === 'CONFIRMED_FAILURE') {
-            $category = sanitize_key((string)($result['failure_category'] ?? ''));
-            $code = sanitize_key((string)($result['failure_code'] ?? ''));
-            if ($category === '' || $code === '') {
-                return self::error('failure_evidence', 'Confirmed Etsy failure requires category and code evidence.');
+            $categoryRaw = $result['failure_category'] ?? null;
+            $codeRaw = $result['failure_code'] ?? null;
+            if (!is_string($categoryRaw) || !is_string($codeRaw)) {
+                return self::error('failure_evidence', 'Confirmed Etsy failure evidence must be strings.');
+            }
+            $category = sanitize_key($categoryRaw);
+            $code = sanitize_key($codeRaw);
+            if (
+                $category === '' ||
+                $code === '' ||
+                strlen($category) > self::MAX_FAILURE_EVIDENCE_LENGTH ||
+                strlen($code) > self::MAX_FAILURE_EVIDENCE_LENGTH
+            ) {
+                return self::error('failure_evidence', 'Confirmed Etsy failure requires bounded category and code evidence.');
             }
             return [
                 'state' => EtsyOperationLifecycle::CONFIRMED_FAILURE,
