@@ -25,7 +25,7 @@ final class EtsyReconciliationPlanContractTest extends TestCase
     {
         $source=$this->source();
         self::assertStringContainsString('is_int($rawId)',$source);
-        self::assertStringContainsString("preg_match('/^[1-9][0-9]*$/', $rawId)",$source);
+        self::assertStringContainsString('preg_match(\'/^[1-9][0-9]*$/\', $rawId)',$source);
     }
 
     public function testOnlyUnknownCanBePlannedForReconciliation(): void
