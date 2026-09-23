@@ -43,4 +43,21 @@ final class EtsyOperationRepositoryContractTest extends TestCase
         self::assertStringContainsString('CONFIRMED_SUCCESS',$source);
         self::assertStringContainsString('external_reference_required',$source);
     }
+    public function testCreationRequiresApprovedBoundScope(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('APPROVED_INTENT',$source);
+        self::assertStringContainsString('package_not_approved',$source);
+        self::assertStringContainsString('scope_mismatch',$source);
+        self::assertStringContainsString('shop_scope_mismatch',$source);
+    }
+
+    public function testIdempotentSuccessRejectsReferenceConflictAndTransitionsAreAudited(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('external_reference_conflict',$source);
+        self::assertStringContainsString("Logger::audit('etsy_operation_state_changed'",$source);
+        self::assertStringContainsString("'actor_id'=>get_current_user_id()",$source);
+    }
+
 }
