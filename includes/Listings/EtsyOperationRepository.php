@@ -13,7 +13,35 @@ use WP_Error;
  */
 final class EtsyOperationRepository
 {
-    /** @return array<string,mixed>|WP_Error */
+    /**
+     * Creates an operation from the actual request payload using the shared
+     * canonical fingerprint contract. Callers cannot supply a conflicting
+     * request fingerprint through this boundary.
+     *
+     * @return array<string,mixed>|WP_Error
+     */
+    public function createFromPayload(array $input, array $payload): array|WP_Error
+    {
+        $fingerprint = EtsyRequestFingerprint::fromPayload($payload);
+        if ($fingerprint instanceof WP_Error) return $fingerprint;
+
+        if (isset($input['request_fingerprint'])) {
+            $supplied = strtolower(trim((string)$input['request_fingerprint']));
+            if ($supplied !== '' && !hash_equals($fingerprint, $supplied)) {
+                return $this->error('request_fingerprint_conflict', 'Supplied request fingerprint does not match the canonical payload fingerprint.', 409);
+            }
+        }
+
+        $input['request_fingerprint'] = $fingerprint;
+        return $this->create($input);
+    }
+
+    /**
+     * Legacy/precomputed creation boundary retained for compatibility.
+     * New payload-backed creation should use createFromPayload().
+     *
+     * @return array<string,mixed>|WP_Error
+     */
     public function create(array $input): array|WP_Error
     {
         $record = EtsyOperationRecord::canonicalize($input);

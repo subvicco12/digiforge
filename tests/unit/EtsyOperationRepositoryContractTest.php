@@ -60,4 +60,22 @@ final class EtsyOperationRepositoryContractTest extends TestCase
         self::assertStringContainsString("'actor_id'=>get_current_user_id()",$source);
     }
 
+    public function testPayloadBackedCreationUsesCanonicalFingerprintContract(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('public function createFromPayload(array $input, array $payload)',$source);
+        self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($payload)',$source);
+        self::assertStringContainsString("request_fingerprint_conflict",$source);
+        self::assertStringContainsString("\$input['request_fingerprint'] = \$fingerprint",$source);
+        self::assertStringContainsString('return $this->create($input)',$source);
+    }
+
+    public function testPayloadBackedCreationDoesNotPerformExternalExecution(): void
+    {
+        $source=$this->source();
+        foreach(['ExecutionNonceLedger::consume','ExecutionOrchestrator::prepare','ADAPTER_CALL_PERMITTED'] as $needle) {
+            self::assertStringNotContainsString($needle,$source);
+        }
+    }
+
 }
