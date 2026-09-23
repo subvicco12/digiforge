@@ -7,8 +7,8 @@ use WP_Error;
 
 /**
  * Persists a provider-lookup reconciliation result without performing the lookup.
- * A conclusive result crosses RECONCILIATION -> RECONCILED -> terminal state.
- * An inconclusive lookup returns RECONCILIATION -> UNKNOWN.
+ * Conclusive processing is resumable from RECONCILED so an interruption between
+ * lifecycle transitions cannot strand an operation.
  */
 final class EtsyReconciliationResultService
 {
@@ -19,8 +19,11 @@ final class EtsyReconciliationResultService
     {
         if ($operationId < 1) return $this->error('operation_id','A persisted Etsy operation id is required.');
         $operation=$this->operations->find($operationId);
-        if (!is_array($operation) || (string)($operation['state'] ?? '') !== EtsyOperationLifecycle::RECONCILIATION) {
-            return $this->error('operation_not_reconciling','Only a RECONCILIATION operation may accept a lookup result.');
+        if (!is_array($operation)) return $this->error('not_found','Etsy operation was not found.');
+
+        $current=(string)($operation['state'] ?? '');
+        if (!in_array($current,[EtsyOperationLifecycle::RECONCILIATION,EtsyOperationLifecycle::RECONCILED],true)) {
+            return $this->error('operation_not_reconciling','Only a RECONCILIATION or resumable RECONCILED operation may accept a lookup result.');
         }
 
         $outcome=EtsyAdapterOutcome::normalize($lookupResult);
@@ -28,13 +31,18 @@ final class EtsyReconciliationResultService
         $state=(string)$outcome['state'];
 
         if ($state === EtsyOperationLifecycle::UNKNOWN) {
+            if ($current !== EtsyOperationLifecycle::RECONCILIATION) {
+                return $this->error('reconciled_requires_conclusive','A RECONCILED operation may only resume with a conclusive result.');
+            }
             $transitioned=$this->operations->transition($operationId,EtsyOperationLifecycle::UNKNOWN);
             if ($transitioned instanceof WP_Error) return $transitioned;
             return $this->response($operationId,$transitioned,$outcome,true);
         }
 
-        $reconciled=$this->operations->transition($operationId,EtsyOperationLifecycle::RECONCILED);
-        if ($reconciled instanceof WP_Error) return $reconciled;
+        if ($current === EtsyOperationLifecycle::RECONCILIATION) {
+            $reconciled=$this->operations->transition($operationId,EtsyOperationLifecycle::RECONCILED);
+            if ($reconciled instanceof WP_Error) return $reconciled;
+        }
 
         $externalReference=$state === EtsyOperationLifecycle::CONFIRMED_SUCCESS
             ? (string)($outcome['external_reference'] ?? '') : '';
