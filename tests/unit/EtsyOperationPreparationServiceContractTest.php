@@ -28,6 +28,27 @@ final class EtsyOperationPreparationServiceContractTest extends TestCase
         self::assertStringContainsString('policy_denied',$source);
     }
 
+    public function testPreparationRevalidatesCurrentApprovedScope(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('APPROVED_INTENT',$source);
+        self::assertStringContainsString("'state']??'') !== 'APPROVED'",$source);
+        self::assertStringContainsString('intent_not_approved',$source);
+        self::assertStringContainsString('package_not_approved',$source);
+        self::assertStringContainsString('listing_not_approved',$source);
+        self::assertStringContainsString('shop_reference',$source);
+    }
+
+    public function testPreparationMapsLedgerOperationToControlledAuthorizationAction(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString("'CREATE_DRAFT'",$source);
+        self::assertStringContainsString("'policy_operation' => EtsyExecutionPolicy::OP_DRAFT",$source);
+        self::assertStringContainsString("'authorization_action' => 'ETSY_DRAFT_CREATE'",$source);
+        self::assertStringContainsString("\$mapping['authorization_action']",$source);
+        self::assertStringContainsString('operation_not_supported',$source);
+    }
+
     public function testPreparationBindsPersistedEvidenceAuthorizationAndPayload(): void
     {
         $source=$this->source();
