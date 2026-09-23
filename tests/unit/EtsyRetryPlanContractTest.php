@@ -37,7 +37,7 @@ final class EtsyRetryPlanContractTest extends TestCase
     {
         $source=$this->source();
         self::assertStringContainsString("'new_operation_required' => true",$source);
-        self::assertStringContainsString('hash_equals($oldKey, $newIdempotencyKey)',$source);
+        self::assertStringContainsString('strcasecmp($oldKey, $newIdempotencyKey) === 0',$source);
         self::assertStringContainsString("'reuse_prior_idempotency_key' => false",$source);
     }
 
