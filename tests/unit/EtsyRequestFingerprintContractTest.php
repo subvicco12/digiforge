@@ -17,7 +17,8 @@ final class EtsyRequestFingerprintContractTest extends TestCase
     {
         $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyRequestFingerprint.php');
         self::assertStringContainsString('JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE',$source);
-        self::assertStringContainsString('instanceof WP_Error',$source);
+        self::assertStringContainsString('if (!is_string($encoded))',$source);
+        self::assertStringContainsString("new WP_Error('digiforge_etsy_request_fingerprint'",$source);
         self::assertStringNotContainsString("?: ''",$source);
     }
 
