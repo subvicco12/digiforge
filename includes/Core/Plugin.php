@@ -4,6 +4,7 @@ namespace DigiForge\Core;
 
 use DigiForge\Database\BusinessScopeInstaller;
 use DigiForge\Database\FinanceSchema;
+use DigiForge\Database\EtsyOperationSchema;
 use DigiForge\Database\OrderSchema;
 use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
@@ -34,6 +35,7 @@ final class Plugin {
         if ($this->booted) { return; }
         $this->booted = true;
         if (! ListingSchema::migrateIfNeeded()) { return; }
+        if (! EtsyOperationSchema::migrateIfNeeded()) { return; }
         if (! OrderSchema::migrateIfNeeded()) { return; }
         if (! FinanceSchema::migrateIfNeeded()) { return; }
         if (! PodSchema::migrateIfNeeded()) { return; }
