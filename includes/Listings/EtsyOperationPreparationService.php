@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace DigiForge\Listings;
 
+use DigiForge\Database\Tables;
 use DigiForge\POD\ExecutionOrchestrator;
 use WP_Error;
 
@@ -36,8 +37,13 @@ final class EtsyOperationPreparationService
         }
 
         $operationType = strtoupper(trim((string)($operation['operation_type'] ?? '')));
-        $humanApproved = (int)($operation['intent_id'] ?? 0) > 0 && (int)($operation['draft_package_id'] ?? 0) > 0;
-        $policy = EtsyExecutionPolicy::evaluate($operationType, $humanApproved);
+        $mapping = $this->operationMapping($operationType);
+        if ($mapping instanceof WP_Error) return $mapping;
+
+        $scope = $this->currentApprovedScope($operation);
+        if ($scope instanceof WP_Error) return $scope;
+
+        $policy = EtsyExecutionPolicy::evaluate($mapping['policy_operation'], true);
         if (($policy['allowed'] ?? false) !== true) {
             return $this->error('policy_denied', 'Etsy execution policy denied operation preparation: '.(string)($policy['reason'] ?? 'denied').'.', 403);
         }
@@ -59,25 +65,61 @@ final class EtsyOperationPreparationService
 
         $prepared = ExecutionOrchestrator::prepare(
             $authorization,
-            $operationType,
+            $mapping['authorization_action'],
             $evidenceHash,
             $actor,
             $now,
             $payload
         );
-        if ($prepared instanceof WP_Error) {
-            return $prepared;
-        }
+        if ($prepared instanceof WP_Error) return $prepared;
 
         return [
             'state' => 'ETSY_OPERATION_PREPARED',
             'operation_id' => $operationId,
             'operation_type' => $operationType,
+            'policy_operation' => $mapping['policy_operation'],
+            'authorization_action' => $mapping['authorization_action'],
             'permit' => $prepared['permit'],
             'payload' => $prepared['payload'],
             'adapter_invoked' => false,
             'external_execution_performed' => false,
         ];
+    }
+
+    /** @return array{policy_operation:string,authorization_action:string}|WP_Error */
+    private function operationMapping(string $operationType): array|WP_Error
+    {
+        return match ($operationType) {
+            'DRAFT', 'CREATE_DRAFT' => [
+                'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
+                'authorization_action' => 'ETSY_DRAFT_CREATE',
+            ],
+            default => $this->error('operation_not_supported', 'Etsy operation type is not authorized for controlled preparation.', 403),
+        };
+    }
+
+    /** @return array<string,mixed>|WP_Error */
+    private function currentApprovedScope(array $operation): array|WP_Error
+    {
+        global $wpdb;
+        $intentId=(int)($operation['intent_id']??0);
+        $packageId=(int)($operation['draft_package_id']??0);
+        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if (!is_array($intent) || (string)($intent['state']??'') !== 'APPROVED_INTENT') {
+            return $this->error('intent_not_approved', 'Referenced Etsy intent is no longer approved.', 409);
+        }
+        if (!is_array($package) || (int)($package['approved_by']??0) < 1 || empty($package['approved_at'])) {
+            return $this->error('package_not_approved', 'Referenced Etsy draft package is no longer approved.', 409);
+        }
+        if ((int)($intent['draft_package_id']??0) !== $packageId || (int)($intent['listing_id']??0) !== (int)($package['listing_id']??0)) {
+            return $this->error('scope_mismatch', 'Current intent and draft package approval scope does not match.', 409);
+        }
+        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        if (!is_array($listing) || (string)($listing['state']??'') !== 'APPROVED' || !hash_equals((string)($listing['shop_reference']??''),(string)($operation['shop_reference']??''))) {
+            return $this->error('listing_not_approved', 'Referenced listing approval or shop scope is no longer valid.', 409);
+        }
+        return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }
 
     private function error(string $code, string $message, int $status): WP_Error
