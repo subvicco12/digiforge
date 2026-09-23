@@ -13,7 +13,7 @@ final class EtsyCredentialEnvelopeContractTest extends TestCase
     public function testEnvelopeIsSingleUseAndOperationScoped(): void
     {
         $s=$this->source();
-        foreach(['ETSY_SCOPED_CREDENTIAL_ACCESS_AUTHORIZED','single_use','integrationId','operationId','private bool $consumed=false','$this->consumed=true',"$this->token=''"] as $needle) {
+        foreach(['ETSY_SCOPED_CREDENTIAL_ACCESS_AUTHORIZED','single_use','integrationId','operationId','private bool $consumed=false','$this->consumed=true','$this->token=\'\''] as $needle) {
             self::assertStringContainsString($needle,$s);
         }
     }
