@@ -10,23 +10,23 @@ final class EtsyReconciliationResultServiceContractTest extends TestCase
         return (string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyReconciliationResultService.php');
     }
 
-    public function testOnlyReconciliationStateAcceptsLookupResult(): void
+    public function testReconciliationAndReconciledStatesAreAccepted(): void
     {
         $s=$this->source();
         self::assertStringContainsString('EtsyOperationLifecycle::RECONCILIATION',$s);
-        self::assertStringContainsString('operation_not_reconciling',$s);
+        self::assertStringContainsString('EtsyOperationLifecycle::RECONCILED',$s);
         self::assertStringContainsString('EtsyAdapterOutcome::normalize',$s);
     }
 
-    public function testConclusiveResultPassesThroughReconciled(): void
+    public function testConclusiveResultCanResumeFromReconciled(): void
     {
         $s=$this->source();
-        self::assertStringContainsString('EtsyOperationLifecycle::RECONCILED',$s);
-        self::assertStringContainsString('EtsyOperationLifecycle::CONFIRMED_SUCCESS',$s);
-        self::assertStringContainsString("'external_reference'",$s);
+        self::assertStringContainsString("if (\$current === EtsyOperationLifecycle::RECONCILIATION)",$s);
+        self::assertStringContainsString('transition($operationId,$state,$externalReference)',$s);
+        self::assertStringContainsString('reconciled_requires_conclusive',$s);
     }
 
-    public function testUnknownReturnsToUnknownWithoutRetry(): void
+    public function testUnknownReturnsToUnknownOnlyBeforeReconciled(): void
     {
         $s=$this->source();
         self::assertStringContainsString('EtsyOperationLifecycle::UNKNOWN',$s);
