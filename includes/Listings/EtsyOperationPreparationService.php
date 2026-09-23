@@ -58,7 +58,8 @@ final class EtsyOperationPreparationService
             return $this->error('authorization_mismatch', 'Execution authorization does not match the persisted Etsy operation.', 409);
         }
 
-        $requestFingerprint = hash('sha256', wp_json_encode($payload, JSON_UNESCAPED_SLASHES) ?: '');
+        $requestFingerprint = EtsyRequestFingerprint::fromPayload($payload);
+        if ($requestFingerprint instanceof WP_Error) return $requestFingerprint;
         if (!hash_equals((string)($operation['request_fingerprint'] ?? ''), $requestFingerprint)) {
             return $this->error('request_mismatch', 'Execution payload does not match the persisted Etsy operation.', 409);
         }
