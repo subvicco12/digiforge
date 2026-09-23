@@ -35,11 +35,7 @@ final class EtsyControlledTransportOrchestrator
         $integrationId=(int)($scope['integration_id']??0);
         $request=EtsyHttpRequestPlan::build($invocation,$method,$endpoint,$headers,$integrationId);
         if ($request instanceof WP_Error) return $request;
-
-        $credential=(new EtsyScopedCredentialRetriever())->retrieve($scope);
-        if ($credential instanceof WP_Error) return $credential;
-
-        $transport=(new EtsyCredentialAwareTransport())->prepare($request,$scope,$credential);
+        $transport=(new EtsyCredentialAwareTransport())->prepare($request,$scope);
         if ($transport instanceof WP_Error) return $transport;
 
         return [
