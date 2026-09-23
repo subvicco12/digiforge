@@ -118,6 +118,10 @@ final class EtsyOperationPreparationService
         if (!is_array($intent) || (string)($intent['state']??'') !== 'APPROVED_INTENT') {
             return $this->error('intent_not_approved', 'Referenced Etsy intent is no longer approved.', 409);
         }
+        $intentType = strtoupper(trim((string)($intent['intent_type'] ?? '')));
+        if (!$this->intentMatchesOperation($intentType, (string)($operation['operation_type'] ?? ''))) {
+            return $this->error('intent_operation_mismatch', 'Approved Etsy intent type does not authorize this operation type.', 409);
+        }
         if (!is_array($package) || (int)($package['approved_by']??0) < 1 || empty($package['approved_at'])) {
             return $this->error('package_not_approved', 'Referenced Etsy draft package is no longer approved.', 409);
         }
@@ -129,6 +133,15 @@ final class EtsyOperationPreparationService
             return $this->error('listing_not_approved', 'Referenced listing approval or shop scope is no longer valid.', 409);
         }
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
+    }
+
+    private function intentMatchesOperation(string $intentType, string $operationType): bool
+    {
+        $operationType = strtoupper(trim($operationType));
+        return match ($intentType) {
+            'PREPARE_DRAFT' => in_array($operationType, ['DRAFT', 'CREATE_DRAFT'], true),
+            default => false,
+        };
     }
 
     private function error(string $code, string $message, int $status): WP_Error
