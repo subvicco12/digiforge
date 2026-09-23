@@ -60,8 +60,16 @@ final class EtsyOperationPreparationService
 
         $requestFingerprint = EtsyRequestFingerprint::fromPayload($payload);
         if ($requestFingerprint instanceof WP_Error) return $requestFingerprint;
-        if (!hash_equals((string)($operation['request_fingerprint'] ?? ''), $requestFingerprint)) {
-            return $this->error('request_mismatch', 'Execution payload does not match the persisted Etsy operation.', 409);
+        $persistedFingerprint = (string)($operation['request_fingerprint'] ?? '');
+        if (!hash_equals($persistedFingerprint, $requestFingerprint)) {
+            // Compatibility for NOT_SENT records persisted before canonical
+            // fingerprinting was introduced. New records should use the
+            // canonical fingerprint contract.
+            $legacyJson = wp_json_encode($payload, JSON_UNESCAPED_SLASHES);
+            $legacyFingerprint = is_string($legacyJson) ? hash('sha256', $legacyJson) : '';
+            if ($legacyFingerprint === '' || !hash_equals($persistedFingerprint, $legacyFingerprint)) {
+                return $this->error('request_mismatch', 'Execution payload does not match the persisted Etsy operation.', 409);
+            }
         }
 
         $prepared = ExecutionOrchestrator::prepare(
