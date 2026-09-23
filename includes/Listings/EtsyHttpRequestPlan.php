@@ -14,7 +14,7 @@ use WP_Error;
 final class EtsyHttpRequestPlan
 {
     /** @return array<string,mixed>|WP_Error */
-    public static function build(array $invocation,string $method,string $endpoint,array $headers=[]): array|WP_Error
+    public static function build(array $invocation,string $method,string $endpoint,array $headers=[],int $integrationId=0): array|WP_Error
     {
         if (($invocation['state']??'')!=='ETSY_ADAPTER_INVOCATION_PLANNED') {
             return self::error('invocation','A validated Etsy adapter invocation plan is required.');
@@ -53,6 +53,7 @@ final class EtsyHttpRequestPlan
         return [
             'state'=>'ETSY_HTTP_REQUEST_PLANNED',
             'operation_id'=>$operationId,
+            'integration_id'=>$integrationId,
             'method'=>$method,
             'endpoint'=>$endpoint,
             'headers'=>$allowedHeaders,
