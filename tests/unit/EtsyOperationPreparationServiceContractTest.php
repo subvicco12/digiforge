@@ -60,6 +60,17 @@ final class EtsyOperationPreparationServiceContractTest extends TestCase
         }
     }
 
+    public function testPreparationRevalidatesCurrentListingReadinessSnapshot(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('(new Repository())->readiness((int)$intent[\'listing_id\'])',$source);
+        self::assertStringContainsString('listing_not_ready',$source);
+        self::assertStringContainsString("package['readiness_hash']",$source);
+        self::assertStringContainsString("currentReadiness['hash']",$source);
+        self::assertStringContainsString('readiness_changed',$source);
+        self::assertStringContainsString('hash_equals($persistedReadinessHash, $currentReadinessHash)',$source);
+    }
+
     public function testPreparationBindsPersistedEvidenceAuthorizationAndPayload(): void
     {
         $source=$this->source();
