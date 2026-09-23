@@ -44,6 +44,7 @@ final class EtsyOperationRecordTest extends TestCase
 
     public function testHashesAndScopeFailClosed(): void
     {
+        if (!class_exists('WP_Error')) { eval('class WP_Error { public function __construct(...$args) {} }'); }
         $bad=$this->valid();$bad['request_fingerprint']='unsafe';
         self::assertSame('WP_Error', get_debug_type(EtsyOperationRecord::canonicalize($bad)));
         $bad=$this->valid();$bad['intent_id']=0;
