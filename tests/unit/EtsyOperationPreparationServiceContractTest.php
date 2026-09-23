@@ -55,7 +55,7 @@ final class EtsyOperationPreparationServiceContractTest extends TestCase
         self::assertStringContainsString('evidence_mismatch',$source);
         self::assertStringContainsString('authorization_mismatch',$source);
         self::assertStringContainsString('request_mismatch',$source);
-        self::assertStringContainsString("hash('sha256', wp_json_encode(\$payload",$source);
+        self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($payload)',$source);
     }
 
     public function testPreparationUsesConsumedControlledExecutionPermit(): void
