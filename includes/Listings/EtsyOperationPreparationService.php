@@ -132,7 +132,18 @@ final class EtsyOperationPreparationService
         if (!is_array($listing) || (string)($listing['state']??'') !== 'APPROVED' || !hash_equals((string)($listing['shop_reference']??''),(string)($operation['shop_reference']??''))) {
             return $this->error('listing_not_approved', 'Referenced listing approval or shop scope is no longer valid.', 409);
         }
-        return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
+
+        $currentReadiness = (new Repository())->readiness((int)$intent['listing_id']);
+        if ($currentReadiness instanceof WP_Error || empty($currentReadiness['ready'])) {
+            return $this->error('listing_not_ready', 'Referenced listing is no longer release-ready.', 409);
+        }
+        $persistedReadinessHash = strtolower(trim((string)($package['readiness_hash'] ?? '')));
+        $currentReadinessHash = strtolower(trim((string)($currentReadiness['hash'] ?? '')));
+        if ($persistedReadinessHash === '' || $currentReadinessHash === '' || !hash_equals($persistedReadinessHash, $currentReadinessHash)) {
+            return $this->error('readiness_changed', 'Current listing readiness no longer matches the approved draft package snapshot.', 409);
+        }
+
+        return ['intent'=>$intent,'package'=>$package,'listing'=>$listing,'readiness'=>$currentReadiness];
     }
 
     private function intentMatchesOperation(string $intentType, string $operationType): bool
