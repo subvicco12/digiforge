@@ -28,11 +28,19 @@ final class EtsyAdapterOutcomeContractTest extends TestCase
         self::assertStringNotContainsString("'NOT_SENT' =>",$source);
     }
 
-    public function testSuccessRequiresExternalReference(): void
+    public function testTerminalEvidenceMustBeStringsBeforeNormalization(): void
     {
         $source=$this->source();
-        self::assertStringContainsString('success_reference',$source);
-        self::assertStringContainsString('external_reference',$source);
+        self::assertStringContainsString('!is_string($referenceRaw)',$source);
+        self::assertStringContainsString('!is_string($categoryRaw)',$source);
+        self::assertStringContainsString('!is_string($codeRaw)',$source);
+    }
+
+    public function testSuccessRequiresBoundedExternalReference(): void
+    {
+        $source=$this->source();
+        self::assertStringContainsString('MAX_EXTERNAL_REFERENCE_LENGTH = 191',$source);
+        self::assertStringContainsString('strlen($reference) > self::MAX_EXTERNAL_REFERENCE_LENGTH',$source);
         self::assertStringContainsString("'retry_permitted' => false",$source);
     }
 
@@ -46,8 +54,9 @@ final class EtsyAdapterOutcomeContractTest extends TestCase
     public function testConfirmedFailureCarriesBoundedFailureEvidence(): void
     {
         $source=$this->source();
-        self::assertStringContainsString('failure_category',$source);
-        self::assertStringContainsString('failure_code',$source);
+        self::assertStringContainsString('MAX_FAILURE_EVIDENCE_LENGTH = 64',$source);
+        self::assertStringContainsString('strlen($category) > self::MAX_FAILURE_EVIDENCE_LENGTH',$source);
+        self::assertStringContainsString('strlen($code) > self::MAX_FAILURE_EVIDENCE_LENGTH',$source);
         self::assertStringContainsString('EtsyOperationLifecycle::retryPermitted',$source);
     }
 }
