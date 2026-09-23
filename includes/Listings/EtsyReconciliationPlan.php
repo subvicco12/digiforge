@@ -16,7 +16,14 @@ final class EtsyReconciliationPlan
     /** @return array<string,mixed>|WP_Error */
     public static function build(array $operation): array|WP_Error
     {
-        $id = filter_var($operation['id'] ?? null, FILTER_VALIDATE_INT);
+        $rawId = $operation['id'] ?? null;
+        if (is_int($rawId)) {
+            $id = $rawId;
+        } elseif (is_string($rawId) && preg_match('/^[1-9][0-9]*$/', $rawId)) {
+            $id = filter_var($rawId, FILTER_VALIDATE_INT);
+        } else {
+            $id = false;
+        }
         if ($id === false || $id < 1) {
             return self::error('operation_id', 'Reconciliation requires a persisted Etsy operation id.');
         }
