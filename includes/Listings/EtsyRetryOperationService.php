@@ -7,7 +7,7 @@ use WP_Error;
 
 /**
  * Local factory for a retry operation after CONFIRMED_FAILURE.
- * It never reuses the consumed authorization or prior idempotency key.
+ * A retry must produce a genuinely fresh NOT_SENT ledger operation.
  */
 final class EtsyRetryOperationService
 {
@@ -36,6 +36,13 @@ final class EtsyRetryOperationService
             return $this->error('authorization_reuse','Retry authorization must be new.');
         }
 
+        // The proposed key must never resolve to any prior operation in this shop,
+        // including an ancestor earlier in a retry chain.
+        $prior=$this->operations->byKey((string)($source['shop_reference']??''),(string)$plan['new_idempotency_key']);
+        if (is_array($prior)) {
+            return $this->error('idempotency_reuse','Retry idempotency key has already been used in this shop.');
+        }
+
         $input=[
             'shop_reference'=>(string)($source['shop_reference']??''),
             'intent_id'=>(int)($source['intent_id']??0),
@@ -47,6 +54,17 @@ final class EtsyRetryOperationService
         ];
         $created=$this->operations->createFromPayload($input,$payload);
         if ($created instanceof WP_Error) return $created;
+
+        // Fail closed if a race or repository replay returned anything except a
+        // genuinely new NOT_SENT operation bound to the requested authorization.
+        if (
+            !empty($created['idempotent_replay']) ||
+            (string)($created['state']??'') !== EtsyOperationLifecycle::NOT_SENT ||
+            !hash_equals((string)($created['authorization_hash']??''),$newAuthorizationHash) ||
+            (int)($created['id']??0) === $sourceOperationId
+        ) {
+            return $this->error('fresh_operation_required','Retry did not create a fresh NOT_SENT operation.');
+        }
 
         return [
             'state'=>'ETSY_RETRY_OPERATION_CREATED',
