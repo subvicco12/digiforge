@@ -48,6 +48,27 @@ final class EtsyDraftOperationPipeline
         if (!is_array($target) || $method!==$target[0] || !preg_match($target[1],$endpoint) || !is_array($payload)) {
             return self::error('plan','Draft mutation method, target and payload must match its authorized operation type.');
         }
+        $shopReference=trim((string)($operation['shop_reference']??''));
+        if (!ctype_digit($shopReference) || (int)$shopReference<1) {
+            return self::error('shop_scope','Controlled Etsy mutation requires the approved numeric Etsy shop identity.');
+        }
+        $shopId=(int)$shopReference;
+        $externalReference=trim((string)($operation['external_reference']??''));
+        $listingId=ctype_digit($externalReference)?(int)$externalReference:0;
+        if ($operationType==='CREATE_DRAFT') {
+            $expectedEndpoint="/application/shops/{$shopId}/listings";
+        } elseif ($listingId<1) {
+            return self::error('listing_scope','Post-create draft mutations require the persisted Etsy listing identity.');
+        } elseif ($operationType==='UPDATE_INVENTORY') {
+            $expectedEndpoint="/application/listings/{$listingId}/inventory";
+        } elseif ($operationType==='ATTACH_IMAGE') {
+            $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}/images";
+        } else {
+            $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}";
+        }
+        if (!hash_equals($expectedEndpoint,$endpoint)) {
+            return self::error('resource_scope','Draft mutation target does not match the approved persisted Etsy resource identity.');
+        }
 
         $preparedPayload=(array)($prepared['payload']??[]);
         $draftFingerprint=EtsyRequestFingerprint::fromPayload($payload);
