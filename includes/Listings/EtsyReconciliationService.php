@@ -30,6 +30,8 @@ final class EtsyReconciliationService
             'shop_reference'=>$plan['shop_reference'],
             'idempotency_key'=>$plan['idempotency_key'],
             'request_fingerprint'=>$plan['request_fingerprint'],
+            'lookup_reference'=>$plan['lookup_reference'],
+            'lookup_identity_available'=>$plan['lookup_identity_available'],
             'provider_lookup_required'=>true,
             'external_retry_permitted'=>false,
             'automatic_retry_permitted'=>false,

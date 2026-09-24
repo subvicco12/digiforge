@@ -129,6 +129,38 @@ final class EtsyOperationRepository
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }
 
+    /** Persist bounded provider identity evidence learned from an attempted Etsy response. */
+    public function recordReconciliationReference(int $id,string $reference): array|WP_Error
+    {
+        $reference=trim($reference);
+        if ($id<1 || $reference==='' || strlen($reference)>191 || !preg_match('/^[A-Za-z0-9._:-]+$/',$reference)) {
+            return $this->error('reconciliation_reference','Invalid Etsy reconciliation reference.',400);
+        }
+        $row=$this->find($id);
+        if (!is_array($row)) return $this->error('not_found','Etsy operation record not found.',404);
+        $state=(string)($row['state']??'');
+        if (!in_array($state,[EtsyOperationLifecycle::SENT,EtsyOperationLifecycle::UNKNOWN,EtsyOperationLifecycle::RECONCILIATION,EtsyOperationLifecycle::RECONCILED],true)) {
+            return $this->error('reconciliation_reference_state','Reconciliation identity may only be recorded after an Etsy attempt or during uncertainty resolution.',409);
+        }
+        $existing=trim((string)($row['reconciliation_reference']??''));
+        if ($existing!=='') {
+            if (!hash_equals($existing,$reference)) return $this->error('reconciliation_reference_conflict','Etsy reconciliation reference already differs.',409);
+            return $row+['idempotent_reconciliation_reference'=>true];
+        }
+        global $wpdb;
+        $updated=$wpdb->update($wpdb->prefix.'digiforge_etsy_operations',[
+            'reconciliation_reference'=>$reference,
+            'updated_at'=>current_time('mysql',true),
+        ],['id'=>$id,'reconciliation_reference'=>'']);
+        if ($updated!==1) {
+            $current=$this->find($id);
+            $persisted=is_array($current)?trim((string)($current['reconciliation_reference']??'')):'';
+            if ($persisted!=='' && hash_equals($persisted,$reference)) return $current+['idempotent_reconciliation_reference'=>true];
+            return $this->error('reconciliation_reference_conflict','Unable to atomically persist Etsy reconciliation reference.',409);
+        }
+        return $this->find($id)??$this->error('not_found','Etsy operation record not found after identity update.',500);
+    }
+
     /** Acquire a connection-scoped mutex so the same persisted operation cannot execute concurrently. */
     public function acquireExecutionLock(int $id): bool
     {
