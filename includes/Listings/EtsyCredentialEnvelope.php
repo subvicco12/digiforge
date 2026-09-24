@@ -14,13 +14,13 @@ final class EtsyCredentialEnvelope implements \JsonSerializable
     private bool $consumed=false;
 
     private function __construct(
-        private string $token,
+        private array $material,
         private readonly int $integrationId,
         private readonly int $operationId
     ) {}
 
     /** @return self|WP_Error */
-    public static function seal(array $scope,string $token): self|WP_Error
+    public static function seal(array $scope,array $material): self|WP_Error
     {
         if (($scope['state']??'')!=='ETSY_SCOPED_CREDENTIAL_ACCESS_AUTHORIZED'
             || ($scope['single_use']??null)!==true
@@ -32,10 +32,10 @@ final class EtsyCredentialEnvelope implements \JsonSerializable
         }
         $integrationId=(int)($scope['integration_id']??0);
         $operationId=(int)($scope['operation_id']??0);
-        if ($integrationId<1 || $operationId<1 || $token==='') {
+        if ($integrationId<1 || $operationId<1 || ($material['access_token']??'')==='' || ($material['keystring']??'')==='' || ($material['shared_secret']??'')==='') {
             return self::error('material','Valid scoped token material is required.');
         }
-        return new self($token,$integrationId,$operationId);
+        return new self($material,$integrationId,$operationId);
     }
 
     /**
@@ -48,9 +48,11 @@ final class EtsyCredentialEnvelope implements \JsonSerializable
             return self::error('consume','Credential envelope is unavailable for this scope.');
         }
         $this->consumed=true;
-        $token=$this->token;
-        $this->token='';
-        return $consumer($token);
+        $material=$this->material;
+        $this->material=[];
+        $result=$consumer((string)$material['access_token'],(string)$material['keystring'].':'.(string)$material['shared_secret']);
+        $material=[];
+        return $result;
     }
 
     public function jsonSerialize(): array

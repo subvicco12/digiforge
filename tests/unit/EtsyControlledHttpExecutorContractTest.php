@@ -18,7 +18,7 @@ final class EtsyControlledHttpExecutorContractTest extends TestCase
     public function testCredentialIsConsumedOnlyAroundInjectedSender(): void
     {
         $s=$this->source();
-        foreach(['->consume(','Authorization','Bearer ','wp_remote_request','https://openapi.etsy.com/v3','$sender(',"'external_request_attempted'=>true"] as $needle) {
+        foreach(['->consume(','Authorization','Bearer ','x-api-key','wp_remote_request','https://openapi.etsy.com/v3','$sender(',"'external_request_attempted'=>true"] as $needle) {
             self::assertStringContainsString($needle,$s);
         }
         self::assertStringContainsString("'credential_material_exposed'=>false",$s);

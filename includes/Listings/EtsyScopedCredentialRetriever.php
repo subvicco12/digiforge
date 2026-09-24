@@ -10,7 +10,7 @@ use WP_Error;
 
 /**
  * Narrow credential retrieval boundary for the controlled Etsy execution path.
- * It may retrieve only the access_token for one authorized integration/operation
+ * It retrieves only the Etsy transport credential set for one authorized integration/operation
  * and immediately seals it in an opaque single-use envelope.
  */
 final class EtsyScopedCredentialRetriever
@@ -38,33 +38,22 @@ final class EtsyScopedCredentialRetriever
         }
 
         global $wpdb;
-        $row=$wpdb->get_row(
+        $rows=$wpdb->get_results(
             $wpdb->prepare(
-                'SELECT ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name = %s LIMIT 1',
-                $integrationId,
-                'access_token'
-            ),
-            ARRAY_A
+                'SELECT secret_name,ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name IN (%s,%s,%s)',
+                $integrationId,'access_token','keystring','shared_secret'
+            ), ARRAY_A
         );
-        if (!is_array($row) || empty($row['ciphertext'])) {
-            return self::error('not_found','Authorized Etsy access token is unavailable.');
+        $material=[];
+        foreach(is_array($rows)?$rows:[] as $secret){
+            $name=(string)($secret['secret_name']??'');
+            if(!in_array($name,['access_token','keystring','shared_secret'],true)||empty($secret['ciphertext']))continue;
+            try{$material[$name]=CredentialVault::decrypt((string)$secret['ciphertext'],Repository::secretContext($integrationId,$name));}
+            catch(\Throwable $e){$material=[];return self::error('decrypt','Authorized Etsy credential material could not be decrypted.');}
         }
-
-        try {
-            $token=CredentialVault::decrypt(
-                (string)$row['ciphertext'],
-                Repository::secretContext($integrationId,'access_token')
-            );
-        } catch (\Throwable $e) {
-            return self::error('decrypt','Authorized Etsy access token could not be decrypted.');
-        }
-
-        if ($token==='') {
-            return self::error('empty','Authorized Etsy access token is empty.');
-        }
-
-        $envelope=EtsyCredentialEnvelope::seal($scope,$token);
-        $token='';
+        if(($material['access_token']??'')===''||($material['keystring']??'')===''||($material['shared_secret']??'')==='')return self::error('not_found','Authorized Etsy transport credentials are unavailable.');
+        $envelope=EtsyCredentialEnvelope::seal($scope,$material);
+        $material=[];
         return $envelope;
     }
 
