@@ -31,6 +31,7 @@ final class EtsyControlledHttpExecutorContractTest extends TestCase
         self::assertStringContainsString("'transport_state'=>'NO_RESPONSE'",$s);
         self::assertStringContainsString('EtsyHttpOutcome::classify',$s);
         self::assertStringNotContainsString('sleep(',$s);
-        self::assertStringNotContainsString('retry',$s);
+        self::assertStringNotContainsString('sleep(',$s);
+        self::assertStringContainsString("'automatic_retry_permitted'=>false",$s);
     }
 }
