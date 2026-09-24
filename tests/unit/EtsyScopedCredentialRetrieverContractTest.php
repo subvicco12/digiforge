@@ -21,7 +21,7 @@ final class EtsyScopedCredentialRetrieverContractTest extends TestCase
     public function testRetrieverReadsOnlyAccessTokenAndSealsOpaqueEnvelope(): void
     {
         $s=$this->source();
-        self::assertStringContainsString("secret_name = %s",$s);
+        self::assertStringContainsString("secret_name IN (%s,%s,%s)",$s);
         foreach(["'access_token'","'keystring'","'shared_secret'"] as $name) self::assertStringContainsString($name,$s);
         self::assertStringContainsString('CredentialVault::decrypt',$s);
         self::assertStringContainsString('Repository::secretContext',$s);
