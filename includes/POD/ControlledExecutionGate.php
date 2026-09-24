@@ -11,12 +11,12 @@ use WP_Error;
 final class ControlledExecutionGate
 {
  /** @return array<string,mixed>|WP_Error */
- public static function authorize(array $authorization,string $action,string $evidenceHash,int $actor,int $now):array|WP_Error
+ public static function authorize(array $authorization,string $action,string $evidenceHash,int $actor,int $now,string $requestFingerprint=''):array|WP_Error
  {
   if($actor<1)return new WP_Error('digiforge_execution_actor','Valid execution actor required.',['status'=>403]);
   $verified=ExecutionAuthorizationVerifier::verify(
    $authorization,$action,$evidenceHash,$now,
-   static fn(string $nonce):bool=>ExecutionNonceLedger::unused($nonce)
+   static fn(string $nonce):bool=>ExecutionNonceLedger::unused($nonce),$requestFingerprint
   );
   if(is_wp_error($verified))return $verified;
   $payload=$authorization['authorization'];
@@ -26,6 +26,7 @@ final class ControlledExecutionGate
    'state'=>'ADAPTER_CALL_PERMITTED',
    'action'=>strtoupper(trim($action)),
    'evidence_hash'=>strtolower(trim($evidenceHash)),
+   'request_fingerprint'=>strtolower(trim($requestFingerprint)),
    'authorization_hash'=>(string)$authorization['authorization_hash'],
    'authorized_by'=>(int)$payload['authorized_by'],
    'executed_by'=>$actor,
