@@ -81,8 +81,9 @@ final class EtsyControlledHttpExecutor
         }
         $sender=$this->sender;
 
-        $attempt=$credential->consume($integrationId,$operationId,static function(string $token) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$operationId): array {
+        $attempt=$credential->consume($integrationId,$operationId,static function(string $token,string $apiKey) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$operationId): array {
             $headers['Authorization']='Bearer '.$token;
+            $headers['x-api-key']=$apiKey;
             $args=[
                 'method'=>$method,
                 'headers'=>$headers,
@@ -107,7 +108,7 @@ final class EtsyControlledHttpExecutor
             $attemptId=wp_generate_uuid4();
             $attemptedAt=gmdate('c');
             $response=$sender('https://openapi.etsy.com/v3'.$endpoint,$args);
-            $token='';
+            $token='';$apiKey='';
             return [
                 'operation_id'=>$operationId,
                 'attempt_id'=>$attemptId,
