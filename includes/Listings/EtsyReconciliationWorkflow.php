@@ -38,6 +38,10 @@ final class EtsyReconciliationWorkflow
             if($ready instanceof WP_Error)return $ready;
             $plan=EtsyReconciliationLookupPlan::build($ready,$integrationId);
             if($plan instanceof WP_Error)return $plan;
+            $evidenceRaw=(string)($operation['reconciliation_evidence']??'');
+            $evidence=$evidenceRaw!==''?json_decode($evidenceRaw,true):[];
+            if(!is_array($evidence))$evidence=[];
+            $plan['operation_evidence']=$evidence;
             return [
                 'state'=>'ETSY_RECONCILIATION_WORKFLOW_PREPARED',
                 'operation_id'=>$operationId,
