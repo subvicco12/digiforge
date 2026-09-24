@@ -7,6 +7,10 @@ final class PrintifyReconciliationWorkflow {
   $outcome=ExecutionOutcomeRepository::findByAuthorizationHash(strtolower(trim($authorizationHash)));
   if(is_wp_error($outcome)) return $outcome;
   if(($outcome['state']??'')!=='EXECUTION_UNKNOWN') return new WP_Error('digiforge_printify_reconciliation_state','Persisted UNKNOWN execution required.',['status'=>409]);
-  return (new PrintifyReconciliationLookup())->lookup($outcome,$integrationId);
+  $row=is_array($outcome['unknown']??null)?$outcome['unknown']:[];$identity=json_decode((string)($row['reconciliation_identity']??''),true);
+  $boundIntegration=absint(is_array($identity)?($identity['integration_id']??0):0);
+  if($boundIntegration<1||$integrationId!==$boundIntegration)return new WP_Error('digiforge_printify_reconciliation_integration','Reconciliation integration must match persisted UNKNOWN evidence.',['status'=>409]);
+  $result=(new PrintifyReconciliationLookup())->lookup($outcome,$boundIntegration);if(is_wp_error($result))return $result;
+  return PrintifyReconciliationRepository::save($outcome,$result,$boundIntegration);
  }
 }
