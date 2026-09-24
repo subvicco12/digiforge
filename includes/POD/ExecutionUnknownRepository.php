@@ -18,7 +18,7 @@ final class ExecutionUnknownRepository
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($existing))return hash_equals((string)$existing['unknown_hash'],$hash)?$existing:new WP_Error('digiforge_unknown_conflict','Authorization already has different UNKNOWN evidence.',['status'=>409]);
   $row=['action'=>(string)$r['action'],'evidence_hash'=>(string)$r['evidence_hash'],'authorization_hash'=>$auth,'nonce_hash'=>(string)$r['authorization_nonce_hash'],'failure_category'=>sanitize_key((string)$r['failure_category']),'failure_code'=>sanitize_key((string)$r['failure_code']),'request_fingerprint'=>$requestFingerprint,'reconciliation_identity'=>wp_json_encode($identity),'executed_by'=>(int)$r['executed_by'],'recorded_at'=>gmdate('Y-m-d H:i:s',(int)$r['recorded_at']),'unknown_hash'=>$hash,'created_at'=>current_time('mysql',true)];
-  if($wpdb->insert($table,$row)===false)return new WP_Error('digiforge_unknown_store','UNKNOWN execution evidence could not be persisted.',['status'=>409]);
+  if($wpdb->insert($table,$row)===false){$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);if(is_array($winner)&&hash_equals((string)$winner['unknown_hash'],$hash))return $winner;return new WP_Error('digiforge_unknown_store','UNKNOWN execution evidence could not be persisted.',['status'=>409]);}
   $row['id']=(int)$wpdb->insert_id;return $row;
  }
 }
