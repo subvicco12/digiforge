@@ -19,6 +19,21 @@ final class EtsyReconciliationWorkflow
         try{
             $operation=$this->operations->find($operationId);
             if(!is_array($operation)||(string)($operation['state']??'')!==EtsyOperationLifecycle::UNKNOWN)return self::error('state','Persisted Etsy operation must be UNKNOWN.');
+            // Validate persisted lookup identity before committing UNKNOWN -> RECONCILIATION.
+            $preview=EtsyReconciliationPlan::build($operation);
+            if($preview instanceof WP_Error)return $preview;
+            $previewReady=[
+                'state'=>'ETSY_RECONCILIATION_READY',
+                'operation_id'=>$operationId,
+                'operation_type'=>(string)($operation['operation_type']??''),
+                'lookup_reference'=>$preview['lookup_reference'],
+                'lookup_identity_available'=>$preview['lookup_identity_available'],
+                'provider_lookup_required'=>true,
+                'external_retry_permitted'=>false,
+                'network_request_permitted'=>false,
+            ];
+            $validated=EtsyReconciliationLookupPlan::build($previewReady,$integrationId);
+            if($validated instanceof WP_Error)return $validated;
             $ready=(new EtsyReconciliationService($this->operations))->begin($operationId);
             if($ready instanceof WP_Error)return $ready;
             $plan=EtsyReconciliationLookupPlan::build($ready,$integrationId);
@@ -50,7 +65,7 @@ final class EtsyReconciliationWorkflow
         if(!$this->operations->acquireExecutionLock($operationId))return self::error('locked','Etsy operation reconciliation is already in progress.');
         try{
             $operation=$this->operations->find($operationId);
-            if(!is_array($operation)||(string)($operation['state']??'')!==EtsyOperationLifecycle::RECONCILIATION)return self::error('state','Persisted Etsy operation must be RECONCILIATION.');
+            if(!is_array($operation)||!in_array((string)($operation['state']??''),[EtsyOperationLifecycle::RECONCILIATION,EtsyOperationLifecycle::RECONCILED],true))return self::error('state','Persisted Etsy operation must be RECONCILIATION or resumable RECONCILED.');
             $recorded=(new EtsyReconciliationResultService($this->operations))->record($operationId,$lookup['result']);
             if($recorded instanceof WP_Error)return $recorded;
             return ['state'=>'ETSY_RECONCILIATION_WORKFLOW_RECORDED','operation_id'=>$operationId,'result'=>$recorded,'external_retry_permitted'=>false,'automatic_retry_permitted'=>false,'external_execution_performed'=>false];
