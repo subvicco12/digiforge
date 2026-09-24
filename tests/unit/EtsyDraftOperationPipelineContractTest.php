@@ -19,9 +19,9 @@ final class EtsyDraftOperationPipelineContractTest extends TestCase
     public function testTargetIsBoundToCurrentlyAuthorizedCreateDraftOperation(): void
     {
         $s=$this->source();
-        self::assertStringContainsString("in_array($operationType,['DRAFT','CREATE_DRAFT'],true)",$s);
-        self::assertStringContainsString("$draftType!=='CREATE_DRAFT'",$s);
-        self::assertStringContainsString("$method!=='POST'",$s);
+        self::assertStringContainsString("in_array(\\$operationType,['DRAFT','CREATE_DRAFT'],true)",$s);
+        self::assertStringContainsString("\\$draftType!=='CREATE_DRAFT'",$s);
+        self::assertStringContainsString("\\$method!=='POST'",$s);
         self::assertStringContainsString("#^/application/shops/[1-9][0-9]*/listings$#",$s);
     }
 
