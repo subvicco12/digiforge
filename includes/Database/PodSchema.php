@@ -65,6 +65,7 @@ final class PodSchema
     public static function statements(string $charset): array
     {
         return [
+            "CREATE TABLE " . Tables::pod_execution_outcomes() . " (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  outcome_type varchar(16) NOT NULL,\n  outcome_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY outcome_hash (outcome_hash),\n  KEY outcome_type (outcome_type)\n) $charset;",
             "CREATE TABLE " . Tables::pod_execution_unknowns() . " (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   action varchar(100) NOT NULL,
