@@ -97,11 +97,24 @@ final class EtsyControlledHttpExecutor
         $classified=EtsyHttpOutcome::classify($sanitized);
         if ($classified instanceof WP_Error) return $classified;
 
+        $externalReference='';
+        if (($classified['state']??'')==='RESPONSE_ACCEPTED') {
+            $body=(string)wp_remote_retrieve_body($response);
+            $operationType=strtoupper(trim((string)($prepared['operation_type']??($prepared['invocation_plan']['operation_type']??''))));
+            $existingReference=trim((string)($prepared['external_reference']??($prepared['invocation_plan']['external_reference']??'')));
+            $parsed=EtsyAcceptedResponseParser::parse($operationType,$body,$existingReference);
+            $body='';
+            if ($parsed instanceof WP_Error) return $parsed;
+            $externalReference=(string)$parsed['external_reference'];
+        }
+
         return [
             'state'=>'ETSY_HTTP_ATTEMPT_COMPLETED',
             'operation_id'=>$operationId,
             'attempt'=>$attempt,
             'http_outcome'=>$classified,
+            'external_reference'=>$externalReference,
+            'response_body_returned'=>false,
             'credential_material_exposed'=>false,
             'authorization_header_returned'=>false,
             'network_request_attempted'=>true,
