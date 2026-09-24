@@ -7,7 +7,7 @@ use WP_Error;
 final class ExecutionAuthorizationVerifier
 {
  /** @return true|WP_Error */
- public static function verify(array $record,string $requiredAction,string $expectedEvidenceHash,int $now,callable $nonceUnused):true|WP_Error
+ public static function verify(array $record,string $requiredAction,string $expectedEvidenceHash,int $now,callable $nonceUnused,string $expectedRequestFingerprint=''):true|WP_Error
  {
   if(($record['state']??'')!=='EXECUTION_AUTHORIZED'||($record['executed']??null)!==false)
    return new WP_Error('digiforge_execution_state','Execution authorization must be unused and authorized.',['status'=>409]);
@@ -18,6 +18,9 @@ final class ExecutionAuthorizationVerifier
   $expectedEvidenceHash=strtolower(trim($expectedEvidenceHash));
   if(!preg_match('/^[a-f0-9]{64}$/',$expectedEvidenceHash)||!hash_equals($expectedEvidenceHash,(string)($a['evidence_hash']??'')))
    return new WP_Error('digiforge_execution_evidence','Authorization evidence does not match current approved evidence.',['status'=>409]);
+  $expectedRequestFingerprint=strtolower(trim($expectedRequestFingerprint));$boundFingerprint=strtolower(trim((string)($a['request_fingerprint']??'')));
+  if(str_starts_with($requiredAction,'PROVIDER_')&&(!preg_match('/^[a-f0-9]{64}$/',$expectedRequestFingerprint)||!preg_match('/^[a-f0-9]{64}$/',$boundFingerprint)||!hash_equals($expectedRequestFingerprint,$boundFingerprint)))
+   return new WP_Error('digiforge_execution_request_binding','Authorization does not match the exact approved provider request.',['status'=>409]);
   $issued=(int)($a['issued_at']??0);$expires=(int)($a['expires_at']??0);
   if($issued<1||$expires<=$issued||$now<$issued||$now>$expires||($expires-$issued)>900)
    return new WP_Error('digiforge_execution_expired','Execution authorization is expired or invalid.',['status'=>403]);

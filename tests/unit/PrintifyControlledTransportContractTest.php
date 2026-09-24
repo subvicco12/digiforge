@@ -12,7 +12,8 @@ final class PrintifyControlledTransportContractTest extends TestCase{
   self::assertStringContainsString('PrintifyScopedCredentialRetriever',$t);
   self::assertStringContainsString("network_request_attempted'=>true",$t);
   self::assertStringContainsString("'status'=>'UNKNOWN'",$t);
-  self::assertStringContainsString('approved_request_fingerprint',$t);
+  self::assertStringNotContainsString("payload['approved_request_fingerprint']",$t);
+  self::assertStringContainsString("permit['request_fingerprint']",$t);
   self::assertStringContainsString('request_fingerprint',$t);
   self::assertStringContainsString('reconciliation_identity',$t);
  }

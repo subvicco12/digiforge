@@ -7,8 +7,8 @@ final class PrintifyControlledTransport{
  private $sender;public function __construct(?callable $sender=null){$this->sender=$sender??static fn(string $u,array $a)=>wp_remote_request($u,$a);}
  public function execute(array $permit,array $payload):array|WP_Error{
   $request=PrintifyMutationRequest::prepare($permit,$payload);if(is_wp_error($request))return $request;
-  $approvedFingerprint=strtolower(trim((string)($payload['approved_request_fingerprint']??'')));
-  if(!preg_match('/^[a-f0-9]{64}$/',$approvedFingerprint)||!hash_equals($approvedFingerprint,(string)$request['request_fingerprint']))return new WP_Error('digiforge_printify_request_binding','Current Printify mutation does not match approved request evidence.',['status'=>409]);
+  $approvedFingerprint=strtolower(trim((string)($permit['request_fingerprint']??'')));
+  if(!preg_match('/^[a-f0-9]{64}$/',$approvedFingerprint)||!hash_equals($approvedFingerprint,(string)$request['request_fingerprint']))return new WP_Error('digiforge_printify_request_binding','Current Printify mutation does not match authorization-bound approved request evidence.',['status'=>409]);
   $authorized=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($authorized))return $authorized;
   // Recheck immediately before credential retrieval/network.
   $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
