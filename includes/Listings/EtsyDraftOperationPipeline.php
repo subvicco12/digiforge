@@ -30,15 +30,44 @@ final class EtsyDraftOperationPipeline
 
         $operationType=strtoupper(trim((string)($operation['operation_type']??'')));
         $draftType=strtoupper(trim((string)($draftOperation['operation']??'')));
-        if (!in_array($operationType,['DRAFT','CREATE_DRAFT'],true) || $draftType!=='CREATE_DRAFT') {
-            return self::error('binding','Current approved operation authorizes CREATE_DRAFT only.');
+        if ($operationType==='DRAFT') $operationType='CREATE_DRAFT';
+        if ($operationType!==$draftType) {
+            return self::error('binding','Draft operation must exactly match the authorized ledger operation.');
         }
 
         $method=(string)($draftOperation['method']??'');
         $endpoint=(string)($draftOperation['endpoint']??'');
         $payload=$draftOperation['payload']??null;
-        if ($method!=='POST' || !preg_match('#^/application/shops/[1-9][0-9]*/listings$#',$endpoint) || !is_array($payload)) {
-            return self::error('plan','CREATE_DRAFT requires its canonical POST shop-listings target and payload.');
+        $targets=[
+            'CREATE_DRAFT'=>['POST','#^/application/shops/[1-9][0-9]*/listings$#'],
+            'UPDATE_DRAFT'=>['PUT','#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*$#'],
+            'UPDATE_INVENTORY'=>['PUT','#^/application/listings/[1-9][0-9]*/inventory$#'],
+            'ATTACH_IMAGE'=>['POST','#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/images$#'],
+        ];
+        $target=$targets[$operationType]??null;
+        if (!is_array($target) || $method!==$target[0] || !preg_match($target[1],$endpoint) || !is_array($payload)) {
+            return self::error('plan','Draft mutation method, target and payload must match its authorized operation type.');
+        }
+        $shopReference=trim((string)($operation['shop_reference']??''));
+        if (!ctype_digit($shopReference) || (int)$shopReference<1) {
+            return self::error('shop_scope','Controlled Etsy mutation requires the approved numeric Etsy shop identity.');
+        }
+        $shopId=(int)$shopReference;
+        $externalReference=trim((string)($operation['external_reference']??''));
+        $listingId=ctype_digit($externalReference)?(int)$externalReference:0;
+        if ($operationType==='CREATE_DRAFT') {
+            $expectedEndpoint="/application/shops/{$shopId}/listings";
+        } elseif ($listingId<1) {
+            return self::error('listing_scope','Post-create draft mutations require the persisted Etsy listing identity.');
+        } elseif ($operationType==='UPDATE_INVENTORY') {
+            $expectedEndpoint="/application/listings/{$listingId}/inventory";
+        } elseif ($operationType==='ATTACH_IMAGE') {
+            $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}/images";
+        } else {
+            $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}";
+        }
+        if (!hash_equals($expectedEndpoint,$endpoint)) {
+            return self::error('resource_scope','Draft mutation target does not match the approved persisted Etsy resource identity.');
         }
 
         $preparedPayload=(array)($prepared['payload']??[]);

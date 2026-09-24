@@ -19,7 +19,7 @@ final class ExecutionAuthorization
         $hash=strtolower(trim((string)($approval['evidence_hash']??'')));
         if(!preg_match('/^[a-f0-9]{64}$/',$hash))return new WP_Error('digiforge_pod_evidence_hash','Valid approval evidence hash required.',['status'=>400]);
         $action=strtoupper(trim($action));
-        if(!in_array($action,['ETSY_DRAFT_CREATE','PROVIDER_ORDER_SUBMIT'],true))
+        if(!in_array($action,['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE','PROVIDER_ORDER_SUBMIT'],true))
             return new WP_Error('digiforge_pod_execution_action','Unsupported execution action.',['status'=>400]);
         if($authorizerId<1)return new WP_Error('digiforge_pod_execution_authorizer','Explicit human authorizer required.',['status'=>403]);
         if(!preg_match('/^[A-Za-z0-9_-]{24,128}$/',$nonce))return new WP_Error('digiforge_pod_execution_nonce','A strong one-time nonce is required.',['status'=>400]);

@@ -16,13 +16,11 @@ final class EtsyDraftOperationPipelineContractTest extends TestCase
         self::assertStringContainsString('->prepare(',$s);
     }
 
-    public function testTargetIsBoundToCurrentlyAuthorizedCreateDraftOperation(): void
+    public function testTargetIsBoundToAuthorizedDraftMutationAndPersistedResource(): void
     {
         $s=$this->source();
-        self::assertStringContainsString('in_array($operationType,[\'DRAFT\',\'CREATE_DRAFT\'],true)',$s);
-        self::assertStringContainsString('$draftType!==\'CREATE_DRAFT\'',$s);
-        self::assertStringContainsString('$method!==\'POST\'',$s);
-        self::assertStringContainsString("#^/application/shops/[1-9][0-9]*/listings$#",$s);
+        self::assertStringContainsString('$operationType!==$draftType',$s);
+        foreach(['CREATE_DRAFT','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE','$expectedEndpoint','hash_equals($expectedEndpoint,$endpoint)'] as $needle) self::assertStringContainsString($needle,$s);
     }
 
     public function testPipelineCannotEnableNetworkOrPublish(): void
