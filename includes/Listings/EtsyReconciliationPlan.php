@@ -50,6 +50,10 @@ final class EtsyReconciliationPlan
             return self::error('identity', 'Reconciliation operation identity evidence is invalid.');
         }
 
+        $externalReference=trim((string)($operation['external_reference']??''));
+        $reconciliationReference=trim((string)($operation['reconciliation_reference']??''));
+        $lookupReference=$externalReference!==''?$externalReference:$reconciliationReference;
+
         return [
             'operation_id' => (int)$id,
             'from_state' => EtsyOperationLifecycle::UNKNOWN,
@@ -57,6 +61,8 @@ final class EtsyReconciliationPlan
             'shop_reference' => $shop,
             'idempotency_key' => $key,
             'request_fingerprint' => $fingerprint,
+            'lookup_reference' => $lookupReference,
+            'lookup_identity_available' => $lookupReference !== '',
             'provider_lookup_required' => true,
             'external_retry_permitted' => false,
             'adapter_invoked' => false,
