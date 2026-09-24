@@ -19,4 +19,16 @@ final class EtsyAcceptedResponseParserContractTest extends TestCase
         self::assertStringContainsString("'response_body_returned'=>false",$s);
         self::assertStringContainsString('wp_remote_retrieve_body($response)',$s);
     }
+    public function testReconciliationGetBypassesMutationResponseParser(): void
+    {
+        $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyControlledHttpExecutor.php');
+        self::assertStringContainsString("if(\$method!=='GET')", $s);
+        self::assertStringContainsString('GET reconciliation bodies are endpoint-specific evidence', $s);
+        self::assertStringContainsString('EtsyReconciliationLookupResponse', $s);
+        $guard=strpos($s,"if(\$method!=='GET')");
+        $parse=strpos($s,'EtsyAcceptedResponseParser::parse',$guard);
+        self::assertNotFalse($guard);
+        self::assertNotFalse($parse);
+        self::assertGreaterThan($guard,$parse);
+    }
 }
