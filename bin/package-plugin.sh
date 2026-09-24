@@ -38,8 +38,10 @@ test -s "${checksum}"
   sha256sum --check digiforge.zip.sha256
 )
 
-version="$(php -r '$s=file_get_contents($argv[1]); if(!preg_match("/const DIGIFORGE_VERSION = \'([^\']+)\';/",$s,$m)){exit(2);} echo $m[1];' "${repo_root}/digiforge.php")"
-schema="$(php -r '$s=file_get_contents($argv[1]); if(!preg_match("/const DIGIFORGE_DB_VERSION = \'([^\']+)\';/",$s,$m)){exit(2);} echo $m[1];' "${repo_root}/digiforge.php")"
+version="$(sed -n "s/^const DIGIFORGE_VERSION = '\\([^']*\\)';$/\\1/p" "${repo_root}/digiforge.php")"
+schema="$(sed -n "s/^const DIGIFORGE_DB_VERSION = '\\([^']*\\)';$/\\1/p" "${repo_root}/digiforge.php")"
+test -n "${version}"
+test -n "${schema}"
 commit="$(git -C "${repo_root}" rev-parse HEAD)"
 archive_sha256="$(awk '{print $1}' "${checksum}")"
 file_count="$(unzip -Z1 "${archive}" | wc -l | tr -d ' ')"
