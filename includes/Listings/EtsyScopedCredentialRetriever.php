@@ -10,7 +10,7 @@ use WP_Error;
 
 /**
  * Narrow credential retrieval boundary for the controlled Etsy execution path.
- * It may retrieve only the access_token for one authorized integration/operation
+ * It retrieves only the Etsy transport credential set for one authorized integration/operation
  * and immediately seals it in an opaque single-use envelope.
  */
 final class EtsyScopedCredentialRetriever
@@ -38,16 +38,6 @@ final class EtsyScopedCredentialRetriever
         }
 
         global $wpdb;
-        $row=$wpdb->get_row(
-            $wpdb->prepare(
-                'SELECT secret_name,ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name IN (%s,%s,%s)',
-                $integrationId,
-                'access_token',
-                'keystring',
-                'shared_secret'
-            ),
-            ARRAY_A
-        );
         $rows=$wpdb->get_results(
             $wpdb->prepare(
                 'SELECT secret_name,ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name IN (%s,%s,%s)',
