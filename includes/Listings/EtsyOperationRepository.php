@@ -129,6 +129,23 @@ final class EtsyOperationRepository
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }
 
+    /** Acquire a connection-scoped mutex so the same persisted operation cannot execute concurrently. */
+    public function acquireExecutionLock(int $id): bool
+    {
+        if ($id < 1) return false;
+        global $wpdb;
+        $key='digiforge_etsy_operation_'.$id;
+        return (int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$key))===1;
+    }
+
+    public function releaseExecutionLock(int $id): void
+    {
+        if ($id < 1) return;
+        global $wpdb;
+        $key='digiforge_etsy_operation_'.$id;
+        $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$key));
+    }
+
     /** @return array<string,mixed>|null */
     public function find(int $id): ?array
     {
