@@ -31,9 +31,9 @@ final class EtsyReconciliationLookupExecutor
         if(($result['state']??'')!=='ETSY_HTTP_ATTEMPT_COMPLETED')return self::error('attempt','Audited Etsy HTTP attempt evidence is required.');
 
         $outcome=is_array($result['http_outcome']??null)?$result['http_outcome']:[];
-        if(($outcome['state']??'')==='RESPONSE_ACCEPTED'
-            && hash_equals((string)($plan['lookup_reference']??''),(string)($result['external_reference']??''))) {
-            $evidence=['state'=>EtsyOperationLifecycle::CONFIRMED_SUCCESS,'external_reference'=>(string)$result['external_reference']];
+        if(($outcome['state']??'')==='RESPONSE_ACCEPTED') {
+            $evidence=EtsyReconciliationLookupResponse::normalize($plan,$result['reconciliation_response']??null);
+            if($evidence instanceof WP_Error)return $evidence;
         } else {
             $evidence=['state'=>EtsyOperationLifecycle::UNKNOWN,'failure_category'=>'provider_lookup','failure_code'=>'lookup_inconclusive','external_reference'=>''];
         }
