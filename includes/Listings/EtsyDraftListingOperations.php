@@ -57,7 +57,7 @@ final class EtsyDraftListingOperations
         $size=(int)($multipart['size']??0);
         $mime=trim((string)($multipart['mime_type']??''));
         $rank=(int)($multipart['rank']??0);
-        if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$rank<1||$rank>10||!in_array($mime,['image/jpeg','image/png','image/webp'],true)) return self::error('upload_image','Multipart image metadata is invalid.');
+        if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$size>10485760||$rank<1||$rank>10||!in_array($mime,['image/jpeg','image/png','image/webp'],true)) return self::error('upload_image','Multipart image metadata is invalid.');
         return self::plan('ATTACH_IMAGE','POST',"/application/shops/{$shopId}/listings/{$listingId}/images",[
             'image_sha256'=>$hash,'image_size'=>$size,'image_mime'=>$mime,'rank'=>$rank,
         ]);
