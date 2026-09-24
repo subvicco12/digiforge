@@ -46,12 +46,21 @@ final class EtsyControlledDraftExecutionCoordinator
             return self::error('multipart_required','Binary ATTACH_IMAGE requires the prepared multipart asset.');
         }
 
-        $authorized=EtsyLiveTransportInterlock::authorize($transport);
-        if($authorized instanceof WP_Error) return $authorized;
+        $operationId=(int)($operation['id']??0);
+        if($operationId<1 || !$this->operations->acquireExecutionLock($operationId)) return self::error('claimed','Etsy operation is already being executed.');
+        try {
+            $current=$this->operations->find($operationId);
+            if(!is_array($current)||(string)($current['state']??'')!==EtsyOperationLifecycle::NOT_SENT) return self::error('stale','Only the current persisted NOT_SENT operation may execute.');
 
-        $executor=$this->executor??new EtsyControlledHttpExecutor();
-        $execution=$executor->execute($transport,$authorized);
-        if($execution instanceof WP_Error) return $execution;
+            $transport['operation_type']=(string)($operation['operation_type']??'');
+            $transport['external_reference']=(string)($operation['external_reference']??'');
+
+            $authorized=EtsyLiveTransportInterlock::authorize($transport);
+            if($authorized instanceof WP_Error) return $authorized;
+
+            $executor=$this->executor??new EtsyControlledHttpExecutor();
+            $execution=$executor->execute($transport,$authorized);
+            if($execution instanceof WP_Error) return $execution;
 
         $invocation=$transport['request_plan']['invocation_plan']??($transport['transport']['request_plan']['invocation_plan']??null);
         if(!is_array($invocation)) {
@@ -63,10 +72,10 @@ final class EtsyControlledDraftExecutionCoordinator
             if($invocation instanceof WP_Error) return $invocation;
         }
 
-        $lifecycle=(new EtsyAttemptLifecycleService($this->operations))->record($invocation,$execution);
-        if($lifecycle instanceof WP_Error) return $lifecycle;
+            $lifecycle=(new EtsyAttemptLifecycleService($this->operations))->record($invocation,$execution);
+            if($lifecycle instanceof WP_Error) return $lifecycle;
 
-        return [
+            return [
             'state'=>'ETSY_CONTROLLED_DRAFT_EXECUTION_RECORDED',
             'operation_id'=>(int)($lifecycle['operation_id']??0),
             'operation'=>(string)($draftOperation['operation']??''),
@@ -74,8 +83,11 @@ final class EtsyControlledDraftExecutionCoordinator
             'reconciliation_required'=>(bool)($lifecycle['reconciliation_required']??false),
             'automatic_retry_permitted'=>false,
             'publish_permitted'=>false,
-            'external_execution_performed'=>true,
-        ];
+                'external_execution_performed'=>true,
+            ];
+        } finally {
+            $this->operations->releaseExecutionLock($operationId);
+        }
     }
 
     private static function error(string $code,string $message): WP_Error
