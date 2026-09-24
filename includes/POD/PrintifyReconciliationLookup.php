@@ -22,16 +22,16 @@ final class PrintifyReconciliationLookup {
     if($status!==200){ $token=''; return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'http_status'=>$status,'pages_checked'=>$pagesChecked]; }
     $body=(string)wp_remote_retrieve_body($response);if(strlen($body)>1048576){$token='';return new WP_Error('digiforge_printify_reconciliation_response','Provider evidence exceeds bounded size.',['status'=>409]);}
     $decoded=json_decode($body,true);if(!is_array($decoded)){ $token=''; return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pages_checked'=>$pagesChecked]; }
-    $orders=is_array($decoded['data']??null)?$decoded['data']:[];$lastPage=max(1,(int)($decoded['last_page']??1));$pagesChecked++;
+    $orders=is_array($decoded['data']??null)?$decoded['data']:[];$advertisedLastPage=max(1,(int)($decoded['last_page']??1));$lastPage=max($lastPage,$advertisedLastPage);$pagesChecked++;
     foreach($orders as $order){if(!is_array($order))continue;$candidate=$action==='PROVIDER_ORDER_SUBMIT'?trim((string)($order['external_id']??'')):trim((string)($order['id']??''));if($candidate!==''&&hash_equals($external,$candidate)){$match=$order;break;}}
     if(is_array($match))break;$page++;
    }while($page<=$lastPage&&$page<=$maxPages);
    $token='';
    if(!is_array($match)&&$lastPage>$maxPages)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pagination_required'=>true,'pages_checked'=>$pagesChecked];
-   if(!is_array($match)) return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp];
-   $providerId=trim((string)($match['id']??''));if($providerId===''||preg_match('/^[A-Za-z0-9_-]{1,191}$/',$providerId)!==1)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp];$sent=trim((string)($match['sent_to_production_at']??''));
-   if($action==='PROVIDER_PRODUCTION_AUTHORIZE'&&$sent==='') return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'provider_order_id'=>$providerId];
-   return ['state'=>'PRINTIFY_RECONCILIATION_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>false,'request_fingerprint'=>$fp,'provider_order_id'=>$providerId,'provider_status'=>sanitize_key((string)($match['status']??''))];
+   if(!is_array($match)) return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pages_checked'=>$pagesChecked];
+   $providerId=trim((string)($match['id']??''));if($providerId===''||preg_match('/^[A-Za-z0-9_-]{1,191}$/',$providerId)!==1)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pages_checked'=>$pagesChecked];$sent=trim((string)($match['sent_to_production_at']??''));
+   if($action==='PROVIDER_PRODUCTION_AUTHORIZE'&&$sent==='') return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'provider_order_id'=>$providerId,'pages_checked'=>$pagesChecked];
+   return ['state'=>'PRINTIFY_RECONCILIATION_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>false,'request_fingerprint'=>$fp,'provider_order_id'=>$providerId,'provider_status'=>sanitize_key((string)($match['status']??'')),'pages_checked'=>$pagesChecked];
   });
  }
 }
