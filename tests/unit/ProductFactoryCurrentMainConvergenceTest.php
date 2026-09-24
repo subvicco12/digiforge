@@ -12,7 +12,7 @@ final class ProductFactoryCurrentMainConvergenceTest extends TestCase{
  public function testManifestAndAssetReplayRepairsRemainFailClosedAndImmutable():void{
   $r=dirname(__DIR__,2).'/includes/ProductFactory/';
   $o=(string)file_get_contents($r.'Orchestrator.php');
-  foreach(['manifestRepairBrief','validateManifest','production_manifest','production_selected_variant','production_pdf_pages',"$repairGeneration=$isRepair?substr(hash('sha256',DIGIFORGE_VERSION.'|'.$key),0,10):'';","$repairVariant=$isRepair?'repair-'.$planToken.'-'.$repairGeneration:'';"] as $x)self::assertStringContainsString($x,$o);
+  foreach(['manifestRepairBrief','validateManifest','production_manifest','production_selected_variant','production_pdf_pages',"\$repairGeneration=\$isRepair?substr(hash('sha256',DIGIFORGE_VERSION.'|'.\$key),0,10):'';","\$repairVariant=\$isRepair?'repair-'.\$planToken.'-'.\$repairGeneration:'';"] as $x)self::assertStringContainsString($x,$o);
   $p=(string)file_get_contents($r.'LocalAssetProducer.php');
   foreach(['asset_replay_conflict','Existing generated asset differs from replay payload.'] as $x)self::assertStringContainsString($x,$p);
  }
