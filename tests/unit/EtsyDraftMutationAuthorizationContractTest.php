@@ -22,7 +22,7 @@ final class EtsyDraftMutationAuthorizationContractTest extends TestCase
         self::assertStringContainsString('EtsyRequestFingerprint::fromPayload',$s);
         self::assertStringContainsString('hash_equals($preparedFingerprint,$draftFingerprint)',$s);
         self::assertStringContainsString('hash_equals($expectedEndpoint,$endpoint)',$s);
-        self::assertStringContainsString("$operation['external_reference']",$s);
+        self::assertStringContainsString('$operation[\'external_reference\']',$s);
     }
 
     public function testMutationAuthorizationDoesNotAddExecutionPrimitive(): void
