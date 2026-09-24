@@ -10,7 +10,7 @@ final class DigitalFactoryCreateResponseRegressionTest extends TestCase
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/includes/DigitalFactory/Repository.php');
 
         $capture = strpos($source, '$id = (int) $wpdb->insert_id;');
-        $audit = strpos($source, "Logger::audit($type . '_created'");
+        $audit = strpos($source, 'Logger::audit($type . \'_created\'');
         $response = strpos($source, 'return $this->find($type, $id)');
 
         self::assertNotFalse($capture);
