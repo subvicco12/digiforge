@@ -55,6 +55,11 @@ final class EtsyControlledDraftExecutionCoordinator
             $transport['operation_type']=(string)($operation['operation_type']??'');
             $transport['external_reference']=(string)($operation['external_reference']??'');
 
+            // Persist the already-authorized canonical payload before any network
+            // attempt can become ambiguous. This is local-only and fingerprint-bound.
+            $evidence=$this->operations->recordReconciliationEvidence($operationId,(array)($draftOperation['payload']??[]));
+            if($evidence instanceof WP_Error) return $evidence;
+
             $authorized=EtsyLiveTransportInterlock::authorize($transport);
             if($authorized instanceof WP_Error) return $authorized;
 
