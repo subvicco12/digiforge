@@ -131,8 +131,18 @@ final class EtsyControlledHttpExecutor
         if ($rateLimit instanceof WP_Error) return $rateLimit;
 
         $externalReference='';
+        $reconciliationResponse=null;
         if (($classified['state']??'')==='RESPONSE_ACCEPTED') {
             $body=(string)wp_remote_retrieve_body($response);
+            if($method==='GET') {
+                // Bounded read-only evidence is returned only to the reconciliation
+                // executor; mutation callers still receive no response body.
+                if(strlen($body)>1048576) {
+                    $classified=['state'=>'UNKNOWN','failure_category'=>'response_processing','failure_code'=>'accepted_response_too_large','retry_candidate'=>false,'reconciliation_required'=>true,'automatic_retry_permitted'=>false];
+                } else {
+                    $reconciliationResponse=['status'=>(int)wp_remote_retrieve_response_code($response),'body'=>$body];
+                }
+            }
             $operationType=strtoupper(trim((string)($prepared['operation_type']??($prepared['invocation_plan']['operation_type']??''))));
             $existingReference=trim((string)($prepared['external_reference']??($prepared['invocation_plan']['external_reference']??'')));
             $parsed=EtsyAcceptedResponseParser::parse($operationType,$body,$existingReference);
@@ -152,6 +162,7 @@ final class EtsyControlledHttpExecutor
             'rate_limit'=>$rateLimit,
             'external_reference'=>$externalReference,
             'response_body_returned'=>false,
+            'reconciliation_response'=>$reconciliationResponse,
             'credential_material_exposed'=>false,
             'authorization_header_returned'=>false,
             'network_request_attempted'=>true,
