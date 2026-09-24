@@ -14,5 +14,8 @@ final class PodUnknownPersistenceContractTest extends TestCase{
  public function testAdapterContractMakesPostSendAmbiguityExplicit():void{
   $t=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/ControlledExecutionTransaction.php');
   self::assertStringContainsString('adapters MUST return an explicit UNKNOWN result on timeout/no-response ambiguity',$t);
+  $f=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/ExecutionAdapterFailure.php');
+  self::assertStringContainsString("network_request_attempted",$f);
+  self::assertStringContainsString("?'UNKNOWN':'FAILED'",$f);
  }
 }
