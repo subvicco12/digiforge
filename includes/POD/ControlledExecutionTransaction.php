@@ -26,10 +26,19 @@ final class ControlledExecutionTransaction
    return new WP_Error('digiforge_transaction_permit','Consumed adapter permit required.',['status'=>403]);
 
   $raw=$adapter->execute($permit,$payload);
+  // WP_Error is reserved for failures known to occur before a provider mutation may have been accepted.
+  // Once a mutating request is attempted, adapters MUST return an explicit UNKNOWN result on timeout/no-response ambiguity.
   if(is_wp_error($raw))$raw=ExecutionAdapterFailure::fromError($permit,$raw);
 
   $normalized=ExecutionAdapterResult::normalize($permit,$raw);
   if(is_wp_error($normalized))return $normalized;
+  if(($normalized['status']??'')==='UNKNOWN'){
+   $unknown=ExecutionUnknownRecord::record($authorization,$permit,$normalized,$actor,$now);
+   if(is_wp_error($unknown))return $unknown;
+   $persistedUnknown=ExecutionUnknownRepository::save($unknown);
+   if(is_wp_error($persistedUnknown))return $persistedUnknown;
+   return new WP_Error('digiforge_transaction_unknown','Adapter execution outcome is ambiguous; reconciliation is required before retry.',['status'=>409,'unknown_record'=>$unknown,'persisted_unknown'=>$persistedUnknown,'retry_permitted'=>false,'reconciliation_required'=>true]);
+  }
   if(($normalized['status']??'')!=='SUCCEEDED'){
    $failure=ExecutionFailureRecord::record($authorization,$permit,$normalized,$actor,$now);
    if(is_wp_error($failure))return $failure;
