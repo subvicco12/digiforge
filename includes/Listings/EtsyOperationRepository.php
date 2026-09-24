@@ -138,6 +138,10 @@ final class EtsyOperationRepository
         }
         $row=$this->find($id);
         if (!is_array($row)) return $this->error('not_found','Etsy operation record not found.',404);
+        $state=(string)($row['state']??'');
+        if (!in_array($state,[EtsyOperationLifecycle::SENT,EtsyOperationLifecycle::UNKNOWN,EtsyOperationLifecycle::RECONCILIATION,EtsyOperationLifecycle::RECONCILED],true)) {
+            return $this->error('reconciliation_reference_state','Reconciliation identity may only be recorded after an Etsy attempt or during uncertainty resolution.',409);
+        }
         $existing=trim((string)($row['reconciliation_reference']??''));
         if ($existing!=='') {
             if (!hash_equals($existing,$reference)) return $this->error('reconciliation_reference_conflict','Etsy reconciliation reference already differs.',409);
@@ -148,7 +152,12 @@ final class EtsyOperationRepository
             'reconciliation_reference'=>$reference,
             'updated_at'=>current_time('mysql',true),
         ],['id'=>$id,'reconciliation_reference'=>'']);
-        if ($updated!==1) return $this->error('reconciliation_reference_conflict','Unable to atomically persist Etsy reconciliation reference.',409);
+        if ($updated!==1) {
+            $current=$this->find($id);
+            $persisted=is_array($current)?trim((string)($current['reconciliation_reference']??'')):'';
+            if ($persisted!=='' && hash_equals($persisted,$reference)) return $current+['idempotent_reconciliation_reference'=>true];
+            return $this->error('reconciliation_reference_conflict','Unable to atomically persist Etsy reconciliation reference.',409);
+        }
         return $this->find($id)??$this->error('not_found','Etsy operation record not found after identity update.',500);
     }
 
