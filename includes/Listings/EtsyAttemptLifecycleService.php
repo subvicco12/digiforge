@@ -48,6 +48,7 @@ final class EtsyAttemptLifecycleService
             'sent'=>$sent,
             'outcome'=>$recorded,
             'reconciliation_required'=>(bool)($recorded['reconciliation_required']??false),
+            'rate_limit'=>self::rateLimit($execution['rate_limit']??[]),
             'automatic_retry_permitted'=>false,
             'external_execution_performed'=>true,
         ];
@@ -71,6 +72,21 @@ final class EtsyAttemptLifecycleService
         }
         if ($state==='UNKNOWN') return ['state'=>'UNKNOWN'];
         return self::error('outcome','Unsupported Etsy HTTP outcome state.');
+    }
+
+    /** @return array<string,mixed> */
+    private static function rateLimit(mixed $metadata): array
+    {
+        if(!is_array($metadata))$metadata=[];
+        return [
+            'retry_after_seconds'=>isset($metadata['retry_after_seconds'])&&is_int($metadata['retry_after_seconds'])?$metadata['retry_after_seconds']:null,
+            'limit_per_second'=>isset($metadata['limit_per_second'])&&is_int($metadata['limit_per_second'])?$metadata['limit_per_second']:null,
+            'remaining_this_second'=>isset($metadata['remaining_this_second'])&&is_int($metadata['remaining_this_second'])?$metadata['remaining_this_second']:null,
+            'limit_per_day'=>isset($metadata['limit_per_day'])&&is_int($metadata['limit_per_day'])?$metadata['limit_per_day']:null,
+            'remaining_today'=>isset($metadata['remaining_today'])&&is_int($metadata['remaining_today'])?$metadata['remaining_today']:null,
+            'automatic_retry_permitted'=>false,
+            'retry_scheduled'=>false,
+        ];
     }
 
     private static function error(string $code,string $message): WP_Error

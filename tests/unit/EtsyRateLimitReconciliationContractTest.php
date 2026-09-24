@@ -19,6 +19,13 @@ final class EtsyRateLimitReconciliationContractTest extends TestCase
         foreach(['wp_remote_','curl_exec(','CredentialVault','openapi.etsy'] as $needle) self::assertStringNotContainsString($needle,$s);
     }
 
+    public function testLifecycleCarriesSanitizedRateLimitsWithoutSchedulingRetry(): void
+    {
+        $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyAttemptLifecycleService.php');
+        foreach(["'rate_limit'=>self::rateLimit","'retry_after_seconds'","'remaining_today'","'automatic_retry_permitted'=>false","'retry_scheduled'=>false"] as $needle) self::assertStringContainsString($needle,$s);
+        foreach(['wp_schedule_','as_schedule_','sleep(','usleep('] as $needle) self::assertStringNotContainsString($needle,$s);
+    }
+
     public function testExecutorReturnsSanitizedRateLimitMetadata(): void
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyControlledHttpExecutor.php');
