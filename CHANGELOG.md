@@ -2,6 +2,19 @@
 
 All notable DigiForge changes are recorded here.
 
+## 1.0.31 — 2026-09-25
+
+### Changed
+
+- Final release certification now emits the exact plugin ZIP, SHA-256 checksum, and deterministic release manifest bound to the certified commit.
+- Final readiness metadata is aligned to plugin version 1.0.31 and database schema version 14.
+- Added regression coverage for the DigitalFactory create-response insert ID defect already fixed in current runtime code.
+
+### Safety
+
+- Production remains READY_LOCKED.
+- No Etsy, Printify/Gelato, fulfillment, finance, tax/GST, or other external action is activated by this release.
+
 ## 1.0.0 — 2026-09-16
 
 ### Added
