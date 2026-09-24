@@ -4,8 +4,8 @@
 Complete DigiForge as a production-ready local-first WordPress platform without enabling any live Etsy, POD, AI, fulfillment, payment, refund, tax/GST, accounting, advertising, worker, schedule, webhook, or other external side effect.
 
 ## Release posture
-- Plugin release: 0.11.0.
-- Database schema remains v13; this completion release adds no schema migration.
+- Plugin release: 1.0.31.
+- Database schema: v14.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
 - Add `activation_authorized`, internal and non-user-writable, default false.
@@ -33,7 +33,7 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 0.11.0 with schema v13
+- version 1.0.31 with schema v14
 - internal activation gates are non-writable
 - effective switches remain false while either internal gate is false or STOP ALL is true
 - deterministic readiness report
@@ -41,7 +41,7 @@ Hosted CI must cover:
 - no secret exposure
 - all prior WordPress/MariaDB migration tests remain green
 - PHP syntax, PHPUnit, PHPStan and PHPCS
-- deterministic ZIP/checksum and package boundaries
+- deterministic ZIP/checksum/release manifest and package boundaries
 
 ## Completion boundary
 Merging this release means DigiForge is code-complete, tested, packaged, documented and ready for controlled deployment. It does not authorize enabling integrations or external automation. Separate explicit activation authorization is required later.
