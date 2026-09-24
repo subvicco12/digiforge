@@ -13,6 +13,8 @@ final class EtsyMultipartTransportBinder
         $request=$prepared['request_plan']??null;
         if(!is_array($request)||($request['method']??'')!=='POST'||!preg_match('#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/images$#',(string)($request['endpoint']??'')))return self::error('target','Multipart assets are restricted to the approved Etsy listing-image endpoint.');
         if(($multipart['state']??'')!=='ETSY_MULTIPART_IMAGE_PREPARED')return self::error('multipart','Prepared multipart image metadata is required.');
+        if(($multipart['method']??'')!==($request['method']??'')||!hash_equals((string)($request['endpoint']??''),(string)($multipart['endpoint']??'')))return self::error('resource','Multipart image plan must target the exact authorized Etsy listing resource.');
+        if((int)($multipart['size']??0)<1||(int)($multipart['size']??0)>10485760)return self::error('size','Multipart image exceeds the bounded upload size.');
         $payload=is_array($request['payload']??null)?$request['payload']:[];
         $expected=[
             'image_sha256'=>strtolower((string)($multipart['sha256']??'')),
