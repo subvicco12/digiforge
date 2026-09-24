@@ -34,6 +34,8 @@ final class PodSchema
                     return false;
                 }
             }
+            if (!self::backfillOutcomeClaims()) { return false; }
+            if (!self::backfillOutcomeClaims()) { return false; }
             self::grantCapability();
             return true;
         }
@@ -318,6 +320,39 @@ final class PodSchema
   KEY readiness_hash (readiness_hash)
 ) $charset;",
         ];
+    }
+
+
+    private static function backfillOutcomeClaims(): bool
+    {
+        global $wpdb;
+        $target=Tables::pod_execution_outcomes();
+        $sources=[
+            [Tables::pod_execution_receipts(),'SUCCEEDED','receipt_hash'],
+            [Tables::pod_execution_failures(),'FAILED','failure_hash'],
+            [Tables::pod_execution_unknowns(),'UNKNOWN','unknown_hash'],
+        ];
+        $seen=[];
+        foreach($sources as [$table,$type,$hashColumn]){
+            $rows=$wpdb->get_results("SELECT authorization_hash, {$hashColumn} AS outcome_hash FROM {$table}",ARRAY_A);
+            if(!is_array($rows))return false;
+            foreach($rows as $row){
+                $auth=(string)($row['authorization_hash']??'');$hash=(string)($row['outcome_hash']??'');
+                if(isset($seen[$auth])&&($seen[$auth]['type']!==$type||$seen[$auth]['hash']!==$hash)){
+                    update_option('digiforge_last_migration_failure',['error_code'=>'POD_OUTCOME_BACKFILL_CONFLICT','occurred_at'=>current_time('mysql',true)],false);return false;
+                }
+                $seen[$auth]=['type'=>$type,'hash'=>$hash];
+            }
+        }
+        foreach($seen as $auth=>$outcome){
+            $existing=$wpdb->get_row($wpdb->prepare("SELECT outcome_type,outcome_hash FROM {$target} WHERE authorization_hash=%s LIMIT 1",$auth),ARRAY_A);
+            if(is_array($existing)){
+                if((string)$existing['outcome_type']!==$outcome['type']||(string)$existing['outcome_hash']!==$outcome['hash'])return false;
+                continue;
+            }
+            if($wpdb->insert($target,['authorization_hash'=>$auth,'outcome_type'=>$outcome['type'],'outcome_hash'=>$outcome['hash'],'created_at'=>current_time('mysql',true)])===false)return false;
+        }
+        return true;
     }
 
     private static function grantCapability(): void
