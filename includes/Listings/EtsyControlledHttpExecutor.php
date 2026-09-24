@@ -136,8 +136,11 @@ final class EtsyControlledHttpExecutor
             $existingReference=trim((string)($prepared['external_reference']??($prepared['invocation_plan']['external_reference']??'')));
             $parsed=EtsyAcceptedResponseParser::parse($operationType,$body,$existingReference);
             $body='';
-            if ($parsed instanceof WP_Error) return $parsed;
-            $externalReference=(string)$parsed['external_reference'];
+            if ($parsed instanceof WP_Error) {
+                $classified=['state'=>'UNKNOWN','failure_category'=>'response_processing','failure_code'=>'accepted_response_unparseable','retry_candidate'=>false,'reconciliation_required'=>true,'automatic_retry_permitted'=>false];
+            } else {
+                $externalReference=(string)$parsed['external_reference'];
+            }
         }
 
         return [
