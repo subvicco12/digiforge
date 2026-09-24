@@ -15,6 +15,7 @@ final class EtsyReconciliationLookupPlan
             return self::error('reconciliation','A network-disabled reconciliation plan is required.');
         }
         $operationId=(int)($reconciliation['operation_id']??0);
+        $operationType=strtoupper(trim((string)($reconciliation['operation_type']??'')));
         $reference=trim((string)($reconciliation['lookup_reference']??''));
         if ($operationId<1 || $integrationId<1 || ($reconciliation['lookup_identity_available']??null)!==true
             || !preg_match('/^[1-9][0-9]{0,18}$/',$reference)) {
@@ -27,6 +28,8 @@ final class EtsyReconciliationLookupPlan
             'method'=>'GET',
             'endpoint'=>'/application/listings/'.$reference,
             'lookup_reference'=>$reference,
+            'operation_type'=>$operationType,
+            'operation_specific_evidence_required'=>$operationType!=='CREATE_DRAFT',
             'provider_lookup_required'=>true,
             'mutation_permitted'=>false,
             'external_retry_permitted'=>false,
