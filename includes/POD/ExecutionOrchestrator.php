@@ -12,7 +12,13 @@ final class ExecutionOrchestrator
  /** @return array<string,mixed>|WP_Error */
  public static function prepare(array $authorization,string $action,string $evidenceHash,int $actor,int $now,array $payload):array|WP_Error
  {
-  $permit=ControlledExecutionGate::authorize($authorization,$action,$evidenceHash,$actor,$now);
+  $requestFingerprint='';
+  if(str_starts_with(strtoupper(trim($action)),'PROVIDER_')){
+   $preparedRequest=PrintifyMutationRequest::prepare(['action'=>strtoupper(trim($action))],$payload);
+   if(is_wp_error($preparedRequest))return $preparedRequest;
+   $requestFingerprint=(string)$preparedRequest['request_fingerprint'];
+  }
+  $permit=ControlledExecutionGate::authorize($authorization,$action,$evidenceHash,$actor,$now,$requestFingerprint);
   if(is_wp_error($permit))return $permit;
   if(($permit['state']??'')!=='ADAPTER_CALL_PERMITTED'||($permit['nonce_consumed']??null)!==true)
    return new WP_Error('digiforge_orchestrator_permit','Consumed adapter permit required.',['status'=>403]);
