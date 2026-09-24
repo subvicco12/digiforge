@@ -3,6 +3,11 @@ declare(strict_types=1);
 namespace DigiForge\POD;
 use DigiForge\Database\Tables;use WP_Error;
 final class PrintifyReconciliationRepository{
+ public static function latest(string $unknownHash):array|WP_Error{
+  $unknownHash=strtolower(trim($unknownHash));if(!preg_match('/^[a-f0-9]{64}$/',$unknownHash))return new WP_Error('digiforge_printify_reconciliation_unknown','Valid UNKNOWN hash required.',['status'=>400]);
+  global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_printify_reconciliations().' WHERE unknown_hash=%s ORDER BY id DESC LIMIT 1',$unknownHash),ARRAY_A);
+  return is_array($row)?$row:['resolution_state'=>'PRINTIFY_RECONCILIATION_UNRESOLVED','unknown_hash'=>$unknownHash,'retry_permitted'=>false,'reconciliation_required'=>true];
+ }
  public static function save(array $outcome,array $result,int $integrationId):array|WP_Error{
   $u=is_array($outcome['unknown']??null)?$outcome['unknown']:[];$auth=strtolower((string)($u['authorization_hash']??''));$unknown=strtolower((string)($u['unknown_hash']??''));$fp=strtolower((string)($u['request_fingerprint']??''));
   $state=(string)($result['state']??'');if(!preg_match('/^[a-f0-9]{64}$/',$auth)||!preg_match('/^[a-f0-9]{64}$/',$unknown)||!preg_match('/^[a-f0-9]{64}$/',$fp)||$integrationId<1||!in_array($state,['PRINTIFY_RECONCILIATION_CONFIRMED','PRINTIFY_RECONCILIATION_NOT_CONFIRMED','PRINTIFY_RECONCILIATION_UNKNOWN'],true))return new WP_Error('digiforge_printify_reconciliation_evidence','Bound reconciliation evidence required.',['status'=>409]);
