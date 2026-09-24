@@ -31,6 +31,7 @@ final class ExecutionReceiptRepository
    if(hash_equals((string)$existing['receipt_hash'],$hash))return $existing;
    return new WP_Error('digiforge_receipt_conflict','Authorization already has different execution evidence.',['status'=>409]);
   }
+  $claim=ExecutionOutcomeClaimRepository::claim($auth,'SUCCEEDED',$hash);if(is_wp_error($claim))return $claim;
   $row=['action'=>$action,'evidence_hash'=>$evidence,'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'external_reference'=>$external,'executed_by'=>$actor,'executed_at'=>gmdate('Y-m-d H:i:s',$executedAt),'receipt_hash'=>$hash,'created_at'=>current_time('mysql',true)];
   if($wpdb->insert($table,$row)===false){
    $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
