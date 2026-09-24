@@ -50,6 +50,20 @@ final class EtsyDraftListingOperations
     }
 
     /** @return array<string,mixed>|WP_Error */
+    public static function uploadImage(int $shopId,int $listingId,array $multipart): array|WP_Error
+    {
+        if($shopId<1||$listingId<1||($multipart['state']??'')!=='ETSY_MULTIPART_IMAGE_PREPARED') return self::error('upload_image','Prepared multipart image metadata is required.');
+        $hash=strtolower(trim((string)($multipart['sha256']??'')));
+        $size=(int)($multipart['size']??0);
+        $mime=trim((string)($multipart['mime_type']??''));
+        $rank=(int)($multipart['rank']??0);
+        if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$rank<1||$rank>10||!in_array($mime,['image/jpeg','image/png','image/webp'],true)) return self::error('upload_image','Multipart image metadata is invalid.');
+        return self::plan('ATTACH_IMAGE','POST',"/application/shops/{$shopId}/listings/{$listingId}/images",[
+            'image_sha256'=>$hash,'image_size'=>$size,'image_mime'=>$mime,'rank'=>$rank,
+        ]);
+    }
+
+    /** @return array<string,mixed>|WP_Error */
     private static function sanitize(array $payload): array|WP_Error
     {
         $blocked=['state','is_published','published','active','access_token','refresh_token','authorization'];
