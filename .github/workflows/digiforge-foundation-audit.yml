@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
@@ -114,6 +114,13 @@ jobs:
           grep -Fq 'EtsyLiveTransportInterlock::authorize' includes/Listings/EtsyControlledHttpExecutor.php
           grep -Fq 'EtsyScopedCredentialRetriever' includes/Listings/EtsyControlledHttpExecutor.php
           test "$(grep -c 'wp_remote_get' includes/Integrations/ConnectionTester.php)" -eq 1
+          test "$(grep -c 'wp_remote_request' includes/POD/PrintifyControlledTransport.php)" -eq 1
+          grep -Fq "https://api.printify.com/v1" includes/POD/PrintifyControlledTransport.php
+          grep -Fq "'redirection'=>0" includes/POD/PrintifyControlledTransport.php
+          grep -Fq "'sslverify'=>true" includes/POD/PrintifyControlledTransport.php
+          grep -Fq 'PrintifyLiveTransportInterlock::authorize' includes/POD/PrintifyControlledTransport.php
+          grep -Fq 'PrintifyScopedCredentialRetriever' includes/POD/PrintifyControlledTransport.php
+          ! grep -nE '(wp_remote_(get|post|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyControlledTransport.php
           test "$(grep -c 'wp_remote_get' includes/POD/PrintifyCatalogClient.php)" -eq 1
           ! grep -nE '(wp_remote_(post|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyCatalogClient.php
           grep -Fq "https://api.printify.com/" includes/POD/PrintifyCatalogClient.php
