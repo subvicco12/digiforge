@@ -11,8 +11,18 @@ final class EtsyDraftOperationPipelineContractTest extends TestCase
     {
         $s=$this->source();
         self::assertStringContainsString('EtsyControlledTransportOrchestrator',$s);
-        self::assertStringContainsString('$operationForTransport['payload']=$payload',$s);
+        self::assertStringContainsString('EtsyRequestFingerprint::fromPayload',$s);
+        self::assertStringContainsString('hash_equals($preparedFingerprint,$draftFingerprint)',$s);
         self::assertStringContainsString('->prepare(',$s);
+    }
+
+    public function testTargetIsBoundToCurrentlyAuthorizedCreateDraftOperation(): void
+    {
+        $s=$this->source();
+        self::assertStringContainsString("in_array($operationType,['DRAFT','CREATE_DRAFT'],true)",$s);
+        self::assertStringContainsString("$draftType!=='CREATE_DRAFT'",$s);
+        self::assertStringContainsString("$method!=='POST'",$s);
+        self::assertStringContainsString("#^/application/shops/[1-9][0-9]*/listings$#",$s);
     }
 
     public function testPipelineCannotEnableNetworkOrPublish(): void
