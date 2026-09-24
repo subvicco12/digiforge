@@ -22,11 +22,11 @@ final class EtsyScopedCredentialRetrieverContractTest extends TestCase
     {
         $s=$this->source();
         self::assertStringContainsString("secret_name = %s",$s);
-        self::assertStringContainsString("'access_token'",$s);
+        foreach(["'access_token'","'keystring'","'shared_secret'"] as $name) self::assertStringContainsString($name,$s);
         self::assertStringContainsString('CredentialVault::decrypt',$s);
         self::assertStringContainsString('Repository::secretContext',$s);
         self::assertStringContainsString('EtsyCredentialEnvelope::seal',$s);
-        self::assertStringContainsString("\$token='';",$s);
+        self::assertStringContainsString("\$material=[];",$s);
         self::assertStringNotContainsString("'refresh_token'",$s);
     }
 
