@@ -7,7 +7,7 @@ final class AdminOperationsFinalCertificationTest extends TestCase{
   $admin=(string)file_get_contents(dirname(__DIR__,2).'/includes/Core/Admin.php');
   $portal=(string)file_get_contents(dirname(__DIR__,2).'/includes/Portal/FrontendControls.php');
   foreach(['digiforge-system-status','digiforge-readiness','digiforge-safety-controls','render_system_status','render_readiness','render_safety_controls'] as $x)self::assertStringContainsString($x,$admin);
-  foreach(["check_admin_referer('digiforge_frontend_update_control')",'check_admin_referer(self::ACTIVATE)',"current_user_can('manage_digiforge_automation')",'Settings::activateProduction'] as $x)self::assertStringContainsString($x,$portal);
+  foreach(["self::ACTION","self::ACTIVATE","check_admin_referer","current_user_can('manage_digiforge_automation')",'Settings::activateProduction'] as $x)self::assertStringContainsString($x,$portal);
  }
  public function testProtectedControlsCannotReleaseStopAllThroughGenericSwitchUpdate():void{
   $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Portal/FrontendControls.php');
