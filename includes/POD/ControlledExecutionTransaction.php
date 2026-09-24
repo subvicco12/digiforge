@@ -35,7 +35,9 @@ final class ControlledExecutionTransaction
   if(($normalized['status']??'')==='UNKNOWN'){
    $unknown=ExecutionUnknownRecord::record($authorization,$permit,$normalized,$actor,$now);
    if(is_wp_error($unknown))return $unknown;
-   return new WP_Error('digiforge_transaction_unknown','Adapter execution outcome is ambiguous; reconciliation is required before retry.',['status'=>409,'unknown_record'=>$unknown,'retry_permitted'=>false,'reconciliation_required'=>true]);
+   $persistedUnknown=ExecutionUnknownRepository::save($unknown);
+   if(is_wp_error($persistedUnknown))return $persistedUnknown;
+   return new WP_Error('digiforge_transaction_unknown','Adapter execution outcome is ambiguous; reconciliation is required before retry.',['status'=>409,'unknown_record'=>$unknown,'persisted_unknown'=>$persistedUnknown,'retry_permitted'=>false,'reconciliation_required'=>true]);
   }
   if(($normalized['status']??'')!=='SUCCEEDED'){
    $failure=ExecutionFailureRecord::record($authorization,$permit,$normalized,$actor,$now);
