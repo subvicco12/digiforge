@@ -15,8 +15,10 @@ final class ExecutionOutcomeRepository
   global $wpdb;
   $success=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_execution_receipts().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
   $failure=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_execution_failures().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
-  if(is_array($success)&&is_array($failure))
+  $unknown=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_execution_unknowns().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
+  if((int)is_array($success)+(int)is_array($failure)+(int)is_array($unknown)>1)
    return new WP_Error('digiforge_outcome_invariant','Authorization has conflicting terminal outcomes.',['status'=>409]);
+  if(is_array($unknown))return ['state'=>'EXECUTION_UNKNOWN','unknown'=>$unknown,'retry_permitted'=>false,'reconciliation_required'=>true];
   if(is_array($success))return ['state'=>'EXECUTION_SUCCEEDED','receipt'=>$success];
   if(is_array($failure))return ['state'=>'EXECUTION_FAILED','failure'=>$failure,'retry_permitted'=>false];
   return ['state'=>'EXECUTION_OUTCOME_NOT_FOUND'];
