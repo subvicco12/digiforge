@@ -62,9 +62,26 @@ final class EtsyControlledHttpExecutor
         $endpoint=(string)($request['endpoint']??'');
         $headers=is_array($request['headers']??null)?$request['headers']:[];
         $payload=is_array($request['payload']??null)?$request['payload']:[];
+        $multipart=is_array($request['multipart']??null)?$request['multipart']:null;
+        if ($multipart!==null) {
+            $preparedState=(string)($multipart['state']??'');
+            $asset=(string)($multipart['file_path']??'');
+            $field=(string)($multipart['field']??'');
+            $filename=(string)($multipart['filename']??'');
+            $mime=(string)($multipart['mime_type']??'');
+            $expectedSize=(int)($multipart['size']??0);
+            $expectedHash=strtolower((string)($multipart['sha256']??''));
+            $rank=(int)($multipart['rank']??0);
+            if($preparedState!=='ETSY_MULTIPART_IMAGE_PREPARED'||$asset===''||$field!=='image'||$filename===''||$rank<1||$rank>10) return self::error('multipart','A prepared Etsy multipart image plan is required.');
+            if(!is_file($asset)||!is_readable($asset)) return self::error('multipart_asset','Prepared image asset is unavailable before external execution.');
+            $size=filesize($asset);
+            $actualMime=function_exists('mime_content_type')?(string)mime_content_type($asset):'';
+            $actualHash=hash_file('sha256',$asset);
+            if($size===false||$expectedSize<1||$size!==$expectedSize||$actualMime!==$mime||!is_string($actualHash)||!hash_equals($expectedHash,strtolower($actualHash))) return self::error('multipart_integrity','Prepared image metadata does not match the current asset.');
+        }
         $sender=$this->sender;
 
-        $attempt=$credential->consume($integrationId,$operationId,static function(string $token) use ($sender,$method,$endpoint,$headers,$payload,$operationId): array {
+        $attempt=$credential->consume($integrationId,$operationId,static function(string $token) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$operationId): array {
             $headers['Authorization']='Bearer '.$token;
             $args=[
                 'method'=>$method,
@@ -73,7 +90,20 @@ final class EtsyControlledHttpExecutor
                 'redirection'=>0,
                 'sslverify'=>true,
             ];
-            if ($payload!==[] && $method!=='GET') $args['body']=wp_json_encode($payload);
+            if ($multipart!==null) {
+                $asset=(string)$multipart['file_path'];
+                $field='image';
+                $mime=(string)$multipart['mime_type'];
+                $filename=(string)$multipart['filename'];
+                $rank=(int)$multipart['rank'];
+                $bytes=file_get_contents($asset);
+                if(!is_string($bytes)||$bytes==='') return ['operation_id'=>$operationId,'attempt_id'=>'','attempted_at'=>gmdate('c'),'adapter_invoked'=>false,'external_request_attempted'=>false,'response'=>new WP_Error('digiforge_etsy_multipart_asset','Multipart asset could not be read.')];
+                $boundary='----DigiForgeEtsy'.wp_generate_uuid4();
+                $headers['Content-Type']='multipart/form-data; boundary='.$boundary;
+                $safeFilename=str_replace('"','',$filename);
+                $args['body']='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.$safeFilename.'"'. "\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."\r\n".'Content-Disposition: form-data; name="rank"'. "\r\n\r\n".$rank."\r\n--".$boundary."--\r\n";
+                $bytes='';
+            } elseif ($payload!==[] && $method!=='GET') $args['body']=wp_json_encode($payload);
             $attemptId=wp_generate_uuid4();
             $attemptedAt=gmdate('c');
             $response=$sender('https://openapi.etsy.com/v3'.$endpoint,$args);
