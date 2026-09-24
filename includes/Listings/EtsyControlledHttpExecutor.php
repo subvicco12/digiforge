@@ -77,7 +77,7 @@ final class EtsyControlledHttpExecutor
             $size=filesize($asset);
             $actualMime=function_exists('mime_content_type')?(string)mime_content_type($asset):'';
             $actualHash=hash_file('sha256',$asset);
-            if($size===false||$expectedSize<1||$size!==$expectedSize||$actualMime!==$mime||!is_string($actualHash)||!hash_equals($expectedHash,strtolower($actualHash))) return self::error('multipart_integrity','Prepared image metadata does not match the current asset.');
+            if($size===false||$expectedSize<1||$expectedSize>10485760||$size!==$expectedSize||$actualMime!==$mime||!is_string($actualHash)||!hash_equals($expectedHash,strtolower($actualHash))) return self::error('multipart_integrity','Prepared image metadata does not match the current asset.');
         }
         $sender=$this->sender;
 
