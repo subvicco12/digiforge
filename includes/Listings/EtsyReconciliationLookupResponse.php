@@ -20,10 +20,9 @@ final class EtsyReconciliationLookupResponse
         $expected=(string)($plan['lookup_reference']??'');
         if ($listingId==='' || !hash_equals($expected,$listingId)) return ['state'=>EtsyOperationLifecycle::UNKNOWN,'failure_category'=>'provider_lookup','failure_code'=>'lookup_identity_mismatch','external_reference'=>''];
         $operationType=(string)($plan['operation_type']??'');
-        if ($operationType!=='CREATE_DRAFT') {
-            return ['state'=>EtsyOperationLifecycle::UNKNOWN,'failure_category'=>'provider_lookup','failure_code'=>'operation_specific_evidence_required','external_reference'=>$listingId];
-        }
-        return ['state'=>EtsyOperationLifecycle::CONFIRMED_SUCCESS,'external_reference'=>$listingId];
+        if ($operationType==='CREATE_DRAFT') return ['state'=>EtsyOperationLifecycle::CONFIRMED_SUCCESS,'external_reference'=>$listingId];
+        $expected=is_array($plan['operation_evidence']??null)?$plan['operation_evidence']:[];
+        return EtsyOperationSpecificReconciliation::compare($operationType,$expected,is_array($decoded)?$decoded:[],$listingId);
     }
     private static function error(string $code,string $message):WP_Error{return new WP_Error('digiforge_etsy_reconciliation_response_'.$code,$message,['status'=>409]);}
 }
