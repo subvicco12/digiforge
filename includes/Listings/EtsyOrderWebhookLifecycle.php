@@ -28,7 +28,7 @@ final class EtsyOrderWebhookLifecycle
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
             if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'fulfillment_authorized'=>false,'external_execution_performed'=>false];
             $order=$this->orders->createOrder([
-                'channel'=>'etsy','environment'=>'production_locked','external_order_reference'=>$orderRef,
+                'channel'=>'etsy','environment'=>'production','external_order_reference'=>$orderRef,
                 'shop_reference'=>$shopRef,'buyer_reference'=>$this->reference($payload,['buyer_id','buyerId']),
                 'currency'=>$this->currency($payload),'subtotal_amount'=>$this->amount($payload,'subtotal'),
                 'shipping_amount'=>$this->amount($payload,'shipping'),'tax_amount'=>$this->amount($payload,'tax'),
@@ -45,6 +45,8 @@ final class EtsyOrderWebhookLifecycle
             $state=(string)$existing['state'];
             if(in_array($state,['RECEIVED','VALIDATED','REVIEW_REQUIRED','ON_HOLD'],true)){
                 $result=$this->orders->transition('order',(int)$existing['id'],'REJECTED');
+            } elseif($state==='APPROVED'){
+                $result=$this->orders->transition('order',(int)$existing['id'],'ON_HOLD');
                 if($result instanceof WP_Error)return $result;
             }
             return ['state'=>'ETSY_ORDER_CANCELLATION_RECORDED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'fulfillment_authorized'=>false,'external_execution_performed'=>false];
