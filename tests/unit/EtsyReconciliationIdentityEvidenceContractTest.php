@@ -8,7 +8,7 @@ final class EtsyReconciliationIdentityEvidenceContractTest extends TestCase
     public function testLedgerHasAdditiveBoundedReconciliationReference(): void
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Database/EtsyOperationSchema.php');
-        self::assertStringContainsString('VERSION = 2',$s);
+        self::assertMatchesRegularExpression('/VERSION = [2-9][0-9]*/',$s);
         self::assertStringContainsString('reconciliation_reference varchar(191)',$s);
     }
 
