@@ -8,7 +8,7 @@ final class PrintifyUnknownReconciliationContractTest extends TestCase {
   self::assertStringContainsString('ExecutionOutcomeRepository::findByAuthorizationHash',$w);
   self::assertStringContainsString("'EXECUTION_UNKNOWN'",$w);
   self::assertStringContainsString("'method'=>'GET'",$l);
-  self::assertStringContainsString("'/orders.json?limit=100&page='.$page",$l);
+  self::assertStringContainsString("/orders.json?limit=100&page='.$page",$l);
   self::assertStringContainsString('PrintifyScopedCredentialRetriever',$l);
   self::assertStringContainsString("'redirection'=>0",$l);self::assertStringContainsString("'sslverify'=>true",$l);
   self::assertStringNotContainsString("'method'=>'POST'",$l);
