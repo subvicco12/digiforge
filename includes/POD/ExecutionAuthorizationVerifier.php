@@ -13,7 +13,7 @@ final class ExecutionAuthorizationVerifier
    return new WP_Error('digiforge_execution_state','Execution authorization must be unused and authorized.',['status'=>409]);
   $a=$record['authorization']??null;if(!is_array($a))return new WP_Error('digiforge_execution_payload','Authorization payload is required.',['status'=>400]);
   $requiredAction=strtoupper(trim($requiredAction));
-  if(!in_array($requiredAction,['ETSY_DRAFT_CREATE','PROVIDER_ORDER_SUBMIT'],true)||($a['action']??'')!==$requiredAction)
+  if(!in_array($requiredAction,['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE','PROVIDER_ORDER_SUBMIT'],true)||($a['action']??'')!==$requiredAction)
    return new WP_Error('digiforge_execution_scope','Authorization action does not match the requested operation.',['status'=>403]);
   $expectedEvidenceHash=strtolower(trim($expectedEvidenceHash));
   if(!preg_match('/^[a-f0-9]{64}$/',$expectedEvidenceHash)||!hash_equals($expectedEvidenceHash,(string)($a['evidence_hash']??'')))
