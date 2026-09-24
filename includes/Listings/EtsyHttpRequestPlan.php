@@ -57,6 +57,7 @@ final class EtsyHttpRequestPlan
             'method'=>$method,
             'endpoint'=>$endpoint,
             'headers'=>$allowedHeaders,
+            'payload'=>$payload,
             'payload_fingerprint'=>$fingerprint,
             'timeout_seconds'=>15,
             'redirects_permitted'=>false,
