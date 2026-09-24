@@ -35,7 +35,6 @@ final class PodSchema
                 }
             }
             if (!self::backfillOutcomeClaims()) { return false; }
-            if (!self::backfillOutcomeClaims()) { return false; }
             self::grantCapability();
             return true;
         }
@@ -67,6 +66,7 @@ final class PodSchema
     public static function statements(string $charset): array
     {
         return [
+            "CREATE TABLE " . Tables::pod_printify_reconciliations() . " (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  unknown_hash char(64) NOT NULL,\n  request_fingerprint char(64) NOT NULL,\n  integration_id bigint(20) unsigned NOT NULL,\n  resolution_state varchar(64) NOT NULL,\n  evidence longtext NOT NULL,\n  reconciliation_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY reconciliation_hash (reconciliation_hash),\n  KEY authorization_created (authorization_hash,created_at),\n  KEY unknown_created (unknown_hash,created_at)\n) $charset;",
             "CREATE TABLE " . Tables::pod_execution_outcomes() . " (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  outcome_type varchar(16) NOT NULL,\n  outcome_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY outcome_hash (outcome_hash),\n  KEY outcome_type (outcome_type)\n) $charset;",
             "CREATE TABLE " . Tables::pod_execution_unknowns() . " (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
