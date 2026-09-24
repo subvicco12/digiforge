@@ -51,13 +51,6 @@ final class EtsyControlledHttpExecutor
             return self::error('prepared','A deferred-credential Etsy transport is required.');
         }
 
-        // Re-check the interlock immediately before secret retrieval/network use.
-        $fresh=EtsyLiveTransportInterlock::authorize($prepared);
-        if ($fresh instanceof WP_Error) return $fresh;
-
-        $credential=(new EtsyScopedCredentialRetriever())->retrieve($transport['credential_scope']);
-        if ($credential instanceof WP_Error) return $credential;
-
         $method=(string)($request['method']??'');
         $endpoint=(string)($request['endpoint']??'');
         $headers=is_array($request['headers']??null)?$request['headers']:[];
@@ -82,7 +75,7 @@ final class EtsyControlledHttpExecutor
             $actualHash=hash('sha256',$multipartBytes);
             if($size===false||$expectedSize<1||$expectedSize>10485760||$size!==$expectedSize||strlen($multipartBytes)!==$expectedSize||$actualMime!==$mime||!hash_equals($expectedHash,strtolower($actualHash))) { $multipartBytes=''; return self::error('multipart_integrity','Prepared image metadata does not match the exact bytes selected for transmission.'); }
         }
-        $sender=$this->sender;
+        // Re-check the live interlock only after local request and multipart validation.\n        $fresh=EtsyLiveTransportInterlock::authorize($prepared);\n        if ($fresh instanceof WP_Error) return $fresh;\n\n        $credential=(new EtsyScopedCredentialRetriever())->retrieve($transport['credential_scope']);\n        if ($credential instanceof WP_Error) return $credential;\n\n        $sender=$this->sender;
 
         $attempt=$credential->consume($integrationId,$operationId,static function(string $token,string $apiKey) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$multipartBytes,$operationId): array {
             $headers['Authorization']='Bearer '.$token;
