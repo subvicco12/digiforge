@@ -62,6 +62,7 @@ final class EtsyControlledHttpExecutor
         $endpoint=(string)($request['endpoint']??'');
         $headers=is_array($request['headers']??null)?$request['headers']:[];
         $payload=is_array($request['payload']??null)?$request['payload']:[];
+        $multipart=is_array($request['multipart']??null)?$request['multipart']:null;
         $sender=$this->sender;
 
         $attempt=$credential->consume($integrationId,$operationId,static function(string $token) use ($sender,$method,$endpoint,$headers,$payload,$operationId): array {
@@ -73,7 +74,19 @@ final class EtsyControlledHttpExecutor
                 'redirection'=>0,
                 'sslverify'=>true,
             ];
-            if ($payload!==[] && $method!=='GET') $args['body']=wp_json_encode($payload);
+            if ($multipart!==null) {
+                $asset=(string)($multipart['file_path']??'');
+                $field=(string)($multipart['field']??'image');
+                $mime=(string)($multipart['mime_type']??'');
+                $filename=(string)($multipart['filename']??'');
+                if($asset===''||$field!=='image'||$mime===''||$filename===''||!is_readable($asset)) return ['operation_id'=>$operationId,'attempt_id'=>'','attempted_at'=>gmdate('c'),'adapter_invoked'=>false,'external_request_attempted'=>false,'response'=>new WP_Error('digiforge_etsy_multipart_asset','Multipart asset is unavailable.')];
+                $bytes=file_get_contents($asset);
+                if(!is_string($bytes)||$bytes==='') return ['operation_id'=>$operationId,'attempt_id'=>'','attempted_at'=>gmdate('c'),'adapter_invoked'=>false,'external_request_attempted'=>false,'response'=>new WP_Error('digiforge_etsy_multipart_asset','Multipart asset could not be read.')];
+                $boundary='----DigiForgeEtsy'.wp_generate_uuid4();
+                $headers['Content-Type']='multipart/form-data; boundary='.$boundary;
+                $args['body']='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.str_replace('"','',$filename).'"'."\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."--\r\n";
+                $bytes='';
+            } elseif ($payload!==[] && $method!=='GET') $args['body']=wp_json_encode($payload);
             $attemptId=wp_generate_uuid4();
             $attemptedAt=gmdate('c');
             $response=$sender('https://openapi.etsy.com/v3'.$endpoint,$args);
