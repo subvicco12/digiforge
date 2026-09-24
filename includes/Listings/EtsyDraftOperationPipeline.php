@@ -28,15 +28,29 @@ final class EtsyDraftOperationPipeline
             return self::error('operation','A network-disabled, publish-disabled Etsy draft operation is required.');
         }
 
+        $operationType=strtoupper(trim((string)($operation['operation_type']??'')));
+        $draftType=strtoupper(trim((string)($draftOperation['operation']??'')));
+        if (!in_array($operationType,['DRAFT','CREATE_DRAFT'],true) || $draftType!=='CREATE_DRAFT') {
+            return self::error('binding','Current approved operation authorizes CREATE_DRAFT only.');
+        }
+
         $method=(string)($draftOperation['method']??'');
         $endpoint=(string)($draftOperation['endpoint']??'');
         $payload=$draftOperation['payload']??null;
-        if ($method==='' || $endpoint==='' || !is_array($payload)) {
-            return self::error('plan','Draft operation must contain a bounded method, endpoint and payload.');
+        if ($method!=='POST' || !preg_match('#^/application/shops/[1-9][0-9]*/listings$#',$endpoint) || !is_array($payload)) {
+            return self::error('plan','CREATE_DRAFT requires its canonical POST shop-listings target and payload.');
+        }
+
+        $preparedPayload=(array)($prepared['payload']??[]);
+        $draftFingerprint=EtsyRequestFingerprint::fromPayload($payload);
+        $preparedFingerprint=EtsyRequestFingerprint::fromPayload($preparedPayload);
+        if ($draftFingerprint instanceof WP_Error) return $draftFingerprint;
+        if ($preparedFingerprint instanceof WP_Error) return $preparedFingerprint;
+        if (!hash_equals($preparedFingerprint,$draftFingerprint)) {
+            return self::error('payload','Draft payload must exactly match the already-authorized prepared payload.');
         }
 
         $operationForTransport=$operation;
-        $operationForTransport['payload']=$payload;
         $transport=$this->transport->prepare(
             $prepared,
             $operationForTransport,
