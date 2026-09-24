@@ -32,6 +32,7 @@ final class EtsyReconciliationService
             'request_fingerprint'=>$plan['request_fingerprint'],
             'lookup_reference'=>$plan['lookup_reference'],
             'lookup_identity_available'=>$plan['lookup_identity_available'],
+            'operation_type'=>(string)($operation['operation_type']??''),
             'provider_lookup_required'=>true,
             'external_retry_permitted'=>false,
             'automatic_retry_permitted'=>false,
