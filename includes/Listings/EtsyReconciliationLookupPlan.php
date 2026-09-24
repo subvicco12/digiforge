@@ -21,12 +21,17 @@ final class EtsyReconciliationLookupPlan
             || !preg_match('/^[1-9][0-9]{0,18}$/',$reference)) {
             return self::error('identity','A persisted numeric Etsy listing identity and integration are required.');
         }
+        $endpoint=match($operationType){
+            'UPDATE_INVENTORY'=>'/application/listings/'.$reference.'/inventory',
+            'ATTACH_IMAGE'=>'/application/listings/'.$reference.'/images',
+            default=>'/application/listings/'.$reference,
+        };
         return [
             'state'=>'ETSY_RECONCILIATION_LOOKUP_PLANNED',
             'operation_id'=>$operationId,
             'integration_id'=>$integrationId,
             'method'=>'GET',
-            'endpoint'=>'/application/listings/'.$reference,
+            'endpoint'=>$endpoint,
             'lookup_reference'=>$reference,
             'operation_type'=>$operationType,
             'operation_specific_evidence_required'=>$operationType!=='CREATE_DRAFT',
