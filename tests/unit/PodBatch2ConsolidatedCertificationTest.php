@@ -12,7 +12,7 @@ final class PodBatch2ConsolidatedCertificationTest extends TestCase{
   $s=(string)file_get_contents($r.'PrintifyMutationRequest.php');
   foreach(['PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'] as $x)self::assertStringContainsString($x,$s);
   $p=(string)file_get_contents($r.'PrintifyControlledExecutionPlan.php');
-  foreach(['PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'] as $x)self::assertStringContainsString($x,$p);
+  foreach(['PREPARE_ORDER','PREPARE_MOCKUP','PREPARE_UPLOAD','PREPARE_PERSONALIZATION'] as $x)self::assertStringContainsString($x,$p);
  }
  public function testUnknownPathCannotBlindlyRetry():void{
   $r=dirname(__DIR__,2).'/includes/POD/';
