@@ -96,7 +96,7 @@ final class EtsyControlledHttpExecutor
             : ['transport_state'=>'RESPONSE_RECEIVED','http_status'=>(int)wp_remote_retrieve_response_code($response)];
         $classified=EtsyHttpOutcome::classify($sanitized);
         if ($classified instanceof WP_Error) return $classified;
-        $rateLimit=EtsyRateLimitMetadata::fromHeaders(is_wp_error($response)?[]:(array)wp_remote_retrieve_headers($response));
+        $rateLimit=EtsyRateLimitMetadata::fromHeaders(is_wp_error($response)?[]:wp_remote_retrieve_headers($response));
         if ($rateLimit instanceof WP_Error) return $rateLimit;
 
         $externalReference='';
