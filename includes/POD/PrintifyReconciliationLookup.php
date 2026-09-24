@@ -14,13 +14,20 @@ final class PrintifyReconciliationLookup {
   $sender=$this->sender;
   return (new PrintifyScopedCredentialRetriever())->consume($integrationId,static function(string $token) use($sender,$shop,$external,$action,$fp){
    $args=['method'=>'GET','headers'=>['Authorization'=>'Bearer '.$token,'Accept'=>'application/json'],'timeout'=>20,'redirection'=>0,'sslverify'=>true];
-   $response=$sender('https://api.printify.com/v1/shops/'.$shop.'/orders.json?limit=100',$args);$token='';
-   if(is_wp_error($response)) return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp];
-   $status=(int)wp_remote_retrieve_response_code($response);
-   if($status!==200) return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'http_status'=>$status];
-   $body=(string)wp_remote_retrieve_body($response);if(strlen($body)>1048576) return new WP_Error('digiforge_printify_reconciliation_response','Provider evidence exceeds bounded size.',['status'=>409]);
-   $decoded=json_decode($body,true);$orders=is_array($decoded['data']??null)?$decoded['data']:[];$lastPage=(int)($decoded['last_page']??1);if($lastPage>1)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pagination_required'=>true];$match=null;
-   foreach($orders as $order){if(!is_array($order))continue;$candidate=$action==='PROVIDER_ORDER_SUBMIT'?trim((string)($order['external_id']??'')):trim((string)($order['id']??''));if($candidate!==''&&hash_equals($external,$candidate)){$match=$order;break;}}
+   $match=null;$page=1;$lastPage=1;$maxPages=10;$pagesChecked=0;
+   do{
+    $response=$sender('https://api.printify.com/v1/shops/'.$shop.'/orders.json?limit=100&page='.$page,$args);
+    if(is_wp_error($response)){ $token=''; return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pages_checked'=>$pagesChecked]; }
+    $status=(int)wp_remote_retrieve_response_code($response);
+    if($status!==200){ $token=''; return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'http_status'=>$status,'pages_checked'=>$pagesChecked]; }
+    $body=(string)wp_remote_retrieve_body($response);if(strlen($body)>1048576){$token='';return new WP_Error('digiforge_printify_reconciliation_response','Provider evidence exceeds bounded size.',['status'=>409]);}
+    $decoded=json_decode($body,true);if(!is_array($decoded)){ $token=''; return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pages_checked'=>$pagesChecked]; }
+    $orders=is_array($decoded['data']??null)?$decoded['data']:[];$lastPage=max(1,(int)($decoded['last_page']??1));$pagesChecked++;
+    foreach($orders as $order){if(!is_array($order))continue;$candidate=$action==='PROVIDER_ORDER_SUBMIT'?trim((string)($order['external_id']??'')):trim((string)($order['id']??''));if($candidate!==''&&hash_equals($external,$candidate)){$match=$order;break;}}
+    if(is_array($match))break;$page++;
+   }while($page<=$lastPage&&$page<=$maxPages);
+   $token='';
+   if(!is_array($match)&&$lastPage>$maxPages)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'pagination_required'=>true,'pages_checked'=>$pagesChecked];
    if(!is_array($match)) return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp];
    $providerId=trim((string)($match['id']??''));if($providerId===''||preg_match('/^[A-Za-z0-9_-]{1,191}$/',$providerId)!==1)return ['state'=>'PRINTIFY_RECONCILIATION_UNKNOWN','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp];$sent=trim((string)($match['sent_to_production_at']??''));
    if($action==='PROVIDER_PRODUCTION_AUTHORIZE'&&$sent==='') return ['state'=>'PRINTIFY_RECONCILIATION_NOT_CONFIRMED','retry_permitted'=>false,'reconciliation_required'=>true,'request_fingerprint'=>$fp,'provider_order_id'=>$providerId];
