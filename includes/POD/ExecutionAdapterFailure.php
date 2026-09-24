@@ -8,7 +8,7 @@ final class ExecutionAdapterFailure
  /** @return array<string,mixed> */
  public static function fromError(array $permit,\WP_Error $error):array
  {
-  $attempted=(bool)($error->get_error_data()['network_request_attempted']??false);
+  $data=$error->get_error_data();$data=is_array($data)?$data:[];$attempted=(bool)($data['network_request_attempted']??false);
   return [
    'status'=>$attempted?'UNKNOWN':'FAILED',
    'action'=>(string)($permit['action']??''),
@@ -16,6 +16,8 @@ final class ExecutionAdapterFailure
    'evidence_hash'=>(string)($permit['evidence_hash']??''),
    'failure_category'=>$attempted?'AMBIGUOUS_TRANSPORT':'ADAPTER_ERROR',
    'failure_code'=>sanitize_key((string)$error->get_error_code()),
+   'request_fingerprint'=>$attempted?(string)($data['request_fingerprint']??''):'',
+   'reconciliation_identity'=>$attempted&&is_array($data['reconciliation_identity']??null)?$data['reconciliation_identity']:[],
   ];
  }
 }

@@ -73,6 +73,8 @@ final class PodSchema
   nonce_hash char(64) NOT NULL,
   failure_category varchar(64) NOT NULL DEFAULT '',
   failure_code varchar(100) NOT NULL DEFAULT '',
+  request_fingerprint char(64) NOT NULL,
+  reconciliation_identity text NOT NULL,
   executed_by bigint(20) unsigned NOT NULL DEFAULT 0,
   recorded_at datetime NOT NULL,
   unknown_hash char(64) NOT NULL,

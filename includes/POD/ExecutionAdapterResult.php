@@ -25,7 +25,11 @@ final class ExecutionAdapterResult
    $code=sanitize_key((string)($result['failure_code']??''));
    if($category!=='')$normalized['failure_category']=$category;
    if($code!=='')$normalized['failure_code']=$code;
-   if($status==='UNKNOWN'){$normalized['reconciliation_required']=true;$normalized['retry_permitted']=false;}
+   if($status==='UNKNOWN'){
+    $fingerprint=strtolower(trim((string)($result['request_fingerprint']??'')));$identity=is_array($result['reconciliation_identity']??null)?$result['reconciliation_identity']:[];
+    if(!preg_match('/^[a-f0-9]{64}$/',$fingerprint)||$identity===[])return new WP_Error('digiforge_adapter_reconciliation_identity','UNKNOWN execution requires request fingerprint and reconciliation identity.',['status'=>400]);
+    $normalized['request_fingerprint']=$fingerprint;$normalized['reconciliation_identity']=$identity;$normalized['reconciliation_required']=true;$normalized['retry_permitted']=false;
+   }
   }
   return $normalized;
  }
