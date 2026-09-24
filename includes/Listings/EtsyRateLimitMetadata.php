@@ -9,11 +9,13 @@ use WP_Error;
 final class EtsyRateLimitMetadata
 {
     /** @return array<string,mixed>|WP_Error */
-    public static function fromHeaders(array $headers): array|WP_Error
+    public static function fromHeaders(mixed $headers): array|WP_Error
     {
         $retryAfter=self::value($headers,'retry-after');
-        $remaining=self::value($headers,'x-rate-limit-remaining');
-        $reset=self::value($headers,'x-rate-limit-reset');
+        $perSecond=self::integer(self::value($headers,'x-limit-per-second'));
+        $remainingSecond=self::integer(self::value($headers,'x-remaining-this-second'));
+        $perDay=self::integer(self::value($headers,'x-limit-per-day'));
+        $remainingToday=self::integer(self::value($headers,'x-remaining-today'));
 
         $retrySeconds=null;
         if ($retryAfter!=='') {
@@ -25,21 +27,32 @@ final class EtsyRateLimitMetadata
         }
         return [
             'retry_after_seconds'=>$retrySeconds,
-            'remaining'=>ctype_digit($remaining)?max(0,(int)$remaining):null,
-            'reset'=>$reset!=='' && strlen($reset)<=64?$reset:null,
+            'limit_per_second'=>$perSecond,
+            'remaining_this_second'=>$remainingSecond,
+            'limit_per_day'=>$perDay,
+            'remaining_today'=>$remainingToday,
             'automatic_retry_permitted'=>false,
             'retry_scheduled'=>false,
             'external_execution_performed'=>false,
         ];
     }
 
-    private static function value(array $headers,string $name): string
+    private static function value(mixed $headers,string $name): string
     {
-        foreach ($headers as $key=>$value) {
-            if (strtolower((string)$key)!==$name) continue;
-            if (is_array($value)) $value=reset($value);
-            return trim((string)$value);
+        $value=null;
+        if (is_array($headers)) {
+            foreach ($headers as $key=>$candidate) if (strtolower((string)$key)===$name) { $value=$candidate; break; }
+        } elseif (is_object($headers) && method_exists($headers,'offsetGet')) {
+            $value=$headers->offsetGet($name);
+        } elseif ($headers instanceof \ArrayAccess) {
+            $value=$headers[$name]??null;
         }
-        return '';
+        if (is_array($value)) $value=reset($value);
+        return trim((string)($value??''));
+    }
+
+    private static function integer(string $value): ?int
+    {
+        return ctype_digit($value)?max(0,(int)$value):null;
     }
 }
