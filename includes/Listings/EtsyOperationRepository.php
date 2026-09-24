@@ -161,6 +161,41 @@ final class EtsyOperationRepository
         return $this->find($id)??$this->error('not_found','Etsy operation record not found after identity update.',500);
     }
 
+    /** Persist a bounded non-secret canonical request snapshot for operation-specific reconciliation. */
+    public function recordReconciliationEvidence(int $id,array $payload): array|WP_Error
+    {
+        if($id<1)return $this->error('reconciliation_evidence','Invalid Etsy operation id.',400);
+        $fingerprint=EtsyRequestFingerprint::fromPayload($payload);
+        if($fingerprint instanceof WP_Error)return $fingerprint;
+        $row=$this->find($id);
+        if(!is_array($row))return $this->error('not_found','Etsy operation record not found.',404);
+        $persistedFingerprint=(string)($row['request_fingerprint']??'');
+        if(!hash_equals($persistedFingerprint,$fingerprint)){
+            // Preserve compatibility with operations authorized before canonical
+            // fingerprinting was introduced, matching the preparation boundary.
+            $legacyJson=wp_json_encode($payload,JSON_UNESCAPED_SLASHES);
+            $legacyFingerprint=is_string($legacyJson)?hash('sha256',$legacyJson):'';
+            if($legacyFingerprint===''||!hash_equals($persistedFingerprint,$legacyFingerprint))return $this->error('reconciliation_evidence_fingerprint','Reconciliation evidence must match the authorized request fingerprint.',409);
+        }
+        $canonical=EtsyRequestFingerprint::canonicalize($payload);
+        $encoded=wp_json_encode($canonical,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        if(!is_string($encoded)||strlen($encoded)>65535)return $this->error('reconciliation_evidence_size','Reconciliation evidence exceeds the bounded storage limit.',400);
+        $existing=(string)($row['reconciliation_evidence']??'');
+        if($existing!==''){
+            if(!hash_equals(hash('sha256',$existing),hash('sha256',$encoded)))return $this->error('reconciliation_evidence_conflict','Reconciliation evidence is immutable once recorded.',409);
+            return $row+['idempotent_reconciliation_evidence'=>true];
+        }
+        global $wpdb;
+        $updated=$wpdb->update($wpdb->prefix.'digiforge_etsy_operations',['reconciliation_evidence'=>$encoded,'updated_at'=>current_time('mysql',true)],['id'=>$id,'reconciliation_evidence'=>null]);
+        if($updated!==1){
+            $current=$this->find($id);
+            $persisted=is_array($current)?(string)($current['reconciliation_evidence']??''):'';
+            if($persisted!==''&&hash_equals(hash('sha256',$persisted),hash('sha256',$encoded)))return $current+['idempotent_reconciliation_evidence'=>true];
+            return $this->error('reconciliation_evidence_conflict','Unable to atomically persist reconciliation evidence.',409);
+        }
+        return $this->find($id)??$this->error('not_found','Etsy operation record not found after evidence update.',500);
+    }
+
     /** Acquire a connection-scoped mutex so the same persisted operation cannot execute concurrently. */
     public function acquireExecutionLock(int $id): bool
     {

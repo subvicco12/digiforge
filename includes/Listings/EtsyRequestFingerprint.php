@@ -24,7 +24,7 @@ final class EtsyRequestFingerprint
     }
 
     /** @return array<mixed> */
-    private static function canonicalize(array $value): array
+    public static function canonicalize(array $value): array
     {
         if (!array_is_list($value)) {
             ksort($value, SORT_STRING);
