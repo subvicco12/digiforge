@@ -146,14 +146,21 @@ final class EtsyControlledHttpExecutor
                     $reconciliationResponse=['status'=>(int)wp_remote_retrieve_response_code($response),'body'=>$body];
                 }
             }
-            $operationType=strtoupper(trim((string)($prepared['operation_type']??($prepared['invocation_plan']['operation_type']??''))));
-            $existingReference=trim((string)($prepared['external_reference']??($prepared['invocation_plan']['external_reference']??'')));
-            $parsed=EtsyAcceptedResponseParser::parse($operationType,$body,$existingReference);
-            $body='';
-            if ($parsed instanceof WP_Error) {
-                $classified=['state'=>'UNKNOWN','failure_category'=>'response_processing','failure_code'=>'accepted_response_unparseable','retry_candidate'=>false,'reconciliation_required'=>true,'automatic_retry_permitted'=>false];
+            if($method!=='GET') {
+                $operationType=strtoupper(trim((string)($prepared['operation_type']??($prepared['invocation_plan']['operation_type']??''))));
+                $existingReference=trim((string)($prepared['external_reference']??($prepared['invocation_plan']['external_reference']??'')));
+                $parsed=EtsyAcceptedResponseParser::parse($operationType,$body,$existingReference);
+                $body='';
+                if ($parsed instanceof WP_Error) {
+                    $classified=['state'=>'UNKNOWN','failure_category'=>'response_processing','failure_code'=>'accepted_response_unparseable','retry_candidate'=>false,'reconciliation_required'=>true,'automatic_retry_permitted'=>false];
+                } else {
+                    $externalReference=(string)$parsed['external_reference'];
+                }
             } else {
-                $externalReference=(string)$parsed['external_reference'];
+                // GET reconciliation bodies are endpoint-specific evidence. They
+                // must be normalized by EtsyReconciliationLookupResponse rather
+                // than by the mutation response parser.
+                $body='';
             }
         }
 
