@@ -18,6 +18,13 @@ final class Repository
         return $this->insert(Tables::orders(),$key,['channel'=>$channel,'environment'=>$environment,'external_order_reference'=>sanitize_text_field((string)($input['external_order_reference']??'')),'shop_reference'=>sanitize_text_field((string)($input['shop_reference']??'')),'buyer_reference'=>sanitize_text_field((string)($input['buyer_reference']??'')),'currency'=>$currency,'subtotal_amount'=>$subtotal,'shipping_amount'=>$shipping,'tax_amount'=>$tax,'total_amount'=>$total,'personalization_required'=>!empty($input['personalization_required'])?1:0,'state'=>'RECEIVED','approved_by'=>0,'approved_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'order');
     }
 
+    public function findByExternalReference(string $externalReference,string $shopReference): ?array
+    {
+        global $wpdb;
+        $row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE external_order_reference=%s AND shop_reference=%s ORDER BY id DESC LIMIT 1',$externalReference,$shopReference),ARRAY_A);
+        return is_array($row)?$row:null;
+    }
+
     public function addLineItem(array $input, ?string $key = null): array|WP_Error
     {
         $order=$this->find(Tables::orders(),absint($input['order_id']??0));$version=$this->find(Tables::product_versions(),absint($input['product_version_id']??0));if(!is_array($order)||!is_array($version))return $this->error('invalid_parent','Valid order and product version are required.');
