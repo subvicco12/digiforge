@@ -96,6 +96,8 @@ final class EtsyControlledHttpExecutor
             : ['transport_state'=>'RESPONSE_RECEIVED','http_status'=>(int)wp_remote_retrieve_response_code($response)];
         $classified=EtsyHttpOutcome::classify($sanitized);
         if ($classified instanceof WP_Error) return $classified;
+        $rateLimit=EtsyRateLimitMetadata::fromHeaders(is_wp_error($response)?[]:(array)wp_remote_retrieve_headers($response));
+        if ($rateLimit instanceof WP_Error) return $rateLimit;
 
         $externalReference='';
         if (($classified['state']??'')==='RESPONSE_ACCEPTED') {
@@ -113,6 +115,7 @@ final class EtsyControlledHttpExecutor
             'operation_id'=>$operationId,
             'attempt'=>$attempt,
             'http_outcome'=>$classified,
+            'rate_limit'=>$rateLimit,
             'external_reference'=>$externalReference,
             'response_body_returned'=>false,
             'credential_material_exposed'=>false,
