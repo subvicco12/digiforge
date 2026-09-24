@@ -14,6 +14,7 @@ final class ExecutionUnknownRepository
   if(!preg_match('/^[a-f0-9]{64}$/',$hash)||!preg_match('/^[a-f0-9]{64}$/',$auth)||($r['retry_permitted']??null)!==false||($r['reconciliation_required']??null)!==true||!preg_match('/^[a-f0-9]{64}$/',$requestFingerprint)||$identity===[])
    return new WP_Error('digiforge_unknown_binding','UNKNOWN evidence must remain reconciliation-required and non-retryable.',['status'=>409]);
   global $wpdb;$table=Tables::pod_execution_unknowns();
+  $claim=ExecutionOutcomeClaimRepository::claim($auth,'UNKNOWN',$hash);if(is_wp_error($claim))return $claim;
   foreach([Tables::pod_execution_receipts(),Tables::pod_execution_failures()] as $terminal){if(is_array($wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.$terminal.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A)))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization already has a conflicting terminal outcome.',['status'=>409]);}
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
   if(is_array($existing))return hash_equals((string)$existing['unknown_hash'],$hash)?$existing:new WP_Error('digiforge_unknown_conflict','Authorization already has different UNKNOWN evidence.',['status'=>409]);
