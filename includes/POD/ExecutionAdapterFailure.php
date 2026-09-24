@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\POD;
 
-/** Converts adapter WP_Error into a minimal provider-neutral FAILED result without persisting raw provider details. */
+/** Converts a pre-send adapter WP_Error into minimal FAILED evidence. Post-send ambiguity must be returned explicitly as UNKNOWN by the adapter. */
 final class ExecutionAdapterFailure
 {
  /** @return array<string,mixed> */
