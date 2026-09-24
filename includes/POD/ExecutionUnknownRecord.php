@@ -18,7 +18,7 @@ final class ExecutionUnknownRecord
   $payload=['action'=>(string)$normalized['action'],'evidence_hash'=>(string)$normalized['evidence_hash'],'authorization_hash'=>$auth,
    'authorization_nonce_hash'=>hash('sha256',$nonce),'executed_by'=>$executedBy,'recorded_at'=>$recordedAt,
    'adapter_status'=>'UNKNOWN','failure_category'=>(string)($normalized['failure_category']??'AMBIGUOUS_TRANSPORT'),
-   'failure_code'=>(string)($normalized['failure_code']??'unknown'),'nonce_consumed'=>true,
+   'failure_code'=>(string)($normalized['failure_code']??'unknown'),'request_fingerprint'=>(string)$normalized['request_fingerprint'],'reconciliation_identity'=>$normalized['reconciliation_identity'],'nonce_consumed'=>true,
    'retry_permitted'=>false,'reconciliation_required'=>true];
   $canonical=$payload;ksort($canonical);
   return ['state'=>'EXECUTION_UNKNOWN_RECORDED','unknown'=>$payload,'unknown_hash'=>hash('sha256',(string)wp_json_encode($canonical))];
