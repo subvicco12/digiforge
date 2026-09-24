@@ -23,7 +23,7 @@ final class PrintifyControlledTransportContractTest extends TestCase{
   self::assertStringContainsString("'api_version'=>'v1'",$r);
   self::assertStringContainsString("'v2_preference_preserved'=>true",$r);
   self::assertStringContainsString("'v1_required_for_operation'=>true",$r);
-  self::assertStringContainsString("preg_match('/^[A-Za-z0-9_-]{1,160}$/',\$order)",\$r);
+  self::assertStringContainsString("preg_match('/^[A-Za-z0-9_-]{1,160}$/',\$order)",$r);
  }
  public function testCredentialMaterialNeverLeavesCallbackBoundary():void{
   $c=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/PrintifyScopedCredentialRetriever.php');
