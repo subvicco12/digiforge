@@ -13,6 +13,8 @@ final class EtsyWebhookIntake {
         $claim=$this->dedup->claim((string)$verified['event_id']);
         if($claim instanceof WP_Error)return $claim;
         if(($claim['process_permitted']??false)!==true)return $claim;
-        return ['state'=>'ETSY_WEBHOOK_ACCEPTED','event_id'=>$verified['event_id'],'event_type'=>$verified['event_type'],'payload'=>$verified['payload'],'order_mutation_performed'=>false,'external_execution_performed'=>false];
+        $result=(new EtsyOrderWebhookLifecycle(new \DigiForge\Orders\Repository()))->apply($verified);
+        if($result instanceof WP_Error)return $result;
+        return $result+['webhook_verified'=>true,'external_execution_performed'=>false];
     }
 }
