@@ -270,7 +270,7 @@ Do not merge a PR head that changed after the audited SHA without re-checking th
 ## 23. Current production-readiness state
 The currently verified live DigiForge 1.0.31 deployment is at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Fresh read-only production verification on 2026-09-25 also confirmed externally_locked=true, all effective external switches false, and external_actions_performed=false. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
 
-The remaining host-level hardening observation is `DISALLOW_FILE_EDIT=true` in `wp-config.php`; apply it only through a safe hosting configuration path.
+Host-level hardening is complete: `DISALLOW_FILE_EDIT=true` was applied through safe host-level configuration and verified on 2026-09-25. The post-change acceptance check retained DigiForge 1.0.31, schema 14 / 14, READY_LOCKED, recovery PASS, healthy WP-Cron, inactive maintenance mode, all effective external switches false, and `external_actions_performed=false`.
 
 ## 24. Final production audit
 The final independent audit should include:
