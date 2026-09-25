@@ -40,6 +40,7 @@ require_once __DIR__ . '/../../includes/Listings/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Listings/Validator.php';
 require_once __DIR__ . '/../../includes/Listings/BatchListingProjection.php';
 require_once __DIR__ . '/../../includes/Listings/AdminStateSummary.php';
+require_once __DIR__ . '/../../includes/DigitalFactory/Validator.php';
 require_once __DIR__ . '/../../includes/DigitalFactory/QaAdminSummary.php';
 require_once __DIR__ . '/../../includes/Orders/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Orders/Validator.php';
