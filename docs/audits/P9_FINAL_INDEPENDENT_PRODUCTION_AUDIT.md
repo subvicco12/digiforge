@@ -167,6 +167,18 @@ Final live production certification is complete only when, in addition:
 7. recovery status returns PASS / `recovery_drill_passed=true`;
 8. the overall status reaches `READY_LOCKED` while the system remains externally locked and all external feature switches remain FALSE.
 
+## Post-audit repository certification addendum — 2026-09-25
+
+The live-production findings above remain historical evidence for the verified DigiForge 1.0.1 deployment and must not be rewritten as evidence for a newer live package.
+
+Repository development subsequently converged to DigiForge 1.0.31 / database schema 14. The 1.0.31 repository candidate has passed the current Engineering and Safety Audit chain and final artifact certification, including exact ZIP packaging, SHA-256 verification, and deterministic release-manifest evidence. It is a certified deployment candidate, not a claim of live deployment.
+
+Current boundary:
+- verified live baseline: DigiForge 1.0.1 / schema 14 / READY_LOCKED;
+- repository-certified deployment candidate: DigiForge 1.0.31 / schema 14;
+- external activation remains unauthorized and locked;
+- host-level hardening issue #137 (DISALLOW_FILE_EDIT) remains intentionally open until safe host access and a current backup are available.
+
 ## Activation decision
 **EXTERNAL AUTOMATION REMAINS LOCKED AND REQUIRES SEPARATE EXPLICIT AUTHORIZATION.**
 
