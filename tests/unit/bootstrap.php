@@ -37,6 +37,7 @@ require_once __DIR__ . '/../../includes/DigitalFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/AI/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Listings/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Listings/Validator.php';
+require_once __DIR__ . '/../../includes/Listings/BatchListingProjection.php';
 require_once __DIR__ . '/../../includes/Orders/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Orders/Validator.php';
 require_once __DIR__ . '/../../includes/Finance/Lifecycle.php';
