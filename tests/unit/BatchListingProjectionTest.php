@@ -38,6 +38,28 @@ final class BatchListingProjectionTest extends TestCase
         self::assertSame(['invalid_product_version','gate2_not_approved','release_bundle_not_ready','listing_spec_incomplete'], $result['attention'][1]['reasons']);
     }
 
+    public function testMalformedProductVersionIdsFailClosed(): void
+    {
+        foreach ([true, 1.5, '12abc', ['12']] as $badId) {
+            $result = BatchListingProjection::summarize([[
+                'product_version_id'=>$badId,
+                'product_approved'=>true,
+                'release_bundle_ready'=>true,
+                'listing_spec_complete'=>true,
+            ]]);
+            self::assertSame(1, $result['blocked']);
+            self::assertSame(['invalid_product_version'], $result['attention'][0]['reasons']);
+        }
+
+        $valid = BatchListingProjection::summarize([[
+            'product_version_id'=>'12',
+            'product_approved'=>true,
+            'release_bundle_ready'=>true,
+            'listing_spec_complete'=>true,
+        ]]);
+        self::assertSame(1, $valid['ready_for_local_listing_preparation']);
+    }
+
     public function testEmptyPortfolioDoesNotCreateAnything(): void
     {
         $result = BatchListingProjection::summarize([]);
