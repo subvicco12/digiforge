@@ -126,8 +126,9 @@ final class Portal
         check_admin_referer(self::SAVE_AI_SECRET_ACTION);
         $integrationId = isset($_POST['integration_id']) ? absint($_POST['integration_id']) : 0;
         $value = isset($_POST['credential_value']) ? trim((string) wp_unslash($_POST['credential_value'])) : '';
+        $returnUrl = isset($_POST['return_url']) ? wp_validate_redirect(esc_url_raw(wp_unslash($_POST['return_url'])), $this->baseUrl()) : $this->baseUrl();
         if ($integrationId < 1 || $value === '') {
-            $this->redirect('integrations', 'Credential was not changed. Enter it in the secure DigiForge portal form.', true);
+            $this->redirectToUrl($returnUrl, 'Credential was not changed. Enter it in the secure DigiForge portal form.', true);
         }
         global $wpdb;
         $row = $wpdb->get_row($wpdb->prepare(
@@ -135,15 +136,15 @@ final class Portal
             $integrationId
         ), ARRAY_A);
         if (!is_array($row) || (string) $row['provider'] !== 'ai' || (string) $row['environment'] !== 'production') {
-            $this->redirect('integrations', 'Only the production AI connector can be updated here.', true);
+            $this->redirectToUrl($returnUrl, 'Only the production AI connector can be updated here.', true);
         }
         $result = (new IntegrationRepository())->storeSecret($integrationId, 'api_key', $value);
         unset($value);
         if (is_wp_error($result)) {
-            $this->redirect('integrations', 'Credential could not be stored securely. ' . $result->get_error_message(), true);
+            $this->redirectToUrl($returnUrl, 'Credential could not be stored securely. ' . $result->get_error_message(), true);
         }
         Logger::audit('portal_ai_credential_replaced', ['integration_id' => $integrationId], 'integration', (string) $integrationId);
-        $this->redirect('integrations', 'AI credential replaced securely. No activation switch was changed.');
+        $this->redirectToUrl($returnUrl, 'AI credential replaced securely. No activation switch was changed.');
     }
 
     public function develop(): void
@@ -421,7 +422,7 @@ final class Portal
                 . '<div><dt>Enabled</dt><dd>' . (! empty($row['enabled']) ? 'YES' : 'NO') . '</dd></div>'
                 . '<div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div>'
                 . '</dl>'
-                . (((string) $row['provider'] === 'ai' && (string) $row['environment'] === 'production') ? '<form class="df-credential-form" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">' . '<input type="hidden" name="action" value="' . esc_attr(self::SAVE_AI_SECRET_ACTION) . '">' . wp_nonce_field(self::SAVE_AI_SECRET_ACTION, '_wpnonce', true, false) . '<input type="hidden" name="integration_id" value="' . esc_attr((string) $row['id']) . '">' . '<label>Replace encrypted AI credential <input type="password" name="credential_value" autocomplete="new-password" required></label>' . '<button type="submit">Save Credential</button></form>' : '')
+                . (((string) $row['provider'] === 'ai' && (string) $row['environment'] === 'production') ? '<form class="df-credential-form" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">' . '<input type="hidden" name="action" value="' . esc_attr(self::SAVE_AI_SECRET_ACTION) . '">' . wp_nonce_field(self::SAVE_AI_SECRET_ACTION, '_wpnonce', true, false) . '<input type="hidden" name="integration_id" value="' . esc_attr((string) $row['id']) . '">' . '<input type="hidden" name="return_url" value="' . esc_url($this->url('integrations')) . '">' . '<label>Replace encrypted AI credential <input type="password" name="credential_value" autocomplete="new-password" required></label>' . '<button type="submit">Save Credential</button></form>' : '')
                 . '</article>';
         }
         echo '</div></section>';
@@ -675,6 +676,18 @@ final class Portal
             'df_error' => $error ? 1 : 0,
         ];
         wp_safe_redirect(add_query_arg($args, $this->baseUrl()));
+        exit;
+    }
+
+    private function redirectToUrl(string $url, string $message, bool $error = false): never
+    {
+        $target = wp_validate_redirect($url, $this->baseUrl());
+        $target = add_query_arg([
+            'df_view' => 'integrations',
+            'df_message' => $message,
+            'df_error' => $error ? 1 : 0,
+        ], $target);
+        wp_safe_redirect($target);
         exit;
     }
 
