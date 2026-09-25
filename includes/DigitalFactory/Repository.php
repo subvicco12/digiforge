@@ -122,8 +122,12 @@ final class Repository {
         $page = max(1, $page); $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
         if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => compact('page', 'per_page') + ['total_items' => 0, 'total_pages' => 0]]; }
         global $wpdb; $table = $this->table($type); $offset = ($page - 1) * $per_page;
-        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A); $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
-        return ['items' => array_map([$this, 'normalize'], is_array($rows) ? $rows : []), 'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => (int) ceil($total / $per_page)]];
+        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
+        $rows_ok = is_array($rows) && (string) $wpdb->last_error === '';
+        $total_raw = $rows_ok ? $wpdb->get_var('SELECT COUNT(*) FROM ' . $table) : null;
+        $query_ok = $rows_ok && $total_raw !== null && (string) $wpdb->last_error === '';
+        $total = $query_ok ? (int) $total_raw : 0;
+        return ['items' => $query_ok ? array_map([$this, 'normalize'], $rows) : [], 'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => $query_ok ? (int) ceil($total / $per_page) : 0], 'query_ok' => $query_ok];
     }
 
     private function validate_fields(array $input, array $allowed): true|\WP_Error {
