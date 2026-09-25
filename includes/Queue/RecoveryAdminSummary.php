@@ -14,7 +14,7 @@ final class RecoveryAdminSummary
         $states=[];
         foreach (['FAILED','BLOCKED','HUMAN_REVIEW','DEAD_LETTER'] as $state) {
             $value=$counts[$state]??0;
-            $states[$state]=is_int($value)&&$value>=0?$value:0;
+            $states[$state]=self::count($value);
         }
         return [
             'query_ok'=>true,
@@ -23,5 +23,15 @@ final class RecoveryAdminSummary
             'recovery_required'=>array_sum($states)>0,
             'external_actions_performed'=>false,
         ];
+    }
+
+    private static function count(mixed $value): int
+    {
+        if (is_int($value)) { return $value >= 0 ? $value : 0; }
+        if (is_string($value) && preg_match('/^(0|[1-9][0-9]*)$/', $value) === 1) {
+            $parsed = filter_var($value, FILTER_VALIDATE_INT);
+            return is_int($parsed) && $parsed >= 0 ? $parsed : 0;
+        }
+        return 0;
     }
 }
