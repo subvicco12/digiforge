@@ -12,7 +12,7 @@ final class DigitalQaAdminVisibilityTest extends TestCase
  }
  public function testQueryFailureStillSuppressesQaSummary():void{
   $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/DigitalFactory/Admin.php');
-  self::assertStringContainsString("$qaSummary=$queryOk && $type==='digital_download_check'",$source);
+  self::assertStringContainsString("\$qaSummary=\$queryOk && \$type==='digital_download_check'",$source);
   self::assertStringContainsString('Records unavailable because the snapshot query failed.',$source);
  }
 }
