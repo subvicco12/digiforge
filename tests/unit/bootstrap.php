@@ -21,6 +21,7 @@ if (! function_exists('sanitize_key')) {
 require_once __DIR__ . '/../../includes/Core/Config.php';
 require_once __DIR__ . '/../../includes/ProductFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/ProductFactory/Workflow.php';
+require_once __DIR__ . '/../../includes/ProductFactory/PortfolioProjection.php';
 require_once __DIR__ . '/../../includes/ProductFactory/AutomatedQa.php';
 require_once __DIR__ . '/../../includes/DigitalFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/AI/Lifecycle.php';
