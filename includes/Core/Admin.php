@@ -196,9 +196,27 @@ final class Admin
     public function render_product_factory(): void
     {
         $this->guard('manage_digiforge_products');
+        $versions = (new Repository())->all('product_version', 1, Repository::MAX_PAGE_SIZE);
+        $stateCounts = [];
+        foreach (($versions['items'] ?? []) as $version) {
+            if (! is_array($version)) { continue; }
+            $state = strtoupper((string) ($version['state'] ?? 'UNKNOWN'));
+            $stateCounts[$state] = ($stateCounts[$state] ?? 0) + 1;
+        }
+        ksort($stateCounts);
         ?>
         <div class="wrap"><h1><?php esc_html_e('Product Factory', 'digiforge'); ?></h1>
-        <p><?php esc_html_e('Manage opportunities, product families, products, and product versions through the DigiForge REST API. Automation and external side effects remain disabled.', 'digiforge'); ?></p>
+        <p><?php esc_html_e('Read-only portfolio visibility. Automation and external side effects remain disabled; approvals continue through the authenticated workflow.', 'digiforge'); ?></p>
+        <h2><?php esc_html_e('Portfolio snapshot', 'digiforge'); ?></h2>
+        <table class="widefat striped"><tbody>
+        <tr><th><?php esc_html_e('Product versions sampled', 'digiforge'); ?></th><td><?php echo esc_html((string) count($versions['items'] ?? [])); ?></td></tr>
+        <?php foreach ($stateCounts as $state => $count) : ?>
+        <tr><th><?php echo esc_html(sprintf(__('State: %s', 'digiforge'), $state)); ?></th><td><?php echo esc_html((string) $count); ?></td></tr>
+        <?php endforeach; ?>
+        <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><strong>NO</strong></td></tr>
+        </tbody></table>
+        <p><?php esc_html_e('Snapshot reports persisted product-version states only, bounded to the most recent 100 versions. It does not infer workflow readiness, schedule, approve, publish, or call external providers.', 'digiforge'); ?></p>
+        <h2><?php esc_html_e('Entity foundations', 'digiforge'); ?></h2>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('Entity', 'digiforge'); ?></th><th><?php esc_html_e('Initial state', 'digiforge'); ?></th></tr></thead><tbody>
         <tr><td><?php esc_html_e('Opportunities', 'digiforge'); ?></td><td>NEW</td></tr><tr><td><?php esc_html_e('Product Families', 'digiforge'); ?></td><td>DRAFT</td></tr><tr><td><?php esc_html_e('Products', 'digiforge'); ?></td><td>DRAFT</td></tr><tr><td><?php esc_html_e('Product Versions', 'digiforge'); ?></td><td>DRAFT</td></tr>
         </tbody></table></div>
