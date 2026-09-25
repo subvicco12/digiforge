@@ -17,7 +17,7 @@ final class ProductFactoryAdminPortfolioUiTest extends TestCase
         self::assertStringContainsString('does not infer workflow readiness', $source);
         self::assertStringContainsString('Read-only portfolio visibility.', $source);
         self::assertStringContainsString('External actions performed', $source);
-        self::assertStringContainsString('most recent 100 product versions', $source);
+        self::assertStringContainsString('most recent 100 versions', $source);
         self::assertStringNotContainsString('PortfolioProjection::approve', $source);
         self::assertStringNotContainsString('PortfolioProjection::publish', $source);
     }
