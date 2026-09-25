@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\DigitalFactory;
 /** WordPress-native, read-only admin foundations for digital records. */
 final class Admin {
-    private const PAGES=['digital_product'=>'Digital Products','digital_file'=>'Digital Files','digital_package'=>'Digital Packages','digital_template'=>'Digital Templates','digital_license'=>'Digital Licenses','digital_download_check'=>'Digital QA / Download Checks'];
+    private const PAGES=['digital_product'=>'Digital Products','digital_file'=>'Digital Files','digital_package'=>'Digital Packages','digital_preview'=>'Digital Previews','digital_template'=>'Digital Templates','digital_license'=>'Digital Licenses','digital_download_check'=>'Digital QA / Download Checks'];
     public function register(): void { add_action('admin_menu',[$this,'menu']); }
     public function menu(): void { foreach(self::PAGES as $type=>$label){ add_submenu_page('digiforge',__($label,'digiforge'),__($label,'digiforge'),'manage_digiforge_digital','digiforge-'.str_replace('_','-',$type),fn()=>$this->render($type,$label)); } }
     public function render(string $type,string $label): void {
@@ -14,7 +14,7 @@ final class Admin {
         $pagination=$result['pagination'];
         $queryOk=(bool)($result['query_ok']??false);
         $qaSummary=$queryOk && $type==='digital_download_check' && class_exists(QaAdminSummary::class) ? QaAdminSummary::summarize($items) : null;
-        $operationalField=$type==='digital_package'?'generation_status':(in_array($type,['digital_file','digital_template'],true)?'status':'');
+        $operationalField=$type==='digital_package'?'generation_status':(in_array($type,['digital_file','digital_preview','digital_template'],true)?'status':'');
         $operationalSummary=$queryOk && $operationalField!=='' && class_exists(OperationalAdminSummary::class) ? OperationalAdminSummary::summarize($items,$operationalField) : null; ?>
         <div class="wrap"><h1><?php echo esc_html($label); ?></h1><p><?php esc_html_e('Local Digital Product Factory records. External processing, automation, and publishing are OFF.','digiforge'); ?></p>
         <p><strong><?php esc_html_e('Snapshot query status:','digiforge'); ?></strong> <?php echo esc_html($queryOk?'PASS':'FAILED'); ?></p>
