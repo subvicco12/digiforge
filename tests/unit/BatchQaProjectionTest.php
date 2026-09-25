@@ -32,6 +32,19 @@ final class BatchQaProjectionTest extends TestCase
         self::assertSame([], $result['attention']);
     }
 
+    public function testMalformedItemFailsClosedAlongsidePassingItem(): void
+    {
+        $result = BatchQaProjection::summarize([
+            ['product_version_id'=>13,'asset_id'=>103,'passed'=>true,'checks'=>[['name'=>'checksum_match','passed'=>true]]],
+            'malformed',
+        ]);
+        self::assertSame(2, $result['total']);
+        self::assertSame(1, $result['passed']);
+        self::assertSame(1, $result['failed']);
+        self::assertFalse($result['all_passed']);
+        self::assertSame(['invalid_item'], $result['attention'][0]['failed_checks']);
+    }
+
     public function testMissingChecksFailsClosed(): void
     {
         $result = BatchQaProjection::summarize([['product_version_id'=>12,'passed'=>true]]);
