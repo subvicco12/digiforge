@@ -1,30 +1,42 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Tests;
+use DigiForge\DigitalFactory\OperationalAdminSummary;
+use DigiForge\DigitalFactory\QaAdminSummary;
+use DigiForge\Queue\RecoveryAdminSummary;
 use PHPUnit\Framework\TestCase;
 final class ReadModelSafetyConvergenceTest extends TestCase
 {
- /** @dataProvider readOnlyProjectionProvider */
- public function testReadOnlyProjectionsDeclareNoExternalActions(string $path):void{
-  $source=(string)file_get_contents(dirname(__DIR__,2).'/'.$path);
-  self::assertStringContainsString("'external_actions_performed'=>false",str_replace(' ','',$source),$path);
- }
- public static function readOnlyProjectionProvider():array{
-  return [
-   ['includes/DigitalFactory/QaAdminSummary.php'],
-   ['includes/DigitalFactory/OperationalAdminSummary.php'],
-   ['includes/Queue/RecoveryAdminSummary.php'],
-  ];
- }
- public function testDigitalReadModelsNeverInferReadiness():void{
-  foreach(['includes/DigitalFactory/QaAdminSummary.php','includes/DigitalFactory/OperationalAdminSummary.php'] as $path){
-   $source=str_replace(' ','',(string)file_get_contents(dirname(__DIR__,2).'/'.$path));
-   self::assertStringContainsString("'readiness_inferred'=>false",$source,$path);
+ public function testDigitalQaSummaryIsReadOnlyWithoutReadinessInference():void{
+  foreach([[],[['validation_result'=>'PENDING','review_status'=>'UNREVIEWED']],[null]] as $rows){
+   $summary=QaAdminSummary::summarize($rows);
+   self::assertFalse($summary['readiness_inferred']);
+   self::assertFalse($summary['external_actions_performed']);
   }
  }
- public function testRecoveryQueryFailureRequiresRecovery():void{
-  $source=str_replace(' ','',(string)file_get_contents(dirname(__DIR__,2).'/includes/Queue/RecoveryAdminSummary.php'));
-  self::assertStringContainsString("'query_ok'=>false",$source);
-  self::assertStringContainsString("'recovery_required'=>true",$source);
+ public function testOperationalSummaryAllReturnPathsAreReadOnlyWithoutReadinessInference():void{
+  foreach([
+   OperationalAdminSummary::summarize([], 'status'),
+   OperationalAdminSummary::summarize([['status'=>'PERSISTED']], 'status'),
+   OperationalAdminSummary::summarize([['generation_status'=>'PERSISTED']], 'generation_status'),
+   OperationalAdminSummary::summarize([['status'=>'PERSISTED']], 'unsupported_field'),
+  ] as $summary){
+   self::assertFalse($summary['readiness_inferred']);
+   self::assertFalse($summary['external_actions_performed']);
+  }
+ }
+ public function testRecoverySummarySuccessAndFailurePathsRemainReadOnlyAndFailClosed():void{
+  $failed=RecoveryAdminSummary::summarize([],false);
+  self::assertFalse($failed['query_ok']);
+  self::assertTrue($failed['recovery_required']);
+  self::assertFalse($failed['external_actions_performed']);
+  $healthy=RecoveryAdminSummary::summarize([],true);
+  self::assertTrue($healthy['query_ok']);
+  self::assertFalse($healthy['recovery_required']);
+  self::assertFalse($healthy['external_actions_performed']);
+  $attention=RecoveryAdminSummary::summarize(['FAILED'=>'2'],true);
+  self::assertSame(2,$attention['attention_total']);
+  self::assertTrue($attention['recovery_required']);
+  self::assertFalse($attention['external_actions_performed']);
  }
 }
