@@ -6,6 +6,7 @@ namespace DigiForge\REST;
 
 use DigiForge\Core\Capabilities;
 use DigiForge\Launch\ExecutionEngine;
+use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Listings\ListingFactory;
 use DigiForge\ProductFactory\Orchestrator;
 use DigiForge\ProductFactory\ProductReview;
@@ -22,6 +23,11 @@ final class LaunchController
                 'methods' => 'GET',
                 'permission_callback' => [$this, 'canManage'],
                 'callback' => [$this, 'status'],
+            ]);
+            register_rest_route(self::NS, '/launch/research/preflight', [
+                'methods' => 'GET',
+                'permission_callback' => [$this, 'canResearch'],
+                'callback' => [$this, 'researchPreflight'],
             ]);
             register_rest_route(self::NS, '/launch/research', [
                 'methods' => 'POST',
@@ -103,6 +109,11 @@ final class LaunchController
             'order_execution' => false,
             'gst_execution' => false,
         ]);
+    }
+
+    public function researchPreflight(): \WP_REST_Response
+    {
+        return new \WP_REST_Response((new ResearchActivationPreflight())->report(), 200);
     }
 
     public function research(\WP_REST_Request $request): mixed
