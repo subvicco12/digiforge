@@ -15,7 +15,7 @@ final class DigitalQaAdminSummaryTest extends TestCase {
   self::assertSame(5,$r['total']);
   self::assertSame(['FAIL'=>1,'NOT_APPLICABLE'=>1,'PASS'=>1,'PENDING'=>1,'WARNING'=>1],$r['validation_results']);
   self::assertSame(['ACCEPTED'=>1,'APPROVED'=>1,'REVIEW_REQUIRED'=>1,'UNREVIEWED'=>2],$r['review_statuses']);
-  self::assertSame(0,$r['invalid']); self::assertSame(2,$r['attention']);
+  self::assertSame(0,$r['invalid']); self::assertSame(2,$r['attention_total']);
   self::assertFalse($r['readiness_inferred']);
   self::assertFalse($r['external_actions_performed']);
   self::assertContains('WARNING', \DigiForge\DigitalFactory\Validator::RESULTS);
