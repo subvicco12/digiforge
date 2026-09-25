@@ -26,22 +26,14 @@ The following controls must remain unchanged until separately authorized:
 - One administrator account is present in the current WordPress user list.
 - DigiForge remains externally locked and fail-closed.
 
-### Hardening Gap
-`DISALLOW_FILE_EDIT` is not currently defined in `wp-config.php`.
+### Host-level hardening completion
+The previously identified `DISALLOW_FILE_EDIT` gap has been closed. On 2026-09-25, after confirming recovery evidence, `DISALLOW_FILE_EDIT=true` was applied through safe host-level `wp-config.php` configuration and verified as a boolean value. The post-change check retained READY_LOCKED, schema 14 / 14, recovery PASS, healthy WP-Cron, inactive maintenance mode, all effective external switches false, and `external_actions_performed=false`.
 
-Recommended production setting after backup confirmation:
+### Historical pre-change safeguards
+Before the completed hardening change, configuration-level changes that could affect recovery or site access were intentionally deferred until the production database backup was confirmed and recorded in DigiForge recovery evidence.
 
-```php
-define( 'DISALLOW_FILE_EDIT', true );
-```
-
-This prevents plugin/theme source editing through the WordPress dashboard while preserving normal plugin/theme operation and deployment workflows.
-
-### Changes Deferred Until Backup Confirmation
-Do not make configuration-level changes that may affect recovery or site access until the production database backup has been confirmed and recorded in DigiForge recovery evidence.
-
-Deferred items include:
-- Define `DISALLOW_FILE_EDIT` as true.
+Items governed by that safeguard included:
+- Define `DISALLOW_FILE_EDIT` as true (completed 2026-09-25).
 - Review host-level file and directory permissions.
 - Review login/rate-limit protections that require host or security-plugin changes.
 - Verify production secret handling at the hosting layer.
@@ -78,7 +70,7 @@ When WPVibe calls are available again, perform a small controlled validation set
 6. Confirm failures, if any, can be separated into account-quota, network, WordPress, or DigiForge layers.
 
 ## P1 Recovery Evidence — Completed
-Post-deployment verification for DigiForge 1.0.1 confirms:
+Post-deployment verification and the later live 1.0.31 acceptance confirm:
 - Database backup evidence: TRUE.
 - Plugin package evidence: TRUE.
 - Checksum evidence: TRUE.
@@ -88,10 +80,10 @@ Post-deployment verification for DigiForge 1.0.1 confirms:
 - `externally_locked = true`.
 - `external_actions_performed = false`.
 
-The remaining host-level hardening item is `DISALLOW_FILE_EDIT=true` in `wp-config.php`; it must be applied through a safe host configuration path, not emulated with a runtime snippet or database write.
+The host-level `DISALLOW_FILE_EDIT=true` hardening item was completed through safe `wp-config.php` configuration on 2026-09-25 and verified afterward; it was not emulated with a runtime snippet or database write.
 
 ## Completion Criteria
-P2/P3 completion criteria:
+P2/P3 completion criteria are now satisfied for the host-level file-edit hardening and recorded recovery evidence:
 - Production backup evidence is complete.
 - `DISALLOW_FILE_EDIT` is enabled and verified.
 - Core checksums remain clean.
