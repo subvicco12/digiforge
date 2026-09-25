@@ -123,6 +123,11 @@ namespace {
                 {
                     return '0';
                 }
+
+                public function get_results(string $query, mixed $output = null): array
+                {
+                    return [];
+                }
             };
         }
     }
@@ -132,6 +137,7 @@ namespace {
     require_once __DIR__ . '/../../includes/Database/Tables.php';
     require_once __DIR__ . '/../../includes/Core/Settings.php';
     require_once __DIR__ . '/../../includes/Security/Logger.php';
+    require_once __DIR__ . '/../../includes/Queue/RecoveryAdminSummary.php';
     require_once __DIR__ . '/../../includes/Observability/HealthMonitor.php';
     require_once __DIR__ . '/../../includes/Operations/Readiness.php';
     require_once __DIR__ . '/../../includes/Core/Admin.php';
