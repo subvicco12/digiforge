@@ -25,8 +25,13 @@ final class BatchListingProjection
             }
 
             $reasons = [];
-            $productVersionId = (int) ($item['product_version_id'] ?? 0);
-            if ($productVersionId < 1) {
+            $rawProductVersionId = $item['product_version_id'] ?? null;
+            $validProductVersionId = is_int($rawProductVersionId)
+                ? $rawProductVersionId > 0
+                : (is_string($rawProductVersionId)
+                    && preg_match('/^[1-9][0-9]*$/', $rawProductVersionId) === 1);
+            $productVersionId = $validProductVersionId ? (int) $rawProductVersionId : 0;
+            if (! $validProductVersionId) {
                 $reasons[] = 'invalid_product_version';
             }
             if (($item['product_approved'] ?? false) !== true) {
