@@ -7,7 +7,8 @@ This guide is the production operating reference for DigiForge. It consolidates 
 - Product: DigiForge
 - Runtime: WordPress plugin
 - Current production host: digiforge.converentis.com
-- Current plugin release baseline: 1.0.31
+- Current live deployed plugin baseline: 1.0.1
+- Repository-certified deployment candidate: 1.0.31
 - Current database schema baseline: 14
 - Operating posture: LOCAL-FIRST and FAIL-CLOSED
 - STOP ALL: must remain ON until explicit activation authorization
@@ -40,7 +41,7 @@ The architecture separates local preparation from external execution. Local reco
 - Migration failures must fail closed.
 - Database changes must not be used to bypass authorization or activation gates.
 - Before destructive or production-affecting migration work, a recoverable production database backup must exist.
-- Schema version 14 is the current certified baseline for release 1.0.31.
+- Schema version 14 is the current certified database baseline. Live deployment evidence currently applies to plugin release 1.0.1; repository release 1.0.31 is the audited deployment candidate.
 
 ## 5. Safety and external-action model
 External execution is governed by layered controls.
@@ -267,7 +268,7 @@ Every production-affecting change should be traceable through:
 Do not merge a PR head that changed after the audited SHA without re-checking the new head and its CI result.
 
 ## 23. Current production-readiness state
-The certified DigiForge 1.0.31 deployment is verified at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
+The currently verified live DigiForge 1.0.1 deployment is at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Repository release 1.0.31 is certified as a deployment candidate but is not recorded here as live until a separate production deployment and verification is completed. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
 
 The remaining host-level hardening observation is `DISALLOW_FILE_EDIT=true` in `wp-config.php`; apply it only through a safe hosting configuration path.
 
