@@ -24,9 +24,9 @@ final class ListingAdminStateSummaryTest extends TestCase
 
     public function testMalformedRowsAreVisibleInsteadOfSilentlyPassing(): void
     {
-        $result = AdminStateSummary::summarize([[], 'bad', ['state'=>'']]);
-        self::assertSame(3, $result['total']);
+        $result = AdminStateSummary::summarize([[], 'bad', ['state'=>''], ['state'=>'CORRUPTED'], ['state'=>'1']]);
+        self::assertSame(5, $result['total']);
         self::assertSame([], $result['states']);
-        self::assertSame(3, $result['invalid']);
+        self::assertSame(5, $result['invalid']);
     }
 }
