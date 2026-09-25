@@ -8,6 +8,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
+use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
@@ -18,6 +19,7 @@ final class Portal
     private const SHORTCODE = 'digiforge_admin_portal';
     private const REVIEW_ACTION = 'digiforge_portal_review_research';
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
+    private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -43,6 +45,7 @@ final class Portal
         add_shortcode(self::SHORTCODE, [$this, 'render']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
+        add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
     }
 
     public function render(): string
@@ -115,6 +118,32 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function saveAiSecret(): void
+    {
+        $this->guard('manage_digiforge_connections');
+        check_admin_referer(self::SAVE_AI_SECRET_ACTION);
+        $integrationId = isset($_POST['integration_id']) ? absint($_POST['integration_id']) : 0;
+        $value = isset($_POST['credential_value']) ? trim((string) wp_unslash($_POST['credential_value'])) : '';
+        if ($integrationId < 1 || $value === '') {
+            $this->redirect('integrations', 'Credential was not changed. Enter it in the secure DigiForge portal form.', true);
+        }
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare(
+            'SELECT id,provider,environment FROM ' . Tables::integrations() . ' WHERE id=%d LIMIT 1',
+            $integrationId
+        ), ARRAY_A);
+        if (!is_array($row) || (string) $row['provider'] !== 'ai' || (string) $row['environment'] !== 'production') {
+            $this->redirect('integrations', 'Only the production AI connector can be updated here.', true);
+        }
+        $result = (new IntegrationRepository())->storeSecret($integrationId, 'api_key', $value);
+        unset($value);
+        if (is_wp_error($result)) {
+            $this->redirect('integrations', 'Credential could not be stored securely. ' . $result->get_error_message(), true);
+        }
+        Logger::audit('portal_ai_credential_replaced', ['integration_id' => $integrationId], 'integration', (string) $integrationId);
+        $this->redirect('integrations', 'AI credential replaced securely. No activation switch was changed.');
     }
 
     public function develop(): void
@@ -391,7 +420,9 @@ final class Portal
                 . '<div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div>'
                 . '<div><dt>Enabled</dt><dd>' . (! empty($row['enabled']) ? 'YES' : 'NO') . '</dd></div>'
                 . '<div><dt>Updated</dt><dd>' . esc_html((string) $row['updated_at']) . '</dd></div>'
-                . '</dl></article>';
+                . '</dl>'
+                . (((string) $row['provider'] === 'ai' && (string) $row['environment'] === 'production') ? '<form class="df-credential-form" method="post" action="' . esc_url(admin_url('admin-post.php')) . '">' . '<input type="hidden" name="action" value="' . esc_attr(self::SAVE_AI_SECRET_ACTION) . '">' . wp_nonce_field(self::SAVE_AI_SECRET_ACTION, '_wpnonce', true, false) . '<input type="hidden" name="integration_id" value="' . esc_attr((string) $row['id']) . '">' . '<label>Replace encrypted AI credential <input type="password" name="credential_value" autocomplete="new-password" required></label>' . '<button type="submit">Save Credential</button></form>' : '')
+                . '</article>';
         }
         echo '</div></section>';
     }
