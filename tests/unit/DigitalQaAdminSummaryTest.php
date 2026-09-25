@@ -18,6 +18,8 @@ final class DigitalQaAdminSummaryTest extends TestCase {
   self::assertSame(0,$r['invalid']);
   self::assertFalse($r['readiness_inferred']);
   self::assertFalse($r['external_actions_performed']);
+  self::assertContains('WARNING', \DigiForge\DigitalFactory\Validator::RESULTS);
+  self::assertContains('ACCEPTED', \DigiForge\DigitalFactory\Validator::REVIEWS);
  }
  public function testMalformedOrUnknownStatesFailClosed():void{
   $r=QaAdminSummary::summarize([[],['validation_result'=>'PASS','review_status'=>'BOGUS'],['validation_result'=>'CORRUPT','review_status'=>'APPROVED'],'bad']);
