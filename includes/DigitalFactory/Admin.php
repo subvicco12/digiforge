@@ -12,9 +12,12 @@ final class Admin {
         $result=(new Repository())->all($type,$page);
         $items=$result['items'];
         $pagination=$result['pagination'];
-        $qaSummary=$type==='digital_download_check' && class_exists(QaAdminSummary::class) ? QaAdminSummary::summarize($items) : null; ?>
+        $qaSummary=$type==='digital_download_check' && class_exists(QaAdminSummary::class) ? QaAdminSummary::summarize($items) : null;
+        $operationalField=$type==='digital_package'?'generation_status':(in_array($type,['digital_file','digital_template'],true)?'status':'');
+        $operationalSummary=$operationalField!=='' && class_exists(OperationalAdminSummary::class) ? OperationalAdminSummary::summarize($items,$operationalField) : null; ?>
         <div class="wrap"><h1><?php echo esc_html($label); ?></h1><p><?php esc_html_e('Local Digital Product Factory records. External processing, automation, and publishing are OFF.','digiforge'); ?></p>
         <?php if(is_array($qaSummary)): ?><p><strong><?php esc_html_e('Current page QA snapshot:','digiforge'); ?></strong> <?php echo esc_html(sprintf(__('sampled %1$d; invalid/unknown %2$d; readiness inferred: NO; external actions performed: NO','digiforge'),(int)$qaSummary['total'],(int)$qaSummary['invalid'])); ?></p><?php endif; ?>
+        <?php if(is_array($operationalSummary)): ?><p><strong><?php esc_html_e('Current page operational snapshot:','digiforge'); ?></strong> <?php echo esc_html(sprintf(__('sampled %1$d; malformed %2$d; persisted states only; readiness inferred: NO; external actions performed: NO','digiforge'),(int)$operationalSummary['total'],(int)$operationalSummary['invalid'])); ?></p><?php endif; ?>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('ID','digiforge'); ?></th><th><?php esc_html_e('Name / check','digiforge'); ?></th><th><?php esc_html_e('Status','digiforge'); ?></th><th><?php esc_html_e('Updated (UTC)','digiforge'); ?></th></tr></thead><tbody>
         <?php if($items===[]): ?><tr><td colspan="4"><?php esc_html_e('No records found.','digiforge'); ?></td></tr><?php endif; foreach($items as $item): ?><tr><td><?php echo esc_html((string)$item['id']); ?></td><td><?php echo esc_html((string)($item['name']??$item['check_type']??'')); ?></td><td><?php echo esc_html((string)($item['state']??$item['status']??$item['generation_status']??$item['validation_result']??'')); ?></td><td><?php echo esc_html((string)$item['updated_at']); ?></td></tr><?php endforeach; ?>
         </tbody></table>
