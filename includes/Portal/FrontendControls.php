@@ -5,6 +5,7 @@ namespace DigiForge\Portal;
 use DigiForge\Core\Config;
 use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
+use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Security\Logger;
 
 final class FrontendControls
@@ -74,6 +75,7 @@ final class FrontendControls
         $armed = Settings::get('automation_armed', false) === true;
         $report = (new Readiness())->report();
         $certified = ($report['status'] ?? '') === 'READY_LOCKED';
+        $researchPreflight = (new ResearchActivationPreflight())->report();
         ob_start(); ?>
         <section class="df-panel df-frontend-controls">
             <div class="df-panel-head"><div><h2>System &amp; Automation Controls</h2><p>Routine DigiForge operations are controlled here. WordPress admin is not required.</p></div><span class="df-status"><?php echo esc_html($locked ? 'EXTERNALLY LOCKED' : 'ACTIVE'); ?></span></div>
@@ -97,6 +99,21 @@ final class FrontendControls
                 <?php endif; ?></article>
             <?php endforeach; ?>
             </div>
+            <section class="df-panel df-research-preflight">
+                <div class="df-panel-head"><div><h3>Research Activation Preflight</h3><p>Read-only production readiness check. No provider request, switch change, or external action is performed.</p></div><span class="df-status"><?php echo esc_html((string) ($researchPreflight['status'] ?? 'BLOCKED')); ?></span></div>
+                <div class="df-signal-grid">
+                    <?php foreach ((array) ($researchPreflight['checks'] ?? []) as $check => $passed) : ?>
+                        <div><span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $check))); ?></span><b><?php echo $passed ? 'PASS' : 'BLOCKED'; ?></b></div>
+                    <?php endforeach; ?>
+                </div>
+                <?php $blockers = (array) ($researchPreflight['blockers'] ?? []); ?>
+                <?php if ($blockers === []) : ?>
+                    <div class="df-notice df-notice-success">Research preflight passed. Next action: explicit controlled activation authorization. Live research still requires the separately governed AI activation stage.</div>
+                <?php else : ?>
+                    <div class="df-notice df-notice-error"><strong>Preflight blockers:</strong> <?php echo esc_html(implode(', ', array_map('strval', $blockers))); ?></div>
+                <?php endif; ?>
+                <div class="df-muted">Network requests performed: NO · External actions performed: NO</div>
+            </section>
             <div class="df-notice">Production activation never enables Etsy, Printify, Gelato, order, GST, research, AI, or product-development switches. Those remain individually controlled and approval-gated.</div>
         </section><?php return (string) ob_get_clean();
     }
