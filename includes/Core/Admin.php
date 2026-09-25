@@ -6,6 +6,7 @@ namespace DigiForge\Core;
 use DigiForge\Observability\HealthMonitor;
 use DigiForge\Operations\Readiness;
 use DigiForge\ProductFactory\Repository;
+use DigiForge\ProductFactory\PortfolioProjection;
 
 final class Admin
 {
@@ -196,9 +197,29 @@ final class Admin
     public function render_product_factory(): void
     {
         $this->guard('manage_digiforge_products');
+        $versions = (new Repository())->all('product_version', 1, Repository::MAX_PAGE_SIZE);
+        $facts = [];
+        foreach (($versions['items'] ?? []) as $version) {
+            if (! is_array($version)) { continue; }
+            $facts[] = [
+                'product_version_id' => (int) ($version['id'] ?? 0),
+                'product_state' => (string) ($version['state'] ?? ''),
+            ];
+        }
+        $portfolio = PortfolioProjection::summarize($facts);
         ?>
         <div class="wrap"><h1><?php esc_html_e('Product Factory', 'digiforge'); ?></h1>
-        <p><?php esc_html_e('Manage opportunities, product families, products, and product versions through the DigiForge REST API. Automation and external side effects remain disabled.', 'digiforge'); ?></p>
+        <p><?php esc_html_e('Read-only portfolio visibility. Automation and external side effects remain disabled; approvals continue through the authenticated workflow.', 'digiforge'); ?></p>
+        <h2><?php esc_html_e('Portfolio snapshot', 'digiforge'); ?></h2>
+        <table class="widefat striped"><tbody>
+        <tr><th><?php esc_html_e('Product versions sampled', 'digiforge'); ?></th><td><?php echo esc_html((string) ($portfolio['total'] ?? 0)); ?></td></tr>
+        <tr><th><?php esc_html_e('Product review ready', 'digiforge'); ?></th><td><?php echo esc_html((string) ($portfolio['ready_for_product_review'] ?? 0)); ?></td></tr>
+        <tr><th><?php esc_html_e('Listing review ready', 'digiforge'); ?></th><td><?php echo esc_html((string) ($portfolio['ready_for_listing_review'] ?? 0)); ?></td></tr>
+        <tr><th><?php esc_html_e('Attention items', 'digiforge'); ?></th><td><?php echo esc_html((string) count($portfolio['attention'] ?? [])); ?></td></tr>
+        <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><strong>NO</strong></td></tr>
+        </tbody></table>
+        <p><?php esc_html_e('Snapshot is bounded to the most recent 100 product versions and does not schedule, approve, publish, or call external providers.', 'digiforge'); ?></p>
+        <h2><?php esc_html_e('Entity foundations', 'digiforge'); ?></h2>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('Entity', 'digiforge'); ?></th><th><?php esc_html_e('Initial state', 'digiforge'); ?></th></tr></thead><tbody>
         <tr><td><?php esc_html_e('Opportunities', 'digiforge'); ?></td><td>NEW</td></tr><tr><td><?php esc_html_e('Product Families', 'digiforge'); ?></td><td>DRAFT</td></tr><tr><td><?php esc_html_e('Products', 'digiforge'); ?></td><td>DRAFT</td></tr><tr><td><?php esc_html_e('Product Versions', 'digiforge'); ?></td><td>DRAFT</td></tr>
         </tbody></table></div>
