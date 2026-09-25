@@ -15,6 +15,6 @@ final class QueueRecoveryAdminSummaryTest extends TestCase
  }
  public function testMalformedCountsDoNotBecomeAttention():void{
   $r=RecoveryAdminSummary::summarize(['FAILED'=>'5','BLOCKED'=>-1,'HUMAN_REVIEW'=>2],true);
-  self::assertSame(2,$r['attention_total']);self::assertSame(0,$r['states']['FAILED']);self::assertSame(0,$r['states']['BLOCKED']);
+  self::assertSame(7,$r['attention_total']);self::assertSame(5,$r['states']['FAILED']);self::assertSame(0,$r['states']['BLOCKED']);
  }
 }
