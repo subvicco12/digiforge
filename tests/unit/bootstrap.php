@@ -52,4 +52,5 @@ require_once __DIR__ . '/../../includes/Operations/RecoveryDrill.php';
 require_once __DIR__ . '/../../includes/Database/MigrationPlan.php';
 require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/Queue/JobState.php';
+require_once __DIR__ . '/../../includes/Queue/RecoveryAdminSummary.php';
 require_once __DIR__ . '/../../includes/Observability/HealthStatus.php';
