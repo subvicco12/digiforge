@@ -15,6 +15,9 @@ final class ListingAdminVisibilityTest extends TestCase
         self::assertStringContainsString('AdminStateSummary::summarize', $source);
         self::assertStringContainsString('SELECT state FROM ', $source);
         self::assertStringContainsString('Snapshot is read-only', $source);
+        self::assertStringContainsString('Snapshot query status', $source);
+        self::assertStringContainsString("'query_ok' => false", $source);
+        self::assertStringContainsString('$wpdb->last_error', $source);
         self::assertStringContainsString('Etsy API invoked', $source);
         self::assertStringContainsString('External actions performed', $source);
         self::assertStringNotContainsString('createDraftPackage(', $source);
