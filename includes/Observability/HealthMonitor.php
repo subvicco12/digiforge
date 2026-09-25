@@ -8,6 +8,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Database\MigrationPlan;
 use DigiForge\Database\Tables;
 use DigiForge\Security\Logger;
+use DigiForge\Queue\RecoveryAdminSummary;
 
 final class HealthMonitor
 {
@@ -31,7 +32,13 @@ final class HealthMonitor
         $deadRaw = $wpdb->get_var("SELECT COUNT(*) FROM " . Tables::jobs() . " WHERE state = 'DEAD_LETTER'");
         $deadQueryOk = $wpdb->last_error === '' && $deadRaw !== null;
         $deadLetters = $deadQueryOk ? (int) $deadRaw : 0;
-        $queueQueryOk = $expiredQueryOk && $deadQueryOk;
+        $wpdb->last_error = '';
+        $recoveryRows = $wpdb->get_results("SELECT state, COUNT(*) AS total FROM " . Tables::jobs() . " WHERE state IN ('FAILED','BLOCKED','HUMAN_REVIEW','DEAD_LETTER') GROUP BY state", ARRAY_A);
+        $recoveryQueryOk = $wpdb->last_error === '' && is_array($recoveryRows);
+        $recoveryCounts = [];
+        if ($recoveryQueryOk) { foreach ($recoveryRows as $row) { if (isset($row['state'])) { $recoveryCounts[(string)$row['state']] = $row['total'] ?? 0; } } }
+        $recovery = RecoveryAdminSummary::summarize($recoveryCounts, $recoveryQueryOk);
+        $queueQueryOk = $expiredQueryOk && $deadQueryOk && $recoveryQueryOk;
 
         $auditFailure = Logger::lastFailure();
 
@@ -46,7 +53,7 @@ final class HealthMonitor
             'automation_locked' => Settings::safety_locked(),
             'schema' => ['current' => $currentSchema, 'expected' => MigrationPlan::LATEST],
             'audit' => ['status' => $auditStatus, 'last_failure' => $auditFailure],
-            'queue' => ['status' => $queueStatus, 'query_ok' => $queueQueryOk, 'expired_leases' => $expiredLeases, 'dead_letters' => $deadLetters],
+            'queue' => ['status' => $queueStatus, 'query_ok' => $queueQueryOk, 'expired_leases' => $expiredLeases, 'dead_letters' => $deadLetters, 'recovery' => $recovery],
         ];
     }
 }
