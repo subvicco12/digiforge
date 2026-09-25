@@ -11,8 +11,10 @@ final class Admin {
         $page=isset($_GET['paged'])?max(1,absint(wp_unslash($_GET['paged']))):1;
         $result=(new Repository())->all($type,$page);
         $items=$result['items'];
-        $pagination=$result['pagination']; ?>
+        $pagination=$result['pagination'];
+        $qaSummary=$type==='digital_download_check' && class_exists(QaAdminSummary::class) ? QaAdminSummary::summarize($items) : null; ?>
         <div class="wrap"><h1><?php echo esc_html($label); ?></h1><p><?php esc_html_e('Local Digital Product Factory records. External processing, automation, and publishing are OFF.','digiforge'); ?></p>
+        <?php if(is_array($qaSummary)): ?><p><strong><?php esc_html_e('Current page QA snapshot:','digiforge'); ?></strong> <?php echo esc_html(sprintf(__('sampled %1$d; invalid/unknown %2$d; readiness inferred: NO; external actions performed: NO','digiforge'),(int)$qaSummary['total'],(int)$qaSummary['invalid'])); ?></p><?php endif; ?>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('ID','digiforge'); ?></th><th><?php esc_html_e('Name / check','digiforge'); ?></th><th><?php esc_html_e('Status','digiforge'); ?></th><th><?php esc_html_e('Updated (UTC)','digiforge'); ?></th></tr></thead><tbody>
         <?php if($items===[]): ?><tr><td colspan="4"><?php esc_html_e('No records found.','digiforge'); ?></td></tr><?php endif; foreach($items as $item): ?><tr><td><?php echo esc_html((string)$item['id']); ?></td><td><?php echo esc_html((string)($item['name']??$item['check_type']??'')); ?></td><td><?php echo esc_html((string)($item['state']??$item['status']??$item['generation_status']??$item['validation_result']??'')); ?></td><td><?php echo esc_html((string)$item['updated_at']); ?></td></tr><?php endforeach; ?>
         </tbody></table>
