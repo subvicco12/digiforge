@@ -16,12 +16,21 @@ if (! function_exists('sanitize_key')) {
         return preg_replace('/[^a-z0-9_\-]/', '', $key) ?? '';
     }
 }
+if (! function_exists('sanitize_text_field')) {
+    function sanitize_text_field(string $value): string
+    {
+        $value = strip_tags($value);
+        $value = preg_replace('/[\r\n\t ]+/', ' ', $value) ?? '';
+        return trim($value);
+    }
+}
 // phpcs:enable PSR1.Files.SideEffects.FoundWithSymbols
 
 require_once __DIR__ . '/../../includes/Core/Config.php';
 require_once __DIR__ . '/../../includes/ProductFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/ProductFactory/Workflow.php';
 require_once __DIR__ . '/../../includes/ProductFactory/PortfolioProjection.php';
+require_once __DIR__ . '/../../includes/ProductFactory/ProductDefinitionContract.php';
 require_once __DIR__ . '/../../includes/ProductFactory/AutomatedQa.php';
 require_once __DIR__ . '/../../includes/DigitalFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/AI/Lifecycle.php';
