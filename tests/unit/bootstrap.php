@@ -16,6 +16,14 @@ if (! function_exists('sanitize_key')) {
         return preg_replace('/[^a-z0-9_\-]/', '', $key) ?? '';
     }
 }
+if (! function_exists('sanitize_text_field')) {
+    function sanitize_text_field(string $value): string
+    {
+        $value = strip_tags($value);
+        $value = preg_replace('/[\r\n\t ]+/', ' ', $value) ?? '';
+        return trim($value);
+    }
+}
 // phpcs:enable PSR1.Files.SideEffects.FoundWithSymbols
 
 require_once __DIR__ . '/../../includes/Core/Config.php';
