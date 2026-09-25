@@ -136,6 +136,7 @@ final class Admin
                 <tr><th><?php esc_html_e('Queue query OK', 'digiforge'); ?></th><td><?php echo ! empty($health['queue']['query_ok']) ? 'YES' : 'NO'; ?></td></tr>
                 <tr><th><?php esc_html_e('Expired leases', 'digiforge'); ?></th><td><?php echo esc_html((string) ($health['queue']['expired_leases'] ?? 0)); ?></td></tr>
                 <tr><th><?php esc_html_e('Dead letters', 'digiforge'); ?></th><td><?php echo esc_html((string) ($health['queue']['dead_letters'] ?? 0)); ?></td></tr>
+                <tr><th><?php esc_html_e('Recovery attention', 'digiforge'); ?></th><td><?php echo ! empty($health['queue']['recovery']['query_ok']) ? esc_html((string) ($health['queue']['recovery']['attention_total'] ?? 0)) : esc_html__('UNAVAILABLE (query failed)', 'digiforge'); ?></td></tr>
             </tbody></table>
         </div>
         <?php
