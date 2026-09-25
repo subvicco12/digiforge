@@ -26,7 +26,8 @@ final class Portal
         'products' => ['label' => 'Product Factory', 'cap' => 'manage_digiforge_products'],
         'digital' => ['label' => 'Digital Products', 'cap' => 'manage_digiforge_digital'],
         'production' => ['label' => 'Production', 'cap' => 'manage_digiforge_production'],
-        'pod' => ['label' => 'POD', 'cap' => 'manage_digiforge_pod'],
+        'pod_personalized' => ['label' => 'POD — Personalized', 'cap' => 'manage_digiforge_pod'],
+        'pod_future_nonpersonalized' => ['label' => 'POD — Future Non-Personalized', 'cap' => 'manage_digiforge_pod'],
         'listings' => ['label' => 'Listings & Etsy', 'cap' => 'manage_digiforge_listings'],
         'orders' => ['label' => 'Orders & Fulfillment', 'cap' => 'manage_digiforge_orders'],
         'finance' => ['label' => 'Finance & Analytics', 'cap' => 'manage_digiforge_finance'],
@@ -137,6 +138,7 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
+        if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
         foreach ($this->tables($view) as $label => $table) {
             $this->panelTable($label, $table);
         }
@@ -310,6 +312,21 @@ final class Portal
         <?php
     }
 
+    private function futureNonPersonalizedPod(): void
+    {
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Future Non-Personalized POD</h2><p>Reserved product lane for future POD products that do not require customer personalization.</p></div><span class="df-status">PLANNED · INERT</span></div>';
+        echo '<div class="df-notice">This lane is intentionally planning/read-only only. No non-personalized POD execution, publishing, ordering, fulfillment, or provider activation is enabled by this tab.</div>';
+        echo '<div class="df-signal-grid">'
+            . '<div><span>Current personalized lane</span><b>ACTIVE FOUNDATION</b></div>'
+            . '<div><span>Non-personalized execution</span><b>NOT IMPLEMENTED</b></div>'
+            . '<div><span>External provider actions</span><b>LOCKED</b></div>'
+            . '<div><span>Product publishing</span><b>OFF</b></div>'
+            . '</div></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Shared POD catalog</h2><p>Supplier/catalog evidence is shared; this view does not infer personalization classification where the repository has no authoritative classification field.</p></div></div>';
+        $this->panelTable('Shared POD Catalog', Tables::pod_catalog());
+        echo '</section>';
+    }
+
     private function integrations(): void
     {
         global $wpdb;
@@ -423,7 +440,7 @@ final class Portal
                 'Production QA' => Tables::production_qa(),
                 'Release Bundles' => Tables::release_bundles(),
             ],
-            'pod' => [
+            'pod_personalized' => [
                 'POD Catalog' => Tables::pod_catalog(),
                 'Mappings' => Tables::pod_mappings(),
                 'Print Areas' => Tables::pod_print_areas(),
