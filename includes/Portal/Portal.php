@@ -7,6 +7,7 @@ namespace DigiForge\Portal;
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
+use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Operations\Readiness;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
@@ -22,6 +23,7 @@ final class Portal
     private const NAV = [
         'dashboard' => ['label' => 'Dashboard', 'cap' => 'manage_digiforge'],
         'approvals' => ['label' => 'Approval Inbox', 'cap' => 'manage_digiforge_research'],
+        'attention' => ['label' => 'Attention & Recovery', 'cap' => 'manage_digiforge'],
         'research' => ['label' => 'Research', 'cap' => 'manage_digiforge_research'],
         'products' => ['label' => 'Product Factory', 'cap' => 'manage_digiforge_products'],
         'digital' => ['label' => 'Digital Products', 'cap' => 'manage_digiforge_digital'],
@@ -135,6 +137,7 @@ final class Portal
     {
         if ($view === 'dashboard') { $this->dashboard(); return; }
         if ($view === 'approvals') { $this->approvals(); return; }
+        if ($view === 'attention') { $this->attention(); return; }
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
@@ -194,6 +197,49 @@ final class Portal
             . '<div><span>Gate 3</span><b>Listing / Publish Approval</b></div>'
             . '</div><p class="df-muted">External Etsy/POD/order/tax execution remains controlled by the existing fail-closed switches.</p></section>';
         $this->systemSummary();
+    }
+
+    private function attention(): void
+    {
+        global $wpdb;
+        $preflight = (new ResearchActivationPreflight())->report();
+        $blockers = array_values(array_filter((array) ($preflight['blockers'] ?? []), 'is_scalar'));
+        $alerts = $wpdb->get_results(
+            'SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at '
+            . 'FROM ' . Tables::operational_alerts()
+            . " WHERE state NOT IN ('RESOLVED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
+            ARRAY_A
+        );
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Attention & Recovery</h2>'
+            . '<p>Human-attention signals are shown here without inferring readiness from arbitrary operational status text.</p></div>'
+            . '<span class="df-status">' . esc_html($blockers === [] ? 'NO PREFLIGHT BLOCKERS' : count($blockers) . ' PREFLIGHT BLOCKER(S)') . '</span></div>';
+        if ($blockers !== []) {
+            echo '<div class="df-notice df-notice-error"><strong>Research activation blockers:</strong> '
+                . esc_html(implode(', ', array_map('strval', $blockers))) . '</div>';
+        } else {
+            echo '<div class="df-notice df-notice-success">Research activation preflight currently has no blockers.</div>';
+        }
+        echo '<div class="df-signal-grid">'
+            . '<div><span>Readiness</span><b>' . esc_html((string) ($preflight['checks']['readiness_ready_locked'] ?? 'UNKNOWN')) . '</b></div>'
+            . '<div><span>Recovery</span><b>' . esc_html((string) ($preflight['checks']['recovery_pass'] ?? 'UNKNOWN')) . '</b></div>'
+            . '<div><span>External execution</span><b>' . esc_html((string) ($preflight['checks']['external_lock'] ?? 'UNKNOWN')) . '</b></div>'
+            . '<div><span>Credential decryptability</span><b>' . esc_html((string) ($preflight['checks']['credential_decryptable'] ?? 'UNKNOWN')) . '</b></div>'
+            . '</div></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Open operational alerts</h2><p>These records require human review or explicit recovery handling.</p></div>'
+            . '<span>' . esc_html((string) count(is_array($alerts) ? $alerts : [])) . ' open</span></div>';
+        if (!is_array($alerts) || $alerts === []) {
+            echo '<div class="df-empty">No open operational alerts.</div>';
+        } else {
+            echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Environment</th><th>Severity</th><th>Type</th><th>Source</th><th>State</th><th>Created</th></tr></thead><tbody>';
+            foreach ($alerts as $alert) {
+                echo '<tr><td>' . esc_html((string) $alert['id']) . '</td><td>' . esc_html((string) $alert['environment']) . '</td><td>'
+                    . esc_html((string) $alert['severity']) . '</td><td>' . esc_html((string) $alert['alert_type']) . '</td><td>'
+                    . esc_html((string) $alert['source_type']) . '#' . esc_html((string) $alert['source_id']) . '</td><td>'
+                    . esc_html((string) $alert['state']) . '</td><td>' . esc_html((string) $alert['created_at']) . '</td></tr>';
+            }
+            echo '</tbody></table></div>';
+        }
+        echo '</section>';
     }
 
     private function approvals(): void
