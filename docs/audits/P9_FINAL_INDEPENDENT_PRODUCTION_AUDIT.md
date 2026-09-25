@@ -179,6 +179,27 @@ Current boundary:
 - external activation remains unauthorized and locked;
 - host-level hardening issue #137 (DISALLOW_FILE_EDIT) remains intentionally open until safe host access and a current backup are available.
 
+## Live 1.0.31 verification addendum — 2026-09-25
+
+A fresh authenticated, read-only production verification established that the repository-certified DigiForge 1.0.31 package is now installed and active on `digiforge.converentis.com`.
+
+Verified live evidence:
+- DigiForge plugin version: `1.0.31`, active.
+- Readiness: `READY_LOCKED`.
+- Database schema: `14 / 14`.
+- `externally_locked=true`.
+- STOP ALL active.
+- Activation authorization remains false and automation remains unarmed.
+- Every effective external switch is false.
+- Audit and queue readiness checks pass, with no expired leases reported.
+- Recovery: `PASS`; database-backup, package, checksum, schema, restore-instruction, and STOP ALL evidence all report true.
+- `external_actions_performed=false`.
+- WP-Cron spawning test passes with HTTP 200; Action Scheduler has a recurring queue event.
+- `WP_DEBUG=false`.
+- `DISALLOW_FILE_EDIT` remains undefined and is still tracked by issue #137.
+
+This addendum supersedes only the earlier live-version boundary: 1.0.31 is now verified live. It does not rewrite the historical 1.0.1 evidence and does not authorize any external execution or activation.
+
 ## Activation decision
 **EXTERNAL AUTOMATION REMAINS LOCKED AND REQUIRES SEPARATE EXPLICIT AUTHORIZATION.**
 
