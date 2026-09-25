@@ -7,6 +7,8 @@ namespace DigiForge\Listings;
 /** Pure read-model aggregation for listing state visibility. */
 final class AdminStateSummary
 {
+    private const VALID_STATES = ['DRAFT','VALIDATED','REVIEW_REQUIRED','APPROVED','REJECTED','SUPERSEDED'];
+
     /** @param array<int,mixed> $rows @return array<string,mixed> */
     public static function summarize(array $rows): array
     {
@@ -18,6 +20,10 @@ final class AdminStateSummary
                 continue;
             }
             $state = strtoupper(trim($row['state']));
+            if (! in_array($state, self::VALID_STATES, true)) {
+                $invalid++;
+                continue;
+            }
             $states[$state] = ($states[$state] ?? 0) + 1;
         }
         ksort($states);
