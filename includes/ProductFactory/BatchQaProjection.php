@@ -19,6 +19,13 @@ final class BatchQaProjection
 
         foreach ($items as $index => $item) {
             if (! is_array($item)) {
+                $failed++;
+                $attention[] = [
+                    'index' => (int) $index,
+                    'product_version_id' => 0,
+                    'asset_id' => 0,
+                    'failed_checks' => ['invalid_item'],
+                ];
                 continue;
             }
             $checks = isset($item['checks']) && is_array($item['checks']) ? $item['checks'] : [];
