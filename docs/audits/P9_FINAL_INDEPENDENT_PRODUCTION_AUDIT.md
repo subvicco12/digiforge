@@ -173,11 +173,11 @@ The live-production findings above remain historical evidence for the verified D
 
 Repository development subsequently converged to DigiForge 1.0.31 / database schema 14. The 1.0.31 repository candidate has passed the current Engineering and Safety Audit chain and final artifact certification, including exact ZIP packaging, SHA-256 verification, and deterministic release-manifest evidence. It is a certified deployment candidate, not a claim of live deployment.
 
-Current boundary:
+Boundary at the time of this repository-certification addendum:
 - verified live baseline: DigiForge 1.0.1 / schema 14 / READY_LOCKED;
 - repository-certified deployment candidate: DigiForge 1.0.31 / schema 14;
-- external activation remains unauthorized and locked;
-- host-level hardening issue #137 (DISALLOW_FILE_EDIT) remains intentionally open until safe host access and a current backup are available.
+- external activation remained unauthorized and locked;
+- host-level hardening issue #137 (DISALLOW_FILE_EDIT) was still open at that time pending safe host access and a current backup.
 
 ## Live 1.0.31 verification addendum — 2026-09-25
 
@@ -216,3 +216,25 @@ After `READY_LOCKED` is independently verified, any future activation must still
 10. Tax functionality
 
 Each stage requires its own validation and authorization. No stage is authorized by this audit report.
+
+
+## Final production hardening completion addendum — 2026-09-25
+
+After the live 1.0.31 verification above, the remaining host-level hardening acceptance item was completed and independently rechecked. GitHub issue #137 is closed as completed.
+
+Final verified production state:
+- `DISALLOW_FILE_EDIT=true` confirmed as a boolean host configuration value.
+- DigiForge plugin version `1.0.31` active.
+- Database schema `14 / 14`.
+- Readiness `READY_LOCKED`.
+- `externally_locked=true`.
+- STOP ALL active.
+- Activation authorization false.
+- Automation unarmed.
+- Every effective external feature switch false.
+- Recovery `PASS` with backup/package/checksum/schema/restore/STOP ALL evidence present.
+- WP-Cron spawning healthy with HTTP 200.
+- Maintenance mode inactive.
+- `external_actions_performed=false`.
+
+This final hardening verification satisfies issue #137 acceptance criteria. It does not authorize Etsy, Printify, Gelato, order automation, fulfillment, GST/tax automation, AI-provider execution, publishing, or any other external side effect. Production remains deliberately READY_LOCKED until a separate explicit activation decision is made.
