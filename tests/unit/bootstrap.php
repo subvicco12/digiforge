@@ -32,6 +32,7 @@ require_once __DIR__ . '/../../includes/ProductFactory/Workflow.php';
 require_once __DIR__ . '/../../includes/ProductFactory/PortfolioProjection.php';
 require_once __DIR__ . '/../../includes/ProductFactory/ProductDefinitionContract.php';
 require_once __DIR__ . '/../../includes/ProductFactory/AutomatedQa.php';
+require_once __DIR__ . '/../../includes/ProductFactory/BatchQaProjection.php';
 require_once __DIR__ . '/../../includes/DigitalFactory/Lifecycle.php';
 require_once __DIR__ . '/../../includes/AI/Lifecycle.php';
 require_once __DIR__ . '/../../includes/Listings/Lifecycle.php';
