@@ -23,6 +23,10 @@ final class DigitalQaAdminSummaryTest extends TestCase {
  }
  public function testMalformedOrUnknownStatesFailClosed():void{
   $r=QaAdminSummary::summarize([[],['validation_result'=>'PASS','review_status'=>'BOGUS'],['validation_result'=>'CORRUPT','review_status'=>'APPROVED'],'bad']);
-  self::assertSame(4,$r['total']);self::assertSame([], $r['validation_results']);self::assertSame([], $r['review_statuses']);self::assertSame(4,$r['invalid']);
+  self::assertSame(4,$r['total']);self::assertSame([], $r['validation_results']);self::assertSame([], $r['review_statuses']);self::assertSame(4,$r['invalid']);self::assertSame(4,$r['attention_total']);self::assertSame('INVALID_EVIDENCE',$r['attention'][0]['reason']);
+ }
+ public function testAttentionIdsFailClosedWithoutLooseIntegerCasts():void{
+  $r=QaAdminSummary::summarize([['id'=>'12abc','digital_product_id'=>'7x','validation_result'=>'FAIL','review_status'=>'REVIEW_REQUIRED'],['id'=>'12','digital_product_id'=>7,'validation_result'=>'PASS','review_status'=>'REJECTED']]);
+  self::assertSame(2,$r['attention_total']);self::assertSame(0,$r['attention'][0]['id']);self::assertSame(0,$r['attention'][0]['digital_product_id']);self::assertSame(12,$r['attention'][1]['id']);self::assertSame(7,$r['attention'][1]['digital_product_id']);self::assertFalse($r['readiness_inferred']);self::assertFalse($r['external_actions_performed']);
  }
 }
