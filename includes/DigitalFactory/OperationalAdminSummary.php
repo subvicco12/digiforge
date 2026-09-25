@@ -12,8 +12,8 @@ final class OperationalAdminSummary {
         $states=[];$invalid=0;
         foreach($rows as $row){
             if(!is_array($row)||!isset($row[$field])||!is_string($row[$field])){ $invalid++; continue; }
-            $state=strtoupper(trim($row[$field]));
-            if($state===''||preg_match('/^[A-Z][A-Z0-9_]{0,31}$/',$state)!==1){ $invalid++; continue; }
+            $state=trim($row[$field]);
+            if($state===''){ $invalid++; continue; }
             $states[$state]=($states[$state]??0)+1;
         }
         ksort($states);
