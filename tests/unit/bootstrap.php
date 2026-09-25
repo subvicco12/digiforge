@@ -54,3 +54,5 @@ require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/Queue/JobState.php';
 require_once __DIR__ . '/../../includes/Queue/RecoveryAdminSummary.php';
 require_once __DIR__ . '/../../includes/Observability/HealthStatus.php';
+
+require_once __DIR__ . '/../../includes/Launch/ResearchActivationPreflight.php';
