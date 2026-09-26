@@ -21,7 +21,7 @@ A recovery drill is only considered complete when all of the following are avail
 6. Confirmation that STOP ALL remains active.
 
 ## Current Certified Baseline
-- Current live DigiForge release: 1.0.33
+- Current live DigiForge release: 1.0.32
 - Repository-certified release: 1.0.33
 - Expected DigiForge database schema: 14
 - Production site: https://digiforge.converentis.com/
@@ -46,7 +46,7 @@ Do not mark DigiForge database-backup readiness evidence true until the backup i
 3. Confirm DigiForge activation authorization is OFF and automation armed is FALSE.
 4. Preserve the currently deployed database before destructive restore operations when feasible.
 5. Restore the selected full WordPress database backup using the hosting/database restore facility.
-6. Install or retain the audited DigiForge 1.0.33 plugin package matching the currently verified live deployment. Verify its recorded checksum before use; do not substitute a different package merely because it is newer.
+6. Install or retain the audited DigiForge 1.0.32 plugin package matching the currently verified live deployment. Verify its recorded checksum before use; do not substitute a different package merely because it is newer.
 7. Activate DigiForge only if required for the restored installation to match the certified baseline.
 8. Verify the DigiForge schema reports current = expected = 14. Do not manually force the schema option if migrations have failed.
 9. Verify STOP ALL is ON.
