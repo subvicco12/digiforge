@@ -1,3 +1,10 @@
+## 1.0.39 — 2026-09-26
+
+- Adds separately governed Stage 3 Product Development authorization with a non-user-writable gate.
+- Adds a read-only Stage 3 preflight requiring effective Research and AI before Product Development authorization.
+- Adds atomic scoped activation, front-end authorization control, and audit evidence.
+- Keeps Printify, Gelato, Etsy, orders/fulfillment, finance, and GST ineffective.
+
 ## 1.0.38 — 2026-09-26
 
 - Adds a front-end controlled AI provider connectivity test available only while Research and AI are effective and Product Development remains ineffective.
