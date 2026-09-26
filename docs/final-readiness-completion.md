@@ -45,3 +45,6 @@ Hosted CI must cover:
 
 ## Completion boundary
 Merging this release means DigiForge is code-complete, tested, packaged, documented and ready for controlled deployment. It does not authorize enabling integrations or external automation. Separate explicit activation authorization is required later.
+
+## v1.0.47 certification rerun
+Exact release source is re-audited from a build/** branch to produce independently retrievable deployment evidence; no runtime code or schema change is introduced by this certification-only commit.
