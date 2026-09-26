@@ -9,5 +9,7 @@ final class ResearchPreflightCredentialVaultNamespaceTest extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString('use DigiForge\\Integrations\\CredentialVault;', $source);
         self::assertStringNotContainsString('use DigiForge\\Security\\CredentialVault;', $source);
+        self::assertStringContainsString('CredentialVault::decryptExisting(', $source);
+        self::assertStringNotContainsString('CredentialVault::decrypt(', $source);
     }
 }
