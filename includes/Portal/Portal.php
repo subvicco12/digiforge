@@ -206,7 +206,12 @@ final class Portal
             'Products' => $this->count(Tables::products()),
             'Listings' => $this->count(Tables::listings()),
             'Orders' => $this->count(Tables::orders()),
-            'Alerts' => $this->count(Tables::operational_alerts()),
+            'Open operational alerts' => $this->countExcludingStates(Tables::operational_alerts(), 'state', ['RESOLVED', 'CLOSED']),
+            'Pending listing decisions' => $this->countByState(Tables::listing_readiness_reviews(), 'decision', 'PENDING'),
+            'Personalization reviews' => $this->countExcludingStates(Tables::personalization_submissions(), 'review_status', ['APPROVED', 'REJECTED']),
+            'Pending POD decisions' => $this->countByState(Tables::pod_readiness_reviews(), 'decision', 'PENDING'),
+            'Pending fulfillment decisions' => $this->countByState(Tables::fulfillment_readiness_reviews(), 'decision', 'PENDING'),
+            'Blocked finance intents' => $this->countByState(Tables::finance_intents(), 'state', 'BLOCKED'),
             'Integrations' => $this->count(Tables::integrations()),
         ];
         echo '<section class="df-card-grid">';
@@ -615,6 +620,16 @@ final class Portal
     {
         global $wpdb;
         return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+    }
+
+    /** @param list<string> $states */
+    private function countExcludingStates(string $table, string $column, array $states): int
+    {
+        global $wpdb;
+        if (! preg_match('/^[a-z0-9_]+$/i', $column) || $states === []) { return 0; }
+        $placeholders = implode(',', array_fill(0, count($states), '%s'));
+        $sql = "SELECT COUNT(*) FROM {$table} WHERE {$column} NOT IN ({$placeholders})";
+        return (int) $wpdb->get_var($wpdb->prepare($sql, ...$states));
     }
 
     private function countByState(string $table, string $column, string $state): int
