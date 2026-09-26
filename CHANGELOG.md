@@ -1,3 +1,10 @@
+## 1.0.40 — 2026-09-26
+
+- Adds the fail-closed Stage 5 Etsy Draft scoped authorization foundation.
+- Adds non-user-writable Etsy Draft authorization, read-only activation preflight, and protected-state revocation.
+- Keeps Etsy Draft ineffective until separately authorized and keeps Etsy Publish, Printify/Gelato, orders, fulfillment, finance, and GST unauthorized.
+- Bumps the plugin release metadata so the certified Stage 5 foundation can be deployed as a distinct WordPress upgrade package without changing database schema v14.
+
 ## 1.0.39 — 2026-09-26
 
 - Adds separately governed Stage 3 Product Development authorization with a non-user-writable gate.
