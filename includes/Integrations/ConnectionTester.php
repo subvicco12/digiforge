@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Integrations;
 
 use DigiForge\Database\Tables;
+use DigiForge\Core\Settings;
 use DigiForge\Security\Logger;
 
 /** Explicit, administrator-triggered, read-only provider connectivity checks. */
@@ -29,6 +30,7 @@ final class ConnectionTester {
     }
 
     private function testPrintify(int $integrationId): array|\WP_Error {
+        if (! Settings::is_enabled('printify')) { return new \WP_Error('printify_scoped_authorization_required', __('Scoped Printify authorization is required before connection-test network access.', 'digiforge'), ['status' => 409]); }
         $token = $this->firstCredential($integrationId, ['personal_access_token', 'access_token']);
         if (is_wp_error($token)) { return new \WP_Error('printify_credential_missing', __('Store a Printify personal access token before testing the connection.', 'digiforge'), ['status' => 409]); }
         $response = $this->get(self::PRINTIFY_SHOPS_URL, ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json']);

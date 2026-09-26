@@ -7,6 +7,14 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess(): void
     {
         DigiForge\Core\Activator::activate();
+        self::assertTrue(DigiForge\Core\Settings::set('research', true));
+        self::assertTrue(DigiForge\Core\Settings::set('ai', true));
+        self::assertTrue(DigiForge\Core\Settings::set('product_development', true));
+        self::assertTrue(DigiForge\Core\Settings::set('printify', true));
+        self::assertTrue(DigiForge\Core\Settings::activateResearch());
+        self::assertTrue(DigiForge\Core\Settings::activateAi());
+        self::assertTrue(DigiForge\Core\Settings::activateProductDevelopment());
+        self::assertTrue(DigiForge\Core\Settings::activatePrintify());
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
             'provider' => 'printify',
@@ -56,6 +64,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertFalse((bool) $updated['enabled']);
         self::assertTrue((bool) ($updated['config']['_connection_test']['ok'] ?? false));
         self::assertSame(1, (int) ($updated['config']['_connection_test']['details']['shop_count'] ?? 0));
+        DigiForge\Core\Settings::protectProduction();
     }
 
     public function testEtsyAuthenticatedConnectionUsesUsersMeAndRecordsConfigured(): void
