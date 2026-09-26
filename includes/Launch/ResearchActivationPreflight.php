@@ -43,7 +43,7 @@ final class ResearchActivationPreflight
             $credentialPresent = is_string($ciphertext) && $ciphertext !== '';
             if ($credentialPresent) {
                 try {
-                    $secret = CredentialVault::decrypt(
+                    $secret = CredentialVault::decryptExisting(
                         $ciphertext,
                         IntegrationRepository::secretContext($integrationId, 'api_key')
                     );
