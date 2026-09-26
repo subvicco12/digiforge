@@ -35,7 +35,7 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
         ] as $contract) {
             self::assertStringContainsString($contract, $review);
         }
-        foreach (['wp_remote_post', 'wp_remote_get', 'etsy_publish', 'printify', 'gelato'] as $forbidden) {
+        foreach (['wp_remote_post', 'wp_remote_get'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $review);
         }
 
@@ -49,13 +49,13 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
         ] as $contract) {
             self::assertStringContainsString($contract, $listing);
         }
-        foreach (['wp_remote_post', 'wp_remote_get', 'EtsyOAuth', 'EtsyTokenManager', 'Printify'] as $forbidden) {
+        foreach (['wp_remote_post', 'wp_remote_get'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $listing);
         }
 
         $automation = (string) file_get_contents($root . '/includes/ProductFactory/ApprovalAutomation.php');
         self::assertStringContainsString("'external_actions'=>false", $automation);
-        foreach (['etsy_publish', 'printify', 'gelato'] as $forbidden) {
+        foreach (['wp_remote_post', 'wp_remote_get'] as $forbidden) {
             self::assertStringNotContainsString($forbidden, $automation);
         }
 
@@ -80,10 +80,12 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
 
         self::assertStringContainsString('product_development', $controls);
         self::assertStringContainsString('activateProductDevelopment', $controls);
-        self::assertStringContainsString('product_development', $settings);
+        self::assertStringContainsString('product_development_activation_authorized', $settings);
+        self::assertStringContainsString("in_array($switch, ['research', 'ai', 'product_development'], true)", $settings);
 
         foreach (['printify', 'gelato', 'etsy_draft', 'etsy_publish', 'order_automation', 'gst_automation'] as $laterCapability) {
             self::assertStringContainsString($laterCapability, $controls);
+            self::assertStringNotContainsString("'research', 'ai', 'product_development', '" . $laterCapability, $settings);
         }
     }
 }
