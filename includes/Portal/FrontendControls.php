@@ -7,6 +7,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Launch\AiActivationPreflight;
+use DigiForge\Launch\ProductDevelopmentActivationPreflight;
 use DigiForge\Launch\OpenAIClient;
 use DigiForge\Security\Logger;
 
@@ -17,6 +18,7 @@ final class FrontendControls
     private const PROTECT = 'digiforge_frontend_protect_production';
     private const ACTIVATE_AI = 'digiforge_frontend_activate_ai';
     private const CONTROLLED_AI_TEST = 'digiforge_frontend_controlled_ai_test';
+    private const ACTIVATE_PRODUCT_DEVELOPMENT = 'digiforge_frontend_activate_product_development';
 
     public function register(): void
     {
@@ -26,6 +28,7 @@ final class FrontendControls
         add_action('admin_post_' . self::PROTECT, [$this, 'protect']);
         add_action('admin_post_' . self::ACTIVATE_AI, [$this, 'activateAi']);
         add_action('admin_post_' . self::CONTROLLED_AI_TEST, [$this, 'controlledAiTest']);
+        add_action('admin_post_' . self::ACTIVATE_PRODUCT_DEVELOPMENT, [$this, 'activateProductDevelopment']);
     }
 
     public function replaceSystemControls(string $output, string $tag, array $attr, array $match): string
@@ -76,6 +79,22 @@ final class FrontendControls
         }
         Logger::audit('ai_activation_authorized', ['capability' => 'ai', 'external_actions_performed' => false], 'system', 'ai_activation');
         $this->redirect('AI capability activation authorized. Product Development and all later capabilities remain ineffective. No provider request was performed by activation.');
+    }
+
+    public function activateProductDevelopment(): void
+    {
+        $this->authorize(self::ACTIVATE_PRODUCT_DEVELOPMENT);
+        $preflight = (new ProductDevelopmentActivationPreflight())->report();
+        if (($preflight['status'] ?? '') !== 'READY_FOR_CONTROLLED_PRODUCT_DEVELOPMENT_ACTIVATION') {
+            Logger::audit('product_development_activation_refused', ['status' => $preflight['status'] ?? 'BLOCKED', 'blockers' => $preflight['blockers'] ?? []], 'system', 'product_development_activation');
+            $this->redirect('Product Development activation refused: dedicated Stage 3 preflight is blocked.', true);
+        }
+        if (! Settings::activateProductDevelopment()) {
+            Logger::audit('product_development_activation_failed', [], 'system', 'product_development_activation');
+            $this->redirect('Product Development activation failed atomically; Product Development remains ineffective.', true);
+        }
+        Logger::audit('product_development_activation_authorized', ['capability' => 'product_development', 'external_actions_performed' => false], 'system', 'product_development_activation');
+        $this->redirect('Product Development capability activation authorized. Printify, Gelato, Etsy, orders, and GST remain ineffective. No external action was performed by activation.');
     }
 
     public function controlledAiTest(): void
@@ -130,6 +149,7 @@ final class FrontendControls
         $certified = ($report['status'] ?? '') === 'READY_LOCKED';
         $researchPreflight = (new ResearchActivationPreflight())->report();
         $aiPreflight = (new AiActivationPreflight())->report();
+        $productDevelopmentPreflight = (new ProductDevelopmentActivationPreflight())->report();
         ob_start(); ?>
         <section class="df-panel df-frontend-controls">
             <div class="df-panel-head"><div><h2>System &amp; Automation Controls</h2><p>Routine DigiForge operations are controlled here. WordPress admin is not required.</p></div><span class="df-status"><?php echo esc_html($locked ? 'EXTERNALLY LOCKED' : 'ACTIVE'); ?></span></div>
@@ -150,6 +170,12 @@ final class FrontendControls
                     <button class="df-button df-button-primary" type="submit">Restore Protected Pre-Release State</button>
                 </form>
             <?php else : ?><div class="df-notice">Final production release is unavailable until the system is certified READY_LOCKED in the protected pre-release state.</div><?php endif; ?>
+            <?php if (($productDevelopmentPreflight['status'] ?? '') === 'READY_FOR_CONTROLLED_PRODUCT_DEVELOPMENT_ACTIVATION') : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Authorize Stage 3 Product Development? Printify, Gelato, Etsy, orders, fulfillment, finance, and GST will remain ineffective.');">
+                    <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE_PRODUCT_DEVELOPMENT); ?>"><?php wp_nonce_field(self::ACTIVATE_PRODUCT_DEVELOPMENT); ?>
+                    <button class="df-button df-button-primary" type="submit">Authorize Product Development</button>
+                </form>
+            <?php endif; ?>
             <?php if (($aiPreflight['status'] ?? '') === 'READY_FOR_CONTROLLED_AI_ACTIVATION') : ?>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Authorize AI capability? This changes authorization only; it does not make a provider request. Product Development and later capabilities remain ineffective.');">
                     <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE_AI); ?>"><?php wp_nonce_field(self::ACTIVATE_AI); ?>
