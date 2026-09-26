@@ -12,6 +12,13 @@ final class Phase4ConvergenceStructureTest extends TestCase
         self::assertStringContainsString('ProviderRouter::prepare',$s);
         self::assertStringNotContainsString('wp_remote_',$s);
     }
+    public function testPersonalizationRouteUsesPersistedHumanApprovedEvidence():void
+    {
+        $s=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProviderRoutePreparation.php');
+        self::assertIsString($s);
+        foreach(['personalization_submission_id','personalization_submissions()',"review_status']??'')!=='APPROVED'",'reviewed_by','reviewed_at','personalization_schema_id','payload_hash','personalization_payload_hash'] as $n)self::assertStringContainsString($n,$s);
+        self::assertStringNotContainsString('wp_remote_',$s);
+    }
     public function testFulfillmentPreparationRequiresEvidenceFirst():void
     {
         $s=file_get_contents(dirname(__DIR__,2).'/includes/Orders/FulfillmentRoutePreparation.php');
