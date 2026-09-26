@@ -13,6 +13,9 @@ final class ScopedActivationRecoveryTest extends TestCase
         self::assertIsString($controls);
         self::assertStringContainsString('public static function protectProduction(): bool', $settings);
         self::assertStringContainsString("'stop_all' => true", $settings);
+        self::assertStringContainsString('information_schema.TABLES', $settings);
+        self::assertStringContainsString("['INNODB', 'XTRADB']", $settings);
+        self::assertStringContainsString("false === $wpdb->query('START TRANSACTION')", $settings);
         self::assertStringContainsString("'automation_armed' => false", $settings);
         self::assertStringContainsString("'activation_authorized' => false", $settings);
         self::assertStringContainsString('Restore Protected Pre-Release State', $controls);
