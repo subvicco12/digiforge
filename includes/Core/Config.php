@@ -38,6 +38,9 @@ final class Config
             'etsy_draft_activation_authorized' => [
                 'type' => 'boolean', 'default' => false, 'writable' => false,
             ],
+            'printify_activation_authorized' => [
+                'type' => 'boolean', 'default' => false, 'writable' => false,
+            ],
             'cleanup_on_uninstall' => ['type' => 'boolean', 'default' => false, 'writable' => true],
         ];
 
