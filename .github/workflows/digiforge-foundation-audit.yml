@@ -103,7 +103,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
@@ -128,6 +128,13 @@ jobs:
           grep -Fq 'PrintifyScopedCredentialRetriever' includes/POD/PrintifyControlledTransport.php
           ! grep -nE '(wp_remote_(get|post|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyControlledTransport.php
           test "$(grep -c 'wp_remote_get' includes/POD/PrintifyCatalogClient.php)" -eq 1
+          grep -Fq "https://product.gelatoapis.com/v3/" includes/POD/GelatoCatalogClient.php
+          grep -Fq "'X-API-KEY'=>\$apiKey" includes/POD/GelatoCatalogClient.php
+          grep -Fq "'redirection'=>0" includes/POD/GelatoCatalogClient.php
+          grep -Fq "'sslverify'=>true" includes/POD/GelatoCatalogClient.php
+          grep -Fq "'reject_unsafe_urls'=>true" includes/POD/GelatoCatalogClient.php
+          grep -Fq "MAX_ATTEMPTS=3" includes/POD/GelatoCatalogClient.php
+          grep -Fq "MAX_RETRY_AFTER_SECONDS=60" includes/POD/GelatoCatalogClient.php
           ! grep -nE '(wp_remote_(post|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyCatalogClient.php
           grep -Fq "https://api.printify.com/" includes/POD/PrintifyCatalogClient.php
           grep -Fq "'redirection'=>0" includes/POD/PrintifyCatalogClient.php
