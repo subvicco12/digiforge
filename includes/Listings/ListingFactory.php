@@ -67,7 +67,7 @@ final class ListingFactory
             'product_version_id' => $productVersionId,
             'channel' => 'etsy',
             'environment' => 'production',
-            'shop_reference' => 'DigiCraftifyDigital',
+            'shop_reference' => 'KinetiqMatrixDesigns',
             'title' => $title,
             'description' => $description,
             'taxonomy_metadata' => [
