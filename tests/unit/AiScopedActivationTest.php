@@ -40,6 +40,7 @@ final class AiScopedActivationTest extends TestCase
         self::assertStringContainsString("'ai_activation_authorized' => false", $settings);
         self::assertStringContainsString('READY_FOR_CONTROLLED_AI_ACTIVATION', $portal);
         self::assertStringContainsString('Authorize AI Capability', $portal);
+        self::assertMatchesRegularExpression('/private function render\(\): string.*?\\$researchPreflight = \(new ResearchActivationPreflight\(\)\)->report\(\);\\s*\\$aiPreflight = \(new AiActivationPreflight\(\)\)->report\(\);/s', $portal);
         self::assertStringContainsString('No provider request was performed by activation.', $portal);
     }
 }
