@@ -80,13 +80,15 @@ final class ConnectionTester {
         $userId = absint($user['user_id'] ?? 0);
         $shopId = 0; $shopName = '';
         if ($userId > 0) {
-            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
+            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Accept' => 'application/json']);
             $shopChecked = $this->checkHttp('etsy', $integrationId, $shopResponse);
             if (is_wp_error($shopChecked)) { unset($access, $apiKey); return $shopChecked; }
             $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
             if (! is_array($shop)) { unset($access, $apiKey); return $this->invalidResponse('etsy', $integrationId); }
+            $shopOwnerUserId = absint($shop['user_id'] ?? 0);
             $shopId = absint($shop['shop_id'] ?? 0);
             $shopName = sanitize_text_field((string) ($shop['shop_name'] ?? ''));
+            if ($shopOwnerUserId !== $userId) { $shopId = 0; $shopName = ''; }
         }
         if ($userId < 1 || $shopId < 1 || $shopName === '') {
             unset($access, $apiKey);
