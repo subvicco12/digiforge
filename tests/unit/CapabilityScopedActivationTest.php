@@ -12,7 +12,7 @@ final class CapabilityScopedActivationTest extends TestCase
         self::assertStringContainsString("'research_activation_authorized'", $config);
         self::assertStringContainsString('public static function activateResearch(): bool', $settings);
         self::assertStringContainsString("'research_activation_authorized' => true", $settings);
-        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development', 'etsy_draft', 'printify'], true)", $settings);
+        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development', 'etsy_draft', 'printify', 'gelato', 'etsy_publish', 'order_automation', 'gst_automation'], true)", $settings);
         self::assertStringContainsString("'research_activation_authorized', false", $settings);
         self::assertStringContainsString('public static function activateProduction(): bool', $settings);
         self::assertMatchesRegularExpression('/activateProduction\(\): bool\s*\{\s*\/\/.*?\s*return false;/s', $settings);
