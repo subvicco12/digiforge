@@ -40,11 +40,17 @@ final class Settings
      */
     public static function activateProduction(): bool
     {
+        // Legacy global release is fail-closed: capability authorization must use scoped paths.
+        return false;
+    }
+
+    public static function activateResearch(): bool
+    {
         global $wpdb;
         $table = Tables::settings();
         $wpdb->query('START TRANSACTION');
         try {
-            foreach (['activation_authorized' => true, 'automation_armed' => true, 'stop_all' => false] as $key => $value) {
+            foreach (['activation_authorized' => true, 'automation_armed' => true, 'research_activation_authorized' => true, 'stop_all' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('activation persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('activation commit failed'); }
@@ -69,7 +75,7 @@ final class Settings
         if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
         if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
-            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false] as $key => $value) {
+            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
@@ -97,7 +103,9 @@ final class Settings
         return self::get('activation_authorized', false) === true
             && self::get('automation_armed', false) === true
             && self::get('stop_all', true) === false
-            && self::get($switch, false) === true;
+            && self::get($switch, false) === true
+            && ($switch !== 'research' || self::get('research_activation_authorized', false) === true)
+            && $switch === 'research';
     }
 
     public static function safety_locked(): bool
