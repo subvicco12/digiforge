@@ -16,4 +16,10 @@ final class PrintifyControlledExecutionPlanContractTest extends TestCase
   self::assertStringNotContainsString("'production_authorized'=>true",$s);
   self::assertStringNotContainsString("'order_creation_authorized'=>true",$s);
  }
+ public function testPersonalizationRequiresApprovedHashAndBindsItIntoFingerprintMaterial():void
+ {
+  $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/PrintifyControlledExecutionPlan.php');
+  foreach(['personalization_review_status','personalization_payload_hash',"review!=='APPROVED'",'personalizationHash!==null'] as $n)self::assertStringContainsString($n,$s);
+  self::assertStringContainsString("self::error('personalization'", $s);
+ }
 }
