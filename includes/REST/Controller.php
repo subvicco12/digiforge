@@ -41,7 +41,7 @@ final class Controller {
             'etsy_publish' => (new RemainingActivationPreflight())->report('etsy_publish'),
             'order_automation' => (new RemainingActivationPreflight())->report('order_automation'),
             'gst_automation' => (new RemainingActivationPreflight())->report('gst_automation'),
-            'external_actions_performed' => false,
+            'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed(),
         ], 200);
     }
     public function activate_printify(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
@@ -52,8 +52,8 @@ final class Controller {
         if (! Settings::activatePrintify()) {
             return new \WP_Error('digiforge_printify_activation_failed', __('Printify activation failed atomically.', 'digiforge'), ['status' => 500]);
         }
-        Logger::audit('printify_activation_authorized', ['capability' => 'printify', 'external_actions_performed' => false], 'system', 'printify_activation');
-        return new \WP_REST_Response(['capability' => 'printify', 'authorized' => true, 'effective' => Settings::is_enabled('printify'), 'external_actions_performed' => false], 200);
+        Logger::audit('printify_activation_authorized', ['capability' => 'printify', 'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed()], 'system', 'printify_activation');
+        return new \WP_REST_Response(['capability' => 'printify', 'authorized' => true, 'effective' => Settings::is_enabled('printify'), 'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed()], 200);
     }
     public function activate_etsy_draft(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $preflight = (new EtsyDraftActivationPreflight())->report();
@@ -63,8 +63,8 @@ final class Controller {
         if (! Settings::activateEtsyDraft()) {
             return new \WP_Error('digiforge_etsy_draft_activation_failed', __('Etsy Draft activation failed atomically.', 'digiforge'), ['status' => 500]);
         }
-        Logger::audit('etsy_draft_activation_authorized', ['capability' => 'etsy_draft', 'external_actions_performed' => false], 'system', 'etsy_draft_activation');
-        return new \WP_REST_Response(['capability' => 'etsy_draft', 'authorized' => true, 'effective' => Settings::is_enabled('etsy_draft'), 'external_actions_performed' => false], 200);
+        Logger::audit('etsy_draft_activation_authorized', ['capability' => 'etsy_draft', 'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed()], 'system', 'etsy_draft_activation');
+        return new \WP_REST_Response(['capability' => 'etsy_draft', 'authorized' => true, 'effective' => Settings::is_enabled('etsy_draft'), 'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed()], 200);
     }
     public function activate_remaining(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $routeCapability=(string)$request['capability'];
@@ -87,11 +87,11 @@ final class Controller {
         if(!Settings::$method()) {
             return new \WP_Error('digiforge_'.$capability.'_activation_failed', __('Capability activation failed atomically.', 'digiforge'), ['status'=>500]);
         }
-        if (!Logger::write($capability.'_activation_authorized', ['capability'=>$capability,'external_actions_performed'=>false], 'system', $capability.'_activation')) {
+        if (!Logger::write($capability.'_activation_authorized', ['capability'=>$capability,'external_actions_performed'=>\DigiForge\Operations\ExternalActionEvidence::performed()], 'system', $capability.'_activation')) {
             Settings::revokeScopedAuthorization($capability.'_activation_authorized');
             return new \WP_Error('digiforge_'.$capability.'_activation_audit_failed', __('Capability activation was revoked because its audit record could not be persisted.', 'digiforge'), ['status'=>500]);
         }
-        return new \WP_REST_Response(['capability'=>$capability,'authorized'=>true,'effective'=>Settings::is_enabled($capability),'external_actions_performed'=>false],200);
+        return new \WP_REST_Response(['capability'=>$capability,'authorized'=>true,'effective'=>Settings::is_enabled($capability),'external_actions_performed'=>\DigiForge\Operations\ExternalActionEvidence::performed()],200);
     }
     public function update_control(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $key = $request->get_param('key'); if ($key !== 'stop_all' && ! Config::allowed_switch($key)) { return new \WP_Error('digiforge_invalid_control', __('Unknown control.', 'digiforge'), ['status' => 400]); }
