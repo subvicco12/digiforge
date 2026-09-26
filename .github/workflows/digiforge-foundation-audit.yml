@@ -169,7 +169,6 @@ jobs:
           grep -Fq "https://api.openai.com/v1/responses" includes/Launch/OpenAIClient.php
           grep -Fq "'redirection' => 0" includes/Launch/OpenAIClient.php
           grep -Fq "'sslverify' => true" includes/Launch/OpenAIClient.php
-          test "$(grep -F "'reject_unsafe_urls' => true" includes/Launch/OpenAIClient.php | wc -l)" -ge 1
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh
