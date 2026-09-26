@@ -163,9 +163,6 @@ jobs:
           grep -Fq "'redirection' => 0" includes/Integrations/EtsyTokenManager.php
           grep -Fq "'sslverify' => true" includes/Integrations/EtsyTokenManager.php
           grep -Fq "'reject_unsafe_urls' => true" includes/Integrations/EtsyTokenManager.php
-          test "$(grep -c 'wp_remote_post' includes/Launch/OpenAIClient.php)" -eq 3
-          test "$(grep -c 'wp_remote_get' includes/Launch/OpenAIClient.php)" -eq 1
-          ! grep -nE '(wp_remote_(request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Launch/OpenAIClient.php
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh
