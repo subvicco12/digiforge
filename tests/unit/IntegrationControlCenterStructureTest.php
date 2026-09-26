@@ -135,4 +135,14 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString("'shop_name' => \$shopName",$tester);
     }
 
+    public function testConnectionPreflightSupportsAuthenticatedBodyIdempotencyFallbackOnly(): void
+    {
+        $controller = (string) file_get_contents(__DIR__ . '/../../includes/REST/IntegrationsController.php');
+        self::assertStringContainsString('200, true', $controller);
+        self::assertStringContainsString('$allowBodyIdempotencyKey', $controller);
+        self::assertStringContainsString("['idempotency_key']", $controller);
+        self::assertStringContainsString('strlen($header) > 191', $controller);
+        self::assertSame(1, substr_count($controller, '}, 200, true);'));
+    }
+
 }
