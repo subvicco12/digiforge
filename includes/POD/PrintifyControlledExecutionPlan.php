@@ -29,11 +29,19 @@ final class PrintifyControlledExecutionPlan
             return self::error('intent','Printify controlled execution supports only approved preparation intents.');
 
         $payload=is_array($route['payload']??null)?$route['payload']:[];
+        $personalizationHash=null;
+        if($intent==='PREPARE_PERSONALIZATION'){
+            $review=strtoupper(trim((string)($payload['personalization_review_status']??'')));
+            $personalizationHash=strtolower(trim((string)($payload['personalization_payload_hash']??'')));
+            if($review!=='APPROVED'||!preg_match('/^[a-f0-9]{64}$/',$personalizationHash))
+                return self::error('personalization','Approved personalization evidence and a valid payload hash are required.');
+        }
         $material=[
             'provider'=>'printify','environment'=>(string)($route['environment']??''),
             'intent_type'=>$intent,'readiness_hash'=>(string)$readiness['evidence_hash'],
             'template_fingerprint'=>(string)$normalized['fingerprint'],'payload'=>$payload,
         ];
+        if($personalizationHash!==null)$material['personalization_payload_hash']=$personalizationHash;
         $canonical=self::canonicalize($material);
         $encoded=wp_json_encode($canonical);
         if(!is_string($encoded)||strlen($encoded)>262144) return self::error('payload','Printify request evidence is too large.');
@@ -43,6 +51,7 @@ final class PrintifyControlledExecutionPlan
             'provider'=>'printify','api_preference'=>'V2_FIRST',
             'environment'=>$material['environment'],'intent_type'=>$intent,
             'readiness_hash'=>$material['readiness_hash'],'template_fingerprint'=>$material['template_fingerprint'],
+            'personalization_payload_hash'=>$personalizationHash,
             'request_fingerprint'=>hash('sha256',$encoded),'payload'=>$canonical['payload'],
             'credential_retrieval_permitted'=>false,'network_request_permitted'=>false,
             'order_creation_authorized'=>false,'production_authorized'=>false,
