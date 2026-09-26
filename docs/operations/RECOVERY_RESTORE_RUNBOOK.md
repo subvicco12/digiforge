@@ -22,7 +22,7 @@ A recovery drill is only considered complete when all of the following are avail
 
 ## Current Certified Baseline
 - Current live DigiForge release: 1.0.32
-- Repository-certified release: 1.0.32
+- Repository-certified release: 1.0.33
 - Expected DigiForge database schema: 14
 - Production site: https://digiforge.converentis.com/
 - External automation state during recovery: locked/off

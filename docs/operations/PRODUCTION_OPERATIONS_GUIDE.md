@@ -8,7 +8,7 @@ This guide is the production operating reference for DigiForge. It consolidates 
 - Runtime: WordPress plugin
 - Current production host: digiforge.converentis.com
 - Current live deployed plugin baseline: 1.0.32
-- Repository-certified release: 1.0.32
+- Repository-certified release: 1.0.33
 - Current database schema baseline: 14
 - Operating posture: LOCAL-FIRST and FAIL-CLOSED
 - STOP ALL: must remain ON until explicit activation authorization
@@ -268,9 +268,9 @@ Every production-affecting change should be traceable through:
 Do not merge a PR head that changed after the audited SHA without re-checking the new head and its CI result.
 
 ## 23. Current production-readiness state
-The currently verified live DigiForge 1.0.32 deployment is at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Fresh read-only production verification on 2026-09-25 also confirmed externally_locked=true, all effective external switches false, and external_actions_performed=false. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
+The currently verified live DigiForge 1.0.33 deployment is at schema 14 / 14 with recovery status PASS and overall readiness READY_LOCKED. Fresh read-only production verification on 2026-09-25 also confirmed externally_locked=true, all effective external switches false, and external_actions_performed=false. Repository work may continue while production remains locked. This state does not authorize external activation, arming, marketplace/provider mutations, orders, tax actions, or externally acting schedules.
 
-Host-level hardening is complete: `DISALLOW_FILE_EDIT=true` was applied through safe host-level configuration and verified on 2026-09-25. The post-change acceptance check retained DigiForge 1.0.32, schema 14 / 14, READY_LOCKED, recovery PASS, healthy WP-Cron, inactive maintenance mode, all effective external switches false, and `external_actions_performed=false`.
+Host-level hardening is complete: `DISALLOW_FILE_EDIT=true` was applied through safe host-level configuration and verified on 2026-09-25. The post-change acceptance check retained DigiForge 1.0.33, schema 14 / 14, READY_LOCKED, recovery PASS, healthy WP-Cron, inactive maintenance mode, all effective external switches false, and `external_actions_performed=false`.
 
 ## 24. Final production audit
 The final independent audit should include:
