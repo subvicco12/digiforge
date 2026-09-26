@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use PHPUnit\\Framework\\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Stage 3 Product Development end-to-end boundary certificate.
@@ -18,9 +18,9 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
 
         $launch = (string) file_get_contents($root . '/includes/REST/LaunchController.php');
         foreach ([
-            '/launch/candidates/(?P<id>\\d+)/build-product',
-            '/launch/product-versions/(?P<id>\\d+)/review',
-            '/launch/product-versions/(?P<id>\\d+)/prepare-listing',
+            '/launch/candidates/(?P<id>\d+)/build-product',
+            '/launch/product-versions/(?P<id>\d+)/review',
+            '/launch/product-versions/(?P<id>\d+)/prepare-listing',
             "'product' => 'generated assets and QA stop at PRODUCT_REVIEW_REQUIRED until explicit review'",
             "'listing_publish' => 'listing preparation stops at LISTING_REVIEW_REQUIRED until explicit Gate 3 review'",
         ] as $contract) {
