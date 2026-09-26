@@ -13,9 +13,9 @@ final class PrintifyScopedActivationTest extends TestCase
   self::assertStringContainsString('activatePrintify',$settings);
   self::assertStringContainsString("self::is_enabled('product_development')",$settings);
   self::assertStringContainsString("(\$switch !== 'printify' || self::get('printify_activation_authorized', false) === true)",$settings);
-  self::assertStringContainsString("['research', 'ai', 'product_development', 'etsy_draft', 'printify']",$settings);
+  self::assertStringContainsString("['research', 'ai', 'product_development', 'etsy_draft', 'printify', 'gelato', 'etsy_publish', 'order_automation', 'gst_automation']",$settings);
   self::assertStringContainsString("'printify_activation_authorized' => false",$settings);
-  self::assertStringNotContainsString('order_automation_activation_authorized',$settings);
-  self::assertStringNotContainsString('gelato_activation_authorized',$settings);
+  self::assertStringContainsString('order_automation_activation_authorized',$settings);
+  self::assertStringContainsString('gelato_activation_authorized',$settings);
  }
 }
