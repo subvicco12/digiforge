@@ -10,7 +10,7 @@ final class OrderSchema
     {
         global $wpdb;
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
-        if ($currentVersion >= 12) {
+        if ($currentVersion >= 15) {
             self::grantCapability();
             return true;
         }
@@ -29,6 +29,8 @@ final class OrderSchema
             }
         }
 
+        // Preserve the historical 11 -> 12 handoff so FinanceSchema can run.
+        // Schema 15 finalization remains owned by the coordinated migration chain.
         if ($currentVersion === 11) {
             update_option('digiforge_db_schema_version', 12, false);
         }
@@ -140,6 +142,7 @@ final class OrderSchema
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   order_id bigint(20) unsigned NOT NULL,
   fulfillment_plan_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  fulfillment_plan_payload_hash char(64) NOT NULL DEFAULT '',
   environment varchar(20) NOT NULL,
   intent_type varchar(64) NOT NULL,
   input_payload longtext NULL,

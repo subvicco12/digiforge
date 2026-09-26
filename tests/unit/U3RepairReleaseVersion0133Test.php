@@ -12,6 +12,6 @@ final class U3RepairReleaseVersion0133Test extends TestCase
         self::assertIsString($source);
         self::assertStringContainsString("Version: 1.0.40", $source);
         self::assertStringContainsString("DIGIFORGE_VERSION = '1.0.40'", $source);
-        self::assertStringContainsString("DIGIFORGE_DB_VERSION = '14'", $source);
+        self::assertStringContainsString("DIGIFORGE_DB_VERSION = '15'", $source);
     }
 }

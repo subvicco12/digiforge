@@ -5,7 +5,7 @@ Complete DigiForge as a production-ready local-first WordPress platform without 
 
 ## Release posture
 - Plugin release: 1.0.40.
-- Database schema: v14.
+- Database schema: v15.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
 - Add `activation_authorized`, internal and non-user-writable, default false.
