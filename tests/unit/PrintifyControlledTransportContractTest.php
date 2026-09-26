@@ -28,6 +28,8 @@ final class PrintifyControlledTransportContractTest extends TestCase{
  }
  public function testCredentialMaterialNeverLeavesCallbackBoundary():void{
   $c=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/PrintifyScopedCredentialRetriever.php');
+  self::assertStringContainsString("Settings::is_enabled('printify')",$c);
+  self::assertStringContainsString('digiforge_printify_credential_authorization',$c);
   self::assertStringContainsString('CredentialVault::decrypt',$c);
   self::assertStringContainsString('finally',$c);
   self::assertStringNotContainsString("'token'=>",$c);
