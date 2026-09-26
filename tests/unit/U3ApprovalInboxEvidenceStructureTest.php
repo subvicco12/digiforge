@@ -25,4 +25,15 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringNotContainsString("setting_key = 'printify'", $source);
         self::assertStringNotContainsString("setting_key = 'gelato'", $source);
     }
+    public function testStageFInboxAggregatesPendingOperationalDecisionsWithoutExecutingThem(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
+        self::assertIsString($source);
+        foreach (['listing_readiness_reviews', 'personalization_submissions', 'pod_readiness_reviews', 'fulfillment_readiness_reviews', 'Operational approval & exception inbox', 'read-only and cannot activate or execute an external action'] as $needle) {
+            self::assertStringContainsString($needle, $source);
+        }
+        self::assertStringNotContainsString('wp_remote_request', $source);
+        self::assertStringNotContainsString('Settings::set', $source);
+    }
+
 }
