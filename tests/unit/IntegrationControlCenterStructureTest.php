@@ -124,4 +124,15 @@ final class IntegrationControlCenterStructureTest extends TestCase
         self::assertStringContainsString('invalid_connection_key', $repository);
         self::assertStringContainsString('invalid_display_name', $repository);
     }
+    public function testGovernedConnectionTestRouteAndEtsyShopIdentityEvidenceExist(): void
+    {
+        $controller=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/IntegrationsController.php');
+        $tester=(string)file_get_contents(dirname(__DIR__,2).'/includes/Integrations/ConnectionTester.php');
+        self::assertStringContainsString("/integrations/(?P<id>\\d+)/test",$controller);
+        self::assertStringContainsString('ConnectionTester',$controller);
+        self::assertStringContainsString('ETSY_USER_SHOP_URL',$tester);
+        self::assertStringContainsString("'shop_id' => \$shopId",$tester);
+        self::assertStringContainsString("'shop_name' => \$shopName",$tester);
+    }
+
 }
