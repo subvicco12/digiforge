@@ -6,6 +6,7 @@ use DigiForge\Core\Config;
 use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Launch\ResearchActivationPreflight;
+use DigiForge\Launch\AiActivationPreflight;
 use DigiForge\Security\Logger;
 
 final class FrontendControls
@@ -13,6 +14,7 @@ final class FrontendControls
     private const ACTION = 'digiforge_frontend_update_control';
     private const ACTIVATE = 'digiforge_frontend_activate_production';
     private const PROTECT = 'digiforge_frontend_protect_production';
+    private const ACTIVATE_AI = 'digiforge_frontend_activate_ai';
 
     public function register(): void
     {
@@ -20,6 +22,7 @@ final class FrontendControls
         add_action('admin_post_' . self::ACTION, [$this, 'update']);
         add_action('admin_post_' . self::ACTIVATE, [$this, 'activate']);
         add_action('admin_post_' . self::PROTECT, [$this, 'protect']);
+        add_action('admin_post_' . self::ACTIVATE_AI, [$this, 'activateAi']);
     }
 
     public function replaceSystemControls(string $output, string $tag, array $attr, array $match): string
@@ -36,6 +39,7 @@ final class FrontendControls
         $this->authorize(self::ACTIVATE);
         $report = (new Readiness())->report();
         $researchPreflight = (new ResearchActivationPreflight())->report();
+        $aiPreflight = (new AiActivationPreflight())->report();
         if (($researchPreflight['status'] ?? '') !== 'READY_FOR_CONTROLLED_RESEARCH_ACTIVATION') {
             Logger::audit('research_activation_refused', ['status' => $researchPreflight['status'] ?? 'BLOCKED', 'blockers' => $researchPreflight['blockers'] ?? []], 'system', 'research_activation');
             $this->redirect('Research activation refused: dedicated Research preflight is blocked.', true);
@@ -53,6 +57,22 @@ final class FrontendControls
         }
         Logger::audit('research_activation_authorized', ['capability' => 'research', 'evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false], 'system', 'research_activation');
         $this->redirect('Research-only activation authorized and STOP ALL released. AI, Product Development, and all other capabilities remain ineffective.');
+    }
+
+    public function activateAi(): void
+    {
+        $this->authorize(self::ACTIVATE_AI);
+        $preflight = (new AiActivationPreflight())->report();
+        if (($preflight['status'] ?? '') !== 'READY_FOR_CONTROLLED_AI_ACTIVATION') {
+            Logger::audit('ai_activation_refused', ['status' => $preflight['status'] ?? 'BLOCKED', 'blockers' => $preflight['blockers'] ?? []], 'system', 'ai_activation');
+            $this->redirect('AI activation refused: dedicated AI preflight is blocked.', true);
+        }
+        if (! Settings::activateAi()) {
+            Logger::audit('ai_activation_failed', [], 'system', 'ai_activation');
+            $this->redirect('AI activation failed atomically; AI remains ineffective.', true);
+        }
+        Logger::audit('ai_activation_authorized', ['capability' => 'ai', 'external_actions_performed' => false], 'system', 'ai_activation');
+        $this->redirect('AI capability activation authorized. Product Development and all later capabilities remain ineffective. No provider request was performed by activation.');
     }
 
     public function protect(): void
@@ -114,6 +134,12 @@ final class FrontendControls
                     <button class="df-button df-button-primary" type="submit">Restore Protected Pre-Release State</button>
                 </form>
             <?php else : ?><div class="df-notice">Final production release is unavailable until the system is certified READY_LOCKED in the protected pre-release state.</div><?php endif; ?>
+            <?php if (($aiPreflight['status'] ?? '') === 'READY_FOR_CONTROLLED_AI_ACTIVATION') : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Authorize AI capability? This changes authorization only; it does not make a provider request. Product Development and later capabilities remain ineffective.');">
+                    <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE_AI); ?>"><?php wp_nonce_field(self::ACTIVATE_AI); ?>
+                    <button class="df-button df-button-danger" type="submit">Authorize AI Capability</button>
+                </form>
+            <?php endif; ?>
             <div class="df-control-grid">
             <?php foreach (Config::SWITCHES as $key) : $enabled = Settings::get($key, $key === 'stop_all') === true; $effective = $key === 'stop_all' ? $enabled : Settings::is_enabled($key); ?>
                 <article class="df-control-card"><div><strong><?php echo esc_html(ucwords(str_replace('_', ' ', $key))); ?></strong><div class="df-muted">Configured: <?php echo $enabled ? 'ON' : 'OFF'; ?><?php if ($key !== 'stop_all') : ?> · Effective: <?php echo $effective ? 'ON' : 'OFF'; ?><?php endif; ?></div></div>
@@ -137,7 +163,22 @@ final class FrontendControls
                 <?php endif; ?>
                 <div class="df-muted">Network requests performed: NO · External actions performed: NO</div>
             </section>
-            <div class="df-notice">Capability activation is scoped. Research authorization cannot activate AI, Product Development, Etsy, Printify, Gelato, orders, or GST; later stages require separate authorization.</div>
+            <section class="df-panel df-ai-preflight">
+                <div class="df-panel-head"><div><h3>AI Activation Preflight</h3><p>Read-only Stage 2 check. No provider request, switch change, or external action is performed.</p></div><span class="df-status"><?php echo esc_html((string) ($aiPreflight['status'] ?? 'BLOCKED')); ?></span></div>
+                <div class="df-signal-grid">
+                    <?php foreach ((array) ($aiPreflight['checks'] ?? []) as $check => $passed) : ?>
+                        <div><span><?php echo esc_html(ucwords(str_replace('_', ' ', (string) $check))); ?></span><b><?php echo $passed ? 'PASS' : 'BLOCKED'; ?></b></div>
+                    <?php endforeach; ?>
+                </div>
+                <?php $aiBlockers = (array) ($aiPreflight['blockers'] ?? []); ?>
+                <?php if ($aiBlockers === []) : ?>
+                    <div class="df-notice df-notice-success">AI preflight passed. Explicit AI activation authorization is required. Activation itself performs no provider request.</div>
+                <?php else : ?>
+                    <div class="df-notice df-notice-error"><strong>AI preflight blockers:</strong> <?php echo esc_html(implode(', ', array_map('strval', $aiBlockers))); ?></div>
+                <?php endif; ?>
+                <div class="df-muted">Network requests performed: NO · External actions performed: NO</div>
+            </section>
+            <div class="df-notice">Capability activation is scoped. Research and AI authorization cannot activate Product Development, Etsy, Printify, Gelato, orders, or GST; later stages require separate authorization.</div>
         </section><?php return (string) ob_get_clean();
     }
 
