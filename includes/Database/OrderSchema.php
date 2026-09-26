@@ -29,9 +29,8 @@ final class OrderSchema
             }
         }
 
-        if ($currentVersion < 15) {
-            update_option('digiforge_db_schema_version', 15, false);
-        }
+        // Global schema version is owned by the coordinated migration chain.
+        // OrderSchema only applies its additive table shape here.
         self::grantCapability();
         return true;
     }
