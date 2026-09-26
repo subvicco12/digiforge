@@ -84,7 +84,7 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
         self::assertStringContainsString('in_array($switch, [\'research\', \'ai\', \'product_development\'], true)', $settings);
 
         foreach (['printify', 'gelato', 'etsy_draft', 'etsy_publish', 'order_automation', 'gst_automation'] as $laterCapability) {
-            self::assertStringContainsString($laterCapability, $controls);
+            self::assertStringNotContainsString("Settings::is_enabled('" . $laterCapability . "')", $controls);
         }
     }
 }
