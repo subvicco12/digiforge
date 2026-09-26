@@ -67,7 +67,7 @@ foreach ([
     ['includes/Database/ProductionSchema.php', '$currentVersion === 8'],
     ['includes/Database/PodSchema.php', '$currentVersion === 9'],
     ['includes/Database/ListingSchema.php', '$currentVersion === 10'],
-    ['includes/Database/OrderSchema.php', '$currentVersion >= 15'],
+    ['includes/Database/OrderSchema.php', '$currentVersion === 11'],
     ['includes/Database/FinanceSchema.php', '$currentVersion === 12'],
 ] as [$file, $guard]) {
     expect(str_contains(source($file), $guard), "$file exact additive migration guard exists");
