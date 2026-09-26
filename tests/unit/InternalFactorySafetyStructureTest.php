@@ -12,8 +12,8 @@ final class InternalFactorySafetyStructureTest extends TestCase
 
         self::assertStringContainsString("public static function is_internal_enabled", $settings);
         self::assertStringContainsString("['ai', 'product_development']", $settings);
-        self::assertStringContainsString("Settings::is_internal_enabled('ai')", $engine);
-        self::assertStringContainsString("Settings::is_internal_enabled('product_development')", $engine);
+        self::assertStringContainsString("Settings::is_enabled('ai')", $engine);
+        self::assertStringContainsString("Settings::is_enabled('product_development')", $engine);
         self::assertStringContainsString("Settings::is_enabled('research')", $engine);
         self::assertStringNotContainsString("is_internal_enabled('etsy_publish')", $engine);
         self::assertStringNotContainsString("is_internal_enabled('printify')", $engine);
