@@ -129,7 +129,7 @@ jobs:
           ! grep -nE '(wp_remote_(get|post|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyControlledTransport.php
           test "$(grep -c 'wp_remote_get' includes/POD/PrintifyCatalogClient.php)" -eq 1
           grep -Fq "https://product.gelatoapis.com/v3/" includes/POD/GelatoCatalogClient.php
-          grep -Fq "'X-API-KEY' => \$apiKey" includes/POD/GelatoCatalogClient.php
+          grep -Fq "'X-API-KEY'=>\$apiKey" includes/POD/GelatoCatalogClient.php
           grep -Fq "'redirection'=>0" includes/POD/GelatoCatalogClient.php
           grep -Fq "'sslverify'=>true" includes/POD/GelatoCatalogClient.php
           grep -Fq "'reject_unsafe_urls'=>true" includes/POD/GelatoCatalogClient.php
