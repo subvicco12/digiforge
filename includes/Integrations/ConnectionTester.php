@@ -80,7 +80,7 @@ final class ConnectionTester {
         $userId = absint($user['user_id'] ?? 0);
         $shopId = 0; $shopName = '';
         if ($userId > 0) {
-            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Accept' => 'application/json']);
+            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
             $shopChecked = $this->checkHttp('etsy', $integrationId, $shopResponse);
             if (is_wp_error($shopChecked)) { unset($access, $apiKey); return $shopChecked; }
             $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
@@ -142,11 +142,22 @@ final class ConnectionTester {
     private function checkHttp(string $provider, int $integrationId, array|\WP_Error $response, bool $recordFailure = true): true|\WP_Error {
         if (is_wp_error($response)) { if ($recordFailure) { $this->record($integrationId, false, ['reason' => 'transport_error'], false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'reason' => 'transport_error'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_transport_error', sprintf(__('%s could not be reached from this WordPress server.', 'digiforge'), ucfirst($provider)), ['status' => 502]); }
         $status = (int) wp_remote_retrieve_response_code($response);
-        if ($status === 401 || $status === 403) { if ($recordFailure) { $this->record($integrationId, false, ['http_status' => $status, 'reason' => 'authentication_failed'], false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'authentication_failed'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_authentication_failed', sprintf(__('%s rejected the stored credential or its permissions.', 'digiforge'), ucfirst($provider)), ['status' => 401]); }
-        if ($status < 200 || $status >= 300) { if ($recordFailure) { $this->record($integrationId, false, ['http_status' => $status, 'reason' => 'unexpected_response'], false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'unexpected_response'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_unexpected_response', sprintf(__('%1$s returned HTTP %2$d during the read-only connection test.', 'digiforge'), ucfirst($provider), $status), ['status' => 502]); }
+        if ($status === 401 || $status === 403) { if ($recordFailure) { $this->record($integrationId, false, $this->safeHttpFailureDetails($response, $status, 'authentication_failed'), false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'authentication_failed'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_authentication_failed', sprintf(__('%s rejected the stored credential or its permissions.', 'digiforge'), ucfirst($provider)), ['status' => 401]); }
+        if ($status < 200 || $status >= 300) { if ($recordFailure) { $this->record($integrationId, false, $this->safeHttpFailureDetails($response, $status, 'unexpected_response'), false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'unexpected_response'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_unexpected_response', sprintf(__('%1$s returned HTTP %2$d during the read-only connection test.', 'digiforge'), ucfirst($provider), $status), ['status' => 502]); }
         return true;
     }
 
+    /** @return array<string,mixed> */
+    private function safeHttpFailureDetails(array $response, int $status, string $reason): array {
+        $details = ['http_status' => $status, 'reason' => $reason];
+        $decoded = json_decode((string) wp_remote_retrieve_body($response), true);
+        if (! is_array($decoded)) { return $details; }
+        $code = sanitize_key((string) ($decoded['code'] ?? $decoded['error'] ?? ''));
+        $message = sanitize_text_field((string) ($decoded['message'] ?? $decoded['error_description'] ?? ''));
+        if ($code !== '') { $details['provider_error_code'] = substr($code, 0, 96); }
+        if ($message !== '') { $details['provider_error_message'] = substr($message, 0, 240); }
+        return $details;
+    }
     private function invalidResponse(string $provider, int $integrationId): \WP_Error { $this->record($integrationId, false, ['reason' => 'invalid_json'], false); return new \WP_Error($provider . '_invalid_response', sprintf(__('%s returned an unreadable response.', 'digiforge'), ucfirst($provider)), ['status' => 502]); }
     private function firstCredential(int $integrationId, array $names): string|\WP_Error { foreach ($names as $name) { $value = $this->credential($integrationId, (string) $name); if (! is_wp_error($value) && $value !== '') { return $value; } } return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
     private function credential(int $integrationId, string $name): string|\WP_Error { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, sanitize_key($name)), ARRAY_A); if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); } try { return CredentialVault::decrypt((string) $row['ciphertext'], Repository::secretContext($integrationId, $name)); } catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); } }
