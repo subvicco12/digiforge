@@ -62,7 +62,12 @@ final class Settings
     public static function protectProduction(): bool
     {
         global $wpdb;
-        $wpdb->query('START TRANSACTION');
+        $engine = $wpdb->get_var($wpdb->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            Tables::settings()
+        ));
+        if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
+        if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
             foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
