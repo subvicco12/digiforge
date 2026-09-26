@@ -78,13 +78,14 @@ final class ConnectionTester {
         $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { unset($apiKey); return $checked; }
         $user = json_decode((string) wp_remote_retrieve_body($userResponse), true); if (! is_array($user)) { unset($apiKey); return $this->invalidResponse('etsy', $integrationId); }
         $userId = absint($user['user_id'] ?? 0);
-        $shopId = 0; $shopName = '';
+        $shopId = 0; $shopName = ''; $shopDiagnostic = [];
         if ($userId > 0) {
             $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
             $shopChecked = $this->checkHttp('etsy', $integrationId, $shopResponse);
             if (is_wp_error($shopChecked)) { unset($access, $apiKey); return $shopChecked; }
             $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
             if (! is_array($shop)) { unset($access, $apiKey); return $this->invalidResponse('etsy', $integrationId); }
+            $shopDiagnostic = $this->safeEtsyShopShape($shop);
             $shopOwnerUserId = absint($shop['user_id'] ?? 0);
             $shopId = absint($shop['shop_id'] ?? 0);
             $shopName = sanitize_text_field((string) ($shop['shop_name'] ?? ''));
@@ -92,7 +93,7 @@ final class ConnectionTester {
         }
         if ($userId < 1 || $shopId < 1 || $shopName === '') {
             unset($access, $apiKey);
-            $this->record($integrationId, false, ['http_status' => 200, 'reason' => 'shop_identity_unverified', 'user_id' => $userId], false);
+            $this->record($integrationId, false, ['http_status' => 200, 'reason' => 'shop_identity_unverified', 'user_id' => $userId, 'shop_response_shape' => $shopDiagnostic], false);
             return new \WP_Error('etsy_shop_identity_unverified', __('Etsy OAuth succeeded, but a verified shop identity was not returned.', 'digiforge'), ['status' => 409]);
         }
         unset($access, $apiKey);
@@ -145,6 +146,27 @@ final class ConnectionTester {
         if ($status === 401 || $status === 403) { if ($recordFailure) { $this->record($integrationId, false, $this->safeHttpFailureDetails($response, $status, 'authentication_failed'), false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'authentication_failed'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_authentication_failed', sprintf(__('%s rejected the stored credential or its permissions.', 'digiforge'), ucfirst($provider)), ['status' => 401]); }
         if ($status < 200 || $status >= 300) { if ($recordFailure) { $this->record($integrationId, false, $this->safeHttpFailureDetails($response, $status, 'unexpected_response'), false); } Logger::audit('integration_connection_test_failed', ['provider' => $provider, 'http_status' => $status, 'reason' => 'unexpected_response'], 'integration', (string) $integrationId); return new \WP_Error($provider . '_unexpected_response', sprintf(__('%1$s returned HTTP %2$d during the read-only connection test.', 'digiforge'), ucfirst($provider), $status), ['status' => 502]); }
         return true;
+    }
+
+    /** @return array<string,mixed> */
+    private function safeEtsyShopShape(array $shop): array {
+        $keys = array_values(array_slice(array_filter(array_map('sanitize_key', array_keys($shop))), 0, 40));
+        $results = is_array($shop['results'] ?? null) ? $shop['results'] : [];
+        $first = is_array($results[0] ?? null) ? $results[0] : [];
+        return [
+            'top_level_keys' => $keys,
+            'results_count' => count($results),
+            'direct' => [
+                'shop_id' => absint($shop['shop_id'] ?? 0),
+                'user_id' => absint($shop['user_id'] ?? 0),
+                'shop_name' => sanitize_text_field((string) ($shop['shop_name'] ?? '')),
+            ],
+            'first_result' => [
+                'shop_id' => absint($first['shop_id'] ?? 0),
+                'user_id' => absint($first['user_id'] ?? 0),
+                'shop_name' => sanitize_text_field((string) ($first['shop_name'] ?? '')),
+            ],
+        ];
     }
 
     /** @return array<string,mixed> */
