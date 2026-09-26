@@ -47,13 +47,37 @@ final class Settings
     public static function activateResearch(): bool
     {
         global $wpdb;
-        $table = Tables::settings();
-        $wpdb->query('START TRANSACTION');
+        $engine = $wpdb->get_var($wpdb->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            Tables::settings()
+        ));
+        if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
+        if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
             foreach (['activation_authorized' => true, 'automation_armed' => true, 'research_activation_authorized' => true, 'stop_all' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('activation persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('activation commit failed'); }
+            return true;
+        } catch (\Throwable $e) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+    }
+
+    public static function activateAi(): bool
+    {
+        global $wpdb;
+        if (self::get('research_activation_authorized', false) !== true || ! self::is_enabled('research')) { return false; }
+        $engine = $wpdb->get_var($wpdb->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            Tables::settings()
+        ));
+        if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
+        if (false === $wpdb->query('START TRANSACTION')) { return false; }
+        try {
+            if (! self::persist('ai_activation_authorized', true)) { throw new \RuntimeException('AI activation persistence failed'); }
+            if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('AI activation commit failed'); }
             return true;
         } catch (\Throwable $e) {
             $wpdb->query('ROLLBACK');
@@ -75,7 +99,7 @@ final class Settings
         if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
         if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
-            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false] as $key => $value) {
+            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false, 'ai_activation_authorized' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
@@ -105,7 +129,8 @@ final class Settings
             && self::get('stop_all', true) === false
             && self::get($switch, false) === true
             && ($switch !== 'research' || self::get('research_activation_authorized', false) === true)
-            && $switch === 'research';
+            && ($switch !== 'ai' || self::get('ai_activation_authorized', false) === true)
+            && in_array($switch, ['research', 'ai'], true);
     }
 
     public static function safety_locked(): bool
