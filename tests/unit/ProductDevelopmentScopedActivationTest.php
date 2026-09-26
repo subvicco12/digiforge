@@ -27,9 +27,9 @@ final class ProductDevelopmentScopedActivationTest extends TestCase
 
         $settings=file_get_contents(dirname(__DIR__,2).'/includes/Core/Settings.php');
         self::assertIsString($settings);
-        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development', 'etsy_draft'], true)", $settings);
+        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development', 'etsy_draft', 'printify'], true)", $settings);
         self::assertStringContainsString("product_development_activation_authorized", $settings);
-        self::assertStringNotContainsString("['research', 'ai', 'product_development', 'etsy_draft', 'printify'", $settings);
+        self::assertStringContainsString("($switch !== 'printify' || self::get('printify_activation_authorized', false) === true)", $settings);
 
         $portal=file_get_contents(dirname(__DIR__,2).'/includes/Portal/FrontendControls.php');
         self::assertIsString($portal);
