@@ -41,6 +41,8 @@ final class F3PodSafetyStructureTest extends TestCase
         self::assertStringContainsString('idempotency_payload_conflict',$repo);
         self::assertStringContainsString("['idempotent_replay'=>true]",$repo);
         self::assertStringContainsString('Idempotency key too long.',$repo);
+        self::assertStringContainsString("'race_recovered'=>true",$repo);
+        self::assertStringContainsString('$winner=$wpdb->get_row',$repo);
     }
 
     public function testRestMutationsRequireIdempotencyKeyAndFailClosedOnReplay(): void
