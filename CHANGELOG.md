@@ -1,3 +1,10 @@
+## 1.0.38 — 2026-09-26
+
+- Adds a front-end controlled AI provider connectivity test available only while Research and AI are effective and Product Development remains ineffective.
+- The controlled test performs exactly one minimal provider request with no web search, downstream workflow, persistence into Product Factory, or automatic retry.
+- Adds sanitized audit evidence for success, transport/provider failure, and connector/credential setup failure.
+- Extends unit and Engineering & Safety Audit coverage for the third audited OpenAI POST call site.
+
 ## 1.0.37 — 2026-09-26
 
 - Fixes the Stage 2 AI activation preflight rendering path so the separately authorized AI activation control appears when its read-only preflight is ready.
