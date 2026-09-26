@@ -41,6 +41,15 @@ final class Config
             'printify_activation_authorized' => [
                 'type' => 'boolean', 'default' => false, 'writable' => false,
             ],
+            'etsy_publish_activation_authorized' => [
+                'type' => 'boolean', 'default' => false, 'writable' => false,
+            ],
+            'order_automation_activation_authorized' => [
+                'type' => 'boolean', 'default' => false, 'writable' => false,
+            ],
+            'gst_automation_activation_authorized' => [
+                'type' => 'boolean', 'default' => false, 'writable' => false,
+            ],
             'cleanup_on_uninstall' => ['type' => 'boolean', 'default' => false, 'writable' => true],
         ];
 
