@@ -114,6 +114,7 @@ final class FrontendControls
         $report = (new Readiness())->report();
         $certified = ($report['status'] ?? '') === 'READY_LOCKED';
         $researchPreflight = (new ResearchActivationPreflight())->report();
+        $aiPreflight = (new AiActivationPreflight())->report();
         ob_start(); ?>
         <section class="df-panel df-frontend-controls">
             <div class="df-panel-head"><div><h2>System &amp; Automation Controls</h2><p>Routine DigiForge operations are controlled here. WordPress admin is not required.</p></div><span class="df-status"><?php echo esc_html($locked ? 'EXTERNALLY LOCKED' : 'ACTIVE'); ?></span></div>
