@@ -87,7 +87,10 @@ final class Controller {
         if(!Settings::$method()) {
             return new \WP_Error('digiforge_'.$capability.'_activation_failed', __('Capability activation failed atomically.', 'digiforge'), ['status'=>500]);
         }
-        Logger::audit($capability.'_activation_authorized', ['capability'=>$capability,'external_actions_performed'=>false], 'system', $capability.'_activation');
+        if (!Logger::write($capability.'_activation_authorized', ['capability'=>$capability,'external_actions_performed'=>false], 'system', $capability.'_activation')) {
+            Settings::revokeScopedAuthorization($capability.'_activation_authorized');
+            return new \WP_Error('digiforge_'.$capability.'_activation_audit_failed', __('Capability activation was revoked because its audit record could not be persisted.', 'digiforge'), ['status'=>500]);
+        }
         return new \WP_REST_Response(['capability'=>$capability,'authorized'=>true,'effective'=>Settings::is_enabled($capability),'external_actions_performed'=>false],200);
     }
     public function update_control(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
