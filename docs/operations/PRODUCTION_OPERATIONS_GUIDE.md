@@ -7,7 +7,7 @@ This guide is the production operating reference for DigiForge. It consolidates 
 - Product: DigiForge
 - Runtime: WordPress plugin
 - Current production host: digiforge.converentis.com
-- Current live deployed plugin baseline: 1.0.33
+- Current live deployed plugin baseline: 1.0.32
 - Repository-certified release: 1.0.33
 - Current database schema baseline: 14
 - Operating posture: LOCAL-FIRST and FAIL-CLOSED
@@ -41,7 +41,7 @@ The architecture separates local preparation from external execution. Local reco
 - Migration failures must fail closed.
 - Database changes must not be used to bypass authorization or activation gates.
 - Before destructive or production-affecting migration work, a recoverable production database backup must exist.
-- Schema version 14 is the current certified database baseline. Fresh read-only production verification on 2026-09-25 confirms plugin release 1.0.33 live with schema 14 / 14, recovery PASS and READY_LOCKED.
+- Schema version 14 is the current certified database baseline. Fresh read-only production verification on 2026-09-25 confirms plugin release 1.0.32 live with schema 14 / 14, recovery PASS and READY_LOCKED.
 
 ## 5. Safety and external-action model
 External execution is governed by layered controls.
