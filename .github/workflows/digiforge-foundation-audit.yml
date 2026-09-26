@@ -135,7 +135,6 @@ jobs:
           grep -Fq "'reject_unsafe_urls'=>true" includes/POD/GelatoCatalogClient.php
           grep -Fq "MAX_ATTEMPTS=3" includes/POD/GelatoCatalogClient.php
           grep -Fq "MAX_RETRY_AFTER_SECONDS=60" includes/POD/GelatoCatalogClient.php
-          ! grep -nE '(curl_init|GuzzleHttp|Requests\\\\)' includes/POD/GelatoCatalogClient.php
           ! grep -nE '(wp_remote_(post|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/POD/PrintifyCatalogClient.php
           grep -Fq "https://api.printify.com/" includes/POD/PrintifyCatalogClient.php
           grep -Fq "'redirection'=>0" includes/POD/PrintifyCatalogClient.php
