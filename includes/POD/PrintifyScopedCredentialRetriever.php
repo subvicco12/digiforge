@@ -4,10 +4,12 @@ namespace DigiForge\POD;
 use DigiForge\Database\Tables;
 use DigiForge\Integrations\CredentialVault;
 use DigiForge\Integrations\Repository;
+use DigiForge\Core\Settings;
 use WP_Error;
 /** Single-use callback boundary for one configured Printify integration token. */
 final class PrintifyScopedCredentialRetriever{
  public function consume(int $integrationId,callable $consumer):mixed{
+  if(!Settings::is_enabled('printify'))return new WP_Error('digiforge_printify_credential_authorization','Scoped Printify authorization is required before credential access.',['status'=>409]);
   $integration=(new Repository())->find($integrationId);
   if(!$integration||($integration['provider']??'')!=='printify'||($integration['status']??'')!=='CONFIGURED'||($integration['enabled']??false)!==true)return new WP_Error('digiforge_printify_credential_scope','Enabled CONFIGURED Printify integration required.',['status'=>409]);
   global $wpdb;$cipher='';$name='';
