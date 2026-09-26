@@ -56,7 +56,7 @@ final class Readiness
             'checks' => $checks,
             'recovery' => $recovery,
             'effective_switches' => $effective,
-            'external_actions_performed' => false,
+            'external_actions_performed' => $this->externalActionsPerformed(),
         ];
         $payload['evidence_hash'] = hash('sha256', (string) wp_json_encode($payload));
 
@@ -66,5 +66,15 @@ final class Readiness
     private function optionEnabled(string $name): bool
     {
         return filter_var(get_option($name, false), FILTER_VALIDATE_BOOLEAN) === true;
+    }
+    private function externalActionsPerformed(): bool
+    {
+        global $wpdb;
+        $table=$wpdb->prefix.'digiforge_etsy_operations';
+        $exists=$wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$table} WHERE state IN (%s,%s,%s,%s,%s) LIMIT 1",
+            'SENT','UNKNOWN','RECONCILIATION','RECONCILED','CONFIRMED_SUCCESS'
+        ));
+        return (int)$exists>0;
     }
 }
