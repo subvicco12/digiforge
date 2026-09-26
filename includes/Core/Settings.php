@@ -142,7 +142,20 @@ final class Settings
 
     public static function activateOrderAutomation(): bool
     {
-        return self::activateScoped('order_automation_activation_authorized', 'printify', 'Order Automation');
+        if (! self::is_enabled('etsy_publish')) { return false; }
+        if (! self::is_enabled('printify') && ! self::is_enabled('gelato')) { return false; }
+        return self::activateScoped('order_automation_activation_authorized', 'etsy_publish', 'Order Automation');
+    }
+
+    public static function revokeScopedAuthorization(string $authorizationKey): bool
+    {
+        if (! in_array($authorizationKey, [
+            'gelato_activation_authorized',
+            'etsy_publish_activation_authorized',
+            'order_automation_activation_authorized',
+            'gst_automation_activation_authorized',
+        ], true)) { return false; }
+        return self::persist($authorizationKey, false);
     }
 
     public static function activateGstAutomation(): bool
