@@ -4,13 +4,13 @@
 Complete DigiForge as a production-ready local-first WordPress platform without enabling any live Etsy, POD, AI, fulfillment, payment, refund, tax/GST, accounting, advertising, worker, schedule, webhook, or other external side effect.
 
 ## Release posture
-- Plugin release: 1.0.39.
+- Plugin release: 1.0.40.
 - Database schema: v14.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
 - Add `activation_authorized`, internal and non-user-writable, default false.
-- Effective automation requires all three conditions: `activation_authorized=true`, `automation_armed=true`, and `stop_all=false`, plus the relevant feature switch.
-- No normal REST or admin endpoint may write either internal activation gate.
+- Effective automation requires all three conditions: `activation_authorized=true`, `automation_armed=true`, and `stop_all=false`, plus the relevant feature switch and its dedicated scoped authorization where required.
+- No normal REST or admin endpoint may write internal activation gates.
 
 ## Deterministic readiness report
 Provide a local-only readiness report that checks at minimum:
@@ -33,11 +33,11 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 1.0.39 with schema v14
+- version 1.0.40 with schema v14
 - internal activation gates are non-writable
-- effective switches remain false while either internal gate is false or STOP ALL is true
+- effective switches remain false while required internal/scoped gates are false or STOP ALL is true
 - deterministic readiness report
-- no external HTTP clients
+- no external HTTP clients outside the audited allowlist
 - no secret exposure
 - all prior WordPress/MariaDB migration tests remain green
 - PHP syntax, PHPUnit, PHPStan and PHPCS
