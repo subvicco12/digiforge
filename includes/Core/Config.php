@@ -35,6 +35,9 @@ final class Config
             'product_development_activation_authorized' => [
                 'type' => 'boolean', 'default' => false, 'writable' => false,
             ],
+            'etsy_draft_activation_authorized' => [
+                'type' => 'boolean', 'default' => false, 'writable' => false,
+            ],
             'cleanup_on_uninstall' => ['type' => 'boolean', 'default' => false, 'writable' => true],
         ];
 
