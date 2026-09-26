@@ -49,4 +49,16 @@ final class ConnectionTesterStructureTest extends TestCase
         self::assertStringContainsString('migrateSecretName', $repository);
         self::assertStringContainsString('integration_secret_name_migrated', $repository);
     }
+    public function testPrintifyConnectionTestRequiresScopedAuthorizationBeforeCredentialsOrNetwork(): void
+    {
+        $tester = $this->source();
+        self::assertStringContainsString("Settings::is_enabled('printify')", $tester);
+        self::assertStringContainsString('printify_scoped_authorization_required', $tester);
+        $gate = strpos($tester, "Settings::is_enabled('printify')");
+        $credential = strpos($tester, "firstCredential(\$integrationId, ['personal_access_token', 'access_token'])");
+        self::assertIsInt($gate);
+        self::assertIsInt($credential);
+        self::assertLessThan($credential, $gate);
+    }
+
 }
