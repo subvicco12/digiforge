@@ -29,8 +29,11 @@ final class OrderSchema
             }
         }
 
-        // Global schema version is owned by the coordinated migration chain.
-        // OrderSchema only applies its additive table shape here.
+        // Preserve the historical 11 -> 12 handoff so FinanceSchema can run.
+        // Schema 15 finalization remains owned by the coordinated migration chain.
+        if ($currentVersion === 11) {
+            update_option('digiforge_db_schema_version', 12, false);
+        }
         self::grantCapability();
         return true;
     }
