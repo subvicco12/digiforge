@@ -28,7 +28,7 @@ final class LaunchExecutionStructureTest extends TestCase
         self::assertStringContainsString('REVIEW_APPROVED', $engine);
         self::assertStringContainsString('approval_required', $engine);
         self::assertStringContainsString("Settings::is_enabled('research')", $engine);
-        self::assertStringContainsString("Settings::is_internal_enabled('product_development')", $engine);
+        self::assertStringContainsString("Settings::is_enabled('product_development')", $engine);
         self::assertStringContainsString("'tools'", $client);
         self::assertStringContainsString("'web_search'", $client);
         self::assertStringContainsString('CredentialVault::decrypt', $client);
