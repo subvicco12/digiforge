@@ -96,8 +96,10 @@ final class ConnectionTesterTest extends WP_UnitTestCase
             $body = $url === 'https://api.etsy.com/v3/application/users/me'
                 ? ['user_id' => 1290867258]
                 : (str_contains($url, '/users/1290867258/shops')
-                    ? ['shop_id' => 24681012, 'user_id' => 1290867258, 'shop_name' => 'DigiCraftifyDigital']
-                    : ['application_id' => 1]);
+                    ? ['shop_id' => 24681012, 'user_id' => 1290867258]
+                    : ($url === 'https://api.etsy.com/v3/application/shops/24681012'
+                        ? ['shop_id' => 24681012, 'user_id' => 1290867258, 'shop_name' => 'DigiCraftifyDigital']
+                        : ['application_id' => 1]));
             return [
                 'headers' => [],
                 'body' => wp_json_encode($body),
@@ -114,7 +116,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         }
 
         self::assertFalse(is_wp_error($result));
-        self::assertCount(3, $seen);
+        self::assertCount(4, $seen);
         self::assertSame('https://api.etsy.com/v3/application/openapi-ping', $seen[0]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[0]['x_api_key']);
         self::assertSame('https://api.etsy.com/v3/application/users/me', $seen[1]['url']);
@@ -123,6 +125,8 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame('https://api.etsy.com/v3/application/users/1290867258/shops', $seen[2]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[2]['x_api_key']);
         self::assertSame('Bearer unit-test-access-token', $seen[2]['authorization']);
+        self::assertSame('https://api.etsy.com/v3/application/shops/24681012', $seen[3]['url']);
+        self::assertSame('Bearer unit-test-access-token', $seen[3]['authorization']);
         self::assertTrue((bool) $result['ok']);
 
         $updated = $repository->find($id);
@@ -246,6 +250,31 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame(24681012,$shape['first_result']['shop_id']??0);
         self::assertSame('DigiCraftifyDigital',$shape['first_result']['shop_name']??'');
         self::assertArrayNotHasKey('secret',$shape['first_result']??[]);
+    }
+
+    public function testEtsyConnectionResolvesCanonicalShopNameAfterOwnerLookup(): void
+    {
+        DigiForge\Core\Activator::activate();
+        $repository=new DigiForge\Integrations\Repository();
+        $created=$repository->create(['provider'=>'etsy','environment'=>'production','connection_key'=>'test_etsy_canonical','display_name'=>'Canonical Etsy','status'=>'DISCONNECTED','enabled'=>false,'config'=>[]]);
+        self::assertFalse(is_wp_error($created)); $id=(int)$created['id'];
+        self::assertTrue($repository->storeSecret($id,'keystring','unit-test-keystring')===true);
+        self::assertTrue($repository->storeSecret($id,'shared_secret','unit-test-shared-secret')===true);
+        self::assertTrue($repository->storeSecret($id,'access_token','unit-test-access-token')===true);
+        $filter=static function($preempt,array $args,string $url){
+            if($url==='https://api.etsy.com/v3/application/users/me'){$body=['user_id'=>1284202827];}
+            elseif($url==='https://api.etsy.com/v3/application/users/1284202827/shops'){$body=['user_id'=>1284202827,'shop_id'=>67757764];}
+            elseif($url==='https://api.etsy.com/v3/application/shops/67757764'){$body=['shop_id'=>67757764,'user_id'=>1284202827,'shop_name'=>'KinetiqMatrixDesigns'];}
+            else{$body=['application_id'=>1];}
+            return ['headers'=>[],'body'=>wp_json_encode($body),'response'=>['code'=>200,'message'=>'OK'],'cookies'=>[],'filename'=>null];
+        };
+        add_filter('pre_http_request',$filter,10,3);
+        try{$result=(new DigiForge\Integrations\ConnectionTester())->test($id);}finally{remove_filter('pre_http_request',$filter,10);}
+        self::assertFalse(is_wp_error($result));
+        $updated=$repository->find($id);$details=$updated['config']['_connection_test']['details']??[];
+        self::assertSame(67757764,$details['shop_id']??0);
+        self::assertSame('KinetiqMatrixDesigns',$details['shop_name']??'');
+        self::assertSame(1284202827,$details['user_id']??0);
     }
 
 }

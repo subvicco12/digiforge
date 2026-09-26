@@ -12,6 +12,7 @@ final class ConnectionTester {
     private const ETSY_PING_URL = 'https://api.etsy.com/v3/application/openapi-ping';
     private const ETSY_USER_ME_URL = 'https://api.etsy.com/v3/application/users/me';
     private const ETSY_USER_SHOP_URL = 'https://api.etsy.com/v3/application/users/%d/shops';
+    private const ETSY_SHOP_URL = 'https://api.etsy.com/v3/application/shops/%d';
     private const GELATO_CATALOGS_URL = 'https://product.gelatoapis.com/v3/catalogs';
     private const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models';
 
@@ -88,8 +89,18 @@ final class ConnectionTester {
             $shopDiagnostic = $this->safeEtsyShopShape($shop);
             $shopOwnerUserId = absint($shop['user_id'] ?? 0);
             $shopId = absint($shop['shop_id'] ?? 0);
-            $shopName = sanitize_text_field((string) ($shop['shop_name'] ?? ''));
-            if ($shopOwnerUserId !== $userId) { $shopId = 0; $shopName = ''; }
+            if ($shopOwnerUserId !== $userId) { $shopId = 0; }
+            if ($shopId > 0) {
+                $canonicalResponse = $this->get(sprintf(self::ETSY_SHOP_URL, $shopId), ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
+                $canonicalChecked = $this->checkHttp('etsy', $integrationId, $canonicalResponse);
+                if (is_wp_error($canonicalChecked)) { unset($access, $apiKey); return $canonicalChecked; }
+                $canonicalShop = json_decode((string) wp_remote_retrieve_body($canonicalResponse), true);
+                if (! is_array($canonicalShop)) { unset($access, $apiKey); return $this->invalidResponse('etsy', $integrationId); }
+                $canonicalShopId = absint($canonicalShop['shop_id'] ?? 0);
+                $canonicalOwnerUserId = absint($canonicalShop['user_id'] ?? 0);
+                $shopName = sanitize_text_field((string) ($canonicalShop['shop_name'] ?? ''));
+                if ($canonicalShopId !== $shopId || ($canonicalOwnerUserId > 0 && $canonicalOwnerUserId !== $userId)) { $shopId = 0; $shopName = ''; }
+            }
         }
         if ($userId < 1 || $shopId < 1 || $shopName === '') {
             unset($access, $apiKey);
