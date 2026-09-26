@@ -8,7 +8,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
-use DigiForge\Security\CredentialVault;
+use DigiForge\Integrations\CredentialVault;
 
 /**
  * Read-only production preflight for staged Research activation.
@@ -43,7 +43,7 @@ final class ResearchActivationPreflight
             $credentialPresent = is_string($ciphertext) && $ciphertext !== '';
             if ($credentialPresent) {
                 try {
-                    $secret = CredentialVault::decrypt(
+                    $secret = CredentialVault::decryptExisting(
                         $ciphertext,
                         IntegrationRepository::secretContext($integrationId, 'api_key')
                     );

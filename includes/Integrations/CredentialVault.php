@@ -15,6 +15,18 @@ final class CredentialVault {
         return self::managedMasterKey();
     }
 
+    /** Return an existing master key without provisioning persistent state. */
+    private static function existingMasterKey(): ?string {
+        if (defined('DIGIFORGE_CREDENTIAL_KEY') && is_string(DIGIFORGE_CREDENTIAL_KEY) && strlen(DIGIFORGE_CREDENTIAL_KEY) >= 32) {
+            return DIGIFORGE_CREDENTIAL_KEY;
+        }
+        $stored = get_option(self::MANAGED_KEY_OPTION, '');
+        if (! is_string($stored) || $stored === '') {
+            return null;
+        }
+        return self::unwrapManagedKey($stored);
+    }
+
     private static function managedMasterKey(): string {
         $stored = get_option(self::MANAGED_KEY_OPTION, '');
         if (is_string($stored) && $stored !== '') {
@@ -108,6 +120,17 @@ final class CredentialVault {
         return hash_hmac('sha256', 'digiforge:' . $purpose, $ikm, true);
     }
 
+    private static function deriveExisting(string $purpose): ?string {
+        $ikm = self::existingMasterKey();
+        if ($ikm === null) {
+            return null;
+        }
+        if (function_exists('hash_hkdf')) {
+            return hash_hkdf('sha256', $ikm, 32, 'digiforge:' . $purpose, 'digiforge-integration-v1');
+        }
+        return hash_hmac('sha256', 'digiforge:' . $purpose, $ikm, true);
+    }
+
     private static function aad(string $context): string {
         if ($context === '') { throw new \InvalidArgumentException('Credential context is required.'); }
         return 'digiforge:integration:v1:' . $context;
@@ -127,6 +150,26 @@ final class CredentialVault {
         $cipher = openssl_encrypt($plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag, $aad);
         if ($cipher === false) { throw new \RuntimeException('Credential encryption failed.'); }
         return 'openssl:v1:' . base64_encode($iv . $tag . $cipher);
+    }
+
+    /** Read-only decryption probe: never creates or persists a managed key. */
+    public static function decryptExisting(string $payload, string $context): string {
+        [$driver, $version, $encoded] = array_pad(explode(':', $payload, 3), 3, '');
+        if ($version !== 'v1' || $encoded === '') { throw new \RuntimeException('Unsupported credential payload.'); }
+        $raw = base64_decode($encoded, true); if ($raw === false) { throw new \RuntimeException('Invalid credential payload.'); }
+        $key = self::deriveExisting('encryption');
+        if ($key === null) { throw new \RuntimeException('Credential key is unavailable.'); }
+        $aad = self::aad($context);
+        if ($driver === 'sodium') {
+            $n = SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES;
+            if (strlen($raw) <= $n) { throw new \RuntimeException('Invalid credential payload.'); }
+            $plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(substr($raw, $n), $aad, substr($raw, 0, $n), $key);
+        } elseif ($driver === 'openssl') {
+            if (strlen($raw) <= 28) { throw new \RuntimeException('Invalid credential payload.'); }
+            $plain = openssl_decrypt(substr($raw, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16), $aad);
+        } else { throw new \RuntimeException('Unsupported credential encryption driver.'); }
+        if (! is_string($plain)) { throw new \RuntimeException('Credential decryption failed.'); }
+        return $plain;
     }
 
     public static function decrypt(string $payload, string $context): string {
