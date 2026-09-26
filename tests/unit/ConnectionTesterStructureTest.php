@@ -51,7 +51,7 @@ final class ConnectionTesterStructureTest extends TestCase
     }
     public function testPrintifyConnectionTestRequiresScopedAuthorizationBeforeCredentialsOrNetwork(): void
     {
-        $tester = $this->source();
+        $tester = (string) file_get_contents(__DIR__ . '/../../includes/Integrations/ConnectionTester.php');
         self::assertStringContainsString("Settings::is_enabled('printify')", $tester);
         self::assertStringContainsString('printify_scoped_authorization_required', $tester);
         $gate = strpos($tester, "Settings::is_enabled('printify')");
