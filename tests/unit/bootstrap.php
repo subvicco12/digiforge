@@ -59,3 +59,4 @@ require_once __DIR__ . '/../../includes/Launch/ResearchActivationPreflight.php';
 require_once __DIR__ . '/../../includes/Launch/AiActivationPreflight.php';
 require_once __DIR__ . '/../../includes/Launch/ProductDevelopmentActivationPreflight.php';
 require_once __DIR__ . '/../../includes/Launch/EtsyDraftActivationPreflight.php';
+require_once __DIR__ . '/../../includes/Launch/PrintifyActivationPreflight.php';
