@@ -122,6 +122,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[1]['x_api_key']);
         self::assertSame('https://api.etsy.com/v3/application/users/1290867258/shops', $seen[2]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[2]['x_api_key']);
+        self::assertSame('Bearer unit-test-access-token', $seen[2]['authorization']);
         self::assertTrue((bool) $result['ok']);
 
         $updated = $repository->find($id);
@@ -133,4 +134,35 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame(24681012, (int) ($updated['config']['_connection_test']['details']['shop_id'] ?? 0));
         self::assertSame('DigiCraftifyDigital', (string) ($updated['config']['_connection_test']['details']['shop_name'] ?? ''));
     }
+    public function testEtsyConnectionFailsClosedWhenShopIdentityIsMissing(): void
+    {
+        DigiForge\Core\Activator::activate();
+        $repository = new DigiForge\Integrations\Repository();
+        $created = $repository->create([
+            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_missing_shop',
+            'display_name' => 'Test Etsy Missing Shop', 'status' => 'DISCONNECTED', 'enabled' => false, 'config' => [],
+        ]);
+        self::assertFalse(is_wp_error($created));
+        $id = (int) $created['id'];
+        self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
+        self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
+        self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
+
+        $filter = static function ($preempt, array $args, string $url) {
+            $body = $url === 'https://api.etsy.com/v3/application/users/me' ? ['user_id' => 1290867258] : (str_contains($url, '/shops') ? ['shop_id' => 0, 'shop_name' => ''] : ['application_id' => 1]);
+            return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => 200, 'message' => 'OK'], 'cookies' => [], 'filename' => null];
+        };
+        add_filter('pre_http_request', $filter, 10, 3);
+        try { $result = (new DigiForge\Integrations\ConnectionTester())->test($id); }
+        finally { remove_filter('pre_http_request', $filter, 10); }
+
+        self::assertTrue(is_wp_error($result));
+        self::assertSame('etsy_shop_identity_unverified', $result->get_error_code());
+        $updated = $repository->find($id);
+        self::assertIsArray($updated);
+        self::assertSame('ERROR', $updated['status']);
+        self::assertFalse((bool) ($updated['config']['_connection_test']['ok'] ?? true));
+        self::assertSame('shop_identity_unverified', (string) ($updated['config']['_connection_test']['details']['reason'] ?? ''));
+    }
+
 }

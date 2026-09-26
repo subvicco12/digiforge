@@ -64,7 +64,6 @@ final class ConnectionTester {
         }
 
         $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
-        unset($access);
         if (! is_wp_error($userResponse) && (int) wp_remote_retrieve_response_code($userResponse) === 401) {
             $refreshed = $manager->accessToken($integrationId, true);
             if (is_wp_error($refreshed)) {
@@ -72,7 +71,8 @@ final class ConnectionTester {
                 $this->record($integrationId, false, ['http_status' => 401, 'reason' => 'token_refresh_failed'], false);
                 return $refreshed;
             }
-            $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $refreshed, 'Accept' => 'application/json']);
+            $access = $refreshed;
+            $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
             unset($refreshed);
         }
         $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { unset($apiKey); return $checked; }
@@ -80,13 +80,20 @@ final class ConnectionTester {
         $userId = absint($user['user_id'] ?? 0);
         $shopId = 0; $shopName = '';
         if ($userId > 0) {
-            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Accept' => 'application/json']);
-            if (! is_wp_error($shopResponse) && (int) wp_remote_retrieve_response_code($shopResponse) === 200) {
-                $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
-                if (is_array($shop)) { $shopId = absint($shop['shop_id'] ?? 0); $shopName = sanitize_text_field((string)($shop['shop_name'] ?? '')); }
-            }
+            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $access, 'Accept' => 'application/json']);
+            $shopChecked = $this->checkHttp('etsy', $integrationId, $shopResponse);
+            if (is_wp_error($shopChecked)) { unset($access, $apiKey); return $shopChecked; }
+            $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
+            if (! is_array($shop)) { unset($access, $apiKey); return $this->invalidResponse('etsy', $integrationId); }
+            $shopId = absint($shop['shop_id'] ?? 0);
+            $shopName = sanitize_text_field((string) ($shop['shop_name'] ?? ''));
         }
-        unset($apiKey);
+        if ($userId < 1 || $shopId < 1 || $shopName === '') {
+            unset($access, $apiKey);
+            $this->record($integrationId, false, ['http_status' => 200, 'reason' => 'shop_identity_unverified', 'user_id' => $userId], false);
+            return new \WP_Error('etsy_shop_identity_unverified', __('Etsy OAuth succeeded, but a verified shop identity was not returned.', 'digiforge'), ['status' => 409]);
+        }
+        unset($access, $apiKey);
         $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'valid', 'user_id' => $userId, 'shop_id' => $shopId, 'shop_name' => $shopName];
         $this->record($integrationId, true, $details, true);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'etsy', 'user_id' => $userId], 'integration', (string) $integrationId);
