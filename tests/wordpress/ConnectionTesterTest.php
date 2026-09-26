@@ -96,8 +96,10 @@ final class ConnectionTesterTest extends WP_UnitTestCase
             $body = $url === 'https://api.etsy.com/v3/application/users/me'
                 ? ['user_id' => 1290867258]
                 : (str_contains($url, '/users/1290867258/shops')
-                    ? ['shop_id' => 24681012, 'user_id' => 1290867258, 'shop_name' => 'DigiCraftifyDigital']
-                    : ['application_id' => 1]);
+                    ? ['shop_id' => 24681012, 'user_id' => 1290867258]
+                    : ($url === 'https://api.etsy.com/v3/application/shops/24681012'
+                        ? ['shop_id' => 24681012, 'user_id' => 1290867258, 'shop_name' => 'DigiCraftifyDigital']
+                        : ['application_id' => 1]));
             return [
                 'headers' => [],
                 'body' => wp_json_encode($body),
@@ -114,7 +116,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         }
 
         self::assertFalse(is_wp_error($result));
-        self::assertCount(3, $seen);
+        self::assertCount(4, $seen);
         self::assertSame('https://api.etsy.com/v3/application/openapi-ping', $seen[0]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[0]['x_api_key']);
         self::assertSame('https://api.etsy.com/v3/application/users/me', $seen[1]['url']);
@@ -123,6 +125,8 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame('https://api.etsy.com/v3/application/users/1290867258/shops', $seen[2]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[2]['x_api_key']);
         self::assertSame('Bearer unit-test-access-token', $seen[2]['authorization']);
+        self::assertSame('https://api.etsy.com/v3/application/shops/24681012', $seen[3]['url']);
+        self::assertSame('Bearer unit-test-access-token', $seen[3]['authorization']);
         self::assertTrue((bool) $result['ok']);
 
         $updated = $repository->find($id);
