@@ -19,8 +19,8 @@ final class OpenAIClient
     /** Exactly one minimal provider request; no web search, persistence, retry, or downstream workflow. */
     public function controlledConnectivityTest(): array|\WP_Error
     {
-        $connector=$this->connector(); if(is_wp_error($connector))return $connector;
-        $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
+        $connector=$this->connector(); if(is_wp_error($connector)){Logger::audit('controlled_ai_test_failed',['reason'=>'connector_unavailable'],'system','controlled_ai_test');return $connector;}
+        $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey)){Logger::audit('controlled_ai_test_failed',['reason'=>'credential_unavailable'],'system','controlled_ai_test');return $apiKey;}
         $body=['model'=>self::DEFAULT_MODEL,'input'=>'Return exactly this JSON object: {"digiforge_controlled_test":"PASS"}','max_output_tokens'=>100,'text'=>['format'=>['type'=>'json_object']]];
         $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
         if(is_wp_error($response)){Logger::audit('controlled_ai_test_failed',['reason'=>'transport'],'system','controlled_ai_test');return new \WP_Error('digiforge_controlled_ai_transport',__('Controlled AI provider test failed.','digiforge'),['status'=>502]);}
