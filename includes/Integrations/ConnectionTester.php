@@ -11,6 +11,7 @@ final class ConnectionTester {
     private const PRINTIFY_SHOPS_URL = 'https://api.printify.com/v1/shops.json';
     private const ETSY_PING_URL = 'https://api.etsy.com/v3/application/openapi-ping';
     private const ETSY_USER_ME_URL = 'https://api.etsy.com/v3/application/users/me';
+    private const ETSY_USER_SHOP_URL = 'https://api.etsy.com/v3/application/users/%d/shops';
     private const GELATO_CATALOGS_URL = 'https://product.gelatoapis.com/v3/catalogs';
     private const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models';
 
@@ -74,12 +75,19 @@ final class ConnectionTester {
             $userResponse = $this->get(self::ETSY_USER_ME_URL, ['x-api-key' => $apiKey, 'Authorization' => 'Bearer ' . $refreshed, 'Accept' => 'application/json']);
             unset($refreshed);
         }
-        unset($apiKey);
-
-        $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { return $checked; }
-        $user = json_decode((string) wp_remote_retrieve_body($userResponse), true); if (! is_array($user)) { return $this->invalidResponse('etsy', $integrationId); }
+        $checked = $this->checkHttp('etsy', $integrationId, $userResponse); if (is_wp_error($checked)) { unset($apiKey); return $checked; }
+        $user = json_decode((string) wp_remote_retrieve_body($userResponse), true); if (! is_array($user)) { unset($apiKey); return $this->invalidResponse('etsy', $integrationId); }
         $userId = absint($user['user_id'] ?? 0);
-        $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'valid', 'user_id' => $userId];
+        $shopId = 0; $shopName = '';
+        if ($userId > 0) {
+            $shopResponse = $this->get(sprintf(self::ETSY_USER_SHOP_URL, $userId), ['x-api-key' => $apiKey, 'Accept' => 'application/json']);
+            if (! is_wp_error($shopResponse) && (int) wp_remote_retrieve_response_code($shopResponse) === 200) {
+                $shop = json_decode((string) wp_remote_retrieve_body($shopResponse), true);
+                if (is_array($shop)) { $shopId = absint($shop['shop_id'] ?? 0); $shopName = sanitize_text_field((string)($shop['shop_name'] ?? '')); }
+            }
+        }
+        unset($apiKey);
+        $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'valid', 'user_id' => $userId, 'shop_id' => $shopId, 'shop_name' => $shopName];
         $this->record($integrationId, true, $details, true);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'etsy', 'user_id' => $userId], 'integration', (string) $integrationId);
         return ['ok' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => $userId > 0 ? sprintf(__('Etsy connection verified for authenticated user %d.', 'digiforge'), $userId) : __('Etsy connection verified for the authenticated account.', 'digiforge')];
