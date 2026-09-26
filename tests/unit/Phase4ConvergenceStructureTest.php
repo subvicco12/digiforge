@@ -28,4 +28,12 @@ final class Phase4ConvergenceStructureTest extends TestCase
         self::assertStringContainsString("'external_execution_performed'=>false",$s);
         self::assertStringNotContainsString('wp_remote_',$s);
     }
+    public function testFulfillmentPlanDerivesPersonalizationSnapshotFromPersistedApprovals():void
+    {
+        $s=file_get_contents(dirname(__DIR__,2).'/includes/Orders/Repository.php');
+        self::assertIsString($s);
+        foreach(['personalization_submissions()',"review_status='APPROVED'",'reviewed_by>0','reviewed_at IS NOT NULL',"'payload_hash'=>$hash","'personalization_snapshot'=>Validator::canonicalJson($personalization)"] as $n)self::assertStringContainsString($n,$s);
+        self::assertStringNotContainsString("Validator::structured((array)($input['personalization_snapshot']", $s);
+    }
+
 }
