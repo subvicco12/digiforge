@@ -56,7 +56,7 @@ final class Readiness
             'checks' => $checks,
             'recovery' => $recovery,
             'effective_switches' => $effective,
-            'external_actions_performed' => false,
+            'external_actions_performed' => \DigiForge\Operations\ExternalActionEvidence::performed(),
         ];
         $payload['evidence_hash'] = hash('sha256', (string) wp_json_encode($payload));
 
