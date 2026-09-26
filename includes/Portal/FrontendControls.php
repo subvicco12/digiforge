@@ -12,12 +12,14 @@ final class FrontendControls
 {
     private const ACTION = 'digiforge_frontend_update_control';
     private const ACTIVATE = 'digiforge_frontend_activate_production';
+    private const PROTECT = 'digiforge_frontend_protect_production';
 
     public function register(): void
     {
         add_filter('do_shortcode_tag', [$this, 'replaceSystemControls'], 30, 4);
         add_action('admin_post_' . self::ACTION, [$this, 'update']);
         add_action('admin_post_' . self::ACTIVATE, [$this, 'activate']);
+        add_action('admin_post_' . self::PROTECT, [$this, 'protect']);
     }
 
     public function replaceSystemControls(string $output, string $tag, array $attr, array $match): string
@@ -46,6 +48,17 @@ final class FrontendControls
         }
         Logger::audit('production_activated', ['evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false], 'system', 'production_activation');
         $this->redirect('Production activated and STOP ALL released. Individual external feature switches remain unchanged.');
+    }
+
+    public function protect(): void
+    {
+        $this->authorize(self::PROTECT);
+        if (! Settings::protectProduction()) {
+            Logger::audit('production_protection_failed', [], 'system', 'production_activation');
+            $this->redirect('Unable to restore the protected pre-release posture.', true);
+        }
+        Logger::audit('production_protected', ['external_feature_switches_changed' => false], 'system', 'production_activation');
+        $this->redirect('Protected pre-release posture restored. STOP ALL is ON; activation authorization and automation arming are OFF.');
     }
 
     public function update(): void
@@ -89,6 +102,11 @@ final class FrontendControls
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Activate DigiForge production and release STOP ALL? Individual external feature switches will NOT be enabled automatically.');">
                     <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE); ?>"><?php wp_nonce_field(self::ACTIVATE); ?>
                     <button class="df-button df-button-danger" type="submit">Activate Production &amp; Release STOP ALL</button>
+                </form>
+            <?php elseif ($locked && ($activation || $armed)) : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Restore the protected pre-release posture? Feature configuration will remain unchanged.');">
+                    <input type="hidden" name="action" value="<?php echo esc_attr(self::PROTECT); ?>"><?php wp_nonce_field(self::PROTECT); ?>
+                    <button class="df-button df-button-primary" type="submit">Restore Protected Pre-Release State</button>
                 </form>
             <?php else : ?><div class="df-notice">Final production release is unavailable until the system is certified READY_LOCKED in the protected pre-release state.</div><?php endif; ?>
             <div class="df-control-grid">
