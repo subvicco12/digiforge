@@ -95,7 +95,9 @@ final class ConnectionTesterTest extends WP_UnitTestCase
             ];
             $body = $url === 'https://api.etsy.com/v3/application/users/me'
                 ? ['user_id' => 1290867258]
-                : ['application_id' => 1];
+                : (str_contains($url, '/users/1290867258/shops')
+                    ? ['shop_id' => 24681012, 'user_id' => 1290867258, 'shop_name' => 'DigiCraftifyDigital']
+                    : ['application_id' => 1]);
             return [
                 'headers' => [],
                 'body' => wp_json_encode($body),
@@ -112,12 +114,14 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         }
 
         self::assertFalse(is_wp_error($result));
-        self::assertCount(2, $seen);
+        self::assertCount(3, $seen);
         self::assertSame('https://api.etsy.com/v3/application/openapi-ping', $seen[0]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[0]['x_api_key']);
         self::assertSame('https://api.etsy.com/v3/application/users/me', $seen[1]['url']);
         self::assertSame('Bearer unit-test-access-token', $seen[1]['authorization']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[1]['x_api_key']);
+        self::assertSame('https://api.etsy.com/v3/application/users/1290867258/shops', $seen[2]['url']);
+        self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[2]['x_api_key']);
         self::assertTrue((bool) $result['ok']);
 
         $updated = $repository->find($id);
@@ -126,5 +130,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertFalse((bool) $updated['enabled']);
         self::assertTrue((bool) ($updated['config']['_connection_test']['ok'] ?? false));
         self::assertSame(1290867258, (int) ($updated['config']['_connection_test']['details']['user_id'] ?? 0));
+        self::assertSame(24681012, (int) ($updated['config']['_connection_test']['details']['shop_id'] ?? 0));
+        self::assertSame('DigiCraftifyDigital', (string) ($updated['config']['_connection_test']['details']['shop_name'] ?? ''));
     }
 }
