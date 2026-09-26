@@ -26,6 +26,8 @@ final class EtsyControlledRuntimeEndpointContractTest extends TestCase
         self::assertStringContainsString("'_connection_test'",$identity);
         self::assertStringContainsString("'shop_id'",$identity);
         self::assertStringContainsString("'shop_name'",$identity);
+        self::assertStringContainsString("'DigiCraftifyDigital'=>['shop_id'=>67757764,'shop_name'=>'KinetiqMatrixDesigns']",$identity);
+        self::assertStringContainsString("'DigiCraftifyGoods'=>['shop_id'=>68031896,'shop_name'=>'DigicraftifyShop']",$identity);
         self::assertStringContainsString('EtsyVerifiedShopIdentity::resolveAny',$repository);
         self::assertStringContainsString('EtsyVerifiedShopIdentity::resolveAny',$preparation);
     }
