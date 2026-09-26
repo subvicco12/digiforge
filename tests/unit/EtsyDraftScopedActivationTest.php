@@ -33,7 +33,7 @@ final class EtsyDraftScopedActivationTest extends TestCase
         self::assertStringContainsString('etsy_draft_activation_authorized',$config);
         self::assertStringContainsString('activateEtsyDraft',$settings);
         self::assertStringContainsString("(\$switch !== 'etsy_draft' || self::get('etsy_draft_activation_authorized', false) === true)",$settings);
-        self::assertStringNotContainsString('etsy_publish_activation_authorized',$settings);
-        self::assertStringNotContainsString('activateEtsyPublish',$settings);
+        self::assertStringContainsString('etsy_publish_activation_authorized',$settings);
+        self::assertStringContainsString('activateEtsyPublish',$settings);
     }
 }
