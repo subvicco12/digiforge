@@ -82,6 +82,9 @@ final class Stage3ProductDevelopmentE2ECertificationTest extends TestCase
         self::assertStringContainsString('activateProductDevelopment', $controls);
         self::assertStringContainsString('product_development_activation_authorized', $settings);
         self::assertStringContainsString('in_array($switch, [\'research\', \'ai\', \'product_development\', \'etsy_draft\', \'printify\', \'gelato\', \'etsy_publish\', \'order_automation\', \'gst_automation\'], true)', $settings);
+        foreach (['gelato', 'etsy_publish', 'order_automation', 'gst_automation'] as $laterCapability) {
+            self::assertStringContainsString("(\$switch !== '" . $laterCapability . "' || self::get('" . $laterCapability . "_activation_authorized', false) === true)", $settings);
+        }
 
         foreach (['gelato', 'etsy_publish', 'order_automation', 'gst_automation'] as $laterCapability) {
             self::assertStringNotContainsString("Settings::is_enabled('" . $laterCapability . "')", $controls);
