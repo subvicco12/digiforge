@@ -49,6 +49,6 @@ final class AiScopedActivationTest extends TestCase
         self::assertIsString($client);
         self::assertStringContainsString('public function controlledConnectivityTest()', $client);
         self::assertStringContainsString("'max_output_tokens'=>100", $client);
-        self::assertStringNotContainsString("controlledConnectivityTest(): array|\\WP_Error { return \\$this->request", $client);
+        self::assertStringNotContainsString('controlledConnectivityTest(): array|\\WP_Error { return $this->request', $client);
     }
 }
