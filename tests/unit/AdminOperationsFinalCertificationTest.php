@@ -13,7 +13,7 @@ final class AdminOperationsFinalCertificationTest extends TestCase
             self::assertStringContainsString($needle, $admin);
         }
 
-        foreach (['authorize(self::ACTION)', 'authorize(self::ACTIVATE)', 'check_admin_referer', "current_user_can('manage_digiforge_automation')", 'Settings::activateProduction'] as $needle) {
+        foreach (['authorize(self::ACTION)', 'authorize(self::ACTIVATE)', 'check_admin_referer', "current_user_can('manage_digiforge_automation')", 'Settings::activateResearch()'] as $needle) {
             self::assertStringContainsString($needle, $portal);
         }
     }
