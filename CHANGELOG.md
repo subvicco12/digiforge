@@ -1,3 +1,9 @@
+## 1.0.37 — 2026-09-26
+
+- Fixes the Stage 2 AI activation preflight rendering path so the separately authorized AI activation control appears when its read-only preflight is ready.
+- Adds regression coverage for AI preflight initialization in the front-end controls renderer.
+- Performs no capability activation, provider request, or external action during upgrade.
+
 ## 1.0.36 — 2026-09-26
 
 - Adds separately governed AI capability authorization after Research activation.
