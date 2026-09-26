@@ -7,6 +7,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
+use DigiForge\Launch\RemainingActivationPreflight;
 use DigiForge\Security\Logger;
 /** Authenticated management endpoints; no endpoint reveals configuration secrets. */
 final class Controller {
@@ -19,6 +20,9 @@ final class Controller {
         register_rest_route('digiforge/v1', '/activations', ['methods' => 'GET', 'callback' => [$this, 'activations'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/activations/printify', ['methods' => 'POST', 'callback' => [$this, 'activate_printify'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/activations/etsy-draft', ['methods' => 'POST', 'callback' => [$this, 'activate_etsy_draft'], 'permission_callback' => [$this, 'can_manage']]);
+        foreach (['etsy-publish' => 'etsy_publish', 'order-automation' => 'order_automation', 'gst-automation' => 'gst_automation'] as $route => $capability) {
+            register_rest_route('digiforge/v1', '/activations/' . $route, ['methods' => 'POST', 'callback' => fn(\WP_REST_Request $request) => $this->activate_remaining($request, $capability), 'permission_callback' => [$this, 'can_manage']]);
+        }
     }
     public function can_view(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge') || Capabilities::can('view_digiforge_analytics'); }
     public function can_manage(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge_automation'); }
@@ -59,6 +63,23 @@ final class Controller {
         }
         Logger::audit('etsy_draft_activation_authorized', ['capability' => 'etsy_draft', 'external_actions_performed' => false], 'system', 'etsy_draft_activation');
         return new \WP_REST_Response(['capability' => 'etsy_draft', 'authorized' => true, 'effective' => Settings::is_enabled('etsy_draft'), 'external_actions_performed' => false], 200);
+    }
+    public function activate_remaining(\WP_REST_Request $request, string $capability): \WP_REST_Response|\WP_Error {
+        $preflight = (new RemainingActivationPreflight())->report($capability);
+        if (($preflight['status'] ?? '') !== 'READY_FOR_CONTROLLED_ACTIVATION') {
+            return new \WP_Error('digiforge_scoped_activation_blocked', __('Scoped activation preflight is blocked.', 'digiforge'), ['status' => 409, 'blockers' => $preflight['blockers'] ?? []]);
+        }
+        $activated = match ($capability) {
+            'etsy_publish' => Settings::activateEtsyPublish(),
+            'order_automation' => Settings::activateOrderAutomation(),
+            'gst_automation' => Settings::activateGstAutomation(),
+            default => false,
+        };
+        if (! $activated) {
+            return new \WP_Error('digiforge_scoped_activation_failed', __('Scoped activation failed atomically.', 'digiforge'), ['status' => 500]);
+        }
+        Logger::audit('scoped_activation_authorized', ['capability' => $capability, 'external_actions_performed' => false], 'system', $capability . '_activation');
+        return new \WP_REST_Response(['capability' => $capability, 'authorized' => true, 'effective' => Settings::is_enabled($capability), 'external_actions_performed' => false], 200);
     }
     public function update_control(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $key = $request->get_param('key'); if ($key !== 'stop_all' && ! Config::allowed_switch($key)) { return new \WP_Error('digiforge_invalid_control', __('Unknown control.', 'digiforge'), ['status' => 400]); }
