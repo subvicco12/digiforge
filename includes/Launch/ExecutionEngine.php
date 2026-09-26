@@ -112,8 +112,8 @@ final class ExecutionEngine
     /** @return array<string,mixed>|\WP_Error */
     public function develop(int $candidateId, array $input, string $key): array|\WP_Error
     {
-        if (! Settings::is_internal_enabled('ai') || ! Settings::is_internal_enabled('product_development')) {
-            return $this->error('switch_disabled', 'AI and Product Development must be configured on before internal development can run.', 409);
+        if (! Settings::is_enabled('ai') || ! Settings::is_enabled('product_development')) {
+            return $this->error('switch_disabled', 'AI and Product Development must be effectively authorized before development can run.', 409);
         }
         $candidate = $this->candidate($candidateId);
         if ($candidate === null) {
