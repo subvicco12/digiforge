@@ -47,8 +47,12 @@ final class Settings
     public static function activateResearch(): bool
     {
         global $wpdb;
-        $table = Tables::settings();
-        $wpdb->query('START TRANSACTION');
+        $engine = $wpdb->get_var($wpdb->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            Tables::settings()
+        ));
+        if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
+        if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
             foreach (['activation_authorized' => true, 'automation_armed' => true, 'research_activation_authorized' => true, 'stop_all' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('activation persistence failed'); }
