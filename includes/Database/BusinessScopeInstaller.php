@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DigiForge\Database;
 
-/** Installs and reconciles v14 ownership tables without activating commerce. */
+/** Installs and reconciles ownership tables without activating commerce. */
 final class BusinessScopeInstaller
 {
     public static function migrateIfNeeded(): bool
@@ -51,7 +51,7 @@ final class BusinessScopeInstaller
                 if (($unique[$name]??null)!==$columns) return self::fail('BUSINESS_SCOPE_SCHEMA_INDEX_VERIFY_FAILED');
             }
         }
-        update_option('digiforge_db_schema_version',14,false);
+        update_option('digiforge_db_schema_version',15,false);
         delete_option('digiforge_last_migration_failure');
         return true;
     }
