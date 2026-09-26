@@ -58,3 +58,4 @@ require_once __DIR__ . '/../../includes/Observability/HealthStatus.php';
 require_once __DIR__ . '/../../includes/Launch/ResearchActivationPreflight.php';
 require_once __DIR__ . '/../../includes/Launch/AiActivationPreflight.php';
 require_once __DIR__ . '/../../includes/Launch/ProductDevelopmentActivationPreflight.php';
+require_once __DIR__ . '/../../includes/Launch/EtsyDraftActivationPreflight.php';
