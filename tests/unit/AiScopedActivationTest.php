@@ -36,7 +36,7 @@ final class AiScopedActivationTest extends TestCase
         self::assertIsString($config); self::assertIsString($settings); self::assertIsString($portal);
         self::assertStringContainsString("'ai_activation_authorized'", $config);
         self::assertStringContainsString('public static function activateAi(): bool', $settings);
-        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development'], true)", $settings);
+        self::assertStringContainsString("in_array(\$switch, ['research', 'ai', 'product_development', 'etsy_draft'], true)", $settings);
         self::assertStringContainsString("'ai_activation_authorized' => false", $settings);
         self::assertStringContainsString('READY_FOR_CONTROLLED_AI_ACTIVATION', $portal);
         self::assertStringContainsString('Authorize AI Capability', $portal);
