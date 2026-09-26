@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DigiForge\ProductFactory;
 
 use DigiForge\Database\Tables;
+use DigiForge\Core\Settings;
 use DigiForge\Security\Logger;
 use WP_Error;
 
@@ -250,6 +251,10 @@ final class ApprovalAutomation
     public function runStage(int $candidateId, string $shop, string $runKey = '', string $stage = 'develop'): void
     {
         $shop=sanitize_key($shop);$runKey=sanitize_key($runKey);$stage=sanitize_key($stage);
+        if (! Settings::is_enabled('ai') || ! Settings::is_enabled('product_development')) {
+            Logger::audit('u3_product_build_blocked', ['reason'=>'stage3_not_effective','stage'=>$stage,'external_actions'=>false], 'research_candidate', (string)$candidateId);
+            return;
+        }
         if($candidateId<1||!in_array($shop,['digital','goods'],true)||$runKey===''){
             Logger::audit('u3_product_build_failed',['reason'=>'invalid_stage_args'],'research_candidate',(string)$candidateId);return;
         }
