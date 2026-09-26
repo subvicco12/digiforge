@@ -56,6 +56,26 @@ final class Settings
     }
 
     /**
+     * Return production to the protected pre-release posture without changing
+     * any feature configuration. Used after a scoped activation validation.
+     */
+    public static function protectProduction(): bool
+    {
+        global $wpdb;
+        $wpdb->query('START TRANSACTION');
+        try {
+            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false] as $key => $value) {
+                if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
+            }
+            if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
+            return true;
+        } catch (\Throwable $e) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+    }
+
+    /**
      * Returns the configured state of an internal-only switch without releasing
      * the production/external execution interlock. This must never be used for
      * publishing, POD, orders, fulfillment, tax, or other external actions.
