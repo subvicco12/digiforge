@@ -1,3 +1,10 @@
+## 1.0.35 — 2026-09-26
+
+- Replaces the legacy global production release with fail-closed Research-only capability authorization.
+- Requires the dedicated Research activation preflight immediately before authorization and releases no provider request or external action by itself.
+- Keeps AI, Product Development, Etsy, Printify, Gelato, order, and GST capabilities ineffective until separately governed authorization stages.
+- Protected-state recovery revokes Research authorization while preserving feature configuration.
+
 ## 1.0.34 — 2026-09-26
 
 - Adds a front-end protected-state recovery action for safely returning activation gates to the certified pre-release posture.
