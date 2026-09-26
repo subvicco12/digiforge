@@ -127,8 +127,46 @@ final class Settings
 
     public static function activatePrintify(): bool
     {
+        return self::activateScoped('printify_activation_authorized', 'product_development', 'Printify');
+    }
+
+    public static function activateGelato(): bool
+    {
+        return self::activateScoped('gelato_activation_authorized', 'product_development', 'Gelato');
+    }
+
+    public static function activateEtsyPublish(): bool
+    {
+        return self::activateScoped('etsy_publish_activation_authorized', 'etsy_draft', 'Etsy Publish');
+    }
+
+    public static function activateOrderAutomation(): bool
+    {
+        if (! self::is_enabled('etsy_publish')) { return false; }
+        if (! self::is_enabled('printify') && ! self::is_enabled('gelato')) { return false; }
+        return self::activateScoped('order_automation_activation_authorized', 'etsy_publish', 'Order Automation');
+    }
+
+    public static function revokeScopedAuthorization(string $authorizationKey): bool
+    {
+        if (! in_array($authorizationKey, [
+            'gelato_activation_authorized',
+            'etsy_publish_activation_authorized',
+            'order_automation_activation_authorized',
+            'gst_automation_activation_authorized',
+        ], true)) { return false; }
+        return self::persist($authorizationKey, false);
+    }
+
+    public static function activateGstAutomation(): bool
+    {
+        return self::activateScoped('gst_automation_activation_authorized', 'order_automation', 'GST Automation');
+    }
+
+    private static function activateScoped(string $authorizationKey, string $requiredCapability, string $label): bool
+    {
         global $wpdb;
-        if (self::get('product_development_activation_authorized', false) !== true || ! self::is_enabled('product_development')) { return false; }
+        if (! self::is_enabled($requiredCapability)) { return false; }
         $engine = $wpdb->get_var($wpdb->prepare(
             'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
             Tables::settings()
@@ -136,7 +174,7 @@ final class Settings
         if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
         if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
-            if (! self::persist('printify_activation_authorized', true)) { throw new \RuntimeException('Printify activation persistence failed'); }
+            if (! self::persist($authorizationKey, true)) { throw new \RuntimeException($label . ' activation persistence failed'); }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('activation commit failed'); }
             return true;
         } catch (\Throwable $e) {
@@ -159,7 +197,7 @@ final class Settings
         if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
         if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
-            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false, 'ai_activation_authorized' => false, 'product_development_activation_authorized' => false, 'etsy_draft_activation_authorized' => false, 'printify_activation_authorized' => false] as $key => $value) {
+            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false, 'ai_activation_authorized' => false, 'product_development_activation_authorized' => false, 'etsy_draft_activation_authorized' => false, 'printify_activation_authorized' => false, 'gelato_activation_authorized' => false, 'etsy_publish_activation_authorized' => false, 'order_automation_activation_authorized' => false, 'gst_automation_activation_authorized' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
@@ -193,7 +231,11 @@ final class Settings
             && ($switch !== 'product_development' || self::get('product_development_activation_authorized', false) === true)
             && ($switch !== 'etsy_draft' || self::get('etsy_draft_activation_authorized', false) === true)
             && ($switch !== 'printify' || self::get('printify_activation_authorized', false) === true)
-            && in_array($switch, ['research', 'ai', 'product_development', 'etsy_draft', 'printify'], true);
+            && ($switch !== 'gelato' || self::get('gelato_activation_authorized', false) === true)
+            && ($switch !== 'etsy_publish' || self::get('etsy_publish_activation_authorized', false) === true)
+            && ($switch !== 'order_automation' || self::get('order_automation_activation_authorized', false) === true)
+            && ($switch !== 'gst_automation' || self::get('gst_automation_activation_authorized', false) === true)
+            && in_array($switch, ['research', 'ai', 'product_development', 'etsy_draft', 'printify', 'gelato', 'etsy_publish', 'order_automation', 'gst_automation'], true);
     }
 
     public static function safety_locked(): bool
