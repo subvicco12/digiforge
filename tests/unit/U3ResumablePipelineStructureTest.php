@@ -16,7 +16,9 @@ final class U3ResumablePipelineStructureTest extends TestCase
         self::assertStringContainsString('startBackgroundDevelop',$automation);
         self::assertStringContainsString('retrieveBackground',$automation);
         self::assertStringContainsString("'background'=>true",$client);
-        self::assertSame(2,substr_count($client,'wp_remote_post'));
+        self::assertSame(3,substr_count($client,'wp_remote_post'));
+        self::assertMatchesRegularExpression('/startBackgroundDevelop.*?wp_remote_post/s',$client);
+        self::assertMatchesRegularExpression('/controlledConnectivityTest.*?wp_remote_post/s',$client);
         self::assertSame(1,substr_count($client,'wp_remote_get'));
         self::assertStringContainsString('public function developOnly',$orchestrator);
         self::assertStringContainsString("'_manifest_ai'",$orchestrator);
