@@ -1,3 +1,9 @@
+## 1.0.33 — 2026-09-26
+
+- Fixes Research Activation Preflight credential decryptability detection to use the runtime integration credential vault.
+- Keeps the read-only preflight non-provisioning: it never creates or persists a managed credential key while checking decryptability.
+- No production activation, provider request, or external action is enabled by this release.
+
 ## 1.0.32 — 2026-09-26
 
 - Front-end Operations Console now exposes Research activation preflight, Attention & Recovery, separate Digital Products, Personalized POD, and Future Non-Personalized POD lanes, plus secure front-end AI credential replacement.
