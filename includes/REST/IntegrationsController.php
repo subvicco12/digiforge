@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\REST;
 
 use DigiForge\Integrations\Repository;
+use DigiForge\Integrations\ConnectionTester;
 use DigiForge\Queue\Idempotency;
 
 /** Authenticated local-only integration registry API. */
@@ -21,6 +22,10 @@ final class IntegrationsController {
             register_rest_route(self::NS, '/integrations/(?P<id>\d+)', [
                 ['methods' => 'GET', 'callback' => [$this, 'show'], 'permission_callback' => [$this, 'canManage']],
                 ['methods' => 'PATCH', 'callback' => [$this, 'update'], 'permission_callback' => [$this, 'canManage']],
+                'allow_batch' => self::ALLOW_BATCH,
+            ]);
+            register_rest_route(self::NS, '/integrations/(?P<id>\d+)/test', [
+                ['methods' => 'POST', 'callback' => [$this, 'testConnection'], 'permission_callback' => [$this, 'canManage']],
                 'allow_batch' => self::ALLOW_BATCH,
             ]);
             register_rest_route(self::NS, '/integrations/(?P<id>\d+)/secrets/(?P<name>[a-zA-Z0-9_-]+)', [
@@ -49,6 +54,11 @@ final class IntegrationsController {
     public function update(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         return $this->mutate($request, 'integration_update_' . (int) $request['id'], function () use ($request): array|\WP_Error {
             return (new Repository())->update((int) $request['id'], $this->payload($request));
+        });
+    }
+    public function testConnection(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        return $this->mutate($request, 'integration_test_' . (int) $request['id'], function () use ($request): array|\WP_Error {
+            return (new ConnectionTester())->test((int) $request['id']);
         });
     }
     public function putSecret(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
