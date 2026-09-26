@@ -10,8 +10,8 @@ final class U3RepairReleaseVersionTest extends TestCase
     {
         $source = file_get_contents(__DIR__ . '/../../digiforge.php');
         self::assertIsString($source);
-        self::assertStringContainsString('Version: 1.0.49', $source);
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.49';", $source);
+        self::assertStringContainsString('Version: 1.0.50', $source);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.50';", $source);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '15';", $source);
     }
 }

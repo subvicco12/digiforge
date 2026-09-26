@@ -44,8 +44,8 @@ $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
 expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '15'"), 'database schema version is current');
-expect(str_contains($bootstrap, '* Version: 1.0.49'), 'plugin header release version is current');
-expect(str_contains($bootstrap, "const DIGIFORGE_VERSION = '1.0.49';"), 'runtime release version is current');
+expect(str_contains($bootstrap, '* Version: 1.0.50'), 'plugin header release version is current');
+expect(str_contains($bootstrap, "const DIGIFORGE_VERSION = '1.0.50';"), 'runtime release version is current');
 
 $settings = source('includes/Core/Settings.php');
 expect(str_contains($settings, "get('activation_authorized', false) === true"), 'effective switches require activation authorization');
