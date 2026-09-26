@@ -123,8 +123,12 @@ final class EtsyOperationRepository
             return $this->error('scope_mismatch','Intent and draft package must belong to the same listing scope.',409);
         }
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
-        if (!is_array($listing) || !hash_equals((string)($listing['shop_reference']??''),$shopReference)) {
-            return $this->error('shop_scope_mismatch','Operation shop reference must match the approved listing scope.',409);
+        if (!is_array($listing)) return $this->error('shop_scope_mismatch','Approved listing scope is unavailable.',409);
+        $listingShop=(string)($listing['shop_reference']??'');
+        if (!hash_equals($listingShop,$shopReference)) {
+            if (!ctype_digit($shopReference) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$shopReference) instanceof WP_Error) {
+                return $this->error('shop_scope_mismatch','Operation shop reference must match a verified Etsy identity for the approved listing scope.',409);
+            }
         }
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }

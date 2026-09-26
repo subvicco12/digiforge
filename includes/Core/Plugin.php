@@ -14,6 +14,7 @@ use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
 use DigiForge\REST\IntegrationsController;
+use DigiForge\REST\EtsyControlledExecutionController;
 use DigiForge\REST\ResearchController;
 use DigiForge\REST\AiController;
 use DigiForge\REST\ProductionController;
@@ -47,6 +48,7 @@ final class Plugin {
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
         (new IntegrationsController())->register();
+        (new EtsyControlledExecutionController())->register();
         (new ResearchController())->register();
         (new AiController())->register();
         (new ProductionController())->register();

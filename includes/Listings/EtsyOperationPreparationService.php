@@ -141,8 +141,14 @@ final class EtsyOperationPreparationService
             return $this->error('scope_mismatch', 'Current intent and draft package approval scope does not match.', 409);
         }
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
-        if (!is_array($listing) || (string)($listing['state']??'') !== 'APPROVED' || !hash_equals((string)($listing['shop_reference']??''),(string)($operation['shop_reference']??''))) {
-            return $this->error('listing_not_approved', 'Referenced listing approval or shop scope is no longer valid.', 409);
+        if (!is_array($listing) || (string)($listing['state']??'') !== 'APPROVED') {
+            return $this->error('listing_not_approved', 'Referenced listing approval is no longer valid.', 409);
+        }
+        $listingShop=(string)($listing['shop_reference']??'');
+        $operationShop=(string)($operation['shop_reference']??'');
+        if (!hash_equals($listingShop,$operationShop)
+            && (!ctype_digit($operationShop) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$operationShop) instanceof WP_Error)) {
+            return $this->error('listing_not_approved', 'Referenced listing shop scope is no longer valid.', 409);
         }
 
         $currentReadiness = (new Repository())->readiness((int)$intent['listing_id']);
