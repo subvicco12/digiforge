@@ -85,6 +85,26 @@ final class Settings
         }
     }
 
+    public static function activateProductDevelopment(): bool
+    {
+        global $wpdb;
+        if (self::get('ai_activation_authorized', false) !== true || ! self::is_enabled('ai')) { return false; }
+        $engine = $wpdb->get_var($wpdb->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            Tables::settings()
+        ));
+        if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
+        if (false === $wpdb->query('START TRANSACTION')) { return false; }
+        try {
+            if (! self::persist('product_development_activation_authorized', true)) { throw new \RuntimeException('Product Development activation persistence failed'); }
+            if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('activation commit failed'); }
+            return true;
+        } catch (\Throwable $e) {
+            $wpdb->query('ROLLBACK');
+            return false;
+        }
+    }
+
     /**
      * Return production to the protected pre-release posture without changing
      * any feature configuration. Used after a scoped activation validation.
@@ -99,7 +119,7 @@ final class Settings
         if (! is_string($engine) || ! in_array(strtoupper($engine), ['INNODB', 'XTRADB'], true)) { return false; }
         if (false === $wpdb->query('START TRANSACTION')) { return false; }
         try {
-            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false, 'ai_activation_authorized' => false] as $key => $value) {
+            foreach (['stop_all' => true, 'automation_armed' => false, 'activation_authorized' => false, 'research_activation_authorized' => false, 'ai_activation_authorized' => false, 'product_development_activation_authorized' => false] as $key => $value) {
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
@@ -130,7 +150,8 @@ final class Settings
             && self::get($switch, false) === true
             && ($switch !== 'research' || self::get('research_activation_authorized', false) === true)
             && ($switch !== 'ai' || self::get('ai_activation_authorized', false) === true)
-            && in_array($switch, ['research', 'ai'], true);
+            && ($switch !== 'product_development' || self::get('product_development_activation_authorized', false) === true)
+            && in_array($switch, ['research', 'ai', 'product_development'], true);
     }
 
     public static function safety_locked(): bool
