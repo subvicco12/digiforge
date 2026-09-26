@@ -43,4 +43,13 @@ final class UnifiedAppShellResponsiveTest extends TestCase
         self::assertStringContainsString('@media(prefers-reduced-motion:reduce)', $css);
         self::assertStringContainsString('overflow-x:auto', $css);
     }
+    public function testDashboardSurfacesCrossWorkflowOperationalAttentionCounts(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
+        self::assertIsString($source);
+        foreach (['Open operational alerts', 'Pending listing decisions', 'Personalization reviews', 'Pending POD decisions', 'Pending fulfillment decisions', 'Blocked finance intents', 'countExcludingStates'] as $needle) {
+            self::assertStringContainsString($needle, $source);
+        }
+    }
+
 }
