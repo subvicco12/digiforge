@@ -30,6 +30,9 @@ final class MigrationTest extends WP_UnitTestCase
     }
     private function finishBusinessScopeUpgrade(): void
     {
+        // OrderSchema owns the additive v15 table shape; global v15 is finalized
+        // only after the historical migration chain reaches business scope.
+        self::assertTrue(DigiForge\Database\OrderSchema::migrateIfNeeded());
         self::assertTrue(DigiForge\Database\BusinessScopeInstaller::migrateIfNeeded());
         (new DigiForge\Database\Migrator())->maybe_migrate();
     }
