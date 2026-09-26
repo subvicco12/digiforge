@@ -7,6 +7,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess(): void
     {
         DigiForge\Core\Activator::activate();
+        update_option('digiforge_settings', array_merge(DigiForge\Core\Settings::all(), ['stop_all'=>false,'activation_authorized'=>true,'automation_armed'=>true,'product_development'=>true,'product_development_activation_authorized'=>true,'printify'=>true,'printify_activation_authorized'=>true]));
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
             'provider' => 'printify',
