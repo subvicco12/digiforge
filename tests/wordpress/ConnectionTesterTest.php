@@ -122,7 +122,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[1]['x_api_key']);
         self::assertSame('https://api.etsy.com/v3/application/users/1290867258/shops', $seen[2]['url']);
         self::assertSame('unit-test-keystring:unit-test-shared-secret', $seen[2]['x_api_key']);
-        self::assertSame('', $seen[2]['authorization']);
+        self::assertSame('Bearer unit-test-access-token', $seen[2]['authorization']);
         self::assertTrue((bool) $result['ok']);
 
         $updated = $repository->find($id);
@@ -189,6 +189,35 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         finally { remove_filter('pre_http_request', $filter, 10); }
         self::assertTrue(is_wp_error($result));
         self::assertSame('etsy_shop_identity_unverified', $result->get_error_code());
+    }
+
+    public function testEtsyAuthenticationFailureRecordsSanitizedProviderEvidence(): void
+    {
+        DigiForge\Core\Activator::activate();
+        $repository = new DigiForge\Integrations\Repository();
+        $created = $repository->create([
+            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_safe_error',
+            'display_name' => 'Test Etsy Safe Error', 'status' => 'DISCONNECTED', 'enabled' => false, 'config' => [],
+        ]);
+        self::assertFalse(is_wp_error($created));
+        $id = (int) $created['id'];
+        self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
+        self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
+        self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
+        $filter = static function ($preempt, array $args, string $url) {
+            $body = $url === 'https://api.etsy.com/v3/application/users/me' ? ['user_id' => 1290867258] : (str_contains($url, '/shops') ? ['error' => 'invalid_scope', 'error_description' => 'Shop access is not permitted'] : ['application_id' => 1]);
+            $status = str_contains($url, '/shops') ? 403 : 200;
+            return ['headers' => [], 'body' => wp_json_encode($body), 'response' => ['code' => $status, 'message' => $status === 200 ? 'OK' : 'Forbidden'], 'cookies' => [], 'filename' => null];
+        };
+        add_filter('pre_http_request', $filter, 10, 3);
+        try { $result = (new DigiForge\Integrations\ConnectionTester())->test($id); }
+        finally { remove_filter('pre_http_request', $filter, 10); }
+        self::assertTrue(is_wp_error($result));
+        $updated = $repository->find($id);
+        $details = $updated['config']['_connection_test']['details'] ?? [];
+        self::assertSame('invalid_scope', $details['provider_error_code'] ?? '');
+        self::assertSame('Shop access is not permitted', $details['provider_error_message'] ?? '');
+        self::assertArrayNotHasKey('access_token', $details);
     }
 
 }
