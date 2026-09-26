@@ -23,6 +23,17 @@ final class EtsyVerifiedShopIdentity
         if($verifiedId!==$shopId||!hash_equals($listingShopReference,$verifiedName)) return self::error('scope','Verified Etsy shop identity does not match the approved listing shop scope.');
         return ['integration_id'=>$integrationId,'shop_id'=>$verifiedId,'shop_name'=>$verifiedName];
     }
+    public static function resolveAny(string $listingShopReference,int $shopId): array|WP_Error
+    {
+        global $wpdb;
+        $ids=$wpdb->get_col("SELECT id FROM ".Tables::integrations()." WHERE provider='etsy' AND status='CONFIGURED' ORDER BY id ASC");
+        foreach((array)$ids as $id){
+            $resolved=self::resolve((int)$id,$listingShopReference,$shopId);
+            if(!($resolved instanceof WP_Error)) return $resolved;
+        }
+        return self::error('scope','No verified Etsy integration matches the approved listing shop scope.');
+    }
+
     private static function error(string $code,string $message): WP_Error
     {
         return new WP_Error('digiforge_etsy_verified_shop_'.$code,$message,['status'=>409]);
