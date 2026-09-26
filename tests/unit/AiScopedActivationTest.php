@@ -42,5 +42,13 @@ final class AiScopedActivationTest extends TestCase
         self::assertStringContainsString('Authorize AI Capability', $portal);
         self::assertMatchesRegularExpression('/private function render\(\): string.*?\\$researchPreflight = \(new ResearchActivationPreflight\(\)\)->report\(\);\\s*\\$aiPreflight = \(new AiActivationPreflight\(\)\)->report\(\);/s', $portal);
         self::assertStringContainsString('No provider request was performed by activation.', $portal);
+        self::assertStringContainsString('Run Controlled AI Test', $portal);
+        self::assertStringContainsString("! Settings::is_enabled('product_development')", $portal);
+        self::assertStringContainsString('controlledConnectivityTest()', $portal);
+        $client = file_get_contents(dirname(__DIR__, 2) . '/includes/Launch/OpenAIClient.php');
+        self::assertIsString($client);
+        self::assertStringContainsString('public function controlledConnectivityTest()', $client);
+        self::assertStringContainsString("'max_output_tokens'=>100", $client);
+        self::assertStringNotContainsString('controlledConnectivityTest(): array|\\WP_Error { return $this->request', $client);
     }
 }

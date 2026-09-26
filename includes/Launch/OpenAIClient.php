@@ -15,6 +15,21 @@ final class OpenAIClient
     private const DEFAULT_MODEL = 'gpt-5.6-luna';
 
     public function research(string $brief): array|\WP_Error { return $this->request($brief, true, 4000); }
+
+    /** Exactly one minimal provider request; no web search, persistence, retry, or downstream workflow. */
+    public function controlledConnectivityTest(): array|\WP_Error
+    {
+        $connector=$this->connector(); if(is_wp_error($connector)){Logger::audit('controlled_ai_test_failed',['reason'=>'connector_unavailable'],'system','controlled_ai_test');return $connector;}
+        $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey)){Logger::audit('controlled_ai_test_failed',['reason'=>'credential_unavailable'],'system','controlled_ai_test');return $apiKey;}
+        $body=['model'=>self::DEFAULT_MODEL,'input'=>'Return exactly this JSON object: {"digiforge_controlled_test":"PASS"}','max_output_tokens'=>100,'text'=>['format'=>['type'=>'json_object']]];
+        $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
+        if(is_wp_error($response)){Logger::audit('controlled_ai_test_failed',['reason'=>'transport'],'system','controlled_ai_test');return new \WP_Error('digiforge_controlled_ai_transport',__('Controlled AI provider test failed.','digiforge'),['status'=>502]);}
+        $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);$responseId=is_array($decoded)?sanitize_text_field((string)($decoded['id']??'')):'';
+        if($status<200||$status>=300||!is_array($decoded)){Logger::audit('controlled_ai_test_failed',['http_status'=>$status,'request_id'=>$this->requestId($response)],'system','controlled_ai_test');return new \WP_Error('digiforge_controlled_ai_provider',__('AI provider rejected the controlled test. No retry was attempted.','digiforge'),['status'=>502]);}
+        $payload=$this->decodeJsonObject($this->extractOutputText($decoded));$passed=is_array($payload)&&($payload['digiforge_controlled_test']??null)==='PASS';
+        Logger::audit($passed?'controlled_ai_test_passed':'controlled_ai_test_failed',['response_id'=>$responseId,'http_status'=>$status,'downstream_actions_performed'=>false,'automatic_retry_performed'=>false],'system','controlled_ai_test');
+        return $passed?['status'=>'PASS','response_id'=>$responseId,'model'=>sanitize_text_field((string)($decoded['model']??self::DEFAULT_MODEL)),'downstream_actions_performed'=>false,'automatic_retry_performed'=>false]:new \WP_Error('digiforge_controlled_ai_contract',__('AI provider responded but did not satisfy the controlled-test contract. No retry was attempted.','digiforge'),['status'=>502]);
+    }
     public function develop(string $brief): array|\WP_Error
     {
         // Product Factory manifests contain complete customer + marketing assets and

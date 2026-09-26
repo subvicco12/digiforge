@@ -7,6 +7,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Launch\AiActivationPreflight;
+use DigiForge\Launch\OpenAIClient;
 use DigiForge\Security\Logger;
 
 final class FrontendControls
@@ -15,6 +16,7 @@ final class FrontendControls
     private const ACTIVATE = 'digiforge_frontend_activate_production';
     private const PROTECT = 'digiforge_frontend_protect_production';
     private const ACTIVATE_AI = 'digiforge_frontend_activate_ai';
+    private const CONTROLLED_AI_TEST = 'digiforge_frontend_controlled_ai_test';
 
     public function register(): void
     {
@@ -23,6 +25,7 @@ final class FrontendControls
         add_action('admin_post_' . self::ACTIVATE, [$this, 'activate']);
         add_action('admin_post_' . self::PROTECT, [$this, 'protect']);
         add_action('admin_post_' . self::ACTIVATE_AI, [$this, 'activateAi']);
+        add_action('admin_post_' . self::CONTROLLED_AI_TEST, [$this, 'controlledAiTest']);
     }
 
     public function replaceSystemControls(string $output, string $tag, array $attr, array $match): string
@@ -73,6 +76,18 @@ final class FrontendControls
         }
         Logger::audit('ai_activation_authorized', ['capability' => 'ai', 'external_actions_performed' => false], 'system', 'ai_activation');
         $this->redirect('AI capability activation authorized. Product Development and all later capabilities remain ineffective. No provider request was performed by activation.');
+    }
+
+    public function controlledAiTest(): void
+    {
+        $this->authorize(self::CONTROLLED_AI_TEST);
+        if (! Settings::is_enabled('research') || ! Settings::is_enabled('ai') || Settings::is_enabled('product_development')) {
+            Logger::audit('controlled_ai_test_refused', ['reason' => 'capability_isolation'], 'system', 'controlled_ai_test');
+            $this->redirect('Controlled AI test refused: Research and AI must be effective and Product Development must remain ineffective.', true);
+        }
+        $result = (new OpenAIClient())->controlledConnectivityTest();
+        if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
+        $this->redirect('Controlled AI provider test PASS. Exactly one provider request was performed; no downstream action or automatic retry occurred.');
     }
 
     public function protect(): void
@@ -139,6 +154,12 @@ final class FrontendControls
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Authorize AI capability? This changes authorization only; it does not make a provider request. Product Development and later capabilities remain ineffective.');">
                     <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE_AI); ?>"><?php wp_nonce_field(self::ACTIVATE_AI); ?>
                     <button class="df-button df-button-danger" type="submit">Authorize AI Capability</button>
+                </form>
+            <?php endif; ?>
+            <?php if (Settings::is_enabled('research') && Settings::is_enabled('ai') && ! Settings::is_enabled('product_development')) : ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Run exactly ONE controlled AI provider request? No web search, Product Development, Etsy, POD, order, finance, GST action, or automatic retry will occur.');">
+                    <input type="hidden" name="action" value="<?php echo esc_attr(self::CONTROLLED_AI_TEST); ?>"><?php wp_nonce_field(self::CONTROLLED_AI_TEST); ?>
+                    <button class="df-button df-button-primary" type="submit">Run Controlled AI Test</button>
                 </form>
             <?php endif; ?>
             <div class="df-control-grid">
