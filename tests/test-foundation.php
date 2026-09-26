@@ -44,7 +44,7 @@ $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
 expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '15'"), 'database schema version is current');
-expect(str_contains($bootstrap, '* Version: 1.0.41'), 'plugin header release version is current');
+expect(str_contains($bootstrap, '* Version: 1.0.42'), 'plugin header release version is current');
 expect((bool) preg_match("/const\\s+DIGIFORGE_VERSION\\s*=\\s*'1\\.0\\.41'\\s*;/", $bootstrap), 'runtime release version is current');
 
 $settings = source('includes/Core/Settings.php');
