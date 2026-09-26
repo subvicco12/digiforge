@@ -42,12 +42,12 @@ final class FrontendControls
         if (Settings::get('stop_all', true) !== true || Settings::get('activation_authorized', false) === true || Settings::get('automation_armed', false) === true) {
             $this->redirect('Production release refused: protected pre-release state changed. Re-certify first.', true);
         }
-        if (! Settings::activateProduction()) {
+        if (! Settings::activateResearch()) {
             Logger::audit('production_activation_failed', ['evidence_hash' => $report['evidence_hash'] ?? ''], 'system', 'production_activation');
             $this->redirect('Production release failed atomically; STOP ALL remains protected.', true);
         }
-        Logger::audit('production_activated', ['evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false], 'system', 'production_activation');
-        $this->redirect('Production activated and STOP ALL released. Individual external feature switches remain unchanged.');
+        Logger::audit('research_activation_authorized', ['capability' => 'research', 'evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false], 'system', 'research_activation');
+        $this->redirect('Research-only activation authorized and STOP ALL released. AI, Product Development, and all other capabilities remain ineffective.');
     }
 
     public function protect(): void
@@ -99,9 +99,9 @@ final class FrontendControls
                 <div><span>External execution</span><b><?php echo $locked ? 'LOCKED' : 'AVAILABLE'; ?></b></div>
             </div>
             <?php if ($certified && $locked && ! $activation && ! $armed) : ?>
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Activate DigiForge production and release STOP ALL? Individual external feature switches will NOT be enabled automatically.');">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Authorize the Research capability and release STOP ALL? AI, Product Development, and every other capability will remain ineffective.');">
                     <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTIVATE); ?>"><?php wp_nonce_field(self::ACTIVATE); ?>
-                    <button class="df-button df-button-danger" type="submit">Activate Production &amp; Release STOP ALL</button>
+                    <button class="df-button df-button-danger" type="submit">Authorize Research &amp; Release STOP ALL</button>
                 </form>
             <?php elseif ($locked && ($activation || $armed)) : ?>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Restore the protected pre-release posture? Feature configuration will remain unchanged.');">
@@ -132,7 +132,7 @@ final class FrontendControls
                 <?php endif; ?>
                 <div class="df-muted">Network requests performed: NO · External actions performed: NO</div>
             </section>
-            <div class="df-notice">Production activation never enables Etsy, Printify, Gelato, order, GST, research, AI, or product-development switches. Those remain individually controlled and approval-gated.</div>
+            <div class="df-notice">Capability activation is scoped. Research authorization cannot activate AI, Product Development, Etsy, Printify, Gelato, orders, or GST; later stages require separate authorization.</div>
         </section><?php return (string) ob_get_clean();
     }
 
