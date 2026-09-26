@@ -31,6 +31,7 @@ final class Config
             'activation_authorized' => ['type' => 'boolean', 'default' => false, 'writable' => false],
             'automation_armed' => ['type' => 'boolean', 'default' => false, 'writable' => false],
             'research_activation_authorized' => ['type' => 'boolean', 'default' => false, 'writable' => false],
+            'ai_activation_authorized' => ['type' => 'boolean', 'default' => false, 'writable' => false],
             'cleanup_on_uninstall' => ['type' => 'boolean', 'default' => false, 'writable' => true],
         ];
 
