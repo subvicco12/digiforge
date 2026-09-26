@@ -1,3 +1,9 @@
+## 1.0.34 — 2026-09-26
+
+- Adds a front-end protected-state recovery action for safely returning activation gates to the certified pre-release posture.
+- Recovery requires transactional settings storage and fails closed before changing gates when atomicity cannot be guaranteed.
+- Feature switch configuration is preserved; no provider request or external action is performed by recovery.
+
 ## 1.0.33 — 2026-09-26
 
 - Fixes Research Activation Preflight credential decryptability detection to use the runtime integration credential vault.

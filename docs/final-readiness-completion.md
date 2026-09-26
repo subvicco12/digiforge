@@ -4,7 +4,7 @@
 Complete DigiForge as a production-ready local-first WordPress platform without enabling any live Etsy, POD, AI, fulfillment, payment, refund, tax/GST, accounting, advertising, worker, schedule, webhook, or other external side effect.
 
 ## Release posture
-- Plugin release: 1.0.33.
+- Plugin release: 1.0.34.
 - Database schema: v14.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
@@ -33,7 +33,7 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 1.0.33 with schema v14
+- version 1.0.34 with schema v14
 - internal activation gates are non-writable
 - effective switches remain false while either internal gate is false or STOP ALL is true
 - deterministic readiness report

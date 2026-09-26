@@ -8,7 +8,7 @@ This guide is the production operating reference for DigiForge. It consolidates 
 - Runtime: WordPress plugin
 - Current production host: digiforge.converentis.com
 - Current live deployed plugin baseline: 1.0.32
-- Repository-certified release: 1.0.33
+- Repository-certified release: 1.0.34
 - Current database schema baseline: 14
 - Operating posture: LOCAL-FIRST and FAIL-CLOSED
 - STOP ALL: must remain ON until explicit activation authorization
