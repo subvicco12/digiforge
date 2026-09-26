@@ -1,3 +1,10 @@
+## 1.0.36 — 2026-09-26
+
+- Adds separately governed AI capability authorization after Research activation.
+- Adds read-only AI activation preflight for connector and encrypted credential readiness.
+- AI activation fails closed and is transactional; activation itself performs no provider request or external action.
+- Product Development, Etsy, Printify, Gelato, Orders and GST remain separately ineffective.
+
 ## 1.0.35 — 2026-09-26
 
 - Replaces the legacy global production release with fail-closed Research-only capability authorization.
