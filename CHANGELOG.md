@@ -1,3 +1,8 @@
+## 1.0.32 — 2026-09-26
+
+- Front-end Operations Console now exposes Research activation preflight, Attention & Recovery, separate Digital Products, Personalized POD, and Future Non-Personalized POD lanes, plus secure front-end AI credential replacement.
+- Production activation remains fail-closed; no external actions are enabled by this release.
+
 # Changelog
 
 All notable DigiForge changes are recorded here.
