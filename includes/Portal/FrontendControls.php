@@ -35,6 +35,11 @@ final class FrontendControls
     {
         $this->authorize(self::ACTIVATE);
         $report = (new Readiness())->report();
+        $researchPreflight = (new ResearchActivationPreflight())->report();
+        if (($researchPreflight['status'] ?? '') !== 'READY_FOR_CONTROLLED_RESEARCH_ACTIVATION') {
+            Logger::audit('research_activation_refused', ['status' => $researchPreflight['status'] ?? 'BLOCKED', 'blockers' => $researchPreflight['blockers'] ?? []], 'system', 'research_activation');
+            $this->redirect('Research activation refused: dedicated Research preflight is blocked.', true);
+        }
         if (($report['status'] ?? '') !== 'READY_LOCKED') {
             Logger::audit('production_activation_refused', ['status' => $report['status'] ?? 'unknown', 'evidence_hash' => $report['evidence_hash'] ?? ''], 'system', 'production_activation');
             $this->redirect('Production release refused: readiness certification is not READY_LOCKED.', true);
