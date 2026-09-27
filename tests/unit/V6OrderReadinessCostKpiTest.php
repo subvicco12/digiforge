@@ -23,6 +23,15 @@ final class V6OrderReadinessCostKpiTest extends TestCase
         self::assertStringContainsString("'external_execution_performed'=>false",$cost);
     }
 
+    public function testAttentionProjectionOnlyAggregatesExplicitHumanGates():void
+    {
+        $model=file_get_contents(__DIR__.'/../../includes/Portal/AttentionReadModel.php');
+        foreach(['REVIEW_PENDING','PENDING','APPROVED','REJECTED','BLOCKED','RESOLVED','CLOSED'] as $state)self::assertStringContainsString($state,$model);
+        self::assertStringContainsString("'external_execution_performed'=>false",$model);
+        self::assertStringNotContainsString('->insert(',$model);
+        self::assertStringNotContainsString('->update(',$model);
+    }
+
     public function testPortalLabelsOperationalViewsReadOnly():void
     {
         $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
