@@ -104,6 +104,44 @@ final class V6OperationalSchema {
   UNIQUE KEY provider_event (provider,event_id),
   KEY shop_status (shop_reference,processing_status),
   KEY received_at (received_at)
+) $charset;",
+  "CREATE TABLE ".Tables::pod_render_evidence()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  order_id bigint(20) unsigned NOT NULL,
+  provider_mapping_id bigint(20) unsigned NOT NULL,
+  template_key varchar(191) NOT NULL,
+  template_version varchar(64) NOT NULL,
+  template_sha256 char(64) NOT NULL,
+  personalization_evidence_hash char(64) NOT NULL,
+  render_mode varchar(32) NOT NULL,
+  output_sha256 char(64) NOT NULL,
+  evidence_hash char(64) NOT NULL,
+  review_status varchar(32) NOT NULL DEFAULT 'UNREVIEWED',
+  reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  reviewed_at datetime NULL,
+  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY evidence_hash (evidence_hash),
+  KEY order_review (order_id,review_status)
+) $charset;",
+  "CREATE TABLE ".Tables::pod_authorization_packages()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  order_id bigint(20) unsigned NOT NULL,
+  render_evidence_id bigint(20) unsigned NOT NULL,
+  provider_mapping_id bigint(20) unsigned NOT NULL,
+  ownership_mapping_id bigint(20) unsigned NOT NULL,
+  readiness_hash char(64) NOT NULL,
+  package_hash char(64) NOT NULL,
+  state varchar(32) NOT NULL DEFAULT 'REVIEW_REQUIRED',
+  approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  approved_at datetime NULL,
+  external_execution_authorized tinyint(1) NOT NULL DEFAULT 0,
+  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY package_hash (package_hash),
+  KEY order_state (order_id,state)
 ) $charset;"
  ];}
 }
