@@ -5,6 +5,7 @@ namespace DigiForge\REST;
 
 use DigiForge\Database\Tables;
 use DigiForge\Integrations\ConnectionTester;
+use DigiForge\Integrations\EtsySellerTaxonomyClient;
 use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Listings\EtsyControlledDraftExecutionCoordinator;
 use DigiForge\Listings\EtsyApprovedPackageCompiler;
@@ -69,6 +70,11 @@ final class EtsyControlledExecutionController
         if($connection instanceof WP_Error) return $connection;
         $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);
         if($identity instanceof WP_Error) return $identity;
+        $taxonomyId=(int)($classification['taxonomy_id']??0);
+        if($taxonomyId<1) return new WP_Error('digiforge_etsy_runtime_taxonomy','A positive Etsy taxonomy_id is required for verified taxonomy lookup.',['status'=>400]);
+        $taxonomyEvidence=(new EtsySellerTaxonomyClient())->fetchVerified($integrationId,$taxonomyId);
+        if($taxonomyEvidence instanceof WP_Error) return $taxonomyEvidence;
+        $classification['taxonomy_evidence']=$taxonomyEvidence;
 
         $payload=EtsyApprovedPackageCompiler::compile($package,$listing,$classification);
         if($payload instanceof WP_Error) return $payload;

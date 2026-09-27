@@ -18,7 +18,8 @@ final class EtsyDraftListingOperations
         if ($shopId<1) return self::error('shop','A numeric Etsy shop id is required.');
         $required=['quantity','title','description','price','who_made','when_made','taxonomy_id'];
         foreach ($required as $key) if (!array_key_exists($key,$draft)) return self::error('payload','Draft listing payload is incomplete.');
-        $payload=self::sanitize($draft);
+        $external=$draft; unset($external['_digiforge']);
+        $payload=self::sanitize($external);
         if ($payload instanceof WP_Error) return $payload;
         return self::plan('CREATE_DRAFT','POST',"/application/shops/{$shopId}/listings",$payload,'application/x-www-form-urlencoded');
     }
