@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\Listings;
 use DigiForge\Orders\Repository;
+use DigiForge\Orders\ApprovedPodMappingResolver;
 use WP_Error;
 
 /**
@@ -44,7 +45,8 @@ final class EtsyOrderWebhookLifecycle
                 $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
                 if(!is_array($resolved)){$reviewRequired=true;continue;}
                 $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
-                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>(int)($item['provider_mapping_id']??0),'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
+                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($productVersionId,'production');if(!$isDigital&&$providerMappingId<1)$reviewRequired=true;
+                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>$providerMappingId,'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
                 if($line instanceof WP_Error){$reviewRequired=true;continue;}
                 $normalized[]=(int)$line['id'];
             }
