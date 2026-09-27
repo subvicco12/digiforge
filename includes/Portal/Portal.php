@@ -6,6 +6,7 @@ namespace DigiForge\Portal;
 
 use DigiForge\Core\Settings;
 use DigiForge\AI\CostKpiReadModel;
+use DigiForge\AI\LifecycleDenominatorReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Listings\WebhookReconciliationReadModel;
 use DigiForge\Database\Tables;
@@ -205,8 +206,8 @@ final class Portal
 
     private function financeOperations():void
     {
-        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html(number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html(number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);$denominators=(new LifecycleDenominatorReadModel())->snapshot();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html(number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html(number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Lifecycle denominators</h2><p>Authoritative raw lifecycle counts only. They are not attributed to AI spend.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Opportunities</span><b>'.esc_html((string)$denominators['opportunities']).'</b></div><div><span>Developed products</span><b>'.esc_html((string)$denominators['developed_products']).'</b></div><div><span>Approved listings</span><b>'.esc_html((string)$denominators['approved_listings']).'</b></div><div><span>Received orders</span><b>'.esc_html((string)$denominators['received_orders']).'</b></div></div><p class="df-muted">AI cost attribution: NOT ESTABLISHED</p></section>';
         foreach($this->tables('finance') as $label=>$table)$this->panelTable($label,$table);
     }
 
@@ -290,7 +291,7 @@ final class Portal
             . " WHERE state NOT IN ('RESOLVED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
             ARRAY_A
         );
-        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Total attention items</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article></section>';
+        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Total attention items</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article><article class="df-stat-card"><span>Orders needing reconciliation</span><strong>'.esc_html((string)$attention['orders_needing_reconciliation']).'</strong></article></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Attention & Recovery</h2>'
             . '<p>Human-attention signals are shown here without inferring readiness from arbitrary operational status text.</p></div>'
             . '<span class="df-status">' . esc_html($blockers === [] ? 'NO PREFLIGHT BLOCKERS' : count($blockers) . ' PREFLIGHT BLOCKER(S)') . '</span></div>';

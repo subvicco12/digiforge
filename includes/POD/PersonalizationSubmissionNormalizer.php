@@ -36,8 +36,8 @@ final class PersonalizationSubmissionNormalizer
             }
             $normalized[]=['answer_key'=>$answerKey,'question_id'=>(int)($question['question_id']??0),'question_type'=>$type,'question_text'=>(string)$question['question_text'],'value'=>$value];
         }
-        $payload=['schema_version'=>1,'answers'=>$normalized];
-        $json=wp_json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        $payload=['schema_version'=>1,'answers'=>$normalized,'review_evidence'=>['question_count'=>count($contract['personalization_questions']),'answer_count'=>count($normalized),'required_questions_satisfied'=>true,'human_review_required'=>true,'external_execution_performed'=>false]];
+        $json=wp_json_encode(['schema_version'=>$payload['schema_version'],'answers'=>$payload['answers']],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
         $payload['canonical_hash']=hash('sha256',(string)$json);
         return $payload;
     }

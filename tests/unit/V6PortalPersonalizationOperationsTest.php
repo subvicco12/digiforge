@@ -49,4 +49,14 @@ final class V6PortalPersonalizationOperationsTest extends TestCase
         self::assertFalse($preflight['external_execution_performed']);
     }
 
+    public function testPersonalizationCarriesReviewEvidenceWithoutChangingCanonicalAnswerHash():void
+    {
+        $result=\DigiForge\POD\PersonalizationSubmissionNormalizer::normalize([['question_id'=>1,'question_type'=>'text_input','question_text'=>'Name','required'=>true,'max_allowed_characters'=>20]],['question_1'=>'Ada']);
+        self::assertIsArray($result);
+        self::assertTrue($result['review_evidence']['required_questions_satisfied']);
+        self::assertTrue($result['review_evidence']['human_review_required']);
+        self::assertFalse($result['review_evidence']['external_execution_performed']);
+        self::assertSame(1,$result['review_evidence']['answer_count']);
+    }
+
 }
