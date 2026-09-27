@@ -1,3 +1,11 @@
+## 1.0.62 — 2026-09-27
+
+- Adds the governed `ETSY_DRAFT_FILE` action to execution authorization and verification for controlled digital-file upload.
+- Aligns the controlled upload preparation payload with the exact request payload already fingerprinted and persisted.
+- Preserves the existing confirmed CREATE_DRAFT parent requirement, draft-only Etsy execution policy, one-time authorization, and request fingerprint checks.
+- Adds regression coverage proving no Etsy publish authorization is introduced.
+- No Etsy external action is performed by this release.
+
 ## 1.0.61 — 2026-09-27
 
 - Fixes the controlled Etsy digital-file planner to consume the governed multipart `filename` metadata produced by the approved customer-package builder.
