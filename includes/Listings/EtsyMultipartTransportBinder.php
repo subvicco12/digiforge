@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Listings;
 use WP_Error;
 
-/** Binds a validated local multipart asset to an already controlled ATTACH_IMAGE transport. */
+/** Binds a validated local image or digital-file asset to an already controlled Etsy transport. */
 final class EtsyMultipartTransportBinder
 {
     /** @return array<string,mixed>|WP_Error */
@@ -11,15 +11,23 @@ final class EtsyMultipartTransportBinder
     {
         if(($prepared['state']??'')!=='ETSY_CONTROLLED_TRANSPORT_PREPARED'||($prepared['network_request_permitted']??null)!==false)return self::error('transport','Controlled pre-network transport is required.');
         $request=$prepared['request_plan']??null;
-        if(!is_array($request)||($request['method']??'')!=='POST'||!preg_match('#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/images$#',(string)($request['endpoint']??'')))return self::error('target','Multipart assets are restricted to the approved Etsy listing-image endpoint.');
-        if(($multipart['state']??'')!=='ETSY_MULTIPART_IMAGE_PREPARED')return self::error('multipart','Prepared multipart image metadata is required.');
+        if(!is_array($request)||($request['method']??'')!=='POST')return self::error('target','Multipart assets require an approved Etsy POST transport.');
+        $state=(string)($multipart['state']??''); $endpoint=(string)($request['endpoint']??'');
+        $image=$state==='ETSY_MULTIPART_IMAGE_PREPARED'&&preg_match('#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/images$#',$endpoint);
+        $file=$state==='ETSY_MULTIPART_FILE_PREPARED'&&preg_match('#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/files$#',$endpoint);
+        if(!$image&&!$file)return self::error('multipart','Prepared multipart metadata must match an approved Etsy image or digital-file endpoint.');
         if(($multipart['method']??'')!==($request['method']??'')||!hash_equals((string)($request['endpoint']??''),(string)($multipart['endpoint']??'')))return self::error('resource','Multipart image plan must target the exact authorized Etsy listing resource.');
-        if((int)($multipart['size']??0)<1||(int)($multipart['size']??0)>10485760)return self::error('size','Multipart image exceeds the bounded upload size.');
+        if((int)($multipart['size']??0)<1||($image&&(int)$multipart['size']>10485760))return self::error('size','Multipart asset size is invalid.');
         $payload=is_array($request['payload']??null)?$request['payload']:[];
-        $expected=[
+        $expected=$image?[
             'image_sha256'=>strtolower((string)($multipart['sha256']??'')),
             'image_size'=>(int)($multipart['size']??0),
             'image_mime'=>(string)($multipart['mime_type']??''),
+            'rank'=>(int)($multipart['rank']??0),
+        ]:[
+            'file_sha256'=>strtolower((string)($multipart['sha256']??'')),
+            'file_size'=>(int)($multipart['size']??0),
+            'name'=>(string)($multipart['filename']??''),
             'rank'=>(int)($multipart['rank']??0),
         ];
         foreach($expected as $key=>$value){
