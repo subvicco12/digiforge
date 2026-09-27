@@ -29,6 +29,7 @@ final class AttentionReadModel
         $items['production_revalidation_reviews']=(int)$preflight['revalidation_required'];
         $reconciliation=(new \DigiForge\POD\PrintifyUnknownOperatorReadModel())->summary();
         $items['printify_unknown_reconciliations']=(int)$reconciliation['unresolved_reconciliations'];
+        $items['printify_reconciliation_reviews']=(int)$reconciliation['resolved_review_required'];
         return $items+['total_attention'=>array_sum($items),'production_preflight'=>$preflight,'printify_reconciliation'=>$reconciliation,'external_execution_performed'=>false];
     }
 }
