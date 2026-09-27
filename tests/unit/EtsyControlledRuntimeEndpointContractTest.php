@@ -18,6 +18,21 @@ final class EtsyControlledRuntimeEndpointContractTest extends TestCase
         foreach(['ETSY_PUBLISH','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'] as $needle) self::assertStringNotContainsString($needle,$s);
     }
 
+    public function testCreateDraftBindsAuthorizationAndLedgerToSanitizedExternalPayload(): void
+    {
+        $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/EtsyControlledExecutionController.php');
+        self::assertStringContainsString("\$externalPayload=is_array(\$draft['payload']??null)?\$draft['payload']:[];",$s);
+        self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($externalPayload)',$s);
+        self::assertStringContainsString('],$externalPayload);',$s);
+        self::assertStringContainsString('time(),$externalPayload);',$s);
+        $createStart=strpos($s,'$payload=EtsyApprovedPackageCompiler::compile');
+        $createEnd=strpos($s,'return new WP_REST_Response($result,200);',$createStart);
+        self::assertNotFalse($createStart);
+        self::assertNotFalse($createEnd);
+        $createSegment=substr($s,$createStart,$createEnd-$createStart);
+        self::assertStringNotContainsString('EtsyRequestFingerprint::fromPayload($payload)',$createSegment);
+    }
+
     public function testVerifiedNumericShopIdentityIsRequiredAtPersistenceAndPreparation(): void
     {
         $identity=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyVerifiedShopIdentity.php');
