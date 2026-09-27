@@ -42,6 +42,12 @@ final class EtsyOperationPreparationService
 
         $scope = $this->currentApprovedScope($operation);
         if ($scope instanceof WP_Error) return $scope;
+        if(in_array($operationType,['ATTACH_IMAGE','UPLOAD_FILE'],true)){
+            $parent=$this->operations->confirmedCreateForScope((int)$operation['intent_id'],(int)$operation['draft_package_id'],(string)$operation['shop_reference']);
+            if(!is_array($parent))return $this->error('create_parent_required','Media preparation requires a confirmed CREATE_DRAFT in the exact approved scope.',409);
+            $sequence=EtsyPostCreateSequenceGuard::authorize($parent,$operation);
+            if($sequence instanceof WP_Error)return $sequence;
+        }
 
         $policy = EtsyExecutionPolicy::evaluate($mapping['policy_operation'], true);
         if (($policy['allowed'] ?? false) !== true) {
@@ -115,6 +121,10 @@ final class EtsyOperationPreparationService
                 'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
                 'authorization_action' => 'ETSY_DRAFT_IMAGE',
             ],
+            'UPLOAD_FILE' => [
+                'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
+                'authorization_action' => 'ETSY_DRAFT_FILE',
+            ],
             default => $this->error('operation_not_supported', 'Etsy operation type is not authorized for controlled preparation.', 403),
         };
     }
@@ -168,7 +178,7 @@ final class EtsyOperationPreparationService
     {
         $operationType = strtoupper(trim($operationType));
         return match ($intentType) {
-            'PREPARE_DRAFT' => in_array($operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE'], true),
+            'PREPARE_DRAFT' => in_array($operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE', 'UPLOAD_FILE'], true),
             default => false,
         };
     }
