@@ -272,6 +272,7 @@ final class Portal
     private function attention(): void
     {
         global $wpdb;
+        $attention=(new AttentionReadModel())->summary();
         $preflight = (new ResearchActivationPreflight())->report();
         $blockers = array_values(array_filter((array) ($preflight['blockers'] ?? []), 'is_scalar'));
         $alerts = $wpdb->get_results(
@@ -280,6 +281,7 @@ final class Portal
             . " WHERE state NOT IN ('RESOLVED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
             ARRAY_A
         );
+        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Total attention items</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Attention & Recovery</h2>'
             . '<p>Human-attention signals are shown here without inferring readiness from arbitrary operational status text.</p></div>'
             . '<span class="df-status">' . esc_html($blockers === [] ? 'NO PREFLIGHT BLOCKERS' : count($blockers) . ' PREFLIGHT BLOCKER(S)') . '</span></div>';
