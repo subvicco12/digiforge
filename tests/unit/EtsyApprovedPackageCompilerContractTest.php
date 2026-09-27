@@ -7,7 +7,7 @@ final class EtsyApprovedPackageCompilerContractTest extends TestCase
     public function testCompilerRequiresApprovalReadinessAndExplicitEtsyClassification(): void
     {
         $s=$this->source();
-        foreach(["approved_by","approved_at","readiness_hash","taxonomy_id","who_made","when_made","compiled_from_approved_package"] as $n) self::assertStringContainsString($n,$s);
+        foreach(["approved_by","approved_at","readiness_hash","taxonomy_id","who_made","when_made","i_did","someone_else","collective","made_to_order","2020_2026","'is_supply'=>false","compiled_from_approved_package"] as $n) self::assertStringContainsString($n,$s);
     }
     public function testCompilerDoesNotGuessClassificationFromSeoOrTaxonomyMetadata(): void
     {

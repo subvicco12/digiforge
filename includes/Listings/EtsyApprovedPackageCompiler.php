@@ -11,10 +11,12 @@ final class EtsyApprovedPackageCompiler
         if(!preg_match('/^[a-f0-9]{64}$/',$readinessHash)) return self::error('readiness','Approved readiness hash is required.');
         if((int)($package['listing_id']??0)<1||(int)$package['listing_id']!==(int)($listing['id']??0)||($listing['state']??'')!=='APPROVED') return self::error('listing','Approved listing/package binding is required.');
         $taxonomy=(int)($classification['taxonomy_id']??0); $who=trim((string)($classification['who_made']??'')); $when=trim((string)($classification['when_made']??''));
-        if($taxonomy<1||$who===''||$when==='') return self::error('classification','Verified Etsy taxonomy_id, who_made and when_made are required.');
+        $whoAllowed=['i_did','someone_else','collective'];
+        $whenAllowed=['made_to_order','2020_2026','2010_2019','2007_2009','before_2007','2000_2006','1990s','1980s','1970s','1960s','1950s','1940s','1930s','1920s','1910s','1900s','1800s','1700s','before_1700'];
+        if($taxonomy<1||!in_array($who,$whoAllowed,true)||!in_array($when,$whenAllowed,true)) return self::error('classification','Verified Etsy taxonomy_id and supported who_made/when_made values are required.');
         $title=trim((string)($listing['title']??'')); $description=trim((string)($listing['description']??'')); $price=(float)($listing['price_amount']??$listing['price']??0);
         if($title===''||$description===''||$price<=0) return self::error('content','Approved listing title, description and positive price are required.');
-        return ['quantity'=>max(1,(int)($classification['quantity']??1)),'title'=>$title,'description'=>$description,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'_digiforge'=>['listing_id'=>(int)$listing['id'],'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'compiled_from_approved_package'=>true]];
+        return ['quantity'=>max(1,(int)($classification['quantity']??1)),'title'=>$title,'description'=>$description,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'is_supply'=>false,'_digiforge'=>['listing_id'=>(int)$listing['id'],'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'compiled_from_approved_package'=>true]];
     }
     private static function error(string $code,string $message): WP_Error { return new WP_Error('digiforge_etsy_package_compiler_'.$code,$message,['status'=>409]); }
 }
