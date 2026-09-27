@@ -15,8 +15,8 @@ final class ShopAiGovernanceRepository {
   if($ok===false)return new WP_Error('ai_policy_persistence_failed','Shop AI policy could not be persisted.');
   return $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_policies().' WHERE id=%d',$id),ARRAY_A)?:[];
  }
- public function preflight(string $shop,string $stage,int $quantity,float $estimatedCost,string $environment='production'):array|WP_Error{
-  $projection=$this->evaluate($shop,$environment);if($projection instanceof WP_Error)return $projection;
+ public function preflight(string $shop,string $stage,int $quantity,float $estimatedCost,string $environment='production',?array $runContext=null):array|WP_Error{
+  $projection=$this->evaluate($shop,$environment,$runContext);if($projection instanceof WP_Error)return $projection;
   return ShopAiPlan::preflight($projection,$stage,$quantity,$estimatedCost);
  }
 
@@ -26,12 +26,12 @@ final class ShopAiGovernanceRepository {
   if($key!==null){$old=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE idempotency_key=%s',$data['idempotency_key']),ARRAY_A);if(is_array($old))return $old+['idempotent_replay'=>true];}
   if($wpdb->insert(Tables::shop_ai_usage(),$data)!==1)return new WP_Error('ai_usage_persistence_failed','AI usage evidence could not be persisted.');return $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE id=%d',(int)$wpdb->insert_id),ARRAY_A)?:[];
  }
- public function evaluate(string $shop,string $environment='production'):array|WP_Error{
+ public function evaluate(string $shop,string $environment='production',?array $runContext=null):array|WP_Error{
   global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_policies().' WHERE shop_key=%s AND environment=%s AND state=%s',$shop,$environment,'ACTIVE'),ARRAY_A);if(!is_array($row))return new WP_Error('ai_policy_missing','Active shop AI policy is required.');
   $policy=json_decode((string)$row['policy'],true);if(!is_array($policy))return new WP_Error('ai_policy_corrupt','Shop AI policy is invalid.');
-  $now=time();$month=gmdate('Y-m-01 00:00:00',$now);$day=gmdate('Y-m-d 00:00:00',$now);$runStart=trim((string)($policy['run_started_at']??''));if($runStart===''||strtotime($runStart)===false)$runStart=gmdate('Y-m-d H:i:s',$now);
+  $now=time();$month=gmdate('Y-m-01 00:00:00',$now);$day=gmdate('Y-m-d 00:00:00',$now);$runStart=gmdate('Y-m-d H:i:s',$now);$runId='';if($runContext!==null){$normalized=AiRunContext::normalize((string)($runContext['run_id']??''),(string)($runContext['started_at']??''));if($normalized instanceof WP_Error)return $normalized;$runStart=$normalized['started_at'];$runId=$normalized['run_id'];}
   $usage=$wpdb->get_results($wpdb->prepare('SELECT stage,SUM(quantity) quantity,SUM(actual_cost) cost FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND occurred_at>=%s GROUP BY stage',$shop,$month),ARRAY_A)?:[];$actual=['month'=>[],'costs'=>[]];foreach($usage as $u)$actual['month'][(string)$u['stage']]=['count'=>(int)$u['quantity'],'cost'=>(float)$u['cost']];
   foreach(['run'=>$runStart,'day'=>$day,'month'=>$month] as $period=>$since)$actual['costs'][$period]=(float)$wpdb->get_var($wpdb->prepare('SELECT COALESCE(SUM(actual_cost),0) FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND occurred_at>=%s',$shop,$since));
-  return ShopAiPlan::evaluate($policy,$actual);
+  $projection=ShopAiPlan::evaluate($policy,$actual);$projection['run_context']=['run_id'=>$runId,'started_at'=>$runStart,'explicit'=>$runContext!==null];return $projection;
  }
 }
