@@ -15,6 +15,16 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   self::assertFalse(is_wp_error($ready));self::assertNotContains('PRINTIFY_TEMPLATE_NOT_VALIDATED',$ready['blockers']);self::assertNotContains('PRINTIFY_ROUTE_TEMPLATE_MISMATCH',$ready['blockers']);self::assertFalse($ready['ready_for_external_execution']);
   $dry=(new DigiForge\POD\PersonalizedPodDryRun())->certify($packageId);self::assertFalse(is_wp_error($dry));self::assertSame('BLOCKED',$dry['execution_intent']['intent_state']);self::assertFalse($dry['execution_intent']['network_execution_performed']);self::assertFalse($dry['execution_intent']['retry_permitted']);
  }
+ public function testExecutionPermitBindsCurrentPreflightAndRejectsReadinessDrift():void{
+  global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,888,'44:55');
+  $template=(new DigiForge\POD\ProductionTemplateRepository())->save(['template_id'=>'wp-permit','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>888,'provider_id'=>44,'variant_ids'=>[55],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1200,'height_px'=>1600]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
+  $fp=hash('sha256','exact-provider-request');$permit=(new DigiForge\POD\ProductionExecutionPermit())->issue($packageId,$fp,'permit_nonce_12345678901234567890',300);
+  self::assertFalse(is_wp_error($permit));self::assertSame($fp,$permit['request_fingerprint']);self::assertSame($fp,$permit['authorization']['request_fingerprint']);self::assertFalse($permit['external_execution_performed']);
+  $orderId=(int)$wpdb->get_var($wpdb->prepare('SELECT order_id FROM '.DigiForge\Database\Tables::pod_authorization_packages().' WHERE id=%d',$packageId));
+  $wpdb->update(DigiForge\Database\Tables::orders(),['state'=>'RECEIVED','updated_at'=>current_time('mysql',true)],['id'=>$orderId]);
+  $stale=(new DigiForge\POD\ProductionExecutionPermit())->issue($packageId,$fp,'permit_nonce_abcdefghijklmnopqrstuvwxyz',300);
+  self::assertTrue(is_wp_error($stale));self::assertSame('production_preflight_not_current',$stale->get_error_code());
+ }
  public function testReadinessDriftInvalidatesApprovedPackage():void{
   global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,777,'22:33');
   $template=(new DigiForge\POD\ProductionTemplateRepository())->save(['template_id'=>'wp-stale','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>777,'provider_id'=>22,'variant_ids'=>[33],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1000,'height_px'=>1000]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
