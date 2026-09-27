@@ -27,6 +27,16 @@ final class EtsyAcceptedResponseParser
         $nestedRef=is_int($nested)||is_string($nested)?trim((string)$nested):'';
         if($topRef!==''&&$nestedRef!==''&&!hash_equals($topRef,$nestedRef))return self::error('ambiguous_identity','Accepted Etsy response contains conflicting listing identities.');
         $reference=$topRef!==''?$topRef:$nestedRef;
+        $fileReference='';
+        if($operationType==='UPLOAD_FILE'){
+            $file=$decoded['listing_file_id']??null;
+            $nestedFile=is_array($decoded['results']??null)?($decoded['results'][0]['listing_file_id']??null):null;
+            $fileRef=is_int($file)||is_string($file)?trim((string)$file):'';
+            $nestedFileRef=is_int($nestedFile)||is_string($nestedFile)?trim((string)$nestedFile):'';
+            if($fileRef!==''&&$nestedFileRef!==''&&!hash_equals($fileRef,$nestedFileRef))return self::error('ambiguous_file_identity','Accepted Etsy response contains conflicting file identities.');
+            $fileReference=$fileRef!==''?$fileRef:$nestedFileRef;
+            if(!ctype_digit($fileReference)||(int)$fileReference<1)return self::error('listing_file_id','Accepted Etsy file upload response requires a positive listing_file_id.');
+        }
         if ($operationType==='CREATE_DRAFT') {
             if (!ctype_digit($reference) || (int)$reference<1) return self::error('listing_id','Created Etsy draft response requires a positive listing_id.');
         } else {
@@ -38,6 +48,7 @@ final class EtsyAcceptedResponseParser
         return [
             'state'=>'ETSY_ACCEPTED_RESPONSE_PARSED',
             'external_reference'=>$reference,
+            'external_asset_reference'=>$fileReference,
             'raw_body_returned'=>false,
             'credentials_exposed'=>false,
             'external_execution_performed'=>false,
