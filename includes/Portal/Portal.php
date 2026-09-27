@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace DigiForge\Portal;
 
 use DigiForge\Core\Settings;
+use DigiForge\AI\CostKpiReadModel;
+use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
@@ -172,12 +174,31 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
+        if ($view === 'orders') { $this->orderOperations(); return; }
+        if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
         if ($view === 'pod_personalized') { $this->personalizedPodSummary(); }
 
         foreach ($this->tables($view) as $label => $table) {
             $this->panelTable($label, $table);
         }
+    }
+
+    private function orderOperations():void
+    {
+        $rows=(new OrderOperationsReadModel())->recent();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
+        if($rows===[]){echo '<div class="df-empty">No orders found.</div></section>';return;}
+        echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
+        foreach($rows as $row){$r=(array)$row['readiness'];echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').'</td><td>NO</td></tr>';}
+        echo '</tbody></table></div></section>';
+    }
+
+    private function financeOperations():void
+    {
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html(number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html(number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';
+        foreach($this->tables('finance') as $label=>$table)$this->panelTable($label,$table);
     }
 
     private function personalizedPodSummary(): void
@@ -251,6 +272,7 @@ final class Portal
     private function attention(): void
     {
         global $wpdb;
+        $attention=(new AttentionReadModel())->summary();
         $preflight = (new ResearchActivationPreflight())->report();
         $blockers = array_values(array_filter((array) ($preflight['blockers'] ?? []), 'is_scalar'));
         $alerts = $wpdb->get_results(
@@ -259,6 +281,7 @@ final class Portal
             . " WHERE state NOT IN ('RESOLVED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
             ARRAY_A
         );
+        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Total attention items</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Attention & Recovery</h2>'
             . '<p>Human-attention signals are shown here without inferring readiness from arbitrary operational status text.</p></div>'
             . '<span class="df-status">' . esc_html($blockers === [] ? 'NO PREFLIGHT BLOCKERS' : count($blockers) . ' PREFLIGHT BLOCKER(S)') . '</span></div>';
