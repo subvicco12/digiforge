@@ -56,7 +56,9 @@ final class EtsyControlledDraftExecutionCoordinator
             if(!is_array($current)||(string)($current['state']??'')!==EtsyOperationLifecycle::NOT_SENT) return self::error('stale','Only the current persisted NOT_SENT operation may execute.');
 
             $transport['operation_type']=(string)($operation['operation_type']??'');
-            $transport['external_reference']=(string)($operation['external_reference']??'');
+            $externalReference=trim((string)($operation['external_reference']??''));
+            $resourceReference=trim((string)($operation['resource_reference']??''));
+            $transport['external_reference']=$externalReference!==''?$externalReference:$resourceReference;
 
             // Persist the already-authorized canonical payload before any network
             // attempt can become ambiguous. This is local-only and fingerprint-bound.
