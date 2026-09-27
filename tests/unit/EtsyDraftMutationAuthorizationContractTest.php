@@ -7,10 +7,25 @@ final class EtsyDraftMutationAuthorizationContractTest extends TestCase
     public function testPreparationMapsAllControlledDraftMutations(): void
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyOperationPreparationService.php');
-        foreach(['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE'] as $needle) self::assertStringContainsString($needle,$s);
+        foreach(['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE','ETSY_DRAFT_FILE','UPLOAD_FILE','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE'] as $needle) self::assertStringContainsString($needle,$s);
         foreach(['includes/POD/ExecutionAuthorization.php','includes/POD/ExecutionAuthorizationVerifier.php'] as $file) {
             $boundary=(string)file_get_contents(dirname(__DIR__,2).'/'.$file);
-            foreach(['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE'] as $action) self::assertStringContainsString($action,$boundary);
+            foreach(['ETSY_DRAFT_CREATE','ETSY_DRAFT_UPDATE','ETSY_DRAFT_INVENTORY','ETSY_DRAFT_IMAGE','ETSY_DRAFT_FILE'] as $action) self::assertStringContainsString($action,$boundary);
+        }
+    }
+
+    public function testDigitalFileAuthorizationRemainsDraftOnlyAndPayloadBound(): void
+    {
+        $controller=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/EtsyControlledExecutionController.php');
+        $start=strpos($controller,'ETSY_DRAFT_FILE');
+        self::assertNotFalse($start);
+        $segment=substr($controller,$start,2200);
+        self::assertStringContainsString('time(),$payload)',$segment);
+        self::assertStringNotContainsString('time(),$externalPayload)',$segment);
+        foreach(['includes/POD/ExecutionAuthorization.php','includes/POD/ExecutionAuthorizationVerifier.php'] as $file) {
+            $s=(string)file_get_contents(dirname(__DIR__,2).'/'.$file);
+            self::assertStringContainsString('ETSY_DRAFT_FILE',$s);
+            self::assertStringNotContainsString('ETSY_PUBLISH',$s);
         }
     }
 
