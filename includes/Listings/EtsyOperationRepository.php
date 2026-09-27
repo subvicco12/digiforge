@@ -264,7 +264,7 @@ final class EtsyOperationRepository
 
     private function sameRequest(array $existing, array $incoming): bool
     {
-        foreach (['intent_id','draft_package_id','operation_type','request_fingerprint','authorization_hash','evidence_hash'] as $field) {
+        foreach (['intent_id','draft_package_id','operation_type','resource_reference','request_fingerprint','authorization_hash','evidence_hash'] as $field) {
             if ((string)($existing[$field] ?? '') !== (string)($incoming[$field] ?? '')) return false;
         }
         return true;
