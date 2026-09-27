@@ -86,7 +86,7 @@ final class EtsyControlledHttpExecutor
 
         $sender=$this->sender;
 
-        $attempt=$credential->consume($integrationId,$operationId,static function(string $token,string $apiKey) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$multipartBytes,$operationId): array {
+        $attempt=$credential->consume($integrationId,$operationId,static function(string $token,string $apiKey) use ($sender,$method,$endpoint,$headers,$payload,$multipart,$multipartBytes,$operationId,$filePlan): array {
             $headers['Authorization']='Bearer '.$token;
             $headers['x-api-key']=$apiKey;
             $args=[
@@ -144,6 +144,7 @@ final class EtsyControlledHttpExecutor
         $externalReference='';
         $externalAssetReference='';
         $reconciliationResponse=null;
+        $providerErrorEvidence=[];
         if (($classified['state']??'')==='RESPONSE_ACCEPTED') {
             $body=(string)wp_remote_retrieve_body($response);
             if($method==='GET') {
@@ -174,6 +175,10 @@ final class EtsyControlledHttpExecutor
             }
         }
 
+        if (($classified['state']??'')==='CONFIRMED_FAILURE' && !is_wp_error($response)) {
+            $providerErrorEvidence=EtsyProviderErrorEvidence::extract((string)wp_remote_retrieve_body($response));
+        }
+
         return [
             'state'=>'ETSY_HTTP_ATTEMPT_COMPLETED',
             'operation_id'=>$operationId,
@@ -184,6 +189,7 @@ final class EtsyControlledHttpExecutor
             'external_asset_reference'=>$externalAssetReference,
             'response_body_returned'=>false,
             'reconciliation_response'=>$reconciliationResponse,
+            'provider_error_evidence'=>$providerErrorEvidence,
             'credential_material_exposed'=>false,
             'authorization_header_returned'=>false,
             'network_request_attempted'=>true,

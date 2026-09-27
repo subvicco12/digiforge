@@ -55,6 +55,7 @@ final class EtsyAttemptLifecycleService
             'outcome'=>$recorded,
             'reconciliation_required'=>(bool)($recorded['reconciliation_required']??false),
             'rate_limit'=>self::rateLimit($execution['rate_limit']??[]),
+            'provider_error_evidence'=>is_array($execution['provider_error_evidence']??null)?$execution['provider_error_evidence']:[],
             'automatic_retry_permitted'=>false,
             'external_execution_performed'=>true,
         ];
