@@ -66,7 +66,9 @@ final class EtsyControlledHttpExecutor
             $expectedSize=(int)($multipart['size']??0);
             $expectedHash=strtolower((string)($multipart['sha256']??''));
             $rank=(int)($multipart['rank']??0);
-            if($preparedState!=='ETSY_MULTIPART_IMAGE_PREPARED'||$asset===''||$field!=='image'||$filename===''||$rank<1||$rank>10) return self::error('multipart','A prepared Etsy multipart image plan is required.');
+            $imagePlan=$preparedState==='ETSY_MULTIPART_IMAGE_PREPARED'&&$field==='image'&&$rank>=1&&$rank<=10;
+            $filePlan=$preparedState==='ETSY_MULTIPART_FILE_PREPARED'&&$field==='file'&&$rank>=1;
+            if((!$imagePlan&&!$filePlan)||$asset===''||$filename==='') return self::error('multipart','A prepared Etsy multipart image or digital-file plan is required.');
             if(!is_file($asset)||!is_readable($asset)) return self::error('multipart_asset','Prepared image asset is unavailable before external execution.');
             $size=filesize($asset);
             $actualMime=function_exists('mime_content_type')?(string)mime_content_type($asset):'';
@@ -96,7 +98,7 @@ final class EtsyControlledHttpExecutor
             ];
             if ($multipart!==null) {
                 $asset=(string)$multipart['file_path'];
-                $field='image';
+                $field=(string)$multipart['field'];
                 $mime=(string)$multipart['mime_type'];
                 $filename=(string)$multipart['filename'];
                 $rank=(int)$multipart['rank'];
@@ -107,7 +109,10 @@ final class EtsyControlledHttpExecutor
                 $safeFilename=str_replace('"','',$filename);
                 $args['body']='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.$safeFilename.'"'. "\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."\r\n".'Content-Disposition: form-data; name="rank"'. "\r\n\r\n".$rank."\r\n--".$boundary."--\r\n";
                 $bytes='';
-            } elseif ($payload!==[] && $method!=='GET') $args['body']=wp_json_encode($payload);
+            } elseif ($payload!==[] && $method!=='GET') {
+                $contentType=strtolower((string)($headers['Content-Type']??$headers['content-type']??''));
+                $args['body']=str_contains($contentType,'application/x-www-form-urlencoded')?http_build_query($payload,'','&',PHP_QUERY_RFC3986):wp_json_encode($payload);
+            }
             $attemptId=wp_generate_uuid4();
             $attemptedAt=gmdate('c');
             $response=$sender('https://openapi.etsy.com/v3'.$endpoint,$args);
