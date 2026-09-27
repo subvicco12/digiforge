@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Listings;
 use DigiForge\Orders\Repository;
 use DigiForge\Orders\ApprovedPodMappingResolver;
+use DigiForge\Orders\ReconciliationReadModel;
 use DigiForge\POD\BusinessScopeRepository;
 use WP_Error;
 
@@ -28,7 +29,7 @@ final class EtsyOrderWebhookLifecycle
 
         if($type==='ORDER.PAID'){
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
-            if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$existing['id']),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
             $order=$this->orders->createOrder([
                 'channel'=>'etsy','environment'=>'production','external_order_reference'=>$orderRef,
                 'shop_reference'=>$shopRef,'buyer_reference'=>$this->reference($payload,['buyer_id','buyerId']),
