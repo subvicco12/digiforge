@@ -10,7 +10,7 @@ final class EtsyDraftListingOperationsContractTest extends TestCase
     public function testDraftSurfaceCoversCreateUpdateInventoryAndExistingImageAttachment(): void
     {
         $s=$this->source();
-        foreach(['CREATE_DRAFT','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE','/application/shops/','/inventory',"'listing_image_id'"] as $needle) self::assertStringContainsString($needle,$s);
+        foreach(['CREATE_DRAFT','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE','UPLOAD_FILE','/application/shops/','/inventory',"'listing_image_id'","'application/x-www-form-urlencoded'","'multipart/form-data'"] as $needle) self::assertStringContainsString($needle,$s);
     }
 
     public function testPublishAndCredentialsAreFailClosed(): void
