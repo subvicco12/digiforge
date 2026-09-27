@@ -67,7 +67,7 @@ final class EtsyAttemptLifecycleService
         if ($state==='RESPONSE_ACCEPTED') {
             $reference=trim((string)($execution['external_reference']??''));
             if ($reference==='') return self::error('reference','Accepted Etsy response requires a bounded external reference before success can be confirmed.');
-            return ['state'=>'CONFIRMED_SUCCESS','external_reference'=>$reference,'external_asset_reference'=>trim((string)($execution['external_asset_reference']??''))];
+            return ['state'=>'CONFIRMED_SUCCESS','external_reference'=>$reference];
         }
         if ($state==='CONFIRMED_FAILURE') {
             return [
