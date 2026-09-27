@@ -193,6 +193,7 @@ final class Portal
     {
         $readiness = (new Readiness())->report();
         $stopAll = Settings::get('stop_all', true) === true;
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         ?>
         <header class="df-topbar">
             <div>
@@ -200,6 +201,7 @@ final class Portal
                 <h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1>
             </div>
             <div class="df-topbar-status">
+                <form method="get" class="df-shop-selector"><input type="hidden" name="df_view" value="<?php echo esc_attr($view); ?>"><label>Shop <select name="df_shop" onchange="this.form.submit()"><?php foreach(ShopOperationsReadModel::shops() as $key=>$label): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($shop,$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></form>
                 <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">
                     STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?>
                 </span>
@@ -727,6 +729,8 @@ final class Portal
 
     private function url(string $view): string
     {
-        return add_query_arg('df_view', $view, $this->baseUrl());
+        $args=['df_view'=>$view];
+        if(isset($_GET['df_shop']))$args['df_shop']=ShopOperationsReadModel::normalize(sanitize_key(wp_unslash($_GET['df_shop'])));
+        return add_query_arg($args, $this->baseUrl());
     }
 }
