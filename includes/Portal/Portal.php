@@ -190,7 +190,7 @@ final class Portal
     private function listingOperations():void
     {
         $recon=(new WebhookReconciliationReadModel())->snapshot('etsy');$counts=(array)$recon['counts'];
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Etsy webhook reconciliation</h2><p>Verified inbound evidence only. This view never retries Etsy actions.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Verified</span><b>'.esc_html((string)$counts['verified']).'</b></div><div><span>Processed</span><b>'.esc_html((string)$counts['processed']).'</b></div><div><span>Failed</span><b>'.esc_html((string)$counts['failed']).'</b></div><div><span>Unresolved</span><b>'.esc_html((string)$counts['unresolved']).'</b></div></div></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Etsy webhook reconciliation</h2><p>Verified inbound evidence only. This view never retries Etsy actions.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Verified</span><b>'.esc_html((string)$counts['verified']).'</b></div><div><span>Processed</span><b>'.esc_html((string)$counts['processed']).'</b></div><div><span>Failed</span><b>'.esc_html((string)$counts['failed']).'</b></div><div><span>Unresolved</span><b>'.esc_html((string)$counts['unresolved']).'</b></div><div><span>Evidence discrepancies</span><b>'.esc_html((string)($counts['discrepancies']??0)).'</b></div></div><p class="df-muted">Reconciliation never retries webhook processing automatically.</p></section>';
         foreach($this->tables('listings') as $label=>$table)$this->panelTable($label,$table);
     }
 
