@@ -13,6 +13,6 @@ final class EtsyCustomerDownloadSelectorContractTest extends TestCase
   self::assertStringContainsString('name="name"',$s);
   self::assertStringContainsString('name="rank"',$s);
   self::assertStringContainsString('if($filePlan)',$s);
-  self::assertStringContainsString('name="'.$field.'"; filename="'.$safeFilename.'"',$s);
+  self::assertStringContainsString('name="'.'$field'.'"; filename="'.'$safeFilename'.'"',$s);
  }
 }
