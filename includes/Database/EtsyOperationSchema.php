@@ -37,6 +37,7 @@ final class EtsyOperationSchema
   intent_id bigint(20) unsigned NOT NULL,
   draft_package_id bigint(20) unsigned NOT NULL,
   operation_type varchar(64) NOT NULL,
+  resource_reference varchar(191) NOT NULL DEFAULT '',
   state varchar(32) NOT NULL DEFAULT 'NOT_SENT',
   idempotency_key varchar(191) NOT NULL,
   request_fingerprint char(64) NOT NULL,
