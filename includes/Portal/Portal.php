@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace DigiForge\Portal;
 
 use DigiForge\Core\Settings;
+use DigiForge\AI\CostKpiReadModel;
+use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
@@ -172,12 +174,31 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
+        if ($view === 'orders') { $this->orderOperations(); return; }
+        if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
         if ($view === 'pod_personalized') { $this->personalizedPodSummary(); }
 
         foreach ($this->tables($view) as $label => $table) {
             $this->panelTable($label, $table);
         }
+    }
+
+    private function orderOperations():void
+    {
+        $rows=(new OrderOperationsReadModel())->recent();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
+        if($rows===[]){echo '<div class="df-empty">No orders found.</div></section>';return;}
+        echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
+        foreach($rows as $row){$r=(array)$row['readiness'];echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').'</td><td>NO</td></tr>';}
+        echo '</tbody></table></div></section>';
+    }
+
+    private function financeOperations():void
+    {
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html(number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html(number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';
+        foreach($this->tables('finance') as $label=>$table)$this->panelTable($label,$table);
     }
 
     private function personalizedPodSummary(): void
