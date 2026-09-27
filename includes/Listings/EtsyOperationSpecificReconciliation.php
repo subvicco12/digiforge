@@ -19,6 +19,7 @@ final class EtsyOperationSpecificReconciliation
             'UPDATE_DRAFT'=>self::draft($expected,$provider,$listingId),
             'UPDATE_INVENTORY'=>self::inventory($expected,$provider,$listingId),
             'ATTACH_IMAGE'=>self::image($expected,$provider,$listingId),
+            'UPLOAD_FILE'=>self::file($expected,$provider,$listingId),
             default=>self::unknown('operation_specific_evidence_required',$listingId),
         };
     }
@@ -51,6 +52,22 @@ final class EtsyOperationSpecificReconciliation
             // hash is not exposed by Etsy's image read model, so remain UNKNOWN.
         }
         return self::unknown('image_evidence_mismatch',$listingId);
+    }
+
+    private static function file(array $expected,array $provider,string $listingId):array
+    {
+        $files=is_array($provider['results']??null)?$provider['results']:[];
+        $name=trim((string)($expected['name']??'')); $rank=(int)($expected['rank']??0); $size=(int)($expected['file_size']??0);
+        if($name===''||$rank<1||$size<1||$files===[])return self::unknown('file_evidence_missing',$listingId);
+        $matches=[];
+        foreach($files as $file){
+            if(!is_array($file))continue;
+            $fileId=trim((string)($file['listing_file_id']??'')); $providerListing=trim((string)($file['listing_id']??''));
+            if(!ctype_digit($fileId)||(int)$fileId<1||$providerListing===''||!hash_equals($listingId,$providerListing))continue;
+            if(hash_equals($name,(string)($file['filename']??''))&&$rank===(int)($file['rank']??0)&&$size===(int)($file['size_bytes']??0))$matches[]=$fileId;
+        }
+        if(count($matches)!==1)return self::unknown(count($matches)>1?'file_evidence_ambiguous':'file_evidence_mismatch',$listingId);
+        return ['state'=>EtsyOperationLifecycle::CONFIRMED_SUCCESS,'external_reference'=>$listingId,'external_asset_reference'=>$matches[0]];
     }
 
     private static function same(mixed $a,mixed $b):bool
