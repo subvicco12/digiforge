@@ -7,6 +7,7 @@ use DigiForge\Database\Tables;
 use DigiForge\Integrations\ConnectionTester;
 use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Listings\EtsyControlledDraftExecutionCoordinator;
+use DigiForge\Listings\EtsyApprovedPackageCompiler;
 use DigiForge\Listings\EtsyControlledTransportOrchestrator;
 use DigiForge\Listings\EtsyDraftListingOperations;
 use DigiForge\Listings\EtsyDraftOperationPipeline;
@@ -53,8 +54,8 @@ final class EtsyControlledExecutionController
         $shopId=(int)($body['shop_id']??0);
         $intentId=(int)($body['intent_id']??0);
         $packageId=(int)($body['draft_package_id']??0);
-        $payload=is_array($body['payload']??null)?$body['payload']:[];
-        if($integrationId<1||$shopId<1||$intentId<1||$packageId<1||$payload===[]) return new WP_Error('digiforge_etsy_runtime_scope','Integration, shop, approved intent/package and draft payload are required.',['status'=>400]);
+        $classification=is_array($body['etsy_classification']??null)?$body['etsy_classification']:[];
+        if($integrationId<1||$shopId<1||$intentId<1||$packageId<1||$classification===[]) return new WP_Error('digiforge_etsy_runtime_scope','Integration, shop, approved intent/package and verified Etsy classification are required.',['status'=>400]);
 
         global $wpdb;
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
@@ -69,6 +70,8 @@ final class EtsyControlledExecutionController
         $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);
         if($identity instanceof WP_Error) return $identity;
 
+        $payload=EtsyApprovedPackageCompiler::compile($package,$listing,$classification);
+        if($payload instanceof WP_Error) return $payload;
         $draft=EtsyDraftListingOperations::create($shopId,$payload);
         if($draft instanceof WP_Error) return $draft;
         $fingerprint=EtsyRequestFingerprint::fromPayload($payload);

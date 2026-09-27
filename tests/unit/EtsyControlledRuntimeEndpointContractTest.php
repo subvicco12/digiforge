@@ -9,7 +9,7 @@ final class EtsyControlledRuntimeEndpointContractTest extends TestCase
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/EtsyControlledExecutionController.php');
         foreach([
-            "manage_digiforge_connections","Idempotency-Key","idempotency_key","idempotency_mismatch","ConnectionTester",
+            "manage_digiforge_connections","Idempotency-Key","idempotency_key","idempotency_mismatch","EtsyApprovedPackageCompiler","etsy_classification","ConnectionTester",
             "EtsyVerifiedShopIdentity::resolve","EtsyDraftListingOperations::create",
             "ExecutionAuthorization::issue","ETSY_DRAFT_CREATE","createFromPayload",
             "EtsyOperationPreparationService","EtsyTokenMetadataBridge",
