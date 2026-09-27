@@ -142,6 +142,7 @@ final class EtsyControlledHttpExecutor
         if ($rateLimit instanceof WP_Error) return $rateLimit;
 
         $externalReference='';
+        $externalAssetReference='';
         $reconciliationResponse=null;
         if (($classified['state']??'')==='RESPONSE_ACCEPTED') {
             $body=(string)wp_remote_retrieve_body($response);
@@ -163,6 +164,7 @@ final class EtsyControlledHttpExecutor
                     $classified=['state'=>'UNKNOWN','failure_category'=>'response_processing','failure_code'=>'accepted_response_unparseable','retry_candidate'=>false,'reconciliation_required'=>true,'automatic_retry_permitted'=>false];
                 } else {
                     $externalReference=(string)$parsed['external_reference'];
+                    $externalAssetReference=(string)($parsed['external_asset_reference']??'');
                 }
             } else {
                 // GET reconciliation bodies are endpoint-specific evidence. They
@@ -179,6 +181,7 @@ final class EtsyControlledHttpExecutor
             'http_outcome'=>$classified,
             'rate_limit'=>$rateLimit,
             'external_reference'=>$externalReference,
+            'external_asset_reference'=>$externalAssetReference,
             'response_body_returned'=>false,
             'reconciliation_response'=>$reconciliationResponse,
             'credential_material_exposed'=>false,
