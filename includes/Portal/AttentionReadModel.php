@@ -19,6 +19,7 @@ final class AttentionReadModel
             'ownership_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_business_mappings()." WHERE state='DRAFT'"),
             'render_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_render_evidence()." WHERE review_status='UNREVIEWED'"),
             'authorization_package_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_authorization_packages()." WHERE state='REVIEW_REQUIRED'"),
+            'production_revalidation_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_authorization_packages()." WHERE state='APPROVED_PACKAGE' AND external_execution_performed=0"),
             'pod_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::pod_readiness_reviews()." WHERE decision='PENDING'"),
             'fulfillment_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::fulfillment_readiness_reviews()." WHERE decision='PENDING'"),
             'blocked_finance_intents'=>$count("SELECT COUNT(*) FROM ".Tables::finance_intents()." WHERE state='BLOCKED'"),
