@@ -40,6 +40,12 @@ final class EtsyAttemptLifecycleService
 
         $recorded=(new EtsyAdapterOutcomePersistenceService($this->operations))->record($operationId,$adapterResult);
         if ($recorded instanceof WP_Error) return $recorded;
+        $assetReference=trim((string)($execution['external_asset_reference']??''));
+        if($assetReference!==''){
+            $assetRecorded=$this->operations->recordExternalAssetReference($operationId,$assetReference);
+            if($assetRecorded instanceof WP_Error)return $assetRecorded;
+            $recorded['operation']=$assetRecorded;
+        }
 
         return [
             'state'=>'ETSY_HTTP_LIFECYCLE_RECORDED',

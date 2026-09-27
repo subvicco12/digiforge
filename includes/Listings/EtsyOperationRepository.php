@@ -133,6 +133,22 @@ final class EtsyOperationRepository
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }
 
+    /** Persist the provider asset identity returned for a confirmed media operation. */
+    public function recordExternalAssetReference(int $id,string $reference): array|WP_Error
+    {
+        $reference=trim($reference);
+        if($id<1||$reference===''||strlen($reference)>191||!preg_match('/^[A-Za-z0-9._:-]+$/',$reference))return $this->error('external_asset_reference','Invalid Etsy external asset reference.',400);
+        $row=$this->find($id);
+        if(!is_array($row)||(string)($row['state']??'')!==EtsyOperationLifecycle::CONFIRMED_SUCCESS)return $this->error('external_asset_reference_state','Asset identity requires confirmed success.',409);
+        if(!in_array((string)($row['operation_type']??''),['UPLOAD_FILE','ATTACH_IMAGE'],true))return $this->error('external_asset_reference_type','Asset identity is only valid for media operations.',409);
+        $existing=trim((string)($row['external_asset_reference']??''));
+        if($existing!==''){if(!hash_equals($existing,$reference))return $this->error('external_asset_reference_conflict','Confirmed Etsy asset identity already differs.',409);return $row+['idempotent_external_asset_reference'=>true];}
+        global $wpdb;
+        $updated=$wpdb->update($wpdb->prefix.'digiforge_etsy_operations',['external_asset_reference'=>$reference,'updated_at'=>current_time('mysql',true)],['id'=>$id,'external_asset_reference'=>'']);
+        if($updated!==1)return $this->error('external_asset_reference_conflict','Unable to atomically persist Etsy asset identity.',409);
+        return $this->find($id)??$this->error('not_found','Etsy operation not found after asset identity update.',500);
+    }
+
     /** Persist bounded provider identity evidence learned from an attempted Etsy response. */
     public function recordReconciliationReference(int $id,string $reference): array|WP_Error
     {
@@ -248,7 +264,7 @@ final class EtsyOperationRepository
 
     private function sameRequest(array $existing, array $incoming): bool
     {
-        foreach (['intent_id','draft_package_id','operation_type','request_fingerprint','authorization_hash','evidence_hash'] as $field) {
+        foreach (['intent_id','draft_package_id','operation_type','resource_reference','request_fingerprint','authorization_hash','evidence_hash'] as $field) {
             if ((string)($existing[$field] ?? '') !== (string)($incoming[$field] ?? '')) return false;
         }
         return true;
