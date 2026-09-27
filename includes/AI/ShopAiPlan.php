@@ -18,4 +18,15 @@ final class ShopAiPlan {
   $budgetReached=in_array(true,$reached,true);
   return ['shop_key'=>$shop,'currency'=>$currency,'budgets'=>$limits,'monthly_budget'=>$monthly,'estimated_plan_cost'=>round($estimated,6),'actual_cost'=>round($costs['month'],6),'actual_costs'=>$costs,'budget_remaining'=>$remaining['month'],'budget_remaining_by_period'=>$remaining,'budget_ceiling_reached'=>$budgetReached,'budget_ceiling_reached_by_period'=>$reached,'quantity_ceiling_reached'=>$blocked,'execution_allowed'=>!$blocked&&!$budgetReached,'stages'=>$stages];
  }
+ /** @return array<string,mixed> */
+ public static function preflight(array $projection,string $stage,int $proposedQuantity,float $proposedCost):array {
+  $stage=sanitize_key($stage);$quantity=max(0,$proposedQuantity);$cost=max(0,$proposedCost);$reasons=[];
+  if(!in_array($stage,self::STAGES,true))$reasons[]='invalid_stage';
+  $s=(array)($projection['stages'][$stage]??[]);if($stage!==''&&isset($s['remaining'])&&$quantity>(int)$s['remaining'])$reasons[]='stage_quantity_ceiling';
+  foreach(['run','day','month'] as $period){$remaining=$projection['budget_remaining_by_period'][$period]??null;if($remaining!==null&&$cost>(float)$remaining)$reasons[]=$period.'_budget_ceiling';}
+  if(empty($projection['execution_allowed']))$reasons[]='existing_ceiling_reached';
+  $reasons=array_values(array_unique($reasons));
+  return ['stage'=>$stage,'proposed_quantity'=>$quantity,'proposed_cost'=>$cost,'approval_required'=>$reasons!==[],'execution_allowed'=>$reasons===[],'reasons'=>$reasons,'external_execution_performed'=>false];
+ }
+
 }
