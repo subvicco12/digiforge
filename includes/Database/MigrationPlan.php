@@ -6,7 +6,7 @@ namespace DigiForge\Database;
 
 final class MigrationPlan
 {
-    public const LATEST = 16;
+    public const LATEST = 17;
 
     /** @return list<int> */
     public static function pending(int $currentVersion): array
