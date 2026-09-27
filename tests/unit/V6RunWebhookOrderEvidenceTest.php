@@ -31,6 +31,7 @@ final class V6RunWebhookOrderEvidenceTest extends TestCase
 
     public function testExplicitRunContextRejectsInvalidBoundaries():void
     {
+        require_once __DIR__.'/../../includes/AI/AiRunContext.php';
         $invalid=\DigiForge\AI\AiRunContext::normalize('','2026-09-27 10:00:00');
         self::assertInstanceOf(WP_Error::class,$invalid);
         $model=file_get_contents(__DIR__.'/../../includes/AI/ShopAiGovernanceRepository.php');
