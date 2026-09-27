@@ -15,6 +15,7 @@ final class OperationsReadModel
         $repo=new Repository();$out=[];
         foreach($orders as $order){$readiness=$repo->readiness((int)$order['id']);$out[]=$order+[
             'readiness'=>is_wp_error($readiness)?['ready'=>false,'error'=>$readiness->get_error_code()]:$readiness,
+            'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$order['id']),
             'external_fulfillment_authorized'=>false,
             'external_execution_performed'=>false,
         ];}
