@@ -37,6 +37,16 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   $expired=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_expired_1234567890',60,$fp);self::assertFalse(is_wp_error($expired));
   $late=$consumer->consume($expired,$fp,get_current_user_id(),(int)$expired['authorization']['expires_at']+1);self::assertTrue(is_wp_error($late));self::assertSame('production_permit_expired',$late->get_error_code());
  }
+ public function testLifecycleClosureAndReconciliationAcknowledgementFailClosed():void{
+  $reviewer=get_current_user_id();$auth=hash('sha256','auth');$unknown=hash('sha256','unknown');$rh=hash('sha256','reconciliation');
+  $reconciliation=['authorization_hash'=>$auth,'unknown_hash'=>$unknown,'reconciliation_hash'=>$rh,'resolution_state'=>'PRINTIFY_RECONCILIATION_CONFIRMED'];
+  $ack=DigiForge\POD\ReconciliationAcknowledgement::acknowledge($reconciliation,$reviewer,'ACKNOWLEDGE_CONFIRMED');self::assertFalse(is_wp_error($ack));self::assertFalse($ack['acknowledgement']['retry_permitted']);
+  $conflict=DigiForge\POD\ReconciliationAcknowledgement::acknowledge($reconciliation,$reviewer,'ACKNOWLEDGE_NOT_CONFIRMED');self::assertTrue(is_wp_error($conflict));self::assertSame('reconciliation_acknowledgement_conflict',$conflict->get_error_code());
+  $package=['id'=>7,'package_hash'=>hash('sha256','package'),'state'=>'APPROVED_PACKAGE','approved_by'=>$reviewer];
+  $projection=['state'=>'EXECUTION_FAILED','authorization_hash'=>$auth,'nonce_consumed'=>true,'terminal_outcome'=>['state'=>'EXECUTION_FAILED']];
+  $closed=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$projection,$reviewer);self::assertFalse(is_wp_error($closed));self::assertSame('PRODUCTION_LIFECYCLE_CLOSED',$closed['state']);self::assertFalse($closed['closure']['external_execution_performed']);
+  $bad=$projection;$bad['nonce_consumed']=false;$blocked=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$bad,$reviewer);self::assertTrue(is_wp_error($blocked));self::assertSame('production_closure_outcome_invalid',$blocked->get_error_code());
+ }
  public function testReadinessDriftInvalidatesApprovedPackage():void{
   global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,777,'22:33');
   $template=(new DigiForge\POD\ProductionTemplateRepository())->save(['template_id'=>'wp-stale','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>777,'provider_id'=>22,'variant_ids'=>[33],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1000,'height_px'=>1000]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
