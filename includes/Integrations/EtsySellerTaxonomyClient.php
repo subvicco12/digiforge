@@ -8,12 +8,12 @@ final class EtsySellerTaxonomyClient
     private const URL='https://api.etsy.com/v3/application/seller-taxonomy/nodes';
     public function discover(int $integrationId,array $terms,int $limit=20): array|WP_Error
     {
-        return $this->fetch($integrationId,static fn(array $decoded)=>\\DigiForge\\Listings\\EtsySellerTaxonomyDiscovery::search($decoded,$terms,$limit));
+        return $this->fetch($integrationId,static fn(array $decoded)=>\DigiForge\Listings\EtsySellerTaxonomyDiscovery::search($decoded,$terms,$limit));
     }
     public function fetchVerified(int $integrationId,int $taxonomyId): array|WP_Error
     {
         if($taxonomyId<1)return new WP_Error('digiforge_etsy_taxonomy_input','Valid integration and taxonomy identifiers are required.',['status'=>400]);
-        return $this->fetch($integrationId,static fn(array $decoded)=>\\DigiForge\\Listings\\EtsySellerTaxonomyVerifier::verify($decoded,$taxonomyId));
+        return $this->fetch($integrationId,static fn(array $decoded)=>\DigiForge\Listings\EtsySellerTaxonomyVerifier::verify($decoded,$taxonomyId));
     }
     private function fetch(int $integrationId,callable $consume): array|WP_Error
     {
@@ -31,7 +31,7 @@ final class EtsySellerTaxonomyClient
             if(strlen($body)>4194304)return new WP_Error('digiforge_etsy_taxonomy_size','Etsy seller taxonomy response exceeds the bounded reader limit.',['status'=>409]);
             $decoded=json_decode($body,true);
             if(!is_array($decoded))return new WP_Error('digiforge_etsy_taxonomy_json','Etsy seller taxonomy response must be valid JSON.',['status'=>409]);
-            return \DigiForge\Listings\EtsySellerTaxonomyVerifier::verify($decoded,$taxonomyId);
+            return $consume($decoded);
         });
     }
 }
