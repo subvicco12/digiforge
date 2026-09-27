@@ -1,3 +1,13 @@
+## 1.0.65 — 2026-09-27
+
+- Replaces inline Etsy media multipart assembly with a byte-exact builder that emits required text fields and binary media with a matching quoted boundary and explicit content length.
+- Adds executable binary-preservation regression coverage for governed Etsy digital-file upload.
+- Corrects Etsy webhook signature verification to derive the HMAC key from the documented `whsec_` Base64 signing secret format.
+- Adds a public signature-first Etsy webhook REST ingress backed only by server-side signing configuration; request parameters cannot supply the secret.
+- Adds a protected, non-secret webhook readiness endpoint for operational visibility.
+- Preserves the five-minute replay window, webhook event deduplication, supported order lifecycle events, publish-disabled execution, and no automatic Etsy mutation retry.
+- No Etsy publish, POD order, or GST action is performed by this release.
+
 ## 1.0.64 — 2026-09-27
 
 - Hardens the governed Etsy digital-file runtime after the first confirmed provider-side HTTP 400.
