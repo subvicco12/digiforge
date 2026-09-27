@@ -2,18 +2,20 @@
 declare(strict_types=1);
 namespace DigiForge\Integrations;
 use WP_Error;
+use DigiForge\Listings\EtsySellerTaxonomyDiscovery;
+use DigiForge\Listings\EtsySellerTaxonomyVerifier;
 /** Narrow read-only Etsy seller-taxonomy lookup using the integration's existing OAuth/app credentials. */
 final class EtsySellerTaxonomyClient
 {
     private const URL='https://api.etsy.com/v3/application/seller-taxonomy/nodes';
     public function discover(int $integrationId,array $terms,int $limit=20): array|WP_Error
     {
-        return $this->fetch($integrationId,static fn(array $decoded)=>\DigiForge\Listings\EtsySellerTaxonomyDiscovery::search($decoded,$terms,$limit));
+        return $this->fetch($integrationId,static fn(array $decoded)=>EtsySellerTaxonomyDiscovery::search($decoded,$terms,$limit));
     }
     public function fetchVerified(int $integrationId,int $taxonomyId): array|WP_Error
     {
         if($taxonomyId<1)return new WP_Error('digiforge_etsy_taxonomy_input','Valid integration and taxonomy identifiers are required.',['status'=>400]);
-        return $this->fetch($integrationId,static fn(array $decoded)=>\DigiForge\Listings\EtsySellerTaxonomyVerifier::verify($decoded,$taxonomyId));
+        return $this->fetch($integrationId,static fn(array $decoded)=>EtsySellerTaxonomyVerifier::verify($decoded,$taxonomyId));
     }
     private function fetch(int $integrationId,callable $consume): array|WP_Error
     {
