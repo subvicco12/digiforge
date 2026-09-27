@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace DigiForge\Database;
 
-/** Additive v16 persistence for v6 governed catalog, shop AI policy/usage, and webhook evidence. */
+/** Additive v17 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
 final class V6OperationalSchema {
- public const VERSION=16;
+ public const VERSION=17;
  public static function migrateIfNeeded():bool{
   global $wpdb;
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;
