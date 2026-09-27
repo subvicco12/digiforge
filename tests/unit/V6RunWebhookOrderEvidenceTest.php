@@ -36,7 +36,8 @@ final class V6RunWebhookOrderEvidenceTest extends TestCase
         self::assertInstanceOf(WP_Error::class,$invalid);
         $model=file_get_contents(__DIR__.'/../../includes/AI/ShopAiGovernanceRepository.php');
         self::assertStringNotContainsString("policy['run_started_at']",$model);
-        self::assertStringContainsString("'explicit'=>".'$runContext'."!==null",$model);
+        self::assertStringContainsString("'explicit'=>".'$explicit',$model);
+        self::assertStringContainsString('EXPLICIT_RUN_CONTEXT_REQUIRED',$model);
         self::assertStringContainsString('AiRunContext::normalize',$model);
         self::assertStringContainsString('$runContext=null',$model);
     }
