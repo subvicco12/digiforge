@@ -37,4 +37,16 @@ final class V6PortalPersonalizationOperationsTest extends TestCase
         self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/',$result['canonical_hash']);
         self::assertSame('text_input',$result['answers'][0]['question_type']);
     }
+    public function testProjectedAiSpendRequiresApprovalBeforeCrossingCeilings():void
+    {
+        $projection=\DigiForge\AI\ShopAiPlan::evaluate(['shop_key'=>'personalized_pod','currency'=>'USD','budgets'=>['run'=>2,'day'=>5,'month'=>20],'stages'=>['render'=>['limit'=>10,'estimated_unit_cost'=>0.25]]],['month'=>['render'=>['count'=>8,'cost'=>1.5]],'costs'=>['run'=>1.8,'day'=>4.8,'month'=>10]]);
+        $preflight=\DigiForge\AI\ShopAiPlan::preflight($projection,'render',3,0.3);
+        self::assertTrue($preflight['approval_required']);
+        self::assertFalse($preflight['execution_allowed']);
+        self::assertContains('stage_quantity_ceiling',$preflight['reasons']);
+        self::assertContains('run_budget_ceiling',$preflight['reasons']);
+        self::assertContains('day_budget_ceiling',$preflight['reasons']);
+        self::assertFalse($preflight['external_execution_performed']);
+    }
+
 }
