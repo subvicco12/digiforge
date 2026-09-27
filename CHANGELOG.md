@@ -1,3 +1,11 @@
+## 1.0.60 — 2026-09-27
+
+- Fixes controlled Etsy CREATE_DRAFT payload binding so authorization, ledger fingerprint, preparation, and planned transport use the exact sanitized external payload.
+- Keeps compiler-only `_digiforge` compliance evidence internal and outside the Etsy request fingerprint/body.
+- Preserves fail-closed request-fingerprint validation; no guard is bypassed or weakened.
+- Adds regression coverage for the sanitized CREATE_DRAFT boundary.
+- No Etsy external action is performed by this release.
+
 ## 1.0.59 — 2026-09-27
 
 - Adds fail-closed governed Etsy AI-assisted compliance evidence for controlled draft compilation.
