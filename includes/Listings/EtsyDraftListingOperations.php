@@ -56,7 +56,10 @@ final class EtsyDraftListingOperations
         if($shopId<1||$listingId<1||($multipart['state']??'')!=='ETSY_MULTIPART_FILE_PREPARED') return self::error('upload_file','Prepared multipart file metadata is required.');
         $hash=strtolower(trim((string)($multipart['sha256']??'')));
         $size=(int)($multipart['size']??0);
-        $name=trim((string)($multipart['name']??''));
+        // The governed multipart builder exposes the customer-facing filename
+        // as "filename"; transport later maps that exact value to Etsy's "name"
+        // form field. Keep the planner bound to the same canonical metadata.
+        $name=trim((string)($multipart['filename']??''));
         $rank=(int)($multipart['rank']??1);
         if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$name===''||strlen($name)>255||$rank<1) return self::error('upload_file','Multipart file metadata is invalid.');
         return self::plan('UPLOAD_FILE','POST',"/application/shops/{$shopId}/listings/{$listingId}/files",[
