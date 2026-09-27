@@ -6,6 +6,7 @@ namespace DigiForge\Orders;
 
 use DigiForge\Database\Tables;
 use DigiForge\Security\Logger;
+use DigiForge\POD\PersonalizationSubmissionNormalizer;
 use WP_Error;
 
 final class Repository
@@ -39,6 +40,14 @@ final class Repository
         $line=$this->find(Tables::order_line_items(),absint($input['order_line_item_id']??0));$schema=$this->find(Tables::personalization_schemas(),absint($input['personalization_schema_id']??0));if(!is_array($line)||!is_array($schema)||(int)$schema['product_version_id']!==(int)$line['product_version_id']||(string)$schema['state']!=='APPROVED')return $this->error('invalid_relationship','Approved personalization schema must match the line item product.',409);
         try{$payload=Validator::structured((array)($input['payload']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}$canonical=Validator::canonicalJson($payload);
         return $this->insert(Tables::personalization_submissions(),$key,['order_line_item_id'=>(int)$line['id'],'personalization_schema_id'=>(int)$schema['id'],'canonical_payload'=>$canonical,'payload_hash'=>hash('sha256',$canonical),'review_status'=>'UNREVIEWED','reviewed_by'=>0,'reviewed_at'=>null,'environment'=>(string)$line['environment'],'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'personalization_submission');
+    }
+
+    public function createTypedPersonalization(array $input,array $questions,array $answers,?string $key=null):array|WP_Error
+    {
+        $normalized=PersonalizationSubmissionNormalizer::normalize($questions,$answers);if(is_wp_error($normalized))return $normalized;
+        $result=$this->createPersonalization(['order_line_item_id'=>absint($input['order_line_item_id']??0),'personalization_schema_id'=>absint($input['personalization_schema_id']??0),'payload'=>$normalized],$key);
+        if(is_wp_error($result))return $result;
+        return $result+['normalized_personalization_hash'=>(string)$normalized['canonical_hash'],'external_execution_performed'=>false];
     }
 
     public function reviewPersonalization(int $id,string $status): array|WP_Error
