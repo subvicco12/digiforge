@@ -4,7 +4,11 @@ namespace DigiForge\Database;
 use DigiForge\Core\Capabilities;
 /** Versioned, additive schema migrations. dbDelta is used for WordPress-compatible table updates. */
 final class Migrator {
-    public function maybe_migrate(): bool { return (string) get_option('digiforge_db_version', '0') === DIGIFORGE_DB_VERSION || $this->migrate(); }
+    public function maybe_migrate(): bool {
+        $legacyCurrent = (string) get_option('digiforge_db_version', '0') === DIGIFORGE_DB_VERSION;
+        $schemaCurrent = (int) get_option('digiforge_db_schema_version', 0) >= MigrationPlan::LATEST;
+        return ($legacyCurrent && $schemaCurrent) || $this->migrate();
+    }
     public function migrate(): bool {
         global $wpdb; require_once ABSPATH . 'wp-admin/includes/upgrade.php'; $charset = $wpdb->get_charset_collate();
         $currentVersion = (int) get_option('digiforge_db_schema_version', 0);
@@ -85,7 +89,13 @@ final class Migrator {
             return false;
         }
 
-        foreach (MigrationPlan::pending($currentVersion) as $version) { update_option('digiforge_db_schema_version', $version, false); }
+        foreach (MigrationPlan::pending($currentVersion) as $version) {
+            if ($version >= V6OperationalSchema::VERSION) { break; }
+            update_option('digiforge_db_schema_version', $version, false);
+        }
+        if ((int) get_option('digiforge_db_schema_version', 0) >= 15 && ! V6OperationalSchema::migrateIfNeeded()) {
+            return false;
+        }
         Capabilities::addDigital();
         Capabilities::addAi();
         delete_option('digiforge_last_migration_failure');

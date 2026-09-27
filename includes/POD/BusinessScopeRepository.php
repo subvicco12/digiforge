@@ -21,11 +21,19 @@ final class BusinessScopeRepository
     public function assertActiveOwnershipForMapping(int $mappingId): array|WP_Error
     {
         global $wpdb;if($mappingId<1)return new WP_Error('digiforge_scope_validation','Valid provider mapping is required.',['status'=>400]);
-        $sql='SELECT m.*,b.business_key,s.store_key,p.program_key FROM '.Tables::pod_business_mappings().' m INNER JOIN '.Tables::businesses().' b ON b.id=m.business_id INNER JOIN '.Tables::stores().' s ON s.id=m.store_id AND s.business_id=b.id INNER JOIN '.Tables::product_programs().' p ON p.id=m.product_program_id AND p.business_id=b.id AND p.store_id=s.id WHERE m.provider_mapping_id=%d AND b.status=%s AND s.status=%s AND p.status=%s LIMIT 1';
-        $row=$wpdb->get_row($wpdb->prepare($sql,$mappingId,'ACTIVE','ACTIVE','ACTIVE'),ARRAY_A);
-        if(!is_array($row))return new WP_Error('digiforge_scope_inactive','Provider mapping has no active business/store/product-program ownership.',['status'=>409]);
+        $sql='SELECT m.*,b.business_key,s.store_key,p.program_key FROM '.Tables::pod_business_mappings().' m INNER JOIN '.Tables::businesses().' b ON b.id=m.business_id INNER JOIN '.Tables::stores().' s ON s.id=m.store_id AND s.business_id=b.id INNER JOIN '.Tables::product_programs().' p ON p.id=m.product_program_id AND p.business_id=b.id AND p.store_id=s.id WHERE m.provider_mapping_id=%d AND m.state=%s AND m.approved_by>0 AND m.approved_at IS NOT NULL AND b.status=%s AND s.status=%s AND p.status=%s LIMIT 1';
+        $row=$wpdb->get_row($wpdb->prepare($sql,$mappingId,'APPROVED','ACTIVE','ACTIVE','ACTIVE'),ARRAY_A);
+        if(!is_array($row))return new WP_Error('digiforge_scope_inactive','Provider mapping has no approved active business/store/product-program ownership.',['status'=>409]);
         if(sanitize_key((string)$row['business_key'])===BusinessScope::DIGICRAFTIFY_GOODS&&strtoupper((string)$row['program_key'])!==BusinessScope::PERSONALIZED_POD)return new WP_Error('digiforge_scope_validation','DigiCraftifyGoods is restricted to PERSONALIZED_POD',['status'=>409]);
         return $row;
+    }
+
+    public function approveMapping(int $id): array|WP_Error
+    {
+        global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('digiforge_scope_reviewer_required','Authenticated human reviewer required.',['status'=>403]);
+        $now=current_time('mysql',true);$ok=$wpdb->update(Tables::pod_business_mappings(),['state'=>'APPROVED','approved_by'=>$reviewer,'approved_at'=>$now,'updated_at'=>$now],['id'=>$id,'state'=>'DRAFT']);
+        if($ok!==1)return new WP_Error('digiforge_scope_transition','Ownership must exist in DRAFT state and approval cannot be overwritten.',['status'=>409]);
+        return (array)$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE id=%d',$id),ARRAY_A);
     }
 
     public function createMapping(array $input,?string $idempotencyKey=null,bool $manageTransaction=true): array|WP_Error

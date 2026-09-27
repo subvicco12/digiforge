@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace DigiForge\Database;
 
-/** Additive v16 persistence for v6 governed catalog, shop AI policy/usage, and webhook evidence. */
+/** Additive v17 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
 final class V6OperationalSchema {
- public const VERSION=16;
+ public const VERSION=17;
  public static function migrateIfNeeded():bool{
   global $wpdb;
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;
@@ -70,6 +70,8 @@ final class V6OperationalSchema {
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   shop_key varchar(100) NOT NULL,
   workflow varchar(64) NOT NULL,
+  run_id varchar(100) NOT NULL DEFAULT '',
+  run_started_at datetime NULL,
   stage varchar(64) NOT NULL,
   model_key varchar(100) NOT NULL DEFAULT '',
   product_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -83,6 +85,7 @@ final class V6OperationalSchema {
   PRIMARY KEY  (id),
   UNIQUE KEY idempotency_key (idempotency_key),
   KEY shop_stage_time (shop_key,stage,occurred_at),
+  KEY shop_run (shop_key,run_id),
   KEY product_id (product_id),
   KEY order_id (order_id)
 ) $charset;",
@@ -104,6 +107,44 @@ final class V6OperationalSchema {
   UNIQUE KEY provider_event (provider,event_id),
   KEY shop_status (shop_reference,processing_status),
   KEY received_at (received_at)
+) $charset;",
+  "CREATE TABLE ".Tables::pod_render_evidence()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  order_id bigint(20) unsigned NOT NULL,
+  provider_mapping_id bigint(20) unsigned NOT NULL,
+  template_key varchar(191) NOT NULL,
+  template_version varchar(64) NOT NULL,
+  template_sha256 char(64) NOT NULL,
+  personalization_evidence_hash char(64) NOT NULL,
+  render_mode varchar(32) NOT NULL,
+  output_sha256 char(64) NOT NULL,
+  evidence_hash char(64) NOT NULL,
+  review_status varchar(32) NOT NULL DEFAULT 'UNREVIEWED',
+  reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  reviewed_at datetime NULL,
+  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY evidence_hash (evidence_hash),
+  KEY order_review (order_id,review_status)
+) $charset;",
+  "CREATE TABLE ".Tables::pod_authorization_packages()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  order_id bigint(20) unsigned NOT NULL,
+  render_evidence_id bigint(20) unsigned NOT NULL,
+  provider_mapping_id bigint(20) unsigned NOT NULL,
+  ownership_mapping_id bigint(20) unsigned NOT NULL,
+  readiness_hash char(64) NOT NULL,
+  package_hash char(64) NOT NULL,
+  state varchar(32) NOT NULL DEFAULT 'REVIEW_REQUIRED',
+  approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  approved_at datetime NULL,
+  external_execution_authorized tinyint(1) NOT NULL DEFAULT 0,
+  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY package_hash (package_hash),
+  KEY order_state (order_id,state)
 ) $charset;"
  ];}
 }

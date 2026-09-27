@@ -1,0 +1,27 @@
+<?php
+declare(strict_types=1);
+namespace DigiForge\POD;
+use DigiForge\Database\Tables;
+use DigiForge\Orders\Repository as OrderRepository;
+use WP_Error;
+
+/** Immutable review package. It never grants or performs external provider execution. */
+final class ProductionAuthorizationRepository
+{
+ public function create(int $orderId,int $renderEvidenceId):array|WP_Error{
+  global $wpdb;$readiness=(new OrderRepository())->readiness($orderId);if(is_wp_error($readiness))return $readiness;if(empty($readiness['ready']))return new WP_Error('authorization_not_ready','Current order readiness is required.',['status'=>409]);
+  $render=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d AND order_id=%d AND review_status=%s AND reviewed_by>0 AND reviewed_at IS NOT NULL AND external_execution_performed=0',$renderEvidenceId,$orderId,'APPROVED'),ARRAY_A);if(!is_array($render))return new WP_Error('authorization_render_required','Approved human-reviewed render evidence is required.',['status'=>409]);
+  $scope=(new BusinessScopeRepository())->assertActiveOwnershipForMapping((int)$render['provider_mapping_id']);if(is_wp_error($scope))return $scope;
+  $readinessHash=hash('sha256',wp_json_encode($readiness));$canonical=wp_json_encode(['order_id'=>$orderId,'render_evidence_id'=>$renderEvidenceId,'render_evidence_hash'=>(string)$render['evidence_hash'],'provider_mapping_id'=>(int)$render['provider_mapping_id'],'ownership_mapping_id'=>(int)$scope['id'],'readiness_hash'=>$readinessHash]);$packageHash=hash('sha256',(string)$canonical);
+  $old=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE package_hash=%s',$packageHash),ARRAY_A);if(is_array($old))return $old+['idempotent_replay'=>true];
+  $ok=$wpdb->insert(Tables::pod_authorization_packages(),['order_id'=>$orderId,'render_evidence_id'=>$renderEvidenceId,'provider_mapping_id'=>(int)$render['provider_mapping_id'],'ownership_mapping_id'=>(int)$scope['id'],'readiness_hash'=>$readinessHash,'package_hash'=>$packageHash,'state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'external_execution_authorized'=>0,'external_execution_performed'=>0,'created_at'=>current_time('mysql',true)]);
+  if($ok!==1)return new WP_Error('authorization_package_persistence_failed','Production authorization package could not be persisted.');
+  return (array)$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',(int)$wpdb->insert_id),ARRAY_A);
+ }
+ public function approveForReview(int $id):array|WP_Error{
+  global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('authorization_reviewer_required','Authenticated human reviewer required.',['status'=>403]);$now=current_time('mysql',true);
+  $ok=$wpdb->update(Tables::pod_authorization_packages(),['state'=>'APPROVED_PACKAGE','approved_by'=>$reviewer,'approved_at'=>$now],['id'=>$id,'state'=>'REVIEW_REQUIRED','external_execution_authorized'=>0,'external_execution_performed'=>0]);
+  if($ok!==1)return new WP_Error('authorization_review_conflict','Authorization package must be pending review and cannot be overwritten.',['status'=>409]);
+  return (array)$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$id),ARRAY_A);
+ }
+}
