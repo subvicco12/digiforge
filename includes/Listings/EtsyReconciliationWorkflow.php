@@ -26,6 +26,7 @@ final class EtsyReconciliationWorkflow
                 'state'=>'ETSY_RECONCILIATION_READY',
                 'operation_id'=>$operationId,
                 'operation_type'=>(string)($operation['operation_type']??''),
+                'shop_reference'=>$preview['shop_reference'],
                 'lookup_reference'=>$preview['lookup_reference'],
                 'lookup_identity_available'=>$preview['lookup_identity_available'],
                 'provider_lookup_required'=>true,
