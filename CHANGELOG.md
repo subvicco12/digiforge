@@ -1,3 +1,11 @@
+## 1.0.63 — 2026-09-27
+
+- Adds the exact controlled Etsy `UPLOAD_FILE` pipeline target: POST to the confirmed listing's `/files` endpoint.
+- Binds digital-file listing identity to the persisted `resource_reference` from the confirmed CREATE_DRAFT parent.
+- Preserves exact prepared-payload fingerprint equality, numeric shop scope, network-disabled planning, and publish-disabled execution.
+- Adds regression coverage for the UPLOAD_FILE operation, /files endpoint, and parent resource binding.
+- No Etsy external action is performed by this release.
+
 ## 1.0.62 — 2026-09-27
 
 - Adds the governed `ETSY_DRAFT_FILE` action to execution authorization and verification for controlled digital-file upload.
