@@ -1,0 +1,16 @@
+<?php
+declare(strict_types=1);
+namespace DigiForge\POD;
+use WP_Error;
+
+/** Local certification projection. It deliberately has no HTTP/provider dependency. */
+final class PersonalizedPodDryRun
+{
+ public function certify(int $packageId):array|WP_Error{
+  $preflight=(new PrintifyProductionPreflight())->evaluate($packageId);if(is_wp_error($preflight))return $preflight;
+  $evidence=(array)$preflight['evidence'];
+  $payload=['package_id'=>$packageId,'preflight_hash'=>(string)$evidence['preflight_hash'],'provider'=>'printify','intent_state'=>'BLOCKED','network_execution_performed'=>false,'external_execution_authorized'=>false,'external_execution_performed'=>false,'retry_permitted'=>false];
+  $payload['dry_run_hash']=hash('sha256',(string)wp_json_encode($payload));
+  return ['certified'=>(bool)$preflight['ready_for_dry_run'],'preflight'=>$preflight,'execution_intent'=>$payload];
+ }
+}
