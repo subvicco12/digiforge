@@ -18,6 +18,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/readiness', ['methods' => 'GET', 'callback' => [$this, 'readiness'], 'permission_callback' => [$this, 'can_view']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
+        register_rest_route('digiforge/v1', '/etsy/taxonomy-verify', ['methods' => 'GET', 'callback' => [$this, 'etsy_taxonomy_verify'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['integration_id' => ['required' => true, 'sanitize_callback' => 'absint'], 'taxonomy_id' => ['required' => true, 'sanitize_callback' => 'absint']]]);
         register_rest_route('digiforge/v1', '/etsy/taxonomy-discovery', ['methods' => 'GET', 'callback' => [$this, 'etsy_taxonomy_discovery'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['integration_id' => ['required' => true, 'sanitize_callback' => 'absint'], 'q' => ['required' => true, 'sanitize_callback' => 'sanitize_text_field'], 'limit' => ['required' => false, 'sanitize_callback' => 'absint']]]);
         register_rest_route('digiforge/v1', '/activations', ['methods' => 'GET', 'callback' => [$this, 'activations'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/activations/printify', ['methods' => 'POST', 'callback' => [$this, 'activate_printify'], 'permission_callback' => [$this, 'can_manage']]);
@@ -35,6 +36,14 @@ final class Controller {
     }
     public function readiness(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response((new Readiness())->report(), 200); }
     public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['controls' => $result, 'externally_locked' => Settings::safety_locked()], 200); }
+    public function etsy_taxonomy_verify(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $integrationId=(int)$request->get_param('integration_id');
+        $taxonomyId=(int)$request->get_param('taxonomy_id');
+        if($integrationId<1||$taxonomyId<1) return new \WP_Error('digiforge_etsy_taxonomy_verify_input', __('Valid integration and taxonomy identifiers are required.', 'digiforge'), ['status'=>400]);
+        $result=(new EtsySellerTaxonomyClient())->fetchVerified($integrationId,$taxonomyId);
+        if($result instanceof \WP_Error) return $result;
+        return new \WP_REST_Response($result+['external_actions_performed'=>false],200);
+    }
     public function etsy_taxonomy_discovery(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $integrationId=(int)$request->get_param('integration_id');
         $query=trim((string)$request->get_param('q'));
