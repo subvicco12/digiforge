@@ -16,6 +16,8 @@ final class V6ProductionOperatorAuthorizationTest extends TestCase
  public function testAttentionIncludesProductionRevalidation():void{
   $s=file_get_contents(__DIR__.'/../../includes/Portal/AttentionReadModel.php');
   self::assertStringContainsString('production_revalidation_reviews',$s);
-  self::assertStringContainsString("state='APPROVED_PACKAGE'",$s);
+  self::assertStringContainsString('ProductionPreflightAttentionReadModel',$s);
+  $a=file_get_contents(__DIR__.'/../../includes/POD/ProductionPreflightAttentionReadModel.php');
+  self::assertStringContainsString('PREFLIGHT_CURRENT',$a);self::assertStringContainsString('revalidation_required',$a);
  }
 }
