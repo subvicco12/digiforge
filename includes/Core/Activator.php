@@ -9,6 +9,7 @@ use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
+use DigiForge\Database\V6OperationalSchema;
 final class Activator {
     public static function activate(): void {
         Capabilities::add();
@@ -28,6 +29,9 @@ final class Activator {
             return;
         }
         if (! ProductionSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! V6OperationalSchema::migrateIfNeeded()) {
             return;
         }
         if (! (new Migrator())->migrate()) {
