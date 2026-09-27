@@ -24,6 +24,13 @@ final class EtsyApprovedPackageCompilerContractTest extends TestCase
         $s=$this->source();
         foreach(["taxonomy_metadata","keywords","tags","materials","audience_metadata"] as $n) self::assertStringNotContainsString($n,$s);
     }
+    public function testCompilerRequiresGovernedAiComplianceAmendment(): void
+    {
+        $s=$this->source();
+        foreach(["seller_attestation","ai_assisted","ai_disclosure_approved","AI_DISCLOSURE","compliance_evidence","compliance_hash","approved_description_unchanged"] as $n) self::assertStringContainsString($n,$s);
+        self::assertStringContainsString("rtrim(\$description)",$s);
+        self::assertStringContainsString("seller’s creative direction, prompts, inputs, editing, and approval",$s);
+    }
     public function testDraftOperationStripsInternalMetadataBeforeExternalPayload(): void
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyDraftListingOperations.php');
