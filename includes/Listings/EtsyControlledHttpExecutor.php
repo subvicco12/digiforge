@@ -107,7 +107,10 @@ final class EtsyControlledHttpExecutor
                 $boundary='----DigiForgeEtsy'.wp_generate_uuid4();
                 $headers['Content-Type']='multipart/form-data; boundary='.$boundary;
                 $safeFilename=str_replace('"','',$filename);
-                $args['body']='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.$safeFilename.'"'. "\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."\r\n".'Content-Disposition: form-data; name="rank"'. "\r\n\r\n".$rank."\r\n--".$boundary."--\r\n";
+                $body='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.$safeFilename.'"'. "\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."\r\n";
+                if($filePlan) $body.='Content-Disposition: form-data; name="name"'."\r\n\r\n".$safeFilename."\r\n--".$boundary."\r\n";
+                $body.='Content-Disposition: form-data; name="rank"'."\r\n\r\n".$rank."\r\n--".$boundary."--\r\n";
+                $args['body']=$body;
                 $bytes='';
             } elseif ($payload!==[] && $method!=='GET') {
                 $contentType=strtolower((string)($headers['Content-Type']??$headers['content-type']??''));
