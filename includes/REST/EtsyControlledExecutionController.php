@@ -61,7 +61,7 @@ final class EtsyControlledExecutionController
         $payload=(array)$draft['payload']; $fingerprint=EtsyRequestFingerprint::fromPayload($payload); if($fingerprint instanceof WP_Error)return $fingerprint; $evidenceHash=strtolower(trim((string)$package['readiness_hash'])); $actor=get_current_user_id();
         $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>$evidenceHash]; $authorization=ExecutionAuthorization::issue($approval,'ETSY_DRAFT_FILE',$actor,str_replace('-','_',wp_generate_uuid4()),300,$fingerprint); if($authorization instanceof WP_Error)return $authorization;
         $operation=$operations->createFromPayload(['shop_reference'=>(string)$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId,'operation_type'=>'UPLOAD_FILE','resource_reference'=>(string)$listingId,'idempotency_key'=>$key,'authorization_hash'=>(string)$authorization['authorization_hash'],'evidence_hash'=>$evidenceHash],$payload); if($operation instanceof WP_Error)return $operation;
-        $prepared=(new EtsyOperationPreparationService($operations))->prepare((int)$operation['id'],$authorization,$evidenceHash,$actor,time(),$payload); if($prepared instanceof WP_Error)return $prepared; $metadata=(new EtsyTokenMetadataBridge(new IntegrationRepository()))->evaluate($integrationId,time()); if($metadata instanceof WP_Error)return $metadata;
+        $prepared=(new EtsyOperationPreparationService($operations))->prepare((int)$operation['id'],$authorization,$evidenceHash,$actor,time(),$externalPayload); if($prepared instanceof WP_Error)return $prepared; $metadata=(new EtsyTokenMetadataBridge(new IntegrationRepository()))->evaluate($integrationId,time()); if($metadata instanceof WP_Error)return $metadata;
         $result=(new EtsyControlledDraftExecutionCoordinator(new EtsyDraftOperationPipeline(new EtsyControlledTransportOrchestrator()),$operations))->execute($prepared,$operation,$metadata,$draft,['Content-Type'=>'multipart/form-data','Idempotency-Key'=>$key],$multipart); if($result instanceof WP_Error)return $result;
         return new WP_REST_Response($result+['publish_permitted'=>false],200);
     }
@@ -109,7 +109,13 @@ final class EtsyControlledExecutionController
         if($payload instanceof WP_Error) return $payload;
         $draft=EtsyDraftListingOperations::create($shopId,$payload);
         if($draft instanceof WP_Error) return $draft;
-        $fingerprint=EtsyRequestFingerprint::fromPayload($payload);
+        // Bind authorization, ledger fingerprint and preparation to the exact
+        // sanitized payload that is permitted to cross the Etsy boundary.
+        // Compiler-only _digiforge evidence must never affect or enter the
+        // external request fingerprint.
+        $externalPayload=is_array($draft['payload']??null)?$draft['payload']:[];
+        if($externalPayload===[]) return new WP_Error('digiforge_etsy_runtime_external_payload','Sanitized external Etsy draft payload is required.',['status'=>409]);
+        $fingerprint=EtsyRequestFingerprint::fromPayload($externalPayload);
         if($fingerprint instanceof WP_Error) return $fingerprint;
         $evidenceHash=strtolower(trim((string)($package['readiness_hash']??'')));
         $actor=get_current_user_id();
