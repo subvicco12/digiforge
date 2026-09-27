@@ -37,4 +37,15 @@ final class V6RunWebhookOrderEvidenceTest extends TestCase
         self::assertStringNotContainsString("policy['run_started_at']",$model);
         self::assertStringContainsString("'explicit'=>$runContext!==null",$model);
     }
+    public function testFulfillmentPlanBindsReviewedPersonalizationEvidence():void
+    {
+        $repo=file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');
+        self::assertStringContainsString('personalizationEvidenceHash',$repo);
+        self::assertStringContainsString("'human_review_required'=>true",$repo);
+        self::assertStringContainsString("'external_execution_performed'=>false",$repo);
+        $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
+        self::assertStringContainsString('Evidence discrepancies',$portal);
+        self::assertStringContainsString('never retries webhook processing automatically',$portal);
+    }
+
 }
