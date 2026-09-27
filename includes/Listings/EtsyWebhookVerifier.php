@@ -17,7 +17,11 @@ final class EtsyWebhookVerifier {
         if ($id==='' || strlen($id)>191 || !ctype_digit($timestamp)) return self::error('headers','Required webhook identity headers are invalid.');
         $ts=(int)$timestamp;
         if (abs($now-$ts)>self::MAX_SKEW_SECONDS) return self::error('stale','Webhook timestamp is outside the replay window.');
-        $expected=base64_encode(hash_hmac('sha256',$id.'.'.$timestamp.'.'.$body,$secret,true));
+        if(!str_starts_with($secret,'whsec_')) return self::error('secret','Webhook signing secret format is invalid.');
+        $secretBytes=base64_decode(substr($secret,6),true);
+        if(!is_string($secretBytes)||$secretBytes==='') return self::error('secret','Webhook signing secret format is invalid.');
+        $expected=base64_encode(hash_hmac('sha256',$id.'.'.$timestamp.'.'.$body,$secretBytes,true));
+        $secretBytes='';
         $valid=false;
         foreach (preg_split('/\\s+/',trim($signature))?:[] as $candidate) {
             $parts=explode(',',$candidate,2);
