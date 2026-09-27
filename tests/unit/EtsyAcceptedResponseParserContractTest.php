@@ -7,7 +7,7 @@ final class EtsyAcceptedResponseParserContractTest extends TestCase
     public function testParserExtractsOnlyBoundedListingIdentity(): void
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyAcceptedResponseParser.php');
-        foreach(['listing_id','1048576','raw_body_returned','hash_equals($existingReference,$reference)'] as $needle) self::assertStringContainsString($needle,$s);
+        foreach(['listing_id','1048576','raw_body_returned','ambiguous_identity','hash_equals($topRef,$nestedRef)','hash_equals($existingReference,$reference)'] as $needle) self::assertStringContainsString($needle,$s);
         foreach(['wp_remote_','CredentialVault','Authorization','access_token','refresh_token'] as $needle) self::assertStringNotContainsString($needle,$s);
     }
 
