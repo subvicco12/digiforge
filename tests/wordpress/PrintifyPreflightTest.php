@@ -15,6 +15,14 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   self::assertFalse(is_wp_error($ready));self::assertNotContains('PRINTIFY_TEMPLATE_NOT_VALIDATED',$ready['blockers']);self::assertNotContains('PRINTIFY_ROUTE_TEMPLATE_MISMATCH',$ready['blockers']);self::assertFalse($ready['ready_for_external_execution']);
   $dry=(new DigiForge\POD\PersonalizedPodDryRun())->certify($packageId);self::assertFalse(is_wp_error($dry));self::assertSame('BLOCKED',$dry['execution_intent']['intent_state']);self::assertFalse($dry['execution_intent']['network_execution_performed']);self::assertFalse($dry['execution_intent']['retry_permitted']);
  }
+ public function testReadinessDriftInvalidatesApprovedPackage():void{
+  global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,777,'22:33');
+  $template=(new DigiForge\\POD\\ProductionTemplateRepository())->save(['template_id'=>'wp-stale','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>777,'provider_id'=>22,'variant_ids'=>[33],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1000,'height_px'=>1000]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
+  $before=(new DigiForge\\POD\\PrintifyProductionPreflight())->evaluate($packageId);self::assertFalse(is_wp_error($before));self::assertNotContains('ORDER_READINESS_STALE',$before['blockers']);
+  $orderId=(int)$wpdb->get_var($wpdb->prepare('SELECT order_id FROM '.DigiForge\\Database\\Tables::pod_authorization_packages().' WHERE id=%d',$packageId));
+  $wpdb->update(DigiForge\\Database\\Tables::orders(),['state'=>'RECEIVED','updated_at'=>current_time('mysql',true)],['id'=>$orderId]);
+  $after=(new DigiForge\\POD\\PrintifyProductionPreflight())->evaluate($packageId);self::assertFalse(is_wp_error($after));self::assertContains('ORDER_READINESS_STALE',$after['blockers']);self::assertContains('ORDER_NOT_READY',$after['blockers']);self::assertFalse($after['ready_for_dry_run']);self::assertFalse($after['ready_for_external_execution']);
+ }
  public function testRouteVariantMismatchFailsClosed():void{
   global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,654,'55:66');
   $template=(new DigiForge\POD\ProductionTemplateRepository())->save(['template_id'=>'wp-mismatch','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>654,'provider_id'=>55,'variant_ids'=>[67],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1000,'height_px'=>1000]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
