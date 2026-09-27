@@ -66,7 +66,7 @@ final class EtsyOrderWebhookLifecycle
         }
 
         if(in_array($type,['ORDER.SHIPPED','ORDER.DELIVERED'],true)){
-            return ['state'=>'ETSY_ORDER_EVENT_RECORDED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'event_type'=>$type,'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            return ['state'=>'ETSY_ORDER_EVENT_RECORDED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'event_type'=>$type,'evidence'=>EtsyOrderEventEvidence::normalize($type,$payload),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
         }
         return self::error('event','Unsupported verified Etsy lifecycle event.');
     }
