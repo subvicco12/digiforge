@@ -60,6 +60,14 @@ final class EtsyCompletionE2ECertificationContractTest extends TestCase
         foreach (["'authoritative_fulfillment_state'=>false","'fulfillment_authorized'=>false"] as $needle) self::assertStringContainsString($needle,$event);
     }
 
+    public function testWebhookPodMappingIsInternalUniqueAndHumanApproved(): void
+    {
+        $lifecycle=$this->source('includes/Listings/EtsyOrderWebhookLifecycle.php');
+        $resolver=$this->source('includes/Orders/ApprovedPodMappingResolver.php');
+        foreach (['ApprovedPodMappingResolver::isDigital','ApprovedPodMappingResolver::resolve'] as $needle) self::assertStringContainsString($needle,$lifecycle);
+        foreach (["state='APPROVED'",'approved_by>0','approved_at IS NOT NULL','count($rows)===1'] as $needle) self::assertStringContainsString($needle,$resolver);
+    }
+
     public function testPublishBoundaryRemainsLocalOnlyAndRuntimeLocked(): void
     {
         $s=$this->source('includes/Listings/EtsyPublishAuthorizationGate.php');
