@@ -52,6 +52,14 @@ final class EtsyCompletionE2ECertificationContractTest extends TestCase
         foreach (["operation_type='CREATE_DRAFT'","state='CONFIRMED_SUCCESS'","i.state='APPROVED_INTENT'","l.state='APPROVED'",'count($rows)!==1'] as $needle) self::assertStringContainsString($needle,$resolver);
     }
 
+    public function testWebhookOrdersCannotBecomeFulfillmentReadyWithoutProviderMapping(): void
+    {
+        $repo=$this->source('includes/Orders/Repository.php');
+        $event=$this->source('includes/Listings/EtsyOrderEventEvidence.php');
+        foreach (["'provider_mappings_present'",'provider_mapping_id=0'] as $needle) self::assertStringContainsString($needle,$repo);
+        foreach (["'authoritative_fulfillment_state'=>false","'fulfillment_authorized'=>false"] as $needle) self::assertStringContainsString($needle,$event);
+    }
+
     public function testPublishBoundaryRemainsLocalOnlyAndRuntimeLocked(): void
     {
         $s=$this->source('includes/Listings/EtsyPublishAuthorizationGate.php');

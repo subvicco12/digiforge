@@ -33,6 +33,8 @@ final class F4OrderFulfillmentHardeningStructureTest extends TestCase
         self::assertStringContainsString('Order must pass current readiness before a fulfillment plan can be created.',$repo);
         self::assertStringContainsString('Fulfillment plan readiness is stale; rebuild the plan before approval.',$repo);
         self::assertStringContainsString("hash_equals((string)\$row['readiness_hash']",$repo);
+        self::assertStringContainsString("'provider_mappings_present'",$repo);
+        self::assertStringContainsString('provider_mapping_id=0',$repo);
     }
 
     public function testIntentRequiresApprovedSameOrderPlanAndStaysBlocked(): void
