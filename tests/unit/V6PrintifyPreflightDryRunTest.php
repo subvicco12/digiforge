@@ -9,6 +9,9 @@ final class V6PrintifyPreflightDryRunTest extends TestCase{
   self::assertStringContainsString("ORDER_READINESS_STALE",$s);
   self::assertStringContainsString("PRINTIFY_MAPPING_NOT_CERTIFIED",$s);
   self::assertStringContainsString("PRINTIFY_GEOMETRY_NOT_CERTIFIED",$s);
+  self::assertStringContainsString("PRINTIFY_TEMPLATE_NOT_VALIDATED",$s);
+  self::assertStringContainsString("PRINTIFY_ROUTE_TEMPLATE_MISMATCH",$s);
+  self::assertStringContainsString("'template_fingerprint'=>",$s);
   self::assertStringContainsString("'ready_for_external_execution'=>false",$s);
   self::assertStringNotContainsString('wp_remote_',$s);
  }
