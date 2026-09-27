@@ -35,6 +35,7 @@ final class F4OrderFulfillmentHardeningStructureTest extends TestCase
         self::assertStringContainsString("hash_equals((string)\$row['readiness_hash']",$repo);
         self::assertStringContainsString("'provider_mappings_present'",$repo);
         self::assertStringContainsString('provider_mapping_id=0',$repo);
+        self::assertStringContainsString('Tables::digital_products()',$repo);
     }
 
     public function testIntentRequiresApprovedSameOrderPlanAndStaysBlocked(): void
