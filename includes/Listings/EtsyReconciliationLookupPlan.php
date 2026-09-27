@@ -21,9 +21,12 @@ final class EtsyReconciliationLookupPlan
             || !preg_match('/^[1-9][0-9]{0,18}$/',$reference)) {
             return self::error('identity','A persisted numeric Etsy listing identity and integration are required.');
         }
+        $shop=trim((string)($reconciliation['shop_reference']??''));
+        if($operationType==='UPLOAD_FILE'&&!preg_match('/^[1-9][0-9]{0,18}$/',$shop))return self::error('shop','Digital-file reconciliation requires the persisted numeric Etsy shop identity.');
         $endpoint=match($operationType){
             'UPDATE_INVENTORY'=>'/application/listings/'.$reference.'/inventory',
             'ATTACH_IMAGE'=>'/application/listings/'.$reference.'/images',
+            'UPLOAD_FILE'=>'/application/shops/'.$shop.'/listings/'.$reference.'/files',
             default=>'/application/listings/'.$reference,
         };
         return [
