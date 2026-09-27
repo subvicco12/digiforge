@@ -20,7 +20,7 @@ final class EtsyDraftListingOperations
         foreach ($required as $key) if (!array_key_exists($key,$draft)) return self::error('payload','Draft listing payload is incomplete.');
         $payload=self::sanitize($draft);
         if ($payload instanceof WP_Error) return $payload;
-        return self::plan('CREATE_DRAFT','POST',"/application/shops/{$shopId}/listings",$payload);
+        return self::plan('CREATE_DRAFT','POST',"/application/shops/{$shopId}/listings",$payload,'application/x-www-form-urlencoded');
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -29,7 +29,7 @@ final class EtsyDraftListingOperations
         if ($shopId<1 || $listingId<1 || $changes===[]) return self::error('identity','Shop, listing and changes are required.');
         $payload=self::sanitize($changes);
         if ($payload instanceof WP_Error) return $payload;
-        return self::plan('UPDATE_DRAFT','PUT',"/application/shops/{$shopId}/listings/{$listingId}",$payload);
+        return self::plan('UPDATE_DRAFT','PUT',"/application/shops/{$shopId}/listings/{$listingId}",$payload,'application/x-www-form-urlencoded');
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -50,6 +50,20 @@ final class EtsyDraftListingOperations
     }
 
     /** @return array<string,mixed>|WP_Error */
+    public static function uploadFile(int $shopId,int $listingId,array $multipart): array|WP_Error
+    {
+        if($shopId<1||$listingId<1||($multipart['state']??'')!=='ETSY_MULTIPART_FILE_PREPARED') return self::error('upload_file','Prepared multipart file metadata is required.');
+        $hash=strtolower(trim((string)($multipart['sha256']??'')));
+        $size=(int)($multipart['size']??0);
+        $name=trim((string)($multipart['name']??''));
+        $rank=(int)($multipart['rank']??1);
+        if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$name===''||strlen($name)>255||$rank<1) return self::error('upload_file','Multipart file metadata is invalid.');
+        return self::plan('UPLOAD_FILE','POST',"/application/shops/{$shopId}/listings/{$listingId}/files",[
+            'file_sha256'=>$hash,'file_size'=>$size,'name'=>$name,'rank'=>$rank,
+        ],'multipart/form-data');
+    }
+
+    /** @return array<string,mixed>|WP_Error */
     public static function uploadImage(int $shopId,int $listingId,array $multipart): array|WP_Error
     {
         if($shopId<1||$listingId<1||($multipart['state']??'')!=='ETSY_MULTIPART_IMAGE_PREPARED') return self::error('upload_image','Prepared multipart image metadata is required.');
@@ -60,7 +74,7 @@ final class EtsyDraftListingOperations
         if(!preg_match('/^[a-f0-9]{64}$/',$hash)||$size<1||$size>10485760||$rank<1||$rank>10||!in_array($mime,['image/jpeg','image/png','image/webp'],true)) return self::error('upload_image','Multipart image metadata is invalid.');
         return self::plan('ATTACH_IMAGE','POST',"/application/shops/{$shopId}/listings/{$listingId}/images",[
             'image_sha256'=>$hash,'image_size'=>$size,'image_mime'=>$mime,'rank'=>$rank,
-        ]);
+        ],'multipart/form-data');
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -72,7 +86,7 @@ final class EtsyDraftListingOperations
     }
 
     /** @return array<string,mixed> */
-    private static function plan(string $operation,string $method,string $endpoint,array $payload): array
+    private static function plan(string $operation,string $method,string $endpoint,array $payload,string $contentType='application/json'): array
     {
         return [
             'state'=>'ETSY_DRAFT_OPERATION_PLANNED',
@@ -80,6 +94,7 @@ final class EtsyDraftListingOperations
             'method'=>$method,
             'endpoint'=>$endpoint,
             'payload'=>$payload,
+            'content_type'=>$contentType,
             'publish_permitted'=>false,
             'network_request_permitted'=>false,
             'external_execution_performed'=>false,

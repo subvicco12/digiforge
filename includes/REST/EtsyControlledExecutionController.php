@@ -42,9 +42,12 @@ final class EtsyControlledExecutionController
 
     public function execute(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $key=trim((string)$request->get_header('Idempotency-Key'));
-        if($key===''||strlen($key)>191) return new WP_Error('digiforge_etsy_runtime_idempotency','A bounded Idempotency-Key header is required.',['status'=>400]);
         $body=$request->get_json_params();
+        $key=trim((string)$request->get_header('Idempotency-Key'));
+        $bodyKey=is_array($body)?trim((string)($body['idempotency_key']??'')):'';
+        if($key==='' && $bodyKey!=='') $key=$bodyKey;
+        if($key===''||strlen($key)>191) return new WP_Error('digiforge_etsy_runtime_idempotency','A bounded Idempotency-Key header or JSON idempotency_key is required.',['status'=>400]);
+        if($bodyKey!=='' && !hash_equals($key,$bodyKey)) return new WP_Error('digiforge_etsy_runtime_idempotency_mismatch','Header and body idempotency keys must match when both are supplied.',['status'=>409]);
         if(!is_array($body)) return new WP_Error('digiforge_etsy_runtime_payload','JSON request body is required.',['status'=>400]);
         $integrationId=(int)($body['integration_id']??0);
         $shopId=(int)($body['shop_id']??0);
@@ -99,7 +102,7 @@ final class EtsyControlledExecutionController
             new EtsyDraftOperationPipeline(new EtsyControlledTransportOrchestrator()),
             $operations
         );
-        $result=$coordinator->execute($prepared,$operation,$metadata,$draft,['Content-Type'=>'application/json']);
+        $result=$coordinator->execute($prepared,$operation,$metadata,$draft,['Content-Type'=>(string)($draft['content_type']??'application/x-www-form-urlencoded'),'Idempotency-Key'=>$key]);
         if($result instanceof WP_Error) return $result;
         return new WP_REST_Response($result,200);
     }
