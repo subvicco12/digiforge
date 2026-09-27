@@ -44,6 +44,14 @@ final class EtsyCompletionE2ECertificationContractTest extends TestCase
         foreach (['wp_remote_','curl_exec(','CredentialVault','printify'] as $needle) self::assertStringNotContainsString($needle,$orders);
     }
 
+    public function testWebhookPaidOrderMappingRequiresPersistedConfirmedListingIdentity(): void
+    {
+        $lifecycle=$this->source('includes/Listings/EtsyOrderWebhookLifecycle.php');
+        $resolver=$this->source('includes/Listings/EtsyOrderListingResolver.php');
+        foreach (['EtsyOrderListingResolver::resolve',"'fulfillment_authorized'=>false",'$reviewRequired=$items===[]'] as $needle) self::assertStringContainsString($needle,$lifecycle);
+        foreach (["operation_type='CREATE_DRAFT'","state='CONFIRMED_SUCCESS'","i.state='APPROVED_INTENT'","l.state='APPROVED'",'count($rows)!==1'] as $needle) self::assertStringContainsString($needle,$resolver);
+    }
+
     public function testPublishBoundaryRemainsLocalOnlyAndRuntimeLocked(): void
     {
         $s=$this->source('includes/Listings/EtsyPublishAuthorizationGate.php');
