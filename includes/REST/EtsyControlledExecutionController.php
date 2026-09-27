@@ -132,13 +132,13 @@ final class EtsyControlledExecutionController
             'idempotency_key'=>$key,
             'authorization_hash'=>(string)$authorization['authorization_hash'],
             'evidence_hash'=>$evidenceHash,
-        ],$payload);
+        ],$externalPayload);
         if($operation instanceof WP_Error) return $operation;
         if(($operation['idempotent_replay']??false)===true && (string)($operation['state']??'')!=='NOT_SENT') {
             return new WP_REST_Response(['state'=>'ETSY_CONTROLLED_DRAFT_ALREADY_ATTEMPTED','operation'=>$operation,'external_execution_performed'=>true,'publish_permitted'=>false],200);
         }
 
-        $prepared=(new EtsyOperationPreparationService($operations))->prepare((int)$operation['id'],$authorization,$evidenceHash,$actor,time(),$payload);
+        $prepared=(new EtsyOperationPreparationService($operations))->prepare((int)$operation['id'],$authorization,$evidenceHash,$actor,time(),$externalPayload);
         if($prepared instanceof WP_Error) return $prepared;
         $metadata=(new EtsyTokenMetadataBridge(new IntegrationRepository()))->evaluate($integrationId,time());
         if($metadata instanceof WP_Error) return $metadata;
