@@ -7,7 +7,7 @@ final class EtsyApprovedPackageCompilerContractTest extends TestCase
     public function testCompilerRequiresImmutableApprovedPackageAndExplicitClassification(): void
     {
         $s=$this->source();
-        foreach(["canonical_payload","payload_hash","hash('sha256',","hash_equals","json_decode","approvedListing","readiness_hash","taxonomy_evidence","verified","taxonomy_id","who_made","when_made","quantity","i_did","someone_else","collective","made_to_order","'is_supply'=>false","compiled_from_approved_package"] as $n) self::assertStringContainsString($n,$s);
+        foreach(["canonical_payload","payload_hash","hash('sha256',","hash_equals","json_decode","approvedListing","readiness_hash","taxonomy_evidence","verified","taxonomy_id","who_made","when_made","quantity","i_did","someone_else","collective","made_to_order","'is_supply'=>false","'type'=>'download'","compiled_from_approved_package"] as $n) self::assertStringContainsString($n,$s);
         self::assertStringNotContainsString("max(1,(int)(\$classification['quantity']??1))",$s);
         self::assertStringContainsString("!array_key_exists('quantity',\$classification)",$s);
     }
