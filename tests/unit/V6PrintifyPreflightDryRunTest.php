@@ -23,6 +23,15 @@ final class V6PrintifyPreflightDryRunTest extends TestCase{
   self::assertStringContainsString("'intent_state'=>'BLOCKED'",$s);
   self::assertStringContainsString("'network_execution_performed'=>false",$s);
   self::assertStringContainsString("'retry_permitted'=>false",$s);
+  self::assertStringContainsString("'package_hash'=>",$s);
+  self::assertStringContainsString("'readiness_hash'=>",$s);
+  self::assertStringNotContainsString('wp_remote_',$s);
+ }
+ public function testUnknownReconciliationNeverBlindRetries():void{
+  $s=$this->source('includes/POD/PrintifyUnknownReconciliationReadModel.php');
+  self::assertStringContainsString('ExecutionOutcomeRepository::findByAuthorizationHash',$s);
+  self::assertStringContainsString('PrintifyReconciliationRepository::latest',$s);
+  self::assertStringContainsString("'retry_permitted'=>false",$s);
   self::assertStringNotContainsString('wp_remote_',$s);
  }
 }
