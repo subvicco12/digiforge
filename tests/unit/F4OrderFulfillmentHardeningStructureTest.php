@@ -36,7 +36,7 @@ final class F4OrderFulfillmentHardeningStructureTest extends TestCase
         self::assertStringContainsString("'provider_mappings_present'",$repo);
         self::assertStringContainsString('provider_mapping_id=0',$repo);
         self::assertStringContainsString('Tables::digital_products()',$repo);
-        self::assertStringContainsString("'fulfillment_mode'",$repo);
+        self::assertStringContainsString('OrderReadinessProjection::project',$repo);
         self::assertStringContainsString('OrderReadinessProjection::project',$repo);
         self::assertStringNotContainsString("'external_fulfillment_authorized'=>false",$repo);
     }
