@@ -26,5 +26,8 @@ final class V6LifecycleAttentionDenominatorTest extends TestCase
         $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
         self::assertStringContainsString('LifecycleDenominatorReadModel',$portal);
         self::assertStringContainsString('$denominators=', $portal);
+        self::assertStringContainsString('Lifecycle denominators',$portal);
+        self::assertStringContainsString('AI cost attribution: NOT ESTABLISHED',$portal);
+        self::assertStringContainsString('Orders needing reconciliation',$portal);
     }
 }
