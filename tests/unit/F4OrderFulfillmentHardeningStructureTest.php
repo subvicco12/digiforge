@@ -37,7 +37,8 @@ final class F4OrderFulfillmentHardeningStructureTest extends TestCase
         self::assertStringContainsString('provider_mapping_id=0',$repo);
         self::assertStringContainsString('Tables::digital_products()',$repo);
         self::assertStringContainsString("'fulfillment_mode'",$repo);
-        self::assertStringContainsString("'external_fulfillment_authorized'=>false",$repo);
+        self::assertStringContainsString('OrderReadinessProjection::project',$repo);
+        self::assertStringNotContainsString("'external_fulfillment_authorized'=>false",$repo);
     }
 
     public function testIntentRequiresApprovedSameOrderPlanAndStaysBlocked(): void
