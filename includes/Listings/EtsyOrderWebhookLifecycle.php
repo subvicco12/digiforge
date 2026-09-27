@@ -37,7 +37,7 @@ final class EtsyOrderWebhookLifecycle
             ],'etsy_webhook:'.$eventId);
             if($order instanceof WP_Error)return $order;
             $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
-            $normalized=[];$reviewRequired=false;
+            $normalized=[];$reviewRequired=$items===[];
             foreach(array_slice($items,0,100) as $index=>$item){
                 if(!is_array($item))continue;
                 $etsyListingId=$this->reference($item,['listing_id','listingId']);
