@@ -183,14 +183,17 @@ final class Portal
     private function personalizedPodSummary(): void
     {
         $m=PersonalizedCatalogReference::metadata();
+        $ops=(new ShopOperationsReadModel())->snapshot('personalized_pod');$catalog=(array)($ops['catalog']??[]);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 governed source</h2><p>Immutable Personalized POD reference. Catalog data is evidence, not production authority.</p></div><span class="df-status">'.esc_html((string)$m['source_state']).'</span></div>';
         echo '<div class="df-signal-grid"><div><span>Catalog</span><b>'.esc_html((string)$m['catalog_key']).'</b></div><div><span>Concepts</span><b>'.esc_html((string)$m['listing_count']).'</b></div><div><span>Engines</span><b>'.esc_html((string)$m['personalization_engine_count']).'</b></div><div><span>Production authority</span><b>NO</b></div></div></section>';
+        if($catalog!==[])echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Governed catalog version</h2><p>Persisted provenance and migration lineage. Visibility does not grant production authority.</p></div><span class="df-status">'.esc_html((string)($catalog['source_state']??'UNKNOWN')).'</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html((string)($catalog['version_label']??'' )).'</b></div><div><span>Rows</span><b>'.esc_html((string)($catalog['row_count']??0)).'</b></div><div><span>Parent version</span><b>'.esc_html((string)($catalog['parent_version_id']??0)).'</b></div><div><span>Authority</span><b>'.(!empty($catalog['production_authority'])?'YES':'NO').'</b></div></div><p class="df-muted">Source SHA256: '.esc_html((string)($catalog['source_sha256']??'')).' · Fingerprint: '.esc_html((string)($catalog['fingerprint']??'')).'</p></section>';
     }
 
     private function topbar(string $view): void
     {
         $readiness = (new Readiness())->report();
         $stopAll = Settings::get('stop_all', true) === true;
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         ?>
         <header class="df-topbar">
             <div>
@@ -198,6 +201,7 @@ final class Portal
                 <h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1>
             </div>
             <div class="df-topbar-status">
+                <form method="get" class="df-shop-selector"><input type="hidden" name="df_view" value="<?php echo esc_attr($view); ?>"><label>Shop <select name="df_shop" onchange="this.form.submit()"><?php foreach(ShopOperationsReadModel::shops() as $key=>$label): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($shop,$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></form>
                 <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">
                     STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?>
                 </span>
@@ -725,6 +729,8 @@ final class Portal
 
     private function url(string $view): string
     {
-        return add_query_arg('df_view', $view, $this->baseUrl());
+        $args=['df_view'=>$view];
+        if(isset($_GET['df_shop']))$args['df_shop']=ShopOperationsReadModel::normalize(sanitize_key(wp_unslash($_GET['df_shop'])));
+        return add_query_arg($args, $this->baseUrl());
     }
 }

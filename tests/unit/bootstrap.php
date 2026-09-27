@@ -24,6 +24,8 @@ if (! function_exists('sanitize_text_field')) {
         return trim($value);
     }
 }
+if (! function_exists('sanitize_file_name')) { function sanitize_file_name(string $value): string { return preg_replace('/[^A-Za-z0-9._-]/', '-', basename($value)) ?? ''; } }
+if (! function_exists('sanitize_mime_type')) { function sanitize_mime_type(string $value): string { return preg_replace('/[^A-Za-z0-9.+\/-]/', '', $value) ?? ''; } }
 // phpcs:enable PSR1.Files.SideEffects.FoundWithSymbols
 
 require_once __DIR__ . '/../../includes/Core/Config.php';
@@ -59,6 +61,7 @@ require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/POD/PersonalizedCatalogReference.php';
 require_once __DIR__ . '/../../includes/POD/MasterCatalogImportContract.php';
 require_once __DIR__ . '/../../includes/POD/EtsyPersonalizationContract.php';
+require_once __DIR__ . '/../../includes/POD/PersonalizationSubmissionNormalizer.php';
 require_once __DIR__ . '/../../includes/Queue/JobState.php';
 require_once __DIR__ . '/../../includes/Queue/RecoveryAdminSummary.php';
 require_once __DIR__ . '/../../includes/Observability/HealthStatus.php';
