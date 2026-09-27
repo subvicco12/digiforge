@@ -7,6 +7,7 @@ namespace DigiForge\Portal;
 use DigiForge\Core\Settings;
 use DigiForge\AI\CostKpiReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
+use DigiForge\Listings\WebhookReconciliationReadModel;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
@@ -175,6 +176,7 @@ final class Portal
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
         if ($view === 'orders') { $this->orderOperations(); return; }
+        if ($view === 'listings') { $this->listingOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
         if ($view === 'pod_personalized') { $this->personalizedPodSummary(); }
@@ -182,6 +184,13 @@ final class Portal
         foreach ($this->tables($view) as $label => $table) {
             $this->panelTable($label, $table);
         }
+    }
+
+    private function listingOperations():void
+    {
+        $recon=(new WebhookReconciliationReadModel())->snapshot('etsy');$counts=(array)$recon['counts'];
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Etsy webhook reconciliation</h2><p>Verified inbound evidence only. This view never retries Etsy actions.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Verified</span><b>'.esc_html((string)$counts['verified']).'</b></div><div><span>Processed</span><b>'.esc_html((string)$counts['processed']).'</b></div><div><span>Failed</span><b>'.esc_html((string)$counts['failed']).'</b></div><div><span>Unresolved</span><b>'.esc_html((string)$counts['unresolved']).'</b></div></div></section>';
+        foreach($this->tables('listings') as $label=>$table)$this->panelTable($label,$table);
     }
 
     private function orderOperations():void
