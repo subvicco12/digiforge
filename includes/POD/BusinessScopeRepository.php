@@ -28,6 +28,14 @@ final class BusinessScopeRepository
         return $row;
     }
 
+    public function approveMapping(int $id): array|WP_Error
+    {
+        global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('digiforge_scope_reviewer_required','Authenticated human reviewer required.',['status'=>403]);
+        $now=current_time('mysql',true);$ok=$wpdb->update(Tables::pod_business_mappings(),['state'=>'APPROVED','approved_by'=>$reviewer,'approved_at'=>$now,'updated_at'=>$now],['id'=>$id,'state'=>'DRAFT']);
+        if($ok!==1)return new WP_Error('digiforge_scope_transition','Ownership must exist in DRAFT state and approval cannot be overwritten.',['status'=>409]);
+        return (array)$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE id=%d',$id),ARRAY_A);
+    }
+
     public function createMapping(array $input,?string $idempotencyKey=null,bool $manageTransaction=true): array|WP_Error
     {
         global $wpdb;$replay=$this->replay($input,$idempotencyKey);if($replay!==null)return $replay;
