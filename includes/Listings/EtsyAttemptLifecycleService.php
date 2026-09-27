@@ -40,6 +40,12 @@ final class EtsyAttemptLifecycleService
 
         $recorded=(new EtsyAdapterOutcomePersistenceService($this->operations))->record($operationId,$adapterResult);
         if ($recorded instanceof WP_Error) return $recorded;
+        $assetReference=trim((string)($execution['external_asset_reference']??''));
+        if($assetReference!==''){
+            $assetRecorded=$this->operations->recordExternalAssetReference($operationId,$assetReference);
+            if($assetRecorded instanceof WP_Error)return $assetRecorded;
+            $recorded['operation']=$assetRecorded;
+        }
 
         return [
             'state'=>'ETSY_HTTP_LIFECYCLE_RECORDED',
@@ -61,7 +67,7 @@ final class EtsyAttemptLifecycleService
         if ($state==='RESPONSE_ACCEPTED') {
             $reference=trim((string)($execution['external_reference']??''));
             if ($reference==='') return self::error('reference','Accepted Etsy response requires a bounded external reference before success can be confirmed.');
-            return ['state'=>'CONFIRMED_SUCCESS','external_reference'=>$reference];
+            return ['state'=>'CONFIRMED_SUCCESS','external_reference'=>$reference,'external_asset_reference'=>trim((string)($execution['external_asset_reference']??''))];
         }
         if ($state==='CONFIRMED_FAILURE') {
             return [
