@@ -53,6 +53,8 @@ require_once __DIR__ . '/../../includes/Finance/Validator.php';
 require_once __DIR__ . '/../../includes/Operations/RetentionPolicy.php';
 require_once __DIR__ . '/../../includes/Operations/RecoveryDrill.php';
 require_once __DIR__ . '/../../includes/Database/MigrationPlan.php';
+require_once __DIR__ . '/../../includes/Database/Tables.php';
+require_once __DIR__ . '/../../includes/Database/V6OperationalSchema.php';
 require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/POD/PersonalizedCatalogReference.php';
 require_once __DIR__ . '/../../includes/POD/MasterCatalogImportContract.php';
