@@ -7,6 +7,6 @@ final class EtsyWebhookReadiness {
  /** @return array<string,mixed> */
  public static function inspect():array {
   $configured=defined('DIGIFORGE_ETSY_WEBHOOK_SECRET')&&is_string(DIGIFORGE_ETSY_WEBHOOK_SECRET)&&str_starts_with(DIGIFORGE_ETSY_WEBHOOK_SECRET,'whsec_')&&strlen(DIGIFORGE_ETSY_WEBHOOK_SECRET)>6;
-  return ['state'=>$configured?'READY':'CONFIGURATION_REQUIRED','signing_secret_configured'=>$configured,'supported_events'=>['order.paid','order.canceled','order.shipped','order.delivered'],'signature_verification_required'=>true,'replay_window_seconds'=>300,'external_execution_performed'=>false,'secret_exposed'=>false];
+  return ['state'=>$configured?'READY':'CONFIGURATION_REQUIRED','signing_secret_configured'=>$configured,'configuration_source'=>'server_constant','configuration_action_required'=>$configured?'':'Define DIGIFORGE_ETSY_WEBHOOK_SECRET with the Etsy-issued whsec_ signing secret.','supported_events'=>['order.paid','order.canceled','order.shipped','order.delivered'],'signature_verification_required'=>true,'replay_window_seconds'=>300,'order_intake_local_only'=>true,'fulfillment_authorized'=>false,'order_automation_enabled'=>\DigiForge\Core\Settings::is_enabled('order_automation'),'external_execution_performed'=>false,'secret_exposed'=>false];
  }
 }
