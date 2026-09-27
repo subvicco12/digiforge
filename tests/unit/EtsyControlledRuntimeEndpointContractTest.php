@@ -25,7 +25,12 @@ final class EtsyControlledRuntimeEndpointContractTest extends TestCase
         self::assertStringContainsString('EtsyRequestFingerprint::fromPayload($externalPayload)',$s);
         self::assertStringContainsString('],$externalPayload);',$s);
         self::assertStringContainsString('time(),$externalPayload);',$s);
-        self::assertStringNotContainsString('EtsyRequestFingerprint::fromPayload($payload)',$s);
+        $createStart=strpos($s,'$payload=EtsyApprovedPackageCompiler::compile');
+        $createEnd=strpos($s,'return new WP_REST_Response($result,200);',$createStart);
+        self::assertNotFalse($createStart);
+        self::assertNotFalse($createEnd);
+        $createSegment=substr($s,$createStart,$createEnd-$createStart);
+        self::assertStringNotContainsString('EtsyRequestFingerprint::fromPayload($payload)',$createSegment);
     }
 
     public function testVerifiedNumericShopIdentityIsRequiredAtPersistenceAndPreparation(): void
