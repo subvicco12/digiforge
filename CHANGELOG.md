@@ -1,3 +1,12 @@
+## 1.0.64 — 2026-09-27
+
+- Hardens the governed Etsy digital-file runtime after the first confirmed provider-side HTTP 400.
+- Fixes multipart callback capture so the validated digital-file plan is available when emitting the Etsy file-name form part.
+- Binds post-create media response parsing to the persisted confirmed listing resource identity when the operation has no separate external reference.
+- Adds bounded, allowlisted provider failure diagnostics (error/code/message only) while continuing to suppress raw response bodies, headers, credentials, and request data.
+- Preserves exact approved ZIP checksum binding, confirmed CREATE_DRAFT sequencing, no automatic retry, and publish-disabled execution.
+- Adds regression coverage for multipart runtime capture, bounded diagnostics, raw-body suppression, and media resource identity.
+
 ## 1.0.63 — 2026-09-27
 
 - Adds the exact controlled Etsy `UPLOAD_FILE` pipeline target: POST to the confirmed listing's `/files` endpoint.
