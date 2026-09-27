@@ -36,14 +36,17 @@ final class EtsyControlledDraftExecutionCoordinator
         }
 
         if($multipart!==null) {
-            if(strtoupper((string)($draftOperation['operation']??''))!=='ATTACH_IMAGE') {
-                return self::error('multipart_operation','Multipart assets are permitted only for ATTACH_IMAGE.');
+            if(!in_array(strtoupper((string)($draftOperation['operation']??'')),['ATTACH_IMAGE','UPLOAD_FILE'],true)) {
+                return self::error('multipart_operation','Multipart assets are permitted only for ATTACH_IMAGE or UPLOAD_FILE.');
             }
             $transport=EtsyMultipartTransportBinder::bind($transport,$multipart);
             if($transport instanceof WP_Error) return $transport;
-        } elseif(strtoupper((string)($draftOperation['operation']??''))==='ATTACH_IMAGE'
-            && array_key_exists('image_sha256',(array)($draftOperation['payload']??[]))) {
-            return self::error('multipart_required','Binary ATTACH_IMAGE requires the prepared multipart asset.');
+        } else {
+            $op=strtoupper((string)($draftOperation['operation']??''));
+            $payload=(array)($draftOperation['payload']??[]);
+            if(($op==='ATTACH_IMAGE'&&array_key_exists('image_sha256',$payload))||($op==='UPLOAD_FILE'&&array_key_exists('file_sha256',$payload))) {
+                return self::error('multipart_required','Binary Etsy media operations require the exact prepared multipart asset.');
+            }
         }
 
         $operationId=(int)($operation['id']??0);
