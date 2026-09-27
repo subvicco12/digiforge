@@ -1,3 +1,11 @@
+## 1.0.59 — 2026-09-27
+
+- Adds fail-closed governed Etsy AI-assisted compliance evidence for controlled draft compilation.
+- Requires explicit authenticated seller attestation and AI disclosure approval before compiling an Etsy draft.
+- Preserves the immutable approved listing snapshot while appending the approved AI-assisted disclosure only to the external draft description.
+- Binds deterministic compliance evidence and hash internally; existing verified taxonomy, explicit quantity, digital-download, idempotency, and no-publish controls remain enforced.
+- No Etsy external action is performed by this release.
+
 ## 1.0.40 — 2026-09-26
 
 - Adds the fail-closed Stage 5 Etsy Draft scoped authorization foundation.
