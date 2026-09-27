@@ -38,7 +38,7 @@ final class V6RunWebhookOrderEvidenceTest extends TestCase
         self::assertStringNotContainsString("policy['run_started_at']",$model);
         self::assertStringContainsString("'explicit'=>$runContext!==null",$model);
         self::assertStringContainsString('AiRunContext::normalize',$model);
-        self::assertStringContainsString("$runContext=null",$model);
+        self::assertStringContainsString('$runContext=null',$model);
     }
     public function testFulfillmentPlanBindsReviewedPersonalizationEvidence():void
     {
