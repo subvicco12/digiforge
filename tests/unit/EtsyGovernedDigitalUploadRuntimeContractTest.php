@@ -16,7 +16,7 @@ final class EtsyGovernedDigitalUploadRuntimeContractTest extends TestCase {
  }
  public function testUploadRouteUsesGovernedCustomerPackageAndConfirmedCreate():void{
   $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/EtsyControlledExecutionController.php');
-  foreach(['/etsy/controlled-digital-file','confirmedCreateForScope','EtsyCustomerDownloadResolver::resolve','EtsyMultipartDigitalFileRequest::build','EtsyDraftListingOperations::uploadFile','ETSY_DRAFT_FILE','resource_reference','publish_permitted'=>false] as $n)self::assertStringContainsString($n,$s);
+  foreach(['/etsy/controlled-digital-file','confirmedCreateForScope','EtsyCustomerDownloadResolver::resolve','EtsyMultipartDigitalFileRequest::build','EtsyDraftListingOperations::uploadFile','ETSY_DRAFT_FILE','resource_reference',"'publish_permitted'=>false"] as $n)self::assertStringContainsString($n,$s);
   $r=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyCustomerDownloadResolver.php');
   foreach(['RELEASE_READY',"asset_key='customer-package'","asset_type='product_package'","format='zip'",'EtsyCustomerDownloadSelector::select','AssetStorage::absolutePath'] as $n)self::assertStringContainsString($n,$r);
  }
