@@ -104,13 +104,14 @@ final class EtsyControlledHttpExecutor
                 $rank=(int)$multipart['rank'];
                 $bytes=is_string($multipartBytes)?$multipartBytes:'';
                 if($bytes==='') return ['operation_id'=>$operationId,'attempt_id'=>'','attempted_at'=>gmdate('c'),'adapter_invoked'=>false,'external_request_attempted'=>false,'response'=>new WP_Error('digiforge_etsy_multipart_asset','Bound multipart bytes are unavailable.')];
-                $boundary='----DigiForgeEtsy'.wp_generate_uuid4();
-                $headers['Content-Type']='multipart/form-data; boundary='.$boundary;
-                $safeFilename=str_replace('"','',$filename);
-                $body='--'.$boundary."\r\n".'Content-Disposition: form-data; name="'.$field.'"; filename="'.$safeFilename.'"'. "\r\n".'Content-Type: '.$mime."\r\n\r\n".$bytes."\r\n--".$boundary."\r\n";
-                if($filePlan) $body.='Content-Disposition: form-data; name="name"'."\r\n\r\n".$safeFilename."\r\n--".$boundary."\r\n";
-                $body.='Content-Disposition: form-data; name="rank"'."\r\n\r\n".$rank."\r\n--".$boundary."--\r\n";
-                $args['body']=$body;
+                $boundary='DigiForgeEtsy'.str_replace('-','',wp_generate_uuid4());
+                $built=EtsyMultipartBodyBuilder::build($multipart,$bytes,$boundary,$filePlan);
+                if($built instanceof WP_Error) return ['operation_id'=>$operationId,'attempt_id'=>'','attempted_at'=>gmdate('c'),'adapter_invoked'=>false,'external_request_attempted'=>false,'response'=>$built];
+                unset($headers['content-type'],$headers['Content-Type'],$headers['content-length'],$headers['Content-Length']);
+                $headers['Content-Type']=$built['content_type'];
+                $headers['Content-Length']=(string)$built['content_length'];
+                $args['headers']=$headers;
+                $args['body']=$built['body'];
                 $bytes='';
             } elseif ($payload!==[] && $method!=='GET') {
                 $contentType=strtolower((string)($headers['Content-Type']??$headers['content-type']??''));
