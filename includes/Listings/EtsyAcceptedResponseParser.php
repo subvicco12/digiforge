@@ -21,8 +21,12 @@ final class EtsyAcceptedResponseParser
         $decoded=json_decode($body,true);
         if (!is_array($decoded)) return self::error('json','Accepted Etsy response must contain valid JSON.');
 
-        $candidate=$decoded['listing_id']??($decoded['results'][0]['listing_id']??null);
-        $reference=is_int($candidate)||is_string($candidate)?trim((string)$candidate):'';
+        $top=$decoded['listing_id']??null;
+        $nested=is_array($decoded['results']??null)?($decoded['results'][0]['listing_id']??null):null;
+        $topRef=is_int($top)||is_string($top)?trim((string)$top):'';
+        $nestedRef=is_int($nested)||is_string($nested)?trim((string)$nested):'';
+        if($topRef!==''&&$nestedRef!==''&&!hash_equals($topRef,$nestedRef))return self::error('ambiguous_identity','Accepted Etsy response contains conflicting listing identities.');
+        $reference=$topRef!==''?$topRef:$nestedRef;
         if ($operationType==='CREATE_DRAFT') {
             if (!ctype_digit($reference) || (int)$reference<1) return self::error('listing_id','Created Etsy draft response requires a positive listing_id.');
         } else {
