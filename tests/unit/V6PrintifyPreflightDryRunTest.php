@@ -12,6 +12,12 @@ final class V6PrintifyPreflightDryRunTest extends TestCase{
   self::assertStringContainsString("'ready_for_external_execution'=>false",$s);
   self::assertStringNotContainsString('wp_remote_',$s);
  }
+ public function testRenderEvidenceBindsMappedOrderAndApprovedPersonalization():void{
+  $s=$this->source('includes/POD/RenderEvidenceRepository.php');
+  self::assertStringContainsString('render_mapping_not_on_order',$s);
+  self::assertStringContainsString('render_personalization_not_approved',$s);
+  self::assertStringContainsString("ps.review_status='APPROVED'",$s);
+ }
  public function testDryRunCreatesOnlyBlockedLocalEvidence():void{
   $s=$this->source('includes/POD/PersonalizedPodDryRun.php');
   self::assertStringContainsString("'intent_state'=>'BLOCKED'",$s);
