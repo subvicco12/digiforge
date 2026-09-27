@@ -36,7 +36,18 @@ final class EtsyOrderWebhookLifecycle
                 'metadata'=>['source'=>'etsy_webhook','event_id'=>$eventId],
             ],'etsy_webhook:'.$eventId);
             if($order instanceof WP_Error)return $order;
-            return ['state'=>'ETSY_ORDER_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$order['id'],'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
+            $normalized=[];$reviewRequired=false;
+            foreach(array_slice($items,0,100) as $index=>$item){
+                if(!is_array($item))continue;
+                $listingId=(int)($item['digiforge_listing_id']??0);$productVersionId=(int)($item['digiforge_product_version_id']??0);
+                if($listingId<1||$productVersionId<1){$reviewRequired=true;continue;}
+                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>(int)($item['provider_mapping_id']??0),'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
+                if($line instanceof WP_Error){$reviewRequired=true;continue;}
+                $normalized[]=(int)$line['id'];
+            }
+            if(count($items)>100)$reviewRequired=true;
+            return ['state'=>$reviewRequired?'ETSY_ORDER_REVIEW_REQUIRED':'ETSY_ORDER_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$order['id'],'line_item_ids'=>$normalized,'line_item_count'=>count($normalized),'unmatched_line_items'=>$reviewRequired,'fulfillment_authorized'=>false,'external_execution_performed'=>false];
         }
 
         $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
