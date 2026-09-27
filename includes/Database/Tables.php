@@ -82,5 +82,10 @@ final class Tables {
     public static function finance_periods(): string { return self::name('finance_periods'); }
     public static function analytics_snapshots(): string { return self::name('analytics_snapshots'); }
     public static function operational_alerts(): string { return self::name('operational_alerts'); }
+    public static function catalog_versions(): string { return self::name('catalog_versions'); }
+    public static function catalog_items(): string { return self::name('catalog_items'); }
+    public static function shop_ai_policies(): string { return self::name('shop_ai_policies'); }
+    public static function shop_ai_usage(): string { return self::name('shop_ai_usage'); }
+    public static function webhook_evidence(): string { return self::name('webhook_evidence'); }
     public static function finance_intents(): string { return self::name('finance_intents'); }
 }

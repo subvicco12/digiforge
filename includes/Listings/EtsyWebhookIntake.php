@@ -10,12 +10,15 @@ final class EtsyWebhookIntake {
     public function accept(string $body,array $headers,string $secret,int $now): array|WP_Error {
         $verified=EtsyWebhookVerifier::verify($body,$headers,$secret,$now);
         if($verified instanceof WP_Error)return $verified;
+        $evidence=new WebhookEvidenceRepository();
+        $record=$evidence->recordVerified($verified,$body,$headers);if($record instanceof WP_Error)return $record;
         $claim=$this->dedup->claim((string)$verified['event_id']);
         if($claim instanceof WP_Error)return $claim;
         if(($claim['process_permitted']??false)!==true)return $claim;
         $result=(new EtsyOrderWebhookLifecycle(new \DigiForge\Orders\Repository()))->apply($verified);
-        if($result instanceof WP_Error){$this->dedup->markFailed((string)$verified['event_id']);return $result;}
-        $this->dedup->markProcessed((string)$verified['event_id'],hash('sha256',wp_json_encode($result)));
+        if($result instanceof WP_Error){$this->dedup->markFailed((string)$verified['event_id']);$evidence->markFailed((string)$verified['event_id']);return $result;}
+        $resultHash=hash('sha256',wp_json_encode($result));
+        $this->dedup->markProcessed((string)$verified['event_id'],$resultHash);$evidence->markProcessed((string)$verified['event_id'],$resultHash);
         return $result+['webhook_verified'=>true,'external_execution_performed'=>false];
     }
 }

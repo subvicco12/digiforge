@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+namespace DigiForge\POD;
+use DigiForge\Database\Tables;
+use WP_Error;
+
+/** Persists validated catalog versions without granting production authority. */
+final class GovernedCatalogRepository {
+ public function ingest(array $normalized,string $versionLabel,string $sourceSha256,int $parentVersionId=0,array $migration=[]):array|WP_Error{
+  global $wpdb;$catalogKey=sanitize_key((string)($normalized['catalog_key']??''));$fingerprint=strtolower((string)($normalized['fingerprint']??''));
+  if($catalogKey===''||!preg_match('/^[a-f0-9]{64}$/',$sourceSha256)||!preg_match('/^[a-f0-9]{64}$/',$fingerprint)||count((array)($normalized['rows']??[]))!==500)return new WP_Error('invalid_catalog_evidence','Governed catalog evidence is invalid.');
+  $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND version_label=%s',$catalogKey,$versionLabel),ARRAY_A);
+  if(is_array($existing)){if(hash_equals((string)$existing['fingerprint'],$fingerprint)&&hash_equals((string)$existing['source_sha256'],$sourceSha256))return $existing+['idempotent_replay'=>true];return new WP_Error('immutable_version_conflict','Catalog version labels are immutable.',[],409);}
+  $now=current_time('mysql',true);$ok=$wpdb->insert(Tables::catalog_versions(),['catalog_key'=>$catalogKey,'version_label'=>sanitize_text_field($versionLabel),'source_sha256'=>$sourceSha256,'source_state'=>'IMMUTABLE_REFERENCE','parent_version_id'=>max(0,$parentVersionId),'migration_metadata'=>wp_json_encode($migration),'row_count'=>500,'fingerprint'=>$fingerprint,'production_authority'=>0,'created_by'=>get_current_user_id(),'created_at'=>$now]);
+  if($ok!==1)return new WP_Error('catalog_version_insert_failed','Catalog version could not be persisted.');
+  $versionId=(int)$wpdb->insert_id;
+  foreach((array)$normalized['rows'] as $row){$payload=['family'=>(string)$row['Family'],'concept'=>(string)$row['Concept'],'engine'=>(string)$row['Engine'],'physical_product'=>(string)$row['Physical Product'],'supplier_gate'=>(string)$row['Supplier Gate'],'template_state'=>(string)$row['Template State'],'wave'=>(string)$row['Wave'],'us_route'=>(string)$row['US Route'],'eu_route'=>(string)$row['EU Route'],'priority'=>(string)$row['Priority'],'notes'=>(string)$row['Notes']];$canonical=wp_json_encode($payload);if($wpdb->insert(Tables::catalog_items(),['catalog_version_id'=>$versionId,'listing_id'=>(string)$row['Listing ID'],'family'=>$payload['family'],'concept'=>$payload['concept'],'engine'=>$payload['engine'],'physical_product'=>$payload['physical_product'],'supplier_gate'=>$payload['supplier_gate'],'template_state'=>$payload['template_state'],'attributes'=>$canonical,'row_hash'=>hash('sha256',(string)$canonical),'created_at'=>$now])!==1){return new WP_Error('catalog_item_insert_failed','Catalog item persistence failed; version requires reconciliation.');}}
+  return $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::catalog_versions().' WHERE id=%d',$versionId),ARRAY_A)?:[];
+ }
+ public function browse(int $versionId,array $filters=[],int $limit=50,int $offset=0):array{
+  global $wpdb;$where=['catalog_version_id=%d'];$args=[$versionId];
+  foreach(['family','engine','template_state'] as $field){if(!empty($filters[$field])){$where[]="$field=%s";$args[]=sanitize_text_field((string)$filters[$field]);}}
+  $limit=min(100,max(1,$limit));$offset=max(0,$offset);$args[]=$limit;$args[]=$offset;
+  return $wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::catalog_items().' WHERE '.implode(' AND ',$where).' ORDER BY listing_id ASC LIMIT %d OFFSET %d',...$args),ARRAY_A)?:[];
+ }
+}

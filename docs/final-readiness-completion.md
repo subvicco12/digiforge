@@ -5,7 +5,7 @@ Complete DigiForge as a production-ready local-first WordPress platform without 
 
 ## Release posture
 - Plugin release: 1.0.65.
-- Database schema: v15.
+- Database schema: v16.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
 - Add `activation_authorized`, internal and non-user-writable, default false.
@@ -33,7 +33,7 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 1.0.65 with schema v15
+- version 1.0.65 with schema v16
 - internal activation gates are non-writable
 - effective switches remain false while required internal/scoped gates are false or STOP ALL is true
 - deterministic readiness report
