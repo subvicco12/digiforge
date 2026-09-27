@@ -70,6 +70,8 @@ final class V6OperationalSchema {
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   shop_key varchar(100) NOT NULL,
   workflow varchar(64) NOT NULL,
+  run_id varchar(100) NOT NULL DEFAULT '',
+  run_started_at datetime NULL,
   stage varchar(64) NOT NULL,
   model_key varchar(100) NOT NULL DEFAULT '',
   product_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -83,6 +85,7 @@ final class V6OperationalSchema {
   PRIMARY KEY  (id),
   UNIQUE KEY idempotency_key (idempotency_key),
   KEY shop_stage_time (shop_key,stage,occurred_at),
+  KEY shop_run (shop_key,run_id),
   KEY product_id (product_id),
   KEY order_id (order_id)
 ) $charset;",
