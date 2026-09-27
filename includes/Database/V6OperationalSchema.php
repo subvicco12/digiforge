@@ -48,10 +48,8 @@ final class V6OperationalSchema {
   row_hash char(64) NOT NULL,
   created_at datetime NOT NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY version_listing (catalog_version_id,
-  listing_id),
-  KEY family_engine (family,
-  engine)
+  UNIQUE KEY version_listing (catalog_version_id,listing_id),
+  KEY family_engine (family,engine)
 ) $charset;",
   "CREATE TABLE ".Tables::shop_ai_policies()." (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -65,10 +63,8 @@ final class V6OperationalSchema {
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY shop_environment (shop_key,
-  environment),
-  KEY state_updated (state,
-  updated_at)
+  UNIQUE KEY shop_environment (shop_key,environment),
+  KEY state_updated (state,updated_at)
 ) $charset;",
   "CREATE TABLE ".Tables::shop_ai_usage()." (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -86,9 +82,7 @@ final class V6OperationalSchema {
   idempotency_key varchar(191) NULL DEFAULT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY idempotency_key (idempotency_key),
-  KEY shop_stage_time (shop_key,
-  stage,
-  occurred_at),
+  KEY shop_stage_time (shop_key,stage,occurred_at),
   KEY product_id (product_id),
   KEY order_id (order_id)
 ) $charset;",
@@ -107,10 +101,8 @@ final class V6OperationalSchema {
   received_at datetime NOT NULL,
   processed_at datetime NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY provider_event (provider,
-  event_id),
-  KEY shop_status (shop_reference,
-  processing_status),
+  UNIQUE KEY provider_event (provider,event_id),
+  KEY shop_status (shop_reference,processing_status),
   KEY received_at (received_at)
 ) $charset;"
  ];}
