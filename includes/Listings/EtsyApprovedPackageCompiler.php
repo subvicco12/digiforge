@@ -4,6 +4,7 @@ namespace DigiForge\Listings;
 use WP_Error;
 final class EtsyApprovedPackageCompiler
 {
+    private const AI_DISCLOSURE='AI-assisted design disclosure: This digital product was created and designed by the seller using AI-assisted tools under the seller’s creative direction, prompts, inputs, editing, and approval.';
     public static function compile(array $package,array $listing,array $classification): array|WP_Error
     {
         if((int)($package['approved_by']??0)<1||trim((string)($package['approved_at']??''))==='') return self::error('approval','Human-approved draft package is required.');
@@ -33,9 +34,15 @@ final class EtsyApprovedPackageCompiler
         if(!array_key_exists('quantity',$classification)||(int)$classification['quantity']<1) return self::error('quantity','Explicit positive Etsy quantity is required.');
         $quantity=(int)$classification['quantity'];
 
+        if(($classification['seller_attestation']??false)!==true||$who!=='i_did') return self::error('seller_attestation','Explicit authenticated seller attestation is required for seller-made classification.');
+        if(($classification['ai_assisted']??false)!==true||($classification['ai_disclosure_approved']??false)!==true) return self::error('ai_disclosure','Explicit AI-assisted creation and disclosure approval are required.');
+        $complianceEvidence=['seller_attestation'=>true,'ai_assisted'=>true,'ai_disclosure_approved'=>true,'who_made'=>$who,'when_made'=>$when,'quantity'=>$quantity,'taxonomy_id'=>$taxonomy,'disclosure'=>self::AI_DISCLOSURE];
+        $complianceHash=hash('sha256',wp_json_encode($complianceEvidence,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+
         $title=trim((string)($approvedListing['title']??'')); $description=trim((string)($approvedListing['description']??'')); $price=(float)($approvedListing['price_amount']??$approvedListing['price']??0);
         if($title===''||$description===''||$price<=0) return self::error('content','Immutable approved package title, description and positive price are required.');
-        return ['quantity'=>$quantity,'title'=>$title,'description'=>$description,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'is_supply'=>false,'type'=>'download','_digiforge'=>['listing_id'=>$listingId,'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'payload_hash'=>$payloadHash,'taxonomy_evidence'=>$taxonomyEvidence,'compiled_from_approved_package'=>true]];
+        $externalDescription=rtrim($description)."\n\n".self::AI_DISCLOSURE;
+        return ['quantity'=>$quantity,'title'=>$title,'description'=>$externalDescription,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'is_supply'=>false,'type'=>'download','_digiforge'=>['listing_id'=>$listingId,'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'payload_hash'=>$payloadHash,'taxonomy_evidence'=>$taxonomyEvidence,'compliance_evidence'=>$complianceEvidence,'compliance_hash'=>$complianceHash,'approved_description_unchanged'=>true,'compiled_from_approved_package'=>true]];
     }
     private static function error(string $code,string $message): WP_Error { return new WP_Error('digiforge_etsy_package_compiler_'.$code,$message,['status'=>409]); }
 }
