@@ -24,7 +24,7 @@ final class MigrationPlanTest extends TestCase
         self::assertSame([13,14,15,16,17], MigrationPlan::pending(12));
         self::assertSame([14,15,16,17], MigrationPlan::pending(13));
         self::assertSame([15,16,17], MigrationPlan::pending(14));
-        self::assertSame([16], MigrationPlan::pending(15));
+        self::assertSame([16,17], MigrationPlan::pending(15));
         self::assertSame([17], MigrationPlan::pending(16));
         self::assertSame([], MigrationPlan::pending(17));
     }
