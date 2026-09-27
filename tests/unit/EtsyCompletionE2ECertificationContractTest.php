@@ -56,7 +56,7 @@ final class EtsyCompletionE2ECertificationContractTest extends TestCase
     {
         $repo=$this->source('includes/Orders/Repository.php');
         $event=$this->source('includes/Listings/EtsyOrderEventEvidence.php');
-        foreach (["'provider_mappings_present'",'provider_mapping_id=0'] as $needle) self::assertStringContainsString($needle,$repo);
+        foreach (["'provider_mappings_present'",'provider_mapping_id=0','Tables::digital_products()'] as $needle) self::assertStringContainsString($needle,$repo);
         foreach (["'authoritative_fulfillment_state'=>false","'fulfillment_authorized'=>false"] as $needle) self::assertStringContainsString($needle,$event);
     }
 
