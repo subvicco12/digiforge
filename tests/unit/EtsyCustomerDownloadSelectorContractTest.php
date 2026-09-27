@@ -10,8 +10,9 @@ final class EtsyCustomerDownloadSelectorContractTest extends TestCase
  }
  public function testExecutorSendsFileNameAndRankAsSeparateMultipartFields(): void {
   $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyControlledHttpExecutor.php');
-  self::assertStringContainsString('name="name"',$s);
-  self::assertStringContainsString('name="rank"',$s);
-  self::assertStringContainsString('if($filePlan)',$s);
+  self::assertStringContainsString('EtsyMultipartBodyBuilder::build($multipart,$bytes,$boundary,$filePlan)',$s);
+  $b=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyMultipartBodyBuilder.php');
+  self::assertStringContainsString("self::text(\$boundary,'name',\$safe)",$b);
+  self::assertStringContainsString("self::text(\$boundary,'rank',(string)\$rank)",$b);
  }
 }
