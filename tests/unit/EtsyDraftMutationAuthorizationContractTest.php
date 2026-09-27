@@ -33,11 +33,14 @@ final class EtsyDraftMutationAuthorizationContractTest extends TestCase
     {
         $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/EtsyDraftOperationPipeline.php');
         self::assertStringContainsString('$operationType!==$draftType',$s);
-        foreach(['CREATE_DRAFT','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE','/inventory','/images'] as $needle) self::assertStringContainsString($needle,$s);
+        foreach(['CREATE_DRAFT','UPDATE_DRAFT','UPDATE_INVENTORY','ATTACH_IMAGE','UPLOAD_FILE','/inventory','/images','/files'] as $needle) self::assertStringContainsString($needle,$s);
         self::assertStringContainsString('EtsyRequestFingerprint::fromPayload',$s);
         self::assertStringContainsString('hash_equals($preparedFingerprint,$draftFingerprint)',$s);
         self::assertStringContainsString('hash_equals($expectedEndpoint,$endpoint)',$s);
         self::assertStringContainsString('$operation[\'external_reference\']',$s);
+        self::assertStringContainsString('$operation[\'resource_reference\']',$s);
+        self::assertStringContainsString("\$operationType==='UPLOAD_FILE'?\$resourceReference:\$externalReference",$s);
+        self::assertStringContainsString("\$operationType==='UPLOAD_FILE'",$s);
     }
 
     public function testMutationAuthorizationDoesNotAddExecutionPrimitive(): void
