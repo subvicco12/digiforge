@@ -10,6 +10,7 @@ use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
+use DigiForge\POD\PersonalizedCatalogReference;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
 
@@ -172,9 +173,18 @@ final class Portal
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
+        if ($view === 'pod_personalized') { $this->personalizedPodSummary(); }
+
         foreach ($this->tables($view) as $label => $table) {
             $this->panelTable($label, $table);
         }
+    }
+
+    private function personalizedPodSummary(): void
+    {
+        $m=PersonalizedCatalogReference::metadata();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 governed source</h2><p>Immutable Personalized POD reference. Catalog data is evidence, not production authority.</p></div><span class="df-status">'.esc_html((string)$m['source_state']).'</span></div>';
+        echo '<div class="df-signal-grid"><div><span>Catalog</span><b>'.esc_html((string)$m['catalog_key']).'</b></div><div><span>Concepts</span><b>'.esc_html((string)$m['listing_count']).'</b></div><div><span>Engines</span><b>'.esc_html((string)$m['personalization_engine_count']).'</b></div><div><span>Production authority</span><b>NO</b></div></div></section>';
     }
 
     private function topbar(string $view): void
