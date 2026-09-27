@@ -6,7 +6,7 @@ namespace DigiForge\Database;
 /** Additive schema installer for the locked Etsy operation ledger. */
 final class EtsyOperationSchema
 {
-    public const VERSION = 3;
+    public const VERSION = 4;
     private const OPTION = 'digiforge_etsy_operation_schema_version';
 
     public static function migrateIfNeeded(): bool
@@ -43,6 +43,7 @@ final class EtsyOperationSchema
   authorization_hash char(64) NOT NULL,
   evidence_hash char(64) NOT NULL,
   external_reference varchar(191) NOT NULL DEFAULT '',
+  external_asset_reference varchar(191) NOT NULL DEFAULT '',
   reconciliation_reference varchar(191) NOT NULL DEFAULT '',
   reconciliation_evidence longtext NULL,
   created_by bigint(20) unsigned NOT NULL DEFAULT 0,
