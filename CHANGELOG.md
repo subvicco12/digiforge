@@ -1,3 +1,11 @@
+## 1.0.61 — 2026-09-27
+
+- Fixes the controlled Etsy digital-file planner to consume the governed multipart `filename` metadata produced by the approved customer-package builder.
+- Preserves the existing binder mapping of that exact filename to Etsy's multipart `name` field and the executor's file disposition.
+- Adds regression coverage across planner, binder, and executor for the filename/name boundary.
+- Does not alter approved Product #25 bytes, checksum, confirmed draft state, or publish controls.
+- No Etsy external action is performed by this release.
+
 ## 1.0.60 — 2026-09-27
 
 - Fixes controlled Etsy CREATE_DRAFT payload binding so authorization, ledger fingerprint, preparation, and planned transport use the exact sanitized external payload.
