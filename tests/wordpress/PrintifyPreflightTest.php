@@ -25,6 +25,18 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   $stale=(new DigiForge\POD\ProductionExecutionPermit())->issue($packageId,$fp,'permit_nonce_abcdefghijklmnopqrstuvwxyz',300);
   self::assertTrue(is_wp_error($stale));self::assertSame('production_preflight_not_current',$stale->get_error_code());
  }
+ public function testProductionPermitConsumptionIsOneTimeFingerprintBoundAndExpirySafe():void{
+  $now=current_time('timestamp',true);$fp=hash('sha256','provider-payload');$nonce='consume_nonce_12345678901234567890';
+  $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>hash('sha256','preflight')];
+  $permit=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),$nonce,300,$fp);self::assertFalse(is_wp_error($permit));
+  $consumer=new DigiForge\POD\ProductionExecutionPermitConsumer();$first=$consumer->consume($permit,$fp,get_current_user_id(),$now);
+  self::assertFalse(is_wp_error($first));self::assertTrue($first['nonce_consumed']);self::assertFalse($first['external_execution_performed']);
+  $replay=$consumer->consume($permit,$fp,get_current_user_id(),$now);self::assertTrue(is_wp_error($replay));self::assertSame('digiforge_execution_replay',$replay->get_error_code());
+  $mismatch=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_abcdefghijklmnopqrstuvwxyz',300,$fp);self::assertFalse(is_wp_error($mismatch));
+  $bad=$consumer->consume($mismatch,hash('sha256','different-payload'),get_current_user_id(),$now);self::assertTrue(is_wp_error($bad));self::assertSame('production_permit_fingerprint_mismatch',$bad->get_error_code());
+  $expired=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_expired_1234567890',60,$fp);self::assertFalse(is_wp_error($expired));
+  $late=$consumer->consume($expired,$fp,get_current_user_id(),(int)$expired['authorization']['expires_at']+1);self::assertTrue(is_wp_error($late));self::assertSame('production_permit_expired',$late->get_error_code());
+ }
  public function testReadinessDriftInvalidatesApprovedPackage():void{
   global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,777,'22:33');
   $template=(new DigiForge\POD\ProductionTemplateRepository())->save(['template_id'=>'wp-stale','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>777,'provider_id'=>22,'variant_ids'=>[33],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1000,'height_px'=>1000]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($template));
