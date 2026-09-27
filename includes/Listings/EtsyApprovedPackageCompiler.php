@@ -35,7 +35,7 @@ final class EtsyApprovedPackageCompiler
 
         $title=trim((string)($approvedListing['title']??'')); $description=trim((string)($approvedListing['description']??'')); $price=(float)($approvedListing['price_amount']??$approvedListing['price']??0);
         if($title===''||$description===''||$price<=0) return self::error('content','Immutable approved package title, description and positive price are required.');
-        return ['quantity'=>$quantity,'title'=>$title,'description'=>$description,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'is_supply'=>false,'_digiforge'=>['listing_id'=>$listingId,'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'payload_hash'=>$payloadHash,'taxonomy_evidence'=>$taxonomyEvidence,'compiled_from_approved_package'=>true]];
+        return ['quantity'=>$quantity,'title'=>$title,'description'=>$description,'price'=>number_format($price,2,'.',''),'who_made'=>$who,'when_made'=>$when,'taxonomy_id'=>$taxonomy,'is_supply'=>false,'type'=>'download','_digiforge'=>['listing_id'=>$listingId,'draft_package_id'=>(int)$package['id'],'readiness_hash'=>$readinessHash,'payload_hash'=>$payloadHash,'taxonomy_evidence'=>$taxonomyEvidence,'compiled_from_approved_package'=>true]];
     }
     private static function error(string $code,string $message): WP_Error { return new WP_Error('digiforge_etsy_package_compiler_'.$code,$message,['status'=>409]); }
 }
