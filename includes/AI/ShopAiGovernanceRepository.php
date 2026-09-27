@@ -25,7 +25,7 @@ final class ShopAiGovernanceRepository {
   global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_policies().' WHERE shop_key=%s AND environment=%s AND state=%s',$shop,$environment,'ACTIVE'),ARRAY_A);if(!is_array($row))return new WP_Error('ai_policy_missing','Active shop AI policy is required.');
   $policy=json_decode((string)$row['policy'],true);if(!is_array($policy))return new WP_Error('ai_policy_corrupt','Shop AI policy is invalid.');
   $now=time();$month=gmdate('Y-m-01 00:00:00',$now);$day=gmdate('Y-m-d 00:00:00',$now);$runStart=trim((string)($policy['run_started_at']??''));if($runStart===''||strtotime($runStart)===false)$runStart=gmdate('Y-m-d H:i:s',$now);
-  $usage=$wpdb->get_results($wpdb->prepare('SELECT stage,SUM(quantity) quantity,SUM(actual_cost) cost FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND occurred_at>=%s GROUP BY stage',$shop,$month),ARRAY_A)?:[];$actual=['month'=>[],'costs'=>[]];foreach($usage as $u)$actual['month'][(string)$u['stage']]=['count'=>(int)$u['quantity'],'cost'=>(float)$u['cost'];
+  $usage=$wpdb->get_results($wpdb->prepare('SELECT stage,SUM(quantity) quantity,SUM(actual_cost) cost FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND occurred_at>=%s GROUP BY stage',$shop,$month),ARRAY_A)?:[];$actual=['month'=>[],'costs'=>[]];foreach($usage as $u)$actual['month'][(string)$u['stage']]=['count'=>(int)$u['quantity'],'cost'=>(float)$u['cost']];
   foreach(['run'=>$runStart,'day'=>$day,'month'=>$month] as $period=>$since)$actual['costs'][$period]=(float)$wpdb->get_var($wpdb->prepare('SELECT COALESCE(SUM(actual_cost),0) FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND occurred_at>=%s',$shop,$since));
   return ShopAiPlan::evaluate($policy,$actual);
  }
