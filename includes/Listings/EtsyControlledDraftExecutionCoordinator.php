@@ -90,6 +90,7 @@ final class EtsyControlledDraftExecutionCoordinator
             'lifecycle'=>$lifecycle,
             'reconciliation_required'=>(bool)($lifecycle['reconciliation_required']??false),
             'automatic_retry_permitted'=>false,
+            'provider_error_evidence'=>is_array($lifecycle['provider_error_evidence']??null)?$lifecycle['provider_error_evidence']:[],
             'publish_permitted'=>false,
                 'external_execution_performed'=>true,
             ];
