@@ -43,6 +43,7 @@ final class EtsyDraftOperationPipeline
             'UPDATE_DRAFT'=>['PUT','#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*$#'],
             'UPDATE_INVENTORY'=>['PUT','#^/application/listings/[1-9][0-9]*/inventory$#'],
             'ATTACH_IMAGE'=>['POST','#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/images$#'],
+            'UPLOAD_FILE'=>['POST','#^/application/shops/[1-9][0-9]*/listings/[1-9][0-9]*/files$#'],
         ];
         $target=$targets[$operationType]??null;
         if (!is_array($target) || $method!==$target[0] || !preg_match($target[1],$endpoint) || !is_array($payload)) {
@@ -54,7 +55,9 @@ final class EtsyDraftOperationPipeline
         }
         $shopId=(int)$shopReference;
         $externalReference=trim((string)($operation['external_reference']??''));
-        $listingId=ctype_digit($externalReference)?(int)$externalReference:0;
+        $resourceReference=trim((string)($operation['resource_reference']??''));
+        $listingReference=$operationType==='UPLOAD_FILE'?$resourceReference:$externalReference;
+        $listingId=ctype_digit($listingReference)?(int)$listingReference:0;
         if ($operationType==='CREATE_DRAFT') {
             $expectedEndpoint="/application/shops/{$shopId}/listings";
         } elseif ($listingId<1) {
@@ -63,6 +66,8 @@ final class EtsyDraftOperationPipeline
             $expectedEndpoint="/application/listings/{$listingId}/inventory";
         } elseif ($operationType==='ATTACH_IMAGE') {
             $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}/images";
+        } elseif ($operationType==='UPLOAD_FILE') {
+            $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}/files";
         } else {
             $expectedEndpoint="/application/shops/{$shopId}/listings/{$listingId}";
         }
