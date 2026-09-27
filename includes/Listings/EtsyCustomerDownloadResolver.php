@@ -20,6 +20,7 @@ final class EtsyCustomerDownloadResolver {
   $path=AssetStorage::absolutePath((string)$selected['storage_reference']);
   if($path===null)return self::error('storage','Approved customer package bytes are unavailable in protected local storage.');
   $selected['absolute_path']=$path;
+  $selected['release_bundle']=$bundle;
   return $selected;
  }
  private static function error(string $c,string $m):WP_Error{return new WP_Error('digiforge_etsy_customer_download_resolver_'.$c,$m,['status'=>409]);}
