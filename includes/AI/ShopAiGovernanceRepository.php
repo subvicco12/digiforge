@@ -15,6 +15,11 @@ final class ShopAiGovernanceRepository {
   if($ok===false)return new WP_Error('ai_policy_persistence_failed','Shop AI policy could not be persisted.');
   return $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_policies().' WHERE id=%d',$id),ARRAY_A)?:[];
  }
+ public function preflight(string $shop,string $stage,int $quantity,float $estimatedCost,string $environment='production'):array|WP_Error{
+  $projection=$this->evaluate($shop,$environment);if($projection instanceof WP_Error)return $projection;
+  return ShopAiPlan::preflight($projection,$stage,$quantity,$estimatedCost);
+ }
+
  public function recordUsage(array $input,?string $key=null):array|WP_Error{
   global $wpdb;$shop=sanitize_key((string)($input['shop_key']??''));$stage=sanitize_key((string)($input['stage']??''));if($shop===''||!in_array($stage,ShopAiPlan::STAGES,true))return new WP_Error('invalid_ai_usage','Valid shop_key and stage are required.');
   $data=['shop_key'=>$shop,'workflow'=>sanitize_key((string)($input['workflow']??'general')),'stage'=>$stage,'model_key'=>sanitize_text_field((string)($input['model_key']??'')),'product_id'=>absint($input['product_id']??0),'order_id'=>absint($input['order_id']??0),'quantity'=>max(1,(int)($input['quantity']??1)),'estimated_cost'=>max(0,(float)($input['estimated_cost']??0)),'actual_cost'=>max(0,(float)($input['actual_cost']??0)),'currency'=>strtoupper(substr(sanitize_text_field((string)($input['currency']??'USD')),0,3)),'occurred_at'=>current_time('mysql',true),'idempotency_key'=>$key===null?null:sanitize_text_field($key)];
