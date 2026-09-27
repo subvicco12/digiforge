@@ -19,13 +19,14 @@ final class AttentionReadModel
             'ownership_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_business_mappings()." WHERE state='DRAFT'"),
             'render_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_render_evidence()." WHERE review_status='UNREVIEWED'"),
             'authorization_package_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_authorization_packages()." WHERE state='REVIEW_REQUIRED'"),
-            'production_revalidation_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_authorization_packages()." WHERE state='APPROVED_PACKAGE' AND external_execution_performed=0"),
             'pod_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::pod_readiness_reviews()." WHERE decision='PENDING'"),
             'fulfillment_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::fulfillment_readiness_reviews()." WHERE decision='PENDING'"),
             'blocked_finance_intents'=>$count("SELECT COUNT(*) FROM ".Tables::finance_intents()." WHERE state='BLOCKED'"),
             'open_operational_alerts'=>$count("SELECT COUNT(*) FROM ".Tables::operational_alerts()." WHERE state NOT IN ('RESOLVED','CLOSED')"),
             'orders_needing_reconciliation'=>$count("SELECT COUNT(DISTINCT o.id) FROM ".Tables::orders()." o LEFT JOIN ".Tables::order_line_items()." li ON li.order_id=o.id WHERE li.id IS NULL OR li.validation_status<>'VALIDATED' OR (li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id))"),
         ];
-        return $items+['total_attention'=>array_sum($items),'external_execution_performed'=>false];
+        $preflight=(new \DigiForge\POD\ProductionPreflightAttentionReadModel())->summary();
+        $items['production_revalidation_reviews']=(int)$preflight['revalidation_required'];
+        return $items+['total_attention'=>array_sum($items),'production_preflight'=>$preflight,'external_execution_performed'=>false];
     }
 }
