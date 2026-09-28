@@ -12,10 +12,11 @@ final class EtsyReconciliationOperatorReadModel {
   return $row+['operator_action'=>'RECONCILE_BEFORE_ANY_RETRY','read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
  }
  /** @return list<array<string,mixed>> */
- public function recent(int $limit=50):array {
+ public function recent(int $limit=50, ?string &$queryState=null):array {
   global $wpdb;$limit=max(1,min(100,$limit));$table=$wpdb->prefix.'digiforge_etsy_operations';
   $rows=$wpdb->get_results($wpdb->prepare("SELECT id,shop_reference,operation_type,resource_reference,state,external_reference,reconciliation_reference,updated_at FROM $table WHERE state IN ('UNKNOWN','RECONCILIATION') ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
-  if(!is_array($rows))return [];
+  if(!is_array($rows)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
+  $queryState='AVAILABLE';
   return array_map(static function(array $r):array{$r['operator_action']='RECONCILE_BEFORE_ANY_RETRY';$r['read_only']=true;$r['retry_permitted']=false;$r['external_execution_authorized']=false;return $r;},$rows);
  }
 }
