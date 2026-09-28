@@ -36,5 +36,18 @@ final class ProvenanceIntegrityCoverageOverflowTest extends WP_UnitTestCase
         self::assertFalse($coverage['exhaustive_open_count']);
         self::assertFalse($coverage['retry_permitted']);
         self::assertFalse($coverage['external_execution_authorized']);
+
+        $evidenceTable=DigiForge\Database\Tables::pod_provenance_integrity_evidence();
+        $recordedBefore=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$evidenceTable);
+        $hiddenAuth=hash('sha256','integrity-overflow-auth-0');
+        self::assertNotContains($hiddenAuth,array_column($projection['items'],'authorization_hash'));
+        $focused=(new DigiForge\POD\ProductionProvenanceIntegrityFocusReadModel())->byAuthorizationHash($hiddenAuth);
+        self::assertSame('LIVE_ANOMALIES',$focused['lookup_state']);
+        self::assertSame('LEGACY_UNBOUND',$focused['items'][0]['type']);
+        self::assertSame('OPEN',$focused['items'][0]['operator_state']);
+        self::assertFalse($focused['items'][0]['retry_permitted']);
+        self::assertFalse($focused['items'][0]['external_execution_authorized']);
+        self::assertSame($recordedBefore,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$evidenceTable));
+        self::assertSame('INVALID_REFERENCE',(new DigiForge\POD\ProductionProvenanceIntegrityFocusReadModel())->byAuthorizationHash('invalid')['lookup_state']);
     }
 }
