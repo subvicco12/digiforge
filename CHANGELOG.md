@@ -1,3 +1,16 @@
+## 1.0.66 — 2026-09-28
+
+- Consolidates the audited v6 operational-safety work accumulated after v1.0.65 into a distinct deployment candidate.
+- Advances the additive database schema contract to v22, including governed provenance bindings, lifecycle closure evidence, immutable provenance-integrity evidence, acknowledgement evidence, and durable permit-persistence observations.
+- Hardens production permit consumption around transactional table requirements, package provenance locking, nonce replay prevention, binding conflicts, and ambiguous COMMIT reconciliation.
+- Preserves historical integrity anomalies after source-data repair and separates current OPEN, ACKNOWLEDGED, and HISTORICAL operator states.
+- Adds deterministic concurrent acknowledgement race coverage: identical winners are idempotent; divergent winners fail closed.
+- Adds bounded read-only operator drill-down for permit persistence and exposes integrity, persistence, queue recovery, and release-safety evidence in the live-site Attention & Recovery portal.
+- Adds direct v21→v22 migration and v22 reactivation/idempotency coverage.
+- Adds a fail-closed release-candidate evidence gate requiring exact-commit audit/package identity, checksum verification, real backup evidence, restore readiness, and locked production-smoke prerequisites.
+- Recovery/readiness evidence remains informational only: it cannot restore a consumed nonce, permit retry, authorize Etsy publish, authorize POD production, or activate external execution.
+- This release candidate does not deploy production and performs no Etsy publish, POD production, provider mutation, or other external action.
+
 ## 1.0.65 — 2026-09-27
 
 - Replaces inline Etsy media multipart assembly with a byte-exact builder that emits required text fields and binary media with a matching quoted boundary and explicit content length.
