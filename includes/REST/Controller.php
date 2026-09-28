@@ -43,8 +43,8 @@ final class Controller {
     public function recovery_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryEvidence::snapshot() + ['external_actions_performed' => false], 200); }
     public function record_database_backup_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $record = (array) $request->get_json_params();
-        if (! RecoveryEvidence::storeDatabaseBackup($record)) return new \WP_Error('digiforge_recovery_backup_evidence_invalid', __('Complete, valid database backup evidence is required.', 'digiforge'), ['status' => 400]);
-        Logger::audit('recovery_database_backup_evidence_recorded', ['identifier' => sanitize_text_field((string)($record['identifier'] ?? '')), 'external_actions_performed' => false], 'system', 'recovery_evidence');
+        if (! RecoveryEvidence::storeDatabaseBackup($record)) return new \WP_Error('digiforge_recovery_backup_evidence_invalid', __('Complete, independently verified and retrievable database backup evidence is required.', 'digiforge'), ['status' => 400]);
+        Logger::audit('recovery_database_backup_evidence_verified', ['identifier' => sanitize_text_field((string)($record['identifier'] ?? '')), 'verification_method' => sanitize_text_field((string)($record['verification_method'] ?? '')), 'verified_at' => sanitize_text_field((string)($record['verified_at'] ?? '')), 'external_actions_performed' => false, 'retry_permitted' => false, 'external_execution_authorized' => false], 'system', 'recovery_evidence');
         return new \WP_REST_Response(['recorded' => true, 'database_backup' => RecoveryEvidence::snapshot()['database_backup'], 'external_actions_performed' => false], 200);
     }
     public function record_plugin_package_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
