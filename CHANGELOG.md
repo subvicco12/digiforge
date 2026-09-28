@@ -1,3 +1,12 @@
+## 1.0.72 — 2026-09-28
+
+- Consolidates Etsy and Printify UNKNOWN/reconciliation-required evidence with fail-closed RECONCILE BEFORE ANY RETRY guidance.
+- Adds bounded per-order discrepancy evidence and governed operational-alert navigation.
+- Adds bounded fulfillment, finance-ledger and tax/GST exception projections without sensitive payload/evidence blobs.
+- Adds non-secret audit correlation identities and safe exception drill-down/navigation to Audit/Reconciliation.
+- Every new exception projection remains read-only, non-retryable and non-authorizing for external execution; finance/tax evidence cannot move money or file tax.
+- Preserves STOP ALL, recovery gating and schema v22; release performs no external action.
+
 ## 1.0.71 — 2026-09-28\n\n- Expands the live-site portal with Businesses/Brands/Shops, Automation/Queues, Analytics, Finance & GST, and Settings operational areas.\n- Adds shop-scoped context, bounded non-authorizing queue attention drill-down, and consolidated approval-gate visibility.\n- Adds internal governed-workflow navigation from attention records without inferring approval or execution authority.\n- Hardens operator tables and controls for tablet/mobile use.\n- Preserves STOP ALL, recovery gating, explicit approval boundaries, and schema v22; release performs no external action.\n\n## 1.0.70 — 2026-09-28
 
 - Adds explicit MISSING / VERIFIED / STALE database-backup status projection.
