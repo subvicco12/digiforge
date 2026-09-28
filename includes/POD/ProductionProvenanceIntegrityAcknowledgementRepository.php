@@ -6,6 +6,9 @@ use WP_Error;
 
 /** Durable operator acknowledgement of provenance anomalies. Evidentiary only; never execution authority. */
 final class ProductionProvenanceIntegrityAcknowledgementRepository{
+ /** @var null|callable Test-only seam invoked immediately before insert; production leaves null. */
+ private static $beforeInsert=null;
+ public static function setBeforeInsertHookForTest(?callable $hook):void{self::$beforeInsert=$hook;}
  /** @return array|WP_Error */
  public static function acknowledge(string $correlationHash,string $authorizationHash,string $anomalyType,int $reviewer):array|WP_Error{
   $correlationHash=strtolower(trim($correlationHash));$authorizationHash=strtolower(trim($authorizationHash));
@@ -16,6 +19,7 @@ final class ProductionProvenanceIntegrityAcknowledgementRepository{
   global $wpdb;$table=Tables::pod_provenance_integrity_acknowledgements();$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE correlation_hash=%s LIMIT 1',$correlationHash),ARRAY_A);
   if(is_array($existing))return hash_equals((string)$existing['acknowledgement_hash'],$hash)?self::safe($existing):new WP_Error('production_integrity_ack_conflict','Integrity anomaly already has different acknowledgement evidence.',['status'=>409]);
   $row=['correlation_hash'=>$correlationHash,'authorization_hash'=>$authorizationHash,'anomaly_type'=>$anomalyType,'decision'=>$decision,'reviewed_by'=>$reviewer,'acknowledgement_hash'=>$hash,'created_at'=>current_time('mysql',true)];
+  if(is_callable(self::$beforeInsert)){(self::$beforeInsert)($row);self::$beforeInsert=null;}
   if($wpdb->insert($table,$row)===false){$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE correlation_hash=%s LIMIT 1',$correlationHash),ARRAY_A);if(is_array($winner))return hash_equals((string)$winner['acknowledgement_hash'],$hash)?self::safe($winner):new WP_Error('production_integrity_ack_conflict','Integrity anomaly already has different acknowledgement evidence.',['status'=>409]);return new WP_Error('production_integrity_ack_store','Integrity acknowledgement could not be persisted.',['status'=>409]);}$row['id']=(int)$wpdb->insert_id;return self::safe($row);
  }
  /** @param array<string,mixed> $row @return array<string,mixed> */

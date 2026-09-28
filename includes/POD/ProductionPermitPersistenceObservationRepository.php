@@ -12,6 +12,9 @@ final class ProductionPermitPersistenceObservationRepository{
   if($existing){$wpdb->update($table,['persistence_state'=>$state,'last_observed_at'=>$now],['id'=>(int)$existing],['%s','%s'],['%d']);return;}
   $wpdb->insert($table,['observation_hash'=>$hash,'nonce_hash'=>$nonceHash,'authorization_hash'=>$authorizationHash,'package_id'=>$packageId,'package_hash'=>$packageHash,'persistence_state'=>$state,'first_observed_at'=>$now,'last_observed_at'=>$now],['%s','%s','%s','%d','%s','%s','%s','%s']);
  }
+ public static function recent(int $limit=50):array{
+  $limit=max(1,min(200,$limit));global $wpdb;$rows=(array)$wpdb->get_results($wpdb->prepare('SELECT observation_hash,nonce_hash,authorization_hash,package_id,package_hash,persistence_state,first_observed_at,last_observed_at FROM '.Tables::pod_permit_persistence_observations().' ORDER BY last_observed_at DESC,id DESC LIMIT %d',$limit),ARRAY_A);foreach($rows as &$row){$row['read_only']=true;$row['retry_permitted']=false;$row['external_execution_authorized']=false;}unset($row);return ['items'=>$rows,'count'=>count($rows),'read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
+ }
  public static function summary():array{
   global $wpdb;$table=Tables::pod_permit_persistence_observations();$unknown=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table WHERE persistence_state='UNKNOWN'");$observed=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table WHERE persistence_state='PERSISTED_OBSERVED'");
   return ['unknown_count'=>$unknown,'persisted_observed_count'=>$observed,'count'=>$unknown+$observed,'read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
