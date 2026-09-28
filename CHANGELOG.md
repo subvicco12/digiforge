@@ -9,7 +9,7 @@
 - Adds direct v21→v22 migration and v22 reactivation/idempotency coverage.
 - Adds a fail-closed release-candidate evidence gate requiring exact-commit audit/package identity, checksum verification, real backup evidence, restore readiness, and locked production-smoke prerequisites.
 - Recovery/readiness evidence remains informational only: it cannot restore a consumed nonce, permit retry, authorize Etsy publish, authorize POD production, or activate external execution.
-- This release candidate does not deploy production and performs no Etsy publish, POD production, provider mutation, or other external action.
+- Adds an authenticated, management-capability protected REST transition that invokes the same transactional protected-posture recovery used by the portal; it can only revoke execution authority/arming/scoped authorizations and assert STOP ALL, while preserving configured feature switches.\n- This release candidate does not deploy production and performs no Etsy publish, POD production, provider mutation, or other external action.
 
 ## 1.0.65 — 2026-09-27
 
