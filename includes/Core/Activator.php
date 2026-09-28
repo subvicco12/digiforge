@@ -10,6 +10,7 @@ use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
 use DigiForge\Database\V6OperationalSchema;
+use DigiForge\Database\ScopedPolicySchema;
 final class Activator {
     public static function activate(): void {
         Capabilities::add();
@@ -40,6 +41,9 @@ final class Activator {
         // v16 is additive and must run after the historical migration chain so
         // legacy installers cannot lower the current schema marker back to v15.
         if (! V6OperationalSchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! ScopedPolicySchema::migrateIfNeeded()) {
             return;
         }
         Settings::ensure_defaults();
