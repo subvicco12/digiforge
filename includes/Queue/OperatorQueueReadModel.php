@@ -21,4 +21,8 @@ final class OperatorQueueReadModel {
   $dedup=(int)$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::idempotency()." WHERE status IN ('PENDING','UNKNOWN')");
   return ['orphaned_expired_leases'=>$orphans,'dead_letter_jobs'=>$dead,'retry_eligible_by_attempt_count'=>$retry,'rate_limit_evidence'=>$rate,'unresolved_idempotency_evidence'=>$dedup,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false,'read_only'=>true];
  }
+ public function unresolvedIdempotency(int $limit=25):array {
+  global $wpdb;$limit=max(1,min(100,$limit));$rows=$wpdb->get_results($wpdb->prepare("SELECT id,operation_key,operation_type,status,response_hash,created_at,updated_at FROM ".Tables::idempotency()." WHERE status IN ('PENDING','UNKNOWN') ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);if(!is_array($rows))return [];
+  return array_map(static function(array $r):array{$r['operation_key_hash']=hash('sha256',(string)$r['operation_key']);unset($r['operation_key']);$r['read_only']=true;$r['replay_permitted']=false;$r['retry_permitted']=false;$r['external_execution_authorized']=false;return $r;},$rows);
+ }
 }
