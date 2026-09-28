@@ -14,7 +14,7 @@ final class ResearchPortalEvidenceAvailabilityContractTest extends TestCase {
  }
  public function testFailedReadsCheckDatabaseErrorBeforeEmptyState():void {
   $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
-  self::assertStringContainsString("!is_array(\\$rows)||!empty(\\$wpdb->last_error)",str_replace('$','\\$', $portal));
+  self::assertStringContainsString('!is_array($rows)||!empty($wpdb->last_error)',$portal);
   self::assertStringContainsString("candidateState!=='AVAILABLE'",str_replace('$candidateState','candidateState',$portal));
  }
 }
