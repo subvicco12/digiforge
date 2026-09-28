@@ -29,9 +29,21 @@ final class ProductionProvenanceIntegrityTypeReadModel
         if (!is_array($row) || !empty($wpdb->last_error)) {
             return $base+['lookup_state'=>'QUERY_UNAVAILABLE'];
         }
+        if (!isset($row['recorded_count']) || !is_numeric($row['recorded_count'])) {
+            return $base+['lookup_state'=>'INCONSISTENT_EVIDENCE'];
+        }
         $count=(int)$row['recorded_count'];
         $types=[];
-        foreach (self::TYPES as $i=>$type) $types[$type]=(int)$row['type_'.$i];
+        foreach (self::TYPES as $i=>$type) {
+            $value=$row['type_'.$i]??null;
+            if ($count>0 && ($value===null || !is_numeric($value))) {
+                return $base+['lookup_state'=>'INCONSISTENT_EVIDENCE'];
+            }
+            $types[$type]=(int)$value;
+        }
+        if ($count<0 || min($types)<0 || array_sum($types)>$count) {
+            return $base+['lookup_state'=>'INCONSISTENT_EVIDENCE'];
+        }
         $types['OTHER_RECORDED_TYPE']=$count-array_sum($types);
         return $base+['lookup_state'=>$count>0?'RECORDED_TYPES':'NO_RECORDED_HISTORY',
             'count_scope'=>'EXACT_AUTHORIZATION_RECORDED','recorded_count'=>$count,
