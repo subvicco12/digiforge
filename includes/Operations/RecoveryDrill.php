@@ -11,7 +11,11 @@ final class RecoveryDrill
     {
         $required = [
             'database_backup_available',
+            'database_backup_retrievable',
+            'database_backup_identity_recorded',
             'plugin_package_available',
+            'plugin_package_retrievable',
+            'plugin_package_identity_recorded',
             'checksum_verified',
             'schema_version_known',
             'restore_instructions_available',

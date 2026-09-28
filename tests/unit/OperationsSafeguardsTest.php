@@ -32,7 +32,11 @@ final class OperationsSafeguardsTest extends TestCase
     {
         $pass = RecoveryDrill::evaluate([
             'database_backup_available' => true,
+            'database_backup_retrievable' => true,
+            'database_backup_identity_recorded' => true,
             'plugin_package_available' => true,
+            'plugin_package_retrievable' => true,
+            'plugin_package_identity_recorded' => true,
             'checksum_verified' => true,
             'schema_version_known' => true,
             'restore_instructions_available' => true,
@@ -43,6 +47,8 @@ final class OperationsSafeguardsTest extends TestCase
         self::assertSame(1, preg_match('/^[a-f0-9]{64}$/', $pass['evidence_hash']));
 
         $review = RecoveryDrill::evaluate(['database_backup_available' => true]);
+        self::assertFalse($review['checks']['database_backup_retrievable']);
+        self::assertFalse($review['checks']['database_backup_identity_recorded']);
         self::assertSame('REVIEW_REQUIRED', $review['status']);
         self::assertFalse($review['external_actions_performed']);
     }
