@@ -22,6 +22,6 @@ final class ScopedPolicySchema {
   UNIQUE KEY policy_hash (policy_hash),
   KEY scope_latest (shop_key,workflow_key,capability,created_at)
 ) $charset;";
-  $wpdb->last_error='';$wpdb->query($sql);$exists=$wpdb->get_var($wpdb->prepare('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',Tables::scoped_capability_policies()));if($exists!==Tables::scoped_capability_policies()){update_option('digiforge_last_migration_failure',['error_code'=>'SCOPED_POLICY_SCHEMA_UPDATE_FAILED','database_error'=>(string)$wpdb->last_error,'occurred_at'=>current_time('mysql',true)],false);return false;}update_option('digiforge_db_schema_version',self::VERSION,false);update_option('digiforge_db_version',(string)self::VERSION,false);return true;
+  $wpdb->last_error='';$created=$wpdb->query($sql);$exists=$wpdb->get_var($wpdb->prepare('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',Tables::scoped_capability_policies()));if($exists!==Tables::scoped_capability_policies()){update_option('digiforge_last_migration_failure',['error_code'=>'SCOPED_POLICY_SCHEMA_UPDATE_FAILED','database_error'=>(string)$wpdb->last_error,'table_name'=>Tables::scoped_capability_policies(),'create_result'=>$created,'observed_table'=>$exists,'occurred_at'=>current_time('mysql',true)],false);return false;}update_option('digiforge_db_schema_version',self::VERSION,false);update_option('digiforge_db_version',(string)self::VERSION,false);return true;
  }
 }
