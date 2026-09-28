@@ -18,4 +18,12 @@ final class ReconciliationReadModel
         $unmapped=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
         return ['order_id'=>$orderId,'external_order_reference'=>(string)$order['external_order_reference'],'shop_reference'=>(string)$order['shop_reference'],'line_item_count'=>$lineCount,'invalid_line_items'=>$invalid,'unmapped_pod_line_items'=>$unmapped,'reconciled'=>$lineCount>0&&$invalid===0&&$unmapped===0,'fulfillment_authorized'=>false,'external_execution_performed'=>false];
     }
+    /** @return list<array<string,mixed>> */
+    public function discrepancies(int $orderId,int $limit=25):array
+    {
+        global $wpdb;$limit=max(1,min(100,$limit));
+        $rows=$wpdb->get_results($wpdb->prepare("SELECT id,product_version_id,validation_status,provider_mapping_id FROM ".Tables::order_line_items()." WHERE order_id=%d AND (validation_status<>'VALIDATED' OR (provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=".Tables::order_line_items().".product_version_id))) ORDER BY id ASC LIMIT %d",$orderId,$limit),ARRAY_A);
+        if(!is_array($rows))return [];
+        return array_map(static function(array $r):array{$r['read_only']=true;$r['fulfillment_authorized']=false;$r['retry_permitted']=false;$r['external_execution_authorized']=false;return $r;},$rows);
+    }
 }
