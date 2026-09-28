@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace DigiForge\Database;
 
-/** Additive v20 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
+/** Additive v21 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
 final class V6OperationalSchema {
- public const VERSION=20;
+ public const VERSION=21;
  public static function migrateIfNeeded():bool{
   global $wpdb;
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;
@@ -135,6 +135,22 @@ final class V6OperationalSchema {
   KEY order_review (order_id,review_status)
 ) $charset;",
   "CREATE TABLE ".Tables::pod_reconciliation_acknowledgements()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  unknown_hash char(64) NOT NULL,\n  reconciliation_hash char(64) NOT NULL,\n  resolution_state varchar(64) NOT NULL,\n  decision varchar(64) NOT NULL,\n  reviewed_by bigint(20) unsigned NOT NULL,\n  acknowledgement_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY reconciliation_hash (reconciliation_hash),\n  UNIQUE KEY acknowledgement_hash (acknowledgement_hash),\n  KEY authorization_created (authorization_hash,created_at)\n) $charset;",
+  "CREATE TABLE ".Tables::pod_provenance_integrity_evidence()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  correlation_hash char(64) NOT NULL,
+  authorization_hash char(64) NOT NULL,
+  anomaly_type varchar(64) NOT NULL,
+  package_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  package_hash char(64) NOT NULL DEFAULT '',
+  actual_package_hash char(64) NOT NULL DEFAULT '',
+  evidence_payload longtext NOT NULL,
+  first_observed_at datetime NOT NULL,
+  last_observed_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY correlation_hash (correlation_hash),
+  KEY authorization_observed (authorization_hash,last_observed_at),
+  KEY anomaly_observed (anomaly_type,last_observed_at)
+) $charset;",
   "CREATE TABLE ".Tables::pod_provenance_integrity_acknowledgements()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  correlation_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  anomaly_type varchar(64) NOT NULL,\n  decision varchar(32) NOT NULL,\n  reviewed_by bigint(20) unsigned NOT NULL,\n  acknowledgement_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY correlation_hash (correlation_hash),\n  UNIQUE KEY acknowledgement_hash (acknowledgement_hash),\n  KEY authorization_created (authorization_hash,created_at)\n) $charset;",
   "CREATE TABLE ".Tables::pod_authorization_bindings()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  package_id bigint(20) unsigned NOT NULL,\n  package_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  nonce_hash char(64) NOT NULL,\n  bound_by bigint(20) unsigned NOT NULL,\n  bound_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY nonce_hash (nonce_hash),\n  KEY package_id (package_id)\n) $charset;",
   "CREATE TABLE ".Tables::pod_lifecycle_closures()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  package_id bigint(20) unsigned NOT NULL,\n  package_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  outcome_state varchar(32) NOT NULL,\n  closure_hash char(64) NOT NULL,\n  closed_by bigint(20) unsigned NOT NULL,\n  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,\n  external_execution_state varchar(32) NOT NULL DEFAULT '',\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY package_id (package_id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY closure_hash (closure_hash),\n  KEY outcome_created (outcome_state,created_at)\n) $charset;",

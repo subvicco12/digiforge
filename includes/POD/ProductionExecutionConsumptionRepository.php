@@ -43,8 +43,7 @@ final class ProductionExecutionConsumptionRepository
   return new WP_Error('digiforge_nonce_store','Execution nonce could not be consumed.',['status'=>500,'retry_permitted'=>false,'external_execution_authorized'=>false]);
  }
  private static function commitUnknown(string $nonceHash,string $authorizationHash,int $packageId,string $packageHash):WP_Error{
-  global $wpdb;$nonce=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_nonces().' WHERE nonce_hash=%s LIMIT 1',$nonceHash),ARRAY_A);$binding=$wpdb->get_row($wpdb->prepare('SELECT package_id,package_hash,authorization_hash,nonce_hash FROM '.Tables::pod_authorization_bindings().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
-  $persisted=is_array($nonce)&&hash_equals((string)$nonce['authorization_hash'],$authorizationHash)&&is_array($binding)&&(int)$binding['package_id']===$packageId&&hash_equals((string)$binding['package_hash'],$packageHash)&&hash_equals((string)$binding['nonce_hash'],$nonceHash);
-  return new WP_Error('production_permit_consumption_commit_unknown','COMMIT acknowledgement failed; persistence outcome requires reconciliation and must not be retried.',['status'=>503,'persistence_state'=>$persisted?'PERSISTED_OBSERVED':'UNKNOWN','nonce_consumed'=>$persisted,'retry_permitted'=>false,'external_execution_authorized'=>false]);
+  $projection=(new ProductionPermitPersistenceReadModel())->project($nonceHash,$authorizationHash,$packageId,$packageHash);
+  return new WP_Error('production_permit_consumption_commit_unknown','COMMIT acknowledgement failed; persistence outcome requires reconciliation and must not be retried.',['status'=>503]+$projection);
  }
 }
