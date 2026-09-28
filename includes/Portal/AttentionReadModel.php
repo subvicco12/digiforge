@@ -30,6 +30,8 @@ final class AttentionReadModel
         $reconciliation=(new \DigiForge\POD\PrintifyUnknownOperatorReadModel())->summary();
         $items['printify_unknown_reconciliations']=(int)$reconciliation['unresolved_reconciliations'];
         $items['printify_reconciliation_reviews']=(int)$reconciliation['resolved_review_required'];
-        return $items+['total_attention'=>array_sum($items),'production_preflight'=>$preflight,'printify_reconciliation'=>$reconciliation,'external_execution_performed'=>false];
+        $lifecycleClosures=$count("SELECT COUNT(*) FROM ".Tables::pod_lifecycle_closures());
+        $items['execution_outcomes_pending']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_execution_outcomes()." o ON o.authorization_hash=n.authorization_hash WHERE o.id IS NULL");
+        return $items+['total_attention'=>array_sum($items),'production_lifecycle_closures'=>$lifecycleClosures,'production_preflight'=>$preflight,'printify_reconciliation'=>$reconciliation,'external_execution_state'=>'READ_ONLY_NO_EXECUTION','external_execution_performed'=>null];
     }
 }

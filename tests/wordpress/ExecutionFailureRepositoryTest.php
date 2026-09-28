@@ -7,6 +7,8 @@ final class ExecutionFailureRepositoryTest extends WP_UnitTestCase
  protected function setUp():void{
   parent::setUp();DigiForge\Core\Activator::activate();global $wpdb;
   $wpdb->query('TRUNCATE TABLE '.DigiForge\Database\Tables::pod_execution_failures());
+  $wpdb->query('TRUNCATE TABLE '.DigiForge\Database\Tables::pod_execution_nonces());
+  $wpdb->insert(DigiForge\Database\Tables::pod_execution_nonces(),['nonce_hash'=>str_repeat('c',64),'authorization_hash'=>str_repeat('b',64),'consumed_by'=>7,'consumed_at'=>current_time('mysql',true)]);
  }
  private function failure(string $hash):array{
   return ['state'=>'EXECUTION_FAILED_RECORDED','failure_hash'=>$hash,'failure'=>[
