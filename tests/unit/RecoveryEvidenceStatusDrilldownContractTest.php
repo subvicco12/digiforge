@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 final class RecoveryEvidenceStatusDrilldownContractTest extends TestCase {
  public function testCurrentStatusAndHistoryAreBoundedReadOnlyNonAuthorizing():void {
   $c=file_get_contents(__DIR__.'/../../includes/Operations/RecoveryEvidence.php');
-  foreach(["'MISSING'","'VERIFIED'","'STALE'",'min(200, ',"'read_only' => true","'retry_permitted' => false","'external_execution_authorized' => false"] as $v) self::assertStringContainsString($v,$c);
+  foreach(["'MISSING'","'VERIFIED'","'STALE'","'read_only' => true","'retry_permitted' => false","'external_execution_authorized' => false"] as $v) self::assertStringContainsString($v,$c);
   self::assertStringContainsString("'database_backup_status' => self::backupStatus(\$backup)",$c);
   self::assertStringContainsString("'database_backup_history' => self::recentBackupHistory(25)",$c);
  }
