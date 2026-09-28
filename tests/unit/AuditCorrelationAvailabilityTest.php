@@ -33,6 +33,6 @@ final class AuditCorrelationAvailabilityTest extends TestCase {
  public function testPortalLabelsUnavailableAuditIdentityEvidence():void {
   $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
   self::assertStringContainsString('Audit identity evidence unavailable',$portal);
-  self::assertStringContainsString("$auditIdentityState==='AVAILABLE'",$portal);
+  self::assertStringContainsString("$"."auditIdentityState==='AVAILABLE'",$portal);
  }
 }
