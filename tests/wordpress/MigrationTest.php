@@ -48,7 +48,8 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertSame('23', (string) get_option('digiforge_db_version'));
         self::assertContains('run_id',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
         self::assertContains('run_started_at',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
-        foreach([DigiForge\Database\Tables::pod_render_evidence(),DigiForge\Database\Tables::pod_authorization_packages(),DigiForge\Database\Tables::scoped_capability_policies()] as $table) self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        foreach([DigiForge\Database\Tables::pod_render_evidence(),DigiForge\Database\Tables::pod_authorization_packages()] as $table) self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        self::assertContains('policy_hash',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::scoped_capability_policies(),0));
     }
 
     public function testSchemaFourteenUpgradeAddsFulfillmentIntentPlanEvidence(): void
@@ -125,7 +126,7 @@ final class MigrationTest extends WP_UnitTestCase
         $ok=\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded();
         $this->assertTrue($ok,'v23 migration failed: '.$wpdb->last_error.' '.wp_json_encode(get_option('digiforge_last_migration_failure')));
         $this->assertSame(23,(int)get_option('digiforge_db_schema_version'));
-        $this->assertSame(\DigiForge\Database\Tables::scoped_capability_policies(),$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like(\DigiForge\Database\Tables::scoped_capability_policies()))));
+        $this->assertContains('policy_hash',$wpdb->get_col('SHOW COLUMNS FROM '.$table,0));
         $this->assertTrue(\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded());
         $this->assertSame(23,(int)get_option('digiforge_db_schema_version'));
     }
@@ -137,7 +138,7 @@ final class MigrationTest extends WP_UnitTestCase
         $wpdb->query('DROP TABLE IF EXISTS `'.esc_sql($table).'`');
         update_option('digiforge_db_schema_version',23,false);
         self::assertTrue(\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded());
-        self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+        self::assertContains('policy_hash',$wpdb->get_col('SHOW COLUMNS FROM '.$table,0));
     }
 
 }
