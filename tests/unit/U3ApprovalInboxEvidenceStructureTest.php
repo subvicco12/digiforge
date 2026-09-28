@@ -36,4 +36,34 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringNotContainsString('Settings::set', $source);
     }
 
+    public function testPendingReviewRowsRetainMissingSubjectsAndKeepWorkflowLinkInsideRow(): void
+    {
+        $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
+        self::assertSame(3, substr_count($source, ' r LEFT JOIN '));
+        self::assertStringContainsString('m.id AS subject_id', $source);
+        self::assertStringContainsString('l.id AS subject_id', $source);
+        self::assertStringContainsString('p.order_id AS subject_order_id', $source);
+        self::assertStringContainsString('Evidence</th>', $source);
+        self::assertStringContainsString('Open governed workflow</a></td></tr>', $source);
+    }
+
+    public function testSubjectEvidenceDistinguishesMissingChangedAndConflictingReferences(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        $method = new ReflectionMethod(\DigiForge\Portal\U3ApprovalInbox::class, 'subjectEvidenceState');
+        $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+        self::assertSame('MISSING SUBJECT — REVIEW', $method->invoke($inbox, ['subject_id' => null]));
+        self::assertSame('CONFLICTING ORDER — REVIEW', $method->invoke($inbox, ['subject_id' => 3, 'subject_order_id' => 9, 'order_id' => 4]));
+        self::assertSame('SUBJECT CHANGED — RECHECK', $method->invoke($inbox, ['subject_id' => 3, 'created_at' => '2026-09-01 00:00:00', 'subject_updated_at' => '2026-09-02 00:00:00']));
+        self::assertSame('RECORDED — VERIFY IN WORKFLOW', $method->invoke($inbox, ['subject_id' => 3, 'created_at' => '2026-09-02 00:00:00', 'subject_updated_at' => '2026-09-01 00:00:00']));
+    }
+
+    public function testAttentionShowsMissingSourceReferenceWithoutInventingEvidence(): void
+    {
+        $portal = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
+        self::assertStringContainsString('Source evidence</th>', $portal);
+        self::assertStringContainsString('MISSING SOURCE REFERENCE — REVIEW', $portal);
+        self::assertStringContainsString("(int) $" . "alert['source_id'] < 1", $portal);
+    }
+
 }
