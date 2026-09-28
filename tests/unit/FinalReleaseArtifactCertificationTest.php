@@ -53,4 +53,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
         self::assertStringContainsString('Database schema: v17.', $readiness);
         self::assertStringContainsString('READY_LOCKED', $readiness);
     }
+
+ public function testReleaseCandidateEvidenceGateIsFailClosed():void{
+  $gate=file_get_contents(__DIR__.'/../../docs/releases/RELEASE_CANDIDATE_EVIDENCE_GATE.md');self::assertIsString($gate);self::assertStringContainsString('UNKNOWN is not success',$gate);self::assertStringContainsString('does not grant Etsy publish or POD production authority',$gate);self::assertStringContainsString('production_activation_authorized=false',$gate);
+ }
 }
