@@ -48,7 +48,7 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
         $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/final-readiness-completion.md');
 
         self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.65';", $plugin);
-        self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '19';", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '20';", $plugin);
         self::assertStringContainsString('Plugin release: 1.0.65.', $readiness);
         self::assertStringContainsString('Database schema: v17.', $readiness);
         self::assertStringContainsString('READY_LOCKED', $readiness);
