@@ -60,7 +60,7 @@ final class U3ApprovalInbox
             'POD readiness exceptions' => is_array($podReviews) ? $podReviews : [],
             'Fulfillment exceptions' => is_array($fulfillmentReviews) ? $fulfillmentReviews : [],
         ];
-        $pendingTotal=array_sum(array_map('count',$groups));
+        $pendingTotal=$this->pendingOperationalCount();
         ob_start(); ?>
         <section class="df-panel df-u3-operational-approvals">
             <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div><div class="df-signal-grid"><div><span>Downstream pending decisions</span><b><?php echo esc_html((string)$pendingTotal); ?></b></div><div><span>Approval authority in this aggregate</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div>
@@ -81,9 +81,21 @@ final class U3ApprovalInbox
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
             <?php endforeach; ?>
-            <div class="df-muted">Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
+            <div class="df-muted">The count covers all pending downstream decisions; each group displays its most recent 50. Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
         </section><?php
         return (string) ob_get_clean();
+    }
+
+    /** Count all pending records independently of the bounded evidence rows above. */
+    private function pendingOperationalCount(): int
+    {
+        global $wpdb;
+        return (int) $wpdb->get_var(
+            'SELECT (SELECT COUNT(*) FROM ' . Tables::listing_readiness_reviews() . " WHERE decision='PENDING')"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::personalization_submissions() . " WHERE review_status NOT IN ('APPROVED','REJECTED'))"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::pod_readiness_reviews() . " WHERE decision='PENDING')"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::fulfillment_readiness_reviews() . " WHERE decision='PENDING')"
+        );
     }
 
     private function workflowUrl(string $group): string

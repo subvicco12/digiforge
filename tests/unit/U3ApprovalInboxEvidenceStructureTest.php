@@ -36,6 +36,32 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringNotContainsString('Settings::set', $source);
     }
 
+    public function testPendingHeaderCountsAllRecordsBeyondTheEvidenceWindow(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $query = '';
+            public function get_var(string $query): int { $this->query = $query; return 217; }
+        };
+        try {
+            $method = new ReflectionMethod(\DigiForge\Portal\U3ApprovalInbox::class, 'pendingOperationalCount');
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertSame(217, $method->invoke($inbox));
+            $query = $GLOBALS['wpdb']->query;
+            foreach (['listing_readiness_reviews', 'personalization_submissions', 'pod_readiness_reviews', 'fulfillment_readiness_reviews'] as $table) {
+                self::assertStringContainsString($table, $query);
+            }
+            self::assertStringNotContainsString('LIMIT', $query);
+            self::assertSame(3, substr_count($query, "decision='PENDING'"));
+            self::assertStringContainsString("review_status NOT IN ('APPROVED','REJECTED')", $query);
+            $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
+            self::assertStringContainsString('each group displays its most recent 50', $source);
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
     public function testPendingReviewRowsRetainMissingSubjectsAndKeepWorkflowLinkInsideRow(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
