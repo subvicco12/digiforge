@@ -34,7 +34,17 @@ final class ProvenanceScopedHistoryTest extends WP_UnitTestCase
         self::assertSame(20,$result['preview_limit']);
         self::assertCount(20,$result['items']);
         self::assertTrue($result['preview_truncated']);
+        self::assertGreaterThan(0,$result['next_cursor']);
         self::assertSame(hash('sha256','scoped-history-24'),$result['items'][0]['correlation_hash']);
+        $older=$model->byAuthorizationHash($auth,null,$result['next_cursor']);
+        self::assertSame(25,$older['recorded_count']);
+        self::assertCount(5,$older['items']);
+        self::assertSame(hash('sha256','scoped-history-4'),$older['items'][0]['correlation_hash']);
+        self::assertFalse($older['preview_truncated']);
+        self::assertNull($older['next_cursor']);
+        self::assertCount(25,array_unique(array_merge(
+            array_column($result['items'],'correlation_hash'),array_column($older['items'],'correlation_hash')
+        )));
         foreach ($result['items'] as $row) {
             self::assertSame($auth,$row['authorization_hash']);
             self::assertFalse($row['retry_permitted']);
