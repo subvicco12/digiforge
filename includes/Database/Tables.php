@@ -91,6 +91,7 @@ final class Tables {
     public static function catalog_versions(): string { return self::name('catalog_versions'); }
     public static function catalog_items(): string { return self::name('catalog_items'); }
     public static function shop_ai_policies(): string { return self::name('shop_ai_policies'); }
+    public static function scoped_capability_policies(): string { return self::name('scoped_capability_policies'); }
     public static function shop_ai_usage(): string { return self::name('shop_ai_usage'); }
     public static function webhook_evidence(): string { return self::name('webhook_evidence'); }
     public static function pod_render_evidence(): string { return self::name('pod_render_evidence'); }
