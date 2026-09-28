@@ -14,7 +14,8 @@ final class RecoveryEvidence
         $package = self::record('digiforge_recovery_plugin_package_evidence');
         return [
             'database_backup' => $backup,
-            'database_backup_history' => self::backupHistory(),
+            'database_backup_history' => self::recentBackupHistory(25),
+            'database_backup_status' => self::backupStatus($backup),
             'plugin_package' => $package,
             'database_backup_available' => self::complete($backup, ['identifier','captured_at','location']),
             'database_backup_retrievable' => self::backupVerified($backup),
@@ -76,6 +77,27 @@ final class RecoveryEvidence
         $value = get_option('digiforge_recovery_database_backup_evidence_history', []);
         if (! is_array($value)) return [];
         return array_values(array_filter($value, 'is_array'));
+    }
+
+    /** @return list<array<string,mixed>> */
+    public static function recentBackupHistory(int $limit = 25): array
+    {
+        $limit = max(1, min(200, $limit));
+        $history = array_reverse(self::backupHistory());
+        $history = array_slice($history, 0, $limit);
+        return array_map(static function(array $item): array {
+            $item['read_only'] = true;
+            $item['retry_permitted'] = false;
+            $item['external_execution_authorized'] = false;
+            return $item;
+        }, $history);
+    }
+
+    /** @param array<string,mixed> $record */
+    private static function backupStatus(array $record): string
+    {
+        if (! self::complete($record, ['identifier','captured_at','location'])) return 'MISSING';
+        return self::backupVerified($record) ? 'VERIFIED' : 'STALE';
     }
 
     /** @param array<string,mixed> $record */
