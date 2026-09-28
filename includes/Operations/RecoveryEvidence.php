@@ -14,6 +14,7 @@ final class RecoveryEvidence
         $package = self::record('digiforge_recovery_plugin_package_evidence');
         return [
             'database_backup' => $backup,
+            'database_backup_history' => self::backupHistory(),
             'plugin_package' => $package,
             'database_backup_available' => self::complete($backup, ['identifier','captured_at','location']),
             'database_backup_retrievable' => self::backupVerified($backup),
@@ -36,6 +37,8 @@ final class RecoveryEvidence
         if (strtotime($normalized['verified_at']) < strtotime($normalized['captured_at'])) return false;
         if (strtotime($normalized['verified_at']) > time() + 300) return false;
         $normalized['verification_status'] = 'VERIFIED';
+        $normalized['evidence_hash'] = hash('sha256', wp_json_encode($normalized, JSON_UNESCAPED_SLASHES));
+        if (! self::appendBackupHistory($normalized)) return false;
         return update_option('digiforge_recovery_database_backup_evidence', $normalized, false);
     }
 
@@ -65,6 +68,25 @@ final class RecoveryEvidence
         }
         $out['recorded_at'] = gmdate('c');
         return $out;
+    }
+
+    /** @return list<array<string,mixed>> */
+    public static function backupHistory(): array
+    {
+        $value = get_option('digiforge_recovery_database_backup_evidence_history', []);
+        if (! is_array($value)) return [];
+        return array_values(array_filter($value, 'is_array'));
+    }
+
+    /** @param array<string,mixed> $record */
+    private static function appendBackupHistory(array $record): bool
+    {
+        $history = self::backupHistory();
+        foreach ($history as $item) {
+            if (($item['evidence_hash'] ?? '') === ($record['evidence_hash'] ?? '')) return true;
+        }
+        $history[] = $record;
+        return update_option('digiforge_recovery_database_backup_evidence_history', $history, false);
     }
 
     /** @return array<string,mixed> */
