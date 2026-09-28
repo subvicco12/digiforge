@@ -517,14 +517,16 @@ final class Portal
 
     private function candidateCards(string $status, int $limit, bool $details): void
     {
-        $rows = $this->candidates($status, $limit);
+        $candidateState=null;$rows = $this->candidates($status, $limit,$candidateState);
+        if($candidateState!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Research candidate evidence unavailable. Database read failed; an empty candidate queue is not inferred.</div>';return;}
         if ($rows === []) {
             echo '<div class="df-empty">No matching research candidates.</div>';
             return;
         }
         foreach ($rows as $row) {
             $signals = $this->decode($row['score_inputs'] ?? '');
-            $evidence = $details ? $this->evidence((int) $row['id']) : [];
+            $evidenceState='AVAILABLE';$evidence = $details ? $this->evidence((int) $row['id'],$evidenceState) : [];
+            if($details&&$evidenceState!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Candidate evidence unavailable for #'.esc_html((string)$row['id']).'. No empty evidence set is inferred.</div>';}
             ?>
             <article class="df-candidate">
                 <div class="df-candidate-head">
@@ -802,7 +804,7 @@ final class Portal
     }
 
     /** @return array<int,array<string,mixed>> */
-    private function candidates(string $status, int $limit): array
+    private function candidates(string $status, int $limit, ?string &$queryState=null): array
     {
         global $wpdb;
         $limit = min(100, max(1, $limit));
@@ -812,11 +814,11 @@ final class Portal
         }
         $sql .= $wpdb->prepare(' ORDER BY id DESC LIMIT %d', $limit);
         $rows = $wpdb->get_results($sql, ARRAY_A);
-        return is_array($rows) ? $rows : [];
+        if(!is_array($rows)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}$queryState='AVAILABLE';return $rows;
     }
 
     /** @return array<int,array<string,mixed>> */
-    private function evidence(int $candidateId): array
+    private function evidence(int $candidateId, ?string &$queryState=null): array
     {
         global $wpdb;
         $sql = 'SELECT e.value,e.provenance,o.title AS observation_title,o.provenance AS observation_provenance '
@@ -825,7 +827,8 @@ final class Portal
             . 'LEFT JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id '
             . 'WHERE ce.candidate_id=%d ORDER BY e.id ASC';
         $rows = $wpdb->get_results($wpdb->prepare($sql, $candidateId), ARRAY_A);
-        if (! is_array($rows)) { return []; }
+        if (! is_array($rows)||!empty($wpdb->last_error)) { $queryState='UNAVAILABLE';return []; }
+        $queryState='AVAILABLE';
         foreach ($rows as &$row) {
             $evidence = $this->decode($row['provenance'] ?? '');
             $observation = $this->decode($row['observation_provenance'] ?? '');
