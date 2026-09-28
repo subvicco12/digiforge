@@ -28,6 +28,10 @@ final class ProductionProvenanceIntegrityHistoryTest extends TestCase
             self::assertSame('INVALID_REFERENCE',$invalid['lookup_state']);
             self::assertArrayNotHasKey('recorded_count',$invalid);
             self::assertSame([],$db->queries);
+            $badCursor=$model->byAuthorizationHash(str_repeat('a',64),null,-1);
+            self::assertSame('INVALID_CURSOR',$badCursor['lookup_state']);
+            self::assertArrayNotHasKey('recorded_count',$badCursor);
+            self::assertSame([],$db->queries);
             $unavailable=$model->byAuthorizationHash(str_repeat('a',64));
             self::assertSame('QUERY_UNAVAILABLE',$unavailable['lookup_state']);
             self::assertArrayNotHasKey('recorded_count',$unavailable);
