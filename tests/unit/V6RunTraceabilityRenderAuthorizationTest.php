@@ -6,7 +6,7 @@ final class V6RunTraceabilityRenderAuthorizationTest extends TestCase
 {
  public function testSchemaAndRunTraceabilityAreFailClosed():void{
   $s=file_get_contents(__DIR__.'/../../includes/Database/V6OperationalSchema.php');$r=file_get_contents(__DIR__.'/../../includes/AI/ShopAiGovernanceRepository.php');
-  self::assertStringContainsString('public const VERSION=21',$s);self::assertStringContainsString("run_id varchar(100) NOT NULL DEFAULT ''",$s);self::assertStringContainsString('pod_render_evidence',$s);self::assertStringContainsString('pod_authorization_packages',$s);
+  self::assertStringContainsString('public const VERSION=22',$s);self::assertStringContainsString("run_id varchar(100) NOT NULL DEFAULT ''",$s);self::assertStringContainsString('pod_render_evidence',$s);self::assertStringContainsString('pod_authorization_packages',$s);
   self::assertStringContainsString("run_id=%s",$r);self::assertStringContainsString('EXPLICIT_RUN_CONTEXT_REQUIRED',$r);self::assertStringContainsString("'authoritative'=>\$explicit",$r);
  }
  public function testOwnershipRequiresHumanApproval():void{
