@@ -48,9 +48,9 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
         $plugin = (string) file_get_contents(dirname(__DIR__, 2) . '/digiforge.php');
         $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/final-readiness-completion.md');
 
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.72';", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.73';", $plugin);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';", $plugin);
-        self::assertStringContainsString('Plugin release: 1.0.72.', $readiness);
+        self::assertStringContainsString('Plugin release: 1.0.73.', $readiness);
         self::assertStringContainsString('Database schema: v23.', $readiness);
         self::assertStringContainsString('READY_LOCKED', $readiness);
     }
