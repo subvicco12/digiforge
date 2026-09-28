@@ -40,4 +40,12 @@ final class Schema19LifecycleProvenanceTest extends WP_UnitTestCase{
   self::assertSame($auth,$wpdb->get_var($wpdb->prepare('SELECT authorization_hash FROM '.DigiForge\Database\Tables::pod_execution_nonces().' WHERE nonce_hash=%s',$nh)));self::assertSame('0',(string)$wpdb->get_var($wpdb->prepare('SELECT external_execution_authorized FROM '.DigiForge\Database\Tables::pod_authorization_packages().' WHERE id=%d',$pid)));
   $replay=DigiForge\POD\ProductionExecutionConsumptionRepository::consume($nonce,$auth,$pid,$ph,get_current_user_id());self::assertWPError($replay);self::assertSame('digiforge_execution_replay',$replay->get_error_code());self::assertFalse($replay->get_error_data()['retry_permitted']);self::assertFalse($replay->get_error_data()['external_execution_authorized']);
  }
+
+ public function testPermitPersistenceReconciliationIsReadOnlyAndNeverRestoresAuthority():void{
+  global $wpdb;[$pid,$ph]=$this->package('persistence-reconcile-package');$auth=hash('sha256','persistence-reconcile-auth');$nonce='persistence_reconcile_nonce_123456789';$nh=hash('sha256',$nonce);
+  $unknown=(new DigiForge\POD\ProductionPermitPersistenceReadModel())->project($nh,$auth,$pid,$ph);self::assertSame('UNKNOWN',$unknown['persistence_state']);self::assertFalse($unknown['nonce_consumed']);self::assertFalse($unknown['retry_permitted']);self::assertFalse($unknown['external_execution_authorized']);self::assertTrue($unknown['read_only']);
+  $saved=DigiForge\POD\ProductionExecutionConsumptionRepository::consume($nonce,$auth,$pid,$ph,get_current_user_id());self::assertFalse(is_wp_error($saved));
+  $observed=(new DigiForge\POD\ProductionPermitPersistenceReadModel())->project($nh,$auth,$pid,$ph);self::assertSame('PERSISTED_OBSERVED',$observed['persistence_state']);self::assertTrue($observed['nonce_consumed']);self::assertFalse($observed['retry_permitted']);self::assertFalse($observed['external_execution_authorized']);self::assertSame('0',(string)$wpdb->get_var($wpdb->prepare('SELECT external_execution_authorized FROM '.DigiForge\Database\Tables::pod_authorization_packages().' WHERE id=%d',$pid)));
+  $replay=DigiForge\POD\ProductionExecutionConsumptionRepository::consume($nonce,$auth,$pid,$ph,get_current_user_id());self::assertWPError($replay);self::assertSame('digiforge_execution_replay',$replay->get_error_code());
+ }
 }
