@@ -17,4 +17,8 @@ final class HierarchicalPolicyReadModel {
   $projection=(new ShopAiGovernanceRepository())->evaluate($shop);if(is_wp_error($projection))return ['status'=>'POLICY_UNAVAILABLE','execution_allowed'=>false,'planning_only'=>true,'external_execution_authorized'=>false];
   $plan=ShopAiPlan::preflight($projection,$stage,$quantity,$estimatedCost);$plan['status']='PLAN_EVALUATED';$plan['planning_only']=true;$plan['external_execution_authorized']=false;return $plan;
  }
+ public function scenarios(string $shop):array {
+  $shop=ShopOperationsReadModel::normalize($shop);$rows=[];foreach(ShopAiPlan::STAGES as $stage){foreach([1,5,10] as $quantity){$rows[]=$this->plan($shop,$stage,$quantity,0.0)+['scenario_quantity'=>$quantity];}}
+  return ['shop'=>$shop,'scenarios'=>$rows,'planning_only'=>true,'external_execution_authorized'=>false];
+ }
 }
