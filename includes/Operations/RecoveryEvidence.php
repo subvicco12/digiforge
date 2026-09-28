@@ -15,7 +15,7 @@ final class RecoveryEvidence
             'database_backup' => $backup,
             'plugin_package' => $package,
             'database_backup_available' => self::complete($backup, ['identifier','captured_at','location']),
-            'database_backup_retrievable' => self::truthy($backup, 'retrievable'),
+            'database_backup_retrievable' => self::backupVerified($backup),
             'database_backup_identity_recorded' => self::complete($backup, ['identifier','captured_at','location']),
             'plugin_package_available' => self::complete($package, ['identifier','version','source_commit','sha256','location']),
             'plugin_package_retrievable' => self::truthy($package, 'retrievable'),
@@ -27,8 +27,10 @@ final class RecoveryEvidence
     /** @param array<string,mixed> $record */
     public static function storeDatabaseBackup(array $record): bool
     {
-        $normalized = self::normalize($record, ['identifier','captured_at','location'], ['retrievable']);
+        $normalized = self::normalize($record, ['identifier','captured_at','location','verification_method','verified_at','verified_by'], ['retrievable']);
         if ($normalized === null) return false;
+        if (! self::truthy($normalized, 'retrievable')) return false;
+        $normalized['verification_status'] = 'VERIFIED';
         return update_option('digiforge_recovery_database_backup_evidence', $normalized, false);
     }
 
@@ -74,6 +76,14 @@ final class RecoveryEvidence
             if (! isset($record[$key]) || trim((string) $record[$key]) === '') return false;
         }
         return true;
+    }
+
+    /** @param array<string,mixed> $record */
+    private static function backupVerified(array $record): bool
+    {
+        return self::truthy($record, 'retrievable')
+            && ($record['verification_status'] ?? '') === 'VERIFIED'
+            && self::complete($record, ['verification_method','verified_at','verified_by']);
     }
 
     /** @param array<string,mixed> $record */
