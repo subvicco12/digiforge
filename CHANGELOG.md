@@ -1,4 +1,4 @@
-## 1.0.70 — 2026-09-28
+## 1.0.71 — 2026-09-28\n\n- Expands the live-site portal with Businesses/Brands/Shops, Automation/Queues, Analytics, Finance & GST, and Settings operational areas.\n- Adds shop-scoped context, bounded non-authorizing queue attention drill-down, and consolidated approval-gate visibility.\n- Adds internal governed-workflow navigation from attention records without inferring approval or execution authority.\n- Hardens operator tables and controls for tablet/mobile use.\n- Preserves STOP ALL, recovery gating, explicit approval boundaries, and schema v22; release performs no external action.\n\n## 1.0.70 — 2026-09-28
 
 - Adds explicit MISSING / VERIFIED / STALE database-backup status projection.
 - Adds bounded read-only recovery evidence history drill-down (default 25, maximum 200).
