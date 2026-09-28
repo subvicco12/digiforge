@@ -62,7 +62,7 @@ final class U3ApprovalInbox
         ];
         ob_start(); ?>
         <section class="df-panel df-u3-operational-approvals">
-            <div class="df-panel-head"><div><h2>Operational approval & exception inbox</h2><p>Stage-F convergence view for pending listing/publish, personalization, POD and fulfillment decisions. This panel is read-only and cannot activate or execute an external action.</p></div></div>
+            <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div>
             <?php foreach ($groups as $title => $rows) : ?>
                 <div class="df-subpanel"><h4><?php echo esc_html($title); ?></h4>
                 <?php if ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
@@ -79,7 +79,7 @@ final class U3ApprovalInbox
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
             <?php endforeach; ?>
-            <div class="df-muted">Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view.</div>
+            <div class="df-muted">Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
         </section><?php
         return (string) ob_get_clean();
     }
