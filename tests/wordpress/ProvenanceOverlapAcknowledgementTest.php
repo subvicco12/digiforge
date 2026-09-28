@@ -28,9 +28,11 @@ final class ProvenanceOverlapAcknowledgementTest extends WP_UnitTestCase
 
         $focused=(new DigiForge\POD\ProductionProvenanceIntegrityFocusReadModel())->byAuthorizationHash($auth);
         self::assertSame('LIVE_ANOMALIES',$focused['lookup_state']);
-        self::assertSameCanonicalizing([
-            'BINDING_PACKAGE_MISMATCH','CLOSURE_PACKAGE_MISMATCH','BINDING_CLOSURE_MISMATCH',
-        ],array_column($focused['items'],'type'));
+        $types=array_column($focused['items'],'type');
+        $expected=['BINDING_PACKAGE_MISMATCH','CLOSURE_PACKAGE_MISMATCH','BINDING_CLOSURE_MISMATCH'];
+        sort($types);
+        sort($expected);
+        self::assertSame($expected,$types);
         self::assertCount(3,array_unique(array_column($focused['items'],'correlation_hash')));
         self::assertSame(['OPEN','OPEN','OPEN'],array_column($focused['items'],'operator_state'));
         self::assertSame(3,$focused['open_count']);
