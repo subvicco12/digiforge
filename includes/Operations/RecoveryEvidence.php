@@ -24,6 +24,42 @@ final class RecoveryEvidence
         ];
     }
 
+    /** @param array<string,mixed> $record */
+    public static function storeDatabaseBackup(array $record): bool
+    {
+        $normalized = self::normalize($record, ['identifier','captured_at','location'], ['retrievable']);
+        if ($normalized === null) return false;
+        return update_option('digiforge_recovery_database_backup_evidence', $normalized, false);
+    }
+
+    /** @param array<string,mixed> $record */
+    public static function storePluginPackage(array $record): bool
+    {
+        $normalized = self::normalize($record, ['identifier','version','source_commit','sha256','location'], ['retrievable','checksum_verified']);
+        if ($normalized === null) return false;
+        if (! preg_match('/^[a-f0-9]{40}$/', $normalized['source_commit'])) return false;
+        if (! preg_match('/^[a-f0-9]{64}$/', $normalized['sha256'])) return false;
+        return update_option('digiforge_recovery_plugin_package_evidence', $normalized, false);
+    }
+
+    /** @param list<string> $strings @param list<string> $booleans @return array<string,mixed>|null */
+    private static function normalize(array $record, array $strings, array $booleans): ?array
+    {
+        $out = [];
+        foreach ($strings as $key) {
+            $value = isset($record[$key]) ? trim(sanitize_text_field((string) $record[$key])) : '';
+            if ($value === '') return null;
+            $out[$key] = $value;
+        }
+        foreach ($booleans as $key) {
+            if (! array_key_exists($key, $record)) return null;
+            $out[$key] = filter_var($record[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($out[$key] === null) return null;
+        }
+        $out['recorded_at'] = gmdate('c');
+        return $out;
+    }
+
     /** @return array<string,mixed> */
     private static function record(string $option): array
     {
