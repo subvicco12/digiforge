@@ -27,6 +27,8 @@ final class V6OrderReadinessCostKpiTest extends TestCase
     {
         $model=file_get_contents(__DIR__.'/../../includes/Portal/AttentionReadModel.php');
         foreach(['REVIEW_PENDING','PENDING','APPROVED','REJECTED','BLOCKED','RESOLVED','CLOSED'] as $state)self::assertStringContainsString($state,$model);
+        self::assertStringContainsString('Repository::REVIEW_PENDING',$model);
+        self::assertStringNotContainsString("review_status='REVIEW_PENDING'",$model);
         self::assertStringContainsString("'external_execution_state'=>'READ_ONLY_NO_EXECUTION'",$model);
         self::assertStringContainsString("'external_execution_performed'=>null",$model);
         self::assertStringNotContainsString('->insert(',$model);

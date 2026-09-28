@@ -13,7 +13,7 @@ final class AttentionReadModel
         global $wpdb;
         $count=static function(string $sql)use($wpdb):int{return (int)$wpdb->get_var($sql);};
         $items=[
-            'research_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::research_candidates()." WHERE review_status='REVIEW_PENDING'"),
+            'research_reviews'=>$count($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::research_candidates().' WHERE review_status=%s',\DigiForge\Research\Repository::REVIEW_PENDING)),
             'listing_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::listing_readiness_reviews()." WHERE decision='PENDING'"),
             'personalization_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::personalization_submissions()." WHERE review_status NOT IN ('APPROVED','REJECTED')"),
             'ownership_reviews'=>$count("SELECT COUNT(*) FROM ".Tables::pod_business_mappings()." WHERE state='DRAFT'"),
