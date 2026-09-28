@@ -15,7 +15,7 @@ final class AttentionRecoveryQueueTest extends TestCase
         self::assertStringContainsString('ResearchActivationPreflight', $source);
         self::assertStringContainsString('Open operational alerts', $source);
         self::assertStringContainsString('Queue recovery & release safety', $source);
-        self::assertStringContainsString('Recovery evidence flags are declarations of verified evidence', $source);
+        self::assertStringContainsString('Missing or UNKNOWN artifact evidence is fail-closed', $source);
         self::assertStringContainsString('Production integrity & persistence evidence', $source);
         self::assertStringContainsString('Persistence UNKNOWN', $source);
         self::assertStringContainsString('<td>NO</td><td>NO</td>', $source);

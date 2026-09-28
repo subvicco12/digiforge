@@ -1,3 +1,10 @@
+## 1.0.68 — 2026-09-28
+
+- Adds authenticated recovery-evidence management endpoints for concrete backup and rollback-package records.
+- Adds read-only live-site operator visibility for artifact identity, retrievability and checksum state.
+- Missing or UNKNOWN evidence remains fail-closed and grants no retry, activation, Etsy publish, POD production or provider authority.
+- Database schema remains v22; release performs no external action.
+
 ## 1.0.67 — 2026-09-28
 
 - Replaces declaration-only recovery artifact readiness with structured database-backup and rollback-package evidence.
