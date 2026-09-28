@@ -14,6 +14,6 @@ final class ProductReviewQaEvidenceAvailabilityContractTest extends TestCase {
  }
  public function testGate2QaCountReadsCheckDatabaseErrorsAndNumericEvidence():void {
   $c=file_get_contents(__DIR__.'/../../includes/ProductFactory/ProductReview.php');
-  self::assertGreaterThanOrEqual(4,substr_count($c,"!empty($wpdb->last_error)||!is_numeric("));
+  self::assertGreaterThanOrEqual(4,substr_count($c,'!empty($wpdb->last_error)||!is_numeric('));
  }
 }
