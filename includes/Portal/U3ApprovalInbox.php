@@ -148,8 +148,8 @@ final class U3ApprovalInbox
         $rows = $this->pendingProducts();
         ob_start(); ?>
         <section class="df-panel df-u3-product-approvals">
-            <div class="df-panel-head"><div><h2>Product approval inbox</h2><p>Gate 2 — inspect protected product files, marketing assets, latest-revision deterministic QA and semantic/policy QA evidence before deciding.</p></div><span><?php echo esc_html((string) count($rows)); ?> need decision</span></div>
-            <div class="df-muted">Gate 2 remains human-controlled. Product Approval does not activate Etsy publishing, POD fulfillment, orders or tax automation.</div>
+            <div class="df-panel-head"><div><h2>Product approval inbox</h2><p>Gate 2 — inspect protected product files, marketing assets, latest-revision deterministic QA and semantic/policy QA evidence before deciding.</p></div><span><?php echo esc_html((string) $this->pendingProductCount()); ?> need decision</span></div>
+            <div class="df-muted">The count covers all pending product plans; this panel displays the most recent 50. Gate 2 remains human-controlled. Product Approval does not activate Etsy publishing, POD fulfillment, orders or tax automation.</div>
             <?php if ($rows === []) : ?><div class="df-empty">No finished products currently require Product Approval.</div><?php else : foreach ($rows as $row) : ?>
                 <article class="df-candidate">
                     <div class="df-candidate-head"><div><span class="df-kicker">Product #<?php echo esc_html((string) $row['product_id']); ?> · Version #<?php echo esc_html((string) $row['product_version_id']); ?></span><h3><?php echo esc_html((string) $row['product_name']); ?></h3><span class="df-status"><?php echo esc_html((string) $row['plan_state']); ?></span></div><div class="df-score"><strong><?php echo esc_html((string) $row['asset_count']); ?></strong><span> assets</span></div></div>
@@ -188,11 +188,22 @@ final class U3ApprovalInbox
         return ucwords(str_replace('_', ' ', preg_replace('/^semantic_/', '', $type) ?: $type));
     }
 
+    /** Count the plans represented by the bounded product inbox, independent of bundle versions. */
+    private function pendingProductCount(): int
+    {
+        global $wpdb;
+        return (int) $wpdb->get_var(
+            'SELECT COUNT(*) FROM ' . Tables::production_plans() . ' pp'
+            . ' INNER JOIN ' . Tables::product_versions() . ' pv ON pv.id=pp.product_version_id'
+            . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'"
+        );
+    }
+
     /** @return list<array<string,mixed>> */
     private function pendingProducts(): array
     {
         global $wpdb;
-        $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.production_plan_id=pp.id WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
+        $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.id=(SELECT rb2.id FROM " . Tables::release_bundles() . " rb2 WHERE rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1) WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (! is_array($rows)) { return []; }
         foreach ($rows as &$row) {
