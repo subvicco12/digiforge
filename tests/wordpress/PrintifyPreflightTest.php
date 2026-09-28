@@ -28,13 +28,13 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
  public function testProductionPermitConsumptionIsOneTimeFingerprintBoundAndExpirySafe():void{
   $now=current_time('timestamp',true);$fp=hash('sha256','provider-payload');$nonce='consume_nonce_12345678901234567890';
   $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>hash('sha256','preflight')];
-  $permit=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),$nonce,300,$fp);self::assertFalse(is_wp_error($permit));
+  $permit=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),$nonce,300,$fp);self::assertFalse(is_wp_error($permit));$permit['package_id']=1;$permit['package_hash']=hash('sha256','consumer-package');
   $consumer=new DigiForge\POD\ProductionExecutionPermitConsumer();$first=$consumer->consume($permit,$fp,get_current_user_id(),$now);
   self::assertFalse(is_wp_error($first));self::assertTrue($first['nonce_consumed']);self::assertFalse($first['external_execution_performed']);
   $replay=$consumer->consume($permit,$fp,get_current_user_id(),$now);self::assertTrue(is_wp_error($replay));self::assertSame('digiforge_execution_replay',$replay->get_error_code());
-  $mismatch=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_abcdefghijklmnopqrstuvwxyz',300,$fp);self::assertFalse(is_wp_error($mismatch));
+  $mismatch=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_abcdefghijklmnopqrstuvwxyz',300,$fp);self::assertFalse(is_wp_error($mismatch));$mismatch['package_id']=1;$mismatch['package_hash']=hash('sha256','consumer-package');
   $bad=$consumer->consume($mismatch,hash('sha256','different-payload'),get_current_user_id(),$now);self::assertTrue(is_wp_error($bad));self::assertSame('production_permit_fingerprint_mismatch',$bad->get_error_code());
-  $expired=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_expired_1234567890',60,$fp);self::assertFalse(is_wp_error($expired));
+  $expired=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_expired_1234567890',60,$fp);self::assertFalse(is_wp_error($expired));$expired['package_id']=1;$expired['package_hash']=hash('sha256','consumer-package');
   $late=$consumer->consume($expired,$fp,get_current_user_id(),(int)$expired['authorization']['expires_at']+1);self::assertTrue(is_wp_error($late));self::assertSame('production_permit_expired',$late->get_error_code());
  }
  public function testLifecycleClosureAndReconciliationAcknowledgementFailClosed():void{
