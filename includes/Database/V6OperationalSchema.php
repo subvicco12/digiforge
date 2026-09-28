@@ -11,7 +11,13 @@ final class V6OperationalSchema {
   require_once ABSPATH.'wp-admin/includes/upgrade.php';
   $charset=$wpdb->get_charset_collate();
   foreach(self::statements($charset) as $sql){$wpdb->last_error='';dbDelta($sql);if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_OPERATIONAL_SCHEMA_UPDATE_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}}
+  $wpdb->last_error='';
+  $wpdb->query("UPDATE ".Tables::pod_lifecycle_closures()." SET external_execution_state='CONFIRMED_SUCCESS' WHERE outcome_state='EXECUTION_SUCCEEDED' AND external_execution_state=''");
+  if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_LIFECYCLE_STATE_BACKFILL_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}
+  $wpdb->query("UPDATE ".Tables::pod_lifecycle_closures()." SET external_execution_state='CONFIRMED_FAILURE' WHERE outcome_state='EXECUTION_FAILED' AND external_execution_state=''");
+  if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_LIFECYCLE_STATE_BACKFILL_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}
   update_option('digiforge_db_schema_version',self::VERSION,false);
+  update_option('digiforge_db_version',(string)self::VERSION,false);
   return true;
  }
  /** @return list<string> */
