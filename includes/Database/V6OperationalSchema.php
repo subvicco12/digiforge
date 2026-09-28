@@ -2,16 +2,22 @@
 declare(strict_types=1);
 namespace DigiForge\Database;
 
-/** Additive v18 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
+/** Additive v19 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
 final class V6OperationalSchema {
- public const VERSION=18;
+ public const VERSION=19;
  public static function migrateIfNeeded():bool{
   global $wpdb;
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;
   require_once ABSPATH.'wp-admin/includes/upgrade.php';
   $charset=$wpdb->get_charset_collate();
   foreach(self::statements($charset) as $sql){$wpdb->last_error='';dbDelta($sql);if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_OPERATIONAL_SCHEMA_UPDATE_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}}
+  $wpdb->last_error='';
+  $wpdb->query("UPDATE ".Tables::pod_lifecycle_closures()." SET external_execution_state='CONFIRMED_SUCCESS' WHERE outcome_state='EXECUTION_SUCCEEDED' AND external_execution_state=''");
+  if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_LIFECYCLE_STATE_BACKFILL_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}
+  $wpdb->query("UPDATE ".Tables::pod_lifecycle_closures()." SET external_execution_state='CONFIRMED_FAILURE' WHERE outcome_state='EXECUTION_FAILED' AND external_execution_state=''");
+  if($wpdb->last_error!==''){update_option('digiforge_last_migration_failure',['error_code'=>'V6_LIFECYCLE_STATE_BACKFILL_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}
   update_option('digiforge_db_schema_version',self::VERSION,false);
+  update_option('digiforge_db_version',(string)self::VERSION,false);
   return true;
  }
  /** @return list<string> */
@@ -129,7 +135,8 @@ final class V6OperationalSchema {
   KEY order_review (order_id,review_status)
 ) $charset;",
   "CREATE TABLE ".Tables::pod_reconciliation_acknowledgements()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  unknown_hash char(64) NOT NULL,\n  reconciliation_hash char(64) NOT NULL,\n  resolution_state varchar(64) NOT NULL,\n  decision varchar(64) NOT NULL,\n  reviewed_by bigint(20) unsigned NOT NULL,\n  acknowledgement_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY reconciliation_hash (reconciliation_hash),\n  UNIQUE KEY acknowledgement_hash (acknowledgement_hash),\n  KEY authorization_created (authorization_hash,created_at)\n) $charset;",
-  "CREATE TABLE ".Tables::pod_lifecycle_closures()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  package_id bigint(20) unsigned NOT NULL,\n  package_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  outcome_state varchar(32) NOT NULL,\n  closure_hash char(64) NOT NULL,\n  closed_by bigint(20) unsigned NOT NULL,\n  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY package_id (package_id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY closure_hash (closure_hash),\n  KEY outcome_created (outcome_state,created_at)\n) $charset;",
+  "CREATE TABLE ".Tables::pod_authorization_bindings()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  package_id bigint(20) unsigned NOT NULL,\n  package_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  nonce_hash char(64) NOT NULL,\n  bound_by bigint(20) unsigned NOT NULL,\n  bound_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY nonce_hash (nonce_hash),\n  KEY package_id (package_id)\n) $charset;",
+  "CREATE TABLE ".Tables::pod_lifecycle_closures()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  package_id bigint(20) unsigned NOT NULL,\n  package_hash char(64) NOT NULL,\n  authorization_hash char(64) NOT NULL,\n  outcome_state varchar(32) NOT NULL,\n  closure_hash char(64) NOT NULL,\n  closed_by bigint(20) unsigned NOT NULL,\n  external_execution_performed tinyint(1) NOT NULL DEFAULT 0,\n  external_execution_state varchar(32) NOT NULL DEFAULT '',\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY package_id (package_id),\n  UNIQUE KEY authorization_hash (authorization_hash),\n  UNIQUE KEY closure_hash (closure_hash),\n  KEY outcome_created (outcome_state,created_at)\n) $charset;",
   "CREATE TABLE ".Tables::pod_authorization_packages()." (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   order_id bigint(20) unsigned NOT NULL,

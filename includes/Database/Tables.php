@@ -58,6 +58,7 @@ final class Tables {
     public static function pod_cost_snapshots(): string { return self::name('pod_cost_snapshots'); }
     public static function pod_readiness_reviews(): string { return self::name('pod_readiness_reviews'); }
     public static function pod_execution_nonces(): string { return self::name('pod_execution_nonces'); }
+    public static function pod_authorization_bindings(): string { return self::name('pod_authorization_bindings'); }
     public static function pod_execution_receipts(): string { return self::name('pod_execution_receipts'); }
     public static function pod_execution_failures(): string { return self::name('pod_execution_failures'); }
     public static function pod_execution_unknowns(): string { return self::name('pod_execution_unknowns'); }
