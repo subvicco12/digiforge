@@ -59,7 +59,7 @@ final class OperatorQueueApprovalDashboardContractTest extends TestCase {
    public function get_var(string $sql):?string{return null;}
   };
   try {
-   $model=new \\DigiForge\\Queue\\OperatorQueueReadModel();
+   $model=new \DigiForge\Queue\OperatorQueueReadModel();
    $attentionState=null;$items=$model->recentAttention(25,$attentionState);
    self::assertSame('UNAVAILABLE',$attentionState);self::assertSame([],$items);
    $idemState=null;$idem=$model->unresolvedIdempotency(25,$idemState);
