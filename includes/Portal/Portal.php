@@ -9,6 +9,8 @@ use DigiForge\AI\CostKpiReadModel;
 use DigiForge\AI\LifecycleDenominatorReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Listings\WebhookReconciliationReadModel;
+use DigiForge\Listings\EtsyReconciliationOperatorReadModel;
+use DigiForge\Orders\ReconciliationReadModel as OrderReconciliationReadModel;
 use DigiForge\Database\Tables;
 use DigiForge\Launch\ExecutionEngine;
 use DigiForge\Launch\ResearchActivationPreflight;
@@ -182,6 +184,7 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
+        if ($view === 'audit') { $this->auditReconciliationOperations(); return; }
         if ($view === 'orders') { $this->orderOperations(); return; }
         if ($view === 'listings') { $this->listingOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
@@ -197,6 +200,16 @@ final class Portal
         }
     }
 
+    private function auditReconciliationOperations():void
+    {
+        $attention=(new AttentionReadModel())->summary();$etsy=(new EtsyReconciliationOperatorReadModel())->recent(50);$printify=(array)(($attention['printify_reconciliation']??[])['items']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Audit / Reconciliation</h2><p>Cross-channel exception evidence. UNKNOWN is not success and must reconcile before any retry.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Etsy reconciliation</span><b>'.esc_html((string)count($etsy)).'</b></div><div><span>Printify unknown evidence</span><b>'.esc_html((string)count($printify)).'</b></div><div><span>Retry authority</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div>';
+        if($etsy!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Etsy op</th><th>Shop</th><th>Type</th><th>State</th><th>Resource</th><th>Action</th><th>Workflow</th></tr></thead><tbody>';foreach($etsy as $row){echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['operation_type']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)$row['resource_reference']).'</td><td>RECONCILE BEFORE ANY RETRY</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('listings')).'">Open Listings & Etsy</a></td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No Etsy UNKNOWN/reconciliation-required operations.</div>';}
+        if($printify!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Authorization</th><th>Resolution</th><th>Operator action</th><th>Retry</th><th>Workflow</th></tr></thead><tbody>';foreach(array_slice($printify,0,50) as $row){echo '<tr><td><code>'.esc_html(substr((string)($row['authorization_hash']??''),0,12)).'…</code></td><td>'.esc_html((string)($row['resolution_state']??'UNKNOWN')).'</td><td>'.esc_html((string)($row['operator_action']??'RECONCILE_BEFORE_ANY_RETRY')).'</td><td>NO</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('pod_personalized')).'">Open POD workflow</a></td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No Printify UNKNOWN evidence.</div>';}
+        echo '<p class="df-muted">These links only navigate to governed internal workflows. This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.</p></section>';
+        $this->panelTable('Audit Log',Tables::audit_log());
+    }
+
     private function listingOperations():void
     {
         $recon=(new WebhookReconciliationReadModel())->snapshot('etsy');$counts=(array)$recon['counts'];
@@ -206,11 +219,11 @@ final class Portal
 
     private function orderOperations():void
     {
-        $rows=(new OrderOperationsReadModel())->recent();
+        $rows=(new OrderOperationsReadModel())->recent();$orderReconciliation=new OrderReconciliationReadModel();
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
         if($rows===[]){echo '<div class="df-empty">No orders found.</div></section>';return;}
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
-        foreach($rows as $row){$r=(array)$row['readiness'];echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').'</td><td>NO</td></tr>';}
+        foreach($rows as $row){$r=(array)$row['readiness'];$rec=$orderReconciliation->forOrder((int)$row['id']);echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').' / reconciliation '.(!empty($rec['reconciled'])?'OK':'REVIEW').'</td><td>NO</td></tr>';}
         echo '</tbody></table></div></section>';
     }
 
