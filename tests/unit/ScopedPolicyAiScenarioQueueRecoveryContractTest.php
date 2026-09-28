@@ -12,6 +12,6 @@ final class ScopedPolicyAiScenarioQueueRecoveryContractTest extends TestCase {
  }
  public function testIdempotencyDrilldownRedactsRawKeysAndDeniesReplay():void {
   $c=file_get_contents(__DIR__.'/../../includes/Queue/OperatorQueueReadModel.php');
-  foreach(['min(100,',"hash('sha256'","unset($r['operation_key'])","'replay_permitted']=false","'retry_permitted']=false"] as $v)self::assertStringContainsString($v,$c);
+  foreach(['min(100,',"hash('sha256'",'unset($r[\'operation_key\'])',"'replay_permitted']=false","'retry_permitted']=false"] as $v)self::assertStringContainsString($v,$c);
  }
 }
