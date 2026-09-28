@@ -43,7 +43,7 @@ final class ProductionExecutionConsumptionRepository
   return new WP_Error('digiforge_nonce_store','Execution nonce could not be consumed.',['status'=>500,'retry_permitted'=>false,'external_execution_authorized'=>false]);
  }
  private static function commitUnknown(string $nonceHash,string $authorizationHash,int $packageId,string $packageHash):WP_Error{
-  $projection=(new ProductionPermitPersistenceReadModel())->project($nonceHash,$authorizationHash,$packageId,$packageHash);
+  $projection=(new ProductionPermitPersistenceReadModel())->project($nonceHash,$authorizationHash,$packageId,$packageHash);ProductionPermitPersistenceObservationRepository::observe($nonceHash,$authorizationHash,$packageId,$packageHash,$projection);
   return new WP_Error('production_permit_consumption_commit_unknown','COMMIT acknowledgement failed; persistence outcome requires reconciliation and must not be retried.',['status'=>503]+$projection);
  }
 }

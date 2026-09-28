@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace DigiForge\Database;
 
-/** Additive v21 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
+/** Additive v22 persistence for governed catalog, AI traceability, webhook, render, and authorization evidence. */
 final class V6OperationalSchema {
- public const VERSION=21;
+ public const VERSION=22;
  public static function migrateIfNeeded():bool{
   global $wpdb;
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;
@@ -135,6 +135,21 @@ final class V6OperationalSchema {
   KEY order_review (order_id,review_status)
 ) $charset;",
   "CREATE TABLE ".Tables::pod_reconciliation_acknowledgements()." (\n  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,\n  authorization_hash char(64) NOT NULL,\n  unknown_hash char(64) NOT NULL,\n  reconciliation_hash char(64) NOT NULL,\n  resolution_state varchar(64) NOT NULL,\n  decision varchar(64) NOT NULL,\n  reviewed_by bigint(20) unsigned NOT NULL,\n  acknowledgement_hash char(64) NOT NULL,\n  created_at datetime NOT NULL,\n  PRIMARY KEY  (id),\n  UNIQUE KEY reconciliation_hash (reconciliation_hash),\n  UNIQUE KEY acknowledgement_hash (acknowledgement_hash),\n  KEY authorization_created (authorization_hash,created_at)\n) $charset;",
+  "CREATE TABLE ".Tables::pod_permit_persistence_observations()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  observation_hash char(64) NOT NULL,
+  nonce_hash char(64) NOT NULL,
+  authorization_hash char(64) NOT NULL,
+  package_id bigint(20) unsigned NOT NULL,
+  package_hash char(64) NOT NULL,
+  persistence_state varchar(32) NOT NULL,
+  first_observed_at datetime NOT NULL,
+  last_observed_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY observation_hash (observation_hash),
+  KEY authorization_observed (authorization_hash,last_observed_at),
+  KEY state_observed (persistence_state,last_observed_at)
+) $charset;",
   "CREATE TABLE ".Tables::pod_provenance_integrity_evidence()." (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   correlation_hash char(64) NOT NULL,
