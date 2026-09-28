@@ -24,10 +24,13 @@ final class ExecutionFailureRepository
    return new WP_Error('digiforge_failure_payload','Failure payload is invalid.',['status'=>400]);
   global $wpdb;$table=Tables::pod_execution_failures();$consumed=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_execution_nonces().' WHERE nonce_hash=%s AND authorization_hash=%s LIMIT 1',$nonce,$auth),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_evidence_unavailable','Terminal outcome prerequisite evidence is unavailable; recording is blocked.',['status'=>503,'retry_permitted'=>false]);if(!is_array($consumed))return new WP_Error('digiforge_failure_nonce_evidence','Terminal outcome requires the exact consumed authorization nonce.',['status'=>409]);
   $unknown=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_unknowns().' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+  if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_conflict_evidence_unavailable','Terminal conflict evidence is unavailable; recording is blocked.',['status'=>503,'retry_permitted'=>false]);
   if(is_array($unknown))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization requires reconciliation before terminal failure may be recorded.',['status'=>409]);
   $success=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_receipts().' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+  if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_conflict_evidence_unavailable','Terminal conflict evidence is unavailable; recording is blocked.',['status'=>503,'retry_permitted'=>false]);
   if(is_array($success))return new WP_Error('digiforge_terminal_outcome_conflict','Authorization already has terminal success evidence.',['status'=>409]);
   $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+  if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_conflict_evidence_unavailable','Terminal conflict evidence is unavailable; recording is blocked.',['status'=>503,'retry_permitted'=>false]);
   if(is_array($existing)){
    if(hash_equals((string)$existing['failure_hash'],$hash))return $existing;
    return new WP_Error('digiforge_failure_conflict','Authorization already has different terminal failure evidence.',['status'=>409]);
