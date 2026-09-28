@@ -52,4 +52,21 @@ final class OperationsSafeguardsTest extends TestCase
         self::assertSame('REVIEW_REQUIRED', $review['status']);
         self::assertFalse($review['external_actions_performed']);
     }
+
+    public function testReadinessUsesStructuredRecoveryEvidenceRatherThanLegacyAvailabilityBooleans(): void
+    {
+        $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/Operations/Readiness.php');
+        self::assertStringContainsString('RecoveryEvidence::snapshot()', $source);
+        self::assertStringContainsString("'recovery_artifact_evidence' => \$artifactEvidence", $source);
+        self::assertStringNotContainsString("optionEnabled('digiforge_recovery_database_backup_available')", $source);
+        self::assertStringNotContainsString("optionEnabled('digiforge_recovery_plugin_package_available')", $source);
+    }
+
+    public function testStructuredEvidenceRequiresConcreteArtifactIdentity(): void
+    {
+        $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/Operations/RecoveryEvidence.php');
+        foreach (['identifier','captured_at','location','version','source_commit','sha256','retrievable','checksum_verified'] as $field) {
+            self::assertStringContainsString("'".$field."'", $source);
+        }
+    }
 }

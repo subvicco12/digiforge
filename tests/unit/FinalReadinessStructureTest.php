@@ -13,9 +13,10 @@ final class FinalReadinessStructureTest extends TestCase
         $source = (string) file_get_contents(__DIR__ . '/../../includes/Operations/Readiness.php');
         self::assertStringContainsString("'queue_query_verified'", $source);
         self::assertStringContainsString("'recovery_drill_passed'", $source);
-        self::assertStringContainsString('digiforge_recovery_database_backup_available', $source);
-        self::assertStringContainsString('digiforge_recovery_plugin_package_available', $source);
-        self::assertStringContainsString('digiforge_recovery_checksum_verified', $source);
+        self::assertStringContainsString('RecoveryEvidence::snapshot()', $source);
+        self::assertStringContainsString("'recovery_artifact_evidence'", $source);
+        self::assertStringNotContainsString('digiforge_recovery_database_backup_available', $source);
+        self::assertStringNotContainsString('digiforge_recovery_plugin_package_available', $source);
         self::assertStringContainsString('digiforge_recovery_restore_instructions_available', $source);
         self::assertStringContainsString('FILTER_VALIDATE_BOOLEAN', $source);
         self::assertStringContainsString('$this->externalActionsPerformed()', $source);
