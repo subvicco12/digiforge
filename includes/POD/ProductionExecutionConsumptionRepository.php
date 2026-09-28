@@ -15,6 +15,7 @@ final class ProductionExecutionConsumptionRepository
   if($packageId<1||!preg_match('/^[a-f0-9]{64}$/',$packageHash))return new WP_Error('production_permit_package_binding','Consumed permit requires exact package provenance.',['status'=>409]);
   if($actorId<1)return new WP_Error('digiforge_nonce_actor','Valid execution actor required.',['status'=>403]);
   global $wpdb;$nonceHash=hash('sha256',$nonce);$nonceTable=Tables::pod_execution_nonces();$bindingTable=Tables::pod_authorization_bindings();
+  foreach([$nonceTable,$bindingTable] as $table){$engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));if(!is_string($engine)||strtoupper($engine)!=='INNODB')return new WP_Error('production_permit_transaction_engine','Atomic permit consumption requires InnoDB persistence; nothing was consumed.',['status'=>503]);}
   $existing=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.$nonceTable.' WHERE nonce_hash=%s LIMIT 1',$nonceHash),ARRAY_A);
   if(is_array($existing))return new WP_Error('digiforge_execution_replay','Execution nonce has already been consumed.',['status'=>409]);
   if($wpdb->query('START TRANSACTION')===false)return new WP_Error('production_permit_transaction_unavailable','Transactional permit consumption is unavailable; nothing was consumed.',['status'=>503]);
