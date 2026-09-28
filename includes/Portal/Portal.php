@@ -267,8 +267,9 @@ final class Portal
 
     private function fulfillmentProviders():void
     {
-        $plans=(new OperationalDepthReadModel())->fulfillmentProviders(50);$providerStatus=(new ProviderStatusReadModel())->snapshot(25);
+        $queryState=null;$plans=(new OperationalDepthReadModel())->fulfillmentProviders(50,$queryState);$providerStatus=(new ProviderStatusReadModel())->snapshot(25);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Fulfillment / Providers</h2><p>Provider-plan evidence and readiness identities. A prepared or approved plan is not production authorization.</p></div><span class="df-status">READ ONLY</span></div>';
+        if($queryState==='UNAVAILABLE'){echo '<div class="df-notice df-notice-error">Fulfillment plan evidence unavailable. Database read failed; plan count and readiness cannot be verified.</div></section>';return;}
         if($plans===[]){echo '<div class="df-empty">No fulfillment plans found.</div></section>';return;}
         $needsReview=count(array_filter($plans,static fn(array $p):bool=>in_array((string)$p['evidence_state'],['EVIDENCE_INVALID_REVIEW','CURRENT_READINESS_UNAVAILABLE','STALE_RECHECK'],true)));
         echo '<p class="df-muted">Recent approved plans needing evidence review: '.esc_html((string)$needsReview).' of up to 50 recent plans. Draft and historical states are excluded. Current evidence never authorizes provider production.</p>';
