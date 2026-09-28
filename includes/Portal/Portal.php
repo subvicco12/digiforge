@@ -18,6 +18,7 @@ use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\POD\PersonalizedCatalogReference;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
+use DigiForge\Queue\OperatorQueueReadModel;
 
 /** Private front-end control center mounted with [digiforge_admin_portal]. */
 final class Portal
@@ -238,7 +239,8 @@ final class Portal
     private function automationOperations(): void
     {
         $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$q=(array)($health['queue']??[]);$queue=(array)($q['recovery']??[]);$states=(array)($queue['states']??[]);
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($q['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Expired leases</span><b>'.esc_html((string)($q['expired_leases']??0)).'</b></div><div><span>FAILED</span><b>'.esc_html((string)($states['FAILED']??0)).'</b></div><div><span>BLOCKED</span><b>'.esc_html((string)($states['BLOCKED']??0)).'</b></div><div><span>HUMAN_REVIEW</span><b>'.esc_html((string)($states['HUMAN_REVIEW']??0)).'</b></div><div><span>DEAD_LETTER</span><b>'.esc_html((string)($states['DEAD_LETTER']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($q['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Expired leases</span><b>'.esc_html((string)($q['expired_leases']??0)).'</b></div><div><span>FAILED</span><b>'.esc_html((string)($states['FAILED']??0)).'</b></div><div><span>BLOCKED</span><b>'.esc_html((string)($states['BLOCKED']??0)).'</b></div><div><span>HUMAN_REVIEW</span><b>'.esc_html((string)($states['HUMAN_REVIEW']??0)).'</b></div><div><span>DEAD_LETTER</span><b>'.esc_html((string)($states['DEAD_LETTER']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div>';
+        if($items===[]){echo '<div class="df-empty">No queue items currently require operator attention.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Type</th><th>State</th><th>Attempts</th><th>Last error</th><th>Updated</th><th>Retry</th><th>Authority</th></tr></thead><tbody>';foreach($items as $item){echo '<tr><td>#'.esc_html((string)$item['id']).'</td><td>'.esc_html((string)$item['job_type']).'</td><td>'.esc_html((string)$item['state']).'</td><td>'.esc_html((string)$item['attempts']).'/'.esc_html((string)$item['max_attempts']).'</td><td>'.esc_html((string)($item['last_error']??'')).'</td><td>'.esc_html((string)$item['updated_at']).'</td><td>NO</td><td>NO</td></tr>';}echo '</tbody></table></div>';}echo '</section>';
     }
 
     private function settingsOperations(): void
@@ -295,6 +297,9 @@ final class Portal
             'Blocked finance intents' => $this->countByState(Tables::finance_intents(), 'state', 'BLOCKED'),
             'Integrations' => $this->count(Tables::integrations()),
         ];
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
+        $shopOps=(new ShopOperationsReadModel())->snapshot($shop);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Current shop scope</h2><p>Dashboard counts remain authoritative global counts unless explicitly labeled shop-scoped.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Scope</span><b>'.esc_html((string)$shopOps['shop_label']).'</b></div><div><span>AI policies in scope</span><b>'.esc_html((string)count((array)$shopOps['ai_policies'])).'</b></div><div><span>AI usage groups in scope</span><b>'.esc_html((string)count((array)$shopOps['ai_usage'])).'</b></div><div><span>External execution</span><b>NO</b></div></div></section>';
         echo '<section class="df-card-grid">';
         foreach ($cards as $label => $value) {
             echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>'
