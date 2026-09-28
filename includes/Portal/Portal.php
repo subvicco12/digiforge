@@ -200,6 +200,13 @@ final class Portal
         }
     }
 
+    private function alertWorkflowUrl(string $sourceType):string
+    {
+        $source=strtolower($sourceType);
+        $view=str_contains($source,'etsy')||str_contains($source,'listing')?'listings':(str_contains($source,'pod')||str_contains($source,'printify')?'pod_personalized':(str_contains($source,'order')||str_contains($source,'fulfill')?'orders':'attention'));
+        return $this->url($view);
+    }
+
     private function auditReconciliationOperations():void
     {
         $attention=(new AttentionReadModel())->summary();$etsy=(new EtsyReconciliationOperatorReadModel())->recent(50);$printify=(array)(($attention['printify_reconciliation']??[])['items']??[]);
@@ -223,7 +230,7 @@ final class Portal
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
         if($rows===[]){echo '<div class="df-empty">No orders found.</div></section>';return;}
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
-        foreach($rows as $row){$r=(array)$row['readiness'];$rec=$orderReconciliation->forOrder((int)$row['id']);echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').' / reconciliation '.(!empty($rec['reconciled'])?'OK':'REVIEW').'</td><td>NO</td></tr>';}
+        foreach($rows as $row){$r=(array)$row['readiness'];$rec=$orderReconciliation->forOrder((int)$row['id']);$disc=$orderReconciliation->discrepancies((int)$row['id'],25);echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').' / reconciliation '.(!empty($rec['reconciled'])?'OK':'REVIEW').' / discrepancies '.esc_html((string)count($disc)).'</td><td>NO</td></tr>';}
         echo '</tbody></table></div></section>';
     }
 
@@ -251,7 +258,7 @@ final class Portal
 
     private function automationOperations(): void
     {
-        $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$q=(array)($health['queue']??[]);$queue=(array)($q['recovery']??[]);$states=(array)($queue['states']??[]);
+        $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$q=(array)($health['queue']??[]);$queue=(array)($q['recovery']??[]);$states=(array)($queue['states']??[]);$items=(new OperatorQueueReadModel())->recentAttention(50);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($q['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Expired leases</span><b>'.esc_html((string)($q['expired_leases']??0)).'</b></div><div><span>FAILED</span><b>'.esc_html((string)($states['FAILED']??0)).'</b></div><div><span>BLOCKED</span><b>'.esc_html((string)($states['BLOCKED']??0)).'</b></div><div><span>HUMAN_REVIEW</span><b>'.esc_html((string)($states['HUMAN_REVIEW']??0)).'</b></div><div><span>DEAD_LETTER</span><b>'.esc_html((string)($states['DEAD_LETTER']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div>';
         echo '<p class="df-muted"><strong>Recovery guidance:</strong> UNKNOWN external outcomes must be reconciled before any retry. FAILED/BLOCKED/HUMAN_REVIEW/DEAD_LETTER are evidence for operator inspection, not retry permission. Use Attention & Recovery for cross-channel reconciliation evidence.</p>';
         if($items===[]){echo '<div class="df-empty">No queue items currently require operator attention.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Type</th><th>State</th><th>Attempts</th><th>Last error</th><th>Updated</th><th>Retry</th><th>Authority</th></tr></thead><tbody>';foreach($items as $item){echo '<tr><td>#'.esc_html((string)$item['id']).'</td><td>'.esc_html((string)$item['job_type']).'</td><td>'.esc_html((string)$item['state']).'</td><td>'.esc_html((string)$item['attempts']).'/'.esc_html((string)$item['max_attempts']).'</td><td>'.esc_html((string)($item['last_error']??'')).'</td><td>'.esc_html((string)$item['updated_at']).'</td><td>NO</td><td>NO</td></tr>';}echo '</tbody></table></div>';}echo '</section>';
@@ -374,7 +381,7 @@ final class Portal
         } else {
             echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Environment</th><th>Severity</th><th>Type</th><th>Source</th><th>State</th><th>Created</th></tr></thead><tbody>';
             foreach ($alerts as $alert) {
-                echo '<tr><td>' . esc_html((string) $alert['id']) . '</td><td>' . esc_html((string) $alert['environment']) . '</td><td>'
+                echo '<tr><td><a href="' . esc_url($this->alertWorkflowUrl((string)$alert['source_type'])) . '">#' . esc_html((string) $alert['id']) . '</a></td><td>' . esc_html((string) $alert['environment']) . '</td><td>'
                     . esc_html((string) $alert['severity']) . '</td><td>' . esc_html((string) $alert['alert_type']) . '</td><td>'
                     . esc_html((string) $alert['source_type']) . '#' . esc_html((string) $alert['source_id']) . '</td><td>'
                     . esc_html((string) $alert['state']) . '</td><td>' . esc_html((string) $alert['created_at']) . '</td></tr>';
