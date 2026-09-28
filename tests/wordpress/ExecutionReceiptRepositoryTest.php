@@ -10,6 +10,8 @@ final class ExecutionReceiptRepositoryTest extends WP_UnitTestCase
         DigiForge\Core\Activator::activate();
         global $wpdb;
         $wpdb->query('TRUNCATE TABLE ' . DigiForge\Database\Tables::pod_execution_receipts());
+        $wpdb->query('TRUNCATE TABLE ' . DigiForge\Database\Tables::pod_execution_nonces());
+        $wpdb->insert(DigiForge\Database\Tables::pod_execution_nonces(), ['nonce_hash'=>str_repeat('c',64),'authorization_hash'=>str_repeat('b',64),'consumed_by'=>7,'consumed_at'=>current_time('mysql',true)]);
     }
 
     private function receipt(string $receiptHash, string $externalReference = 'provider-ref-1'): array
