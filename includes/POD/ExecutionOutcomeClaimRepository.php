@@ -11,6 +11,7 @@ final class ExecutionOutcomeClaimRepository{
   global $wpdb;$table=Tables::pod_execution_outcomes();$row=['authorization_hash'=>$authorizationHash,'outcome_type'=>$outcomeType,'outcome_hash'=>$outcomeHash,'created_at'=>current_time('mysql',true)];
   if($wpdb->insert($table,$row)!==false){$row['id']=(int)$wpdb->insert_id;return $row;}
   $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
+  if(!empty($wpdb->last_error))return new WP_Error('digiforge_outcome_claim_confirmation_unavailable','Execution outcome claim result is uncertain; reconcile before any retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   if(is_array($winner)&&hash_equals((string)$winner['outcome_hash'],$outcomeHash)&&hash_equals((string)$winner['outcome_type'],$outcomeType))return $winner;
   return new WP_Error('digiforge_outcome_claim_conflict','Authorization is already claimed by a different execution outcome.',['status'=>409]);
  }
