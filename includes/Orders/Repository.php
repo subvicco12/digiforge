@@ -85,10 +85,32 @@ final class Repository
 
     public function readiness(int $orderId): array|WP_Error
     {
-        $order=$this->find(Tables::orders(),$orderId);if(!is_array($order))return $this->error('not_found','Order not found.',404);global $wpdb;$lineCount=(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::order_line_items().' WHERE order_id=%d',$orderId));$invalidLines=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." WHERE order_id=%d AND validation_status<>'VALIDATED'",$orderId));$personalizationMissing=0;
-        if((int)$order['personalization_required']===1){$personalizationMissing=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND NOT EXISTS (SELECT 1 FROM ".Tables::personalization_submissions()." ps WHERE ps.order_line_item_id=li.id AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL)",$orderId));}
-        $digitalLines=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));$podLines=max(0,$lineCount-$digitalLines);
-        $checks=['order_approved'=>(string)$order['state']==='APPROVED','line_items_present'=>$lineCount>0,'line_items_valid'=>$invalidLines===0,'provider_mappings_present'=>(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId))===0,'personalization_reviewed'=>$personalizationMissing===0,'human_approval'=>(int)$order['approved_by']>0&&!empty($order['approved_at'])];$payload=OrderReadinessProjection::project($orderId,FulfillmentMode::classify($digitalLines>0,$podLines>0),$checks,false);$payload['hash']=hash('sha256',Validator::canonicalJson($payload));return $payload;
+        $order=$this->find(Tables::orders(),$orderId);
+        if(!is_array($order))return $this->error('not_found','Order not found.',404);
+        global $wpdb;
+        $lineCount=$this->readinessCount($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::order_line_items().' WHERE order_id=%d',$orderId));
+        $invalidLines=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." WHERE order_id=%d AND validation_status<>'VALIDATED'",$orderId));
+        if($lineCount===null||$invalidLines===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
+        $personalizationMissing=0;
+        if((int)$order['personalization_required']===1){
+            $personalizationMissing=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND NOT EXISTS (SELECT 1 FROM ".Tables::personalization_submissions()." ps WHERE ps.order_line_item_id=li.id AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL)",$orderId));
+            if($personalizationMissing===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
+        }
+        $digitalLines=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
+        $unmapped=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
+        if($digitalLines===null||$unmapped===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
+        $podLines=max(0,$lineCount-$digitalLines);
+        $checks=['order_approved'=>(string)$order['state']==='APPROVED','line_items_present'=>$lineCount>0,'line_items_valid'=>$invalidLines===0,'provider_mappings_present'=>$unmapped===0,'personalization_reviewed'=>$personalizationMissing===0,'human_approval'=>(int)$order['approved_by']>0&&!empty($order['approved_at'])];
+        $payload=OrderReadinessProjection::project($orderId,FulfillmentMode::classify($digitalLines>0,$podLines>0),$checks,false);
+        $payload['hash']=hash('sha256',Validator::canonicalJson($payload));
+        return $payload;
+    }
+
+    private function readinessCount(string $sql): ?int
+    {
+        global $wpdb;
+        $value=$wpdb->get_var($sql);
+        return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;
     }
 
     public function list(string $entity,int $page=1,int $perPage=20): array
