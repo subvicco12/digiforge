@@ -39,7 +39,7 @@ final class U3ApprovalInbox
     {
         global $wpdb;
         $listingReviews = $wpdb->get_results(
-            "SELECT r.id,r.listing_id,r.decision,r.created_at,l.title,l.environment FROM " . Tables::listing_readiness_reviews() . " r INNER JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.listing_id,r.decision,r.created_at,l.id AS subject_id,l.title,l.environment,l.updated_at AS subject_updated_at FROM " . Tables::listing_readiness_reviews() . " r LEFT JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         $personalization = $wpdb->get_results(
@@ -47,11 +47,11 @@ final class U3ApprovalInbox
             ARRAY_A
         );
         $podReviews = $wpdb->get_results(
-            "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.provider,m.environment FROM " . Tables::pod_readiness_reviews() . " r INNER JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.id AS subject_id,m.provider,m.environment,m.updated_at AS subject_updated_at FROM " . Tables::pod_readiness_reviews() . " r LEFT JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         $fulfillmentReviews = $wpdb->get_results(
-            "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.provider,p.environment,p.state FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.id AS subject_id,p.order_id AS subject_order_id,p.provider,p.environment,p.state,p.updated_at AS subject_updated_at FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         $groups = [
@@ -67,7 +67,7 @@ final class U3ApprovalInbox
             <?php foreach ($groups as $title => $rows) : ?>
                 <div class="df-subpanel"><h4><?php echo esc_html($title); ?></h4>
                 <?php if ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
-                    <div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Subject</th><th>Environment</th><th>Status</th><th>Created</th><th>Workflow</th></tr></thead><tbody>
+                    <div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Subject</th><th>Environment</th><th>Status</th><th>Evidence</th><th>Created</th><th>Workflow</th></tr></thead><tbody>
                     <?php foreach ($rows as $row) :
                         $id = (int) ($row['id'] ?? 0);
                         $environment = (string) ($row['environment'] ?? '');
@@ -76,7 +76,7 @@ final class U3ApprovalInbox
                             : (isset($row['order_line_item_id']) ? 'Order line #' . (int) $row['order_line_item_id']
                             : (isset($row['provider_mapping_id']) ? 'POD mapping #' . (int) $row['provider_mapping_id']
                             : 'Order #' . (int) ($row['order_id'] ?? 0))); ?>
-                        <tr><td><?php echo esc_html((string) $id); ?></td><td><?php echo esc_html($subject); ?></td><td><?php echo esc_html($environment); ?></td><td><?php echo esc_html($status); ?></td><td><?php echo esc_html((string) ($row['created_at'] ?? '')); ?></td></tr>
+                        <tr><td><?php echo esc_html((string) $id); ?></td><td><?php echo esc_html($subject); ?></td><td><?php echo esc_html($environment); ?></td><td><?php echo esc_html($status); ?></td><td><?php echo esc_html($this->subjectEvidenceState($row)); ?></td><td><?php echo esc_html((string) ($row['created_at'] ?? '')); ?></td>
                     <td><a class="df-button df-button-compact" href="<?php echo esc_url($this->workflowUrl((string)$title)); ?>">Open governed workflow</a></td></tr>
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
@@ -90,6 +90,16 @@ final class U3ApprovalInbox
     {
         $view = str_contains($group, 'Listing') ? 'listings' : (str_contains($group, 'POD') || str_contains($group, 'Personalization') ? 'pod_personalized' : 'orders');
         return add_query_arg(['df_view' => $view], home_url('/'));
+    }
+
+    /** A display classification, never approval or execution authority. */
+    private function subjectEvidenceState(array $row): string
+    {
+        if (array_key_exists('subject_id', $row) && (int) $row['subject_id'] < 1) { return 'MISSING SUBJECT — REVIEW'; }
+        if (isset($row['subject_order_id']) && (int) $row['subject_order_id'] !== (int) ($row['order_id'] ?? 0)) { return 'CONFLICTING ORDER — REVIEW'; }
+        if (!empty($row['subject_updated_at']) && !empty($row['created_at']) && strcmp((string) $row['subject_updated_at'], (string) $row['created_at']) > 0) { return 'SUBJECT CHANGED — RECHECK'; }
+        if (isset($row['personalization_schema_id']) && (int) $row['personalization_schema_id'] < 1) { return 'MISSING SCHEMA REFERENCE — REVIEW'; }
+        return 'RECORDED — VERIFY IN WORKFLOW';
     }
 
     public function review(): void

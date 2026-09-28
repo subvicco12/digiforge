@@ -404,11 +404,11 @@ final class Portal
         if (!is_array($alerts) || $alerts === []) {
             echo '<div class="df-empty">No open operational alerts.</div>';
         } else {
-            echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Environment</th><th>Severity</th><th>Type</th><th>Source</th><th>State</th><th>Created</th></tr></thead><tbody>';
+            echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Environment</th><th>Severity</th><th>Type</th><th>Source evidence</th><th>State</th><th>Created</th></tr></thead><tbody>';
             foreach ($alerts as $alert) {
                 echo '<tr><td><a href="' . esc_url($this->alertWorkflowUrl((string)$alert['source_type'])) . '">#' . esc_html((string) $alert['id']) . '</a></td><td>' . esc_html((string) $alert['environment']) . '</td><td>'
                     . esc_html((string) $alert['severity']) . '</td><td>' . esc_html((string) $alert['alert_type']) . '</td><td>'
-                    . esc_html((string) $alert['source_type']) . '#' . esc_html((string) $alert['source_id']) . '</td><td>'
+                    . ((string) $alert['source_type'] === '' || (int) $alert['source_id'] < 1 ? 'MISSING SOURCE REFERENCE — REVIEW' : '<a href="' . esc_url($this->alertWorkflowUrl((string)$alert['source_type'])) . '">' . esc_html((string) $alert['source_type']) . '#' . esc_html((string) $alert['source_id']) . '</a>') . '</td><td>'
                     . esc_html((string) $alert['state']) . '</td><td>' . esc_html((string) $alert['created_at']) . '</td></tr>';
             }
             echo '</tbody></table></div>';
