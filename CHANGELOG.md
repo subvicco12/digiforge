@@ -1,3 +1,11 @@
+## 1.0.70 — 2026-09-28
+
+- Adds explicit MISSING / VERIFIED / STALE database-backup status projection.
+- Adds bounded read-only recovery evidence history drill-down (default 25, maximum 200).
+- Every historical evidence item explicitly denies retry and external execution authority.
+- Preserves 24-hour independent reverification and fail-closed recovery readiness.
+- Database schema remains v22; release performs no external action.
+
 ## 1.0.69 — 2026-09-28
 
 - Requires independently verified database-backup evidence provenance before recovery readiness can pass.
