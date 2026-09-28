@@ -10,6 +10,8 @@ use DigiForge\Database\ListingSchema;
 use DigiForge\Database\Migrator;
 use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
+use DigiForge\Database\V6OperationalSchema;
+use DigiForge\Database\ScopedPolicySchema;
 use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
@@ -45,6 +47,10 @@ final class Plugin {
         if (! ProductionSchema::migrateIfNeeded()) { return; }
         if (! (new Migrator())->maybe_migrate()) { return; }
         if (! BusinessScopeInstaller::migrateIfNeeded()) { return; }
+        // Active-plugin upgrades do not necessarily run the activation hook. Keep the
+        // additive operational chain on normal boot so code/schema cannot diverge.
+        if (! V6OperationalSchema::migrateIfNeeded()) { return; }
+        if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
         (new Controller())->register();
         (new ProductFactoryController())->register();

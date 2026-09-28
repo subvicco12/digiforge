@@ -153,4 +153,18 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertSame(23,(int)get_option('digiforge_db_schema_version'));
     }
 
+    public function testActivePluginBootRepairsV22ToV23WithoutActivationHook(): void
+    {
+        global $wpdb;
+        DigiForge\Core\Activator::activate();
+        $table=DigiForge\Database\Tables::scoped_capability_policies();
+        $wpdb->query('DROP TABLE IF EXISTS '.$table);
+        update_option('digiforge_db_schema_version',22,false); update_option('digiforge_db_version','22',false);
+        $plugin=DigiForge\Core\Plugin::instance();
+        $ref=new ReflectionClass($plugin);$booted=$ref->getProperty('booted');$booted->setAccessible(true);$booted->setValue($plugin,false);
+        $plugin->boot();
+        self::assertSame(23,(int)get_option('digiforge_db_schema_version'));
+        self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
+    }
+
 }
