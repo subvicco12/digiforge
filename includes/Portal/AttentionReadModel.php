@@ -30,7 +30,7 @@ final class AttentionReadModel
         $reconciliation=(new \DigiForge\POD\PrintifyUnknownOperatorReadModel())->summary();
         $items['printify_unknown_reconciliations']=(int)$reconciliation['unresolved_reconciliations'];
         $items['printify_reconciliation_reviews']=(int)$reconciliation['resolved_review_required'];
-        $items['etsy_operations_requiring_reconciliation']=$count("SELECT COUNT(*) FROM ".$wpdb->prefix.'digiforge_etsy_operations'." WHERE state IN ('UNKNOWN','RECONCILIATION_REQUIRED')");
+        $items['etsy_operations_requiring_reconciliation']=$count("SELECT COUNT(*) FROM ".$wpdb->prefix.'digiforge_etsy_operations'." WHERE state IN ('UNKNOWN','RECONCILIATION')");
         $persistence=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::summary();$persistenceDrilldown=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::recent(50);$items['production_permit_persistence_unknown']=(int)$persistence['unknown_count'];$items['production_permit_persistence_observed']=(int)$persistence['persisted_observed_count'];
         $lifecycleClosures=$count("SELECT COUNT(*) FROM ".Tables::pod_lifecycle_closures());
         $items['execution_outcomes_pending']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_execution_outcomes()." o ON o.authorization_hash=n.authorization_hash WHERE o.id IS NULL");
