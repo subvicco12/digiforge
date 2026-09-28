@@ -357,7 +357,7 @@ final class Portal
             'Products' => $this->count(Tables::products()),
             'Listings' => $this->count(Tables::listings()),
             'Orders' => $this->count(Tables::orders()),
-            'Open operational alerts' => $this->countExcludingStates(Tables::operational_alerts(), 'state', ['RESOLVED', 'CLOSED']),
+            'Open operational alerts' => $this->countExcludingStates(Tables::operational_alerts(), 'state', ['RESOLVED', 'DISMISSED', 'SUPERSEDED', 'CLOSED']),
             'Pending listing decisions' => $this->countByState(Tables::listing_readiness_reviews(), 'decision', 'PENDING'),
             'Personalization reviews' => $this->countExcludingStates(Tables::personalization_submissions(), 'review_status', ['APPROVED', 'REJECTED']),
             'Pending POD decisions' => $this->countByState(Tables::pod_readiness_reviews(), 'decision', 'PENDING'),
@@ -397,11 +397,11 @@ final class Portal
         $alerts = $wpdb->get_results(
             'SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at '
             . 'FROM ' . Tables::operational_alerts()
-            . " WHERE state NOT IN ('RESOLVED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
+            . " WHERE state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
             ARRAY_A
         );
         $alertFocus=isset($_GET['df_alert_id'])?absint(wp_unslash($_GET['df_alert_id'])):0;
-        $focusedAlert=$alertFocus>0?$wpdb->get_row($wpdb->prepare('SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at FROM '.Tables::operational_alerts()." WHERE id=%d AND state NOT IN ('RESOLVED','CLOSED')",$alertFocus),ARRAY_A):null;
+        $focusedAlert=$alertFocus>0?$wpdb->get_row($wpdb->prepare('SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at FROM '.Tables::operational_alerts()." WHERE id=%d AND state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED')",$alertFocus),ARRAY_A):null;
         if(is_array($focusedAlert)&&!in_array($alertFocus,array_map('intval',array_column(is_array($alerts)?$alerts:[],'id')),true))$alerts=array_merge([$focusedAlert],is_array($alerts)?$alerts:[]);
         echo '<section class="df-card-grid"><article class="df-stat-card"><span>Total attention items</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article><article class="df-stat-card"><span>Orders needing reconciliation</span><strong>'.esc_html((string)$attention['orders_needing_reconciliation']).'</strong></article></section>';
         $integrity=(array)($attention['production_provenance_integrity_projection']??[]);$persistence=(array)($attention['production_permit_persistence_drilldown']??[]);
