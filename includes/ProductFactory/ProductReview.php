@@ -142,14 +142,17 @@ final class ProductReview
     private function planQaPassed(int $planId): true|WP_Error
     {
         global $wpdb;
-        $total = (int) $wpdb->get_var($wpdb->prepare(
+        $totalRaw = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
             $planId
         ));
-        $bad = (int) $wpdb->get_var($wpdb->prepare(
+        if(!empty($wpdb->last_error)||!is_numeric($totalRaw))return $this->error('qa_evidence_unavailable','Product Approval QA evidence is unavailable; approval is blocked.',503);
+        $badRaw = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' AND status NOT IN ('PASS','WAIVED')",
             $planId
         ));
+        if(!empty($wpdb->last_error)||!is_numeric($badRaw))return $this->error('qa_evidence_unavailable','Product Approval QA evidence is unavailable; approval is blocked.',503);
+        $total=(int)$totalRaw;$bad=(int)$badRaw;
         if ($total < 7 || $bad > 0) {
             return $this->error('semantic_qa_failed', 'All required semantic, policy and consistency QA checks must pass before Product Approval.', 409);
         }
@@ -176,14 +179,17 @@ final class ProductReview
             if (! is_array($revision) || (string) ($revision['state'] ?? '') !== 'QA_PASSED') {
                 return $this->error('qa_failed', 'Every required asset must pass QA before Product Approval.', 409);
             }
-            $bad = (int) $wpdb->get_var($wpdb->prepare(
+            $badRaw = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')",
                 (int) $revision['id']
             ));
-            $total = (int) $wpdb->get_var($wpdb->prepare(
+            if(!empty($wpdb->last_error)||!is_numeric($badRaw))return $this->error('qa_evidence_unavailable','Required asset QA evidence is unavailable; approval is blocked.',503);
+            $totalRaw = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d",
                 (int) $revision['id']
             ));
+            if(!empty($wpdb->last_error)||!is_numeric($totalRaw))return $this->error('qa_evidence_unavailable','Required asset QA evidence is unavailable; approval is blocked.',503);
+            $bad=(int)$badRaw;$total=(int)$totalRaw;
             if ($total < 1 || $bad > 0) {
                 return $this->error('qa_failed', 'Every required asset must have completed passing QA checks.', 409);
             }
