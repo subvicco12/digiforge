@@ -168,4 +168,42 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringContainsString('!in_array($focusId, array_map', $portal);
     }
 
+    public function testGate2NestedEvidenceReadFailureFailsTheWholeInboxClosed(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $last_error = '';
+            public function prepare(string $sql,mixed ...$args): string { return $sql; }
+            public function get_results(string $sql,mixed $format): ?array {
+                if (str_contains($sql,'production_plans pp')) return [['plan_id'=>9,'product_version_id'=>4,'channel'=>'digital','plan_state'=>'REVIEW_REQUIRED','version_label'=>'v1','product_id'=>3,'product_name'=>'Test','bundle_id'=>1,'bundle_state'=>'RELEASE_READY']];
+                if (str_contains($sql,'production_plan_assets')) { $this->last_error='asset evidence unavailable'; return null; }
+                return [];
+            }
+            public function get_var(string $sql): ?string { $this->last_error=''; return '1'; }
+        };
+        try {
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertNull((new ReflectionMethod($inbox, 'pendingProducts'))->invoke($inbox));
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
+    public function testGate2CountReadFailureCannotBecomeZeroQaEvidence(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $last_error = 'count unavailable';
+            public function get_var(string $sql): ?string { return null; }
+        };
+        try {
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertNull((new ReflectionMethod($inbox, 'safeCount'))->invoke($inbox, 'SELECT COUNT(*)'));
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
 }
