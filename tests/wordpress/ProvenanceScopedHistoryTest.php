@@ -26,6 +26,17 @@ final class ProvenanceScopedHistoryTest extends WP_UnitTestCase
             'package_id'=>0,'package_hash'=>'','actual_package_hash'=>'',
             'evidence_payload'=>'{}','first_observed_at'=>$now,'last_observed_at'=>$now,
         ]));
+        $turnover=(new DigiForge\POD\ProductionProvenanceIntegrityTurnoverReadModel())->byAuthorizationHash($auth);
+        self::assertSame('RECORDED_SPAN',$turnover['lookup_state']);
+        self::assertSame('EXACT_AUTHORIZATION_RECORDED',$turnover['scope']);
+        self::assertSame($now,$turnover['first_observed_at']);
+        self::assertSame($now,$turnover['last_observed_at']);
+        self::assertSame(1,$turnover['distinct_anomaly_types']);
+        self::assertFalse($turnover['resolution_inferred']);
+        self::assertFalse($turnover['retry_permitted']);
+        $missing=(new DigiForge\POD\ProductionProvenanceIntegrityTurnoverReadModel())->byAuthorizationHash(hash('sha256','no-history-fixture'));
+        self::assertSame('NO_RECORDED_HISTORY',$missing['lookup_state']);
+        self::assertNull($missing['first_observed_at']);
         $model=new DigiForge\POD\ProductionProvenanceIntegrityHistoryReadModel();
         $result=$model->byAuthorizationHash($auth);
         self::assertSame('RECORDED_HISTORY',$result['lookup_state']);
