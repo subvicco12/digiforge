@@ -13,4 +13,14 @@ final class ControlApiActivationGuardTest extends TestCase{
   self::assertNotFalse($write);
   self::assertLessThan($write,$guard);
  }
+
+    public function testProtectedPostureRestTransitionUsesAtomicSettingsGuard(): void
+    {
+        $source=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/Controller.php');
+        self::assertStringContainsString("'/protection/restore'",$source);
+        self::assertStringContainsString('Settings::protectProduction()',$source);
+        self::assertStringContainsString("'external_actions_performed' => false",$source);
+        self::assertStringContainsString("'permission_callback' => [\$this, 'can_manage']",$source);
+        self::assertStringNotContainsString("Settings::set('activation_authorized'",$source);
+    }
 }
