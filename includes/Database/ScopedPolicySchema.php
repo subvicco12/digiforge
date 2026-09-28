@@ -6,7 +6,22 @@ final class ScopedPolicySchema {
  public const VERSION=23;
  public static function migrateIfNeeded():bool {
   global $wpdb;if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION)return true;require_once ABSPATH.'wp-admin/includes/upgrade.php';$charset=$wpdb->get_charset_collate();
-  $sql="CREATE TABLE ".Tables::scoped_capability_policies()." (id bigint(20) unsigned NOT NULL AUTO_INCREMENT,shop_key varchar(100) NOT NULL,workflow_key varchar(100) NOT NULL,capability varchar(64) NOT NULL,enabled tinyint(1) NOT NULL DEFAULT 0,version int unsigned NOT NULL,policy_hash char(64) NOT NULL,previous_policy_hash char(64) NOT NULL DEFAULT '',created_by bigint(20) unsigned NOT NULL DEFAULT 0,created_at datetime NOT NULL,PRIMARY KEY  (id),UNIQUE KEY scope_version (shop_key,workflow_key,capability,version),UNIQUE KEY policy_hash (policy_hash),KEY scope_latest (shop_key,workflow_key,capability,created_at)) $charset;";
+  $sql="CREATE TABLE ".Tables::scoped_capability_policies()." (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  shop_key varchar(100) NOT NULL,
+  workflow_key varchar(100) NOT NULL,
+  capability varchar(64) NOT NULL,
+  enabled tinyint(1) NOT NULL DEFAULT 0,
+  version int unsigned NOT NULL,
+  policy_hash char(64) NOT NULL,
+  previous_policy_hash char(64) NOT NULL DEFAULT '',
+  created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+  created_at datetime NOT NULL,
+  PRIMARY KEY  (id),
+  UNIQUE KEY scope_version (shop_key,workflow_key,capability,version),
+  UNIQUE KEY policy_hash (policy_hash),
+  KEY scope_latest (shop_key,workflow_key,capability,created_at)
+) $charset;";
   $wpdb->last_error='';dbDelta($sql);$exists=$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like(Tables::scoped_capability_policies())));if($exists!==Tables::scoped_capability_policies()){update_option('digiforge_last_migration_failure',['error_code'=>'SCOPED_POLICY_SCHEMA_UPDATE_FAILED','occurred_at'=>current_time('mysql',true)],false);return false;}update_option('digiforge_db_schema_version',self::VERSION,false);update_option('digiforge_db_version',(string)self::VERSION,false);return true;
  }
 }
