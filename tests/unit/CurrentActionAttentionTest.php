@@ -40,4 +40,22 @@ final class CurrentActionAttentionTest extends TestCase
         self::assertStringContainsString("review_status NOT IN ('APPROVED','REVIEWED','REJECTED','SUPERSEDED')", $exceptions);
         self::assertStringContainsString("review_status='APPROVED' AND classification='REVIEW_REQUIRED'", $exceptions);
     }
+
+    public function testBoundedProvenanceCountsCannotAppearAsExhaustiveAttentionTotals(): void
+    {
+        $integrity = file_get_contents(__DIR__ . '/../../includes/POD/ProductionProvenanceIntegrityReadModel.php');
+        $attention = file_get_contents(__DIR__ . '/../../includes/Portal/AttentionReadModel.php');
+        $portal = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
+        self::assertStringContainsString("'count_scope'=>'BOUNDED_EVIDENCE_WINDOW'", $integrity);
+        self::assertStringContainsString("'window_limit'=>\$limit", $integrity);
+        self::assertStringContainsString("'exhaustive'=>false", $integrity);
+        self::assertStringContainsString("'total_attention_scope'=>'INCLUDES_BOUNDED_INTEGRITY_WINDOW'", $attention);
+        self::assertStringContainsString('Observed attention signals', $portal);
+        self::assertStringContainsString('a zero in that window does not prove that none exist', $portal);
+        self::assertStringContainsString('Open integrity in window', $portal);
+        self::assertStringContainsString('Persistence UNKNOWN is counted independently', $portal);
+        self::assertStringNotContainsString('<span>Total attention items</span>', $portal);
+        self::assertStringContainsString("'retry_permitted'=>false", $integrity);
+        self::assertStringContainsString("'external_execution_authorized'=>false", $integrity);
+    }
 }
