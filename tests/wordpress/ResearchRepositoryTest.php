@@ -9,6 +9,8 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         DigiForge\Core\Activator::activate();
         wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
         $repository = new DigiForge\Research\Repository();
+        $attention = new DigiForge\Portal\AttentionReadModel();
+        $pendingBefore = $attention->summary()['research_reviews'];
 
         $source = $repository->createSource([
             'name' => 'Manual Etsy research',
@@ -59,6 +61,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         self::assertIsArray($candidate);
         self::assertSame('v1', $candidate['score_version']);
         self::assertSame(DigiForge\Research\Repository::REVIEW_PENDING, $candidate['review_status']);
+        self::assertSame($pendingBefore + 1, $attention->summary()['research_reviews']);
         self::assertEqualsWithDelta(71.0, (float) $candidate['score'], 0.001);
 
         $duplicateCandidate = $repository->createCandidate(['title' => '  PERSONALIZED   FAMILY MUG  ']);
@@ -74,6 +77,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         $approved = $repository->review((int) $candidate['id'], 'APPROVED', 'Reviewed by fixture.');
         self::assertIsArray($approved);
         self::assertSame(DigiForge\Research\Repository::REVIEW_APPROVED, $approved['review_status']);
+        self::assertSame($pendingBefore, $attention->summary()['research_reviews']);
 
         $opportunity = $repository->promote((int) $candidate['id'], 'research-promotion-1');
         self::assertIsArray($opportunity);
