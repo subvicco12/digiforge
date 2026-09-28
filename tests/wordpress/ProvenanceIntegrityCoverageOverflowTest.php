@@ -49,5 +49,22 @@ final class ProvenanceIntegrityCoverageOverflowTest extends WP_UnitTestCase
         self::assertFalse($focused['items'][0]['external_execution_authorized']);
         self::assertSame($recordedBefore,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$evidenceTable));
         self::assertSame('INVALID_REFERENCE',(new DigiForge\POD\ProductionProvenanceIntegrityFocusReadModel())->byAuthorizationHash('invalid')['lookup_state']);
+        $now=current_time('mysql',true);
+        self::assertSame(1,$wpdb->insert($evidenceTable,[
+            'correlation_hash'=>hash('sha256','overflow-hidden-recorded'),
+            'authorization_hash'=>$hiddenAuth,'anomaly_type'=>'LEGACY_UNBOUND',
+            'package_id'=>0,'package_hash'=>'','actual_package_hash'=>'',
+            'evidence_payload'=>'{}','first_observed_at'=>$now,'last_observed_at'=>$now,
+        ]));
+        $history=(new DigiForge\POD\ProductionProvenanceIntegrityHistoryReadModel())->byAuthorizationHash($hiddenAuth);
+        $types=(new DigiForge\POD\ProductionProvenanceIntegrityTypeReadModel())->byAuthorizationHash($hiddenAuth);
+        $turnover=(new DigiForge\POD\ProductionProvenanceIntegrityTurnoverReadModel())->byAuthorizationHash($hiddenAuth);
+        self::assertSame(1,$history['recorded_count']);
+        self::assertSame($history['recorded_count'],$types['recorded_count']);
+        self::assertSame(1,$types['type_counts']['LEGACY_UNBOUND']);
+        self::assertSame($now,$turnover['first_observed_at']);
+        self::assertSame('EXACT_AUTHORIZATION_RECORDED',$types['count_scope']);
+        self::assertFalse($types['retry_permitted']);
+        self::assertFalse($types['external_execution_authorized']);
     }
 }
