@@ -40,6 +40,18 @@ final class ProvenanceScopedHistoryTest extends WP_UnitTestCase
             self::assertFalse($row['retry_permitted']);
             self::assertFalse($row['external_execution_authorized']);
         }
+        $compared=$model->byAuthorizationHash($auth,[
+            hash('sha256','scoped-history-24'),hash('sha256','scoped-history-23'),
+            hash('sha256','other-history'),
+        ]);
+        self::assertSame('EXACT_AUTHORIZATION_RECORDED_VS_LIVE',$compared['comparison_scope']);
+        self::assertSame(2,$compared['recorded_live_overlap_count']);
+        self::assertSame(23,$compared['recorded_without_live_correlation_count']);
+        self::assertSame('ALSO_LIVE',$compared['items'][0]['comparison_state']);
+        self::assertSame('ALSO_LIVE',$compared['items'][1]['comparison_state']);
+        self::assertSame('NOT_IN_LIVE_LOOKUP',$compared['items'][2]['comparison_state']);
+        self::assertFalse($compared['retry_permitted']);
+        self::assertFalse($compared['external_execution_authorized']);
         $none=$model->byAuthorizationHash(hash('sha256','no-history-fixture'));
         self::assertSame('NO_RECORDED_HISTORY',$none['lookup_state']);
         self::assertSame(0,$none['recorded_count']);
