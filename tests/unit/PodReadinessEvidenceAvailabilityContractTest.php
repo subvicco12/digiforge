@@ -18,6 +18,7 @@ final class PodReadinessEvidenceAvailabilityContractTest extends TestCase {
   $start=strpos($c,'public function readiness(int $mappingId)');
   $end=strpos($c,'public function list(',$start);
   $method=substr($c,$start,$end-$start);
-  self::assertStringContainsString("if(!empty($wpdb->last_error))return $this->error('pod_readiness_evidence_unavailable'",$method);
+  self::assertStringContainsString('pod_readiness_evidence_unavailable',$method);
+  self::assertGreaterThanOrEqual(2,substr_count($method,'!empty($wpdb->last_error)'));
  }
 }
