@@ -14,7 +14,7 @@ final class PortalEvidenceCountConsistencyTest extends TestCase
         self::assertNotFalse($insertion);
         self::assertLessThan($insertion, $count);
         self::assertStringContainsString('Recent Etsy reconciliation (up to 50)', $portal);
-        self::assertStringContainsString("esc_html((string)$" . 'etsyRecentCount)', $portal);
+        self::assertStringContainsString('esc_html($etsyQueryState===\'AVAILABLE\'?(string)$etsyRecentCount:\'UNAVAILABLE\')', $portal);
     }
 
     public function testAlertHeaderUsesAuthoritativeTotalAndInvalidProviderIdHasNoLink(): void
