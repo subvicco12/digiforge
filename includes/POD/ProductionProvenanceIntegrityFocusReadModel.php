@@ -27,7 +27,7 @@ final class ProductionProvenanceIntegrityFocusReadModel
             if (!empty($wpdb->last_error)) return $empty + ['lookup_state'=>'QUERY_UNAVAILABLE'];
             if (is_array($row)) $rows[$type]=$row;
         }
-        if ($rows===[]) return $empty + ['lookup_state'=>'NO_LIVE_ANOMALY'];
+        if ($rows===[]) return $empty + ['lookup_state'=>'NO_LIVE_ANOMALY','open_count'=>0,'acknowledged_count'=>0,'count_scope'=>'EXACT_AUTHORIZATION_LIVE'];
         $outcome=$wpdb->get_row($wpdb->prepare('SELECT outcome_hash FROM '.Tables::pod_execution_outcomes().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
         if (!empty($wpdb->last_error)) return $empty + ['lookup_state'=>'QUERY_UNAVAILABLE'];
         $closure=$wpdb->get_row($wpdb->prepare('SELECT closure_hash FROM '.Tables::pod_lifecycle_closures().' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
@@ -39,6 +39,7 @@ final class ProductionProvenanceIntegrityFocusReadModel
             if (!empty($wpdb->last_error)) return $empty + ['lookup_state'=>'QUERY_UNAVAILABLE'];
             $items[]=['type'=>$type,'authorization_hash'=>$authorizationHash,'correlation_hash'=>$correlation,'operator_state'=>$ack?'ACKNOWLEDGED':'OPEN','read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
         }
-        return array_replace($empty,['lookup_state'=>'LIVE_ANOMALIES','items'=>$items]);
+        $acknowledged=count(array_filter($items,static fn(array $item):bool=>$item['operator_state']==='ACKNOWLEDGED'));
+        return array_replace($empty,['lookup_state'=>'LIVE_ANOMALIES','items'=>$items,'open_count'=>count($items)-$acknowledged,'acknowledged_count'=>$acknowledged,'count_scope'=>'EXACT_AUTHORIZATION_LIVE']);
     }
 }

@@ -26,9 +26,11 @@ final class ProductionProvenanceIntegrityFocusTest extends TestCase
             $model=new \DigiForge\POD\ProductionProvenanceIntegrityFocusReadModel();
             $invalid=$model->byAuthorizationHash('not-a-hash');
             self::assertSame('INVALID_REFERENCE',$invalid['lookup_state']);
+            self::assertArrayNotHasKey('open_count',$invalid);
             self::assertSame([],$db->queries);
             $unavailable=$model->byAuthorizationHash(str_repeat('a',64));
             self::assertSame('QUERY_UNAVAILABLE',$unavailable['lookup_state']);
+            self::assertArrayNotHasKey('open_count',$unavailable);
             self::assertSame([], $unavailable['items']);
             self::assertCount(1,$db->queries);
             self::assertFalse($unavailable['retry_permitted']);
