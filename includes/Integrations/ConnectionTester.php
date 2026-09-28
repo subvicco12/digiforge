@@ -42,7 +42,7 @@ final class ConnectionTester {
         $shops = [];
         foreach (array_slice($decoded, 0, 50) as $shop) { if (! is_array($shop)) { continue; } $shops[] = ['id' => absint($shop['id'] ?? 0), 'title' => sanitize_text_field((string) ($shop['title'] ?? '')), 'sales_channel' => sanitize_text_field((string) ($shop['sales_channel'] ?? ''))]; }
         $details = ['http_status' => 200, 'shop_count' => count($shops), 'shops' => $shops];
-        $this->record($integrationId, true, $details, true);
+        if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'printify', 'shop_count' => count($shops)], 'integration', (string) $integrationId);
         $names = array_values(array_filter(array_map(static fn(array $shop): string => (string) ($shop['title'] ?? ''), $shops)));
         return ['ok' => true, 'provider' => 'printify', 'checked_at' => current_time('mysql', true), 'shops' => $shops, 'message' => sprintf(__('Printify connection verified. %d shop(s) returned%s.', 'digiforge'), count($shops), $names ? ': ' . implode(', ', array_slice($names, 0, 5)) : '')];
@@ -59,7 +59,7 @@ final class ConnectionTester {
         $access = $manager->accessToken($integrationId);
         if (is_wp_error($access)) {
             $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'not_configured'];
-            $this->record($integrationId, true, $details, false);
+            if (!$this->record($integrationId, true, $details, false)) return $this->evidenceError($integrationId);
             Logger::audit('integration_connection_test_partial', ['provider' => 'etsy', 'oauth' => 'not_configured'], 'integration', (string) $integrationId);
             return ['ok' => true, 'partial' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => __('Etsy app credentials verified. OAuth shop authorization is still required before this Etsy connector is fully configured.', 'digiforge')];
         }
@@ -109,7 +109,7 @@ final class ConnectionTester {
         }
         unset($access, $apiKey);
         $details = ['http_status' => 200, 'app_credentials' => 'valid', 'oauth' => 'valid', 'user_id' => $userId, 'shop_id' => $shopId, 'shop_name' => $shopName];
-        $this->record($integrationId, true, $details, true);
+        if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'etsy', 'user_id' => $userId], 'integration', (string) $integrationId);
         return ['ok' => true, 'provider' => 'etsy', 'checked_at' => current_time('mysql', true), 'message' => $userId > 0 ? sprintf(__('Etsy connection verified for authenticated user %d.', 'digiforge'), $userId) : __('Etsy connection verified for the authenticated account.', 'digiforge')];
     }
@@ -130,7 +130,7 @@ final class ConnectionTester {
         $checked = $this->checkHttp('gelato', $integrationId, $response); if (is_wp_error($checked)) { return $checked; }
         $decoded = json_decode((string) wp_remote_retrieve_body($response), true); if (! is_array($decoded)) { return $this->invalidResponse('gelato', $integrationId); }
         $details = ['http_status' => 200, 'catalog_count' => count($decoded)];
-        $this->record($integrationId, true, $details, true);
+        if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'gelato', 'catalog_count' => count($decoded)], 'integration', (string) $integrationId);
         return ['ok' => true, 'provider' => 'gelato', 'checked_at' => current_time('mysql', true), 'message' => sprintf(__('Gelato connection verified. %d catalog(s) were returned.', 'digiforge'), count($decoded))];
     }
@@ -144,7 +144,7 @@ final class ConnectionTester {
         $checked = $this->checkHttp('ai', $integrationId, $response); if (is_wp_error($checked)) { return $checked; }
         $decoded = json_decode((string) wp_remote_retrieve_body($response), true); if (! is_array($decoded)) { return $this->invalidResponse('ai', $integrationId); }
         $modelCount = is_array($decoded['data'] ?? null) ? count($decoded['data']) : 0; $details = ['http_status' => 200, 'vendor' => 'openai', 'model_count' => $modelCount];
-        $this->record($integrationId, true, $details, true);
+        if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'ai', 'vendor' => 'openai', 'model_count' => $modelCount], 'integration', (string) $integrationId);
         return ['ok' => true, 'provider' => 'ai', 'checked_at' => current_time('mysql', true), 'message' => sprintf(__('AI provider connection verified for OpenAI. %d model record(s) were returned.', 'digiforge'), $modelCount)];
     }
@@ -194,25 +194,28 @@ final class ConnectionTester {
     private function invalidResponse(string $provider, int $integrationId): \WP_Error { $this->record($integrationId, false, ['reason' => 'invalid_json'], false); return new \WP_Error($provider . '_invalid_response', sprintf(__('%s returned an unreadable response.', 'digiforge'), ucfirst($provider)), ['status' => 502]); }
     private function firstCredential(int $integrationId, array $names): string|\WP_Error { foreach ($names as $name) { $value = $this->credential($integrationId, (string) $name); if (! is_wp_error($value) && $value !== '') { return $value; } } return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
     private function credential(int $integrationId, string $name): string|\WP_Error { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, sanitize_key($name)), ARRAY_A); if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); } try { return CredentialVault::decrypt((string) $row['ciphertext'], Repository::secretContext($integrationId, $name)); } catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); } }
-    private function record(int $integrationId, bool $success, array $details, bool $markConfigured): void {
+    private function evidenceError(int $integrationId): \WP_Error {
+        Logger::audit('integration_connection_test_evidence_failed', ['integration_id'=>$integrationId], 'integration', (string)$integrationId);
+        return new \WP_Error('integration_connection_test_evidence_not_recorded',
+            __('Provider response was received, but local test evidence could not be recorded. Treat readiness as unverified.', 'digiforge'),
+            ['status'=>500]);
+    }
+    private function record(int $integrationId, bool $success, array $details, bool $markConfigured): bool {
         global $wpdb;
         $row=$wpdb->get_row($wpdb->prepare('SELECT config,status FROM '.Tables::integrations().' WHERE id = %d',$integrationId),ARRAY_A);
-        if (!is_array($row)) return;
+        if (!is_array($row)) return false;
         $version=$success?CredentialEvidenceVersion::fromMetadata((new Repository())->secretMetadata($integrationId)):null;
-        if ($success && $version===null) {
-            $success=false;
-            $details=['reason'=>'credential_evidence_unavailable'];
-        }
+        if ($success && $version===null) return false;
         $config=json_decode((string)($row['config']??'{}'),true);
         if (!is_array($config)) $config=[];
         $config['_connection_test']=['ok'=>$success,'checked_at'=>current_time('mysql',true),
             'credential_evidence_version'=>$version,'details'=>$details];
         $encoded=wp_json_encode($config);
-        if (!is_string($encoded)) return;
+        if (!is_string($encoded)) return false;
         $status=(string)($row['status']??'DISCONNECTED');
         if ($success && $markConfigured) $status='CONFIGURED';
         elseif (!$success) $status='ERROR';
-        $wpdb->update(Tables::integrations(),['status'=>$status,'config'=>$encoded,
-            'updated_at'=>current_time('mysql',true)],['id'=>$integrationId]);
+        return $wpdb->update(Tables::integrations(),['status'=>$status,'config'=>$encoded,
+            'updated_at'=>current_time('mysql',true)],['id'=>$integrationId])!==false;
     }
 }
