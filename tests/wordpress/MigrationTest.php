@@ -44,8 +44,8 @@ final class MigrationTest extends WP_UnitTestCase
         $columns = $wpdb->get_col('SHOW COLUMNS FROM ' . DigiForge\Database\Tables::jobs(), 0);
         foreach (['locked_by','lease_expires_at','next_attempt_at','dead_lettered_at'] as $column) self::assertContains($column, $columns);
         foreach (array_merge([DigiForge\Database\Tables::integrations(), DigiForge\Database\Tables::integration_secrets(), DigiForge\Database\Tables::research_sources(), DigiForge\Database\Tables::research_observations(), DigiForge\Database\Tables::research_evidence(), DigiForge\Database\Tables::research_candidates(), DigiForge\Database\Tables::research_candidate_evidence(), DigiForge\Database\Tables::research_reviews(), DigiForge\Database\Tables::ai_tasks(), DigiForge\Database\Tables::ai_models(), DigiForge\Database\Tables::ai_prompts(), DigiForge\Database\Tables::ai_prompt_versions(), DigiForge\Database\Tables::ai_runs(), DigiForge\Database\Tables::ai_outputs(), DigiForge\Database\Tables::ai_usage(), DigiForge\Database\Tables::ai_reviews()], $this->productionTables(), $this->podTables(), $this->businessScopeTables(), $this->listingTables(), $this->orderTables(), $this->financeTables()) as $table) self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
-        self::assertSame(22, (int) get_option('digiforge_db_schema_version'));
-        self::assertSame('22', (string) get_option('digiforge_db_version'));
+        self::assertSame(23, (int) get_option('digiforge_db_schema_version'));
+        self::assertSame('23', (string) get_option('digiforge_db_version'));
         self::assertContains('run_id',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
         self::assertContains('run_started_at',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
         foreach([DigiForge\Database\Tables::pod_render_evidence(),DigiForge\Database\Tables::pod_authorization_packages()] as $table) self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
@@ -59,7 +59,7 @@ final class MigrationTest extends WP_UnitTestCase
         update_option('digiforge_db_schema_version',14,false); update_option('digiforge_db_version','14',false);
         self::assertTrue(DigiForge\Database\OrderSchema::migrateIfNeeded()); (new DigiForge\Database\Migrator())->maybe_migrate();
         self::assertContains('fulfillment_plan_payload_hash',$wpdb->get_col('SHOW COLUMNS FROM '.$table,0));
-        self::assertSame(22,(int)get_option('digiforge_db_schema_version')); self::assertSame('22',(string)get_option('digiforge_db_version'));
+        self::assertSame(23,(int)get_option('digiforge_db_schema_version')); self::assertSame('23',(string)get_option('digiforge_db_version'));
     }
 
     public function testSchemaTwelveUpgradeCreatesFinanceAndBusinessScopeTables(): void
@@ -70,7 +70,7 @@ final class MigrationTest extends WP_UnitTestCase
         update_option('digiforge_db_schema_version', 12, false); update_option('digiforge_db_version', '12', false); $wpdb->last_error = '';
         self::assertTrue(DigiForge\Database\FinanceSchema::migrateIfNeeded()); $this->finishBusinessScopeUpgrade();
         foreach (array_merge($this->financeTables(), $this->businessScopeTables()) as $table) self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
-        self::assertSame($orderBefore, $wpdb->get_row('SHOW CREATE TABLE ' . DigiForge\Database\Tables::orders(), ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(22, (int) get_option('digiforge_db_schema_version')); self::assertSame('22', (string) get_option('digiforge_db_version'));
+        self::assertSame($orderBefore, $wpdb->get_row('SHOW CREATE TABLE ' . DigiForge\Database\Tables::orders(), ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(23, (int) get_option('digiforge_db_schema_version')); self::assertSame('23', (string) get_option('digiforge_db_version'));
     }
 
     public function testSchemaElevenUpgradeCreatesBatchNineThenBatchTenThenBusinessScopeTables(): void
@@ -81,7 +81,7 @@ final class MigrationTest extends WP_UnitTestCase
         update_option('digiforge_db_schema_version', 11, false); update_option('digiforge_db_version', '11', false); $wpdb->last_error = '';
         self::assertTrue(DigiForge\Database\OrderSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\FinanceSchema::migrateIfNeeded()); $this->finishBusinessScopeUpgrade();
         foreach (array_merge($this->orderTables(), $this->financeTables(), $this->businessScopeTables()) as $table) self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
-        self::assertSame($listingBefore, $wpdb->get_row('SHOW CREATE TABLE ' . DigiForge\Database\Tables::listings(), ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(22, (int) get_option('digiforge_db_schema_version')); self::assertSame('22', (string) get_option('digiforge_db_version'));
+        self::assertSame($listingBefore, $wpdb->get_row('SHOW CREATE TABLE ' . DigiForge\Database\Tables::listings(), ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(23, (int) get_option('digiforge_db_schema_version')); self::assertSame('23', (string) get_option('digiforge_db_version'));
     }
 
     public function testSchemaEightUpgradeReachesCurrentWithoutChangingLegacyAiTable(): void
@@ -92,7 +92,7 @@ final class MigrationTest extends WP_UnitTestCase
         update_option('digiforge_db_schema_version', 8, false); update_option('digiforge_db_version', '8', false); $wpdb->last_error = '';
         self::assertTrue(DigiForge\Database\ProductionSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\PodSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\ListingSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\OrderSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\FinanceSchema::migrateIfNeeded()); $this->finishBusinessScopeUpgrade();
         foreach (array_merge($this->productionTables(), $this->podTables(), $this->listingTables(), $this->orderTables(), $this->financeTables(), $this->businessScopeTables()) as $table) self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
-        self::assertSame($legacyBefore, $wpdb->get_row('SHOW CREATE TABLE ' . $legacyTable, ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(22, (int) get_option('digiforge_db_schema_version')); self::assertSame('22', (string) get_option('digiforge_db_version'));
+        self::assertSame($legacyBefore, $wpdb->get_row('SHOW CREATE TABLE ' . $legacyTable, ARRAY_N)); self::assertSame('', (string) $wpdb->last_error); self::assertSame(23, (int) get_option('digiforge_db_schema_version')); self::assertSame('23', (string) get_option('digiforge_db_version'));
     }
 
     public function testReactivationAtSchemaFifteenDoesNotChangeSchema(): void
@@ -105,7 +105,7 @@ final class MigrationTest extends WP_UnitTestCase
 
     public function testHealthSnapshotRemainsSafetyLocked(): void
     {
-        DigiForge\Core\Activator::activate(); $snapshot = (new DigiForge\Observability\HealthMonitor())->snapshot(); self::assertTrue($snapshot['automation_locked']); self::assertSame(22, $snapshot['schema']['expected']); self::assertSame(22, $snapshot['schema']['current']);
+        DigiForge\Core\Activator::activate(); $snapshot = (new DigiForge\Observability\HealthMonitor())->snapshot(); self::assertTrue($snapshot['automation_locked']); self::assertSame(23, $snapshot['schema']['expected']); self::assertSame(23, $snapshot['schema']['current']);
     }
 
     public function testSchemaTwentyOneUpgradeCreatesV22PersistenceEvidenceAndReactivationIsIdempotent(): void
@@ -113,7 +113,7 @@ final class MigrationTest extends WP_UnitTestCase
         DigiForge\Core\Activator::activate(); global $wpdb;
         $table=DigiForge\Database\Tables::pod_permit_persistence_observations();
         $wpdb->query("DROP TABLE IF EXISTS \`{$table}\`"); update_option('digiforge_db_schema_version',21,false); update_option('digiforge_db_version','21',false); $wpdb->last_error='';
-        self::assertTrue(DigiForge\Database\V6OperationalSchema::migrateIfNeeded()); self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table)))); self::assertSame(22,(int)get_option('digiforge_db_schema_version')); self::assertSame('22',(string)get_option('digiforge_db_version'));
+        self::assertTrue(DigiForge\Database\V6OperationalSchema::migrateIfNeeded()); self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table)))); self::assertSame(23,(int)get_option('digiforge_db_schema_version')); self::assertSame('23',(string)get_option('digiforge_db_version'));
         $before=$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N); self::assertIsArray($before); DigiForge\Core\Activator::activate(); self::assertSame($before,$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N)); self::assertSame('',(string)$wpdb->last_error);
     }
 }
