@@ -30,6 +30,7 @@ final class Portal
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
         'dashboard' => ['label' => 'Dashboard', 'cap' => 'manage_digiforge'],
+        'businesses' => ['label' => 'Businesses / Brands / Shops', 'cap' => 'manage_digiforge'],
         'approvals' => ['label' => 'Approval Inbox', 'cap' => 'manage_digiforge_research'],
         'attention' => ['label' => 'Attention & Recovery', 'cap' => 'manage_digiforge'],
         'research' => ['label' => 'Research', 'cap' => 'manage_digiforge_research'],
@@ -40,10 +41,13 @@ final class Portal
         'pod_future_nonpersonalized' => ['label' => 'POD — Future Non-Personalized', 'cap' => 'manage_digiforge_pod'],
         'listings' => ['label' => 'Listings & Etsy', 'cap' => 'manage_digiforge_listings'],
         'orders' => ['label' => 'Orders & Fulfillment', 'cap' => 'manage_digiforge_orders'],
-        'finance' => ['label' => 'Finance & Analytics', 'cap' => 'manage_digiforge_finance'],
+        'finance' => ['label' => 'Finance & GST', 'cap' => 'manage_digiforge_finance'],
+        'analytics' => ['label' => 'Analytics', 'cap' => 'manage_digiforge_finance'],
+        'automation' => ['label' => 'Automation / Queues', 'cap' => 'manage_digiforge'],
         'integrations' => ['label' => 'Integrations', 'cap' => 'manage_digiforge_connections'],
         'audit' => ['label' => 'Audit Log', 'cap' => 'manage_digiforge'],
         'system' => ['label' => 'System & Controls', 'cap' => 'manage_digiforge'],
+        'settings' => ['label' => 'Settings', 'cap' => 'manage_digiforge'],
     ];
 
     public function register(): void
@@ -180,6 +184,10 @@ final class Portal
         if ($view === 'orders') { $this->orderOperations(); return; }
         if ($view === 'listings') { $this->listingOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
+        if ($view === 'analytics') { $this->analyticsOperations(); return; }
+        if ($view === 'automation') { $this->automationOperations(); return; }
+        if ($view === 'businesses') { $this->businessOperations(); return; }
+        if ($view === 'settings') { $this->settingsOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
         if ($view === 'pod_personalized') { $this->personalizedPodSummary(); }
 
@@ -210,6 +218,33 @@ final class Portal
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);$denominators=(new LifecycleDenominatorReadModel())->snapshot();
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html(number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html(number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Lifecycle denominators</h2><p>Authoritative raw lifecycle counts only. They are not attributed to AI spend.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Opportunities</span><b>'.esc_html((string)$denominators['opportunities']).'</b></div><div><span>Developed products</span><b>'.esc_html((string)$denominators['developed_products']).'</b></div><div><span>Approved listings</span><b>'.esc_html((string)$denominators['approved_listings']).'</b></div><div><span>Received orders</span><b>'.esc_html((string)$denominators['received_orders']).'</b></div></div><p class="df-muted">AI cost attribution: NOT ESTABLISHED</p></section>';
         foreach($this->tables('finance') as $label=>$table)$this->panelTable($label,$table);
+    }
+
+    private function businessOperations(): void
+    {
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Businesses / Brands / Shops</h2><p>Current shop scope and business ownership context. This view does not change execution authority.</p></div><span class="df-status">READ ONLY</span></div>';
+        echo '<div class="df-signal-grid">';
+        foreach (ShopOperationsReadModel::shops() as $key => $label) {
+            echo '<div><span>'.esc_html((string)$key).'</span><b>'.esc_html((string)$label).'</b></div>';
+        }
+        echo '</div></section>';
+    }
+
+    private function analyticsOperations(): void
+    {
+        $this->financeOperations();
+    }
+
+    private function automationOperations(): void
+    {
+        $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$queue=(array)($health['queue']['recovery']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($queue['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Attention</span><b>'.esc_html((string)($queue['attention_total']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div></section>';
+    }
+
+    private function settingsOperations(): void
+    {
+        $readiness=(new Readiness())->report();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Settings</h2><p>Operational configuration summary. High-risk execution controls remain in System & Controls with their existing authorization gates.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html(DIGIFORGE_VERSION).'</b></div><div><span>Schema</span><b>'.esc_html((string)($readiness['schema']['current']??'UNKNOWN')).'</b></div><div><span>Externally locked</span><b>'.(!empty($readiness['externally_locked'])?'YES':'NO').'</b></div><div><span>Readiness</span><b>'.esc_html((string)($readiness['status']??'REVIEW_REQUIRED')).'</b></div></div></section>';
     }
 
     private function personalizedPodSummary(): void
