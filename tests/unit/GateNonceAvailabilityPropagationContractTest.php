@@ -6,7 +6,7 @@ final class GateNonceAvailabilityPropagationContractTest extends TestCase {
   $c=file_get_contents(__DIR__.'/../../includes/POD/ExecutionAuthorizationVerifier.php');
   self::assertStringContainsString('$unused=$nonceUnused($nonce)',$c);
   self::assertStringContainsString('if(is_wp_error($unused))return $unused',$c);
-  self::assertStringContainsString('if(\$unused!==true)',\$c);
+  self::assertStringContainsString('if($unused!==true)',$c);
  }
  public function testGateCallbackAcceptsExplicitEvidenceError():void {
   $c=file_get_contents(__DIR__.'/../../includes/POD/ControlledExecutionGate.php');
