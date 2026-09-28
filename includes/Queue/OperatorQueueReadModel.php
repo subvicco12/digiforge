@@ -4,6 +4,14 @@ namespace DigiForge\Queue;
 use DigiForge\Database\Tables;
 /** Bounded, read-only queue evidence for live-site operator drill-down. */
 final class OperatorQueueReadModel {
+ /** Exact attention record for navigation; a changed state fails closed. */
+ public function attentionById(int $id):?array {
+  if($id<1)return null;
+  global $wpdb;
+  $row=$wpdb->get_row($wpdb->prepare("SELECT id,job_type,state,attempts,max_attempts,last_error,next_attempt_at,lease_expires_at,created_at,updated_at FROM ".Tables::jobs()." WHERE id=%d AND state IN ('FAILED','BLOCKED','HUMAN_REVIEW','DEAD_LETTER')",$id),ARRAY_A);
+  if(!is_array($row))return null;
+  return $row+['read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
+ }
  /** @return list<array<string,mixed>> */
  public function recentAttention(int $limit=50):array {
   global $wpdb;$limit=max(1,min(100,$limit));
