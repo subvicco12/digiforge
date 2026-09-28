@@ -47,4 +47,36 @@ final class OperatorQueueApprovalDashboardContractTest extends TestCase {
   }
   self::assertStringContainsString('Reconcile before any retry',$portal);
  }
+ public function testQueueEvidenceReadFailuresRemainExplicitlyUnavailable():void {
+  require_once __DIR__.'/../../includes/Queue/OperatorQueueReadModel.php';
+  require_once __DIR__.'/../../includes/Database/Tables.php';
+  $previous=$GLOBALS['wpdb']??null;
+  $GLOBALS['wpdb']=new class {
+   public string $prefix='wp_';
+   public string $last_error='fixture unavailable';
+   public function prepare(string $sql,mixed ...$args):string{return $sql;}
+   public function get_results(string $sql,mixed $format):?array{return null;}
+   public function get_var(string $sql):?string{return null;}
+  };
+  try {
+   $model=new \\DigiForge\\Queue\\OperatorQueueReadModel();
+   $attentionState=null;$items=$model->recentAttention(25,$attentionState);
+   self::assertSame('UNAVAILABLE',$attentionState);self::assertSame([],$items);
+   $idemState=null;$idem=$model->unresolvedIdempotency(25,$idemState);
+   self::assertSame('UNAVAILABLE',$idemState);self::assertSame([],$idem);
+   $diagnostics=$model->diagnostics();
+   self::assertSame('UNAVAILABLE',$diagnostics['query_state']);
+   self::assertNull($diagnostics['orphaned_expired_leases']);
+   self::assertContains('QUEUE_EVIDENCE_UNAVAILABLE_REQUIRES_REVIEW',$model->recoveryClassification()['classifications']);
+   $recovery=$model->recoveryEvidence(25);
+   self::assertSame('UNAVAILABLE',$recovery['query_state']);
+   self::assertNull($recovery['correlation']['attention_count']);
+   self::assertTrue($recovery['correlation']['requires_operator_review']);
+  } finally { $GLOBALS['wpdb']=$previous; }
+ }
+ public function testPortalDoesNotRenderFailedQueueReadsAsEmptyEvidence():void {
+  $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
+  foreach(['Queue attention evidence unavailable','Unresolved idempotency evidence unavailable',"===null?'UNAVAILABLE'"] as $needle) self::assertStringContainsString($needle,$portal);
+ }
+
 }
