@@ -44,7 +44,7 @@ final class U3ApprovalInbox
         );
         if (!empty($wpdb->last_error)) $listingReviews=null;
         $personalization = $wpdb->get_results(
-            "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at FROM " . Tables::personalization_submissions() . " p WHERE p.review_status NOT IN ('APPROVED','REJECTED') ORDER BY p.id DESC LIMIT 50",
+            "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at,li.id AS subject_id,li.environment AS line_environment,li.product_version_id AS line_product_version_id,s.id AS schema_subject_id,s.product_version_id AS schema_product_version_id,s.state AS schema_state FROM " . Tables::personalization_submissions() . " p LEFT JOIN " . Tables::order_line_items() . " li ON li.id=p.order_line_item_id LEFT JOIN " . Tables::personalization_schemas() . " s ON s.id=p.personalization_schema_id WHERE p.review_status NOT IN ('APPROVED','REJECTED') ORDER BY p.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $personalization=null;
@@ -132,6 +132,10 @@ final class U3ApprovalInbox
         if (isset($row['subject_order_id']) && (int) $row['subject_order_id'] !== (int) ($row['order_id'] ?? 0)) { return 'CONFLICTING ORDER — REVIEW'; }
         if (!empty($row['subject_updated_at']) && !empty($row['created_at']) && strcmp((string) $row['subject_updated_at'], (string) $row['created_at']) > 0) { return 'SUBJECT CHANGED — RECHECK'; }
         if (isset($row['personalization_schema_id']) && (int) $row['personalization_schema_id'] < 1) { return 'MISSING SCHEMA REFERENCE — REVIEW'; }
+        if (array_key_exists('schema_subject_id', $row) && (int) $row['schema_subject_id'] < 1) { return 'MISSING SCHEMA — REVIEW'; }
+        if (isset($row['line_product_version_id'], $row['schema_product_version_id']) && (int) $row['line_product_version_id'] !== (int) $row['schema_product_version_id']) { return 'SCHEMA PRODUCT MISMATCH — REVIEW'; }
+        if (isset($row['line_environment']) && (string) $row['line_environment'] !== (string) ($row['environment'] ?? '')) { return 'ENVIRONMENT MISMATCH — REVIEW'; }
+        if (isset($row['schema_state']) && (string) $row['schema_state'] !== 'APPROVED') { return 'SCHEMA NOT APPROVED — REVIEW'; }
         return 'RECORDED — VERIFY IN WORKFLOW';
     }
 
