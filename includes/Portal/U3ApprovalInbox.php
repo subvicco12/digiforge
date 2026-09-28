@@ -220,19 +220,23 @@ final class U3ApprovalInbox
         if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
         foreach ($rows as &$row) {
             $planId = (int) $row['plan_id'];
-            $row['asset_count'] = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1', $planId));
+            $assetCount = $this->safeCount($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1', $planId));
             $row['assets'] = $this->assetsForPlan($planId);
+            if ($assetCount === null || $row['assets'] === null) { return null; }
+            $row['asset_count'] = $assetCount;
             $revisionFailures = 0;
             foreach ((array) $row['assets'] as $asset) {
                 $revisionId = (int) ($asset['revision_id'] ?? 0);
                 if ($revisionId < 1 || (string) ($asset['revision_state'] ?? '') !== 'QA_PASSED') { $revisionFailures++; continue; }
-                $qaTotal = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d", $revisionId));
-                $qaBad = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')", $revisionId));
+                $qaTotal = $this->safeCount($wpdb->prepare("SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d", $revisionId));
+                $qaBad = $this->safeCount($wpdb->prepare("SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')", $revisionId));
+                if ($qaTotal === null || $qaBad === null) { return null; }
                 if ($qaTotal < 1 || $qaBad > 0) { $revisionFailures++; }
             }
             if (count((array) $row['assets']) < (int) $row['asset_count']) { $revisionFailures += (int) $row['asset_count'] - count((array) $row['assets']); }
             $row['semantic_checks'] = $this->semanticChecks($planId);
-            $semanticTotal = count((array) $row['semantic_checks']);
+            if ($row['semantic_checks'] === null) { return null; }
+            $semanticTotal = count($row['semantic_checks']);
             $semanticFailures = count(array_filter((array) $row['semantic_checks'], static fn(array $check): bool => ! in_array((string) ($check['status'] ?? ''), ['PASS', 'WAIVED'], true)));
             $row['qa_failures'] = $revisionFailures + $semanticFailures;
             $row['semantic_qa_status'] = $semanticTotal >= 7 && $semanticFailures === 0 ? 'PASS' : 'BLOCKED';
@@ -241,24 +245,31 @@ final class U3ApprovalInbox
         return $rows;
     }
 
-    /** @return list<array<string,mixed>> */
-    private function semanticChecks(int $planId): array
+    /** @return ?list<array<string,mixed>> */
+    private function semanticChecks(int $planId): ?array
     {
         global $wpdb;
         $rows = $wpdb->get_results($wpdb->prepare("SELECT check_type,status,details,created_at FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' ORDER BY id ASC", $planId), ARRAY_A);
-        return is_array($rows) ? array_values($rows) : [];
+        return is_array($rows) && empty($wpdb->last_error) ? array_values($rows) : null;
     }
 
-    /** @return list<array<string,mixed>> */
-    private function assetsForPlan(int $planId): array
+    /** @return ?list<array<string,mixed>> */
+    private function assetsForPlan(int $planId): ?array
     {
         global $wpdb;
         $sql = 'SELECT s.asset_key,s.asset_type,s.purpose,s.format,ar.id AS revision_id,ar.storage_reference,ar.mime_type,ar.byte_size,ar.state AS revision_state FROM ' . Tables::production_plan_assets() . ' pa INNER JOIN ' . Tables::asset_specs() . ' s ON s.id=pa.asset_spec_id INNER JOIN ' . Tables::asset_revisions() . ' ar ON ar.id=(SELECT ar2.id FROM ' . Tables::asset_revisions() . ' ar2 WHERE ar2.asset_spec_id=s.id ORDER BY ar2.id DESC LIMIT 1) WHERE pa.production_plan_id=%d AND pa.is_required=1 ORDER BY pa.sequence_no ASC';
         $rows = $wpdb->get_results($wpdb->prepare($sql, $planId), ARRAY_A);
-        if (! is_array($rows)) { return []; }
+        if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
         foreach ($rows as &$row) { $row['filename'] = sanitize_file_name(basename((string) ($row['storage_reference'] ?? 'asset'))); }
         unset($row);
         return array_values($rows);
+    }
+
+    private function safeCount(string $sql): ?int
+    {
+        global $wpdb;
+        $value=$wpdb->get_var($sql);
+        return is_numeric($value) && empty($wpdb->last_error) ? (int)$value : null;
     }
 
     private function assetReviewUrl(int $revisionId): string
