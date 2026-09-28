@@ -210,7 +210,7 @@ final class Portal
     private function alertWorkflowUrl(string $sourceType):string
     {
         $source=strtolower($sourceType);
-        $view=str_contains($source,'etsy')||str_contains($source,'listing')?'listings':(str_contains($source,'pod')||str_contains($source,'printify')?'pod_personalized':(str_contains($source,'order')||str_contains($source,'fulfill')?'orders':'attention'));
+        $view=str_contains($source,'integration')||str_contains($source,'connector')||str_contains($source,'credential')?'integrations':(str_contains($source,'etsy')||str_contains($source,'listing')?'listings':(str_contains($source,'pod')||str_contains($source,'printify')?'pod_personalized':(str_contains($source,'order')||str_contains($source,'fulfill')?'orders':'attention')));
         return $this->url($view);
     }
 
@@ -551,17 +551,15 @@ final class Portal
     {
         global $wpdb;
         $integrationReadiness=(new IntegrationReadinessReadModel())->snapshot();
-        $rows = $wpdb->get_results(
-            'SELECT id,provider,environment,connection_key,display_name,status,enabled,updated_at FROM '
-            . Tables::integrations() . ' ORDER BY id ASC',
-            ARRAY_A
-        );
+        $rows = $integrationReadiness['items'];
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Provider integrations</h2>'
             . '<p>Credentials are never displayed in this portal. Readiness is derived from stored integration evidence only; opening this page never performs a provider connectivity test.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Total connectors</span><b>'.esc_html((string)$integrationReadiness['counts']['total']).'</b></div><div><span>Enabled</span><b>'.esc_html((string)$integrationReadiness['counts']['enabled']).'</b></div><div><span>Connected evidence</span><b>'.esc_html((string)$integrationReadiness['counts']['connected']).'</b></div><div><span>Needs attention</span><b>'.esc_html((string)$integrationReadiness['counts']['attention']).'</b></div><div><span>External execution authority</span><b>NO</b></div></div><div class="df-integration-grid">';
         foreach (is_array($rows) ? $rows : [] as $row) {
             echo '<article class="df-integration-card"><h3>' . esc_html((string) $row['display_name']) . '</h3>'
                 . '<dl class="df-kv">'
                 . '<div><dt>Status</dt><dd>' . esc_html((string) $row['status']) . '</dd></div>'
+                . '<div><dt>Evidence</dt><dd>' . esc_html((string) $row['evidence_state']) . '</dd></div>'
+                . '<div><dt>Review reason</dt><dd>' . esc_html((string) $row['attention_reason']) . '</dd></div>'
                 . '<div><dt>Provider</dt><dd>' . esc_html((string) $row['provider']) . '</dd></div>'
                 . '<div><dt>Environment</dt><dd>' . esc_html((string) $row['environment']) . '</dd></div>'
                 . '<div><dt>Enabled</dt><dd>' . (! empty($row['enabled']) ? 'YES' : 'NO') . '</dd></div>'
