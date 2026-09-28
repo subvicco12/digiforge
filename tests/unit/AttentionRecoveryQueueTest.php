@@ -14,6 +14,9 @@ final class AttentionRecoveryQueueTest extends TestCase
         self::assertStringContainsString('private function attention()', $source);
         self::assertStringContainsString('ResearchActivationPreflight', $source);
         self::assertStringContainsString('Open operational alerts', $source);
+        self::assertStringContainsString('Production integrity & persistence evidence', $source);
+        self::assertStringContainsString('Persistence UNKNOWN', $source);
+        self::assertStringContainsString('<td>NO</td><td>NO</td>', $source);
         self::assertStringContainsString('credential_decryptable', $source);
     }
 
