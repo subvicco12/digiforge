@@ -106,7 +106,8 @@ final class U3ApprovalInbox
 
     private function workflowUrl(string $group): string
     {
-        $view = str_contains($group, 'Listing') ? 'listings' : (str_contains($group, 'POD') || str_contains($group, 'Personalization') ? 'pod_personalized' : 'orders');
+        $view = str_contains($group, 'Listing') ? 'listings'
+            : (str_contains($group, 'POD') ? 'pod_personalized' : 'orders');
         return add_query_arg(['df_view' => $view], home_url('/'));
     }
 
