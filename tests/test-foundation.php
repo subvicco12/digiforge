@@ -43,7 +43,7 @@ foreach (['manage_digiforge', 'manage_digiforge_products', 'manage_digiforge_dig
 $bootstrap = source('digiforge.php');
 expect(str_contains($bootstrap, "spl_autoload_register('digiforge_autoload')"), 'internal autoloader is registered');
 expect(str_contains($bootstrap, 'register_activation_hook'), 'activation hook is registered');
-expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '21'"), 'database schema version is current');
+expect(str_contains($bootstrap, "DIGIFORGE_DB_VERSION = '22'"), 'database schema version is current');
 expect(str_contains($bootstrap, '* Version: 1.0.65'), 'plugin header release version is current');
 expect(str_contains($bootstrap, "const DIGIFORGE_VERSION = '1.0.65';"), 'runtime release version is current');
 
