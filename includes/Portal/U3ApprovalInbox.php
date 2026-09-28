@@ -42,31 +42,36 @@ final class U3ApprovalInbox
             "SELECT r.id,r.listing_id,r.decision,r.created_at,l.id AS subject_id,l.title,l.environment,l.updated_at AS subject_updated_at FROM " . Tables::listing_readiness_reviews() . " r LEFT JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
+        if (!empty($wpdb->last_error)) $listingReviews=null;
         $personalization = $wpdb->get_results(
             "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at FROM " . Tables::personalization_submissions() . " p WHERE p.review_status NOT IN ('APPROVED','REJECTED') ORDER BY p.id DESC LIMIT 50",
             ARRAY_A
         );
+        if (!empty($wpdb->last_error)) $personalization=null;
         $podReviews = $wpdb->get_results(
             "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.id AS subject_id,m.provider,m.environment,m.updated_at AS subject_updated_at FROM " . Tables::pod_readiness_reviews() . " r LEFT JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
+        if (!empty($wpdb->last_error)) $podReviews=null;
         $fulfillmentReviews = $wpdb->get_results(
             "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.id AS subject_id,p.order_id AS subject_order_id,p.provider,p.environment,p.state,p.updated_at AS subject_updated_at FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
+        if (!empty($wpdb->last_error)) $fulfillmentReviews=null;
         $groups = [
-            'Listing / publish decisions (Gate 3)' => is_array($listingReviews) ? $listingReviews : [],
-            'Personalization exceptions' => is_array($personalization) ? $personalization : [],
-            'POD readiness exceptions' => is_array($podReviews) ? $podReviews : [],
-            'Fulfillment exceptions' => is_array($fulfillmentReviews) ? $fulfillmentReviews : [],
+            'Listing / publish decisions (Gate 3)' => is_array($listingReviews) ? $listingReviews : null,
+            'Personalization exceptions' => is_array($personalization) ? $personalization : null,
+            'POD readiness exceptions' => is_array($podReviews) ? $podReviews : null,
+            'Fulfillment exceptions' => is_array($fulfillmentReviews) ? $fulfillmentReviews : null,
         ];
         $pendingTotal=$this->pendingOperationalCount();
         ob_start(); ?>
-        <section class="df-panel df-u3-operational-approvals">
-            <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div><div class="df-signal-grid"><div><span>Downstream pending decisions</span><b><?php echo esc_html((string)$pendingTotal); ?></b></div><div><span>Approval authority in this aggregate</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div>
+        <section class="df-panel df-u3-operational-approvals" id="df-approval-downstream">
+            <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div><div class="df-signal-grid"><div><span>Downstream pending decisions</span><b><?php echo esc_html($pendingTotal===null?'UNKNOWN':(string)$pendingTotal); ?></b></div><div><span>Approval authority in this aggregate</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div>
             <?php foreach ($groups as $title => $rows) : ?>
-                <div class="df-subpanel"><h4><?php echo esc_html($title); ?></h4>
-                <?php if ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
+                <div class="df-subpanel" id="<?php echo esc_attr(match ($title) {'Listing / publish decisions (Gate 3)'=>'df-approval-listing','Personalization exceptions'=>'df-approval-personalization','POD readiness exceptions'=>'df-approval-pod','Fulfillment exceptions'=>'df-approval-fulfillment'}); ?>"><h4><?php echo esc_html($title); ?></h4>
+                <?php if ($rows === null) : ?><div class="df-notice df-notice-error">Pending evidence unavailable. Review the dedicated workflow; no empty queue is inferred.</div>
+                <?php elseif ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
                     <div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Subject</th><th>Environment</th><th>Status</th><th>Evidence</th><th>Created</th><th>Workflow</th></tr></thead><tbody>
                     <?php foreach ($rows as $row) :
                         $id = (int) ($row['id'] ?? 0);
@@ -87,15 +92,16 @@ final class U3ApprovalInbox
     }
 
     /** Count all pending records independently of the bounded evidence rows above. */
-    private function pendingOperationalCount(): int
+    private function pendingOperationalCount(): ?int
     {
         global $wpdb;
-        return (int) $wpdb->get_var(
+        $count=$wpdb->get_var(
             'SELECT (SELECT COUNT(*) FROM ' . Tables::listing_readiness_reviews() . " WHERE decision='PENDING')"
             . ' + (SELECT COUNT(*) FROM ' . Tables::personalization_submissions() . " WHERE review_status NOT IN ('APPROVED','REJECTED'))"
             . ' + (SELECT COUNT(*) FROM ' . Tables::pod_readiness_reviews() . " WHERE decision='PENDING')"
             . ' + (SELECT COUNT(*) FROM ' . Tables::fulfillment_readiness_reviews() . " WHERE decision='PENDING')"
         );
+        return $count===null || !empty($wpdb->last_error) ? null : (int)$count;
     }
 
     private function workflowUrl(string $group): string
@@ -147,10 +153,10 @@ final class U3ApprovalInbox
     {
         $rows = $this->pendingProducts();
         ob_start(); ?>
-        <section class="df-panel df-u3-product-approvals">
-            <div class="df-panel-head"><div><h2>Product approval inbox</h2><p>Gate 2 — inspect protected product files, marketing assets, latest-revision deterministic QA and semantic/policy QA evidence before deciding.</p></div><span><?php echo esc_html((string) $this->pendingProductCount()); ?> need decision</span></div>
+        <section class="df-panel df-u3-product-approvals" id="df-approval-product">
+            <div class="df-panel-head"><div><h2>Product approval inbox</h2><p>Gate 2 — inspect protected product files, marketing assets, latest-revision deterministic QA and semantic/policy QA evidence before deciding.</p></div><span><?php $productCount=$this->pendingProductCount();echo esc_html($productCount===null?'UNKNOWN':(string)$productCount); ?> need decision</span></div>
             <div class="df-muted">The count covers all pending product plans; this panel displays the most recent 50. Gate 2 remains human-controlled. Product Approval does not activate Etsy publishing, POD fulfillment, orders or tax automation.</div>
-            <?php if ($rows === []) : ?><div class="df-empty">No finished products currently require Product Approval.</div><?php else : foreach ($rows as $row) : ?>
+            <?php if ($rows === null) : ?><div class="df-notice df-notice-error">Product approval evidence unavailable. No empty queue is inferred.</div><?php elseif ($rows === []) : ?><div class="df-empty">No finished products currently require Product Approval.</div><?php else : foreach ($rows as $row) : ?>
                 <article class="df-candidate">
                     <div class="df-candidate-head"><div><span class="df-kicker">Product #<?php echo esc_html((string) $row['product_id']); ?> · Version #<?php echo esc_html((string) $row['product_version_id']); ?></span><h3><?php echo esc_html((string) $row['product_name']); ?></h3><span class="df-status"><?php echo esc_html((string) $row['plan_state']); ?></span></div><div class="df-score"><strong><?php echo esc_html((string) $row['asset_count']); ?></strong><span> assets</span></div></div>
                     <div class="df-signal-grid"><div><span>Channel</span><b><?php echo esc_html(strtoupper((string) $row['channel'])); ?></b></div><div><span>QA blockers</span><b><?php echo esc_html((string) $row['qa_failures']); ?></b></div><div><span>Semantic QA</span><b><?php echo esc_html((string) $row['semantic_qa_status']); ?></b></div><div><span>Bundle</span><b><?php echo esc_html((string) ($row['bundle_state'] ?: 'MISSING')); ?></b></div><div><span>Workflow</span><b>PRODUCT_REVIEW_REQUIRED</b></div></div>
@@ -189,23 +195,24 @@ final class U3ApprovalInbox
     }
 
     /** Count the plans represented by the bounded product inbox, independent of bundle versions. */
-    private function pendingProductCount(): int
+    private function pendingProductCount(): ?int
     {
         global $wpdb;
-        return (int) $wpdb->get_var(
+        $count=$wpdb->get_var(
             'SELECT COUNT(*) FROM ' . Tables::production_plans() . ' pp'
             . ' INNER JOIN ' . Tables::product_versions() . ' pv ON pv.id=pp.product_version_id'
             . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'"
         );
+        return $count===null || !empty($wpdb->last_error) ? null : (int)$count;
     }
 
-    /** @return list<array<string,mixed>> */
-    private function pendingProducts(): array
+    /** @return ?list<array<string,mixed>> */
+    private function pendingProducts(): ?array
     {
         global $wpdb;
         $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.id=(SELECT rb2.id FROM " . Tables::release_bundles() . " rb2 WHERE rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1) WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
         $rows = $wpdb->get_results($sql, ARRAY_A);
-        if (! is_array($rows)) { return []; }
+        if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
         foreach ($rows as &$row) {
             $planId = (int) $row['plan_id'];
             $row['asset_count'] = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1', $planId));

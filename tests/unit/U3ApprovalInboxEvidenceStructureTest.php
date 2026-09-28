@@ -62,6 +62,40 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         } finally { $GLOBALS['wpdb'] = $previous; }
     }
 
+    public function testPendingCountQueryFailureDoesNotReportZero(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $last_error = 'fixture unavailable';
+            public function get_var(string $sql): ?string { return null; }
+        };
+        try {
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertNull((new ReflectionMethod($inbox, 'pendingOperationalCount'))->invoke($inbox));
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
+    public function testProductEvidenceQueryFailureDoesNotReportAnEmptyInbox(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $last_error = 'fixture unavailable';
+            public function get_var(string $sql): ?string { return null; }
+            public function get_results(string $sql,mixed $format): ?array { return null; }
+        };
+        try {
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertNull((new ReflectionMethod($inbox, 'pendingProductCount'))->invoke($inbox));
+            self::assertNull((new ReflectionMethod($inbox, 'pendingProducts'))->invoke($inbox));
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
     public function testProductApprovalCountAndEvidenceWindowRepresentUniquePlans(): void
     {
         require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
