@@ -1,5 +1,11 @@
 ## 1.0.74 — 2026-09-28
 
+- Fixes active-plugin upgrades so normal boot runs the additive v16-v23 migration chain when an in-place plugin replacement does not fire the activation hook.
+- Reproduces schema-v22-without-v23-table and proves normal boot repairs it to schema v23.
+- Preserves STOP ALL, external lock, recovery gating and non-authorizing execution boundaries; no external action is authorized.
+
+## 1.0.74 — 2026-09-28
+
 - Fixes the active-plugin production upgrade path so normal plugin boot runs the additive v16-v23 migration chain even when WordPress does not fire the activation hook during an in-place plugin replacement.
 - Adds regression coverage reproducing an active schema-v22 installation with the v23 scoped-policy table absent and proving normal boot repairs it to schema v23.
 - Preserves STOP ALL, external lock, recovery gating and all non-authorizing execution boundaries; no external action is authorized by this hotfix.
