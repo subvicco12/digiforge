@@ -12,13 +12,13 @@ final class ScopedPolicySchema {
   workflow_key varchar(100) NOT NULL,
   capability varchar(64) NOT NULL,
   enabled tinyint(1) NOT NULL DEFAULT 0,
-  version int unsigned NOT NULL,
+  policy_version int unsigned NOT NULL,
   policy_hash char(64) NOT NULL,
   previous_policy_hash char(64) NOT NULL DEFAULT '',
   created_by bigint(20) unsigned NOT NULL DEFAULT 0,
   created_at datetime NOT NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY scope_version (shop_key,workflow_key,capability,version),
+  UNIQUE KEY scope_version (shop_key,workflow_key,capability,policy_version),
   UNIQUE KEY policy_hash (policy_hash),
   KEY scope_latest (shop_key,workflow_key,capability,created_at)
 ) $charset;";
