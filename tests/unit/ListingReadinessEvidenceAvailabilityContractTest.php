@@ -16,6 +16,6 @@ final class ListingReadinessEvidenceAvailabilityContractTest extends TestCase {
  public function testDraftPackageStillRequiresSuccessfulReadyProjection():void {
   $c=file_get_contents(__DIR__.'/../../includes/Listings/Repository.php');
   self::assertStringContainsString('$readiness=$this->readiness($listingId)',$c);
-  self::assertStringContainsString("is_wp_error($readiness)||empty($readiness['ready'])",$c);
+  self::assertStringContainsString('is_wp_error($readiness)||empty($readiness[\'ready\'])',$c);
  }
 }
