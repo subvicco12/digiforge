@@ -222,29 +222,29 @@ final class Portal
 
     private function businessOperations(): void
     {
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Businesses / Brands / Shops</h2><p>Current shop scope and business ownership context. This view does not change execution authority.</p></div><span class="df-status">READ ONLY</span></div>';
-        echo '<div class="df-signal-grid">';
-        foreach (ShopOperationsReadModel::shops() as $key => $label) {
-            echo '<div><span>'.esc_html((string)$key).'</span><b>'.esc_html((string)$label).'</b></div>';
-        }
-        echo '</div></section>';
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
+        $ops=(new ShopOperationsReadModel())->snapshot($shop);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Businesses / Brands / Shops</h2><p>Shop-scoped operating context. AI policy and usage evidence do not grant external execution authority.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Selected scope</span><b>'.esc_html((string)$ops['shop_label']).'</b></div><div><span>AI policies</span><b>'.esc_html((string)count((array)$ops['ai_policies'])).'</b></div><div><span>AI usage groups</span><b>'.esc_html((string)count((array)$ops['ai_usage'])).'</b></div><div><span>External execution</span><b>NO</b></div></div></section>';
     }
 
     private function analyticsOperations(): void
     {
-        $this->financeOperations();
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
+        $kpi=(new CostKpiReadModel())->snapshot($shop);$denominators=(new LifecycleDenominatorReadModel())->snapshot();
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Analytics</h2><p>Read-only operational measurement, separated from finance ledger administration.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html((string)$kpi['quantity']).'</b></div><div><span>Actual AI cost</span><b>'.esc_html(number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Developed products</span><b>'.esc_html((string)$denominators['developed_products']).'</b></div><div><span>Received orders</span><b>'.esc_html((string)$denominators['received_orders']).'</b></div></div><p class="df-muted">Analytics is evidence only and does not infer publish, production, refund, tax or money-movement authority.</p></section>';
+        $this->panelTable('Analytics Snapshots',Tables::analytics_snapshots());
     }
 
     private function automationOperations(): void
     {
-        $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$queue=(array)($health['queue']['recovery']??[]);
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($queue['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Attention</span><b>'.esc_html((string)($queue['attention_total']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div></section>';
+        $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$q=(array)($health['queue']??[]);$queue=(array)($q['recovery']??[]);$states=(array)($queue['states']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Automation / Queues</h2><p>Read-only queue and recovery visibility. Viewing this page never runs, retries or replays a job.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($q['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Expired leases</span><b>'.esc_html((string)($q['expired_leases']??0)).'</b></div><div><span>FAILED</span><b>'.esc_html((string)($states['FAILED']??0)).'</b></div><div><span>BLOCKED</span><b>'.esc_html((string)($states['BLOCKED']??0)).'</b></div><div><span>HUMAN_REVIEW</span><b>'.esc_html((string)($states['HUMAN_REVIEW']??0)).'</b></div><div><span>DEAD_LETTER</span><b>'.esc_html((string)($states['DEAD_LETTER']??0)).'</b></div><div><span>Execution authority</span><b>NO</b></div><div><span>Automatic retry from view</span><b>NO</b></div></div></section>';
     }
 
     private function settingsOperations(): void
     {
-        $readiness=(new Readiness())->report();
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Settings</h2><p>Operational configuration summary. High-risk execution controls remain in System & Controls with their existing authorization gates.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html(DIGIFORGE_VERSION).'</b></div><div><span>Schema</span><b>'.esc_html((string)($readiness['schema']['current']??'UNKNOWN')).'</b></div><div><span>Externally locked</span><b>'.(!empty($readiness['externally_locked'])?'YES':'NO').'</b></div><div><span>Readiness</span><b>'.esc_html((string)($readiness['status']??'REVIEW_REQUIRED')).'</b></div></div></section>';
+        $readiness=(new Readiness())->report();$switches=(array)($readiness['effective_switches']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Settings</h2><p>Operational configuration summary. High-risk execution controls remain in System & Controls with their existing authorization gates.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html(DIGIFORGE_VERSION).'</b></div><div><span>Schema</span><b>'.esc_html((string)($readiness['schema']['current']??'UNKNOWN')).'</b></div><div><span>Externally locked</span><b>'.(!empty($readiness['externally_locked'])?'YES':'NO').'</b></div><div><span>Readiness</span><b>'.esc_html((string)($readiness['status']??'REVIEW_REQUIRED')).'</b></div><div><span>Effective switches ON</span><b>'.esc_html((string)count(array_filter($switches))).'</b></div><div><span>Recovery drill</span><b>'.(!empty($readiness['checks']['recovery_drill_passed'])?'PASS':'NOT PASSED').'</b></div></div><p class="df-muted">This page is observational. It cannot enable research, AI, Etsy, POD, order automation, GST automation or external execution.</p></section>';
     }
 
     private function personalizedPodSummary(): void
