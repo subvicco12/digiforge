@@ -44,12 +44,14 @@ final class Portal
         'pod_personalized' => ['label' => 'POD — Personalized', 'cap' => 'manage_digiforge_pod'],
         'pod_future_nonpersonalized' => ['label' => 'POD — Future Non-Personalized', 'cap' => 'manage_digiforge_pod'],
         'listings' => ['label' => 'Listings & Etsy', 'cap' => 'manage_digiforge_listings'],
-        'orders' => ['label' => 'Orders & Fulfillment', 'cap' => 'manage_digiforge_orders'],
+        'orders' => ['label' => 'Orders / Personalization', 'cap' => 'manage_digiforge_orders'],
+        'fulfillment' => ['label' => 'Fulfillment / Providers', 'cap' => 'manage_digiforge_orders'],
+        'ai_budget' => ['label' => 'AI & Budget', 'cap' => 'manage_digiforge_ai'],
         'finance' => ['label' => 'Finance & GST', 'cap' => 'manage_digiforge_finance'],
         'analytics' => ['label' => 'Analytics', 'cap' => 'manage_digiforge_finance'],
         'automation' => ['label' => 'Automation / Queues', 'cap' => 'manage_digiforge'],
         'integrations' => ['label' => 'Integrations', 'cap' => 'manage_digiforge_connections'],
-        'audit' => ['label' => 'Audit Log', 'cap' => 'manage_digiforge'],
+        'audit' => ['label' => 'Audit / Reconciliation', 'cap' => 'manage_digiforge'],
         'system' => ['label' => 'System & Controls', 'cap' => 'manage_digiforge'],
         'settings' => ['label' => 'Settings', 'cap' => 'manage_digiforge'],
     ];
@@ -185,6 +187,8 @@ final class Portal
         if ($view === 'research') { $this->research(); return; }
         if ($view === 'integrations') { $this->integrations(); return; }
         if ($view === 'system') { $this->system(); return; }
+        if ($view === 'fulfillment') { $this->fulfillmentProviders(); return; }
+        if ($view === 'ai_budget') { $this->aiBudgetOperations(); return; }
         if ($view === 'audit') { $this->auditReconciliationOperations(); return; }
         if ($view === 'orders') { $this->orderOperations(); return; }
         if ($view === 'listings') { $this->listingOperations(); return; }
@@ -233,6 +237,21 @@ final class Portal
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
         foreach($rows as $row){$r=(array)$row['readiness'];$rec=$orderReconciliation->forOrder((int)$row['id']);$disc=$orderReconciliation->discrepancies((int)$row['id'],25);echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)($r['fulfillment_mode']??'UNKNOWN')).'</td><td>'.(!empty($r['ready'])?'YES':'NO').' / reconciliation '.(!empty($rec['reconciled'])?'OK':'REVIEW').' / discrepancies '.esc_html((string)count($disc)).'</td><td>NO</td></tr>';}
         echo '</tbody></table></div><p class="df-muted">Fulfillment exceptions requiring evidence review: '.esc_html((string)count($fulfillmentExceptions)).'. This count does not authorize provider execution.</p>';if($fulfillmentExceptions!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Intent</th><th>Order</th><th>State</th><th>Audit identity</th><th>Workflow</th></tr></thead><tbody>';foreach(array_slice($fulfillmentExceptions,0,25) as $row){echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['intent_type']).'</td><td>#'.esc_html((string)$row['order_id']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>fulfillment_intent:'.esc_html((string)$row['id']).'</code></td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('audit')).'">Open audit/reconciliation</a></td></tr>';}echo '</tbody></table></div>';}echo '</section>';
+    }
+
+    private function aiBudgetOperations():void
+    {
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$data=(new OperationalDepthReadModel())->aiBudget($shop);$cost=(array)$data['cost'];$policies=(array)$data['policies'];
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI & Budget</h2><p>Shop-scoped policy identities, quantities and estimated/actual spend. Policy evidence never grants execution authority.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Shop scope</span><b>'.esc_html(ShopOperationsReadModel::shops()[$shop]).'</b></div><div><span>Active policy records</span><b>'.esc_html((string)count($policies)).'</b></div><div><span>Attributed quantity</span><b>'.esc_html((string)($cost['quantity']??0)).'</b></div><div><span>Estimated spend</span><b>'.esc_html(number_format((float)($cost['estimated_cost']??0),4)).'</b></div><div><span>Actual spend</span><b>'.esc_html(number_format((float)($cost['actual_cost']??0),4)).'</b></div><div><span>External execution authority</span><b>NO</b></div></div>';
+        if($policies!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Shop</th><th>Environment</th><th>Currency</th><th>State</th><th>Policy identity</th><th>Updated</th></tr></thead><tbody>';foreach($policies as $row){echo '<tr><td>'.esc_html((string)$row['shop_key']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html((string)$row['currency']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['policy_hash'],0,12)).'…</code></td><td>'.esc_html((string)$row['updated_at']).'</td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No AI policy exists for this shop scope.</div>';}echo '</section>';
+    }
+
+    private function fulfillmentProviders():void
+    {
+        $plans=(new OperationalDepthReadModel())->fulfillmentProviders(50);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Fulfillment / Providers</h2><p>Provider-plan evidence and readiness identities. A prepared or approved plan is not production authorization.</p></div><span class="df-status">READ ONLY</span></div>';
+        if($plans===[]){echo '<div class="df-empty">No fulfillment plans found.</div></section>';return;}
+        echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Plan</th><th>Order</th><th>Provider</th><th>State</th><th>Payload</th><th>Readiness</th><th>Provider execution</th><th>Production</th></tr></thead><tbody>';foreach($plans as $row){echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['plan_version']).'</td><td>#'.esc_html((string)$row['order_id']).'</td><td>'.esc_html((string)$row['provider']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['payload_hash'],0,12)).'…</code></td><td><code>'.esc_html(substr((string)$row['readiness_hash'],0,12)).'…</code></td><td>NO</td><td>NO</td></tr>';}echo '</tbody></table></div><p class="df-muted">Provider execution and production require their separate governed authorization boundary; this view cannot submit or retry a provider order.</p></section>';
     }
 
     private function financeOperations():void
