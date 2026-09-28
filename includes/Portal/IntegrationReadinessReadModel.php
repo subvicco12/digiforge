@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace DigiForge\Portal;
 
 use DigiForge\Database\Tables;
+use DigiForge\Integrations\CredentialEvidenceVersion;
 
 /** Stored connector and test evidence only. No credentials, network calls or authority. */
 final class IntegrationReadinessReadModel
@@ -17,6 +18,14 @@ final class IntegrationReadinessReadModel
                 'read_only'=>true,'connectivity_test_performed'=>false,
                 'credentials_exposed'=>false,'external_execution_authorized'=>false];
         }
+        $secretRows=$wpdb->get_results('SELECT integration_id,secret_name,fingerprint FROM '.Tables::integration_secrets().' ORDER BY integration_id,secret_name',ARRAY_A);
+        if (!is_array($secretRows) || !empty($wpdb->last_error)) {
+            return ['query_state'=>'UNAVAILABLE','counts'=>null,'items'=>[],
+                'read_only'=>true,'connectivity_test_performed'=>false,
+                'credentials_exposed'=>false,'external_execution_authorized'=>false];
+        }
+        $metadata=[];
+        foreach ($secretRows as $secret) $metadata[(int)$secret['integration_id']][]=$secret;
         $counts=['total'=>count($rows),'enabled'=>0,'configured'=>0,'stored_successful_tests'=>0,'attention'=>0];
         foreach ($rows as &$row) {
             $config=json_decode((string)($row['config']??''),true);
@@ -26,15 +35,18 @@ final class IntegrationReadinessReadModel
             $status=strtoupper(trim((string)($row['status']??'')));
             $enabled=!empty($row['enabled']);
             $configured=$status==='CONFIGURED';
+            $version=CredentialEvidenceVersion::fromMetadata($metadata[(int)($row['id']??0)]??[]);
             $tested=$configured && ($test['ok']??null)===true
                 && is_string($test['checked_at']??null)
-                && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',$test['checked_at'])===1;
+                && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',$test['checked_at'])===1
+                && $version!==null && is_string($test['credential_evidence_version']??null)
+                && hash_equals($version,$test['credential_evidence_version']);
             if ($enabled) $counts['enabled']++;
             if ($configured) $counts['configured']++;
             if ($enabled && $tested) $counts['stored_successful_tests']++;
             if ($enabled && !$tested) $counts['attention']++;
             $row['evidence_state']=!$enabled?'DISABLED':($tested?'TEST_SUCCESS_RECORDED':($configured?'CONFIGURED_UNVERIFIED':'REVIEW_REQUIRED'));
-            $row['attention_reason']=!$enabled?'Connector disabled':($tested?'Stored test succeeded; live connectivity unverified':($configured?'No valid successful stored connection test':'Stored status: '.($status?:'UNKNOWN')));
+            $row['attention_reason']=!$enabled?'Connector disabled':($tested?'Stored test succeeded for current credential version; live connectivity unverified':($configured?'Stored test missing or credential version changed':'Stored status: '.($status?:'UNKNOWN')));
             $row['last_stored_test_at']=$tested?$test['checked_at']:null;
             $row['read_only']=true;
             $row['connectivity_test_performed']=false;

@@ -194,5 +194,25 @@ final class ConnectionTester {
     private function invalidResponse(string $provider, int $integrationId): \WP_Error { $this->record($integrationId, false, ['reason' => 'invalid_json'], false); return new \WP_Error($provider . '_invalid_response', sprintf(__('%s returned an unreadable response.', 'digiforge'), ucfirst($provider)), ['status' => 502]); }
     private function firstCredential(int $integrationId, array $names): string|\WP_Error { foreach ($names as $name) { $value = $this->credential($integrationId, (string) $name); if (! is_wp_error($value) && $value !== '') { return $value; } } return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
     private function credential(int $integrationId, string $name): string|\WP_Error { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, sanitize_key($name)), ARRAY_A); if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); } try { return CredentialVault::decrypt((string) $row['ciphertext'], Repository::secretContext($integrationId, $name)); } catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); } }
-    private function record(int $integrationId, bool $success, array $details, bool $markConfigured): void { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT config,status FROM ' . Tables::integrations() . ' WHERE id = %d', $integrationId), ARRAY_A); if (! is_array($row)) { return; } $config = json_decode((string) ($row['config'] ?? '{}'), true); if (! is_array($config)) { $config = []; } $config['_connection_test'] = ['ok' => $success, 'checked_at' => current_time('mysql', true), 'details' => $details]; $encoded = wp_json_encode($config); if (! is_string($encoded)) { return; } $status = (string) ($row['status'] ?? 'DISCONNECTED'); if ($success && $markConfigured) { $status = 'CONFIGURED'; } elseif (! $success) { $status = 'ERROR'; } $wpdb->update(Tables::integrations(), ['status' => $status, 'config' => $encoded, 'updated_at' => current_time('mysql', true)], ['id' => $integrationId]); }
+    private function record(int $integrationId, bool $success, array $details, bool $markConfigured): void {
+        global $wpdb;
+        $row=$wpdb->get_row($wpdb->prepare('SELECT config,status FROM '.Tables::integrations().' WHERE id = %d',$integrationId),ARRAY_A);
+        if (!is_array($row)) return;
+        $version=$success?CredentialEvidenceVersion::fromMetadata((new Repository())->secretMetadata($integrationId)):null;
+        if ($success && $version===null) {
+            $success=false;
+            $details=['reason'=>'credential_evidence_unavailable'];
+        }
+        $config=json_decode((string)($row['config']??'{}'),true);
+        if (!is_array($config)) $config=[];
+        $config['_connection_test']=['ok'=>$success,'checked_at'=>current_time('mysql',true),
+            'credential_evidence_version'=>$version,'details'=>$details];
+        $encoded=wp_json_encode($config);
+        if (!is_string($encoded)) return;
+        $status=(string)($row['status']??'DISCONNECTED');
+        if ($success && $markConfigured) $status='CONFIGURED';
+        elseif (!$success) $status='ERROR';
+        $wpdb->update(Tables::integrations(),['status'=>$status,'config'=>$encoded,
+            'updated_at'=>current_time('mysql',true)],['id'=>$integrationId]);
+    }
 }
