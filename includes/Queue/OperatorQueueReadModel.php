@@ -25,4 +25,12 @@ final class OperatorQueueReadModel {
   global $wpdb;$limit=max(1,min(100,$limit));$rows=$wpdb->get_results($wpdb->prepare("SELECT id,operation_key,operation_type,status,response_hash,created_at,updated_at FROM ".Tables::idempotency()." WHERE status IN ('PENDING','UNKNOWN') ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);if(!is_array($rows))return [];
   return array_map(static function(array $r):array{$r['operation_key_hash']=hash('sha256',(string)$r['operation_key']);unset($r['operation_key']);$r['read_only']=true;$r['replay_permitted']=false;$r['retry_permitted']=false;$r['external_execution_authorized']=false;return $r;},$rows);
  }
+ public function recoveryClassification():array {
+  $d=$this->diagnostics();$classification=[];
+  if($d['orphaned_expired_leases']>0)$classification[]='ORPHAN_EVIDENCE_REQUIRES_OPERATOR_REVIEW';
+  if($d['rate_limit_evidence']>0)$classification[]='RATE_LIMIT_EVIDENCE_REQUIRES_BACKOFF_REVIEW';
+  if($d['unresolved_idempotency_evidence']>0)$classification[]='IDEMPOTENCY_EVIDENCE_REQUIRES_RECONCILIATION';
+  if($d['dead_letter_jobs']>0)$classification[]='DEAD_LETTER_REQUIRES_OPERATOR_REVIEW';
+  return ['classifications'=>$classification,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false,'read_only'=>true];
+ }
 }
