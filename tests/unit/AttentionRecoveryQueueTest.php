@@ -27,6 +27,6 @@ final class AttentionRecoveryQueueTest extends TestCase
         $source = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
         self::assertIsString($source);
         self::assertStringContainsString('without inferring readiness from arbitrary operational status text', $source);
-        self::assertStringContainsString("state NOT IN ('RESOLVED','CLOSED')", $source);
+        self::assertStringContainsString("state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED')", $source);
     }
 }
