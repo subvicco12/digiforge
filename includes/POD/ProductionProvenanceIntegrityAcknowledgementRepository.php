@@ -9,7 +9,7 @@ final class ProductionProvenanceIntegrityAcknowledgementRepository{
  /** @return array|WP_Error */
  public static function acknowledge(string $correlationHash,string $authorizationHash,string $anomalyType,int $reviewer):array|WP_Error{
   $correlationHash=strtolower(trim($correlationHash));$authorizationHash=strtolower(trim($authorizationHash));
-  if(!preg_match('/^[a-f0-9]{64}$/',$correlationHash)||!preg_match('/^[a-f0-9]{64}$/',$authorizationHash)||!in_array($anomalyType,['BINDING_PACKAGE_MISMATCH','CLOSURE_PACKAGE_MISMATCH','LEGACY_UNBOUND'],true)||$reviewer<1)return new WP_Error('production_integrity_ack_invalid','Valid integrity acknowledgement binding required.',['status'=>400]);
+  if(!preg_match('/^[a-f0-9]{64}$/',$correlationHash)||!preg_match('/^[a-f0-9]{64}$/',$authorizationHash)||!in_array($anomalyType,['BINDING_PACKAGE_MISMATCH','CLOSURE_PACKAGE_MISMATCH','BINDING_CLOSURE_MISMATCH','LEGACY_UNBOUND'],true)||$reviewer<1)return new WP_Error('production_integrity_ack_invalid','Valid integrity acknowledgement binding required.',['status'=>400]);
   $evidence=(new ProductionProvenanceIntegrityReadModel())->recent(200);$match=null;foreach($evidence['items'] as $item)if(hash_equals((string)$item['correlation_hash'],$correlationHash)&&hash_equals((string)$item['authorization_hash'],$authorizationHash)&&(string)$item['type']===$anomalyType){$match=$item;break;}
   if(!is_array($match))return new WP_Error('production_integrity_ack_evidence_missing','Acknowledgement must bind a current read-only integrity anomaly.',['status'=>409]);
   $decision='ACKNOWLEDGE_INTEGRITY_ANOMALY';$hash=hash('sha256',implode('|',[$correlationHash,$authorizationHash,$anomalyType,$decision,(string)$reviewer]));
