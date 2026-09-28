@@ -24,8 +24,8 @@ final class ExecutionAuthorizationVerifier
   $issued=(int)($a['issued_at']??0);$expires=(int)($a['expires_at']??0);
   if($issued<1||$expires<=$issued||$now<$issued||$now>$expires||($expires-$issued)>900)
    return new WP_Error('digiforge_execution_expired','Execution authorization is expired or invalid.',['status'=>403]);
-  $nonce=(string)($a['nonce']??'');if(!preg_match('/^[A-Za-z0-9_-]{24,128}$/',$nonce)||$nonceUnused($nonce)!==true)
-   return new WP_Error('digiforge_execution_replay','Execution authorization nonce is invalid or already consumed.',['status'=>409]);
+  $nonce=(string)($a['nonce']??'');if(!preg_match('/^[A-Za-z0-9_-]{24,128}$/',$nonce))return new WP_Error('digiforge_execution_replay','Execution authorization nonce is invalid or already consumed.',['status'=>409]);
+  $unused=$nonceUnused($nonce);if(is_wp_error($unused))return $unused;if($unused!==true)return new WP_Error('digiforge_execution_replay','Execution authorization nonce is invalid or already consumed.',['status'=>409]);
   $payload=$a;ksort($payload);$calculated=hash('sha256',(string)wp_json_encode($payload));
   if(!hash_equals($calculated,(string)($record['authorization_hash']??'')))
    return new WP_Error('digiforge_execution_tampered','Execution authorization integrity check failed.',['status'=>409]);
