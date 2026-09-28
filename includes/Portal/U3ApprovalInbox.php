@@ -66,7 +66,7 @@ final class U3ApprovalInbox
             <?php foreach ($groups as $title => $rows) : ?>
                 <div class="df-subpanel"><h4><?php echo esc_html($title); ?></h4>
                 <?php if ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
-                    <div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Subject</th><th>Environment</th><th>Status</th><th>Created</th></tr></thead><tbody>
+                    <div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Subject</th><th>Environment</th><th>Status</th><th>Created</th><th>Workflow</th></tr></thead><tbody>
                     <?php foreach ($rows as $row) :
                         $id = (int) ($row['id'] ?? 0);
                         $environment = (string) ($row['environment'] ?? '');
@@ -76,12 +76,19 @@ final class U3ApprovalInbox
                             : (isset($row['provider_mapping_id']) ? 'POD mapping #' . (int) $row['provider_mapping_id']
                             : 'Order #' . (int) ($row['order_id'] ?? 0))); ?>
                         <tr><td><?php echo esc_html((string) $id); ?></td><td><?php echo esc_html($subject); ?></td><td><?php echo esc_html($environment); ?></td><td><?php echo esc_html($status); ?></td><td><?php echo esc_html((string) ($row['created_at'] ?? '')); ?></td></tr>
+                    <td><a class="df-button df-button-compact" href="<?php echo esc_url($this->workflowUrl((string)$title)); ?>">Open governed workflow</a></td></tr>
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
             <?php endforeach; ?>
             <div class="df-muted">Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
         </section><?php
         return (string) ob_get_clean();
+    }
+
+    private function workflowUrl(string $group): string
+    {
+        $view = str_contains($group, 'Listing') ? 'listings' : (str_contains($group, 'POD') || str_contains($group, 'Personalization') ? 'pod_personalized' : 'orders');
+        return add_query_arg(['df_view' => $view], home_url('/'));
     }
 
     public function review(): void
