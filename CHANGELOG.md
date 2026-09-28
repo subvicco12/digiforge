@@ -1,3 +1,10 @@
+## 1.0.67 — 2026-09-28
+
+- Replaces declaration-only recovery artifact readiness with structured database-backup and rollback-package evidence.
+- Requires concrete artifact identity, location and retrievability; rollback packages additionally require source commit, SHA-256 and checksum verification.
+- Missing or UNKNOWN recovery evidence remains fail-closed and cannot grant production, Etsy publish, POD production, retry, or provider authority.
+- Database schema remains v22. No external action is performed by this release.
+
 ## 1.0.66 — 2026-09-28
 
 - Consolidates the audited v6 operational-safety work accumulated after v1.0.65 into a distinct deployment candidate.
