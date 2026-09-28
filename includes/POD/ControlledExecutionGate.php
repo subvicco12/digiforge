@@ -16,7 +16,7 @@ final class ControlledExecutionGate
   if($actor<1)return new WP_Error('digiforge_execution_actor','Valid execution actor required.',['status'=>403]);
   $verified=ExecutionAuthorizationVerifier::verify(
    $authorization,$action,$evidenceHash,$now,
-   static fn(string $nonce):bool=>ExecutionNonceLedger::unused($nonce),$requestFingerprint
+   static fn(string $nonce):bool|WP_Error=>ExecutionNonceLedger::unused($nonce),$requestFingerprint
   );
   if(is_wp_error($verified))return $verified;
   $payload=$authorization['authorization'];
