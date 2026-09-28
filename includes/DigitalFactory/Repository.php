@@ -209,21 +209,35 @@ final class Repository {
     }
     private function validate_descendants(string $type, int $id, array $data): true|\WP_Error {
         global $wpdb; $mismatch = false;
+        $count = function(string $sql) use ($wpdb): int|\WP_Error {
+            $raw=$wpdb->get_var($sql);
+            if(!empty($wpdb->last_error)||!is_numeric($raw)){return $this->error('relationship_evidence_unavailable','Descendant relationship evidence is unavailable; update is blocked.',503);}
+            return (int)$raw;
+        };
+        $hasMismatch = function(string $sql) use ($count): bool|\WP_Error {
+            $value=$count($sql);return is_wp_error($value)?$value:$value>0;
+        };
         if ($type === 'digital_product') {
-            $mismatch = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_files() . ' WHERE digital_product_id = %d AND product_version_id <> %d', $id, $data['product_version_id'])) > 0
-                || (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_packages() . ' WHERE digital_product_id = %d AND product_version_id <> %d', $id, $data['product_version_id'])) > 0;
+            foreach([
+                $wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_files() . ' WHERE digital_product_id = %d AND product_version_id <> %d', $id, $data['product_version_id']),
+                $wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_packages() . ' WHERE digital_product_id = %d AND product_version_id <> %d', $id, $data['product_version_id'])
+            ] as $sql){$check=$hasMismatch($sql);if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;}
         } elseif ($type === 'digital_file') {
-            $mismatch = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_previews() . ' WHERE digital_file_id = %d AND digital_product_id <> %d', $id, $data['digital_product_id'])) > 0
-                || (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_templates() . ' WHERE digital_file_id = %d AND digital_product_id <> %d', $id, $data['digital_product_id'])) > 0
-                || (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_download_checks() . ' dc INNER JOIN ' . Tables::digital_file_versions() . " fv ON fv.id = dc.target_id WHERE dc.target_type = 'file_version' AND fv.digital_file_id = %d AND dc.digital_product_id <> %d", $id, $data['digital_product_id'])) > 0;
+            foreach([
+                $wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_previews() . ' WHERE digital_file_id = %d AND digital_product_id <> %d', $id, $data['digital_product_id']),
+                $wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_templates() . ' WHERE digital_file_id = %d AND digital_product_id <> %d', $id, $data['digital_product_id']),
+                $wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_download_checks() . ' dc INNER JOIN ' . Tables::digital_file_versions() . " fv ON fv.id = dc.target_id WHERE dc.target_type = 'file_version' AND fv.digital_file_id = %d AND dc.digital_product_id <> %d", $id, $data['digital_product_id'])
+            ] as $sql){$check=$hasMismatch($sql);if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;}
         } elseif ($type === 'digital_preview') {
-            $mismatch = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_templates() . ' WHERE digital_preview_id = %d AND (digital_product_id <> %d OR digital_file_id <> %d)', $id, $data['digital_product_id'], $data['digital_file_id'])) > 0;
+            $check=$hasMismatch($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_templates() . ' WHERE digital_preview_id = %d AND (digital_product_id <> %d OR digital_file_id <> %d)', $id, $data['digital_product_id'], $data['digital_file_id']));
+            if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;
         }
         $target_names = ['digital_file' => 'file', 'digital_file_version' => 'file_version', 'digital_package' => 'package', 'digital_preview' => 'preview', 'digital_template' => 'template', 'digital_license' => 'license'];
         if (isset($target_names[$type])) {
             $owner = $type === 'digital_file_version' ? $this->find('digital_file', (int) $data['digital_file_id']) : $data;
             if ($owner === null || ! isset($owner['digital_product_id'])) { return $this->error('invalid_relationship', 'Unable to resolve descendant ownership.'); }
-            $mismatch = $mismatch || (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_download_checks() . ' WHERE target_type = %s AND target_id = %d AND digital_product_id <> %d', $target_names[$type], $id, $owner['digital_product_id'])) > 0;
+            $check=$hasMismatch($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_download_checks() . ' WHERE target_type = %s AND target_id = %d AND digital_product_id <> %d', $target_names[$type], $id, $owner['digital_product_id']));
+            if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;
         }
         return $mismatch ? $this->error('invalid_relationship', 'Parent reassignment would invalidate existing descendants.', 409) : true;
     }
