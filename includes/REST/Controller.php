@@ -5,6 +5,7 @@ use DigiForge\Core\Capabilities;
 use DigiForge\Core\Config;
 use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
+use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -16,6 +17,9 @@ final class Controller {
     public function routes(): void {
         register_rest_route('digiforge/v1', '/health', ['methods' => 'GET', 'callback' => [$this, 'health'], 'permission_callback' => [$this, 'can_view']]);
         register_rest_route('digiforge/v1', '/readiness', ['methods' => 'GET', 'callback' => [$this, 'readiness'], 'permission_callback' => [$this, 'can_view']]);
+        register_rest_route('digiforge/v1', '/recovery/evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/evidence/database-backup', ['methods' => 'POST', 'callback' => [$this, 'record_database_backup_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/protection/restore', ['methods' => 'POST', 'callback' => [$this, 'restore_protection'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
@@ -36,6 +40,19 @@ final class Controller {
         return new \WP_REST_Response(['status' => 'ok', 'version' => DIGIFORGE_VERSION, 'automation_enabled' => $automation_enabled, 'stop_all' => (bool) Settings::get('stop_all', true), 'externally_locked' => Settings::safety_locked()], 200);
     }
     public function readiness(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response((new Readiness())->report(), 200); }
+    public function recovery_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryEvidence::snapshot() + ['external_actions_performed' => false], 200); }
+    public function record_database_backup_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $record = (array) $request->get_json_params();
+        if (! RecoveryEvidence::storeDatabaseBackup($record)) return new \WP_Error('digiforge_recovery_backup_evidence_invalid', __('Complete, valid database backup evidence is required.', 'digiforge'), ['status' => 400]);
+        Logger::audit('recovery_database_backup_evidence_recorded', ['identifier' => sanitize_text_field((string)($record['identifier'] ?? '')), 'external_actions_performed' => false], 'system', 'recovery_evidence');
+        return new \WP_REST_Response(['recorded' => true, 'database_backup' => RecoveryEvidence::snapshot()['database_backup'], 'external_actions_performed' => false], 200);
+    }
+    public function record_plugin_package_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $record = (array) $request->get_json_params();
+        if (! RecoveryEvidence::storePluginPackage($record)) return new \WP_Error('digiforge_recovery_package_evidence_invalid', __('Complete, valid rollback plugin package evidence is required.', 'digiforge'), ['status' => 400]);
+        Logger::audit('recovery_plugin_package_evidence_recorded', ['identifier' => sanitize_text_field((string)($record['identifier'] ?? '')), 'external_actions_performed' => false], 'system', 'recovery_evidence');
+        return new \WP_REST_Response(['recorded' => true, 'plugin_package' => RecoveryEvidence::snapshot()['plugin_package'], 'external_actions_performed' => false], 200);
+    }
     public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['controls' => $result, 'externally_locked' => Settings::safety_locked()], 200); }
     public function restore_protection(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         if (! Settings::protectProduction()) { Logger::audit('production_protection_failed', ['source' => 'rest'], 'system', 'production_activation'); return new \WP_Error('digiforge_protection_failed', __('Unable to restore protected production posture.', 'digiforge'), ['status' => 500]); }
