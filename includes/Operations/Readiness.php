@@ -24,14 +24,15 @@ final class Readiness
 
         $schemaCurrent = ($health['schema']['current'] ?? -1) === ($health['schema']['expected'] ?? -2);
         $stopAll = Settings::get('stop_all', true) === true;
+        $artifactEvidence = RecoveryEvidence::snapshot();
         $recovery = RecoveryDrill::evaluate([
-            'database_backup_available' => $this->optionEnabled('digiforge_recovery_database_backup_available'),
-            'database_backup_retrievable' => $this->optionEnabled('digiforge_recovery_database_backup_retrievable'),
-            'database_backup_identity_recorded' => $this->optionEnabled('digiforge_recovery_database_backup_identity_recorded'),
-            'plugin_package_available' => $this->optionEnabled('digiforge_recovery_plugin_package_available'),
-            'plugin_package_retrievable' => $this->optionEnabled('digiforge_recovery_plugin_package_retrievable'),
-            'plugin_package_identity_recorded' => $this->optionEnabled('digiforge_recovery_plugin_package_identity_recorded'),
-            'checksum_verified' => $this->optionEnabled('digiforge_recovery_checksum_verified'),
+            'database_backup_available' => $artifactEvidence['database_backup_available'],
+            'database_backup_retrievable' => $artifactEvidence['database_backup_retrievable'],
+            'database_backup_identity_recorded' => $artifactEvidence['database_backup_identity_recorded'],
+            'plugin_package_available' => $artifactEvidence['plugin_package_available'],
+            'plugin_package_retrievable' => $artifactEvidence['plugin_package_retrievable'],
+            'plugin_package_identity_recorded' => $artifactEvidence['plugin_package_identity_recorded'],
+            'checksum_verified' => $artifactEvidence['checksum_verified'],
             'schema_version_known' => $schemaCurrent,
             'restore_instructions_available' => $this->optionEnabled('digiforge_recovery_restore_instructions_available'),
             'stop_all_confirmed' => $stopAll,
@@ -59,6 +60,7 @@ final class Readiness
             'externally_locked' => Settings::safety_locked(),
             'checks' => $checks,
             'recovery' => $recovery,
+            'recovery_artifact_evidence' => $artifactEvidence,
             'effective_switches' => $effective,
             'external_actions_performed' => $this->externalActionsPerformed(),
         ];
