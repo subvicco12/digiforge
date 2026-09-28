@@ -119,9 +119,10 @@ final class MigrationTest extends WP_UnitTestCase
     public function testSchemaTwentyTwoUpgradeCreatesV23ScopedPolicyAndReactivationIsIdempotent(): void
     {
         update_option('digiforge_db_schema_version',22,false);
-        $this->assertTrue(\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded());
-        $this->assertSame(23,(int)get_option('digiforge_db_schema_version'));
+        $ok=\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded();
         global $wpdb;
+        $this->assertTrue($ok,'v23 migration failed: '.$wpdb->last_error.' '.wp_json_encode(get_option('digiforge_last_migration_failure')));
+        $this->assertSame(23,(int)get_option('digiforge_db_schema_version'));
         $this->assertSame(\DigiForge\Database\Tables::scoped_capability_policies(),$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like(\DigiForge\Database\Tables::scoped_capability_policies()))));
         $this->assertTrue(\DigiForge\Database\ScopedPolicySchema::migrateIfNeeded());
         $this->assertSame(23,(int)get_option('digiforge_db_schema_version'));
