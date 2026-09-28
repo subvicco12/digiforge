@@ -1,3 +1,14 @@
+## 1.0.73 — 2026-09-28
+
+- Advances the additive database schema to v23 with durable append-only, versioned shop/workflow scoped capability-policy evidence and hash lineage.
+- Adds bounded current/history policy projections; policy evidence remains read-only/non-authorizing and cannot override STOP ALL.
+- Adds fail-closed queue recovery classification and correlated orphan/rate-limit/idempotency/dead-letter evidence; automatic recovery, replay and retry remain disabled.
+- Expands governed AI/budget planning evidence without running AI or granting external execution authority.
+- Adds bounded non-secret audit object correlation and consolidated read-only Printify UNKNOWN/reconciliation evidence; UNKNOWN requires reconciliation before retry.
+- Hardens direct v22→v23 migration, missing-table repair, and schema-v23 reactivation/idempotency preservation.
+- Consolidates live-site portal and release-readiness safety regressions for the integrated v23 baseline.
+- Recovery readiness remains fail-closed; this release does not deploy production or authorize Etsy publish, POD production, provider execution, refund, tax filing, money movement, or other external action.
+
 ## 1.0.72 — 2026-09-28
 
 - Consolidates Etsy and Printify UNKNOWN/reconciliation-required evidence with fail-closed RECONCILE BEFORE ANY RETRY guidance.
