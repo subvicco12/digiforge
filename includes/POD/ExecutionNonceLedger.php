@@ -15,19 +15,21 @@ final class ExecutionNonceLedger
   if($consumedBy<1)return new WP_Error('digiforge_nonce_actor','Valid execution actor required.',['status'=>403]);
   global $wpdb;$table=Tables::pod_execution_nonces();$nonceHash=hash('sha256',$nonce);
   $existing=$wpdb->get_var($wpdb->prepare('SELECT authorization_hash FROM '.$table.' WHERE nonce_hash=%s LIMIT 1',$nonceHash));
+  if(!empty($wpdb->last_error))return new WP_Error('digiforge_nonce_evidence_unavailable','Execution nonce evidence is unavailable; consumption is blocked.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   if(is_string($existing)&&$existing!=='')return new WP_Error('digiforge_execution_replay','Execution nonce has already been consumed.',['status'=>409]);
   $ok=$wpdb->insert($table,['nonce_hash'=>$nonceHash,'authorization_hash'=>$authorizationHash,'consumed_by'=>$consumedBy,'consumed_at'=>current_time('mysql',true)],['%s','%s','%d','%s']);
   if($ok===false){
    $winner=$wpdb->get_var($wpdb->prepare('SELECT authorization_hash FROM '.$table.' WHERE nonce_hash=%s LIMIT 1',$nonceHash));
+   if(!empty($wpdb->last_error))return new WP_Error('digiforge_nonce_confirmation_unavailable','Execution nonce may have been consumed but confirmation is unavailable; do not retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
    if(is_string($winner)&&$winner!=='')return new WP_Error('digiforge_execution_replay','Execution nonce was consumed concurrently.',['status'=>409]);
    return new WP_Error('digiforge_nonce_store','Execution nonce could not be consumed.',['status'=>500]);
   }
   return true;
  }
- public static function unused(string $nonce):bool
+ public static function unused(string $nonce):bool|WP_Error
  {
   if(!preg_match('/^[A-Za-z0-9_-]{24,128}$/',$nonce))return false;
   global $wpdb;$table=Tables::pod_execution_nonces();
-  return $wpdb->get_var($wpdb->prepare('SELECT nonce_hash FROM '.$table.' WHERE nonce_hash=%s LIMIT 1',hash('sha256',$nonce)))===null;
+  $found=$wpdb->get_var($wpdb->prepare('SELECT nonce_hash FROM '.$table.' WHERE nonce_hash=%s LIMIT 1',hash('sha256',$nonce)));if(!empty($wpdb->last_error))return new WP_Error('digiforge_nonce_evidence_unavailable','Execution nonce evidence is unavailable; unused state is not inferred.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $found===null;
  }
 }
