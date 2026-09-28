@@ -141,4 +141,16 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertContains('policy_hash',$wpdb->get_col('SHOW COLUMNS FROM '.$table,0));
     }
 
+    public function testV23ReactivationPreservesScopedPolicyTableAndRows(): void
+    {
+        DigiForge\Core\Activator::activate(); global $wpdb;
+        $table=DigiForge\Database\Tables::scoped_capability_policies();
+        $before=$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N); self::assertIsArray($before);
+        $countBefore=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$table);
+        DigiForge\Core\Activator::activate();
+        self::assertSame($before,$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N));
+        self::assertSame($countBefore,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
+        self::assertSame(23,(int)get_option('digiforge_db_schema_version'));
+    }
+
 }

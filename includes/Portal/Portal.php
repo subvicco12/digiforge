@@ -18,6 +18,8 @@ use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
 use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Operations\OperationalExceptionReadModel;
+use DigiForge\Operations\AuditCorrelationReadModel;
+use DigiForge\POD\ProviderStatusReadModel;
 use DigiForge\POD\PersonalizedCatalogReference;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
@@ -214,11 +216,12 @@ final class Portal
 
     private function auditReconciliationOperations():void
     {
+        $auditIdentity=(new AuditCorrelationReadModel())->recent('', '',50);
         $attention=(new AttentionReadModel())->summary();$etsy=(new EtsyReconciliationOperatorReadModel())->recent(50);$printify=(array)(($attention['printify_reconciliation']??[])['items']??[]);$exceptions=(new OperationalExceptionReadModel())->snapshot(50);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Audit / Reconciliation</h2><p>Cross-channel exception evidence. UNKNOWN is not success and must reconcile before any retry.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Etsy reconciliation</span><b>'.esc_html((string)count($etsy)).'</b></div><div><span>Printify unknown evidence</span><b>'.esc_html((string)count($printify)).'</b></div><div><span>Retry authority</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div><div><span>Fulfillment exceptions</span><b>'.esc_html((string)count((array)$exceptions['fulfillment'])).'</b></div><div><span>Finance/GST exceptions</span><b>'.esc_html((string)(count((array)$exceptions['finance_ledger'])+count((array)$exceptions['tax']))).'</b></div></div>';
         if($etsy!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Etsy op</th><th>Shop</th><th>Type</th><th>State</th><th>Resource</th><th>Action</th><th>Workflow</th></tr></thead><tbody>';foreach($etsy as $row){echo '<tr><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['shop_reference']).'</td><td>'.esc_html((string)$row['operation_type']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html((string)$row['resource_reference']).'</td><td>RECONCILE BEFORE ANY RETRY</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('listings')).'">Open Listings & Etsy</a></td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No Etsy UNKNOWN/reconciliation-required operations.</div>';}
         if($printify!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Authorization</th><th>Resolution</th><th>Operator action</th><th>Retry</th><th>Workflow</th></tr></thead><tbody>';foreach(array_slice($printify,0,50) as $row){echo '<tr><td><code>'.esc_html(substr((string)($row['authorization_hash']??''),0,12)).'…</code></td><td>'.esc_html((string)($row['resolution_state']??'UNKNOWN')).'</td><td>'.esc_html((string)($row['operator_action']??'RECONCILE_BEFORE_ANY_RETRY')).'</td><td>NO</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('pod_personalized')).'">Open POD workflow</a></td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No Printify UNKNOWN evidence.</div>';}
-        echo '<p class="df-muted">These links only navigate to governed internal workflows. This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.</p></section>';
+        echo '<p class="df-muted">These links only navigate to governed internal workflows. This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.</p><p class="df-muted">Bounded non-secret audit identities available: '.esc_html((string)count($auditIdentity)).'. Audit context payloads are excluded; visibility never grants retry or external execution authority.</p></section>';
         $this->panelTable('Audit Log',Tables::audit_log());
     }
 
@@ -248,10 +251,10 @@ final class Portal
 
     private function fulfillmentProviders():void
     {
-        $plans=(new OperationalDepthReadModel())->fulfillmentProviders(50);
+        $plans=(new OperationalDepthReadModel())->fulfillmentProviders(50);$providerStatus=(new ProviderStatusReadModel())->snapshot(25);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Fulfillment / Providers</h2><p>Provider-plan evidence and readiness identities. A prepared or approved plan is not production authorization.</p></div><span class="df-status">READ ONLY</span></div>';
         if($plans===[]){echo '<div class="df-empty">No fulfillment plans found.</div></section>';return;}
-        echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Plan</th><th>Order</th><th>Provider</th><th>State</th><th>Payload</th><th>Readiness</th><th>Provider execution</th><th>Production</th></tr></thead><tbody>';foreach($plans as $row){echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['plan_version']).'</td><td>#'.esc_html((string)$row['order_id']).'</td><td>'.esc_html((string)$row['provider']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['payload_hash'],0,12)).'…</code></td><td><code>'.esc_html(substr((string)$row['readiness_hash'],0,12)).'…</code></td><td>NO</td><td>NO</td></tr>';}echo '</tbody></table></div><p class="df-muted">Provider execution and production require their separate governed authorization boundary; this view cannot submit or retry a provider order.</p></section>';
+        echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Plan</th><th>Order</th><th>Provider</th><th>State</th><th>Payload</th><th>Readiness</th><th>Provider execution</th><th>Production</th></tr></thead><tbody>';foreach($plans as $row){echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['plan_version']).'</td><td>#'.esc_html((string)$row['order_id']).'</td><td>'.esc_html((string)$row['provider']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['payload_hash'],0,12)).'…</code></td><td><code>'.esc_html(substr((string)$row['readiness_hash'],0,12)).'…</code></td><td>NO</td><td>NO</td></tr>';}echo '</tbody></table></div><p class="df-muted">Provider execution and production require their separate governed authorization boundary; this view cannot submit or retry a provider order.</p><div class="df-signal-grid"><div><span>Printify UNKNOWN outcomes</span><b>'.esc_html((string)$providerStatus['unknown_outcomes']).'</b></div><div><span>Unresolved reconciliation</span><b>'.esc_html((string)$providerStatus['unresolved_reconciliations']).'</b></div><div><span>Provider execution authority</span><b>NO</b></div><div><span>Retry authority</span><b>NO</b></div></div><p class="df-muted">UNKNOWN provider outcomes require reconciliation before any retry; this evidence cannot authorize production.</p></section>';
     }
 
     private function financeOperations():void
