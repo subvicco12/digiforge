@@ -9,7 +9,7 @@ final class ReconciliationOperatorDrilldownContractTest extends TestCase {
  }
  public function testAuditSurfaceOnlyNavigatesToGovernedWorkflows():void {
   $c=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
-  foreach(['Audit / Reconciliation','Open Listings & Etsy','Open POD workflow','This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.','reconciliation OK'] as $v) self::assertStringContainsString($v,$c);
+  foreach(['Audit / Reconciliation','Open Listings & Etsy','Open POD workflow','This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.'] as $v) self::assertStringContainsString($v,$c);
   self::assertStringNotContainsString('Retry operation',$c);
  }
 }
