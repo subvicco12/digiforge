@@ -66,6 +66,7 @@ final class Tables {
     public static function pod_printify_reconciliations(): string { return self::name('pod_printify_reconciliations'); }
     public static function pod_reconciliation_acknowledgements(): string { return self::name('pod_reconciliation_acknowledgements'); }
     public static function pod_lifecycle_closures(): string { return self::name('pod_lifecycle_closures'); }
+    public static function pod_provenance_integrity_acknowledgements(): string { return self::name('pod_provenance_integrity_acknowledgements'); }
     public static function listings(): string { return self::name('listings'); }
     public static function listing_seo(): string { return self::name('listing_seo'); }
     public static function listing_media(): string { return self::name('listing_media'); }
