@@ -77,7 +77,7 @@ final class U3ApprovalInbox
                             : (isset($row['provider_mapping_id']) ? 'POD mapping #' . (int) $row['provider_mapping_id']
                             : 'Order #' . (int) ($row['order_id'] ?? 0))); ?>
                         <tr><td><?php echo esc_html((string) $id); ?></td><td><?php echo esc_html($subject); ?></td><td><?php echo esc_html($environment); ?></td><td><?php echo esc_html($status); ?></td><td><?php echo esc_html($this->subjectEvidenceState($row)); ?></td><td><?php echo esc_html((string) ($row['created_at'] ?? '')); ?></td>
-                    <td><a class="df-button df-button-compact" href="<?php echo esc_url($this->workflowUrl((string)$title)); ?>">Open governed workflow</a></td></tr>
+                    <td><a class="df-button df-button-compact" href="<?php echo esc_url($this->evidenceUrl((string)$title, $id)); ?>">Open review evidence</a></td></tr>
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
             <?php endforeach; ?>
@@ -90,6 +90,20 @@ final class U3ApprovalInbox
     {
         $view = str_contains($group, 'Listing') ? 'listings' : (str_contains($group, 'POD') || str_contains($group, 'Personalization') ? 'pod_personalized' : 'orders');
         return add_query_arg(['df_view' => $view], home_url('/'));
+    }
+
+    private function evidenceUrl(string $group, int $reviewId): string
+    {
+        if ($reviewId < 1) { return $this->workflowUrl($group); }
+        $type = match ($group) {
+            'Listing / publish decisions (Gate 3)' => 'listing_review',
+            'Personalization exceptions' => 'personalization',
+            'POD readiness exceptions' => 'pod_review',
+            'Fulfillment exceptions' => 'fulfillment_review',
+            default => '',
+        };
+        if ($type === '') { return $this->workflowUrl($group); }
+        return add_query_arg(['df_focus_type' => $type, 'df_focus_id' => $reviewId], $this->workflowUrl($group)) . '#df-evidence-' . $type . '-' . $reviewId;
     }
 
     /** A display classification, never approval or execution authority. */
