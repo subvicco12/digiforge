@@ -1,4 +1,10 @@
-## 1.0.73 — 2026-09-28
+## 1.0.74 — 2026-09-28
+
+- Fixes the active-plugin production upgrade path so normal plugin boot runs the additive v16-v23 migration chain even when WordPress does not fire the activation hook during an in-place plugin replacement.
+- Adds regression coverage reproducing an active schema-v22 installation with the v23 scoped-policy table absent and proving normal boot repairs it to schema v23.
+- Preserves STOP ALL, external lock, recovery gating and all non-authorizing execution boundaries; no external action is authorized by this hotfix.
+
+## 1.0.74 — 2026-09-28
 
 - Advances the additive database schema to v23 with durable append-only, versioned shop/workflow scoped capability-policy evidence and hash lineage.
 - Adds bounded current/history policy projections; policy evidence remains read-only/non-authorizing and cannot override STOP ALL.
