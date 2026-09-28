@@ -1,3 +1,10 @@
+## 1.0.69 — 2026-09-28
+
+- Requires independently verified database-backup evidence provenance before recovery readiness can pass.
+- Expires database-backup verification after 24 hours and fails closed on stale, invalid, pre-capture or future verification timestamps.
+- Portal distinguishes VERIFIED / FRESH from STALE / REVERIFY.
+- Evidence remains non-authorizing; schema remains v22; no external action is performed by this release.
+
 ## 1.0.68 — 2026-09-28
 
 - Adds authenticated recovery-evidence management endpoints for concrete backup and rollback-package records.
