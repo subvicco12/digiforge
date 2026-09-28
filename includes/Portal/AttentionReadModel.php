@@ -7,11 +7,11 @@ use DigiForge\Database\Tables;
 /** Read-only aggregation of explicit human gates and operational attention. */
 final class AttentionReadModel
 {
-    /** @return array<string,int|bool> */
+    /** @return array<string,mixed> */
     public function summary():array
     {
         global $wpdb;
-        $count=static function(string $sql)use($wpdb):int{return (int)$wpdb->get_var($sql);};
+        $count=static function(string $sql)use($wpdb):?int{$value=$wpdb->get_var($sql);return $value===null||!empty($wpdb->last_error)?null:(int)$value;};
         $items=[
             'research_reviews'=>$count($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::research_candidates().' WHERE review_status=%s',\DigiForge\Research\Repository::REVIEW_PENDING)),
             'listing_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::listing_readiness_reviews()." WHERE decision='PENDING'"),
@@ -28,8 +28,8 @@ final class AttentionReadModel
         $preflight=(new \DigiForge\POD\ProductionPreflightAttentionReadModel())->summary();
         $items['production_revalidation_reviews']=(int)$preflight['revalidation_required'];
         $reconciliation=(new \DigiForge\POD\PrintifyUnknownOperatorReadModel())->summary();
-        $items['printify_unknown_reconciliations']=(int)$reconciliation['unresolved_reconciliations'];
-        $items['printify_reconciliation_reviews']=(int)$reconciliation['resolved_review_required'];
+        $items['printify_unknown_reconciliations']=$reconciliation['unresolved_reconciliations']??null;
+        $items['printify_reconciliation_reviews']=$reconciliation['resolved_review_required']??null;
         $items['etsy_operations_requiring_reconciliation']=$count("SELECT COUNT(*) FROM ".$wpdb->prefix.'digiforge_etsy_operations'." WHERE state IN ('UNKNOWN','RECONCILIATION')");
         $persistence=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::summary();$persistenceDrilldown=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::recent(50);$items['production_permit_persistence_unknown']=(int)$persistence['unknown_count'];$items['production_permit_persistence_observed']=(int)$persistence['persisted_observed_count'];
         $lifecycleClosures=$count("SELECT COUNT(*) FROM ".Tables::pod_lifecycle_closures());
@@ -37,7 +37,14 @@ final class AttentionReadModel
         $items['production_legacy_unbound']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_authorization_bindings()." b ON b.authorization_hash=n.authorization_hash LEFT JOIN ".Tables::pod_lifecycle_closures()." c ON c.authorization_hash=n.authorization_hash WHERE b.id IS NULL AND c.id IS NULL");
         $integrity=(new \DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(200);$items['production_provenance_integrity']=(int)$integrity['open_count'];$items['production_provenance_integrity_historical']=(int)$integrity['historical_count'];$items['production_provenance_integrity_acknowledged']=(int)$integrity['acknowledged_count'];
         $coverage=(new \DigiForge\POD\ProductionProvenanceIntegrityCoverageReadModel())->inspect((int)$integrity['current_count'],(int)$integrity['historical_count']);
-        return $items+['total_attention'=>self::currentTotal($items),'total_attention_scope'=>'INCLUDES_BOUNDED_INTEGRITY_WINDOW','production_lifecycle_closures'=>$lifecycleClosures,'production_provenance_integrity_projection'=>$integrity,'production_provenance_integrity_coverage'=>$coverage,'production_permit_persistence_projection'=>$persistence,'production_permit_persistence_drilldown'=>$persistenceDrilldown,'production_preflight'=>$preflight,'printify_reconciliation'=>$reconciliation,'reconciliation_guidance'=>['unknown_outcome'=>'RECONCILE_BEFORE_ANY_RETRY','failed_or_blocked_queue'=>'INSPECT_EVIDENCE_BEFORE_OPERATOR_ACTION','retry_permitted'=>false,'external_execution_authorized'=>false],'external_execution_state'=>'READ_ONLY_NO_EXECUTION','external_execution_performed'=>null];
+        $unavailableSignals=array_keys(array_filter($items,static fn($value):bool=>$value===null));
+        if($lifecycleClosures===null)$unavailableSignals[]='production_lifecycle_closures';
+        return $items+['total_attention'=>self::completeTotal($items,$unavailableSignals),'query_state'=>$unavailableSignals===[]?'AVAILABLE':'PARTIAL_UNAVAILABLE','unavailable_signals'=>$unavailableSignals,'total_attention_scope'=>'INCLUDES_BOUNDED_INTEGRITY_WINDOW','production_lifecycle_closures'=>$lifecycleClosures,'production_provenance_integrity_projection'=>$integrity,'production_provenance_integrity_coverage'=>$coverage,'production_permit_persistence_projection'=>$persistence,'production_permit_persistence_drilldown'=>$persistenceDrilldown,'production_preflight'=>$preflight,'printify_reconciliation'=>$reconciliation,'reconciliation_guidance'=>['unknown_outcome'=>'RECONCILE_BEFORE_ANY_RETRY','failed_or_blocked_queue'=>'INSPECT_EVIDENCE_BEFORE_OPERATOR_ACTION','retry_permitted'=>false,'external_execution_authorized'=>false],'external_execution_state'=>'READ_ONLY_NO_EXECUTION','external_execution_performed'=>null];
+    }
+    /** An incomplete set cannot claim an authoritative total. */
+    public static function completeTotal(array $items,array $unavailableSignals):?int
+    {
+        return $unavailableSignals===[]?self::currentTotal($items):null;
     }
     /** Historical and acknowledged evidence remains visible without inflating current work. */
     public static function currentTotal(array $items):int
