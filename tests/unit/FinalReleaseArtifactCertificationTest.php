@@ -62,4 +62,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
  public function testPullRequestAuditPackagesExactCandidateHeadRatherThanSyntheticMergeCommit():void{
   $workflow=(string)file_get_contents(dirname(__DIR__,2).'/.github/workflows/digiforge-foundation-audit.yml');self::assertStringContainsString('ref: ${{ github.event.pull_request.head.sha || github.sha }}',$workflow);self::assertStringContainsString('DIGIFORGE_EXPECTED_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}',$workflow);self::assertStringContainsString('getenv("DIGIFORGE_EXPECTED_CANDIDATE_SHA")',$workflow);self::assertStringNotContainsString('getenv("GITHUB_SHA")',$workflow);
  }
+
+ public function testV106DeploymentPlanFailsClosedAndPreservesHistoricalEvidence():void{
+  $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.66_CONTROLLED_DEPLOYMENT_PLAN.md');self::assertStringContainsString('externally_locked=true',$plan);self::assertStringContainsString('Historical `external_actions_performed=true` evidence is not a deployment failure by itself',$plan);self::assertStringContainsString('MUST NOT be cleared or rewritten',$plan);self::assertStringContainsString('Do not manually set schema-version options',$plan);self::assertStringContainsString('restore the last compatible audited plugin + database checkpoint together',$plan);self::assertStringContainsString('installation is BLOCKED',$plan);
+ }
 }
