@@ -1,15 +1,18 @@
 <?php
 declare(strict_types=1);
-namespace DigiForge\POD;
-use DigiForge\Database\Tables;use WP_Error;
+namespace DigiForge\POD;use DigiForge\Database\Tables;use WP_Error;
 final class ProductionLifecycleClosureRepository{
  public static function save(array $record):array|WP_Error{
   if(($record['state']??'')!=='PRODUCTION_LIFECYCLE_CLOSED'||!is_array($record['closure']??null))return new WP_Error('production_closure_state','Valid lifecycle closure evidence required.',['status'=>400]);
-  $c=$record['closure'];$hash=strtolower((string)($record['closure_hash']??''));$auth=strtolower((string)($c['authorization_hash']??''));$package=(int)($c['package_id']??0);
-  if($package<1||!preg_match('/^[a-f0-9]{64}$/',$hash)||!preg_match('/^[a-f0-9]{64}$/',$auth)||($c['retry_permitted']??null)!==false)return new WP_Error('production_closure_binding','Closure binding is invalid.',['status'=>409]);
-  global $wpdb;$table=Tables::pod_lifecycle_closures();$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE package_id=%d OR authorization_hash=%s LIMIT 1',$package,$auth),ARRAY_A);
-  if(is_array($existing))return hash_equals((string)$existing['closure_hash'],$hash)?$existing:new WP_Error('production_closure_conflict','Package or authorization already has different closure evidence.',['status'=>409]);
-  $row=['package_id'=>$package,'package_hash'=>(string)$c['package_hash'],'authorization_hash'=>$auth,'outcome_state'=>(string)$c['outcome_state'],'closure_hash'=>$hash,'closed_by'=>(int)$c['closed_by'],'external_execution_performed'=>!empty($c['external_execution_performed'])?1:0,'created_at'=>current_time('mysql',true)];
-  if($wpdb->insert($table,$row)===false)return new WP_Error('production_closure_store','Lifecycle closure could not be persisted.',['status'=>409]);$row['id']=(int)$wpdb->insert_id;return $row;
+  $c=$record['closure'];$hash=strtolower((string)($record['closure_hash']??''));$auth=strtolower((string)($c['authorization_hash']??''));$package=(int)($c['package_id']??0);$packageHash=strtolower((string)($c['package_hash']??''));$outcome=(string)($c['outcome_state']??'');$closedBy=(int)($c['closed_by']??0);$executionState=(string)($c['external_execution_state']??'');
+  $validExecution=($outcome==='EXECUTION_SUCCEEDED'&&$executionState==='CONFIRMED_SUCCESS')||($outcome==='EXECUTION_FAILED'&&$executionState==='CONFIRMED_FAILURE');
+  if($package<1||$closedBy<1||!preg_match('/^[a-f0-9]{64}$/',$hash)||!preg_match('/^[a-f0-9]{64}$/',$auth)||!preg_match('/^[a-f0-9]{64}$/',$packageHash)||!$validExecution||($c['retry_permitted']??null)!==false||($c['external_execution_authorized']??null)!==false)return new WP_Error('production_closure_binding','Closure binding is invalid.',['status'=>409]);
+  global $wpdb;$packageRow=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d LIMIT 1',$package),ARRAY_A);
+  if(!is_array($packageRow)||(string)$packageRow['state']!=='APPROVED_PACKAGE'||(int)$packageRow['approved_by']<1||!hash_equals(strtolower((string)$packageRow['package_hash']),$packageHash))return new WP_Error('production_closure_package_evidence','Closure must bind exact persisted approved package evidence.',['status'=>409]);
+  $nonce=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_execution_nonces().' WHERE authorization_hash=%s ORDER BY id DESC LIMIT 1',$auth),ARRAY_A);if(!is_array($nonce))return new WP_Error('production_closure_nonce_evidence','Closure requires a consumed authorization nonce.',['status'=>409]);
+  $terminal=ExecutionOutcomeRepository::findByAuthorizationHash($auth);if(is_wp_error($terminal)||($terminal['state']??'')!==$outcome)return new WP_Error('production_closure_outcome_evidence','Closure must bind the exact durable terminal outcome.',['status'=>409]);
+  $table=Tables::pod_lifecycle_closures();$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE package_id=%d OR authorization_hash=%s LIMIT 1',$package,$auth),ARRAY_A);if(is_array($existing))return hash_equals((string)$existing['closure_hash'],$hash)?$existing:new WP_Error('production_closure_conflict','Package or authorization already has different closure evidence.',['status'=>409]);
+  $row=['package_id'=>$package,'package_hash'=>$packageHash,'authorization_hash'=>$auth,'outcome_state'=>$outcome,'closure_hash'=>$hash,'closed_by'=>$closedBy,'external_execution_performed'=>$executionState==='CONFIRMED_SUCCESS'?1:0,'created_at'=>current_time('mysql',true)];
+  if($wpdb->insert($table,$row)===false){$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE package_id=%d OR authorization_hash=%s LIMIT 1',$package,$auth),ARRAY_A);if(is_array($winner)&&hash_equals((string)$winner['closure_hash'],$hash))return $winner;return new WP_Error('production_closure_store','Lifecycle closure could not be persisted.',['status'=>409]);}$row['id']=(int)$wpdb->insert_id;return $row;
  }
 }

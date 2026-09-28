@@ -13,7 +13,7 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   self::assertFalse(is_wp_error($template));
   $ready=(new DigiForge\POD\PrintifyProductionPreflight())->evaluate($packageId);
   self::assertFalse(is_wp_error($ready));self::assertNotContains('PRINTIFY_TEMPLATE_NOT_VALIDATED',$ready['blockers']);self::assertNotContains('PRINTIFY_ROUTE_TEMPLATE_MISMATCH',$ready['blockers']);self::assertFalse($ready['ready_for_external_execution']);
-  $dry=(new DigiForge\POD\PersonalizedPodDryRun())->certify($packageId);self::assertFalse(is_wp_error($dry));self::assertSame('BLOCKED',$dry['execution_intent']['intent_state']);self::assertFalse($dry['execution_intent']['network_execution_performed']);self::assertFalse($dry['execution_intent']['retry_permitted']);
+  $dry=(new DigiForge\POD\PersonalizedPodDryRun())->certify($packageId);self::assertFalse(is_wp_error($dry));self::assertSame('BLOCKED',$dry['execution_intent']['intent_state']);self::assertFalse($dry['execution_intent']['network_execution_performed']);self::assertFalse($dry['execution_intent']['retry_permitted']);self::assertNotSame('',(string)$dry['execution_intent']['template_version']);self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/',(string)$dry['execution_intent']['template_fingerprint']);
  }
  public function testExecutionPermitBindsCurrentPreflightAndRejectsReadinessDrift():void{
   global $wpdb;$now=current_time('mysql',true);$packageId=$this->seedReadyPackage($now,888,'44:55');
@@ -44,7 +44,8 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   $conflict=DigiForge\POD\ReconciliationAcknowledgement::acknowledge($reconciliation,$reviewer,'ACKNOWLEDGE_NOT_CONFIRMED');self::assertTrue(is_wp_error($conflict));self::assertSame('reconciliation_acknowledgement_conflict',$conflict->get_error_code());
   $package=['id'=>7,'package_hash'=>hash('sha256','package'),'state'=>'APPROVED_PACKAGE','approved_by'=>$reviewer];
   $projection=['state'=>'EXECUTION_FAILED','authorization_hash'=>$auth,'nonce_consumed'=>true,'terminal_outcome'=>['state'=>'EXECUTION_FAILED']];
-  $closed=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$projection,$reviewer);self::assertFalse(is_wp_error($closed));self::assertSame('PRODUCTION_LIFECYCLE_CLOSED',$closed['state']);self::assertFalse($closed['closure']['external_execution_performed']);
+  $closed=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$projection,$reviewer);self::assertFalse(is_wp_error($closed));self::assertSame('PRODUCTION_LIFECYCLE_CLOSED',$closed['state']);self::assertSame('CONFIRMED_FAILURE',$closed['closure']['external_execution_state']);self::assertArrayNotHasKey('external_execution_performed',$closed['closure']);
+  $unknownProjection=$projection;$unknownProjection['state']='EXECUTION_UNKNOWN';$unknownProjection['external_execution_state']='UNKNOWN';$unknownBlocked=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$unknownProjection,$reviewer);self::assertTrue(is_wp_error($unknownBlocked));self::assertSame('production_closure_outcome_invalid',$unknownBlocked->get_error_code());
   $bad=$projection;$bad['nonce_consumed']=false;$blocked=(new DigiForge\POD\ProductionLifecycleClosure())->close($package,$bad,$reviewer);self::assertTrue(is_wp_error($blocked));self::assertSame('production_closure_outcome_invalid',$blocked->get_error_code());
  }
  public function testReadinessDriftInvalidatesApprovedPackage():void{
