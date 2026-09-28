@@ -17,7 +17,7 @@ final class ProductionExecutionConsumptionRepository
   global $wpdb;$nonceHash=hash('sha256',$nonce);$nonceTable=Tables::pod_execution_nonces();$bindingTable=Tables::pod_authorization_bindings();
   $existing=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash FROM '.$nonceTable.' WHERE nonce_hash=%s LIMIT 1',$nonceHash),ARRAY_A);
   if(is_array($existing))return new WP_Error('digiforge_execution_replay','Execution nonce has already been consumed.',['status'=>409]);
-  $wpdb->query('START TRANSACTION');
+  if($wpdb->query('START TRANSACTION')===false)return new WP_Error('production_permit_transaction_unavailable','Transactional permit consumption is unavailable; nothing was consumed.',['status'=>503]);
   try{
    $now=current_time('mysql',true);
    if($wpdb->insert($nonceTable,['nonce_hash'=>$nonceHash,'authorization_hash'=>$authorizationHash,'consumed_by'=>$actorId,'consumed_at'=>$now],['%s','%s','%d','%s'])===false){
