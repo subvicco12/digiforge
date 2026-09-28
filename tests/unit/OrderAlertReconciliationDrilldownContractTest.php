@@ -10,6 +10,6 @@ final class OrderAlertReconciliationDrilldownContractTest extends TestCase {
   $c=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
   foreach(['alertWorkflowUrl',"'listings'","'pod_personalized'","'orders'","'attention'"] as $v) self::assertStringContainsString($v,$c);
   self::assertStringContainsString('discrepancies ',$c);
-  self::assertStringContainsString('recentAttention(50)',$c);
+  self::assertStringContainsString('recentAttention(50,$attentionState)',$c);
  }
 }
