@@ -3,7 +3,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 final class V6ProductionClosurePersistenceTest extends TestCase{
  public function testCurrentSchemaAddsImmutableLifecycleEvidence():void{
-  $s=file_get_contents(__DIR__.'/../../includes/Database/V6OperationalSchema.php');self::assertStringContainsString('VERSION=19',$s);foreach(['pod_reconciliation_acknowledgements','pod_lifecycle_closures','UNIQUE KEY reconciliation_hash','UNIQUE KEY authorization_hash'] as $n)self::assertStringContainsString($n,$s);
+  $s=file_get_contents(__DIR__.'/../../includes/Database/V6OperationalSchema.php');self::assertStringContainsString('VERSION=20',$s);foreach(['pod_reconciliation_acknowledgements','pod_lifecycle_closures','UNIQUE KEY reconciliation_hash','UNIQUE KEY authorization_hash'] as $n)self::assertStringContainsString($n,$s);
  }
  public function testRepositoriesAreIdempotentAndConflictClosed():void{
   $a=file_get_contents(__DIR__.'/../../includes/POD/ReconciliationAcknowledgementRepository.php');self::assertStringContainsString('reconciliation_ack_conflict',$a);self::assertStringContainsString('acknowledgement_hash',$a);
