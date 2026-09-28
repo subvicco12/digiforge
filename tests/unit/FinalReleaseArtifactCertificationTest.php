@@ -36,7 +36,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
             'digiforge.release-manifest.json',
             'digiforge.zip.sha256',
             'Upload audited package',
-            'GITHUB_SHA'
+            'github.event.pull_request.head.sha || github.sha',
+            'DIGIFORGE_EXPECTED_CANDIDATE_SHA'
         ] as $needle) {
             self::assertStringContainsString($needle, $workflow);
         }
@@ -56,5 +57,9 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
 
  public function testReleaseCandidateEvidenceGateIsFailClosed():void{
   $gate=file_get_contents(__DIR__.'/../../docs/releases/RELEASE_CANDIDATE_EVIDENCE_GATE.md');self::assertIsString($gate);self::assertStringContainsString('UNKNOWN is not success',$gate);self::assertStringContainsString('No release-readiness result grants Etsy publish or POD production authority',$gate);self::assertStringContainsString('production_activation_authorized=false',$gate);
+ }
+
+ public function testPullRequestAuditPackagesExactCandidateHeadRatherThanSyntheticMergeCommit():void{
+  $workflow=(string)file_get_contents(dirname(__DIR__,2).'/.github/workflows/digiforge-foundation-audit.yml');self::assertStringContainsString('ref: ${{ github.event.pull_request.head.sha || github.sha }}',$workflow);self::assertStringContainsString('DIGIFORGE_EXPECTED_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}',$workflow);self::assertStringContainsString('getenv("DIGIFORGE_EXPECTED_CANDIDATE_SHA")',$workflow);self::assertStringNotContainsString('getenv("GITHUB_SHA")',$workflow);
  }
 }

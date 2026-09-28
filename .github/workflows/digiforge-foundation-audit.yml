@@ -36,8 +36,10 @@ jobs:
           --health-timeout=5s
           --health-retries=12
     steps:
-      - name: Checkout source
+      - name: Checkout exact candidate source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -182,6 +184,8 @@ jobs:
         run: bash bin/package-plugin.sh
 
       - name: Verify package boundaries
+        env:
+          DIGIFORGE_EXPECTED_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -e
           unzip -l build/digiforge.zip > build/package-files.txt
@@ -190,12 +194,12 @@ jobs:
           ! grep -Eq '(^|/)(vendor|tests|docs|\.github|bin)/' build/package-files.txt
           (cd build && sha256sum --check digiforge.zip.sha256)
           test -s build/digiforge.release-manifest.json
-          php -r '$m=json_decode(file_get_contents("build/digiforge.release-manifest.json"),true); if(!is_array($m) || ($m["artifact"]??"")!=="digiforge.zip" || ($m["commit_sha"]??"")!==getenv("GITHUB_SHA") || ($m["external_actions_performed"]??true)!==false || ($m["production_activation_authorized"]??true)!==false){exit(1);}'
+          php -r '$m=json_decode(file_get_contents("build/digiforge.release-manifest.json"),true); if(!is_array($m) || ($m["artifact"]??"")!=="digiforge.zip" || ($m["commit_sha"]??"")!==getenv("DIGIFORGE_EXPECTED_CANDIDATE_SHA") || ($m["external_actions_performed"]??true)!==false || ($m["production_activation_authorized"]??true)!==false){exit(1);}'
 
       - name: Upload audited package
         uses: actions/upload-artifact@v4
         with:
-          name: digiforge-plugin-${{ github.sha }}
+          name: digiforge-plugin-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             build/digiforge.zip
             build/digiforge.zip.sha256
