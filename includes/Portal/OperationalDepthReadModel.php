@@ -13,11 +13,11 @@ final class OperationalDepthReadModel {
  }
  public function fulfillmentProviders(int $limit=50):array {
   global $wpdb;$limit=max(1,min(100,$limit));
-  $plans=$wpdb->get_results($wpdb->prepare('SELECT fp.id,fp.order_id,fp.plan_version,fp.provider,fp.payload_hash,fp.readiness_hash,fp.state,fp.approved_by,fp.approved_at,fp.environment,fp.updated_at,o.environment AS order_environment FROM '.Tables::fulfillment_plans().' fp LEFT JOIN '.Tables::orders().' o ON o.id=fp.order_id ORDER BY fp.id DESC LIMIT %d',$limit),ARRAY_A)?:[];
+  $plans=$wpdb->get_results($wpdb->prepare('SELECT fp.id,fp.order_id,fp.plan_version,fp.provider,fp.payload_hash,fp.readiness_hash,fp.state,fp.approved_by,fp.approved_at,fp.environment,fp.updated_at,o.environment AS order_environment,o.state AS order_state FROM '.Tables::fulfillment_plans().' fp LEFT JOIN '.Tables::orders().' o ON o.id=fp.order_id ORDER BY fp.id DESC LIMIT %d',$limit),ARRAY_A)?:[];
   $repo=new OrderRepository();$currentByOrder=[];
   foreach($plans as &$r){
    $current=null;
-   if((string)($r['state']??'')==='APPROVED'){
+   if((string)($r['state']??'')==='APPROVED'&&!in_array((string)($r['order_state']??''),['CLOSED','REJECTED','SUPERSEDED'],true)){
     $orderId=(int)($r['order_id']??0);
     if($orderId>0){if(!array_key_exists($orderId,$currentByOrder)){$result=$repo->readiness($orderId);$currentByOrder[$orderId]=is_wp_error($result)?null:$result;}$current=$currentByOrder[$orderId];}
    }
@@ -28,6 +28,7 @@ final class OperationalDepthReadModel {
  }
  /** Current-action evidence classification; never authorizes an external action. */
  public static function planEvidenceState(array $plan,?array $current):string {
+  if(in_array((string)($plan['order_state']??''),['CLOSED','REJECTED','SUPERSEDED'],true))return 'HISTORICAL_ORDER_TERMINAL';
   if((string)($plan['state']??'')!=='APPROVED')return 'HISTORICAL_OR_DRAFT';
   $hash=(string)($plan['readiness_hash']??'');$payload=(string)($plan['payload_hash']??'');
   if(!preg_match('/^[a-f0-9]{64}$/',$hash)||!preg_match('/^[a-f0-9]{64}$/',$payload)||(int)($plan['approved_by']??0)<1||empty($plan['approved_at'])||(int)($plan['order_id']??0)<1||empty($plan['order_environment'])||(string)($plan['order_environment']??'')!==(string)($plan['environment']??''))return 'EVIDENCE_INVALID_REVIEW';

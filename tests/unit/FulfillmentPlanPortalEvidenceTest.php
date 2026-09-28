@@ -26,6 +26,10 @@ final class FulfillmentPlanPortalEvidenceTest extends TestCase
             self::assertSame('EVIDENCE_INVALID_REVIEW', OperationalDepthReadModel::planEvidenceState(array_replace($plan, $change), $current));
         }
         self::assertSame('HISTORICAL_OR_DRAFT', OperationalDepthReadModel::planEvidenceState(array_replace($plan, ['state' => 'DRAFT']), null));
+        foreach (['CLOSED', 'REJECTED', 'SUPERSEDED'] as $terminal) {
+            self::assertSame('HISTORICAL_ORDER_TERMINAL', OperationalDepthReadModel::planEvidenceState(array_replace($plan, ['order_state' => $terminal]), null));
+        }
+        self::assertSame('CURRENT_EVIDENCE_MATCH', OperationalDepthReadModel::planEvidenceState(array_replace($plan, ['order_state' => 'APPROVED']), $current));
     }
 
     public function testPortalShowsCurrentActionWithoutPromisingProduction(): void
@@ -34,6 +38,8 @@ final class FulfillmentPlanPortalEvidenceTest extends TestCase
         $portal = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
         self::assertStringContainsString('Repository as OrderRepository', $model);
         self::assertStringContainsString('planEvidenceState($r,$current)', $model);
+        self::assertStringContainsString('o.state AS order_state', $model);
+        self::assertStringContainsString("['CLOSED','REJECTED','SUPERSEDED']", $model);
         self::assertStringNotContainsString('canonical_payload', $model);
         self::assertStringContainsString('Recent approved plans needing evidence review', $portal);
         self::assertStringContainsString('Draft and historical states are excluded', $portal);
