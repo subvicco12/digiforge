@@ -401,10 +401,12 @@ final class Portal
             . " WHERE state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED') ORDER BY FIELD(severity,'CRITICAL','ERROR','WARNING','INFO'), id DESC LIMIT 50",
             ARRAY_A
         );
+        $alertsReadFailed=!is_array($alerts)||!empty($wpdb->last_error);
         $alertFocus=isset($_GET['df_alert_id'])?absint(wp_unslash($_GET['df_alert_id'])):0;
         $focusedAlert=$alertFocus>0?$wpdb->get_row($wpdb->prepare('SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at FROM '.Tables::operational_alerts()." WHERE id=%d AND state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED')",$alertFocus),ARRAY_A):null;
-        if(is_array($focusedAlert)&&!in_array($alertFocus,array_map('intval',array_column(is_array($alerts)?$alerts:[],'id')),true))$alerts=array_merge([$focusedAlert],is_array($alerts)?$alerts:[]);
-        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Observed attention signals</span><strong>'.esc_html((string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html((string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html((string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html((string)$attention['open_operational_alerts']).'</strong></article><article class="df-stat-card"><span>Orders needing reconciliation</span><strong>'.esc_html((string)$attention['orders_needing_reconciliation']).'</strong></article></section>';
+        if(!$alertsReadFailed&&is_array($focusedAlert)&&!in_array($alertFocus,array_map('intval',array_column(is_array($alerts)?$alerts:[],'id')),true))$alerts=array_merge([$focusedAlert],is_array($alerts)?$alerts:[]);
+        echo '<section class="df-card-grid"><article class="df-stat-card"><span>Observed attention signals</span><strong>'.esc_html($attention['total_attention']===null?'UNAVAILABLE':(string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html($attention['personalization_reviews']===null?'UNAVAILABLE':(string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html($attention['fulfillment_decisions']===null?'UNAVAILABLE':(string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html($attention['open_operational_alerts']===null?'UNAVAILABLE':(string)$attention['open_operational_alerts']).'</strong></article><article class="df-stat-card"><span>Orders needing reconciliation</span><strong>'.esc_html($attention['orders_needing_reconciliation']===null?'UNAVAILABLE':(string)$attention['orders_needing_reconciliation']).'</strong></article></section>';
+        if(($attention['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">Attention totals are unavailable because one or more source reads failed. Review the individual evidence sources; no empty queue is inferred.</div>';
         if(current_user_can('manage_digiforge_research')&&current_user_can('manage_digiforge_products'))echo '<p class="df-muted">Review recorded decisions: <a href="'.esc_url($this->url('approvals').'#df-approval-personalization').'">Personalization approval evidence</a> · <a href="'.esc_url($this->url('approvals').'#df-approval-fulfillment').'">Fulfillment approval evidence</a>. Links do not make a decision or authorize external action.</p>';
         echo '<p class="df-muted">The attention sum includes a bounded integrity evidence window. It is not an exhaustive count of all provenance anomalies; a zero in that window does not prove that none exist. No retry or external execution authority follows from these counts.</p>';
         $integrity=(array)($attention['production_provenance_integrity_projection']??[]);$persistence=(array)($attention['production_permit_persistence_drilldown']??[]);
@@ -462,9 +464,11 @@ final class Portal
             . '<div><span>Credential decryptability</span><b>' . esc_html((string) ($preflight['checks']['credential_decryptable'] ?? 'UNKNOWN')) . '</b></div>'
             . '</div></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Open operational alerts</h2><p>These records require human review or explicit recovery handling.</p></div>'
-            . '<span>' . esc_html((string) $attention['open_operational_alerts']) . ' open total</span></div>';
+            . '<span>' . esc_html($attention['open_operational_alerts']===null?'UNAVAILABLE':(string)$attention['open_operational_alerts']) . ' open total</span></div>';
         if($alertFocus>0&&!is_array($focusedAlert))echo '<div class="df-notice df-notice-error">Requested operational alert is unavailable or closed. No recovery action is inferred.</div>';
-        if (!is_array($alerts) || $alerts === []) {
+        if ($alertsReadFailed) {
+            echo '<div class="df-notice df-notice-error">Operational alert evidence unavailable. Database read failed; no empty queue is inferred.</div>';
+        } elseif ($alerts === []) {
             echo '<div class="df-empty">No open operational alerts.</div>';
         } else {
             echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>ID</th><th>Environment</th><th>Severity</th><th>Type</th><th>Source evidence</th><th>State</th><th>Created</th></tr></thead><tbody>';
