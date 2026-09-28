@@ -8,7 +8,11 @@ final class ScopedPolicySchema {
   global $wpdb;
   $table=Tables::scoped_capability_policies();
   $exists=static function() use ($wpdb,$table):bool {
-   return $wpdb->query('SELECT 1 FROM `'.esc_sql($table).'` LIMIT 0')!==false;
+   $suppress=$wpdb->suppress_errors(true);
+   $found=$wpdb->query('SELECT 1 FROM `'.esc_sql($table).'` LIMIT 0')!==false;
+   $wpdb->suppress_errors($suppress);
+   $wpdb->last_error='';
+   return $found;
   };
   if((int)get_option('digiforge_db_schema_version',0)>=self::VERSION&&$exists())return true;
   require_once ABSPATH.'wp-admin/includes/upgrade.php';$charset=$wpdb->get_charset_collate();
