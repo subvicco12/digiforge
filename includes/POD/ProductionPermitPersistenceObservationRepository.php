@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+namespace DigiForge\POD;
+use DigiForge\Database\Tables;
+
+/** Durable, read-only audit trail for ambiguous permit persistence boundaries. */
+final class ProductionPermitPersistenceObservationRepository{
+ public static function observe(string $nonceHash,string $authorizationHash,int $packageId,string $packageHash,array $projection):void{
+  if(!preg_match('/^[a-f0-9]{64}$/',$nonceHash)||!preg_match('/^[a-f0-9]{64}$/',$authorizationHash)||!preg_match('/^[a-f0-9]{64}$/',$packageHash)||$packageId<1)return;
+  global $wpdb;$table=Tables::pod_permit_persistence_observations();$hash=hash('sha256',implode('|',[$nonceHash,$authorizationHash,(string)$packageId,$packageHash]));$now=current_time('mysql',true);$state=(string)($projection['persistence_state']??'UNKNOWN');if(!in_array($state,['UNKNOWN','PERSISTED_OBSERVED'],true))$state='UNKNOWN';
+  $existing=$wpdb->get_var($wpdb->prepare('SELECT id FROM '.$table.' WHERE observation_hash=%s LIMIT 1',$hash));
+  if($existing){$wpdb->update($table,['persistence_state'=>$state,'last_observed_at'=>$now],['id'=>(int)$existing],['%s','%s'],['%d']);return;}
+  $wpdb->insert($table,['observation_hash'=>$hash,'nonce_hash'=>$nonceHash,'authorization_hash'=>$authorizationHash,'package_id'=>$packageId,'package_hash'=>$packageHash,'persistence_state'=>$state,'first_observed_at'=>$now,'last_observed_at'=>$now],['%s','%s','%s','%d','%s','%s','%s','%s']);
+ }
+ public static function summary():array{
+  global $wpdb;$table=Tables::pod_permit_persistence_observations();$unknown=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table WHERE persistence_state='UNKNOWN'");$observed=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table WHERE persistence_state='PERSISTED_OBSERVED'");
+  return ['unknown_count'=>$unknown,'persisted_observed_count'=>$observed,'count'=>$unknown+$observed,'read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
+ }
+}
