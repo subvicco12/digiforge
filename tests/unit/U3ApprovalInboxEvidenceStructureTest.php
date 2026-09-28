@@ -44,7 +44,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringContainsString('l.id AS subject_id', $source);
         self::assertStringContainsString('p.order_id AS subject_order_id', $source);
         self::assertStringContainsString('Evidence</th>', $source);
-        self::assertStringContainsString('Open governed workflow</a></td></tr>', $source);
+        self::assertStringContainsString('Open review evidence</a></td></tr>', $source);
     }
 
     public function testSubjectEvidenceDistinguishesMissingChangedAndConflictingReferences(): void
@@ -64,6 +64,21 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         self::assertStringContainsString('Source evidence</th>', $portal);
         self::assertStringContainsString('MISSING SOURCE REFERENCE — REVIEW', $portal);
         self::assertStringContainsString("(int) $" . "alert['source_id'] < 1", $portal);
+    }
+
+    public function testReviewEvidenceFocusIsAllowlistedAndReportsMissingRecords(): void
+    {
+        $inbox = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
+        $portal = file_get_contents(__DIR__ . '/../../includes/Portal/Portal.php');
+        foreach (['listing_review', 'personalization', 'pod_review', 'fulfillment_review'] as $type) {
+            self::assertStringContainsString("'" . $type . "'", $inbox);
+            self::assertStringContainsString("'" . $type . "'", $portal);
+        }
+        self::assertStringContainsString("'df_focus_id' => $" . 'reviewId', $inbox);
+        self::assertStringContainsString('if ($reviewId < 1)', $inbox);
+        self::assertStringContainsString("$" . 'wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId)', $portal);
+        self::assertStringContainsString('Requested evidence record is unavailable', $portal);
+        self::assertStringContainsString('!in_array($focusId, array_map', $portal);
     }
 
 }

@@ -613,6 +613,22 @@ final class Portal
     {
         global $wpdb;
         $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC LIMIT 50", ARRAY_A);
+        $focusTables = [
+            'listing_review' => Tables::listing_readiness_reviews(),
+            'personalization' => Tables::personalization_submissions(),
+            'pod_review' => Tables::pod_readiness_reviews(),
+            'fulfillment_review' => Tables::fulfillment_readiness_reviews(),
+        ];
+        $focusType = isset($_GET['df_focus_type']) ? sanitize_key(wp_unslash($_GET['df_focus_type'])) : '';
+        $focusId = isset($_GET['df_focus_id']) ? absint(wp_unslash($_GET['df_focus_id'])) : 0;
+        $focused = $focusId > 0 && isset($focusTables[$focusType]) && $focusTables[$focusType] === $table;
+        if ($focused) {
+            $record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId), ARRAY_A);
+            if (is_array($record) && !in_array($focusId, array_map('intval', array_column(is_array($rows) ? $rows : [], 'id')), true)) {
+                $rows = array_merge([$record], is_array($rows) ? $rows : []);
+            }
+            if (!is_array($record)) { echo '<div class="df-notice df-notice-error">Requested evidence record is unavailable. Review the source reference; no decision is inferred.</div>'; }
+        }
         if (! is_array($rows) || $rows === []) {
             echo '<div class="df-empty">No records found.</div>';
             return;
@@ -624,7 +640,8 @@ final class Portal
         }
         echo '</tr></thead><tbody>';
         foreach ($rows as $row) {
-            echo '<tr>';
+            $anchor = $focused && (int) ($row['id'] ?? 0) === $focusId ? ' id="df-evidence-' . esc_attr($focusType . '-' . $focusId) . '"' : '';
+            echo '<tr' . $anchor . '>';
             foreach ($columns as $column) {
                 echo '<td>' . esc_html($this->cell((string) $column, $row[$column] ?? '')) . '</td>';
             }

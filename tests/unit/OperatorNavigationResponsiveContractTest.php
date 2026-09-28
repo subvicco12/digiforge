@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 final class OperatorNavigationResponsiveContractTest extends TestCase {
  public function testApprovalLinksNavigateOnlyToGovernedInternalViews():void {
   $c=file_get_contents(__DIR__.'/../../includes/Portal/U3ApprovalInbox.php');
-  self::assertStringContainsString('Open governed workflow',$c);
+  self::assertStringContainsString('Open review evidence',$c);
   foreach(["'listings'","'pod_personalized'","'orders'"] as $v) self::assertStringContainsString($v,$c);
   self::assertStringNotContainsString('wp_remote_',$c);
   self::assertStringNotContainsString('Settings::set',$c);
