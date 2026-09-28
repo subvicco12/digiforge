@@ -62,7 +62,7 @@ final class U3ApprovalInbox
         ];
         ob_start(); ?>
         <section class="df-panel df-u3-operational-approvals">
-            <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div>
+            <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div>
             <?php foreach ($groups as $title => $rows) : ?>
                 <div class="df-subpanel"><h4><?php echo esc_html($title); ?></h4>
                 <?php if ($rows === []) : ?><div class="df-empty">No pending items.</div><?php else : ?>
