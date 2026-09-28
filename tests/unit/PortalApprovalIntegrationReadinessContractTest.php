@@ -20,17 +20,24 @@ final class PortalApprovalIntegrationReadinessContractTest extends TestCase {
  }
  public function testConnectorEvidenceFailsClosedForMissingAndUnconnectedStatus():void {
   require_once __DIR__.'/../../includes/Portal/IntegrationReadinessReadModel.php';
+  require_once __DIR__.'/../../includes/Integrations/CredentialEvidenceVersion.php';
   $previous=$GLOBALS['wpdb']??null;
   $GLOBALS['wpdb']=new class {
    public string $prefix='wp_';
    public string $last_error='';
    public function get_results(string $sql, mixed $format):array {
+    if(str_contains($sql,'integration_secrets'))return [
+     ['integration_id'=>1,'secret_name'=>'api_key','fingerprint'=>'abcdef0123456789']
+    ];
+    $version=\DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata([
+     ['secret_name'=>'api_key','fingerprint'=>'abcdef0123456789']
+    ]);
     return [
-     ['enabled'=>1,'status'=>'CONFIGURED','connection_key'=>'private','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00","details":{"token":"never-display"}},"credential":"never-display"}'],
-     ['enabled'=>1,'status'=>'CONFIGURED','config'=>'{}'],
-     ['enabled'=>1,'status'=>'ERROR','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
-     ['enabled'=>0,'status'=>'CONFIGURED','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
-     ['enabled'=>1,'status'=>'CONNECTED','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
+     ['id'=>1,'enabled'=>1,'status'=>'CONFIGURED','connection_key'=>'private','config'=>json_encode(['_connection_test'=>['ok'=>true,'checked_at'=>'2026-09-28 12:00:00','credential_evidence_version'=>$version,'details'=>['token'=>'never-display']],'credential'=>'never-display'])],
+     ['id'=>2,'enabled'=>1,'status'=>'CONFIGURED','config'=>'{}'],
+     ['id'=>3,'enabled'=>1,'status'=>'ERROR','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
+     ['id'=>4,'enabled'=>0,'status'=>'CONFIGURED','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
+     ['id'=>5,'enabled'=>1,'status'=>'CONNECTED','config'=>'{"_connection_test":{"ok":true,"checked_at":"2026-09-28 12:00:00"}}'],
     ];
    }
   };
@@ -38,7 +45,7 @@ final class PortalApprovalIntegrationReadinessContractTest extends TestCase {
    $snapshot=(new \DigiForge\Portal\IntegrationReadinessReadModel())->snapshot();
    self::assertSame(['total'=>5,'enabled'=>4,'configured'=>3,'stored_successful_tests'=>1,'attention'=>3],$snapshot['counts']);
    self::assertSame(['TEST_SUCCESS_RECORDED','CONFIGURED_UNVERIFIED','REVIEW_REQUIRED','DISABLED','REVIEW_REQUIRED'],array_column($snapshot['items'],'evidence_state'));
-   self::assertSame('No valid successful stored connection test',$snapshot['items'][1]['attention_reason']);
+   self::assertSame('Stored test missing or credential version changed',$snapshot['items'][1]['attention_reason']);
    self::assertSame('2026-09-28 12:00:00',$snapshot['items'][0]['last_stored_test_at']);
    self::assertArrayNotHasKey('config',$snapshot['items'][0]);
    self::assertArrayNotHasKey('connection_key',$snapshot['items'][0]);
@@ -54,6 +61,25 @@ final class PortalApprovalIntegrationReadinessContractTest extends TestCase {
    public string $prefix='wp_';
    public string $last_error='fixture failure';
    public function get_results(string $sql,mixed $format):array{return [];}
+  };
+  try {
+   $snapshot=(new \DigiForge\Portal\IntegrationReadinessReadModel())->snapshot();
+   self::assertSame('UNAVAILABLE',$snapshot['query_state']);
+   self::assertNull($snapshot['counts']);
+   self::assertSame([],$snapshot['items']);
+   self::assertFalse($snapshot['external_execution_authorized']);
+  } finally { $GLOBALS['wpdb']=$previous; }
+ }
+ public function testCredentialMetadataQueryFailureAlsoReportsUnknown():void {
+  require_once __DIR__.'/../../includes/Portal/IntegrationReadinessReadModel.php';
+  $previous=$GLOBALS['wpdb']??null;
+  $GLOBALS['wpdb']=new class {
+   public string $prefix='wp_';
+   public string $last_error='';
+   public function get_results(string $sql,mixed $format):?array {
+    if(str_contains($sql,'integration_secrets')){$this->last_error='fixture failure';return null;}
+    return [['id'=>1,'enabled'=>1,'status'=>'CONFIGURED','config'=>'{}']];
+   }
   };
   try {
    $snapshot=(new \DigiForge\Portal\IntegrationReadinessReadModel())->snapshot();

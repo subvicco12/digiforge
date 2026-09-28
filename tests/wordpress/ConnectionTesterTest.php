@@ -63,6 +63,9 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertSame('CONFIGURED', $updated['status']);
         self::assertFalse((bool) $updated['enabled']);
         self::assertTrue((bool) ($updated['config']['_connection_test']['ok'] ?? false));
+        self::assertSame(DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata(
+            $repository->secretMetadata($id)
+        ),$updated['config']['_connection_test']['credential_evidence_version']);
         self::assertSame(1, (int) ($updated['config']['_connection_test']['details']['shop_count'] ?? 0));
         DigiForge\Core\Settings::protectProduction();
     }
