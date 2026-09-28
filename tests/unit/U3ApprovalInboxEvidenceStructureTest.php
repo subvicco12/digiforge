@@ -62,6 +62,33 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         } finally { $GLOBALS['wpdb'] = $previous; }
     }
 
+    public function testProductApprovalCountAndEvidenceWindowRepresentUniquePlans(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $GLOBALS['wpdb'] = new class {
+            public string $prefix = 'wp_';
+            public string $countQuery = '';
+            public string $rowsQuery = '';
+            public function get_var(string $query): int { $this->countQuery = $query; return 73; }
+            public function get_results(string $query, mixed $format): array { $this->rowsQuery = $query; return []; }
+        };
+        try {
+            $inbox = (new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertSame(73, (new ReflectionMethod($inbox, 'pendingProductCount'))->invoke($inbox));
+            self::assertSame([], (new ReflectionMethod($inbox, 'pendingProducts'))->invoke($inbox));
+            self::assertStringContainsString("pp.state='REVIEW_REQUIRED'", $GLOBALS['wpdb']->countQuery);
+            self::assertStringNotContainsString('LIMIT', $GLOBALS['wpdb']->countQuery);
+            self::assertStringNotContainsString('release_bundles', $GLOBALS['wpdb']->countQuery);
+            self::assertStringContainsString('rb.id=(SELECT rb2.id', $GLOBALS['wpdb']->rowsQuery);
+            self::assertStringContainsString('rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1', $GLOBALS['wpdb']->rowsQuery);
+            self::assertStringContainsString('ORDER BY pp.id DESC LIMIT 50', $GLOBALS['wpdb']->rowsQuery);
+            $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
+            self::assertStringContainsString('this panel displays the most recent 50', $source);
+        } finally { $GLOBALS['wpdb'] = $previous; }
+    }
+
     public function testPendingReviewRowsRetainMissingSubjectsAndKeepWorkflowLinkInsideRow(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
