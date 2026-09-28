@@ -33,4 +33,8 @@ final class OperatorQueueReadModel {
   if($d['dead_letter_jobs']>0)$classification[]='DEAD_LETTER_REQUIRES_OPERATOR_REVIEW';
   return ['classifications'=>$classification,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false,'read_only'=>true];
  }
+ public function recoveryEvidence(int $limit=25):array {
+  $attention=$this->recentAttention($limit);$idem=$this->unresolvedIdempotency($limit);$class=$this->recoveryClassification();
+  return ['attention'=>$attention,'unresolved_idempotency'=>$idem,'classification'=>$class,'correlation'=>['attention_count'=>count($attention),'idempotency_count'=>count($idem),'requires_operator_review'=>($attention!==[]||$idem!==[])],'read_only'=>true,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false];
+ }
 }
