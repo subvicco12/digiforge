@@ -36,6 +36,7 @@ final class ExecutionFailureRepository
   $row=['action'=>$action,'evidence_hash'=>$evidence,'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'failure_category'=>$category,'failure_code'=>$code,'executed_by'=>$actor,'recorded_at'=>gmdate('Y-m-d H:i:s',$recordedAt),'failure_hash'=>$hash,'created_at'=>current_time('mysql',true)];
   if($wpdb->insert($table,$row)===false){
    $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
+   if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_insert_confirmation_unavailable','Terminal outcome may have persisted but confirmation is unavailable; do not retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
    if(is_array($winner)&&hash_equals((string)$winner['failure_hash'],$hash))return $winner;
    return new WP_Error('digiforge_failure_store','Execution failure could not be persisted.',['status'=>409]);
   }
