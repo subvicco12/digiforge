@@ -13,7 +13,7 @@ final class FinalReleaseCandidateEvidenceBindingTest extends TestCase {
   self::assertStringContainsString('Missing evidence is REVIEW_REQUIRED',$g);
   self::assertStringContainsString('No release-readiness result grants Etsy publish or POD production authority',$g);
  }
- public function testFinalMetadataRemainsV1074Schema23():void {
-  $p=file_get_contents(__DIR__.'/../../digiforge.php');self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.74';",$p);self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';",$p);
+ public function testFinalMetadataRemainsV1075Schema23():void {
+  $p=file_get_contents(__DIR__.'/../../digiforge.php');self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.75';",$p);self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';",$p);
  }
 }
