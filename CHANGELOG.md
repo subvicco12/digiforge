@@ -1,3 +1,10 @@
+## 1.0.83 — 2026-09-30
+
+- Adds the governed Etsy listing publication execution boundary for an explicitly approved listing, approved intent/package, verified shop identity, and previously confirmed CREATE_DRAFT identity.
+- Publishes only through a dedicated PUBLISH_LISTING ledger operation using the controlled Etsy transport, with effective Etsy Publish capability enforcement and exact request/evidence binding.
+- Prevents replay after confirmed publication and fails closed on prior attempts, conflicting idempotency reuse, stale readiness, invalid identity, or uncertain external outcomes; automatic retry remains disabled and UNKNOWN requires reconciliation.
+- Preserves the existing draft planner's publish prohibition. Database schema remains v23. Installation itself does not publish Etsy, repeat draft/file operations, submit POD production, execute orders, move money, or file tax.
+
 ## 1.0.82 — 2026-09-29
 
 - Adds the governed live-site Listings & Etsy human decision surface for persisted PENDING Gate 3 listing-readiness reviews.
