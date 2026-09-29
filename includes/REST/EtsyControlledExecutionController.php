@@ -12,6 +12,7 @@ use DigiForge\Listings\EtsyApprovedPackageCompiler;
 use DigiForge\Listings\EtsyControlledTransportOrchestrator;
 use DigiForge\Listings\EtsyCustomerDownloadResolver;
 use DigiForge\Listings\EtsyMultipartDigitalFileRequest;
+use DigiForge\Listings\EtsyMultipartImageRequest;
 use DigiForge\Listings\EtsyDraftListingOperations;
 use DigiForge\Listings\EtsyDraftOperationPipeline;
 use DigiForge\Listings\EtsyOperationPreparationService;
@@ -31,6 +32,7 @@ final class EtsyControlledExecutionController
     public function register(): void
     {
         add_action('rest_api_init',function():void{
+            register_rest_route(self::NS,'/etsy/controlled-listing-image',['methods'=>'POST','callback'=>[$this,'uploadListingImage'],'permission_callback'=>[$this,'canExecute']]);
             register_rest_route(self::NS,'/etsy/controlled-digital-file',['methods'=>'POST','callback'=>[$this,'uploadDigitalFile'],'permission_callback'=>[$this,'canExecute']]);
             register_rest_route(self::NS,'/etsy/controlled-draft',[
                 'methods'=>'POST',
@@ -40,6 +42,38 @@ final class EtsyControlledExecutionController
         });
     }
 
+
+    public function uploadListingImage(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $body=$request->get_json_params(); if(!is_array($body))return new WP_Error('digiforge_etsy_image_payload','JSON request body is required.',['status'=>400]);
+        $key=trim((string)$request->get_header('Idempotency-Key')); $bodyKey=trim((string)($body['idempotency_key']??'')); if($key===''&&$bodyKey!=='')$key=$bodyKey;
+        if($key===''||strlen($key)>191||($bodyKey!==''&&!hash_equals($key,$bodyKey)))return new WP_Error('digiforge_etsy_image_idempotency','A single bounded idempotency key is required.',['status'=>400]);
+        $integrationId=(int)($body['integration_id']??0); $shopId=(int)($body['shop_id']??0); $intentId=(int)($body['intent_id']??0); $packageId=(int)($body['draft_package_id']??0); $assetRevisionId=(int)($body['asset_revision_id']??0); $rank=(int)($body['rank']??1);
+        if($integrationId<1||$shopId<1||$intentId<1||$packageId<1||$assetRevisionId<1||$rank<1||$rank>10)return new WP_Error('digiforge_etsy_image_scope','Integration, shop, approved intent/package, image revision and bounded rank are required.',['status'=>400]);
+        global $wpdb;
+        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A); $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId||!is_array($package)||(int)($package['approved_by']??0)<1)return new WP_Error('digiforge_etsy_image_approval','Approved intent/package scope is required.',['status'=>409]);
+        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_image_listing','Approved listing is required.',['status'=>409]);
+        $manifest=json_decode((string)($wpdb->get_var($wpdb->prepare('SELECT manifest FROM '.Tables::release_bundles().' WHERE id=%d LIMIT 1',(int)($wpdb->get_var($wpdb->prepare('SELECT release_bundle_id FROM '.Tables::listing_media().' WHERE listing_id=%d AND state=%s ORDER BY position_index ASC,id ASC LIMIT 1',(int)$listing['id'],'BOUND'))))),true);
+        if(!is_array($manifest))return new WP_Error('digiforge_etsy_image_bundle','Approved bound release bundle is required.',['status'=>409]);
+        $manifestEntry=null; foreach($manifest as $entry){if(is_array($entry)&&(int)($entry['asset_revision_id']??0)===$assetRevisionId){$manifestEntry=$entry;break;}}
+        if(!is_array($manifestEntry))return new WP_Error('digiforge_etsy_image_asset','Image revision is not part of the approved bound release bundle.',['status'=>409]);
+        $asset=$wpdb->get_row($wpdb->prepare('SELECT ar.*,s.product_version_id FROM '.Tables::asset_revisions().' ar JOIN '.Tables::asset_specs().' s ON s.id=ar.asset_spec_id WHERE ar.id=%d LIMIT 1',$assetRevisionId),ARRAY_A);
+        if(!is_array($asset)||(int)($asset['product_version_id']??0)!==(int)$listing['product_version_id']||($asset['state']??'')!=='APPROVED'||!hash_equals(strtolower((string)($manifestEntry['checksum_sha256']??'')),strtolower((string)($asset['checksum_sha256']??''))))return new WP_Error('digiforge_etsy_image_asset','Image revision is not an approved checksum-bound listing asset.',['status'=>409]);
+        $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId); if($identity instanceof WP_Error)return $identity;
+        $operations=new EtsyOperationRepository(); $parent=$operations->confirmedCreateForScope($intentId,$packageId,(string)$shopId); if(!is_array($parent))return new WP_Error('digiforge_etsy_image_parent','A confirmed CREATE_DRAFT is required before image upload.',['status'=>409]);
+        $listingId=(int)($parent['external_reference']??0); if($listingId<1)return new WP_Error('digiforge_etsy_image_parent_identity','Confirmed CREATE_DRAFT listing identity is invalid.',['status'=>409]);
+        $path=wp_normalize_path(WP_CONTENT_DIR.'/uploads/'.ltrim((string)$asset['storage_reference'],'/')); $multipart=EtsyMultipartImageRequest::build($shopId,$listingId,$path,$rank); if($multipart instanceof WP_Error)return $multipart;
+        if(!hash_equals(strtolower((string)$asset['checksum_sha256']),strtolower((string)$multipart['sha256'])))return new WP_Error('digiforge_etsy_image_integrity','Resolved image bytes do not match the approved asset revision.',['status'=>409]);
+        $draft=EtsyDraftListingOperations::uploadImage($shopId,$listingId,$multipart); if($draft instanceof WP_Error)return $draft; $payload=(array)$draft['payload']; $fingerprint=EtsyRequestFingerprint::fromPayload($payload); if($fingerprint instanceof WP_Error)return $fingerprint;
+        $evidenceHash=strtolower(trim((string)$package['readiness_hash'])); $actor=get_current_user_id(); $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>$evidenceHash];
+        $authorization=ExecutionAuthorization::issue($approval,'ETSY_DRAFT_IMAGE',$actor,str_replace('-','_',wp_generate_uuid4()),300,$fingerprint); if($authorization instanceof WP_Error)return $authorization;
+        $operation=$operations->createFromPayload(['shop_reference'=>(string)$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId,'operation_type'=>'ATTACH_IMAGE','resource_reference'=>(string)$listingId,'idempotency_key'=>$key,'authorization_hash'=>(string)$authorization['authorization_hash'],'evidence_hash'=>$evidenceHash],$payload); if($operation instanceof WP_Error)return $operation;
+        if(($operation['idempotent_replay']??false)===true&&(string)($operation['state']??'')!=='NOT_SENT')return new WP_REST_Response(['state'=>'ETSY_CONTROLLED_IMAGE_ALREADY_ATTEMPTED','operation'=>$operation,'external_execution_performed'=>true,'publish_permitted'=>false],200);
+        $prepared=(new EtsyOperationPreparationService($operations))->prepare((int)$operation['id'],$authorization,$evidenceHash,$actor,time(),$payload); if($prepared instanceof WP_Error)return $prepared; $metadata=(new EtsyTokenMetadataBridge(new IntegrationRepository()))->evaluate($integrationId,time()); if($metadata instanceof WP_Error)return $metadata;
+        $result=(new EtsyControlledDraftExecutionCoordinator(new EtsyDraftOperationPipeline(new EtsyControlledTransportOrchestrator()),$operations))->execute($prepared,$operation,$metadata,$draft,['Content-Type'=>'multipart/form-data','Idempotency-Key'=>$key],$multipart); if($result instanceof WP_Error)return $result;
+        return new WP_REST_Response($result+['publish_permitted'=>false],200);
+    }
 
     public function uploadDigitalFile(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
