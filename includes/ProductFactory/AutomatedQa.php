@@ -38,6 +38,7 @@ final class AutomatedQa
             'json' => json_decode($sample, true) !== null && json_last_error() === JSON_ERROR_NONE,
             'csv', 'txt' => trim($sample) !== '',
             'zip' => $this->zipReport($path)['valid'],
+            'png' => str_starts_with($sample, "\x89PNG\r\n\x1a\n"),
             default => false,
         };
         $checks[] = $this->check('format_integrity', $integrity, ['format' => $format]);
@@ -76,6 +77,11 @@ final class AutomatedQa
                 'image_xobjects_present' => preg_match('/\\/Type\\s*\\/XObject\\b|\\/Subtype\\s*\\/Image\\b/i', $sample) === 1,
                 'generator_profile' => 'digiforge_local_text_pdf',
             ]);
+        }
+
+        if ($format === 'png') {
+            $dimensions = @getimagesize($path);
+            $checks[] = $this->check('png_dimensions', is_array($dimensions) && (int) ($dimensions[0] ?? 0) > 0 && (int) ($dimensions[1] ?? 0) > 0, ['width_px' => (int) ($dimensions[0] ?? 0), 'height_px' => (int) ($dimensions[1] ?? 0)]);
         }
 
         if ($format === 'svg') {
