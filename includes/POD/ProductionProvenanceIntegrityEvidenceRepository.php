@@ -19,6 +19,7 @@ final class ProductionProvenanceIntegrityEvidenceRepository{
  /** @return list<array<string,mixed>> */
  public static function recent(int $limit):array{
   global $wpdb;$rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::pod_provenance_integrity_evidence().' ORDER BY id DESC LIMIT %d',max(1,min(200,$limit))),ARRAY_A);$out=[];
-  foreach((array)$rows as $row){$payload=json_decode((string)$row['evidence_payload'],true);if(!is_array($payload))$payload=[];$payload['correlation_hash']=(string)$row['correlation_hash'];$payload['authorization_hash']=(string)$row['authorization_hash'];$payload['type']=(string)$row['anomaly_type'];$payload['historical_evidence']=true;$payload['first_observed_at']=(string)$row['first_observed_at'];$payload['last_observed_at']=(string)$row['last_observed_at'];$out[]=$payload;}return $out;
+  if(!is_array($rows)||!empty($wpdb->last_error))return [['query_state'=>'UNAVAILABLE','historical_evidence'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false]];
+  foreach($rows as $row){$payload=json_decode((string)$row['evidence_payload'],true);if(!is_array($payload))$payload=[];$payload['correlation_hash']=(string)$row['correlation_hash'];$payload['authorization_hash']=(string)$row['authorization_hash'];$payload['type']=(string)$row['anomaly_type'];$payload['historical_evidence']=true;$payload['first_observed_at']=(string)$row['first_observed_at'];$payload['last_observed_at']=(string)$row['last_observed_at'];$out[]=$payload;}return $out;
  }
 }
