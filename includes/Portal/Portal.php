@@ -34,6 +34,7 @@ final class Portal
     private const REVIEW_ACTION = 'digiforge_portal_review_research';
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
+    private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -66,6 +67,7 @@ final class Portal
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
+        add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
     }
 
     public function render(): string
@@ -138,6 +140,23 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function listingReview(): void
+    {
+        $this->guard('manage_digiforge_listings');
+        check_admin_referer(self::LISTING_REVIEW_ACTION);
+        $reviewId = isset($_POST['review_id']) ? absint($_POST['review_id']) : 0;
+        $decision = isset($_POST['decision']) ? strtoupper(sanitize_key(wp_unslash($_POST['decision']))) : '';
+        if (!in_array($decision, ['APPROVED','REJECTED'], true)) {
+            $this->redirect('listings', 'Choose APPROVED or REJECTED for the pending Gate 3 review.', true);
+        }
+        $result = (new \DigiForge\Listings\Repository())->decideReadinessReview($reviewId, $decision);
+        if (is_wp_error($result)) {
+            $this->redirect('listings', $result->get_error_message(), true);
+        }
+        Logger::audit('portal_listing_gate3_review_completed', ['review_id'=>$reviewId,'decision'=>$decision], 'listing_readiness_review', (string)$reviewId);
+        $this->redirect('listings', sprintf('Gate 3 review #%d marked %s. No Etsy publish was performed.', $reviewId, $decision));
     }
 
     public function saveAiSecret(): void
@@ -244,6 +263,11 @@ final class Portal
     {
         $webhook=EtsyWebhookReadiness::inspect();
         $attachments=(new EtsyDigitalAttachmentReadModel())->recent(50);
+        global $wpdb;
+        $pending=$wpdb->get_results("SELECT r.id AS review_id,r.listing_id,r.readiness,r.readiness_hash,r.created_at,l.product_version_id,l.title,l.state FROM ".Tables::listing_readiness_reviews()." r INNER JOIN ".Tables::listings()." l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id ASC LIMIT 50",ARRAY_A);
+        $pendingAvailable=is_array($pending)&&empty($wpdb->last_error);
+        echo '<section class="df-panel" id="df-listing-gate3"><div class="df-panel-head"><div><h2>Listing / publish decisions (Gate 3)</h2><p>Human decision over persisted listing-readiness evidence. A decision changes only the internal listing/review lifecycle; it does not publish to Etsy.</p></div><span class="df-status">HUMAN CONTROLLED</span></div>';
+        if(!$pendingAvailable){echo '<div class="df-notice df-notice-error">Gate 3 review evidence is unavailable. No decision is permitted.</div>';}elseif($pending===[]){echo '<div class="df-empty">No listing Gate 3 reviews currently require a decision.</div>';}else{foreach($pending as $row){$raw=(string)$row['readiness'];$e=json_decode($raw,true);$checks=is_array($e)?(array)($e['checks']??[]):[];$canonical=is_array($e)?wp_json_encode($e):false;$hashValid=is_string($canonical)&&hash_equals((string)$row['readiness_hash'],hash('sha256',$canonical));$prereqs=!empty($checks['seo_present'])&&!empty($checks['approved_media_bound'])&&!empty($checks['pod_binding_valid']);$evidenceValid=$hashValid&&$prereqs&&(string)$row['state']==='REVIEW_REQUIRED';echo '<article class="df-candidate"><div class="df-candidate-head"><div><span class="df-kicker">Review #'.esc_html((string)$row['review_id']).' · Listing #'.esc_html((string)$row['listing_id']).' · Product Version #'.esc_html((string)$row['product_version_id']).'</span><h3>'.esc_html((string)$row['title']).'</h3><span class="df-status">PENDING</span></div></div><div class="df-signal-grid"><div><span>Listing state</span><b>'.esc_html((string)$row['state']).'</b></div><div><span>SEO</span><b>'.(!empty($checks['seo_present'])?'PASS':'BLOCKED').'</b></div><div><span>Approved media</span><b>'.(!empty($checks['approved_media_bound'])?'PASS':'BLOCKED').'</b></div><div><span>POD binding</span><b>'.(!empty($checks['pod_binding_valid'])?'PASS':'BLOCKED').'</b></div><div><span>Evidence hash</span><b><code>'.esc_html(substr((string)$row['readiness_hash'],0,16)).'…</code></b></div></div><form class="df-review-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::LISTING_REVIEW_ACTION).'"><input type="hidden" name="review_id" value="'.esc_attr((string)$row['review_id']).'">';wp_nonce_field(self::LISTING_REVIEW_ACTION);if($evidenceValid){echo '<div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve Listing</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div>';}else{echo '<div class="df-notice df-notice-error">Persisted Gate 3 evidence is invalid, inconsistent, or blocked. Decision controls are withheld.</div>';}echo '</form><p class="df-muted">Approve/Reject records the human Gate 3 decision only. No Etsy publish, upload, POD submission, order execution, money movement or tax action occurs here.</p></article>';}}echo '</section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Etsy webhook configuration</h2><p>Server-side configuration evidence only. No subscription or provider connectivity check is performed here.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Configuration</span><b>'.esc_html((string)$webhook['state']).'</b></div><div><span>Signing secret configured</span><b>'.(!empty($webhook['signing_secret_configured'])?'YES':'NO').'</b></div><div><span>Order intake</span><b>LOCAL ONLY</b></div><div><span>Fulfillment authority</span><b>NO</b></div></div><p class="df-muted">Configure the Etsy-issued signing secret on the server. Do not enter secrets in the portal. This status does not verify Etsy subscription delivery or authorize order automation.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Confirmed digital file identity evidence</h2><p>Local operation ledger evidence for accepted Etsy uploads. This does not verify the current provider listing or repeat the upload.</p></div><span class="df-status">READ ONLY</span></div>';
         if($attachments===[]){echo '<div class="df-empty">No confirmed digital file upload evidence in the recent window.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Operation</th><th>Shop</th><th>Etsy listing</th><th>Listing file</th><th>Identity evidence</th><th>Updated</th><th>Authority</th></tr></thead><tbody>';foreach($attachments as $file){echo '<tr><td>#'.esc_html((string)$file['operation_id']).'</td><td>'.esc_html((string)$file['shop_reference']).'</td><td>'.esc_html((string)$file['listing_id']).'</td><td>'.esc_html((string)$file['listing_file_id']).'</td><td>'.esc_html((string)$file['evidence_state']).'</td><td>'.esc_html((string)$file['updated_at']).'</td><td>NO UPLOAD / NO PUBLISH</td></tr>';}echo '</tbody></table></div>';}echo '<p class="df-muted">Up to 50 recent confirmed operations are shown. Missing or conflicting persisted identity is REVIEW_REQUIRED. Recorded success does not prove live Etsy file availability and never grants a retry, upload or publish action.</p></section>';
