@@ -21,11 +21,12 @@ A recovery drill is only considered complete when all of the following are avail
 6. Confirmation that STOP ALL remains active.
 
 ## Current Certified Baseline
-- Current live DigiForge release: 1.0.65
+- Current live DigiForge release: 1.0.77
+- Current production database schema: 23
 - Repository-certified development baseline: derive from the exact audited main commit; do not substitute an unaudited ZIP
-- Current unreleased database schema contract: 22
 - Production site: https://digiforge.converentis.com/
 - External automation state during recovery: locked/off
+- Historical rollback-package evidence does not by itself prove compatibility with the current database checkpoint. A recovery drill must use and verify the intended audited plugin/database pair before recording restore, schema or application-health verification.
 
 ## Backup Creation Procedure
 Create a fresh full production database backup using the hosting provider's database backup/export facility or another approved full-database backup mechanism. The backup must include the complete WordPress database, including all DigiForge tables and WordPress options.
