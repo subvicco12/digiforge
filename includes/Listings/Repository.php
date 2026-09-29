@@ -87,6 +87,35 @@ final class Repository
         ],'listing_readiness_review');
     }
 
+    public function createLegacyReadinessReview(int $listingId, ?string $key=null): array|WP_Error
+    {
+        $listing=$this->find(Tables::listings(),$listingId);
+        if(!is_array($listing))return $this->error('not_found','Listing not found.',404);
+        if((string)($listing['state']??'')!=='APPROVED')return $this->error('legacy_repair_state','Legacy Gate 3 repair applies only to an already APPROVED listing.',409);
+        global $wpdb;
+        $existing=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::listing_readiness_reviews().' WHERE listing_id=%d',$listingId));
+        if(!empty($wpdb->last_error)||!is_numeric($existing))return $this->error('readiness_evidence_unavailable','Listing review evidence is unavailable; legacy repair is blocked.',503);
+        if((int)$existing>0)return $this->error('legacy_repair_not_required','Listing already has Gate 3 readiness review evidence.',409);
+        $readiness=$this->readiness($listingId);
+        if(is_wp_error($readiness))return $readiness;
+        $checks=(array)($readiness['checks']??[]);
+        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+            if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites must pass before legacy Gate 3 repair.',409);
+        }
+        $canonical=Validator::canonicalJson($readiness);
+        $wpdb->query('START TRANSACTION');
+        $listingUpdated=$wpdb->update(Tables::listings(),['state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'updated_at'=>$this->now()],['id'=>$listingId,'state'=>'APPROVED']);
+        if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently or could not enter legacy Gate 3 review.',409);}
+        $review=$this->insert(Tables::listing_readiness_reviews(),$key,[
+            'listing_id'=>$listingId,'readiness'=>$canonical,'readiness_hash'=>(string)($readiness['hash']??hash('sha256',$canonical)),
+            'decision'=>'PENDING','reviewed_by'=>0,'reviewed_at'=>null,'created_at'=>$this->now(),'updated_at'=>$this->now()
+        ],'listing_readiness_review');
+        if(is_wp_error($review)){$wpdb->query('ROLLBACK');return $review;}
+        if($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');return $this->error('database_error','Legacy Gate 3 repair could not be committed.',500);}
+        Logger::audit('listing_legacy_gate3_review_created',['listing_id'=>$listingId,'prior_state'=>'APPROVED','new_state'=>'REVIEW_REQUIRED'],'listing_readiness_review',(string)($review['id']??0));
+        return $review+['external_actions_performed'=>false];
+    }
+
     public function decideReadinessReview(int $reviewId,string $decision): array|WP_Error
     {
         $review=$this->find(Tables::listing_readiness_reviews(),$reviewId);
