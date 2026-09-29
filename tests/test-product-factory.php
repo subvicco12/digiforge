@@ -10,7 +10,7 @@ use DigiForge\ProductFactory\Lifecycle;
 function pf_expect(bool $condition, string $message): void { if (! $condition) { fwrite(STDERR, "FAIL: $message\n"); exit(1); } }
 function pf_source(string $path): string { return (string) file_get_contents(__DIR__ . '/../' . $path); }
 
-// Release assertions intentionally track the current production release.
+// Release assertions intentionally track the current repository release candidate.
 $bootstrap = pf_source('digiforge.php');
 pf_expect(str_contains($bootstrap, '* Version: 1.0.78'), 'plugin header version matches the runtime version');
 pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '1.0.78'"), 'runtime version is 1.0.78');
