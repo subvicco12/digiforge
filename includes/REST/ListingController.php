@@ -24,6 +24,7 @@ final class ListingController
             register_rest_route(self::NS, '/listings/intents', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createIntent']]);
             register_rest_route(self::NS, '/listings/(?P<entity>listing|intent)/(?P<id>\d+)/state', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'transition']]);
             register_rest_route(self::NS, '/listings/(?P<id>\d+)/readiness', ['methods'=>'GET','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'readiness']]);
+            register_rest_route(self::NS, '/listings/reviews/(?P<id>\\d+)/decision', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'decideReview']]);
         });
     }
 
@@ -49,6 +50,12 @@ final class ListingController
     {
         $p=(array)$r->get_json_params(); $state=(string)($p['state']??'');
         return $this->mutate($r,'listing_state_'.sanitize_key((string)$r['entity']).'_'.(int)$r['id'].'_'.sanitize_key($state),fn()=>(new Repository())->transition((string)$r['entity'],(int)$r['id'],$state));
+    }
+
+    public function decideReview(\WP_REST_Request $r): mixed
+    {
+        $p=(array)$r->get_json_params();$decision=(string)($p['decision']??'');
+        return $this->mutate($r,'listing_review_'.(int)$r['id'].'_'.sanitize_key($decision),fn()=>(new Repository())->decideReadinessReview((int)$r['id'],$decision));
     }
 
     public function readiness(\WP_REST_Request $r): mixed

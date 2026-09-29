@@ -56,7 +56,7 @@ final class Repository
 
     public function transition(string $entity,int $id,string $to): array|WP_Error
     {
-        $table=$entity==='listing'?Tables::listings():($entity==='intent'?Tables::etsy_intents():'');if($table==='')return $this->error('validation','Unknown lifecycle entity.');$row=$this->find($table,$id);$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Listing record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);if(($to==='APPROVED'||$to==='APPROVED_INTENT')&&get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $table=$entity==='listing'?Tables::listings():($entity==='intent'?Tables::etsy_intents():'');if($table==='')return $this->error('validation','Unknown lifecycle entity.');$row=$this->find($table,$id);$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Listing record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);if(($to==='APPROVED'||$to==='APPROVED_INTENT')&&get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);if($entity==='listing'&&$to==='APPROVED')return $this->error('gate3_review_required','Listing approval must be recorded through a pending Gate 3 readiness review.',409);
         global $wpdb;$data=['state'=>$to,'updated_at'=>$this->now()];if($entity==='listing'&&$to==='APPROVED'){$data['approved_by']=get_current_user_id();$data['approved_at']=$this->now();}$ok=$wpdb->update($table,$data,['id'=>$id,'state'=>(string)$row['state']]);if($ok!==1)return $this->error('transition_conflict','State changed concurrently or update failed.',409);Logger::audit('listing_state_changed',['entity'=>$entity,'from'=>$row['state'],'to'=>$to],$entity,(string)$id);return $this->find($table,$id)?:[];
     }
 
@@ -67,6 +67,59 @@ final class Repository
         $mediaValid=$mediaRows!==[];foreach($mediaRows as $media){$sourceValid=false;$revisionId=(int)($media['asset_revision_id']??0);$bundleId=(int)($media['release_bundle_id']??0);if($revisionId>0){$revision=$this->find(Tables::asset_revisions(),$revisionId);$spec=is_array($revision)?$this->find(Tables::asset_specs(),(int)($revision['asset_spec_id']??0)):null;$sourceValid=is_array($revision)&&is_array($spec)&&(string)($revision['state']??'')==='APPROVED'&&(int)($spec['product_version_id']??0)===$pv;}if(!$sourceValid&&$bundleId>0)$sourceValid=$this->bundleBelongsToProduct($bundleId,$pv,['RELEASE_READY']);if(!$sourceValid){$mediaValid=false;break;}}
         $podValid=!$pod;if($pod){$podValid=$podBindings!==[];foreach($podBindings as $binding){$mapping=$this->find(Tables::pod_mappings(),(int)$binding['provider_mapping_id']);if(!is_array($mapping)||(int)$mapping['product_version_id']!==$pv||(string)$mapping['environment']!==(string)$listing['environment']||(string)$mapping['state']!=='APPROVED'){$podValid=false;break;}$current=(new \DigiForge\POD\Repository())->readiness((int)$mapping['id']);if(is_wp_error($current)||empty($current['ready'])||!hash_equals((string)($binding['readiness_hash']??''),hash('sha256',Validator::canonicalJson($current)))){$podValid=false;break;}}}
         $productMode=$digital&&$pod?'hybrid':($pod?'pod':'digital');$checks=['listing_approved'=>(string)$listing['state']==='APPROVED','seo_present'=>$seo>0,'approved_media_bound'=>$mediaValid,'pod_binding_valid'=>$podValid,'human_approval'=>(int)$listing['approved_by']>0&&!empty($listing['approved_at'])];$ready=!in_array(false,$checks,true);$payload=['listing_id'=>$listingId,'product_mode'=>$productMode,'ready'=>$ready,'checks'=>$checks];$payload['hash']=hash('sha256',Validator::canonicalJson($payload));return $payload;
+    }
+
+    public function createReadinessReview(int $listingId, ?string $key=null): array|WP_Error
+    {
+        $listing=$this->find(Tables::listings(),$listingId);
+        if(!is_array($listing))return $this->error('not_found','Listing not found.',404);
+        if((string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing must be REVIEW_REQUIRED before Gate 3 review evidence is created.',409);
+        $readiness=$this->readiness($listingId);
+        if(is_wp_error($readiness))return $readiness;
+        $checks=(array)($readiness['checks']??[]);
+        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+            if(empty($checks[$required]))return $this->error('review_not_ready','Listing prerequisites must pass before Gate 3 review.',409);
+        }
+        $canonical=Validator::canonicalJson($readiness);
+        return $this->insert(Tables::listing_readiness_reviews(),$key,[
+            'listing_id'=>$listingId,'readiness'=>$canonical,'readiness_hash'=>(string)($readiness['hash']??hash('sha256',$canonical)),
+            'decision'=>'PENDING','reviewed_by'=>0,'reviewed_at'=>null,'created_at'=>$this->now(),'updated_at'=>$this->now()
+        ],'listing_readiness_review');
+    }
+
+    public function decideReadinessReview(int $reviewId,string $decision): array|WP_Error
+    {
+        $review=$this->find(Tables::listing_readiness_reviews(),$reviewId);
+        if(!is_array($review))return $this->error('review_not_found','Listing readiness review not found.',404);
+        if((string)($review['decision']??'')!=='PENDING')return $this->error('review_decided','Listing readiness review has already been decided.',409);
+        if(get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $decision=strtoupper(sanitize_key($decision));
+        if(!in_array($decision,['APPROVED','REJECTED'],true))return $this->error('review_decision','Decision must be APPROVED or REJECTED.');
+        $listingId=(int)($review['listing_id']??0);
+        $listing=$this->find(Tables::listings(),$listingId);
+        if(!is_array($listing)||(string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing is no longer awaiting Gate 3 review.',409);
+        if($decision==='APPROVED'){
+            $current=$this->readiness($listingId);
+            if(is_wp_error($current))return $current;
+            $checks=(array)($current['checks']??[]);
+            foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+                if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites no longer pass.',409);
+            }
+        }
+        $targetState=$decision==='APPROVED'?'APPROVED':'REJECTED';
+        if(!Lifecycle::can('listing',(string)$listing['state'],$targetState))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);
+        global $wpdb;$now=$this->now();$reviewer=get_current_user_id();
+        $wpdb->query('START TRANSACTION');
+        $reviewUpdated=$wpdb->update(Tables::listing_readiness_reviews(),['decision'=>$decision,'reviewed_by'=>$reviewer,'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$reviewId,'decision'=>'PENDING']);
+        if($reviewUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('review_conflict','Listing review changed concurrently or could not be recorded.',409);}
+        $listingData=['state'=>$targetState,'updated_at'=>$now];
+        if($targetState==='APPROVED'){$listingData['approved_by']=$reviewer;$listingData['approved_at']=$now;}
+        $listingUpdated=$wpdb->update(Tables::listings(),$listingData,['id'=>$listingId,'state'=>'REVIEW_REQUIRED']);
+        if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently or could not be recorded.',409);}
+        if($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');return $this->error('database_error','Gate 3 decision could not be committed.',500);}
+        Logger::audit('listing_state_changed',['entity'=>'listing','from'=>'REVIEW_REQUIRED','to'=>$targetState],'listing',(string)$listingId);
+        Logger::audit('listing_readiness_review_decided',['listing_id'=>$listingId,'decision'=>$decision],'listing_readiness_review',(string)$reviewId);
+        return $this->find(Tables::listing_readiness_reviews(),$reviewId)?:[];
     }
 
     public function createDraftPackage(array $input,?string $key=null): array|WP_Error
