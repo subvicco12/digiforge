@@ -1,3 +1,10 @@
+## 1.0.82 — 2026-09-29
+
+- Adds the governed live-site Listings & Etsy human decision surface for persisted PENDING Gate 3 listing-readiness reviews.
+- Requires listing-management capability and WordPress nonce protection, and routes decisions through the existing transactional readiness-review decision path.
+- Fails closed when persisted readiness JSON is malformed, its SHA-256 evidence hash mismatches, required SEO/media/POD evidence is blocked, or the listing is not REVIEW_REQUIRED; decision controls are withheld.
+- Database schema remains v23. This release does not make a Gate 3 decision, publish/upload to Etsy, submit POD production, execute orders, move money, file tax, or grant new external authority.
+
 ## 1.0.81 — 2026-09-29
 
 - Hardens the legacy Gate 3 repair by locking the target listing row before rechecking persisted review evidence, preventing concurrent duplicate repair.
