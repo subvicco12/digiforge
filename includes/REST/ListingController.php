@@ -25,6 +25,7 @@ final class ListingController
             register_rest_route(self::NS, '/listings/(?P<entity>listing|intent)/(?P<id>\d+)/state', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'transition']]);
             register_rest_route(self::NS, '/listings/(?P<id>\d+)/readiness', ['methods'=>'GET','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'readiness']]);
             register_rest_route(self::NS, '/listings/reviews/(?P<id>\\d+)/decision', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'decideReview']]);
+            register_rest_route(self::NS, '/listings/(?P<id>\\d+)/legacy-gate3-repair', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'legacyGate3Repair']]);
         });
     }
 
@@ -56,6 +57,11 @@ final class ListingController
     {
         $p=(array)$r->get_json_params();$decision=(string)($p['decision']??'');
         return $this->mutate($r,'listing_review_'.(int)$r['id'].'_'.sanitize_key($decision),fn()=>(new Repository())->decideReadinessReview((int)$r['id'],$decision));
+    }
+
+    public function legacyGate3Repair(\WP_REST_Request $r): mixed
+    {
+        return $this->mutate($r,'listing_legacy_gate3_repair_'.(int)$r['id'],fn()=>(new Repository())->createLegacyReadinessReview((int)$r['id'],$this->rawKey($r)));
     }
 
     public function readiness(\WP_REST_Request $r): mixed
