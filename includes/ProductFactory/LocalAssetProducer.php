@@ -51,6 +51,69 @@ final class LocalAssetProducer
         return $this->metadata($path, $filename, $format, $relativeDir);
     }
 
+
+    /** @return array<string,mixed>|WP_Error */
+    public function rasterizeSvg(int $productVersionId, string $sourceStorageReference, string $filename, int $width = 2000, int $height = 2000, string $storageVariant = 'etsy-listing'): array|WP_Error
+    {
+        if ($productVersionId < 1) { return $this->error('invalid_product_version', 'A valid product version is required.'); }
+        if ($width < 500 || $height < 500 || $width > 4000 || $height > 4000) { return $this->error('invalid_raster_dimensions', 'Raster dimensions must be between 500 and 4000 pixels.'); }
+        $filename = $this->filename($filename, 'png'); if ($filename === '') { return $this->error('invalid_filename', 'A safe PNG filename is required.'); }
+        $source = AssetStorage::absolutePath($sourceStorageReference); if ($source === null || strtolower(pathinfo($source, PATHINFO_EXTENSION)) !== 'svg') { return $this->error('invalid_raster_source', 'Raster source must be an existing protected SVG asset.'); }
+        $svg = (string) @file_get_contents($source); if ($svg === '' || ! str_contains(strtolower($svg), '<svg') || $this->containsActiveMarkup($svg) || $this->containsExternalSvgReference($svg) || ! $this->safeSvgGeometry($svg)) { return $this->error('unsafe_svg', 'Raster source SVG is invalid or unsafe.'); }
+        if (! class_exists('\Imagick')) { return $this->error('rasterizer_unavailable', 'ImageMagick is required for governed SVG rasterization.', 503); }
+        try {
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 67108864);
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_MAP, 134217728);
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_DISK, 134217728);
+            $image = new \Imagick();
+            $image->setBackgroundColor(new \ImagickPixel('white'));
+            $image->readImageBlob($svg);
+            $image->setImageFormat('png');
+            $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+            $image->thumbnailImage($width, $height, true, true);
+            $bytes = $image->getImagesBlob();
+            $actualWidth = (int) $image->getImageWidth(); $actualHeight = (int) $image->getImageHeight();
+            $image->clear(); $image->destroy();
+        } catch (\Throwable $e) { return $this->error('rasterize_failed', 'Unable to rasterize the approved SVG asset.', 500); }
+        if (! is_string($bytes) || $bytes === '' || strlen($bytes) > self::MAX_ASSET_BYTES || $actualWidth < 1 || $actualHeight < 1) { return $this->error('invalid_asset_size', 'Generated raster asset is empty, invalid, or too large.'); }
+        $stored = $this->commitBytes($productVersionId, $filename, 'png', $bytes, sanitize_key($storageVariant)); if (is_wp_error($stored)) { return $stored; }
+        $stored['width_px']=$actualWidth; $stored['height_px']=$actualHeight; $stored['source_storage_reference']=$sourceStorageReference; $stored['source_checksum_sha256']=hash_file('sha256',$source);
+        return $stored;
+    }
+
+    /** @return array<string,mixed>|WP_Error */
+    private function commitBytes(int $productVersionId,string $filename,string $format,string $bytes,string $storageVariant): array|WP_Error
+    {
+        if (! AssetStorage::ensureProtectedRoot()) { return $this->error('asset_storage_protection', 'Protected DigiForge asset storage could not be established.', 500); }
+        $uploads=wp_upload_dir(); if(!empty($uploads['error'])||empty($uploads['basedir']))return $this->error('upload_directory','WordPress uploads directory is unavailable.',500);
+        $relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant!==''?'/'.$storageVariant:''); $directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
+        if(!wp_mkdir_p($directory))return $this->error('asset_directory','Unable to create DigiForge asset directory.',500);
+        $path=trailingslashit($directory).$filename; $newHash=hash('sha256',$bytes);
+        $lockPath=$path.'.lock'; $lock=@fopen($lockPath,'c'); if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return $this->error('asset_lock','Unable to lock generated asset.',500);}
+        try {
+            if(is_file($path)){ $existingHash=hash_file('sha256',$path); if(is_string($existingHash)&&hash_equals($existingHash,$newHash))return $this->metadata($path,$filename,$format,$relativeDir); return $this->error('asset_replay_conflict','Existing generated asset differs from replay payload.',409); }
+            $temp=$path.'.tmp-'.wp_generate_password(8,false,false); if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);return $this->error('asset_write','Unable to write generated asset.',500);}
+            if(!@rename($temp,$path)){@unlink($temp);return $this->error('asset_commit','Unable to finalize generated asset.',500);}
+            return $this->metadata($path,$filename,$format,$relativeDir);
+        } finally { flock($lock,LOCK_UN); fclose($lock); @unlink($lockPath); }
+    }
+
+
+    private function containsExternalSvgReference(string $svg): bool
+    {
+        if (preg_match_all('/\b(?:href|xlink:href)\s*=\s*["\']([^"\']*)["\']/i',$svg,$matches)) { foreach($matches[1] as $ref){$ref=trim((string)$ref);if($ref!==''&&!str_starts_with($ref,'#'))return true;} }
+        if (preg_match_all('/url\s*\(\s*([^)]+)\s*\)/i',$svg,$matches)) { foreach($matches[1] as $ref){$ref=trim((string)$ref," \t\n\r\0\x0B\"'");if($ref!==''&&!str_starts_with($ref,'#'))return true;} }
+        return false;
+    }
+
+    private function safeSvgGeometry(string $svg): bool
+    {
+        $max=4000.0;$dimension=static function(string $name)use($svg):?float{if(!preg_match('/\b'.preg_quote($name,'/').'\s*=\s*["\']\s*([0-9]+(?:\.[0-9]+)?)\s*(?:px)?\s*["\']/i',$svg,$m))return null;return(float)$m[1];};
+        $w=$dimension('width');$h=$dimension('height');if(($w!==null&&($w<=0||$w>$max))||($h!==null&&($h<=0||$h>$max)))return false;
+        if(preg_match('/\bviewBox\s*=\s*["\']\s*[-+]?[0-9.]+\s+[-+]?[0-9.]+\s+([0-9]+(?:\.[0-9]+)?)\s+([0-9]+(?:\.[0-9]+)?)\s*["\']/i',$svg,$m)){if((float)$m[1]<=0||(float)$m[2]<=0||(float)$m[1]>$max||(float)$m[2]>$max)return false;}
+        return true;
+    }
+
     /** @param array<int,array<string,mixed>> $assets @return array<string,mixed>|WP_Error */
     public function package(int $productVersionId, array $assets, string $filename = 'customer-package.zip', string $storageVariant = ''): array|WP_Error
     {
@@ -136,6 +199,6 @@ final class LocalAssetProducer
     private function filename(string $filename,string $format):string{$filename=sanitize_file_name($filename);if($filename===''){return '';}$extension=strtolower(pathinfo($filename,PATHINFO_EXTENSION));if($extension!==$format){return '';}return substr($filename,0,160);}
     /** @return array<string,mixed> */
     private function metadata(string $path,string $filename,string $format,string $relativeDir):array{return['filename'=>$filename,'format'=>$format,'absolute_path'=>$path,'storage_reference'=>$relativeDir.'/'.$filename,'checksum_sha256'=>hash_file('sha256',$path),'byte_size'=>(int)filesize($path),'mime_type'=>$format==='zip'?'application/zip':$this->mime($format)];}
-    private function mime(string $format):string{return match($format){'pdf'=>'application/pdf','svg'=>'image/svg+xml','html'=>'text/html','csv'=>'text/csv','json'=>'application/json',default=>'text/plain'};}
+    private function mime(string $format):string{return match($format){'pdf'=>'application/pdf','svg'=>'image/svg+xml','html'=>'text/html','csv'=>'text/csv','json'=>'application/json','png'=>'image/png',default=>'text/plain'};}
     private function error(string $code,string $message,int $status=400):WP_Error{return new WP_Error('digiforge_u3_'.$code,__($message,'digiforge'),['status'=>$status]);}
 }
