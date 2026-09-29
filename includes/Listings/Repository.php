@@ -89,23 +89,29 @@ final class Repository
 
     public function createLegacyReadinessReview(int $listingId, ?string $key=null): array|WP_Error
     {
-        $listing=$this->find(Tables::listings(),$listingId);
-        if(!is_array($listing))return $this->error('not_found','Listing not found.',404);
-        if((string)($listing['state']??'')!=='APPROVED')return $this->error('legacy_repair_state','Legacy Gate 3 repair applies only to an already APPROVED listing.',409);
         global $wpdb;
+        if($wpdb->query('START TRANSACTION')===false)return $this->error('database_error','Legacy Gate 3 repair could not start a transaction.',500);
+        $locked=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d FOR UPDATE',$listingId),ARRAY_A);
+        if(!empty($wpdb->last_error)||!is_array($locked)){$wpdb->query('ROLLBACK');return $this->error('not_found','Listing not found or could not be locked.',404);}
+        if((string)($locked['state']??'')!=='APPROVED'){$wpdb->query('ROLLBACK');return $this->error('legacy_repair_state','Legacy Gate 3 repair applies only to an already APPROVED listing.',409);}
         $existing=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::listing_readiness_reviews().' WHERE listing_id=%d',$listingId));
-        if(!empty($wpdb->last_error)||!is_numeric($existing))return $this->error('readiness_evidence_unavailable','Listing review evidence is unavailable; legacy repair is blocked.',503);
-        if((int)$existing>0)return $this->error('legacy_repair_not_required','Listing already has Gate 3 readiness review evidence.',409);
-        $readiness=$this->readiness($listingId);
-        if(is_wp_error($readiness))return $readiness;
-        $checks=(array)($readiness['checks']??[]);
+        if(!empty($wpdb->last_error)||!is_numeric($existing)){$wpdb->query('ROLLBACK');return $this->error('readiness_evidence_unavailable','Listing review evidence is unavailable; legacy repair is blocked.',503);}
+        if((int)$existing>0){$wpdb->query('ROLLBACK');return $this->error('legacy_repair_not_required','Listing already has Gate 3 readiness review evidence.',409);}
+        $before=$this->readiness($listingId);
+        if(is_wp_error($before)){$wpdb->query('ROLLBACK');return $before;}
+        $checks=(array)($before['checks']??[]);
         foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
-            if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites must pass before legacy Gate 3 repair.',409);
+            if(empty($checks[$required])){$wpdb->query('ROLLBACK');return $this->error('review_not_ready','Current listing prerequisites must pass before legacy Gate 3 repair.',409);}
         }
-        $canonical=Validator::canonicalJson($readiness);
-        $wpdb->query('START TRANSACTION');
         $listingUpdated=$wpdb->update(Tables::listings(),['state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'updated_at'=>$this->now()],['id'=>$listingId,'state'=>'APPROVED']);
         if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently or could not enter legacy Gate 3 review.',409);}
+        $readiness=$this->readiness($listingId);
+        if(is_wp_error($readiness)){$wpdb->query('ROLLBACK');return $readiness;}
+        $postChecks=(array)($readiness['checks']??[]);
+        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+            if(empty($postChecks[$required])){$wpdb->query('ROLLBACK');return $this->error('review_not_ready','Listing prerequisites changed during legacy Gate 3 repair.',409);}
+        }
+        $canonical=Validator::canonicalJson($readiness);
         $review=$this->insert(Tables::listing_readiness_reviews(),$key,[
             'listing_id'=>$listingId,'readiness'=>$canonical,'readiness_hash'=>(string)($readiness['hash']??hash('sha256',$canonical)),
             'decision'=>'PENDING','reviewed_by'=>0,'reviewed_at'=>null,'created_at'=>$this->now(),'updated_at'=>$this->now()
