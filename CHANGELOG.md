@@ -1,3 +1,9 @@
+## 1.0.84 — 2026-09-30
+
+- Fixes the governed Etsy publish execution boundary so ETSY_PUBLISH_LISTING is accepted by the shared short-lived authorization verifier and evaluated through the dedicated Etsy publish policy rather than the draft policy.
+- Preserves the existing explicit human approval, readiness/evidence binding, verified shop/listing scope, one-time nonce, live publish interlock, fail-closed idempotency, and no-automatic-retry protections.
+- Database schema remains v23. Installation itself performs no Etsy publication or other external execution.
+
 ## 1.0.83 — 2026-09-30
 
 - Adds the governed Etsy listing publication execution boundary for an explicitly approved listing, approved intent/package, verified shop identity, and previously confirmed CREATE_DRAFT identity.
