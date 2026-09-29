@@ -125,6 +125,10 @@ final class EtsyOperationPreparationService
                 'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
                 'authorization_action' => 'ETSY_DRAFT_FILE',
             ],
+            'PUBLISH_LISTING' => [
+                'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
+                'authorization_action' => 'ETSY_PUBLISH_LISTING',
+            ],
             default => $this->error('operation_not_supported', 'Etsy operation type is not authorized for controlled preparation.', 403),
         };
     }
@@ -178,7 +182,7 @@ final class EtsyOperationPreparationService
     {
         $operationType = strtoupper(trim($operationType));
         return match ($intentType) {
-            'PREPARE_DRAFT' => in_array($operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE', 'UPLOAD_FILE'], true),
+            'PREPARE_DRAFT' => in_array($operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE', 'UPLOAD_FILE', 'PUBLISH_LISTING'], true),
             default => false,
         };
     }
