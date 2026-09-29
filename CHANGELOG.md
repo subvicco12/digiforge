@@ -1,3 +1,9 @@
+## 1.0.77 — 2026-09-29
+
+- Adds exact read-only operator guidance for registering genuine host-created database-backup evidence and genuine recovery-drill evidence.
+- Makes required provenance fields and exact artifact bindings explicit without claiming DigiForge creates, retrieves, verifies, or performs the backup or drill.
+- Preserves STOP ALL, external lock, fail-closed recovery gating, schema v23, and all non-authorizing execution boundaries.
+
 ## 1.0.76 — 2026-09-29
 
 - Exposes recovery-drill verification state and exact database-backup / rollback-plugin bindings in the live-site Attention & Recovery portal.
