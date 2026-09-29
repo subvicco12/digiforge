@@ -54,9 +54,9 @@ final class Repository
         return $this->insert(Tables::etsy_intents(),$key,['listing_id'=>(int)$listing['id'],'draft_package_id'=>$packageId,'environment'=>(string)$listing['environment'],'intent_type'=>$type,'input_payload'=>Validator::canonicalJson($payload),'state'=>'BLOCKED','created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'etsy_intent');
     }
 
-    public function transition(string $entity,int $id,string $to): array|WP_Error
+    public function transition(string $entity,int $id,string $to,bool $gate3Decision=false): array|WP_Error
     {
-        $table=$entity==='listing'?Tables::listings():($entity==='intent'?Tables::etsy_intents():'');if($table==='')return $this->error('validation','Unknown lifecycle entity.');$row=$this->find($table,$id);$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Listing record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);if(($to==='APPROVED'||$to==='APPROVED_INTENT')&&get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $table=$entity==='listing'?Tables::listings():($entity==='intent'?Tables::etsy_intents():'');if($table==='')return $this->error('validation','Unknown lifecycle entity.');$row=$this->find($table,$id);$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Listing record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);if(($to==='APPROVED'||$to==='APPROVED_INTENT')&&get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);if($entity==='listing'&&$to==='APPROVED'&&!$gate3Decision)return $this->error('gate3_review_required','Listing approval must be recorded through a pending Gate 3 readiness review.',409);
         global $wpdb;$data=['state'=>$to,'updated_at'=>$this->now()];if($entity==='listing'&&$to==='APPROVED'){$data['approved_by']=get_current_user_id();$data['approved_at']=$this->now();}$ok=$wpdb->update($table,$data,['id'=>$id,'state'=>(string)$row['state']]);if($ok!==1)return $this->error('transition_conflict','State changed concurrently or update failed.',409);Logger::audit('listing_state_changed',['entity'=>$entity,'from'=>$row['state'],'to'=>$to],$entity,(string)$id);return $this->find($table,$id)?:[];
     }
 
@@ -105,7 +105,7 @@ final class Repository
             foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
                 if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites no longer pass.',409);
             }
-            $approved=$this->transition('listing',$listingId,'APPROVED');
+            $approved=$this->transition('listing',$listingId,'APPROVED',true);
             if(is_wp_error($approved))return $approved;
         }
         global $wpdb;$now=$this->now();
