@@ -21,6 +21,22 @@ final class EtsyGovernedPublishExecutionContractTest extends TestCase
         $s=$this->source('includes/REST/EtsyPublishExecutionController.php');
         foreach(["'/etsy/publish-listing'","'APPROVED_INTENT'","'APPROVED'","confirmedCreateForScope","confirmedPublishForScope","'ETSY_PUBLISH_LISTING'","'PUBLISH_LISTING'","ETSY_PUBLISH_ALREADY_ATTEMPTED","retry_permitted'=>false"] as $n)self::assertStringContainsString($n,$s);
     }
+    public function testPreparationAndHttpPlanSupportOnlyTheGovernedPublishShape():void
+    {
+        $prep=$this->source('includes/Listings/EtsyOperationPreparationService.php');
+        self::assertStringContainsString("'PUBLISH_LISTING'",$prep);
+        self::assertStringContainsString("'ETSY_PUBLISH_LISTING'",$prep);
+        $http=$this->source('includes/Listings/EtsyHttpRequestPlan.php');
+        self::assertStringContainsString("'PATCH'",$http);
+    }
+    public function testControllerChecksIdempotencyBeforeFreshAuthorization():void
+    {
+        $s=$this->source('includes/REST/EtsyPublishExecutionController.php');
+        $lookup=strpos($s,'$existing=$ops->byKey');
+        $issue=strpos($s,'ExecutionAuthorization::issue');
+        self::assertNotFalse($lookup);self::assertNotFalse($issue);self::assertLessThan($issue,$lookup);
+        self::assertStringContainsString("'retry_permitted'=>false",$s);
+    }
     public function testCoordinatorPersistsEvidenceAndKeepsAutomaticRetryDisabled():void
     {
         $s=$this->source('includes/Listings/EtsyControlledPublishExecutionCoordinator.php');
