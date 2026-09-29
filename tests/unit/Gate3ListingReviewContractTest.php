@@ -31,7 +31,7 @@ final class Gate3ListingReviewContractTest extends TestCase
     public function testRestExposesDecisionEndpointButNoPublishEndpoint(): void
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/REST/ListingController.php');
-        self::assertStringContainsString("/listings/reviews/(?P<id>\\d+)/decision",$source);
+        self::assertStringContainsString('/listings/reviews/(?P<id>\\\\d+)/decision',$source);
         self::assertStringContainsString('decideReadinessReview',$source);
         self::assertStringNotContainsString('/publish', $source);
     }
