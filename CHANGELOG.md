@@ -1,3 +1,10 @@
+## 1.0.78 — 2026-09-29
+
+- Fails closed if a controlled capability activation succeeds but its mandatory authorization audit record cannot be persisted.
+- Restores the full protected posture for Research audit failure and revokes scoped authorization for AI, Product Development, Printify, Etsy Draft, and later activation stages.
+- Adds regression coverage for activation audit rollback while preserving STOP ALL, schema v23, and all separate external-execution gates.
+- Performs no production activation or external action during upgrade.
+
 ## 1.0.77 — 2026-09-29
 
 - Adds exact read-only operator guidance for registering genuine host-created database-backup evidence and genuine recovery-drill evidence.
