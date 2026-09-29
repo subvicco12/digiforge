@@ -71,9 +71,9 @@ If any step fails:
 ## Live-Site Execution Gate
 Repository and CI preparation may proceed before live execution. Actual production smoke execution on `converentis.com` must not start until:
 1. A genuine production database backup exists and has been verified.
-2. `digiforge_recovery_database_backup_available` can truthfully be set to true.
-3. Recovery readiness is rerun.
-4. `recovery_drill_passed=true` is confirmed.
+2. The genuine backup is registered through the concrete recovery-evidence path with identifier, capture time, location, retrievability, verification method, verification time and verifier identity; legacy availability booleans are not recovery evidence.
+3. A real recovery drill is performed and its fresh evidence is registered against the exact current database-backup and rollback-package identifiers, with restore, schema and application-health verification all true.
+4. Recovery readiness is rerun and `recovery_drill_passed=true` is confirmed.
 5. The site remains externally locked.
 
 ## P5 Completion Evidence
