@@ -6,6 +6,8 @@ namespace DigiForge\REST;
 
 use DigiForge\Production\Repository;
 use DigiForge\ProductFactory\DerivedRasterService;
+use DigiForge\ProductFactory\AutomatedQa;
+use DigiForge\ProductFactory\AssetStorage;
 use DigiForge\Queue\Idempotency;
 
 final class ProductionController
@@ -23,6 +25,7 @@ final class ProductionController
             register_rest_route(self::NS, '/production/intents', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createIntent']]);
             register_rest_route(self::NS, '/production/revisions', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createRevision']]);
             register_rest_route(self::NS, '/production/revisions/(?P<id>\d+)/rasterize', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'rasterizeRevision']]);
+            register_rest_route(self::NS, '/production/revisions/(?P<id>\d+)/rasterize-and-qa', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'rasterizeAndQa']]);
             register_rest_route(self::NS, '/production/qa', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createQa']]);
             register_rest_route(self::NS, '/production/bundles', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createBundle']]);
             register_rest_route(self::NS, '/production/bundles/(?P<id>\d+)/validate', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'validateBundle']]);
@@ -46,6 +49,48 @@ final class ProductionController
     public function createIntent(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_intent_create',fn()=>(new Repository())->createIntent((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createRevision(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_revision_create',fn()=>(new Repository())->addRevision((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function rasterizeRevision(\WP_REST_Request $r): mixed { $p=(array)$r->get_json_params(); return $this->mutate($r,'production_revision_rasterize_'.(int)$r['id'],fn()=>(new DerivedRasterService())->derive((int)$r['id'],$p,$this->rawKey($r)),201); }
+    public function rasterizeAndQa(\WP_REST_Request $r): mixed
+    {
+        $p=(array)$r->get_json_params();
+        $key=trim(sanitize_text_field((string)($p['operation_key']??'')));
+        if($key==='') return new \WP_Error('missing_operation_key',__('operation_key is required.','digiforge'),['status'=>400]);
+        if(strlen($key)>191) return new \WP_Error('invalid_operation_key',__('operation_key is too long.','digiforge'),['status'=>400]);
+        unset($p['operation_key']);
+        return $this->mutateWithKey($r,'production_revision_rasterize_qa_'.(int)$r['id'],$key,function()use($r,$p,$key){
+            $production=new Repository();
+            $derived=(new DerivedRasterService($production))->derive((int)$r['id'],$p,$key.'-derive');
+            if(is_wp_error($derived)) return $derived;
+            $revision=(array)($derived['derived_revision']??[]);
+            $revisionId=(int)($revision['id']??0);
+            $storage=(string)($revision['storage_reference']??'');
+            $path=AssetStorage::absolutePath($storage);
+            if($revisionId<1||$path===null||!is_file($path)) return new \WP_Error('derived_raster_integrity',__('Derived raster evidence is unavailable for QA.','digiforge'),['status'=>409]);
+            $qa=(new AutomatedQa())->inspect([
+                'absolute_path'=>$path,
+                'format'=>'png',
+                'checksum_sha256'=>(string)($revision['checksum_sha256']??''),
+            ]);
+            foreach((array)($qa['checks']??[]) as $index=>$check){
+                $record=$production->addQa([
+                    'target_type'=>'revision',
+                    'target_id'=>$revisionId,
+                    'check_type'=>(string)($check['name']??''),
+                    'status'=>($check['passed']??false)===true?'PASS':'FAIL',
+                    'details'=>(array)($check['details']??[]),
+                ],$key.'-qa-'.$index);
+                if(is_wp_error($record)) return $record;
+            }
+            $state=$production->transition('revision',$revisionId,($qa['passed']??false)===true?'QA_PASSED':'QA_FAILED');
+            if(is_wp_error($state)) return $state;
+            $derived['derived_revision']=$state;
+            $derived['qa']=(array)($qa['checks']??[]);
+            $derived['qa_passed']=($qa['passed']??false)===true;
+            $derived['approval_required']=true;
+            $derived['external_action_performed']=false;
+            return $derived;
+        },201);
+    }
+
     public function createQa(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_qa_create',fn()=>(new Repository())->addQa((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createBundle(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_bundle_create',fn()=>(new Repository())->createBundle((array)$r->get_json_params(),$this->rawKey($r)),201); }
 
@@ -68,10 +113,15 @@ final class ProductionController
 
     private function mutate(\WP_REST_Request $r,string $operation,callable $callback,int $success=200): mixed
     {
-        if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES) return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $header=trim((string)$r->get_header('Idempotency-Key'));
         if($header==='') return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
-        $storage=hash('sha256',$operation.'|'.$header);$guard=new Idempotency();
+        return $this->mutateWithKey($r,$operation,$header,$callback,$success);
+    }
+
+    private function mutateWithKey(\WP_REST_Request $r,string $operation,string $key,callable $callback,int $success=200): mixed
+    {
+        if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES) return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
+        $storage=hash('sha256',$operation.'|'.$key);$guard=new Idempotency();
         if(!$guard->reserve($storage,$operation)) return new \WP_Error('idempotency_conflict',__('This production mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable){$guard->release($storage);return new \WP_Error('production_mutation_failed',__('Production mutation failed.','digiforge'),['status'=>500]);}
         if(is_wp_error($result)){$guard->release($storage);return $result;}
