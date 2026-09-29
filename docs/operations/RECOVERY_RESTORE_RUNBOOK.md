@@ -21,9 +21,9 @@ A recovery drill is only considered complete when all of the following are avail
 6. Confirmation that STOP ALL remains active.
 
 ## Current Certified Baseline
-- Current live DigiForge release: 1.0.77
-- Current production database schema: 23
-- Repository-certified development baseline: derive from the exact audited main commit; do not substitute an unaudited ZIP
+- Do not infer the live plugin version or database schema from this repository. Read and record both from the target environment immediately before recovery.
+- Current certified release candidate: DigiForge 1.0.77 with expected schema 23.
+- Repository-certified development baseline: derive from the exact audited main commit; do not substitute an unaudited ZIP.
 - Production site: https://digiforge.converentis.com/
 - External automation state during recovery: locked/off
 - Historical rollback-package evidence does not by itself prove compatibility with the current database checkpoint. A recovery drill must use and verify the intended audited plugin/database pair before recording restore, schema or application-health verification.
