@@ -73,5 +73,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
   self::assertStringContainsString('Do not manually set schema-version options',$plan);
   self::assertStringContainsString('restoring the last compatible audited plugin + database checkpoint together',$plan);
   self::assertStringContainsString('Deployment is BLOCKED',$plan);
+  self::assertStringContainsString('body-key exception applies only to this local raster-and-QA workflow',$plan);
+  self::assertStringContainsString('Existing mutation routes retain their required `Idempotency-Key` header contracts',$plan);
+  self::assertStringContainsString('QA success is not human approval',$plan);
  }
 }
