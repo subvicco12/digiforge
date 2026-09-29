@@ -150,6 +150,10 @@ final class Settings
     public static function revokeScopedAuthorization(string $authorizationKey): bool
     {
         if (! in_array($authorizationKey, [
+            'ai_activation_authorized',
+            'product_development_activation_authorized',
+            'etsy_draft_activation_authorized',
+            'printify_activation_authorized',
             'gelato_activation_authorized',
             'etsy_publish_activation_authorized',
             'order_automation_activation_authorized',
