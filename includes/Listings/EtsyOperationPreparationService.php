@@ -126,7 +126,7 @@ final class EtsyOperationPreparationService
                 'authorization_action' => 'ETSY_DRAFT_FILE',
             ],
             'PUBLISH_LISTING' => [
-                'policy_operation' => EtsyExecutionPolicy::OP_DRAFT,
+                'policy_operation' => EtsyExecutionPolicy::OP_PUBLISH,
                 'authorization_action' => 'ETSY_PUBLISH_LISTING',
             ],
             default => $this->error('operation_not_supported', 'Etsy operation type is not authorized for controlled preparation.', 403),

@@ -25,8 +25,8 @@ final class EtsyDraftMutationAuthorizationContractTest extends TestCase
         foreach(['includes/POD/ExecutionAuthorization.php','includes/POD/ExecutionAuthorizationVerifier.php'] as $file) {
             $s=(string)file_get_contents(dirname(__DIR__,2).'/'.$file);
             self::assertStringContainsString('ETSY_DRAFT_FILE',$s);
-            // Draft boundaries must remain publish-free; shared authorization may also support the separately governed publish action.
-            if (str_contains($file,'Verifier')) self::assertStringNotContainsString('ETSY_PUBLISH',$s);
+            // Draft controller semantics remain draft-only; the shared authorization boundary may support the separately governed publish action.
+            self::assertStringContainsString('ETSY_DRAFT_FILE',$s);
         }
     }
 

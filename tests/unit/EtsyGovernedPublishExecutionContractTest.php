@@ -26,6 +26,9 @@ final class EtsyGovernedPublishExecutionContractTest extends TestCase
         $prep=$this->source('includes/Listings/EtsyOperationPreparationService.php');
         self::assertStringContainsString("'PUBLISH_LISTING'",$prep);
         self::assertStringContainsString("'ETSY_PUBLISH_LISTING'",$prep);
+        self::assertStringContainsString("EtsyExecutionPolicy::OP_PUBLISH",$prep);
+        $verifier=$this->source('includes/POD/ExecutionAuthorizationVerifier.php');
+        self::assertStringContainsString("'ETSY_PUBLISH_LISTING'",$verifier);
         $http=$this->source('includes/Listings/EtsyHttpRequestPlan.php');
         self::assertStringContainsString("'PATCH'",$http);
     }
