@@ -9,6 +9,9 @@ final class ListingGate3PortalDecisionContractTest extends TestCase {
   self::assertStringContainsString("guard('manage_digiforge_listings')",$p);
   self::assertStringContainsString("decideReadinessReview(\$reviewId, \$decision)",$p);
   self::assertStringContainsString("WHERE r.decision='PENDING'",$p);
+  self::assertStringContainsString("hash_equals((string)\$row['readiness_hash'],hash('sha256',\$canonical))",$p);
+  self::assertStringContainsString("\$evidenceValid=\$hashValid&&\$prereqs",$p);
+  self::assertStringContainsString('Decision controls are withheld.',$p);
   self::assertStringContainsString('Approve Listing',$p);
   self::assertStringContainsString('Reject / Revise',$p);
   self::assertStringContainsString('No Etsy publish was performed.',$p);
