@@ -34,7 +34,7 @@ final class EtsyOperationRecord
         }
         $resource=trim((string)($input['resource_reference']??''));
         if($resource!==''&&!preg_match('/^[A-Za-z0-9._:-]{1,191}$/',$resource))return new WP_Error('digiforge_etsy_operation_record_resource','Invalid operation resource identity.',['status'=>400]);
-        if(in_array($operation,['ATTACH_IMAGE','UPLOAD_FILE'],true)&&$resource==='')return new WP_Error('digiforge_etsy_operation_record_resource','Post-create media operations require the authoritative listing resource identity.',['status'=>400]);
+        if(in_array($operation,['ATTACH_IMAGE','UPLOAD_FILE','PUBLISH_LISTING'],true)&&$resource==='')return new WP_Error('digiforge_etsy_operation_record_resource','Post-create media and publish operations require the authoritative listing resource identity.',['status'=>400]);
         $intent = (int)$input['intent_id'];
         $package = (int)$input['draft_package_id'];
         if ($intent < 1 || $package < 1) {

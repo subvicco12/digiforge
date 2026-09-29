@@ -26,7 +26,7 @@ final class EtsyHttpRequestPlan
         }
 
         $method=strtoupper(trim($method));
-        if (!in_array($method,['GET','POST','PUT','DELETE'],true)) {
+        if (!in_array($method,['GET','POST','PUT','PATCH','DELETE'],true)) {
             return self::error('method','Unsupported Etsy HTTP method.');
         }
 

@@ -52,7 +52,7 @@ final class EtsyOperationPreparationServiceContractTest extends TestCase
     public function testPreparationBindsApprovedIntentTypeToOperation(): void
     {
         $source=$this->source();
-        self::assertStringContainsString("'PREPARE_DRAFT' => in_array(\$operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE', 'UPLOAD_FILE'], true)",$source);
+        self::assertStringContainsString("'PREPARE_DRAFT' => in_array(\$operationType, ['DRAFT', 'CREATE_DRAFT', 'UPDATE_DRAFT', 'UPDATE_INVENTORY', 'ATTACH_IMAGE', 'UPLOAD_FILE', 'PUBLISH_LISTING'], true)",$source);
         self::assertStringContainsString('confirmedCreateForScope',$source);
         self::assertStringContainsString('EtsyPostCreateSequenceGuard::authorize',$source);
         self::assertStringContainsString('intent_operation_mismatch',$source);
