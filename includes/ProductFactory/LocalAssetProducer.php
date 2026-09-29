@@ -62,6 +62,9 @@ final class LocalAssetProducer
         $svg = (string) @file_get_contents($source); if ($svg === '' || ! str_contains(strtolower($svg), '<svg') || $this->containsActiveMarkup($svg) || $this->containsExternalSvgReference($svg) || ! $this->safeSvgGeometry($svg)) { return $this->error('unsafe_svg', 'Raster source SVG is invalid or unsafe.'); }
         if (! class_exists('\Imagick')) { return $this->error('rasterizer_unavailable', 'ImageMagick is required for governed SVG rasterization.', 503); }
         try {
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 67108864);
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_MAP, 134217728);
+            \Imagick::setResourceLimit(\Imagick::RESOURCETYPE_DISK, 134217728);
             $image = new \Imagick();
             $image->setBackgroundColor(new \ImagickPixel('white'));
             $image->readImageBlob($svg);
@@ -86,10 +89,13 @@ final class LocalAssetProducer
         $relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant!==''?'/'.$storageVariant:''); $directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
         if(!wp_mkdir_p($directory))return $this->error('asset_directory','Unable to create DigiForge asset directory.',500);
         $path=trailingslashit($directory).$filename; $newHash=hash('sha256',$bytes);
-        if(is_file($path)){ $existingHash=hash_file('sha256',$path); if(is_string($existingHash)&&hash_equals($existingHash,$newHash))return $this->metadata($path,$filename,$format,$relativeDir); return $this->error('asset_replay_conflict','Existing generated asset differs from replay payload.',409); }
-        $temp=$path.'.tmp-'.wp_generate_password(8,false,false); if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);return $this->error('asset_write','Unable to write generated asset.',500);}
-        if(!@rename($temp,$path)){@unlink($temp);return $this->error('asset_commit','Unable to finalize generated asset.',500);}
-        return $this->metadata($path,$filename,$format,$relativeDir);
+        $lockPath=$path.'.lock'; $lock=@fopen($lockPath,'c'); if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return $this->error('asset_lock','Unable to lock generated asset.',500);}
+        try {
+            if(is_file($path)){ $existingHash=hash_file('sha256',$path); if(is_string($existingHash)&&hash_equals($existingHash,$newHash))return $this->metadata($path,$filename,$format,$relativeDir); return $this->error('asset_replay_conflict','Existing generated asset differs from replay payload.',409); }
+            $temp=$path.'.tmp-'.wp_generate_password(8,false,false); if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);return $this->error('asset_write','Unable to write generated asset.',500);}
+            if(!@rename($temp,$path)){@unlink($temp);return $this->error('asset_commit','Unable to finalize generated asset.',500);}
+            return $this->metadata($path,$filename,$format,$relativeDir);
+        } finally { flock($lock,LOCK_UN); fclose($lock); @unlink($lockPath); }
     }
 
 
