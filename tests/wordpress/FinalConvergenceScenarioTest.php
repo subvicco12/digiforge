@@ -18,10 +18,9 @@ final class FinalConvergenceScenarioTest extends WP_UnitTestCase {
   $package=(new DigiForge\POD\ProductionAuthorizationRepository())->approveForReview((int)$package['id']);self::assertSame('APPROVED_PACKAGE',$package['state']);self::assertSame('0',(string)$package['external_execution_authorized']);self::assertSame('0',(string)$package['external_execution_performed']);
  }
  public function testScopedCapabilityRequiresGlobalShopAndWorkflow():void {
-  DigiForge\Core\Settings::set('stop_all',false);DigiForge\Core\Settings::set('research_enabled',true);
-  $off=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>true],['research'=>false]);self::assertFalse($off['effective_enabled']);self::assertFalse($off['external_execution_authorized']);
+  DigiForge\Core\Settings::protectProduction();
+  $workflowOff=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>true],['research'=>false]);self::assertFalse($workflowOff['effective_enabled']);self::assertFalse($workflowOff['external_execution_authorized']);
   $shopOff=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>false],['research'=>true]);self::assertFalse($shopOff['effective_enabled']);
-  $on=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>true],['research'=>true]);self::assertTrue($on['effective_enabled']);self::assertFalse($on['external_execution_authorized']);
-  DigiForge\Core\Settings::set('stop_all',true);$stopped=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>true],['research'=>true]);self::assertFalse($stopped['effective_enabled']);
+  $protected=DigiForge\Portal\ScopedCapabilityPolicy::evaluate('research',['research'=>true],['research'=>true]);self::assertFalse($protected['global_enabled']);self::assertFalse($protected['effective_enabled']);self::assertTrue($protected['global_disable_wins']);self::assertTrue($protected['shop_disable_wins']);self::assertTrue($protected['narrower_scope_cannot_override_parent']);
  }
 }
