@@ -56,7 +56,7 @@ Do not mark DigiForge database-backup readiness evidence true until the backup i
 12. Verify every effective external feature switch is FALSE.
 13. Verify the DigiForge audit subsystem is healthy.
 14. Verify the queue can be queried and contains no expired leases requiring intervention.
-15. Verify the readiness endpoint reports no external actions performed.
+15. Verify the isolated recovery environment itself performs no external actions during the drill. Do not require or rewrite production's historical `external_actions_performed` indicator; historical confirmed operations remain part of the audit record.
 16. Run the DigiForge recovery-readiness evaluation.
 17. Run `/digiforge/v1/readiness` and retain the resulting evidence hash/status.
 
@@ -72,7 +72,7 @@ The restored environment must satisfy all of these before normal internal testin
 - Queue query verified.
 - No expired queue leases.
 - Recovery evidence available.
-- `external_actions_performed = false`.
+- No external action is performed by the recovery drill. Production's historical `external_actions_performed` value is preserved and is not a drill completion flag.
 
 ## Failure Handling
 If any validation fails:
@@ -100,4 +100,4 @@ The recovery phase is complete only when `/digiforge/v1/readiness` reports:
 - `recovery_drill_passed = true`
 - overall readiness no longer blocked by missing recovery evidence
 - externally locked remains true
-- external actions performed remains false
+- the recovery drill itself performed no external actions; historical production external-action evidence remains preserved
