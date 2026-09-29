@@ -1,3 +1,9 @@
+## 1.0.76 — 2026-09-29
+
+- Exposes recovery-drill verification state and exact database-backup / rollback-plugin bindings in the live-site Attention & Recovery portal.
+- Keeps the recovery view read-only: it cannot perform a drill, retry or replay work, activate integrations, or authorize external execution.
+- Preserves the v1.0.75 fail-closed drill-evidence gate and database schema v23.
+
 ## 1.0.75 — 2026-09-29
 
 - Requires fresh, concrete recovery-drill evidence before operational recovery readiness can pass.
