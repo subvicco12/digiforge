@@ -1,3 +1,10 @@
+## 1.0.75 — 2026-09-29
+
+- Requires fresh, concrete recovery-drill evidence before operational recovery readiness can pass.
+- Binds verified drill evidence to the current database-backup and rollback-plugin artifact identifiers and fails closed when evidence is stale, incomplete, or mismatched.
+- Adds authenticated management endpoints to record/read drill evidence without performing or simulating a restore.
+- Preserves STOP ALL, external lock, schema v23, and non-authorizing recovery evidence; no Etsy publish, POD production, money movement, tax filing, or other external action is authorized by this release.
+
 ## 1.0.74 — 2026-09-28
 
 - Fixes active-plugin upgrades so normal boot runs the additive v16-v23 migration chain when an in-place plugin replacement does not fire the activation hook.
