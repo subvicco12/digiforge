@@ -255,6 +255,18 @@ final class EtsyOperationRepository
     }
 
     /** @return array<string,mixed>|null */
+    public function confirmedPublishForScope(int $intentId,int $packageId,string $shopReference,string $listingId): ?array
+    {
+        if($intentId<1||$packageId<1||trim($shopReference)===''||!ctype_digit($listingId))return null;
+        global $wpdb;
+        $row=$wpdb->get_row($wpdb->prepare(
+            'SELECT * FROM '.$wpdb->prefix.'digiforge_etsy_operations WHERE intent_id=%d AND draft_package_id=%d AND shop_reference=%s AND operation_type=%s AND resource_reference=%s AND state=%s ORDER BY id DESC LIMIT 1',
+            $intentId,$packageId,$shopReference,'PUBLISH_LISTING',$listingId,EtsyOperationLifecycle::CONFIRMED_SUCCESS
+        ),ARRAY_A);
+        return is_array($row)?$row:null;
+    }
+
+    /** @return array<string,mixed>|null */
     public function byKey(string $shopReference, string $idempotencyKey): ?array
     {
         global $wpdb;
