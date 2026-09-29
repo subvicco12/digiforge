@@ -48,6 +48,12 @@ final class EtsyPublishExecutionController
         if(is_array($ops->confirmedPublishForScope($intentId,$packageId,(string)$shopId,$etsyListingId)))return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_CONFIRMED','etsy_listing_id'=>(int)$etsyListingId,'external_execution_performed'=>false,'retry_permitted'=>false],200);
         $plan=EtsyPublishListingOperation::plan($shopId,(int)$etsyListingId);if($plan instanceof WP_Error)return $plan;
         $payload=(array)$plan['payload'];$fingerprint=EtsyRequestFingerprint::fromPayload($payload);if($fingerprint instanceof WP_Error)return $fingerprint;
+        $existing=$ops->byKey((string)$shopId,$key);
+        if(is_array($existing)){
+            $same=(int)($existing['intent_id']??0)===$intentId&&(int)($existing['draft_package_id']??0)===$packageId&&(string)($existing['operation_type']??'')==='PUBLISH_LISTING'&&hash_equals((string)($existing['resource_reference']??''),$etsyListingId)&&hash_equals((string)($existing['request_fingerprint']??''),$fingerprint)&&hash_equals((string)($existing['evidence_hash']??''),$hash);
+            if(!$same)return self::error('idempotency','Idempotency key already belongs to a different Etsy publish request.',409);
+            return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_ATTEMPTED','operation'=>$existing,'external_execution_performed'=>(string)($existing['state']??'')!=='NOT_SENT','retry_permitted'=>false],200);
+        }
         $actor=get_current_user_id();$approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>$hash];
         $authorization=ExecutionAuthorization::issue($approval,'ETSY_PUBLISH_LISTING',$actor,str_replace('-','_',wp_generate_uuid4()),300,$fingerprint);if($authorization instanceof WP_Error)return $authorization;
         $operation=$ops->createFromPayload(['shop_reference'=>(string)$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId,'operation_type'=>'PUBLISH_LISTING','resource_reference'=>$etsyListingId,'idempotency_key'=>$key,'authorization_hash'=>(string)$authorization['authorization_hash'],'evidence_hash'=>$hash],$payload);if($operation instanceof WP_Error)return $operation;
