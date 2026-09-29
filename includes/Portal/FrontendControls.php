@@ -61,7 +61,10 @@ final class FrontendControls
             Logger::audit('production_activation_failed', ['evidence_hash' => $report['evidence_hash'] ?? ''], 'system', 'production_activation');
             $this->redirect('Production release failed atomically; STOP ALL remains protected.', true);
         }
-        Logger::audit('research_activation_authorized', ['capability' => 'research', 'evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false], 'system', 'research_activation');
+        if (! Logger::write('research_activation_authorized', ['capability' => 'research', 'evidence_hash' => $report['evidence_hash'] ?? '', 'external_feature_switches_changed' => false, 'external_actions_performed' => false], 'system', 'research_activation')) {
+            Settings::protectProduction();
+            $this->redirect('Research activation was rolled back because its audit record could not be persisted.', true);
+        }
         $this->redirect('Research-only activation authorized and STOP ALL released. AI, Product Development, and all other capabilities remain ineffective.');
     }
 
@@ -77,7 +80,10 @@ final class FrontendControls
             Logger::audit('ai_activation_failed', [], 'system', 'ai_activation');
             $this->redirect('AI activation failed atomically; AI remains ineffective.', true);
         }
-        Logger::audit('ai_activation_authorized', ['capability' => 'ai', 'external_actions_performed' => false], 'system', 'ai_activation');
+        if (! Logger::write('ai_activation_authorized', ['capability' => 'ai', 'external_actions_performed' => false], 'system', 'ai_activation')) {
+            Settings::revokeScopedAuthorization('ai_activation_authorized');
+            $this->redirect('AI activation was rolled back because its audit record could not be persisted.', true);
+        }
         $this->redirect('AI capability activation authorized. Product Development and all later capabilities remain ineffective. No provider request was performed by activation.');
     }
 
@@ -93,7 +99,10 @@ final class FrontendControls
             Logger::audit('product_development_activation_failed', [], 'system', 'product_development_activation');
             $this->redirect('Product Development activation failed atomically; Product Development remains ineffective.', true);
         }
-        Logger::audit('product_development_activation_authorized', ['capability' => 'product_development', 'external_actions_performed' => false], 'system', 'product_development_activation');
+        if (! Logger::write('product_development_activation_authorized', ['capability' => 'product_development', 'external_actions_performed' => false], 'system', 'product_development_activation')) {
+            Settings::revokeScopedAuthorization('product_development_activation_authorized');
+            $this->redirect('Product Development activation was rolled back because its audit record could not be persisted.', true);
+        }
         $this->redirect('Product Development capability activation authorized. Printify, Gelato, Etsy, orders, and GST remain ineffective. No external action was performed by activation.');
     }
 
