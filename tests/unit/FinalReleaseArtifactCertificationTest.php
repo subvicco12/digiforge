@@ -48,9 +48,9 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
         $plugin = (string) file_get_contents(dirname(__DIR__, 2) . '/digiforge.php');
         $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/final-readiness-completion.md');
 
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.84';", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.85';", $plugin);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';", $plugin);
-        self::assertStringContainsString('Plugin release: 1.0.84.', $readiness);
+        self::assertStringContainsString('Plugin release: 1.0.85.', $readiness);
         self::assertStringContainsString('Database schema: v23.', $readiness);
         self::assertStringContainsString('READY_LOCKED', $readiness);
     }
@@ -64,8 +64,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
  }
 
  public function testCurrentDeploymentPlanFailsClosedAndMatchesCertifiedRelease():void{
-  $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.84_CONTROLLED_DEPLOYMENT_PLAN.md');
-  self::assertStringContainsString('Candidate: DigiForge 1.0.84',$plan);
+  $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.85_CONTROLLED_DEPLOYMENT_PLAN.md');
+  self::assertStringContainsString('Candidate: DigiForge 1.0.85',$plan);
   self::assertStringContainsString('Expected schema after migration: 23',$plan);
   self::assertStringContainsString('current STOP ALL / activation / automation posture',$plan);
   self::assertStringContainsString('must be preserved',$plan);
