@@ -106,7 +106,10 @@ final class Controller {
         if (! Settings::activatePrintify()) {
             return new \WP_Error('digiforge_printify_activation_failed', __('Printify activation failed atomically.', 'digiforge'), ['status' => 500]);
         }
-        Logger::audit('printify_activation_authorized', ['capability' => 'printify', 'external_actions_performed' => false], 'system', 'printify_activation');
+        if (! Logger::write('printify_activation_authorized', ['capability' => 'printify', 'external_actions_performed' => false], 'system', 'printify_activation')) {
+            Settings::revokeScopedAuthorization('printify_activation_authorized');
+            return new \WP_Error('digiforge_printify_activation_audit_failed', __('Printify activation was revoked because its audit record could not be persisted.', 'digiforge'), ['status' => 500]);
+        }
         return new \WP_REST_Response(['capability' => 'printify', 'authorized' => true, 'effective' => Settings::is_enabled('printify'), 'external_actions_performed' => false], 200);
     }
     public function activate_etsy_draft(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
@@ -117,7 +120,10 @@ final class Controller {
         if (! Settings::activateEtsyDraft()) {
             return new \WP_Error('digiforge_etsy_draft_activation_failed', __('Etsy Draft activation failed atomically.', 'digiforge'), ['status' => 500]);
         }
-        Logger::audit('etsy_draft_activation_authorized', ['capability' => 'etsy_draft', 'external_actions_performed' => false], 'system', 'etsy_draft_activation');
+        if (! Logger::write('etsy_draft_activation_authorized', ['capability' => 'etsy_draft', 'external_actions_performed' => false], 'system', 'etsy_draft_activation')) {
+            Settings::revokeScopedAuthorization('etsy_draft_activation_authorized');
+            return new \WP_Error('digiforge_etsy_draft_activation_audit_failed', __('Etsy Draft activation was revoked because its audit record could not be persisted.', 'digiforge'), ['status' => 500]);
+        }
         return new \WP_REST_Response(['capability' => 'etsy_draft', 'authorized' => true, 'effective' => Settings::is_enabled('etsy_draft'), 'external_actions_performed' => false], 200);
     }
     public function activate_remaining(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
