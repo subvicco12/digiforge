@@ -67,8 +67,8 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
   $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.80_CONTROLLED_DEPLOYMENT_PLAN.md');
   self::assertStringContainsString('Candidate: DigiForge 1.0.80',$plan);
   self::assertStringContainsString('Expected schema after migration: 23',$plan);
-  self::assertStringContainsString('STOP ALL ON',$plan);
-  self::assertStringContainsString('activation authorization OFF',$plan);
+  self::assertStringContainsString('current STOP ALL / activation / automation posture',$plan);
+  self::assertStringContainsString('must be preserved',$plan);
   self::assertStringContainsString('Historical external-action evidence MUST NOT be cleared or rewritten',$plan);
   self::assertStringContainsString('Do not manually set schema-version options',$plan);
   self::assertStringContainsString('restoring the last compatible audited plugin + database checkpoint together',$plan);
