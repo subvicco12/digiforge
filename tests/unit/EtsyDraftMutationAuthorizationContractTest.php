@@ -40,8 +40,8 @@ final class EtsyDraftMutationAuthorizationContractTest extends TestCase
         self::assertStringContainsString('hash_equals($expectedEndpoint,$endpoint)',$s);
         self::assertStringContainsString('$operation[\'external_reference\']',$s);
         self::assertStringContainsString('$operation[\'resource_reference\']',$s);
-        self::assertStringContainsString("\$operationType==='UPLOAD_FILE'?\$resourceReference:\$externalReference",$s);
-        self::assertStringContainsString("\$operationType==='UPLOAD_FILE'",$s);
+        self::assertStringContainsString("in_array(\$operationType,['ATTACH_IMAGE','UPLOAD_FILE'],true)?\$resourceReference:\$externalReference",$s);
+        self::assertStringContainsString("['ATTACH_IMAGE','UPLOAD_FILE']",$s);
     }
 
     public function testMutationAuthorizationDoesNotAddExecutionPrimitive(): void
