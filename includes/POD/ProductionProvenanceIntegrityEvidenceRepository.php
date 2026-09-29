@@ -12,6 +12,7 @@ final class ProductionProvenanceIntegrityEvidenceRepository{
   global $wpdb;$table=Tables::pod_provenance_integrity_evidence();$now=current_time('mysql',true);
   $payload=$item;unset($payload['acknowledgement'],$payload['operator_state'],$payload['retry_permitted'],$payload['external_execution_authorized']);
   $existing=$wpdb->get_var($wpdb->prepare('SELECT id FROM '.$table.' WHERE correlation_hash=%s LIMIT 1',$correlation));
+  if(!empty($wpdb->last_error))return;
   if($existing){$wpdb->update($table,['last_observed_at'=>$now],['id'=>(int)$existing],['%s'],['%d']);return;}
   $wpdb->insert($table,['correlation_hash'=>$correlation,'authorization_hash'=>$authorization,'anomaly_type'=>$type,'package_id'=>(int)($item['package_id']??0),'package_hash'=>(string)($item['package_hash']??''),'actual_package_hash'=>(string)($item['actual_package_hash']??''),'evidence_payload'=>wp_json_encode($payload),'first_observed_at'=>$now,'last_observed_at'=>$now],['%s','%s','%s','%d','%s','%s','%s','%s','%s']);
  }
