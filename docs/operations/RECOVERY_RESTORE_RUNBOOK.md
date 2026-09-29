@@ -85,14 +85,10 @@ If any validation fails:
 ## Rollback Principle
 Recovery must never be used as a reason to bypass migration, checksum, authorization, or external-action safety controls. If the restored database/plugin pair is incompatible, restore the last known compatible audited pair rather than forcing readiness flags.
 
-## Readiness Evidence Flags
-DigiForge currently evaluates these WordPress options as recovery evidence markers:
-- `digiforge_recovery_database_backup_available`
-- `digiforge_recovery_plugin_package_available`
-- `digiforge_recovery_checksum_verified`
-- `digiforge_recovery_restore_instructions_available`
+## Readiness Evidence
+DigiForge recovery readiness uses structured database-backup and plugin-package evidence, including concrete artifact identity, retrievability and verification/checksum evidence. Legacy database-backup, plugin-package and checksum availability booleans are not recovery evidence and must not be used to bypass the structured evidence contract.
 
-These flags are declarations of verified evidence, not substitutes for the evidence itself. Set them only after the underlying evidence exists and has been checked.
+The separate `digiforge_recovery_restore_instructions_available` option remains a readiness check for the existence of approved restore instructions; it is not proof of a backup, plugin package, checksum or completed recovery drill.
 
 ## Completion Criteria
 The recovery phase is complete only when `/digiforge/v1/readiness` reports:
