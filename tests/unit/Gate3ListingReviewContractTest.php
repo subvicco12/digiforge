@@ -48,4 +48,27 @@ final class Gate3ListingReviewContractTest extends TestCase
         self::assertStringContainsString("'external_actions_performed'=>false", $source);
         self::assertStringContainsString("listing_legacy_gate3_review_created", $source);
     }
+    public function testLegacyRepairLocksRechecksAndStoresPostTransitionEvidence(): void
+    {
+        $repository=(string)file_get_contents(__DIR__.'/../../includes/Listings/Repository.php');
+        self::assertStringContainsString('FOR UPDATE',$repository);
+        self::assertStringContainsString("START TRANSACTION",$repository);
+        self::assertStringContainsString("WHERE listing_id=%d",$repository);
+        $transition=strpos($repository,"'state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null");
+        $postReadiness=strpos($repository,'$readiness=$this->readiness($listingId);',$transition);
+        self::assertNotFalse($transition);
+        self::assertNotFalse($postReadiness);
+        self::assertGreaterThan($transition,$postReadiness);
+    }
+
+    public function testLegacyRepairHasGovernedIdempotentRestInvocation(): void
+    {
+        $controller=(string)file_get_contents(__DIR__.'/../../includes/REST/ListingController.php');
+        self::assertStringContainsString('/listings/(?P<id>\\\\d+)/legacy-gate3-repair',$controller);
+        self::assertStringContainsString('legacyGate3Repair',$controller);
+        self::assertStringContainsString('createLegacyReadinessReview',$controller);
+        self::assertStringContainsString("listing_legacy_gate3_repair_",$controller);
+        self::assertStringContainsString("permission_callback'=>[\$this,'canManage']",$controller);
+    }
+
 }
