@@ -35,4 +35,17 @@ final class Gate3ListingReviewContractTest extends TestCase
         self::assertStringContainsString('decideReadinessReview',$source);
         self::assertStringNotContainsString('/publish', $source);
     }
+
+    public function testLegacyGate3RepairIsExplicitFailClosedAndInternalOnly(): void
+    {
+        $source=(string)file_get_contents(__DIR__.'/../../includes/Listings/Repository.php');
+        self::assertStringContainsString('createLegacyReadinessReview', $source);
+        self::assertStringContainsString("legacy_repair_state", $source);
+        self::assertStringContainsString("legacy_repair_not_required", $source);
+        self::assertStringContainsString("WHERE listing_id=%d", $source);
+        self::assertStringContainsString("'state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null", $source);
+        self::assertStringContainsString("'decision'=>'PENDING'", $source);
+        self::assertStringContainsString("'external_actions_performed'=>false", $source);
+        self::assertStringContainsString("listing_legacy_gate3_review_created", $source);
+    }
 }
