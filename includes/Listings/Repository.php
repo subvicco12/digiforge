@@ -69,6 +69,51 @@ final class Repository
         $productMode=$digital&&$pod?'hybrid':($pod?'pod':'digital');$checks=['listing_approved'=>(string)$listing['state']==='APPROVED','seo_present'=>$seo>0,'approved_media_bound'=>$mediaValid,'pod_binding_valid'=>$podValid,'human_approval'=>(int)$listing['approved_by']>0&&!empty($listing['approved_at'])];$ready=!in_array(false,$checks,true);$payload=['listing_id'=>$listingId,'product_mode'=>$productMode,'ready'=>$ready,'checks'=>$checks];$payload['hash']=hash('sha256',Validator::canonicalJson($payload));return $payload;
     }
 
+    public function createReadinessReview(int $listingId, ?string $key=null): array|WP_Error
+    {
+        $listing=$this->find(Tables::listings(),$listingId);
+        if(!is_array($listing))return $this->error('not_found','Listing not found.',404);
+        if((string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing must be REVIEW_REQUIRED before Gate 3 review evidence is created.',409);
+        $readiness=$this->readiness($listingId);
+        if(is_wp_error($readiness))return $readiness;
+        $checks=(array)($readiness['checks']??[]);
+        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+            if(empty($checks[$required]))return $this->error('review_not_ready','Listing prerequisites must pass before Gate 3 review.',409);
+        }
+        $canonical=Validator::canonicalJson($readiness);
+        return $this->insert(Tables::listing_readiness_reviews(),$key,[
+            'listing_id'=>$listingId,'readiness'=>$canonical,'readiness_hash'=>(string)($readiness['hash']??hash('sha256',$canonical)),
+            'decision'=>'PENDING','reviewed_by'=>0,'reviewed_at'=>null,'created_at'=>$this->now(),'updated_at'=>$this->now()
+        ],'listing_readiness_review');
+    }
+
+    public function decideReadinessReview(int $reviewId,string $decision): array|WP_Error
+    {
+        $review=$this->find(Tables::listing_readiness_reviews(),$reviewId);
+        if(!is_array($review))return $this->error('review_not_found','Listing readiness review not found.',404);
+        if((string)($review['decision']??'')!=='PENDING')return $this->error('review_decided','Listing readiness review has already been decided.',409);
+        if(get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $decision=strtoupper(sanitize_key($decision));
+        if(!in_array($decision,['APPROVED','REJECTED'],true))return $this->error('review_decision','Decision must be APPROVED or REJECTED.');
+        $listingId=(int)($review['listing_id']??0);
+        $listing=$this->find(Tables::listings(),$listingId);
+        if(!is_array($listing)||(string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing is no longer awaiting Gate 3 review.',409);
+        if($decision==='APPROVED'){
+            $current=$this->readiness($listingId);
+            if(is_wp_error($current))return $current;
+            $checks=(array)($current['checks']??[]);
+            foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+                if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites no longer pass.',409);
+            }
+            $approved=$this->transition('listing',$listingId,'APPROVED');
+            if(is_wp_error($approved))return $approved;
+        }
+        global $wpdb;$now=$this->now();
+        if($wpdb->update(Tables::listing_readiness_reviews(),['decision'=>$decision,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$reviewId,'decision'=>'PENDING'])!==1)return $this->error('review_conflict','Listing review changed concurrently or could not be recorded.',409);
+        Logger::audit('listing_readiness_review_decided',['listing_id'=>$listingId,'decision'=>$decision],'listing_readiness_review',(string)$reviewId);
+        return $this->find(Tables::listing_readiness_reviews(),$reviewId)?:[];
+    }
+
     public function createDraftPackage(array $input,?string $key=null): array|WP_Error
     {
         if(get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required to create a Gate 3 draft package.',403);$listingId=absint($input['listing_id']??0);$listing=$this->find(Tables::listings(),$listingId);if(!is_array($listing))return $this->error('invalid_parent','Valid listing_id is required.');$readiness=$this->readiness($listingId);if(is_wp_error($readiness)||empty($readiness['ready']))return $this->error('not_ready','Listing is not release-ready.',409);$seo=$this->firstBy(Tables::listing_seo(),'listing_id',$listingId);$payload=['listing'=>$listing,'seo'=>$seo?:[],'readiness'=>$readiness];$canonical=Validator::canonicalJson($payload);return $this->insert(Tables::etsy_draft_packages(),$key,['listing_id'=>$listingId,'package_version'=>sanitize_text_field((string)($input['package_version']??'v1')),'canonical_payload'=>$canonical,'payload_hash'=>hash('sha256',$canonical),'readiness'=>Validator::canonicalJson($readiness),'readiness_hash'=>(string)$readiness['hash'],'approved_by'=>get_current_user_id(),'approved_at'=>$this->now(),'created_by'=>get_current_user_id(),'created_at'=>$this->now()],'etsy_draft_package');
