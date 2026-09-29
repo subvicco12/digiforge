@@ -56,7 +56,7 @@ final class EtsyDraftOperationPipeline
         $shopId=(int)$shopReference;
         $externalReference=trim((string)($operation['external_reference']??''));
         $resourceReference=trim((string)($operation['resource_reference']??''));
-        $listingReference=$operationType==='UPLOAD_FILE'?$resourceReference:$externalReference;
+        $listingReference=in_array($operationType,['ATTACH_IMAGE','UPLOAD_FILE'],true)?$resourceReference:$externalReference;
         $listingId=ctype_digit($listingReference)?(int)$listingReference:0;
         if ($operationType==='CREATE_DRAFT') {
             $expectedEndpoint="/application/shops/{$shopId}/listings";
