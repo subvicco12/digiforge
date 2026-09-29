@@ -59,7 +59,7 @@ final class LocalAssetProducer
         if ($width < 500 || $height < 500 || $width > 4000 || $height > 4000) { return $this->error('invalid_raster_dimensions', 'Raster dimensions must be between 500 and 4000 pixels.'); }
         $filename = $this->filename($filename, 'png'); if ($filename === '') { return $this->error('invalid_filename', 'A safe PNG filename is required.'); }
         $source = AssetStorage::absolutePath($sourceStorageReference); if ($source === null || strtolower(pathinfo($source, PATHINFO_EXTENSION)) !== 'svg') { return $this->error('invalid_raster_source', 'Raster source must be an existing protected SVG asset.'); }
-        $svg = (string) @file_get_contents($source); if ($svg === '' || ! str_contains(strtolower($svg), '<svg') || $this->containsActiveMarkup($svg)) { return $this->error('unsafe_svg', 'Raster source SVG is invalid or unsafe.'); }
+        $svg = (string) @file_get_contents($source); if ($svg === '' || ! str_contains(strtolower($svg), '<svg') || $this->containsActiveMarkup($svg) || $this->containsExternalSvgReference($svg) || ! $this->safeSvgGeometry($svg)) { return $this->error('unsafe_svg', 'Raster source SVG is invalid or unsafe.'); }
         if (! class_exists('\Imagick')) { return $this->error('rasterizer_unavailable', 'ImageMagick is required for governed SVG rasterization.', 503); }
         try {
             $image = new \Imagick();
@@ -92,6 +92,21 @@ final class LocalAssetProducer
         return $this->metadata($path,$filename,$format,$relativeDir);
     }
 
+
+    private function containsExternalSvgReference(string $svg): bool
+    {
+        if (preg_match_all('/\b(?:href|xlink:href)\s*=\s*["\']([^"\']*)["\']/i',$svg,$matches)) { foreach($matches[1] as $ref){$ref=trim((string)$ref);if($ref!==''&&!str_starts_with($ref,'#'))return true;} }
+        if (preg_match_all('/url\s*\(\s*([^)]+)\s*\)/i',$svg,$matches)) { foreach($matches[1] as $ref){$ref=trim((string)$ref," \t\n\r\0\x0B\"'");if($ref!==''&&!str_starts_with($ref,'#'))return true;} }
+        return false;
+    }
+
+    private function safeSvgGeometry(string $svg): bool
+    {
+        $max=4000.0;$dimension=static function(string $name)use($svg):?float{if(!preg_match('/\b'.preg_quote($name,'/').'\s*=\s*["\']\s*([0-9]+(?:\.[0-9]+)?)\s*(?:px)?\s*["\']/i',$svg,$m))return null;return(float)$m[1];};
+        $w=$dimension('width');$h=$dimension('height');if(($w!==null&&($w<=0||$w>$max))||($h!==null&&($h<=0||$h>$max)))return false;
+        if(preg_match('/\bviewBox\s*=\s*["\']\s*[-+]?[0-9.]+\s+[-+]?[0-9.]+\s+([0-9]+(?:\.[0-9]+)?)\s+([0-9]+(?:\.[0-9]+)?)\s*["\']/i',$svg,$m)){if((float)$m[1]<=0||(float)$m[2]<=0||(float)$m[1]>$max||(float)$m[2]>$max)return false;}
+        return true;
+    }
 
     /** @param array<int,array<string,mixed>> $assets @return array<string,mixed>|WP_Error */
     public function package(int $productVersionId, array $assets, string $filename = 'customer-package.zip', string $storageVariant = ''): array|WP_Error
