@@ -22,7 +22,7 @@ final class Gate3ListingReviewContractTest extends TestCase
         self::assertStringContainsString('decideReadinessReview',$source);
         self::assertStringContainsString("'decision'=>'PENDING'",$source);
         self::assertStringContainsString('gate3_review_required',$source);
-        self::assertStringContainsString("transition('listing',\$listingId,'APPROVED',true)",\$source);
+        self::assertStringContainsString("transition('listing',\$listingId,'APPROVED',true)",$source);
     }
 
     public function testRestExposesDecisionEndpointButNoPublishEndpoint(): void
