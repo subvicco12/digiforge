@@ -22,7 +22,7 @@ DigiForge is a WordPress-native digital-product and print-on-demand operations p
 * `includes/AI` provides the AI governance layer: local task/model policy, deterministic routing, immutable prompt versions, schema validation, run intents, output provenance, usage/cost records, and human review gates. It contains no inference client or provider executor.
 * `includes/REST` provides authenticated `/wp-json/digiforge/v1/` management endpoints for Product Factory, Digital Factory, integrations, research, and AI governance.
 * `includes/DigitalFactory` owns digital-product lifecycle/readiness policy, local QA vocabularies, persistence, and WordPress admin views.
-* `includes/Queue` records job intent only. Jobs begin `BLOCKED`; no workers execute them in this release. The scheduler has an Action Scheduler compatibility boundary when that library is present.
+* `includes/Queue` owns durable job intent, lease/retry/dead-letter safety and recovery diagnostics. External mutation still requires its dedicated authorization boundary; queue evidence alone never grants provider execution.
 * `modules`, `automation`, and `admin` reserve stable module boundaries for future implementation.
 
 ## Data and migrations
@@ -63,7 +63,7 @@ Activation installs/upgrades the following prefixed tables via `dbDelta`:
 * `{$wpdb->prefix}digiforge_ai_usage`
 * `{$wpdb->prefix}digiforge_ai_reviews`
 
-Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current schema is version **14**. Earlier versions introduced queue/idempotency, Product Factory, Digital Product Factory, queue/health hardening, integration security, and Research & Opportunity Intelligence. Version 8 adds only the AI-governance tables when upgrading a current schema-v7 installation. An already-current schema does not re-run stable legacy `AUTO_INCREMENT` tables.
+Schema versions are tracked in `digiforge_db_version` and `digiforge_db_schema_version`. The current certified schema is version **23**. Migrations are additive and the WordPress integration suite exercises historical upgrade paths through the current schema, including v21→v22 permit-persistence evidence and v22→v23 durable scoped capability-policy evidence. A current installation is reactivation-idempotent, and the v23 migration repairs a missing scoped-policy table rather than trusting the version marker alone.
 
 ## Product Factory
 
