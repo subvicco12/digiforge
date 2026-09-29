@@ -6,6 +6,7 @@ use DigiForge\Core\Config;
 use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Operations\RecoveryEvidence;
+use DigiForge\Operations\RecoveryDrillEvidence;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -20,6 +21,8 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/database-backup', ['methods' => 'POST', 'callback' => [$this, 'record_database_backup_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'POST', 'callback' => [$this, 'record_recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/protection/restore', ['methods' => 'POST', 'callback' => [$this, 'restore_protection'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
@@ -52,6 +55,13 @@ final class Controller {
         if (! RecoveryEvidence::storePluginPackage($record)) return new \WP_Error('digiforge_recovery_package_evidence_invalid', __('Complete, valid rollback plugin package evidence is required.', 'digiforge'), ['status' => 400]);
         Logger::audit('recovery_plugin_package_evidence_recorded', ['identifier' => sanitize_text_field((string)($record['identifier'] ?? '')), 'external_actions_performed' => false], 'system', 'recovery_evidence');
         return new \WP_REST_Response(['recorded' => true, 'plugin_package' => RecoveryEvidence::snapshot()['plugin_package'], 'external_actions_performed' => false], 200);
+    }
+    public function recovery_drill_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryDrillEvidence::snapshot(), 200); }
+    public function record_recovery_drill_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $record = (array) $request->get_json_params();
+        if (! RecoveryDrillEvidence::store($record)) return new \WP_Error('digiforge_recovery_drill_evidence_invalid', __('Fresh recovery drill evidence bound to the current verified backup and rollback package is required.', 'digiforge'), ['status' => 400]);
+        Logger::audit('recovery_drill_evidence_verified', ['drill_id' => sanitize_text_field((string)($record['drill_id'] ?? '')), 'external_actions_performed' => false, 'retry_permitted' => false, 'external_execution_authorized' => false], 'system', 'recovery_evidence');
+        return new \WP_REST_Response(['recorded' => true, 'recovery_drill' => RecoveryDrillEvidence::snapshot(), 'external_actions_performed' => false], 200);
     }
     public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['controls' => $result, 'externally_locked' => Settings::safety_locked()], 200); }
     public function restore_protection(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {

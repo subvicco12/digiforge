@@ -25,6 +25,7 @@ final class Readiness
         $schemaCurrent = ($health['schema']['current'] ?? -1) === ($health['schema']['expected'] ?? -2);
         $stopAll = Settings::get('stop_all', true) === true;
         $artifactEvidence = RecoveryEvidence::snapshot();
+        $drillEvidence = RecoveryDrillEvidence::snapshot();
         $recovery = RecoveryDrill::evaluate([
             'database_backup_available' => $artifactEvidence['database_backup_available'],
             'database_backup_retrievable' => $artifactEvidence['database_backup_retrievable'],
@@ -37,6 +38,12 @@ final class Readiness
             'restore_instructions_available' => $this->optionEnabled('digiforge_recovery_restore_instructions_available'),
             'stop_all_confirmed' => $stopAll,
         ]);
+        if (($drillEvidence['passed'] ?? false) !== true) {
+            $recovery['status'] = 'REVIEW_REQUIRED';
+            $recovery['drill_evidence_required'] = true;
+            $recovery['drill_evidence'] = $drillEvidence;
+            $recovery['evidence_hash'] = hash('sha256', (string) wp_json_encode($recovery));
+        }
 
         $checks = [
             'schema_current' => $schemaCurrent,
@@ -49,7 +56,7 @@ final class Readiness
             'queue_has_no_expired_leases' => ($health['queue']['query_ok'] ?? false) === true && (int) ($health['queue']['expired_leases'] ?? 0) === 0,
             'retention_fail_closed' => RetentionPolicy::describe()['automatic_deletion_enabled'] === false,
             'recovery_drill_available' => method_exists(RecoveryDrill::class, 'evaluate'),
-            'recovery_drill_passed' => ($recovery['status'] ?? '') === 'PASS',
+            'recovery_drill_passed' => ($recovery['status'] ?? '') === 'PASS' && ($drillEvidence['passed'] ?? false) === true,
         ];
 
         $ready = ! in_array(false, $checks, true);
@@ -61,6 +68,7 @@ final class Readiness
             'checks' => $checks,
             'recovery' => $recovery,
             'recovery_artifact_evidence' => $artifactEvidence,
+            'recovery_drill_evidence' => $drillEvidence,
             'effective_switches' => $effective,
             'external_actions_performed' => $this->externalActionsPerformed(),
         ];
