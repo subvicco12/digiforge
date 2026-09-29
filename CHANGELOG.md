@@ -1,3 +1,11 @@
+## 1.0.80 — 2026-09-29
+
+- Adds an explicit fail-closed legacy Gate 3 repair for already-approved listings that have no persisted listing-readiness review evidence.
+- Revalidates current SEO, approved media, and POD binding prerequisites before repair.
+- Transactionally returns the affected listing to REVIEW_REQUIRED, clears historical approval fields, and creates a new PENDING human Gate 3 review.
+- Refuses repair when any Gate 3 review evidence already exists and records dedicated audit evidence on successful internal repair.
+- Database schema remains v23. The repair does not infer approval, publish or retry Etsy, submit POD production, execute orders, move money, file tax, or authorize external execution.
+
 ## 1.0.79 — 2026-09-29
 
 - Restores persisted Gate 3 listing-readiness review evidence during governed listing preparation.
