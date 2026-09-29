@@ -131,6 +131,10 @@ final class ListingFactory
         if (is_wp_error($readiness)) {
             return $readiness;
         }
+        $gate3Review = $repo->createReadinessReview($listingId, $idempotencyKey . '-gate3-review');
+        if (is_wp_error($gate3Review)) {
+            return $gate3Review;
+        }
 
         Logger::audit('u3_listing_factory_completed', [
             'product_version_id' => $productVersionId,
@@ -150,6 +154,7 @@ final class ListingFactory
             'seo' => $seo,
             'media' => $media,
             'readiness' => $readiness,
+            'listing_readiness_review' => $gate3Review,
             'workflow_status' => 'LISTING_REVIEW_REQUIRED',
             'listing_approval_required' => true,
             'draft_package_created' => false,
