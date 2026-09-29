@@ -1,3 +1,11 @@
+## 1.0.79 — 2026-09-29
+
+- Restores persisted Gate 3 listing-readiness review evidence during governed listing preparation.
+- Requires listing approval to flow through a persisted pending Gate 3 review; direct listing approval fails closed.
+- Makes Gate 3 approval/rejection and listing lifecycle updates transactional, including transition to REJECTED on rejection.
+- Adds authenticated, idempotency-guarded review-decision REST handling and regression coverage.
+- Database schema remains v23. This release does not publish to Etsy, submit POD production, retry external operations, move money, or file tax.
+
 ## 1.0.78 — 2026-09-29
 
 - Fails closed if a controlled capability activation succeeds but its mandatory authorization audit record cannot be persisted.
