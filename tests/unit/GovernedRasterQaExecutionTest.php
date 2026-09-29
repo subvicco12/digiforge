@@ -18,7 +18,7 @@ final class GovernedRasterQaExecutionTest extends TestCase
         self::assertStringContainsString("'QA_PASSED':'QA_FAILED'", $controller);
         self::assertStringContainsString("'approval_required']=true", $controller);
         self::assertStringContainsString("'external_action_performed']=false", $controller);
-        self::assertStringNotContainsString("transition('revision',$revisionId,'APPROVED')", $controller);
+        self::assertStringNotContainsString("transition('revision',\$revisionId,'APPROVED')", $controller);
     }
 
     public function test_existing_header_idempotency_contract_remains_fail_closed(): void
@@ -27,8 +27,8 @@ final class GovernedRasterQaExecutionTest extends TestCase
 
         self::assertStringContainsString("get_header('Idempotency-Key')", $controller);
         self::assertStringContainsString("'missing_idempotency_key'", $controller);
-        self::assertStringContainsString("hash('sha256',$operation.'|'.$key)", $controller);
-        self::assertStringContainsString("reserve($storage,$operation)", $controller);
-        self::assertStringContainsString("complete($storage", $controller);
+        self::assertStringContainsString("hash('sha256',\$operation.'|'.\$key)", $controller);
+        self::assertStringContainsString("reserve(\$storage,\$operation)", $controller);
+        self::assertStringContainsString("complete(\$storage", $controller);
     }
 }
