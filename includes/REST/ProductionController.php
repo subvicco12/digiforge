@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DigiForge\REST;
 
 use DigiForge\Production\Repository;
+use DigiForge\ProductFactory\DerivedRasterService;
 use DigiForge\Queue\Idempotency;
 
 final class ProductionController
@@ -21,6 +22,7 @@ final class ProductionController
             register_rest_route(self::NS, '/production/plans/(?P<id>\d+)/assets', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'linkAsset']]);
             register_rest_route(self::NS, '/production/intents', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createIntent']]);
             register_rest_route(self::NS, '/production/revisions', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createRevision']]);
+            register_rest_route(self::NS, '/production/revisions/(?P<id>\d+)/rasterize', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'rasterizeRevision']]);
             register_rest_route(self::NS, '/production/qa', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createQa']]);
             register_rest_route(self::NS, '/production/bundles', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createBundle']]);
             register_rest_route(self::NS, '/production/bundles/(?P<id>\d+)/validate', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'validateBundle']]);
@@ -43,6 +45,7 @@ final class ProductionController
     public function createPlan(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_plan_create',fn()=>(new Repository())->createPlan((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createIntent(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_intent_create',fn()=>(new Repository())->createIntent((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createRevision(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_revision_create',fn()=>(new Repository())->addRevision((array)$r->get_json_params(),$this->rawKey($r)),201); }
+    public function rasterizeRevision(\WP_REST_Request $r): mixed { $p=(array)$r->get_json_params(); return $this->mutate($r,'production_revision_rasterize_'.(int)$r['id'],fn()=>(new DerivedRasterService())->derive((int)$r['id'],$p,$this->rawKey($r)),201); }
     public function createQa(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_qa_create',fn()=>(new Repository())->addQa((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createBundle(\WP_REST_Request $r): mixed { return $this->mutate($r,'production_bundle_create',fn()=>(new Repository())->createBundle((array)$r->get_json_params(),$this->rawKey($r)),201); }
 
