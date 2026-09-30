@@ -32,6 +32,8 @@ final class RecoveryOrchestrator
             'database_backup_identifier' => (string) ($record['database_backup_identifier'] ?? ''),
             'plugin_package_identifier' => (string) ($record['plugin_package_identifier'] ?? ''),
             'provider' => (string) ($record['provider'] ?? ''),
+            'provider_operation_reference' => (string) ($record['provider_operation_reference'] ?? ''),
+            'reconciliation_required' => (bool) ($record['reconciliation_required'] ?? false),
             'provider_capability_available' => RecoveryProviderRegistry::capabilities() !== [],
             'provider_capabilities' => RecoveryProviderRegistry::capabilities(),
             'updated_at' => (string) ($record['updated_at'] ?? ''),
@@ -88,6 +90,8 @@ final class RecoveryOrchestrator
             'database_backup_identifier' => (string) ($backup['identifier'] ?? ''),
             'plugin_package_identifier' => (string) ($package['identifier'] ?? ''),
             'provider' => '',
+            'provider_operation_reference' => '',
+            'reconciliation_required' => false,
             'updated_at' => gmdate('c'),
         ];
         if (! update_option(self::OPTION, $record, false)) {
@@ -141,9 +145,13 @@ final class RecoveryOrchestrator
             'database_backup_identifier' => $record['database_backup_identifier'],
             'plugin_package_identifier' => $record['plugin_package_identifier'],
             'provider' => sanitize_key((string) ($result['provider'] ?? '')),
+            'provider_operation_reference' => sanitize_text_field((string) ($result['provider_operation_reference'] ?? '')),
+            'reconciliation_required' => ! empty($result['reconciliation_required']),
             'updated_at' => gmdate('c'),
         ];
-        update_option(self::OPTION, $stored, false);
+        if (! update_option(self::OPTION, $stored, false)) {
+            return new \\WP_Error('digiforge_recovery_execution_persist_failed', __('Provider execution returned a result, but DigiForge could not persist it. Reconciliation is required before any retry.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
+        }
 
         return self::snapshot();
     }
