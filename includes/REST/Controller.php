@@ -10,6 +10,7 @@ use DigiForge\Operations\RecoveryDrillEvidence;
 use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\RecoveryStagingVerifier;
 use DigiForge\Operations\RecoveryVerificationEvidence;
+use DigiForge\Operations\RecoveryDrillReviewCandidate;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -30,6 +31,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/orchestration/plan', ['methods' => 'POST', 'callback' => [$this, 'plan_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/execute', ['methods' => 'POST', 'callback' => [$this, 'execute_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/verify', ['methods' => 'POST', 'callback' => [$this, 'verify_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration/drill-review', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_review_candidate'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/protection/restore', ['methods' => 'POST', 'callback' => [$this, 'restore_protection'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
@@ -88,6 +90,13 @@ final class Controller {
         }
         return new \WP_REST_Response($result, 200);
     }
+    public function recovery_drill_review_candidate(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
+        $result = RecoveryDrillReviewCandidate::build($operationKey);
+        if ($result instanceof \WP_Error) return $result;
+        return new \WP_REST_Response($result, 200);
+    }
+
     public function verify_recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
         $result = RecoveryStagingVerifier::verify($operationKey);
