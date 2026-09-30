@@ -33,5 +33,9 @@ final class PersonalizedPodOperationsPortalContractTest extends TestCase
             'PHASE 1 · OPERATIONAL / EXTERNALLY LOCKED',
         ] as $needle) self::assertStringContainsString($needle,$source);
         self::assertStringContainsString('It does not authorize production',$source);
+        self::assertStringContainsString('Record human package review',$source);
+        self::assertStringContainsString("guard('manage_digiforge_pod')",$source);
+        self::assertStringContainsString('ProductionAuthorizationRepository',$source);
+        self::assertStringContainsString('Production remains externally locked',$source);
     }
 }
