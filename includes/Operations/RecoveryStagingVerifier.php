@@ -53,8 +53,7 @@ final class RecoveryStagingVerifier
             }
         }
 
-        $artifacts = RecoveryEvidence::snapshot();
-        $expectedVersion = (string) ($artifacts['plugin_package']['version'] ?? '');
+        $expectedVersion = RecoveryOrchestrator::plannedPackageVersion($plan);
         $schema = is_array($snapshot['schema'] ?? null) ? $snapshot['schema'] : [];
         $checks = [
             'health_ok' => ($snapshot['status'] ?? '') === 'ok',

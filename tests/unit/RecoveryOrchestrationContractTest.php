@@ -16,6 +16,9 @@ final class RecoveryOrchestrationContractTest extends TestCase
             "target_site_url",
             "database_backup_identifier",
             "plugin_package_identifier",
+            "plugin_package_version",
+            "plugin_package_source_commit",
+            "plugin_package_sha256",
             "database_backup_retrievable",
             "plugin_package_retrievable",
             "checksum_verified",
@@ -29,6 +32,8 @@ final class RecoveryOrchestrationContractTest extends TestCase
         ] as $needle) {
             self::assertStringContainsString($needle, $code);
         }
+        self::assertStringContainsString('plannedPackageVersion', $code);
+        self::assertStringContainsString("preg_match('/(?:^|-)v", $code);
         self::assertStringNotContainsString('Settings::set(', $code);
         self::assertStringNotContainsString('shell_exec(', $code);
         self::assertStringNotContainsString('exec(', $code);
