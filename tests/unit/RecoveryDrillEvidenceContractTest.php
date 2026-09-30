@@ -27,12 +27,14 @@ final class RecoveryDrillEvidenceContractTest extends TestCase
         self::assertStringNotContainsString('Settings::set', $evidence);
     }
 
-    public function testManagementApiCannotPerformARecoveryDrill(): void
+    public function testManagementApiKeepsVerifiedEvidenceSeparateFromRecoveryOrchestration(): void
     {
         $controller = file_get_contents(__DIR__.'/../../includes/REST/Controller.php');
         self::assertStringContainsString("'/recovery/drill-evidence'", $controller);
         self::assertStringContainsString('RecoveryDrillEvidence::store', $controller);
         self::assertStringContainsString("'external_execution_authorized' => false", $controller);
-        self::assertStringNotContainsString("'/recovery/drill-run'", $controller);
+        self::assertStringContainsString("'/recovery/orchestration/plan'", $controller);
+        self::assertStringContainsString("'/recovery/orchestration/execute'", $controller);
+        self::assertStringContainsString('RecoveryOrchestrator::execute', $controller);
     }
 }
