@@ -36,12 +36,13 @@ final class RecoveryStagingVerifier
         $readiness = $client->get($base . 'wp-json/digiforge/v1/readiness');
         if ($readiness instanceof \WP_Error) { return $readiness; }
 
-        $binding = RecoveryBackupIdentityBinding::read($operationKey);
+        $identityOperationKey = (string)($plan['backup_identity_operation_key'] ?? '');
+        $binding = RecoveryBackupIdentityBinding::read($identityOperationKey);
         if ($binding instanceof \WP_Error) { return $binding; }
         $databaseIdentityVerified = false;
         $observedMarker = [];
         if ($binding !== [] && ($binding['database_identity_proof_available'] ?? false) === true) {
-            $marker = RecoveryBackupIdentityMarker::read($operationKey);
+            $marker = RecoveryBackupIdentityMarker::read($identityOperationKey);
             if ($marker instanceof \WP_Error) { return $marker; }
             $keyHash = (string)($marker['operation_key_hash'] ?? '');
             if (preg_match('/^[a-f0-9]{64}$/', $keyHash)) {
@@ -49,7 +50,8 @@ final class RecoveryStagingVerifier
                 if ($observedMarker instanceof \WP_Error) { return $observedMarker; }
                 $databaseIdentityVerified = hash_equals((string)($binding['marker_hash'] ?? ''), (string)($observedMarker['marker_hash'] ?? ''))
                     && hash_equals((string)($marker['marker_hash'] ?? ''), (string)($observedMarker['marker_hash'] ?? ''))
-                    && hash_equals((string)($plan['database_backup_identifier'] ?? ''), (string)($binding['backup_identifier'] ?? ''));
+                    && hash_equals((string)($plan['database_backup_identifier'] ?? ''), (string)($binding['backup_identifier'] ?? ''))
+                    && hash_equals((string)($plan['backup_identity_binding_hash'] ?? ''), (string)($binding['binding_hash'] ?? ''));
             }
         }
 
