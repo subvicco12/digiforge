@@ -48,4 +48,4 @@ Merging this release means DigiForge is code-complete, tested, packaged, documen
 
 
 ## v1.0.94 release-candidate certification
-This release-candidate certification packages the accumulated audited DigiForge v1.0.94 source through the standard Engineering & Safety Audit so the installable artifact, manifest, checksum, and reproducibility evidence are available for controlled production deployment. No runtime code, schema, activation state, or external-action behavior is changed by this evidence refresh.
+This release candidate packages DigiForge v1.0.94 through the standard Engineering & Safety Audit. Runtime change is narrowly limited to governed terminal supersession of an irrecoverably stale reconciled staging recovery operation; schema, activation state and commerce/external execution authority remain unchanged. Supersession cannot execute recovery and preserves historical claims.
