@@ -19,6 +19,7 @@ use DigiForge\Launch\ResearchActivationPreflight;
 use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
 use DigiForge\Operations\RecoveryEvidence;
+use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\OperationalExceptionReadModel;
 use DigiForge\Operations\AuditCorrelationReadModel;
 use DigiForge\POD\ProviderStatusReadModel;
@@ -35,6 +36,7 @@ final class Portal
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
+    private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -68,6 +70,7 @@ final class Portal
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
+        add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
     }
 
     public function render(): string
@@ -140,6 +143,32 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function recoveryPlan(): void
+    {
+        $this->guard('manage_digiforge');
+        check_admin_referer(self::RECOVERY_PLAN_ACTION);
+        $target = isset($_POST['target_site_url']) ? esc_url_raw(wp_unslash($_POST['target_site_url'])) : '';
+        $operationKey = isset($_POST['operation_key']) ? sanitize_text_field(wp_unslash($_POST['operation_key'])) : '';
+        $result = RecoveryOrchestrator::plan([
+            'target_environment' => 'staging',
+            'target_site_url' => $target,
+            'operation_key' => $operationKey,
+        ]);
+        if (is_wp_error($result)) {
+            $this->redirect('attention', $result->get_error_message(), true);
+        }
+        Logger::audit('portal_recovery_orchestration_planned', [
+            'operation_key' => (string) ($result['operation_key'] ?? ''),
+            'target_environment' => 'staging',
+            'external_actions_performed' => false,
+            'external_execution_authorized' => false,
+        ], 'system', 'recovery_orchestration');
+        $message = ($result['state'] ?? '') === 'PROVIDER_REQUIRED'
+            ? 'Recovery plan recorded safely. A governed hosting-provider adapter is still required before execution.'
+            : 'Recovery plan recorded. Provider capability is available for a separately governed execution step.';
+        $this->redirect('attention', $message);
     }
 
     public function listingReview(): void
