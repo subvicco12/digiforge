@@ -10,7 +10,7 @@ final class GovernedRevisionApprovalExecutionStructureTest extends TestCase
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/REST/ProductionController.php');
         self::assertStringContainsString("/production/revisions/(?P<id>\\d+)/approve", $source);
-        self::assertStringContainsString("'production_revision_approve_'.$id", $source);
+        self::assertStringContainsString("'production_revision_approve_'.\$id", \$source);
         self::assertStringContainsString("'checksum_sha256'", $source);
         self::assertStringContainsString("'QA_PASSED'", $source);
         self::assertStringContainsString("hash_equals", $source);
@@ -22,7 +22,7 @@ final class GovernedRevisionApprovalExecutionStructureTest extends TestCase
     public function testGenericStateRouteStillRequiresHeaderIdempotency(): void
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/REST/ProductionController.php');
-        self::assertStringContainsString("return $this->mutate($r,'production_state_", $source);
+        self::assertStringContainsString("return \$this->mutate(\$r,'production_state_", \$source);
         self::assertStringContainsString("'missing_idempotency_key'", $source);
     }
 }
