@@ -6,6 +6,7 @@ namespace DigiForge\Operations;
 
 use DigiForge\Database\Tables;
 use DigiForge\Integrations\Repository;
+use DigiForge\Integrations\CredentialVault;
 
 /**
  * Non-destructive Hostinger recovery capability adapter.
@@ -76,7 +77,16 @@ final class HostingerRecoveryProvider implements RecoveryProviderAdapter
 
     public function reconcile(array $plan): array|\WP_Error
     {
-        return new \WP_Error('digiforge_hostinger_reconcile_not_enabled', __('Hostinger recovery reconciliation is not enabled in this certified slice.', 'digiforge'), ['status' => 501]);
+        return new \WP_Error('digiforge_hostinger_reconcile_requires_site_verification', __('Provider acceptance is not restore proof. Verify the isolated staging site health, schema, and STOP ALL state before recording drill evidence.', 'digiforge'), ['status' => 409, 'reconciliation_required' => true]);
+    }
+
+    private function credential(int $integrationId, string $name): string|\WP_Error
+    {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare('SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, sanitize_key($name)), ARRAY_A);
+        if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('digiforge_hostinger_credential_missing', __('Hostinger API token is unavailable.', 'digiforge'), ['status' => 409]); }
+        try { return CredentialVault::decrypt((string) $row['ciphertext'], Repository::secretContext($integrationId, $name)); }
+        catch (\Throwable $e) { return new \WP_Error('digiforge_hostinger_credential_decryption_failed', __('Hostinger credential could not be decrypted.', 'digiforge'), ['status' => 500]); }
     }
 
     /** @return array<string,mixed>|\WP_Error */
