@@ -26,6 +26,7 @@ final class Controller {
     public function routes(): void {
         register_rest_route('digiforge/v1', '/health', ['methods' => 'GET', 'callback' => [$this, 'health'], 'permission_callback' => [$this, 'can_view']]);
         register_rest_route('digiforge/v1', '/readiness', ['methods' => 'GET', 'callback' => [$this, 'readiness'], 'permission_callback' => [$this, 'can_view']]);
+        register_rest_route('digiforge/v1', '/recovery/verification-snapshot', ['methods' => 'GET', 'callback' => [$this, 'recovery_verification_snapshot'], 'permission_callback' => '__return_true']);
         register_rest_route('digiforge/v1', '/recovery/evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/database-backup', ['methods' => 'POST', 'callback' => [$this, 'record_database_backup_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/database-backup/prepare', ['methods' => 'POST', 'callback' => [$this, 'prepare_database_backup_identity'], 'permission_callback' => [$this, 'can_manage']]);
@@ -60,6 +61,24 @@ final class Controller {
         return new \WP_REST_Response(['status' => 'ok', 'version' => DIGIFORGE_VERSION, 'automation_enabled' => $automation_enabled, 'stop_all' => (bool) Settings::get('stop_all', true), 'externally_locked' => Settings::safety_locked()], 200);
     }
     public function readiness(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response((new Readiness())->report(), 200); }
+    public function recovery_verification_snapshot(\WP_REST_Request $request): \WP_REST_Response {
+        $report=(new Readiness())->report();
+        $schema=is_array($report['schema']??null)?$report['schema']:[];
+        $checks=is_array($report['checks']??null)?$report['checks']:[];
+        return new \WP_REST_Response([
+            'status'=>'ok',
+            'version'=>DIGIFORGE_VERSION,
+            'schema'=>['current'=>(int)($schema['current']??0),'expected'=>(int)($schema['expected']??0)],
+            'stop_all'=>(bool)Settings::get('stop_all',true),
+            'externally_locked'=>Settings::safety_locked(),
+            'automation_enabled'=>array_reduce(Config::SWITCHES,static fn(bool $on,string $switch):bool=>$on||($switch!=='stop_all'&&Settings::is_enabled($switch)),false),
+            'activation_not_authorized'=>($checks['activation_not_authorized']??false)===true,
+            'automation_unarmed'=>($checks['automation_unarmed']??false)===true,
+            'no_effective_feature_switches'=>($checks['no_effective_feature_switches']??false)===true,
+            'read_only'=>true,
+            'external_actions_performed'=>false,
+        ],200);
+    }
     public function recovery_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryEvidence::snapshot() + ['external_actions_performed' => false], 200); }
     public function recovery_database_backup_marker(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $result=RecoveryBackupMarkerAttestation::attest((string)$request->get_param('operation_key_hash'));
