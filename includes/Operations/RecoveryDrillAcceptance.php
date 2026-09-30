@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DigiForge\Operations;
 
+use DigiForge\Security\Logger;
+
 /** Human acceptance of an already verified recovery drill; never executes recovery. */
 final class RecoveryDrillAcceptance
 {
@@ -30,8 +32,20 @@ final class RecoveryDrillAcceptance
             || ($checks['schema_verified']??false)!==true || ($checks['application_health_verified']??false)!==true) {
             return new \WP_Error('digiforge_recovery_drill_accept_checks', __('All provenance, restore, schema, and application checks must be verified.', 'digiforge'), ['status'=>409]);
         }
+        $drillId='recovery-drill-'.substr(hash('sha256',$operationKey.'|'.$evidenceHash),0,24);
+        if (!Logger::write('recovery_drill_human_acceptance_authorized',[
+            'operation_key'=>$operationKey,
+            'verification_evidence_hash'=>$evidenceHash,
+            'drill_id'=>$drillId,
+            'performed_by'=>$performedBy,
+            'evidence_recorded'=>false,
+            'external_actions_performed'=>false,
+            'external_execution_authorized'=>false,
+        ],'human','recovery_evidence')) {
+            return new \WP_Error('digiforge_recovery_drill_accept_audit_failed', __('Recovery drill acceptance cannot proceed without durable human audit evidence.', 'digiforge'), ['status'=>500]);
+        }
         $record=[
-            'drill_id'=>'recovery-drill-'.substr(hash('sha256',$operationKey.'|'.$evidenceHash),0,24),
+            'drill_id'=>$drillId,
             'performed_at'=>(string)($candidate['verified_at']??''),
             'environment'=>'staging',
             'database_backup_identifier'=>(string)($candidate['database_backup_identifier']??''),
