@@ -46,7 +46,7 @@ final class RecoveryDispatchLedger
     {
         global $wpdb;
         $database = self::database();
-        if ($database instanceof \\WP_Error) { return false; }
+        if ($database instanceof \WP_Error) { return false; }
         $written = $database->update(
             $wpdb->options,
             ['option_value' => maybe_serialize($record)],
