@@ -12,7 +12,7 @@ This matrix binds the final Stage-F acceptance decision to repository evidence a
 | F6 Approval Inbox / Dashboard | consolidated approval inbox, Stage-F operator pulse, attention/recovery, responsive portal CSS | IMPLEMENTED |
 | F7 failure/recovery | fail-closed tests and governed recovery architecture | CERTIFICATION DEPENDENCY — destructive staging drill remains separately authorized |
 | F8 security/integrations | capability/nonces, credential vault, external-action interlocks and audit scans | EXACT-HEAD AUDIT REQUIRED |
-| F9 release certification | Engineering & Safety Audit: syntax, legacy/unit, WP integration, diff, FIELDORA, secret, HTTP, package, boundaries | EXACT-HEAD SUCCESS REQUIRED |
+| F9 release certification | Engineering & Safety Audit: syntax, legacy/unit, WP integration, diff, legacy-identifier scan, secret scan, HTTP scan, package, boundaries | EXACT-HEAD SUCCESS REQUIRED |
 | F10 final artifact | exact audited ZIP + SHA-256 + release manifest | BLOCKED UNTIL F9 SUCCESS |
 
 ## Non-negotiable safety acceptance
