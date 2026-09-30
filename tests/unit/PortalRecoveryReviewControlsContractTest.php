@@ -12,7 +12,7 @@ final class PortalRecoveryReviewControlsContractTest extends TestCase
         foreach ([
             'RecoveryVerificationEvidence::read($recoveryOperationKey)',
             'RecoveryDrillReviewCandidate::build($recoveryOperationKey)',
-            '(\$reviewCandidate[\'acceptance_blocked\']??true)!==false',
+            '$blocked=($reviewCandidate[\'acceptance_blocked\']??true)!==false',
             'RECOVERY_ACCEPT_ACTION',
             'verification_evidence_hash',
             'RecoveryDrillAcceptance::accept($operationKey, $evidenceHash, $performedBy)',
