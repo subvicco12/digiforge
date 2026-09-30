@@ -107,9 +107,6 @@ final class Controller {
         $performedBy=(string)($user->user_email ?: $user->user_login);
         $result=RecoveryDrillAcceptance::accept($operationKey,$evidenceHash,$performedBy);
         if ($result instanceof \WP_Error) return $result;
-        if (!Logger::write('recovery_drill_human_accepted',['operation_key'=>$operationKey,'verification_evidence_hash'=>$evidenceHash,'drill_id'=>(string)($result['drill_id']??''),'performed_by'=>$performedBy,'external_actions_performed'=>false,'external_execution_authorized'=>false],'human','recovery_evidence')) {
-            return new \WP_Error('digiforge_recovery_drill_accept_audit_failed', __('Recovery drill acceptance audit evidence could not be persisted.', 'digiforge'), ['status'=>500]);
-        }
         return new \WP_REST_Response($result,200);
     }
     public function recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryOrchestrator::snapshot(), 200); }
