@@ -128,12 +128,12 @@ final class Controller {
         }
         return new \WP_REST_Response($result, 200);
     }
-    public function reconcile_manual_recovery_orchestration(\\WP_REST_Request $request): \\WP_REST_Response|\\WP_Error {
+    public function reconcile_manual_recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
         $providerReference = trim(sanitize_text_field((string)($request->get_param('provider_operation_reference') ?? '')));
         $confirmation = trim(sanitize_text_field((string)($request->get_param('confirmation') ?? '')));
         $result = RecoveryOrchestrator::reconcileManualRestore($operationKey, $providerReference, $confirmation);
-        if ($result instanceof \\WP_Error) return $result;
+        if ($result instanceof \WP_Error) return $result;
         if (! Logger::write('recovery_orchestration_manual_restore_reconciled', [
             'operation_key' => $operationKey,
             'state' => (string)($result['state'] ?? ''),
@@ -145,9 +145,9 @@ final class Controller {
             'external_execution_authorized' => false,
             'commerce_execution_authorized' => false,
         ], 'system', 'recovery_orchestration')) {
-            return new \\WP_Error('digiforge_recovery_manual_reconciliation_audit_failed', __('Manual restore reconciliation audit evidence could not be persisted.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
+            return new \WP_Error('digiforge_recovery_manual_reconciliation_audit_failed', __('Manual restore reconciliation audit evidence could not be persisted.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
         }
-        return new \\WP_REST_Response($result, 200);
+        return new \WP_REST_Response($result, 200);
     }
 
     public function recovery_drill_review_candidate(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
