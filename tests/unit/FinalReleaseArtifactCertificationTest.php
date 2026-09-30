@@ -77,4 +77,9 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
   self::assertStringContainsString('Existing mutation routes retain their required `Idempotency-Key` header contracts',$plan);
   self::assertStringContainsString('QA success is not human approval',$plan);
  }
+ public function testPostInstallRuntimeAcceptanceRemainsFailClosed():void{
+  $checklist=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.93_POST_INSTALL_RUNTIME_ACCEPTANCE.md');
+  foreach(['Plugin version | 1.0.93','Database schema | 23 / 23','STOP ALL | ON','Activation authorization | OFF','Automation armed | FALSE','UNAVAILABLE is not PASS','does not grant Etsy publish, POD production','neither performs nor authorizes a destructive staging restore'] as $needle)self::assertStringContainsString($needle,$checklist);
+ }
+
 }
