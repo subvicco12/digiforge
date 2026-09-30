@@ -15,6 +15,7 @@ final class RecoveryStagingVerifierContractTest extends TestCase
             "'target_environment'] ?? '') !== 'staging'",
             "'provider'] ?? '') !== 'hostinger'",
             'RecoveryStagingClient',
+            'RecoveryOrchestrator::plannedPackageVersion($plan)',
             "'health_ok'",
             "'stop_all_active'",
             "'externally_locked'",
@@ -27,6 +28,7 @@ final class RecoveryStagingVerifierContractTest extends TestCase
             "'drill_evidence_recorded' => false",
             "'commerce_execution_authorized' => false",
         ] as $needle) self::assertStringContainsString($needle,$code);
+        self::assertStringNotContainsString('RecoveryEvidence::snapshot()', $code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
         self::assertStringNotContainsString('wp_remote_post(', $code);
