@@ -3,6 +3,7 @@
 - Starts Phase-1 Personalized POD operational completion by surfacing bounded authorization-package and current Printify preflight evidence in the live-site Personalized POD portal.
 - Distinguishes human-review-required, current-preflight, revalidation-required and evidence-unavailable states with exact blockers while failing closed on database/preflight errors.
 - Keeps provider execution, permit issuance and retry unavailable from the view; STOP ALL and the external safety lock remain authoritative.
+- Adds a portal-first authenticated human-review transition for pending Personalized POD authorization packages, reusing the existing conditional repository transition and recording audit evidence. It cannot issue permits or call a provider.
 - Updates the future-lane comparison to identify the personalized lane as Phase-1 operational / externally locked. Database schema remains v23.
 
 ## 1.0.84 — 2026-09-30
