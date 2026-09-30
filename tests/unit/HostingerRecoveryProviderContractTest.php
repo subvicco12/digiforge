@@ -28,8 +28,8 @@ final class HostingerRecoveryProviderContractTest extends TestCase
         self::assertStringContainsString("'redirection' => 0", $code);
         self::assertStringContainsString("'reject_unsafe_urls' => true", $code);
         self::assertStringContainsString("'sslverify' => true", $code);
-        self::assertStringContainsString("'Idempotency-Key'", $code);
-        self::assertStringContainsString("'state' => 'in_progress'", $code);
+        self::assertStringNotContainsString("'Idempotency-Key'", $code);
+        self::assertStringContainsString("'state' => 'UNKNOWN'", $code);
         self::assertStringContainsString("'reconciliation_required' => true", $code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString("'passed' => true", $code);
