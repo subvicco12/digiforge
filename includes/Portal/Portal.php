@@ -29,6 +29,8 @@ use DigiForge\POD\ProviderStatusReadModel;
 use DigiForge\POD\PersonalizedCatalogReference;
 use DigiForge\POD\PersonalizedPodOperationsReadModel;
 use DigiForge\POD\ProductionAuthorizationRepository;
+use DigiForge\POD\RenderEvidenceOperationsReadModel;
+use DigiForge\POD\RenderEvidenceRepository;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
 use DigiForge\Queue\OperatorQueueReadModel;
@@ -42,6 +44,7 @@ final class Portal
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
     private const POD_PACKAGE_REVIEW_ACTION = 'digiforge_portal_pod_package_review';
+    private const POD_RENDER_REVIEW_ACTION = 'digiforge_portal_pod_render_review';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
@@ -78,6 +81,7 @@ final class Portal
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
         add_action('admin_post_' . self::POD_PACKAGE_REVIEW_ACTION, [$this, 'podPackageReview']);
+        add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
     }
@@ -152,6 +156,18 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function podRenderReview(): void
+    {
+        $this->guard('manage_digiforge_pod');
+        check_admin_referer(self::POD_RENDER_REVIEW_ACTION);
+        $id=isset($_POST['render_evidence_id'])?absint($_POST['render_evidence_id']):0;
+        if($id<1)$this->redirect('pod_personalized','Valid render evidence required.',true);
+        $result=(new RenderEvidenceRepository())->approve($id);
+        if(is_wp_error($result))$this->redirect('pod_personalized',$result->get_error_message(),true);
+        Logger::audit('portal_pod_render_human_reviewed',['render_evidence_id'=>$id,'review_status'=>(string)($result['review_status']??''),'external_execution_authorized'=>false,'external_execution_performed'=>false],'pod_render_evidence',(string)$id);
+        $this->redirect('pod_personalized',sprintf('Render evidence #%d human visual review recorded. Production remains externally locked.',$id));
     }
 
     public function podPackageReview(): void
@@ -423,6 +439,9 @@ final class Portal
         $m=PersonalizedCatalogReference::metadata();
         $ops=(new ShopOperationsReadModel())->snapshot('personalized_pod');$catalog=(array)($ops['catalog']??[]);
         $phase1=(new PersonalizedPodOperationsReadModel())->snapshot(50);$phaseCounts=(array)($phase1['counts']??[]);
+        $renders=(new RenderEvidenceOperationsReadModel())->snapshot(50);$renderCounts=(array)($renders['counts']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Buyer-specific artwork & mockup review</h2><p>Certified render evidence binds the approved personalization, provider mapping and production template. Human visual review is required before an authorization package can be created.</p></div><span class="df-status">HUMAN GATE</span></div>';
+        if(($renders['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Render evidence is unavailable. DigiForge does not infer that artwork or mockups are approved.</div>';}else{echo '<div class="df-signal-grid"><div><span>Render evidence</span><b>'.esc_html((string)($renderCounts['renders']??0)).'</b></div><div><span>Awaiting visual review</span><b>'.esc_html((string)($renderCounts['unreviewed']??0)).'</b></div><div><span>Human approved</span><b>'.esc_html((string)($renderCounts['approved']??0)).'</b></div><div><span>Provider execution authority</span><b>NO</b></div></div>';$renderItems=(array)($renders['items']??[]);if($renderItems===[]){echo '<div class="df-empty">No buyer-specific render evidence in the bounded view.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Render</th><th>Order</th><th>Template</th><th>Mode</th><th>Review</th><th>Action</th></tr></thead><tbody>';foreach($renderItems as $item){echo '<tr><td>#'.esc_html((string)$item['render_evidence_id']).'</td><td>#'.esc_html((string)$item['order_id']).'</td><td>'.esc_html((string)$item['template_key'].' @ '.(string)$item['template_version']).'</td><td>'.esc_html((string)$item['render_mode']).'</td><td>'.esc_html((string)$item['review_status']).'</td><td>';if(($item['review_status']??'')==='UNREVIEWED'){echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" class="df-inline-form"><input type="hidden" name="action" value="'.esc_attr(self::POD_RENDER_REVIEW_ACTION).'"><input type="hidden" name="render_evidence_id" value="'.esc_attr((string)$item['render_evidence_id']).'">';wp_nonce_field(self::POD_RENDER_REVIEW_ACTION);echo '<button class="button" type="submit">Approve visual render</button></form>';}else echo 'Reviewed';echo '</td></tr>';}echo '</tbody></table></div>';}}echo '<p class="df-muted">Visual approval records evidence only. It cannot create a production permit or submit a provider order.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Phase-1 Personalized POD operations</h2><p>Human-approved authorization packages and current Printify preflight evidence. This view is operational evidence only: it cannot issue a permit, submit production, retry a provider call or infer approval.</p></div><span class="df-status">PHASE 1 · EXTERNALLY LOCKED</span></div>';
         if(($phase1['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Personalized POD operating evidence is unavailable. Database read failed; an empty or safe queue is not inferred.</div>';}
         else{
