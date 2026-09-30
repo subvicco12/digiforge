@@ -27,6 +27,8 @@ use DigiForge\Operations\OperationalExceptionReadModel;
 use DigiForge\Operations\AuditCorrelationReadModel;
 use DigiForge\POD\ProviderStatusReadModel;
 use DigiForge\POD\PersonalizedCatalogReference;
+use DigiForge\POD\PersonalizedPodOperationsReadModel;
+use DigiForge\POD\ProductionAuthorizationRepository;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
 use DigiForge\Queue\OperatorQueueReadModel;
@@ -39,6 +41,7 @@ final class Portal
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
+    private const POD_PACKAGE_REVIEW_ACTION = 'digiforge_portal_pod_package_review';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
@@ -74,6 +77,7 @@ final class Portal
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
+        add_action('admin_post_' . self::POD_PACKAGE_REVIEW_ACTION, [$this, 'podPackageReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
     }
@@ -148,6 +152,23 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function podPackageReview(): void
+    {
+        $this->guard('manage_digiforge_pod');
+        check_admin_referer(self::POD_PACKAGE_REVIEW_ACTION);
+        $id=isset($_POST['package_id'])?absint($_POST['package_id']):0;
+        if($id<1)$this->redirect('pod_personalized','Valid authorization package required.',true);
+        $result=(new ProductionAuthorizationRepository())->approveForReview($id);
+        if(is_wp_error($result))$this->redirect('pod_personalized',$result->get_error_message(),true);
+        Logger::audit('portal_pod_authorization_package_human_reviewed',[
+            'package_id'=>$id,
+            'state'=>(string)($result['state']??''),
+            'external_execution_authorized'=>false,
+            'external_execution_performed'=>false,
+        ],'pod_authorization_package',(string)$id);
+        $this->redirect('pod_personalized',sprintf('Authorization package #%d human review recorded. Production remains externally locked.',$id));
     }
 
     public function recoveryPlan(): void
@@ -408,7 +429,7 @@ final class Portal
             echo '<div class="df-signal-grid"><div><span>Packages in bounded view</span><b>'.esc_html((string)($phaseCounts['packages']??0)).'</b></div><div><span>Human review required</span><b>'.esc_html((string)($phaseCounts['human_review_required']??0)).'</b></div><div><span>Preflight current</span><b>'.esc_html((string)($phaseCounts['preflight_current']??0)).'</b></div><div><span>Revalidation required</span><b>'.esc_html((string)($phaseCounts['revalidation_required']??0)).'</b></div><div><span>Evaluation errors</span><b>'.esc_html((string)($phaseCounts['evaluation_errors']??0)).'</b></div><div><span>Provider execution authority</span><b>NO</b></div></div>';
             $phaseItems=(array)($phase1['items']??[]);
             if($phaseItems===[]){echo '<div class="df-empty">No Personalized POD authorization packages in the bounded operating view.</div>';}
-            else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Package</th><th>Order</th><th>Package state</th><th>Operator state</th><th>Provider mapping</th><th>Blockers</th><th>Retry</th><th>Execution</th></tr></thead><tbody>';foreach($phaseItems as $item){$blockers=(array)($item['blockers']??[]);echo '<tr><td>#'.esc_html((string)$item['package_id']).'</td><td>#'.esc_html((string)$item['order_id']).'</td><td>'.esc_html((string)$item['package_state']).'</td><td>'.esc_html((string)$item['operator_state']).'</td><td>#'.esc_html((string)$item['provider_mapping_id']).'</td><td>'.esc_html($blockers===[]?'NONE':implode(', ',$blockers)).'</td><td>NO</td><td>LOCKED</td></tr>';}echo '</tbody></table></div>';}
+            else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Package</th><th>Order</th><th>Package state</th><th>Operator state</th><th>Provider mapping</th><th>Blockers</th><th>Retry</th><th>Execution</th></tr></thead><tbody>';foreach($phaseItems as $item){$blockers=(array)($item['blockers']??[]);echo '<tr><td>#'.esc_html((string)$item['package_id']).'</td><td>#'.esc_html((string)$item['order_id']).'</td><td>'.esc_html((string)$item['package_state']).'</td><td>'.esc_html((string)$item['operator_state']).'</td><td>#'.esc_html((string)$item['provider_mapping_id']).'</td><td>'.esc_html($blockers===[]?'NONE':implode(', ',$blockers)).'</td><td>NO</td><td>LOCKED';if(($item['package_state']??'')==='REVIEW_REQUIRED'){echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" class="df-inline-form"><input type="hidden" name="action" value="'.esc_attr(self::POD_PACKAGE_REVIEW_ACTION).'"><input type="hidden" name="package_id" value="'.esc_attr((string)$item['package_id']).'">';wp_nonce_field(self::POD_PACKAGE_REVIEW_ACTION);echo '<button class="button" type="submit">Record human package review</button></form>';}echo '</td></tr>';}echo '</tbody></table></div>';}
         }
         echo '<p class="df-muted">PREFLIGHT_CURRENT means the already human-approved package still matches current order readiness, approved Printify mapping/geometry, validated production template and active business ownership. It does not authorize production. STOP ALL and the external safety lock continue to outrank this evidence.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 governed source</h2><p>Immutable Personalized POD reference. Catalog data is evidence, not production authority.</p></div><span class="df-status">'.esc_html((string)$m['source_state']).'</span></div>';
