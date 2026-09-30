@@ -14,10 +14,7 @@ final class RecoveryStagingVerifierContractTest extends TestCase
             'RecoveryOrchestrator::safetyLocked()',
             "'target_environment'] ?? '') !== 'staging'",
             "'provider'] ?? '') !== 'hostinger'",
-            'wp_remote_get(',
-            "'redirection' => 0",
-            "'reject_unsafe_urls' => true",
-            "'sslverify' => true",
+            'RecoveryStagingClient',
             "'health_ok'",
             "'stop_all_active'",
             "'externally_locked'",
@@ -33,6 +30,14 @@ final class RecoveryStagingVerifierContractTest extends TestCase
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
         self::assertStringNotContainsString('wp_remote_post(', $code);
+        self::assertStringNotContainsString('wp_remote_get(', $code);
+
+        $client=(string)file_get_contents(__DIR__.'/../../includes/Integrations/RecoveryStagingClient.php');
+        self::assertStringContainsString('wp_remote_get(', $client);
+        self::assertStringContainsString("'redirection' => 0", $client);
+        self::assertStringContainsString("'reject_unsafe_urls' => true", $client);
+        self::assertStringContainsString("'sslverify' => true", $client);
+        self::assertStringNotContainsString('wp_remote_post(', $client);
         self::assertStringNotContainsString("'passed' => true", $code);
     }
 
