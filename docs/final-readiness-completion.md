@@ -48,4 +48,4 @@ Merging this release means DigiForge is code-complete, tested, packaged, documen
 
 
 ## v1.0.95 release-candidate certification
-This release candidate packages DigiForge v1.0.95 through the standard Engineering & Safety Audit. Runtime change is narrowly limited to governed terminal supersession of an irrecoverably stale reconciled staging recovery operation; schema, activation state and commerce/external execution authority remain unchanged. Supersession cannot execute recovery and preserves historical claims.
+This release candidate packages DigiForge v1.0.95 through the standard Engineering & Safety Audit. Runtime change completes governed Master 500 v2 migration-candidate persistence with exact source identity, immutable v1 parent evidence, preserved lineage and fail-closed transaction handling; schema, activation state and commerce/external execution authority remain unchanged. Catalog persistence cannot promote v2 or authorize external execution.
