@@ -7,6 +7,7 @@ use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
 use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Operations\RecoveryDrillEvidence;
+use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -23,6 +24,9 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'POST', 'callback' => [$this, 'record_recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration', ['methods' => 'GET', 'callback' => [$this, 'recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration/plan', ['methods' => 'POST', 'callback' => [$this, 'plan_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration/execute', ['methods' => 'POST', 'callback' => [$this, 'execute_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/protection/restore', ['methods' => 'POST', 'callback' => [$this, 'restore_protection'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
@@ -62,6 +66,24 @@ final class Controller {
         if (! RecoveryDrillEvidence::store($record)) return new \WP_Error('digiforge_recovery_drill_evidence_invalid', __('Fresh recovery drill evidence bound to the current verified backup and rollback package is required.', 'digiforge'), ['status' => 400]);
         Logger::audit('recovery_drill_evidence_verified', ['drill_id' => sanitize_text_field((string)($record['drill_id'] ?? '')), 'external_actions_performed' => false, 'retry_permitted' => false, 'external_execution_authorized' => false], 'system', 'recovery_evidence');
         return new \WP_REST_Response(['recorded' => true, 'recovery_drill' => RecoveryDrillEvidence::snapshot(), 'external_actions_performed' => false], 200);
+    }
+    public function recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryOrchestrator::snapshot(), 200); }
+    public function plan_recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $result = RecoveryOrchestrator::plan((array) $request->get_json_params());
+        if ($result instanceof \WP_Error) return $result;
+        if (! Logger::write('recovery_orchestration_planned', ['operation_key' => (string)($result['operation_key'] ?? ''), 'target_environment' => (string)($result['target_environment'] ?? ''), 'database_backup_identifier' => (string)($result['database_backup_identifier'] ?? ''), 'plugin_package_identifier' => (string)($result['plugin_package_identifier'] ?? ''), 'external_actions_performed' => false, 'external_execution_authorized' => false], 'system', 'recovery_orchestration')) {
+            return new \WP_Error('digiforge_recovery_plan_audit_failed', __('Recovery plan audit evidence could not be persisted.', 'digiforge'), ['status' => 500]);
+        }
+        return new \WP_REST_Response($result, 200);
+    }
+    public function execute_recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
+        $result = RecoveryOrchestrator::execute($operationKey);
+        if ($result instanceof \WP_Error) return $result;
+        if (! Logger::write('recovery_orchestration_provider_dispatched', ['operation_key' => $operationKey, 'state' => (string)($result['state'] ?? ''), 'provider' => (string)($result['provider'] ?? ''), 'commerce_execution_authorized' => false], 'system', 'recovery_orchestration')) {
+            return new \WP_Error('digiforge_recovery_dispatch_audit_failed', __('Recovery dispatch audit evidence could not be persisted.', 'digiforge'), ['status' => 500]);
+        }
+        return new \WP_REST_Response($result, 200);
     }
     public function controls(\WP_REST_Request $request): \WP_REST_Response { $result=[]; foreach (Config::SWITCHES as $key) { $result[$key] = (bool) Settings::get($key, false); } return new \WP_REST_Response(['controls' => $result, 'externally_locked' => Settings::safety_locked()], 200); }
     public function restore_protection(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
