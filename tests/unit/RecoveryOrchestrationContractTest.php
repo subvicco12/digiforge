@@ -23,6 +23,9 @@ final class RecoveryOrchestrationContractTest extends TestCase
             "digiforge_recovery_idempotency_conflict",
             "digiforge_recovery_provider_required",
             "commerce_execution_authorized' => false",
+            "provider_operation_reference",
+            "reconciliation_required",
+            "digiforge_recovery_execution_persist_failed",
         ] as $needle) {
             self::assertStringContainsString($needle, $code);
         }

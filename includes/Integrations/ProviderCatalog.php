@@ -76,6 +76,11 @@ final class ProviderCatalog
                 'config_fields' => [
                     'hosting_account' => 'Hosting account username',
                     'staging_domain' => 'Approved isolated staging domain',
+                    'archive_path' => 'Pre-uploaded WordPress archive path on staging',
+                    'database_path' => 'Pre-uploaded SQL file path on staging',
+                    'artifact_evidence_hash' => 'Exact recovery artifact evidence hash',
+                    'database_backup_identifier' => 'Verified database backup bound to staging SQL',
+                    'plugin_package_identifier' => 'Audited plugin package bound to staging archive',
                 ],
             ],
             'ai' => [

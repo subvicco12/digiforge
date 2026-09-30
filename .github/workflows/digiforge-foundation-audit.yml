@@ -105,10 +105,20 @@ jobs:
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='ConnectionTester.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
+          test "$(grep -c 'wp_remote_post(' includes/Operations/HostingerRecoveryProvider.php)" -eq 1
+          ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq 'https://developers.hostinger.com/api/hosting/v1' includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq "'redirection' => 0" includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq "'sslverify' => true" includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq "'reject_unsafe_urls' => true" includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq 'RecoveryOrchestrator::dispatchClaimMatches' includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq 'RecoveryOrchestrator::safetyLocked()' includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq 'CredentialVault::decrypt' includes/Operations/HostingerRecoveryProvider.php
+          grep -Fq 'RecoveryDispatchLedger::insert($dispatchOption' includes/Operations/HostingerRecoveryProvider.php
           test "$(grep -c 'wp_remote_request' includes/Listings/EtsyControlledHttpExecutor.php)" -eq 1
           grep -Fq "https://openapi.etsy.com/v3" includes/Listings/EtsyControlledHttpExecutor.php
           grep -Fq "'redirection'=>0" includes/Listings/EtsyControlledHttpExecutor.php
