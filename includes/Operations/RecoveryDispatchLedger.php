@@ -41,6 +41,23 @@ final class RecoveryDispatchLedger
         return $record;
     }
 
+    /** Atomic compare-and-swap; used only to advance the global slot from a terminal supersession marker. */
+    public static function compareAndSwap(string $name, array $expected, array $record): bool
+    {
+        global $wpdb;
+        $database = self::database();
+        if ($database instanceof \WP_Error) { return false; }
+        $written = $database->update(
+            $wpdb->options,
+            ['option_value' => maybe_serialize($record)],
+            ['option_name' => $name, 'option_value' => maybe_serialize($expected)],
+            ['%s'],
+            ['%s','%s']
+        );
+        self::invalidate($name);
+        return $written === 1 && self::read($name) === $record;
+    }
+
     public static function update(string $name, array $record): bool
     {
         global $wpdb;

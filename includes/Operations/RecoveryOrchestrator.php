@@ -35,9 +35,12 @@ final class RecoveryOrchestrator
             $claim = [];
             $interlock = [];
         }
-        if (is_array($interlock) && $interlock !== []) {
+        if (is_array($interlock) && $interlock !== [] && ($interlock['state'] ?? '') !== 'SUPERSEDED') {
             $value = self::claim((string) ($interlock['operation_key'] ?? ''));
             $claim = is_array($value) && $value !== [] ? $value : $interlock;
+        } elseif (is_array($interlock) && ($interlock['state'] ?? '') === 'SUPERSEDED') {
+            $claim = [];
+            $record = $interlock;
         }
         if ($claim !== []) { $record = $claim; }
 
@@ -190,7 +193,13 @@ final class RecoveryOrchestrator
         $record['dispatch_state'] = 'RECONCILIATION_REQUIRED';
         $record['reconciliation_required'] = true;
         $record['updated_at'] = gmdate('c');
-        if (! RecoveryDispatchLedger::insert('digiforge_recovery_dispatch_interlock', $record)
+        $global = RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock');
+        $globalClaimed = is_array($global) && $global === []
+            ? RecoveryDispatchLedger::insert('digiforge_recovery_dispatch_interlock', $record)
+            : (is_array($global) && ($global['state'] ?? '') === 'SUPERSEDED'
+                && ($global['retry_permitted'] ?? true) === false
+                && RecoveryDispatchLedger::compareAndSwap('digiforge_recovery_dispatch_interlock', $global, $record));
+        if (! $globalClaimed
             || RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock') !== $record
             || ! RecoveryDispatchLedger::insert(self::claimOption($operationKey), $record)
             || self::claim($operationKey) !== $record
@@ -303,6 +312,36 @@ final class RecoveryOrchestrator
             return new \WP_Error('digiforge_recovery_manual_reconciliation_persist_failed', __('Unable to persist manual restore reconciliation evidence.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
         }
         return self::snapshot() + ['replayed' => false];
+    }
+
+    /** Terminal handoff for an irrecoverably stale reconciled operation; never deletes its claim or archive. */
+    public static function terminallySupersede(string $operationKey, array $receipt): bool
+    {
+        if (! self::safetyLocked() || $operationKey === '' || ($receipt['state'] ?? '') !== 'SUPERSEDED'
+            || ! hash_equals($operationKey, (string)($receipt['operation_key'] ?? ''))
+            || ($receipt['retry_permitted'] ?? true) !== false
+            || ($receipt['reconciliation_required'] ?? true) !== false) {
+            return false;
+        }
+        $current = self::snapshot();
+        $interlock = RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock');
+        if ($interlock instanceof \WP_Error || !is_array($interlock) || $interlock === []
+            || !hash_equals($operationKey,(string)($interlock['operation_key']??''))
+            || ($current['manual_restore_reconciled']??false)!==true
+            || ($current['state']??'')!=='VERIFY_REQUIRED') {
+            return false;
+        }
+        $terminal = $receipt + [
+            'dispatch_state'=>'SUPERSEDED',
+            'manual_restore_reconciled'=>true,
+            'provider'=>(string)($current['provider']??'hostinger'),
+            'provider_operation_reference'=>(string)($current['provider_operation_reference']??''),
+            'updated_at'=>gmdate('c'),
+        ];
+        if (!RecoveryDispatchLedger::compareAndSwap('digiforge_recovery_dispatch_interlock',$interlock,$terminal)) {
+            return false;
+        }
+        return update_option(self::OPTION,$terminal,false) && get_option(self::OPTION)===$terminal;
     }
 
     /** Permanent operation identity survives plan replacement and process crashes. */
