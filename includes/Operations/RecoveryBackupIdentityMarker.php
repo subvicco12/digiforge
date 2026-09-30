@@ -47,4 +47,12 @@ final class RecoveryBackupIdentityMarker
         }
         return $record + ['replayed' => false];
     }
+    /** @return array<string,mixed>|\WP_Error */
+    public static function read(string $operationKey): array|\WP_Error
+    {
+        $operationKey = trim(sanitize_text_field($operationKey));
+        if ($operationKey === '') return new \WP_Error('digiforge_recovery_backup_marker_key_required', __('A backup preparation operation key is required.', 'digiforge'), ['status' => 400]);
+        return RecoveryDispatchLedger::read(self::PREFIX . hash('sha256', $operationKey));
+    }
+
 }
