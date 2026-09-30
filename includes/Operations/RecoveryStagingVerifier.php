@@ -31,10 +31,8 @@ final class RecoveryStagingVerifier
         if ($base instanceof \WP_Error) { return $base; }
 
         $client = new RecoveryStagingClient();
-        $health = $client->get($base . 'wp-json/digiforge/v1/health');
-        if ($health instanceof \WP_Error) { return $health; }
-        $readiness = $client->get($base . 'wp-json/digiforge/v1/readiness');
-        if ($readiness instanceof \WP_Error) { return $readiness; }
+        $snapshot = $client->get($base . 'wp-json/digiforge/v1/recovery/verification-snapshot');
+        if ($snapshot instanceof \WP_Error) { return $snapshot; }
 
         $identityOperationKey = (string)($plan['backup_identity_operation_key'] ?? '');
         $binding = RecoveryBackupIdentityBinding::read($identityOperationKey);
@@ -57,17 +55,17 @@ final class RecoveryStagingVerifier
 
         $artifacts = RecoveryEvidence::snapshot();
         $expectedVersion = (string) ($artifacts['plugin_package']['version'] ?? '');
-        $schema = is_array($readiness['schema'] ?? null) ? $readiness['schema'] : [];
+        $schema = is_array($snapshot['schema'] ?? null) ? $snapshot['schema'] : [];
         $checks = [
-            'health_ok' => ($health['status'] ?? '') === 'ok',
-            'stop_all_active' => ($health['stop_all'] ?? false) === true && (($readiness['checks']['stop_all_active'] ?? false) === true),
-            'externally_locked' => ($health['externally_locked'] ?? false) === true && ($readiness['externally_locked'] ?? false) === true,
+            'health_ok' => ($snapshot['status'] ?? '') === 'ok',
+            'stop_all_active' => ($snapshot['stop_all'] ?? false) === true,
+            'externally_locked' => ($snapshot['externally_locked'] ?? false) === true,
             'schema_current' => isset($schema['current'], $schema['expected']) && (int) $schema['current'] === (int) $schema['expected'],
-            'plugin_version_exact' => $expectedVersion !== '' && hash_equals($expectedVersion, (string) ($health['version'] ?? '')),
-            'automation_disabled' => ($health['automation_enabled'] ?? true) === false,
-            'activation_not_authorized' => ($readiness['checks']['activation_not_authorized'] ?? false) === true,
-            'automation_unarmed' => ($readiness['checks']['automation_unarmed'] ?? false) === true,
-            'no_effective_feature_switches' => ($readiness['checks']['no_effective_feature_switches'] ?? false) === true,
+            'plugin_version_exact' => $expectedVersion !== '' && hash_equals($expectedVersion, (string) ($snapshot['version'] ?? '')),
+            'automation_disabled' => ($snapshot['automation_enabled'] ?? true) === false,
+            'activation_not_authorized' => ($snapshot['activation_not_authorized'] ?? false) === true,
+            'automation_unarmed' => ($snapshot['automation_unarmed'] ?? false) === true,
+            'no_effective_feature_switches' => ($snapshot['no_effective_feature_switches'] ?? false) === true,
             'database_identity_verified' => $databaseIdentityVerified,
         ];
         $verified = ! in_array(false, $checks, true);
@@ -81,7 +79,7 @@ final class RecoveryStagingVerifier
             'artifact_evidence_hash' => (string) ($plan['artifact_evidence_hash'] ?? ''),
             'provider_operation_reference' => (string) ($plan['provider_operation_reference'] ?? ''),
             'checks' => $checks,
-            'observed' => ['version' => (string) ($health['version'] ?? ''), 'schema' => $schema, 'database_marker' => $observedMarker],
+            'observed' => ['version' => (string) ($snapshot['version'] ?? ''), 'schema' => $schema, 'database_marker' => $observedMarker],
             'external_actions_performed' => false,
             'commerce_execution_authorized' => false,
             'drill_evidence_recorded' => false,
