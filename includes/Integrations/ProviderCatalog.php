@@ -66,6 +66,18 @@ final class ProviderCatalog
                     'api_base' => 'API base URL override',
                 ],
             ],
+            'hostinger' => [
+                'label' => 'Hostinger Infrastructure',
+                'description' => 'Hostinger hosting control-plane connection for governed isolated recovery.',
+                'auth' => 'Bearer API token',
+                'suggested_secrets' => [
+                    'api_token' => 'Hostinger API token',
+                ],
+                'config_fields' => [
+                    'hosting_account' => 'Hosting account username',
+                    'staging_domain' => 'Approved isolated staging domain',
+                ],
+            ],
             'ai' => [
                 'label' => 'AI Provider',
                 'description' => 'External AI provider connection.',
