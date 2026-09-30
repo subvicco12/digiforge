@@ -58,4 +58,12 @@ final class RecoveryBackupIdentityBinding
         if (! RecoveryDispatchLedger::insert($name,$record)) return new \WP_Error('digiforge_recovery_backup_binding_persist_failed', __('Backup identity binding could not be persisted immutably.', 'digiforge'), ['status'=>500]);
         return $record + ['replayed'=>false];
     }
+    /** @return array<string,mixed>|\WP_Error */
+    public static function read(string $operationKey): array|\WP_Error
+    {
+        $operationKey=trim(sanitize_text_field($operationKey));
+        if ($operationKey==='') return new \WP_Error('digiforge_recovery_backup_binding_key_required', __('A backup identity operation key is required.', 'digiforge'), ['status'=>400]);
+        return RecoveryDispatchLedger::read(self::PREFIX . hash('sha256',$operationKey));
+    }
+
 }

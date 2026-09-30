@@ -36,6 +36,23 @@ final class RecoveryStagingVerifier
         $readiness = $client->get($base . 'wp-json/digiforge/v1/readiness');
         if ($readiness instanceof \WP_Error) { return $readiness; }
 
+        $binding = RecoveryBackupIdentityBinding::read($operationKey);
+        if ($binding instanceof \WP_Error) { return $binding; }
+        $databaseIdentityVerified = false;
+        $observedMarker = [];
+        if ($binding !== [] && ($binding['database_identity_proof_available'] ?? false) === true) {
+            $marker = RecoveryBackupIdentityMarker::read($operationKey);
+            if ($marker instanceof \WP_Error) { return $marker; }
+            $keyHash = (string)($marker['operation_key_hash'] ?? '');
+            if (preg_match('/^[a-f0-9]{64}$/', $keyHash)) {
+                $observedMarker = $client->get($base . 'wp-json/digiforge/v1/recovery/evidence/database-backup/marker/' . $keyHash);
+                if ($observedMarker instanceof \WP_Error) { return $observedMarker; }
+                $databaseIdentityVerified = hash_equals((string)($binding['marker_hash'] ?? ''), (string)($observedMarker['marker_hash'] ?? ''))
+                    && hash_equals((string)($marker['marker_hash'] ?? ''), (string)($observedMarker['marker_hash'] ?? ''))
+                    && hash_equals((string)($plan['database_backup_identifier'] ?? ''), (string)($binding['backup_identifier'] ?? ''));
+            }
+        }
+
         $artifacts = RecoveryEvidence::snapshot();
         $expectedVersion = (string) ($artifacts['plugin_package']['version'] ?? '');
         $schema = is_array($readiness['schema'] ?? null) ? $readiness['schema'] : [];
@@ -49,6 +66,7 @@ final class RecoveryStagingVerifier
             'activation_not_authorized' => ($readiness['checks']['activation_not_authorized'] ?? false) === true,
             'automation_unarmed' => ($readiness['checks']['automation_unarmed'] ?? false) === true,
             'no_effective_feature_switches' => ($readiness['checks']['no_effective_feature_switches'] ?? false) === true,
+            'database_identity_verified' => $databaseIdentityVerified,
         ];
         $verified = ! in_array(false, $checks, true);
         return [
@@ -61,7 +79,7 @@ final class RecoveryStagingVerifier
             'artifact_evidence_hash' => (string) ($plan['artifact_evidence_hash'] ?? ''),
             'provider_operation_reference' => (string) ($plan['provider_operation_reference'] ?? ''),
             'checks' => $checks,
-            'observed' => ['version' => (string) ($health['version'] ?? ''), 'schema' => $schema],
+            'observed' => ['version' => (string) ($health['version'] ?? ''), 'schema' => $schema, 'database_marker' => $observedMarker],
             'external_actions_performed' => false,
             'commerce_execution_authorized' => false,
             'drill_evidence_recorded' => false,
