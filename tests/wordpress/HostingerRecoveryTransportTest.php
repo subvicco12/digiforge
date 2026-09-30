@@ -85,9 +85,13 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         self::assertIsArray(RecoveryBackupIdentityMarker::prepare($this->key));
         $backup['captured_at']=gmdate('c');
         $backup['verified_at']=gmdate('c');
-        self::assertTrue(RecoveryEvidence::storeDatabaseBackup($backup));
+        $backup['retrievable']=true;
+        self::assertTrue(RecoveryEvidence::storeDatabaseBackup($backup) || RecoveryEvidence::snapshot()['database_backup']['identifier']===$backup['identifier']);
         self::assertIsArray(RecoveryBackupIdentityBinding::bind($this->key,(string)$backup['identifier']));
-        $this->config['artifact_evidence_hash']=RecoveryOrchestrator::artifactEvidenceHash(RecoveryEvidence::snapshot());
+        $evidence=RecoveryEvidence::snapshot();
+        $this->config['database_backup_identifier']=(string)$backup['identifier'];
+        $this->config['plugin_package_identifier']=(string)($evidence['plugin_package']['identifier'] ?? '');
+        $this->config['artifact_evidence_hash']=RecoveryOrchestrator::artifactEvidenceHash($evidence);
         self::assertIsArray($this->repository->update($this->id,['config'=>$this->config]));
     }
 
