@@ -37,6 +37,9 @@ final class RecoveryStagingVerifierContractTest extends TestCase
         self::assertStringContainsString("'redirection' => 0", $client);
         self::assertStringContainsString("'reject_unsafe_urls' => true", $client);
         self::assertStringContainsString("'sslverify' => true", $client);
+        self::assertStringContainsString("'Accept' => 'application/json'", $client);
+        self::assertStringContainsString("'User-Agent' => 'DigiForge-Recovery-Verifier/", $client);
+        self::assertStringContainsString("'upstream_status'", $client);
         self::assertStringNotContainsString('wp_remote_post(', $client);
         self::assertStringNotContainsString("'passed' => true", $code);
     }
