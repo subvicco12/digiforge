@@ -18,6 +18,10 @@ final class PersonalizedPodOperationsPortalContractTest extends TestCase
         ] as $needle) self::assertStringContainsString($needle,$source);
         self::assertStringNotContainsString('wp_remote_',$source);
         self::assertStringNotContainsString('ProductionExecutionPermit',$source);
+        $render=(string)file_get_contents(__DIR__.'/../../includes/POD/RenderEvidenceOperationsReadModel.php');
+        self::assertStringContainsString("'query_state'=>'UNAVAILABLE'",$render);
+        self::assertStringContainsString("'external_execution_authorized'=>false",$render);
+        self::assertStringNotContainsString('wp_remote_',$render);
     }
 
     public function testPortalExposesPhase1StateWithoutProviderAction(): void
@@ -37,5 +41,8 @@ final class PersonalizedPodOperationsPortalContractTest extends TestCase
         self::assertStringContainsString("guard('manage_digiforge_pod')",$source);
         self::assertStringContainsString('ProductionAuthorizationRepository',$source);
         self::assertStringContainsString('Production remains externally locked',$source);
+        self::assertStringContainsString('Buyer-specific artwork & mockup review',$source);
+        self::assertStringContainsString('Approve visual render',$source);
+        self::assertStringContainsString('RenderEvidenceRepository',$source);
     }
 }
