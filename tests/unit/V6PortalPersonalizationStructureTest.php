@@ -10,7 +10,8 @@ final class V6PortalPersonalizationStructureTest extends TestCase
         $portal=file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
         $model=file_get_contents(__DIR__.'/../../includes/Portal/ShopOperationsReadModel.php');
         self::assertStringContainsString("snapshot('personalized_pod')",$portal);
-        self::assertStringContainsString('production_authority',$portal);
+        self::assertStringContainsString('Production authority',$portal);
+        self::assertStringContainsString('Promotion authorized',$portal);
         self::assertStringContainsString("'external_execution_performed'=>false",$model);
     }
 
