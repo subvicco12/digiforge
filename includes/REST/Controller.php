@@ -11,6 +11,7 @@ use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\RecoveryStagingVerifier;
 use DigiForge\Operations\RecoveryVerificationEvidence;
 use DigiForge\Operations\RecoveryDrillReviewCandidate;
+use DigiForge\Operations\RecoveryDrillAcceptance;
 use DigiForge\Operations\RecoveryBackupIdentityMarker;
 use DigiForge\Operations\RecoveryBackupIdentityBinding;
 use DigiForge\Operations\RecoveryBackupMarkerAttestation;
@@ -32,7 +33,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/evidence/database-backup/marker/(?P<operation_key_hash>[a-f0-9]{64})', ['methods' => 'GET', 'callback' => [$this, 'recovery_database_backup_marker'], 'permission_callback' => '__return_true']);
         register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
-        register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'POST', 'callback' => [$this, 'record_recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration/drill-accept', ['methods' => 'POST', 'callback' => [$this, 'accept_recovery_drill'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration', ['methods' => 'GET', 'callback' => [$this, 'recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/plan', ['methods' => 'POST', 'callback' => [$this, 'plan_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/execute', ['methods' => 'POST', 'callback' => [$this, 'execute_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
@@ -99,11 +100,14 @@ final class Controller {
         return new \WP_REST_Response(['recorded' => true, 'plugin_package' => RecoveryEvidence::snapshot()['plugin_package'], 'external_actions_performed' => false], 200);
     }
     public function recovery_drill_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryDrillEvidence::snapshot(), 200); }
-    public function record_recovery_drill_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
-        $record = (array) $request->get_json_params();
-        if (! RecoveryDrillEvidence::store($record)) return new \WP_Error('digiforge_recovery_drill_evidence_invalid', __('Fresh recovery drill evidence bound to the current verified backup and rollback package is required.', 'digiforge'), ['status' => 400]);
-        Logger::audit('recovery_drill_evidence_verified', ['drill_id' => sanitize_text_field((string)($record['drill_id'] ?? '')), 'external_actions_performed' => false, 'retry_permitted' => false, 'external_execution_authorized' => false], 'system', 'recovery_evidence');
-        return new \WP_REST_Response(['recorded' => true, 'recovery_drill' => RecoveryDrillEvidence::snapshot(), 'external_actions_performed' => false], 200);
+    public function accept_recovery_drill(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $operationKey=trim(sanitize_text_field((string)($request->get_param('operation_key')??'')));
+        $evidenceHash=trim(sanitize_text_field((string)($request->get_param('verification_evidence_hash')??'')));
+        $user=wp_get_current_user();
+        $performedBy=(string)($user->user_email ?: $user->user_login);
+        $result=RecoveryDrillAcceptance::accept($operationKey,$evidenceHash,$performedBy);
+        if ($result instanceof \WP_Error) return $result;
+        return new \WP_REST_Response($result,200);
     }
     public function recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryOrchestrator::snapshot(), 200); }
     public function plan_recovery_orchestration(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {

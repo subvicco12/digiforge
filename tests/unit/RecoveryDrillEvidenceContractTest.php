@@ -31,7 +31,9 @@ final class RecoveryDrillEvidenceContractTest extends TestCase
     {
         $controller = file_get_contents(__DIR__.'/../../includes/REST/Controller.php');
         self::assertStringContainsString("'/recovery/drill-evidence'", $controller);
-        self::assertStringContainsString('RecoveryDrillEvidence::store', $controller);
+        self::assertStringNotContainsString('RecoveryDrillEvidence::store', $controller);
+        self::assertStringContainsString("'/recovery/orchestration/drill-accept'", $controller);
+        self::assertStringContainsString('RecoveryDrillAcceptance::accept', $controller);
         self::assertStringContainsString("'external_execution_authorized' => false", $controller);
         self::assertStringContainsString("'/recovery/orchestration/plan'", $controller);
         self::assertStringContainsString("'/recovery/orchestration/execute'", $controller);
