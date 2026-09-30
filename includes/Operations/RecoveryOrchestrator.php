@@ -232,32 +232,32 @@ final class RecoveryOrchestrator
      * Reconcile a staging restore that a human already performed outside DigiForge.
      * This records the external action truthfully; it never dispatches or retries it.
      *
-     * @return array<string,mixed>|\\WP_Error
+     * @return array<string,mixed>|\WP_Error
      */
-    public static function reconcileManualRestore(string $operationKey, string $providerReference, string $confirmation): array|\\WP_Error
+    public static function reconcileManualRestore(string $operationKey, string $providerReference, string $confirmation): array|\WP_Error
     {
         if (! self::safetyLocked()) {
-            return new \\WP_Error('digiforge_recovery_not_locked', __('Manual recovery reconciliation requires STOP ALL and the external safety lock.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error('digiforge_recovery_not_locked', __('Manual recovery reconciliation requires STOP ALL and the external safety lock.', 'digiforge'), ['status' => 409]);
         }
         $record = self::snapshot();
         if ($operationKey === '' || ! hash_equals((string) $record['operation_key'], $operationKey)) {
-            return new \\WP_Error('digiforge_recovery_operation_mismatch', __('The recovery operation key does not match the active plan.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error('digiforge_recovery_operation_mismatch', __('The recovery operation key does not match the active plan.', 'digiforge'), ['status' => 409]);
         }
         if (! hash_equals('I_CONFIRM_MANUAL_STAGING_RESTORE_COMPLETED', $confirmation)) {
-            return new \\WP_Error('digiforge_recovery_manual_confirmation_required', __('Explicit confirmation of the completed manual staging restore is required.', 'digiforge'), ['status' => 400]);
+            return new \WP_Error('digiforge_recovery_manual_confirmation_required', __('Explicit confirmation of the completed manual staging restore is required.', 'digiforge'), ['status' => 400]);
         }
         $providerReference = trim(sanitize_text_field($providerReference));
         if ($providerReference === '' || strlen($providerReference) > 190) {
-            return new \\WP_Error('digiforge_recovery_manual_reference_required', __('A bounded provider/manual restore reference is required.', 'digiforge'), ['status' => 400]);
+            return new \WP_Error('digiforge_recovery_manual_reference_required', __('A bounded provider/manual restore reference is required.', 'digiforge'), ['status' => 400]);
         }
         if (($record['manual_restore_reconciled'] ?? false) === true) {
             if (hash_equals((string) ($record['provider_operation_reference'] ?? ''), $providerReference)) {
                 return $record + ['replayed' => true];
             }
-            return new \\WP_Error('digiforge_recovery_manual_reconciliation_conflict', __('The manual restore was already reconciled with different evidence.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error('digiforge_recovery_manual_reconciliation_conflict', __('The manual restore was already reconciled with different evidence.', 'digiforge'), ['status' => 409]);
         }
         if (self::claim($operationKey) !== [] || ! in_array((string) $record['state'], ['PLANNED', 'PROVIDER_REQUIRED'], true)) {
-            return new \\WP_Error('digiforge_recovery_reconciliation_required', __('A dispatched or claimed recovery operation cannot be converted into a manual restore record.', 'digiforge'), ['status' => 409, 'reconciliation_required' => true]);
+            return new \WP_Error('digiforge_recovery_reconciliation_required', __('A dispatched or claimed recovery operation cannot be converted into a manual restore record.', 'digiforge'), ['status' => 409, 'reconciliation_required' => true]);
         }
         $artifacts = RecoveryEvidence::snapshot();
         if (($artifacts['database_backup_retrievable'] ?? false) !== true
@@ -266,7 +266,7 @@ final class RecoveryOrchestrator
             || ($artifacts['database_backup']['identifier'] ?? '') !== $record['database_backup_identifier']
             || ($artifacts['plugin_package']['identifier'] ?? '') !== $record['plugin_package_identifier']
             || self::artifactEvidenceHash($artifacts) !== $record['artifact_evidence_hash']) {
-            return new \\WP_Error('digiforge_recovery_artifacts_unverified', __('Manual restore reconciliation requires the exact still-verified planned artifacts.', 'digiforge'), ['status' => 409]);
+            return new \WP_Error('digiforge_recovery_artifacts_unverified', __('Manual restore reconciliation requires the exact still-verified planned artifacts.', 'digiforge'), ['status' => 409]);
         }
         $stored = [
             'state' => 'VERIFY_REQUIRED',
@@ -287,7 +287,7 @@ final class RecoveryOrchestrator
             'updated_at' => gmdate('c'),
         ];
         if (! update_option(self::OPTION, $stored, false) || get_option(self::OPTION) !== $stored) {
-            return new \\WP_Error('digiforge_recovery_manual_reconciliation_persist_failed', __('Unable to persist manual restore reconciliation evidence.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
+            return new \WP_Error('digiforge_recovery_manual_reconciliation_persist_failed', __('Unable to persist manual restore reconciliation evidence.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
         }
         return self::snapshot() + ['replayed' => false];
     }
