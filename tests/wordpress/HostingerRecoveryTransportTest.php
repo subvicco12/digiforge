@@ -6,6 +6,8 @@ use DigiForge\Core\Settings;
 use DigiForge\Integrations\Repository;
 use DigiForge\Operations\HostingerRecoveryProvider;
 use DigiForge\Operations\RecoveryEvidence;
+use DigiForge\Operations\RecoveryBackupIdentityMarker;
+use DigiForge\Operations\RecoveryBackupIdentityBinding;
 use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\RecoveryProviderRegistry;
 
@@ -31,7 +33,9 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         $this->key = wp_generate_uuid4();
         delete_option('digiforge_recovery_orchestration');
         delete_option('digiforge_recovery_dispatch_interlock');
+        self::assertIsArray(RecoveryBackupIdentityMarker::prepare($this->key));
         self::assertTrue(RecoveryEvidence::storeDatabaseBackup(['identifier'=>'backup-'.$this->key,'captured_at'=>gmdate('c',time()-60),'location'=>'backup.sql','verification_method'=>'retrieval','verified_at'=>gmdate('c'),'verified_by'=>'test','retrievable'=>true]));
+        self::assertIsArray(RecoveryBackupIdentityBinding::bind($this->key,'backup-'.$this->key));
         self::assertTrue(RecoveryEvidence::storePluginPackage(['identifier'=>'package-'.$this->key,'version'=>'test','source_commit'=>str_repeat('a',40),'sha256'=>str_repeat('b',64),'location'=>'package.zip','retrievable'=>true,'checksum_verified'=>true]));
         $this->config = ['hosting_account'=>'test_account','staging_domain'=>'isolated.example.org','archive_path'=>'backup.zip','database_path'=>'backup.sql','database_backup_identifier'=>'backup-'.$this->key,'plugin_package_identifier'=>'package-'.$this->key];
         $this->config['artifact_evidence_hash']=RecoveryOrchestrator::artifactEvidenceHash(RecoveryEvidence::snapshot());
@@ -71,7 +75,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
 
     private function plan(string $target='https://isolated.example.org/'): array|WP_Error
     {
-        return RecoveryOrchestrator::plan(['operation_key'=>$this->key,'target_environment'=>'staging','target_site_url'=>$target]);
+        return RecoveryOrchestrator::plan(['operation_key'=>$this->key,'backup_identity_operation_key'=>$this->key,'target_environment'=>'staging','target_site_url'=>$target]);
     }
 
     public function testDocumentedAcceptanceHasNoReferenceAndCannotBeReplayedOrCreatePass(): void
