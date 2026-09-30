@@ -21,6 +21,6 @@ final class PersonalizedPodClosureSafetyContractTest extends TestCase {
  }
  public function testFinalConvergenceScenarioExercisesPersonalizedPodBoundary():void {
   $c=(string)file_get_contents(__DIR__.'/../wordpress/FinalConvergenceScenarioTest.php');
-  foreach(['testPersonalizedPodReviewChainStopsBeforeExternalExecution','RenderEvidenceRepository','ProductionAuthorizationRepository','APPROVED_PACKAGE','external_execution_authorized']) as $needle) self::assertStringContainsString($needle,$c);
+  foreach(['testPersonalizedPodReviewChainStopsBeforeExternalExecution','RenderEvidenceRepository','ProductionAuthorizationRepository','APPROVED_PACKAGE','external_execution_authorized'] as $needle) self::assertStringContainsString($needle,$c);
  }
 }
