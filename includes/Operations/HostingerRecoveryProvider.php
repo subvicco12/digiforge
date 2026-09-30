@@ -15,6 +15,7 @@ use DigiForge\Integrations\Repository;
  */
 final class HostingerRecoveryProvider implements RecoveryProviderAdapter
 {
+    private const API_BASE = 'https://developers.hostinger.com/api/hosting/v1';
     public function providerSlug(): string { return 'hostinger'; }
 
     public function capability(): array
@@ -40,11 +41,37 @@ final class HostingerRecoveryProvider implements RecoveryProviderAdapter
             return new \WP_Error('digiforge_hostinger_current_site_refused', __('The running DigiForge site cannot be used as the Hostinger recovery target.', 'digiforge'), ['status' => 409]);
         }
 
-        return new \WP_Error(
-            'digiforge_hostinger_import_not_enabled',
-            __('Hostinger recovery capability is configured, but destructive import dispatch is not enabled in this certified slice.', 'digiforge'),
-            ['status' => 501, 'state' => 'PROVIDER_REQUIRED']
-        );
+        $archive = trim((string) ($config['archive_path'] ?? ''));
+        $database = trim((string) ($config['database_path'] ?? ''));
+        if ($archive === '' || $database === '') {
+            return new \WP_Error('digiforge_hostinger_artifact_paths_missing', __('Hostinger import requires connector-bound archive_path and database_path values that already exist on the isolated staging account.', 'digiforge'), ['status' => 409]);
+        }
+        $token = $this->credential((int) $connection['id'], 'api_token');
+        if ($token instanceof \WP_Error) { return $token; }
+        $account = rawurlencode(trim((string) $config['hosting_account']));
+        $domain = rawurlencode($stagingDomain);
+        $url = self::API_BASE . '/accounts/' . $account . '/websites/' . $domain . '/wordpress/import';
+        $body = wp_json_encode(['archive_path' => $archive, 'database_path' => $database]);
+        if (! is_string($body)) { unset($token); return new \WP_Error('digiforge_hostinger_request_encode_failed', __('Hostinger import request could not be encoded.', 'digiforge'), ['status' => 500]); }
+        $response = wp_remote_post($url, [
+            'timeout' => 20, 'redirection' => 0, 'reject_unsafe_urls' => true, 'sslverify' => true,
+            'headers' => ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json', 'Content-Type' => 'application/json', 'Idempotency-Key' => (string) ($plan['operation_key'] ?? '')],
+            'body' => $body,
+        ]);
+        unset($token);
+        if (is_wp_error($response)) {
+            return new \WP_Error('digiforge_hostinger_result_unknown', __('Hostinger import transport returned an ambiguous result. Reconcile before retrying.', 'digiforge'), ['status' => 502, 'reconciliation_required' => true]);
+        }
+        $status = (int) wp_remote_retrieve_response_code($response);
+        $decoded = json_decode((string) wp_remote_retrieve_body($response), true);
+        if ($status < 200 || $status >= 300 || ! is_array($decoded)) {
+            return new \WP_Error('digiforge_hostinger_result_unknown', __('Hostinger import did not return a safely classifiable acceptance result. Reconcile before retrying.', 'digiforge'), ['status' => 502, 'reconciliation_required' => true, 'http_status' => $status]);
+        }
+        $reference = sanitize_text_field((string) ($decoded['id'] ?? $decoded['operation_id'] ?? $decoded['reference'] ?? ''));
+        if ($reference === '') {
+            return new \WP_Error('digiforge_hostinger_reference_missing', __('Hostinger accepted the request without a durable operation reference. Reconcile before retrying.', 'digiforge'), ['status' => 502, 'reconciliation_required' => true]);
+        }
+        return ['state' => 'in_progress', 'provider' => 'hostinger', 'provider_operation_reference' => $reference, 'reconciliation_required' => true];
     }
 
     public function reconcile(array $plan): array|\WP_Error
