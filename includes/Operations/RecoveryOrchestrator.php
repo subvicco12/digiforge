@@ -32,7 +32,8 @@ final class RecoveryOrchestrator
             'database_backup_identifier' => (string) ($record['database_backup_identifier'] ?? ''),
             'plugin_package_identifier' => (string) ($record['plugin_package_identifier'] ?? ''),
             'provider' => (string) ($record['provider'] ?? ''),
-            'provider_capability_available' => has_filter('digiforge_recovery_provider_execute'),
+            'provider_capability_available' => RecoveryProviderRegistry::capabilities() !== [],
+            'provider_capabilities' => RecoveryProviderRegistry::capabilities(),
             'updated_at' => (string) ($record['updated_at'] ?? ''),
             'external_actions_performed' => false,
             'external_execution_authorized' => false,
@@ -80,7 +81,7 @@ final class RecoveryOrchestrator
         }
 
         $record = [
-            'state' => has_filter('digiforge_recovery_provider_execute') ? 'PLANNED' : 'PROVIDER_REQUIRED',
+            'state' => RecoveryProviderRegistry::capabilities() !== [] ? 'PLANNED' : 'PROVIDER_REQUIRED',
             'operation_key' => $operationKey,
             'target_environment' => 'staging',
             'target_site_url' => $targetSiteUrl,
