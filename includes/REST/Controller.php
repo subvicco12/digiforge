@@ -11,6 +11,7 @@ use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\RecoveryStagingVerifier;
 use DigiForge\Operations\RecoveryVerificationEvidence;
 use DigiForge\Operations\RecoveryDrillReviewCandidate;
+use DigiForge\Operations\RecoveryBackupIdentityMarker;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -24,6 +25,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/readiness', ['methods' => 'GET', 'callback' => [$this, 'readiness'], 'permission_callback' => [$this, 'can_view']]);
         register_rest_route('digiforge/v1', '/recovery/evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/database-backup', ['methods' => 'POST', 'callback' => [$this, 'record_database_backup_evidence'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/evidence/database-backup/prepare', ['methods' => 'POST', 'callback' => [$this, 'prepare_database_backup_identity'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'POST', 'callback' => [$this, 'record_recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
@@ -53,6 +55,16 @@ final class Controller {
     }
     public function readiness(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response((new Readiness())->report(), 200); }
     public function recovery_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryEvidence::snapshot() + ['external_actions_performed' => false], 200); }
+    public function prepare_database_backup_identity(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
+        $result = RecoveryBackupIdentityMarker::prepare($operationKey);
+        if ($result instanceof \WP_Error) return $result;
+        if (! Logger::write('recovery_database_backup_identity_prepared', ['operation_key_hash' => (string)($result['operation_key_hash'] ?? ''), 'marker_hash' => (string)($result['marker_hash'] ?? ''), 'backup_certified' => false, 'external_actions_performed' => false, 'external_execution_authorized' => false], 'system', 'recovery_evidence')) {
+            return new \WP_Error('digiforge_recovery_backup_marker_audit_failed', __('Backup identity preparation audit evidence could not be persisted.', 'digiforge'), ['status' => 500]);
+        }
+        return new \WP_REST_Response($result, 200);
+    }
+
     public function record_database_backup_evidence(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
         $record = (array) $request->get_json_params();
         if (! RecoveryEvidence::storeDatabaseBackup($record)) return new \WP_Error('digiforge_recovery_backup_evidence_invalid', __('Complete, independently verified and retrievable database backup evidence is required.', 'digiforge'), ['status' => 400]);
