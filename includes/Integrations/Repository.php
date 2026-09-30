@@ -7,7 +7,7 @@ use DigiForge\Security\Logger;
 
 /** Local-only integration registry. No provider network requests are performed. */
 final class Repository {
-    public const PROVIDERS = ['etsy','printify','gelato','ai'];
+    public const PROVIDERS = ['etsy','printify','gelato','hostinger','ai'];
     public const ENVIRONMENTS = ['sandbox','test','production'];
     public const STATUSES = ['DISCONNECTED','CONFIGURED','PAUSED','ERROR'];
 

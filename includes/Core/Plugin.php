@@ -53,6 +53,7 @@ final class Plugin {
         if (! V6OperationalSchema::migrateIfNeeded()) { return; }
         if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
+        \DigiForge\Operations\RecoveryProviderRegistry::register(new \DigiForge\Operations\HostingerRecoveryProvider());
         (new Controller())->register();
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
