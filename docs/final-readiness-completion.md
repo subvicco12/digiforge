@@ -4,7 +4,7 @@
 Complete DigiForge as a production-ready local-first WordPress platform without enabling any live Etsy, POD, AI, fulfillment, payment, refund, tax/GST, accounting, advertising, worker, schedule, webhook, or other external side effect.
 
 ## Release posture
-- Plugin release: 1.0.94.
+- Plugin release: 1.0.95.
 - Database schema: v23.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
@@ -33,7 +33,7 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 1.0.94 with schema v23
+- version 1.0.95 with schema v23
 - internal activation gates are non-writable
 - effective switches remain false while required internal/scoped gates are false or STOP ALL is true
 - deterministic readiness report
@@ -47,5 +47,5 @@ Hosted CI must cover:
 Merging this release means DigiForge is code-complete, tested, packaged, documented and ready for controlled deployment. It does not authorize enabling integrations or external automation. Separate explicit activation authorization is required later.
 
 
-## v1.0.94 release-candidate certification
-This release candidate packages DigiForge v1.0.94 through the standard Engineering & Safety Audit. Runtime change is narrowly limited to governed terminal supersession of an irrecoverably stale reconciled staging recovery operation; schema, activation state and commerce/external execution authority remain unchanged. Supersession cannot execute recovery and preserves historical claims.
+## v1.0.95 release-candidate certification
+This release candidate packages DigiForge v1.0.95 through the standard Engineering & Safety Audit. Runtime change is narrowly limited to governed terminal supersession of an irrecoverably stale reconciled staging recovery operation; schema, activation state and commerce/external execution authority remain unchanged. Supersession cannot execute recovery and preserves historical claims.
