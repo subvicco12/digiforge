@@ -19,13 +19,17 @@ final class RecoveryDrillReviewCandidate
             return new \WP_Error('digiforge_recovery_review_evidence_missing', __('Immutable verified staging evidence is required before drill review.', 'digiforge'), ['status' => 409]);
         }
         $checks = is_array($receipt['checks'] ?? null) ? $receipt['checks'] : [];
-        if ($checks === [] || in_array(false, $checks, true)) {
-            return new \WP_Error('digiforge_recovery_review_checks_failed', __('All immutable staging verification checks must pass before drill review.', 'digiforge'), ['status' => 409]);
+        $databaseIdentityVerified = ($checks['database_identity_verified'] ?? false) === true;
+        $required = ['health_ok','stop_all_active','externally_locked','schema_current','plugin_version_exact','automation_disabled','activation_not_authorized','automation_unarmed','no_effective_feature_switches'];
+        foreach ($required as $key) {
+            if (($checks[$key] ?? false) !== true) {
+                return new \WP_Error('digiforge_recovery_review_checks_failed', __('All immutable staging verification checks must pass before drill review.', 'digiforge'), ['status' => 409]);
+            }
         }
         return [
             'review_required' => true,
-            'acceptance_blocked' => true,
-            'acceptance_blocker' => 'DATABASE_IDENTITY_UNVERIFIED',
+            'acceptance_blocked' => ! $databaseIdentityVerified,
+            'acceptance_blocker' => $databaseIdentityVerified ? '' : 'DATABASE_IDENTITY_UNVERIFIED',
             'operation_key' => $operationKey,
             'verification_evidence_hash' => (string) ($receipt['evidence_hash'] ?? ''),
             'environment' => 'staging',
@@ -34,8 +38,8 @@ final class RecoveryDrillReviewCandidate
             'target_site_url' => (string) ($receipt['target_site_url'] ?? ''),
             'verified_at' => (string) ($receipt['verified_at'] ?? ''),
             'proposed_checks' => [
-                'restore_verified' => false,
-                'database_identity_verified' => false,
+                'restore_verified' => $databaseIdentityVerified,
+                'database_identity_verified' => $databaseIdentityVerified,
                 'schema_verified' => ($checks['schema_current'] ?? false) === true,
                 'application_health_verified' => ($checks['health_ok'] ?? false) === true
                     && ($checks['stop_all_active'] ?? false) === true
