@@ -10,6 +10,6 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
  }
  public function testPortalSurfacesProfitabilityWithoutFinancialAuthority():void{
   $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
-  foreach(['Profitability periods','Net operating profit','Margin','HASH VERIFIED','Profitability evidence cannot move money']) as $v)self::assertStringContainsString($v,$p);
+  foreach(['Profitability periods','Net operating profit','Margin','HASH VERIFIED','Profitability evidence cannot move money'] as $v)self::assertStringContainsString($v,$p);
  }
 }
