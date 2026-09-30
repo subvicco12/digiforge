@@ -27,6 +27,11 @@ use DigiForge\Operations\OperationalExceptionReadModel;
 use DigiForge\Operations\AuditCorrelationReadModel;
 use DigiForge\POD\ProviderStatusReadModel;
 use DigiForge\POD\PersonalizedCatalogReference;
+use DigiForge\POD\PersonalizedPodOperationsReadModel;
+use DigiForge\POD\ProductionAuthorizationRepository;
+use DigiForge\POD\RenderEvidenceOperationsReadModel;
+use DigiForge\POD\RenderEvidenceRepository;
+use DigiForge\Finance\OperationsReadModel as FinanceOperationsReadModel;
 use DigiForge\Research\Repository as ResearchRepository;
 use DigiForge\Security\Logger;
 use DigiForge\Queue\OperatorQueueReadModel;
@@ -39,6 +44,8 @@ final class Portal
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
+    private const POD_PACKAGE_REVIEW_ACTION = 'digiforge_portal_pod_package_review';
+    private const POD_RENDER_REVIEW_ACTION = 'digiforge_portal_pod_render_review';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
@@ -74,6 +81,8 @@ final class Portal
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
+        add_action('admin_post_' . self::POD_PACKAGE_REVIEW_ACTION, [$this, 'podPackageReview']);
+        add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
     }
@@ -148,6 +157,35 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function podRenderReview(): void
+    {
+        $this->guard('manage_digiforge_pod');
+        check_admin_referer(self::POD_RENDER_REVIEW_ACTION);
+        $id=isset($_POST['render_evidence_id'])?absint($_POST['render_evidence_id']):0;
+        if($id<1)$this->redirect('pod_personalized','Valid render evidence required.',true);
+        $result=(new RenderEvidenceRepository())->approve($id);
+        if(is_wp_error($result))$this->redirect('pod_personalized',$result->get_error_message(),true);
+        Logger::audit('portal_pod_render_human_reviewed',['render_evidence_id'=>$id,'review_status'=>(string)($result['review_status']??''),'external_execution_authorized'=>false,'external_execution_performed'=>false],'pod_render_evidence',(string)$id);
+        $this->redirect('pod_personalized',sprintf('Render evidence #%d human visual review recorded. Production remains externally locked.',$id));
+    }
+
+    public function podPackageReview(): void
+    {
+        $this->guard('manage_digiforge_pod');
+        check_admin_referer(self::POD_PACKAGE_REVIEW_ACTION);
+        $id=isset($_POST['package_id'])?absint($_POST['package_id']):0;
+        if($id<1)$this->redirect('pod_personalized','Valid authorization package required.',true);
+        $result=(new ProductionAuthorizationRepository())->approveForReview($id);
+        if(is_wp_error($result))$this->redirect('pod_personalized',$result->get_error_message(),true);
+        Logger::audit('portal_pod_authorization_package_human_reviewed',[
+            'package_id'=>$id,
+            'state'=>(string)($result['state']??''),
+            'external_execution_authorized'=>false,
+            'external_execution_performed'=>false,
+        ],'pod_authorization_package',(string)$id);
+        $this->redirect('pod_personalized',sprintf('Authorization package #%d human review recorded. Production remains externally locked.',$id));
     }
 
     public function recoveryPlan(): void
@@ -266,6 +304,7 @@ final class Portal
         if ($view === 'audit') { $this->auditReconciliationOperations(); return; }
         if ($view === 'orders') { $this->orderOperations(); return; }
         if ($view === 'listings') { $this->listingOperations(); return; }
+        if ($view === 'digital') { $this->digitalFactoryOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'analytics') { $this->analyticsOperations(); return; }
         if ($view === 'automation') { $this->automationOperations(); return; }
@@ -310,6 +349,16 @@ final class Portal
         $this->panelTable('Audit Log',Tables::audit_log());
     }
 
+    private function digitalFactoryOperations():void
+    {
+        $repo=new \DigiForge\DigitalFactory\Repository();$products=$repo->all('digital_product',1,50);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
+        $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['APPROVED','RELEASE_READY','ACTIVE'],true))$counts['approved']++;}}
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
+        if(!$queryOk){echo '<div class="df-notice df-notice-error">Digital Factory evidence unavailable. Database reads failed; zero products or readiness is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>Recent digital products</span><b>'.esc_html((string)$counts['total']).'</b></div><div><span>Draft</span><b>'.esc_html((string)$counts['draft']).'</b></div><div><span>Review</span><b>'.esc_html((string)$counts['review']).'</b></div><div><span>Approved / release-ready</span><b>'.esc_html((string)$counts['approved']).'</b></div><div><span>External publish authority</span><b>NO</b></div></div>';if($items===[]){echo '<div class="df-empty">No digital products in the bounded view.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Digital product</th><th>Product version</th><th>Category</th><th>State</th><th>Readiness</th><th>Next governed step</th></tr></thead><tbody>';foreach($items as $row){$ready=is_array($row['readiness']??null)?$row['readiness']:json_decode((string)($row['readiness']??''),true);$blocked=is_array($ready)?count(array_filter($ready,static fn($v):bool=>$v!==true)):null;echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['name']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['category']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html($blocked===null?'UNVERIFIED':($blocked===0?'PASS':$blocked.' BLOCKED')).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('approvals')).'">Open Product Approval</a></td></tr>';}echo '</tbody></table></div>';}}
+        echo '<p class="df-muted">This view cannot publish to Etsy, mutate a marketplace listing, fulfill an order, or grant external execution authority.</p></section>';
+        foreach($this->tables('digital') as $label=>$table)$this->panelTable($label,$table);
+    }
+
     private function listingOperations():void
     {
         $webhook=EtsyWebhookReadiness::inspect();
@@ -339,6 +388,7 @@ final class Portal
 
     private function aiBudgetOperations():void
     {
+        $attentionSummary=(new AttentionReadModel())->summary();$attentionUnavailable=($attentionSummary['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE';
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$data=(new OperationalDepthReadModel())->aiBudget($shop);$cost=(array)$data['cost'];$policies=(array)$data['policies'];if(($data['policies_query_state']??'UNAVAILABLE')!=='AVAILABLE'||($cost['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<section class="df-panel"><h2>AI & Budget</h2><div class="df-notice df-notice-error">AI policy or cost evidence unavailable. Database read failed; counts and spend cannot be verified.</div><p>External execution authority: NO</p></section>';return;}$hierarchy=(new HierarchicalPolicyReadModel())->snapshot($shop);$scenarios=(new HierarchicalPolicyReadModel())->scenarios($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI & Budget</h2><p>Shop-scoped policy identities, quantities and estimated/actual spend. Policy evidence never grants execution authority. Global disable always wins; a narrower shop/workflow scope cannot override a disabled parent.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Shop scope</span><b>'.esc_html(ShopOperationsReadModel::shops()[$shop]).'</b></div><div><span>Active policy records</span><b>'.esc_html((string)count($policies)).'</b></div><div><span>Attributed quantity</span><b>'.esc_html((string)($cost['quantity']??0)).'</b></div><div><span>Estimated spend</span><b>'.esc_html(number_format((float)($cost['estimated_cost']??0),4)).'</b></div><div><span>Actual spend</span><b>'.esc_html(number_format((float)($cost['actual_cost']??0),4)).'</b></div><div><span>External execution authority</span><b>NO</b></div></div>';
         if($policies!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Shop</th><th>Environment</th><th>Currency</th><th>State</th><th>Policy identity</th><th>Updated</th></tr></thead><tbody>';foreach($policies as $row){echo '<tr><td>'.esc_html((string)$row['shop_key']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html((string)$row['currency']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['policy_hash'],0,12)).'…</code></td><td>'.esc_html((string)$row['updated_at']).'</td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No AI policy exists for this shop scope.</div>';}echo '<p class="df-muted">Planning scenarios evaluated: '.esc_html((string)count((array)$scenarios['scenarios'])).'. Quantities 1 / 5 / 10 are evaluated for each governed stage against the current shop policy and budget ceilings. Scenarios are preflight evidence only; they do not run AI or authorize external execution.</p></section>';
@@ -358,6 +408,9 @@ final class Portal
     private function financeOperations():void
     {
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);$costUnavailable=($kpi['query_state']??'UNAVAILABLE')!=='AVAILABLE';$denominators=(new LifecycleDenominatorReadModel())->snapshot();$exceptions=(new OperationalExceptionReadModel())->snapshot(50);$ledgerExceptions=(array)$exceptions['finance_ledger'];$taxExceptions=(array)$exceptions['tax'];
+        $financeOps=(new FinanceOperationsReadModel())->snapshot(25);$periods=(array)$financeOps['periods'];
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Profitability periods</h2><p>Deterministic local ledger rollups for revenue, costs, profit and margin. Metrics are displayed only when their persisted hash verifies.</p></div><span class="df-status">READ ONLY</span></div>';
+        if(($financeOps['query_state']['periods']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Finance period evidence unavailable. Profitability is not inferred.</div>';}elseif($periods===[]){echo '<div class="df-empty">No calculated finance periods in the bounded view.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Period</th><th>Environment</th><th>Revenue</th><th>Net operating profit</th><th>Margin</th><th>Reconciliation</th><th>Evidence</th></tr></thead><tbody>';foreach($periods as $row){$m=(array)$row['metrics'];echo '<tr><td>'.esc_html((string)$row['period_start'].' — '.(string)$row['period_end']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html(!empty($row['metrics_valid'])?number_format((float)($m['gross_revenue']??0),2).' '.(string)$row['base_currency']:'UNVERIFIED').'</td><td>'.esc_html(!empty($row['metrics_valid'])?number_format((float)($m['net_operating_profit']??0),2).' '.(string)$row['base_currency']:'UNVERIFIED').'</td><td>'.esc_html(!empty($row['metrics_valid'])?number_format((float)($m['margin_percent']??0),2).'%':'UNVERIFIED').'</td><td>'.esc_html(!empty($row['metrics_valid'])?(string)($m['unresolved_reconciliation_count']??'UNKNOWN'):'UNVERIFIED').'</td><td>'.esc_html(!empty($row['metrics_valid'])?'HASH VERIFIED':'BLOCKED').'</td></tr>';}echo '</tbody></table></div>';}echo '<p class="df-muted">Profitability evidence cannot move money, approve refunds, file GST/tax, or authorize external accounting actions.</p></section>';
         if(($exceptions['query_state']['finance_ledger']??'UNAVAILABLE')!=='AVAILABLE'||($exceptions['query_state']['tax']??'UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">Finance or tax exception evidence unavailable. Database read failed; no empty review queue is inferred.</div>';echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI cost KPIs</h2><p>Actual and estimated attributable AI cost for the selected shop scope.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attributed units</span><b>'.esc_html($costUnavailable?'UNAVAILABLE':(string)$kpi['quantity']).'</b></div><div><span>Estimated cost</span><b>'.esc_html($costUnavailable?'UNAVAILABLE':number_format((float)$kpi['estimated_cost'],4)).'</b></div><div><span>Actual cost</span><b>'.esc_html($costUnavailable?'UNAVAILABLE':number_format((float)$kpi['actual_cost'],4)).'</b></div><div><span>Cost / unit</span><b>'.esc_html($costUnavailable?'UNAVAILABLE':number_format((float)$kpi['cost_per_attributed_unit'],4)).'</b></div></div></section>';echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Lifecycle denominators</h2><p>Authoritative raw lifecycle counts only. They are not attributed to AI spend.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Opportunities</span><b>'.esc_html((string)$denominators['opportunities']).'</b></div><div><span>Developed products</span><b>'.esc_html((string)$denominators['developed_products']).'</b></div><div><span>Approved listings</span><b>'.esc_html((string)$denominators['approved_listings']).'</b></div><div><span>Received orders</span><b>'.esc_html((string)$denominators['received_orders']).'</b></div></div><p class="df-muted">AI cost attribution: NOT ESTABLISHED</p></section>';echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Finance / GST exceptions</h2><p>Unreconciled ledger and tax-review evidence only.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Ledger exceptions</span><b>'.esc_html(($exceptions['query_state']['finance_ledger']??'UNAVAILABLE')==='AVAILABLE'?(string)count($ledgerExceptions):'UNAVAILABLE').'</b></div><div><span>Tax/GST review exceptions</span><b>'.esc_html(($exceptions['query_state']['tax']??'UNAVAILABLE')==='AVAILABLE'?(string)count($taxExceptions):'UNAVAILABLE').'</b></div><div><span>Money movement authority</span><b>NO</b></div><div><span>Tax filing authority</span><b>NO</b></div></div><p class="df-muted">Exception evidence never files GST/tax, changes tax classification, issues refunds, or moves money.</p>';if($ledgerExceptions!==[]||$taxExceptions!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Type</th><th>ID</th><th>Source</th><th>Status</th><th>Audit identity</th><th>Workflow</th></tr></thead><tbody>';foreach(array_slice($ledgerExceptions,0,25) as $row){echo '<tr><td>Ledger</td><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['source_type']).' #'.esc_html((string)$row['source_id']).'</td><td>'.esc_html((string)$row['reconciliation_state']).'</td><td><code>finance_ledger:'.esc_html((string)$row['id']).'</code></td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('audit')).'">Open audit/reconciliation</a></td></tr>';}foreach(array_slice($taxExceptions,0,25) as $row){echo '<tr><td>Tax/GST</td><td>#'.esc_html((string)$row['id']).'</td><td>'.esc_html((string)$row['source_type']).' #'.esc_html((string)$row['source_id']).'</td><td>'.esc_html((string)$row['classification']).' / '.esc_html((string)$row['review_status']).'</td><td><code>tax_classification:'.esc_html((string)$row['id']).'</code></td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('audit')).'">Open audit/reconciliation</a></td></tr>';}echo '</tbody></table></div>';}echo '</section>';
         foreach($this->tables('finance') as $label=>$table)$this->panelTable($label,$table);
     }
@@ -401,6 +454,19 @@ final class Portal
     {
         $m=PersonalizedCatalogReference::metadata();
         $ops=(new ShopOperationsReadModel())->snapshot('personalized_pod');$catalog=(array)($ops['catalog']??[]);
+        $phase1=(new PersonalizedPodOperationsReadModel())->snapshot(50);$phaseCounts=(array)($phase1['counts']??[]);
+        $renders=(new RenderEvidenceOperationsReadModel())->snapshot(50);$renderCounts=(array)($renders['counts']??[]);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Buyer-specific artwork & mockup review</h2><p>Certified render evidence binds the approved personalization, provider mapping and production template. Human visual review is required before an authorization package can be created.</p></div><span class="df-status">HUMAN GATE</span></div>';
+        if(($renders['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Render evidence is unavailable. DigiForge does not infer that artwork or mockups are approved.</div>';}else{echo '<div class="df-signal-grid"><div><span>Render evidence</span><b>'.esc_html((string)($renderCounts['renders']??0)).'</b></div><div><span>Awaiting visual review</span><b>'.esc_html((string)($renderCounts['unreviewed']??0)).'</b></div><div><span>Human approved</span><b>'.esc_html((string)($renderCounts['approved']??0)).'</b></div><div><span>Provider execution authority</span><b>NO</b></div></div>';$renderItems=(array)($renders['items']??[]);if($renderItems===[]){echo '<div class="df-empty">No buyer-specific render evidence in the bounded view.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Render</th><th>Order</th><th>Template</th><th>Mode</th><th>Review</th><th>Action</th></tr></thead><tbody>';foreach($renderItems as $item){echo '<tr><td>#'.esc_html((string)$item['render_evidence_id']).'</td><td>#'.esc_html((string)$item['order_id']).'</td><td>'.esc_html((string)$item['template_key'].' @ '.(string)$item['template_version']).'</td><td>'.esc_html((string)$item['render_mode']).'</td><td>'.esc_html((string)$item['review_status']).'</td><td>';if(($item['review_status']??'')==='UNREVIEWED'){echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" class="df-inline-form"><input type="hidden" name="action" value="'.esc_attr(self::POD_RENDER_REVIEW_ACTION).'"><input type="hidden" name="render_evidence_id" value="'.esc_attr((string)$item['render_evidence_id']).'">';wp_nonce_field(self::POD_RENDER_REVIEW_ACTION);echo '<button class="button" type="submit">Approve visual render</button></form>';}else echo 'Reviewed';echo '</td></tr>';}echo '</tbody></table></div>';}}echo '<p class="df-muted">Visual approval records evidence only. It cannot create a production permit or submit a provider order.</p></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Phase-1 Personalized POD operations</h2><p>Human-approved authorization packages and current Printify preflight evidence. This view is operational evidence only: it cannot issue a permit, submit production, retry a provider call or infer approval.</p></div><span class="df-status">PHASE 1 · EXTERNALLY LOCKED</span></div>';
+        if(($phase1['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Personalized POD operating evidence is unavailable. Database read failed; an empty or safe queue is not inferred.</div>';}
+        else{
+            echo '<div class="df-signal-grid"><div><span>Packages in bounded view</span><b>'.esc_html((string)($phaseCounts['packages']??0)).'</b></div><div><span>Human review required</span><b>'.esc_html((string)($phaseCounts['human_review_required']??0)).'</b></div><div><span>Preflight current</span><b>'.esc_html((string)($phaseCounts['preflight_current']??0)).'</b></div><div><span>Revalidation required</span><b>'.esc_html((string)($phaseCounts['revalidation_required']??0)).'</b></div><div><span>Evaluation errors</span><b>'.esc_html((string)($phaseCounts['evaluation_errors']??0)).'</b></div><div><span>Provider execution authority</span><b>NO</b></div></div>';
+            $phaseItems=(array)($phase1['items']??[]);
+            if($phaseItems===[]){echo '<div class="df-empty">No Personalized POD authorization packages in the bounded operating view.</div>';}
+            else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Package</th><th>Order</th><th>Package state</th><th>Operator state</th><th>Provider mapping</th><th>Blockers</th><th>Retry</th><th>Execution</th></tr></thead><tbody>';foreach($phaseItems as $item){$blockers=(array)($item['blockers']??[]);echo '<tr><td>#'.esc_html((string)$item['package_id']).'</td><td>#'.esc_html((string)$item['order_id']).'</td><td>'.esc_html((string)$item['package_state']).'</td><td>'.esc_html((string)$item['operator_state']).'</td><td>#'.esc_html((string)$item['provider_mapping_id']).'</td><td>'.esc_html($blockers===[]?'NONE':implode(', ',$blockers)).'</td><td>NO</td><td>LOCKED';if(($item['package_state']??'')==='REVIEW_REQUIRED'){echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" class="df-inline-form"><input type="hidden" name="action" value="'.esc_attr(self::POD_PACKAGE_REVIEW_ACTION).'"><input type="hidden" name="package_id" value="'.esc_attr((string)$item['package_id']).'">';wp_nonce_field(self::POD_PACKAGE_REVIEW_ACTION);echo '<button class="button" type="submit">Record human package review</button></form>';}echo '</td></tr>';}echo '</tbody></table></div>';}
+        }
+        echo '<p class="df-muted">PREFLIGHT_CURRENT means the already human-approved package still matches current order readiness, approved Printify mapping/geometry, validated production template and active business ownership. It does not authorize production. STOP ALL and the external safety lock continue to outrank this evidence.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 governed source</h2><p>Immutable Personalized POD reference. Catalog data is evidence, not production authority.</p></div><span class="df-status">'.esc_html((string)$m['source_state']).'</span></div>';
         echo '<div class="df-signal-grid"><div><span>Catalog</span><b>'.esc_html((string)$m['catalog_key']).'</b></div><div><span>Concepts</span><b>'.esc_html((string)$m['listing_count']).'</b></div><div><span>Engines</span><b>'.esc_html((string)$m['personalization_engine_count']).'</b></div><div><span>Production authority</span><b>NO</b></div></div></section>';
         if(($ops['query_state']['catalog']??'UNAVAILABLE')!=='AVAILABLE')echo '<section class="df-panel"><div class="df-notice df-notice-error">Governed catalog evidence unavailable. Database read failed; missing catalog evidence is not inferred.</div></section>';elseif($catalog!==[])echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Governed catalog version</h2><p>Persisted provenance and migration lineage. Visibility does not grant production authority.</p></div><span class="df-status">'.esc_html((string)($catalog['source_state']??'UNKNOWN')).'</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html((string)($catalog['version_label']??'' )).'</b></div><div><span>Rows</span><b>'.esc_html((string)($catalog['row_count']??0)).'</b></div><div><span>Parent version</span><b>'.esc_html((string)($catalog['parent_version_id']??0)).'</b></div><div><span>Authority</span><b>'.(!empty($catalog['production_authority'])?'YES':'NO').'</b></div></div><p class="df-muted">Source SHA256: '.esc_html((string)($catalog['source_sha256']??'')).' · Fingerprint: '.esc_html((string)($catalog['fingerprint']??'')).'</p></section>';
@@ -448,6 +514,7 @@ final class Portal
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         $shopOps=(new ShopOperationsReadModel())->snapshot($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Current shop scope</h2><p>Dashboard counts remain authoritative global counts unless explicitly labeled shop-scoped.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Scope</span><b>'.esc_html((string)$shopOps['shop_label']).'</b></div><div><span>AI policies in scope</span><b>'.esc_html(($shopOps['query_state']['ai_policies']??'UNAVAILABLE')==='AVAILABLE'?(string)count((array)$shopOps['ai_policies']):'UNAVAILABLE').'</b></div><div><span>AI usage groups in scope</span><b>'.esc_html(($shopOps['query_state']['ai_usage']??'UNAVAILABLE')==='AVAILABLE'?(string)count((array)$shopOps['ai_usage']):'UNAVAILABLE').'</b></div><div><span>External execution</span><b>NO</b></div></div></section>';
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Stage-F operator pulse</h2><p>Action-oriented acceptance summary across human gates and operational exceptions. UNKNOWN or unavailable evidence is never treated as clear.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Attention evidence</span><b>'.esc_html($attentionUnavailable?'UNAVAILABLE':'AVAILABLE').'</b></div><div><span>Orders needing reconciliation</span><b>'.esc_html($attentionSummary['orders_needing_reconciliation']===null?'UNAVAILABLE':(string)$attentionSummary['orders_needing_reconciliation']).'</b></div><div><span>Fulfillment decisions</span><b>'.esc_html($attentionSummary['fulfillment_decisions']===null?'UNAVAILABLE':(string)$attentionSummary['fulfillment_decisions']).'</b></div><div><span>Open alerts</span><b>'.esc_html($attentionSummary['open_operational_alerts']===null?'UNAVAILABLE':(string)$attentionSummary['open_operational_alerts']).'</b></div><div><span>External execution authority</span><b>NO</b></div></div>'.($attentionUnavailable?'<div class="df-notice df-notice-error">One or more operator evidence sources are unavailable. Stage-F operational readiness is not inferred.</div>':'').'<div class="df-actions"><a class="df-button" href="'.esc_url($this->url('approvals')).'">Open approvals</a><a class="df-button" href="'.esc_url($this->url('attention')).'">Open attention</a><a class="df-button" href="'.esc_url($this->url('audit')).'">Open reconciliation</a></div></section>';
         echo '<section class="df-card-grid">';
         foreach ($cards as $label => $value) {
             echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>'
@@ -703,7 +770,7 @@ final class Portal
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Future Non-Personalized POD</h2><p>Reserved product lane for future POD products that do not require customer personalization.</p></div><span class="df-status">PLANNED · INERT</span></div>';
         echo '<div class="df-notice">This lane is intentionally planning/read-only only. No non-personalized POD execution, publishing, ordering, fulfillment, or provider activation is enabled by this tab.</div>';
         echo '<div class="df-signal-grid">'
-            . '<div><span>Current personalized lane</span><b>ACTIVE FOUNDATION</b></div>'
+            . '<div><span>Current personalized lane</span><b>PHASE 1 · OPERATIONAL / EXTERNALLY LOCKED</b></div>'
             . '<div><span>Non-personalized execution</span><b>NOT IMPLEMENTED</b></div>'
             . '<div><span>External provider actions</span><b>LOCKED</b></div>'
             . '<div><span>Product publishing</span><b>OFF</b></div>'
