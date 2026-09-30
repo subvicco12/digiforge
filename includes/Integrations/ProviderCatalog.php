@@ -76,6 +76,8 @@ final class ProviderCatalog
                 'config_fields' => [
                     'hosting_account' => 'Hosting account username',
                     'staging_domain' => 'Approved isolated staging domain',
+                    'archive_path' => 'Pre-uploaded WordPress archive path on staging',
+                    'database_path' => 'Pre-uploaded SQL file path on staging',
                 ],
             ],
             'ai' => [
