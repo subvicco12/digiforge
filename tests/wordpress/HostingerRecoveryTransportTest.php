@@ -34,7 +34,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         delete_option('digiforge_recovery_orchestration');
         delete_option('digiforge_recovery_dispatch_interlock');
         self::assertIsArray(RecoveryBackupIdentityMarker::prepare($this->key));
-        self::assertTrue(RecoveryEvidence::storeDatabaseBackup(['identifier'=>'backup-'.$this->key,'captured_at'=>gmdate('c',time()-60),'location'=>'backup.sql','verification_method'=>'retrieval','verified_at'=>gmdate('c'),'verified_by'=>'test','retrievable'=>true]));
+        self::assertTrue(RecoveryEvidence::storeDatabaseBackup(['identifier'=>'backup-'.$this->key,'captured_at'=>gmdate('c'),'location'=>'backup.sql','verification_method'=>'retrieval','verified_at'=>gmdate('c'),'verified_by'=>'test','retrievable'=>true]));
         self::assertIsArray(RecoveryBackupIdentityBinding::bind($this->key,'backup-'.$this->key));
         self::assertTrue(RecoveryEvidence::storePluginPackage(['identifier'=>'package-'.$this->key,'version'=>'test','source_commit'=>str_repeat('a',40),'sha256'=>str_repeat('b',64),'location'=>'package.zip','retrievable'=>true,'checksum_verified'=>true]));
         $this->config = ['hosting_account'=>'test_account','staging_domain'=>'isolated.example.org','archive_path'=>'backup.zip','database_path'=>'backup.sql','database_backup_identifier'=>'backup-'.$this->key,'plugin_package_identifier'=>'package-'.$this->key];
