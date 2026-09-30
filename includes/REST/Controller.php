@@ -9,6 +9,7 @@ use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Operations\RecoveryDrillEvidence;
 use DigiForge\Operations\RecoveryOrchestrator;
 use DigiForge\Operations\RecoveryStagingVerifier;
+use DigiForge\Operations\RecoveryVerificationEvidence;
 use DigiForge\Launch\PrintifyActivationPreflight;
 use DigiForge\Launch\EtsyDraftActivationPreflight;
 use DigiForge\Launch\RemainingActivationPreflight;
@@ -91,6 +92,9 @@ final class Controller {
         $operationKey = trim(sanitize_text_field((string)($request->get_param('operation_key') ?? '')));
         $result = RecoveryStagingVerifier::verify($operationKey);
         if ($result instanceof \WP_Error) return $result;
+        $evidence = RecoveryVerificationEvidence::record($result);
+        if ($evidence instanceof \WP_Error) return $evidence;
+        $result['verification_evidence'] = $evidence;
         if (! Logger::write('recovery_orchestration_staging_verified', ['operation_key' => $operationKey, 'verified' => (bool)($result['verified'] ?? false), 'target_site_url' => (string)($result['target_site_url'] ?? ''), 'plugin_package_identifier' => (string)($result['plugin_package_identifier'] ?? ''), 'database_backup_identifier' => (string)($result['database_backup_identifier'] ?? ''), 'external_actions_performed' => false, 'commerce_execution_authorized' => false], 'system', 'recovery_orchestration')) {
             return new \WP_Error('digiforge_recovery_verify_audit_failed', __('Recovery verification audit evidence could not be persisted.', 'digiforge'), ['status' => 500]);
         }
