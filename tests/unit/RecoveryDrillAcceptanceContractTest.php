@@ -9,9 +9,10 @@ final class RecoveryDrillAcceptanceContractTest extends TestCase
     public function testAcceptanceIsProofBoundAndCannotExecuteRecovery(): void
     {
         $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryDrillAcceptance.php');
-        foreach (['RecoveryOrchestrator::safetyLocked()','RecoveryDispatchLedger::safetyLocked()','RecoveryDrillReviewCandidate::build($operationKey)','verification_evidence_hash','database_identity_verified','RecoveryDrillEvidence::store($record)',"'external_actions_performed'=>false","'external_execution_authorized'=>false"] as $needle) self::assertStringContainsString($needle,$code);
+        foreach (['RecoveryOrchestrator::safetyLocked()','RecoveryDispatchLedger::safetyLocked()','RecoveryDrillReviewCandidate::build($operationKey)','verification_evidence_hash','database_identity_verified','Logger::write(\'recovery_drill_human_acceptance_authorized\'' ,'RecoveryDrillEvidence::store($record)',"'external_actions_performed'=>false","'external_execution_authorized'=>false"] as $needle) self::assertStringContainsString($needle,$code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute',$code);
         self::assertStringNotContainsString('wp_remote_',$code);
+        self::assertLessThan(strpos($code,'RecoveryDrillEvidence::store($record)'), strpos($code,"Logger::write('recovery_drill_human_acceptance_authorized'"));
     }
 
     public function testLegacyCallerSuppliedDrillEvidencePostIsRemoved(): void
