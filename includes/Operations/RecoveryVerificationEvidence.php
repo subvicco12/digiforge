@@ -66,4 +66,14 @@ final class RecoveryVerificationEvidence
         }
         return $record + ['replayed' => false];
     }
+    /** @return array<string,mixed>|\WP_Error */
+    public static function read(string $operationKey): array|\WP_Error
+    {
+        $operationKey = trim($operationKey);
+        if ($operationKey === '') {
+            return new \WP_Error('digiforge_recovery_verification_operation_required', __('A recovery operation key is required.', 'digiforge'), ['status' => 400]);
+        }
+        return RecoveryDispatchLedger::read(self::PREFIX . hash('sha256', $operationKey));
+    }
+
 }
