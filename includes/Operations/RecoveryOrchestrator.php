@@ -150,7 +150,7 @@ final class RecoveryOrchestrator
             'updated_at' => gmdate('c'),
         ];
         if (! update_option(self::OPTION, $stored, false)) {
-            return new \\WP_Error('digiforge_recovery_execution_persist_failed', __('Provider execution returned a result, but DigiForge could not persist it. Reconciliation is required before any retry.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
+            return new \WP_Error('digiforge_recovery_execution_persist_failed', __('Provider execution returned a result, but DigiForge could not persist it. Reconciliation is required before any retry.', 'digiforge'), ['status' => 500, 'reconciliation_required' => true]);
         }
 
         return self::snapshot();
