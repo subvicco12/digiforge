@@ -20,6 +20,9 @@ use DigiForge\Integrations\Repository as IntegrationRepository;
 use DigiForge\Operations\Readiness;
 use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Operations\RecoveryOrchestrator;
+use DigiForge\Operations\RecoveryVerificationEvidence;
+use DigiForge\Operations\RecoveryDrillReviewCandidate;
+use DigiForge\Operations\RecoveryDrillAcceptance;
 use DigiForge\Operations\OperationalExceptionReadModel;
 use DigiForge\Operations\AuditCorrelationReadModel;
 use DigiForge\POD\ProviderStatusReadModel;
@@ -37,6 +40,7 @@ final class Portal
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
+    private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -71,6 +75,7 @@ final class Portal
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
+        add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
     }
 
     public function render(): string
@@ -169,6 +174,21 @@ final class Portal
             ? 'Recovery plan recorded safely. A governed hosting-provider adapter is still required before execution.'
             : 'Recovery plan recorded. Provider capability is available for a separately governed execution step.';
         $this->redirect('attention', $message);
+    }
+
+    public function recoveryAccept(): void
+    {
+        $this->guard('manage_digiforge');
+        check_admin_referer(self::RECOVERY_ACCEPT_ACTION);
+        $operationKey = isset($_POST['operation_key']) ? sanitize_text_field(wp_unslash($_POST['operation_key'])) : '';
+        $evidenceHash = isset($_POST['verification_evidence_hash']) ? strtolower(sanitize_text_field(wp_unslash($_POST['verification_evidence_hash']))) : '';
+        $user = wp_get_current_user();
+        $performedBy = (string) ($user->user_email ?: $user->user_login);
+        $result = RecoveryDrillAcceptance::accept($operationKey, $evidenceHash, $performedBy);
+        if (is_wp_error($result)) {
+            $this->redirect('attention', $result->get_error_message(), true);
+        }
+        $this->redirect('attention', 'Verified staging recovery drill accepted and recorded. No restore, retry, commerce action or external execution was performed.');
     }
 
     public function listingReview(): void
@@ -470,6 +490,21 @@ final class Portal
         $recoveryEvidence=RecoveryEvidence::snapshot();$dbEvidence=(array)($recoveryEvidence['database_backup']??[]);$pkgEvidence=(array)($recoveryEvidence['plugin_package']??[]);$backupHistory=(array)($recoveryEvidence['database_backup_history']??[]);$drillEvidence=(array)($readiness['recovery_drill_evidence']??[]);
         $orchestration=RecoveryOrchestrator::snapshot();
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Governed recovery orchestration</h2><p>Create an isolated staging recovery plan from the current verified artifacts. Planning never executes a restore.</p></div><span class="df-status">'.esc_html((string)$orchestration['state']).'</span></div><div class="df-signal-grid"><div><span>Provider capability</span><b>'.(!empty($orchestration['provider_capability_available'])?'AVAILABLE':'REQUIRED').'</b></div><div><span>Target</span><b>'.esc_html((string)($orchestration['target_site_url']?:'NOT PLANNED')).'</b></div><div><span>Database artifact</span><b>'.esc_html((string)($orchestration['database_backup_identifier']?:'NOT BOUND')).'</b></div><div><span>Plugin artifact</span><b>'.esc_html((string)($orchestration['plugin_package_identifier']?:'NOT BOUND')).'</b></div><div><span>Commerce authority</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div><form class="df-review-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::RECOVERY_PLAN_ACTION).'">'; wp_nonce_field(self::RECOVERY_PLAN_ACTION); echo '<label>Isolated staging URL <input type="url" name="target_site_url" required placeholder="https://staging.example.com/" value="'.esc_attr((string)$orchestration['target_site_url']).'"></label><label>Operation key <input type="text" name="operation_key" required maxlength="128" value=""></label><button class="df-button df-button-primary" type="submit">Create recovery plan</button></form><p class="df-muted">The current DigiForge site is rejected as a target. A plan is bound to the current verified database backup and certified plugin package. Execution remains unavailable until a governed hosting-provider adapter is registered, and verified drill evidence is always a separate gate.</p></section>';
+        $recoveryOperationKey=(string)($orchestration['operation_key']??'');
+        $verificationReceipt=$recoveryOperationKey!==''?RecoveryVerificationEvidence::read($recoveryOperationKey):[];
+        $reviewCandidate=$recoveryOperationKey!==''?RecoveryDrillReviewCandidate::build($recoveryOperationKey):[];
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Recovery verification & human acceptance</h2><p>Review immutable staging verification evidence. Acceptance records a human recovery-drill decision only; it cannot execute or retry recovery.</p></div><span class="df-status">HUMAN CONTROLLED</span></div>';
+        if($recoveryOperationKey===''){echo '<div class="df-empty">Create a governed recovery plan before verification evidence can be reviewed.</div>';}
+        elseif(is_wp_error($verificationReceipt)||$verificationReceipt===[]){echo '<div class="df-notice df-notice-error">Immutable staging verification evidence is not available for the current recovery operation. Acceptance is withheld.</div>';}
+        elseif(is_wp_error($reviewCandidate)){echo '<div class="df-notice df-notice-error">'.esc_html($reviewCandidate->get_error_message()).' Acceptance is withheld.</div>';}
+        else{
+            $checks=(array)($verificationReceipt['checks']??[]);
+            $blocked=($reviewCandidate['acceptance_blocked']??true)!==false;
+            echo '<div class="df-signal-grid"><div><span>Operation</span><b><code>'.esc_html(substr($recoveryOperationKey,0,20)).'…</code></b></div><div><span>Verification evidence</span><b><code>'.esc_html(substr((string)($reviewCandidate['verification_evidence_hash']??''),0,16)).'…</code></b></div><div><span>Database identity</span><b>'.(!empty($checks['database_identity_verified'])?'VERIFIED':'BLOCKED').'</b></div><div><span>Schema</span><b>'.(!empty($checks['schema_current'])?'VERIFIED':'BLOCKED').'</b></div><div><span>Application health</span><b>'.(!empty($checks['health_ok'])?'VERIFIED':'BLOCKED').'</b></div><div><span>Acceptance</span><b>'.($blocked?'WITHHELD':'READY FOR HUMAN REVIEW').'</b></div></div>';
+            if($blocked){echo '<div class="df-notice df-notice-error">Acceptance blocked: '.esc_html((string)($reviewCandidate['acceptance_blocker']??'VERIFICATION_INCOMPLETE')).'. No drill PASS can be recorded.</div>';}
+            else{echo '<form class="df-review-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::RECOVERY_ACCEPT_ACTION).'"><input type="hidden" name="operation_key" value="'.esc_attr($recoveryOperationKey).'"><input type="hidden" name="verification_evidence_hash" value="'.esc_attr((string)$reviewCandidate['verification_evidence_hash']).'">';wp_nonce_field(self::RECOVERY_ACCEPT_ACTION);echo '<button class="df-button df-button-primary" type="submit">Accept verified recovery drill</button></form><p class="df-muted">This explicit human action is bound to the exact immutable verification receipt. It records drill evidence only and grants no restore, retry, Etsy, POD, order, tax or other commerce authority.</p>';}
+        }
+        echo '</section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Queue recovery & release safety</h2><p>Queue failures, concrete recovery evidence and release locks are operator-visible. Visibility does not execute recovery.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Queue query</span><b>'.(!empty($queueRecovery['query_ok'])?'VERIFIED':'FAILED').'</b></div><div><span>Queue attention</span><b>'.esc_html((string)($queueRecovery['attention_total']??0)).'</b></div><div><span>Recovery drill</span><b>'.esc_html((string)($readiness['recovery']['status']??'UNKNOWN')).'</b></div><div><span>Drill evidence</span><b>'.(!empty($drillEvidence['passed'])?'VERIFIED / FRESH':'MISSING / STALE / MISMATCH').'</b></div><div><span>DB backup evidence</span><b>'.esc_html((string)($recoveryEvidence['database_backup_status']??'MISSING')).'</b></div><div><span>Rollback package evidence</span><b>'.(!empty($recoveryEvidence['plugin_package_retrievable'])&&!empty($recoveryEvidence['plugin_package_identity_recorded'])&&!empty($recoveryEvidence['checksum_verified'])?'VERIFIED':'MISSING / UNPROVEN').'</b></div><div><span>Externally locked</span><b>'.(!empty($readiness['externally_locked'])?'YES':'NO').'</b></div></div><div class="df-table-wrap"><table class="df-table"><thead><tr><th>Evidence</th><th>Identifier</th><th>Captured/version</th><th>Source/checksum</th><th>Location</th><th>Retrievable</th></tr></thead><tbody><tr><td>Database backup</td><td>'.esc_html((string)($dbEvidence['identifier']??'NOT RECORDED')).'</td><td>'.esc_html((string)($dbEvidence['captured_at']??'—')).'</td><td>—</td><td>'.esc_html((string)($dbEvidence['location']??'—')).'</td><td>'.(!empty($recoveryEvidence['database_backup_retrievable'])?'VERIFIED / FRESH '.esc_html((string)($dbEvidence['verified_at']??'')):(!empty($dbEvidence['verified_at'])?'STALE / REVERIFY':'NO / UNKNOWN')).'</td></tr><tr><td>Rollback plugin</td><td>'.esc_html((string)($pkgEvidence['identifier']??'NOT RECORDED')).'</td><td>'.esc_html((string)($pkgEvidence['version']??'—')).'</td><td><code>'.esc_html(isset($pkgEvidence['source_commit'])?substr((string)$pkgEvidence['source_commit'],0,12).'…':'—').'</code> / '.(!empty($pkgEvidence['checksum_verified'])?'SHA VERIFIED':'UNVERIFIED').'</td><td>'.esc_html((string)($pkgEvidence['location']??'—')).'</td><td>'.(!empty($pkgEvidence['retrievable'])?'YES':'NO / UNKNOWN').'</td></tr></tbody></table></div><p class="df-muted"><strong>Host backup evidence handoff:</strong> after a real backup is created and independently verified outside DigiForge, registration requires identifier, captured_at, location, verification_method, verified_at, verified_by and retrievable=true. DigiForge records this provenance only; it does not create, retrieve or verify the host backup.</p><p class="df-muted"><strong>Recovery drill evidence handoff:</strong> after a real restore drill is performed, registration requires drill_id, performed_at, environment, database_backup_identifier, plugin_package_identifier, performed_by, plus restore_verified=true, schema_verified=true and application_health_verified=true. The artifact identifiers must exactly match the current verified recovery evidence.</p><p class="df-muted"><strong>Recovery drill evidence:</strong> '.esc_html((string)($drillEvidence['drill_id']??'NOT RECORDED')).'; performed '.esc_html((string)($drillEvidence['performed_at']??'—')).'; environment '.esc_html((string)($drillEvidence['environment']??'—')).'; backup binding '.esc_html((string)($drillEvidence['database_backup_identifier']??'—')).'; plugin binding '.esc_html((string)($drillEvidence['plugin_package_identifier']??'—')).'. Restore/schema/application-health verification must all be true, fresh and bound to the current artifacts. This display cannot perform a drill or authorize external execution.</p><p class="df-muted">Database backup verification expires after 24 hours. STALE / REVERIFY means independently confirm that the same backup is still retrievable and submit fresh verification provenance; do not merely refresh the timestamp. Missing or UNKNOWN artifact evidence is fail-closed. Evidence never grants retry, activation, Etsy publish, POD production or other external execution authority.</p><p><strong>Backup verification history:</strong> '.esc_html((string)count($backupHistory)).' most recent evidence record(s) available read-only; history never grants retry or execution authority.</p></section>';
         echo '<section class="df-panel" id="df-integrity-evidence"><div class="df-panel-head"><div><h2>Production integrity & persistence evidence</h2><p>Audit and reconciliation evidence only. These records never permit retry or external execution.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Open integrity in window</span><b>'.esc_html((string)($integrity['open_count']??0)).'</b></div><div><span>Historical integrity in window</span><b>'.esc_html((string)($integrity['historical_count']??0)).'</b></div><div><span>Acknowledged integrity in window</span><b>'.esc_html((string)($integrity['acknowledged_count']??0)).'</b></div><div><span>Persistence UNKNOWN</span><b>'.esc_html((string)($attention['production_permit_persistence_unknown']??0)).'</b></div></div>';
         echo '<p class="df-muted">Integrity categories reflect up to '.esc_html((string)($integrity['window_limit']??200)).' selected evidence records; they are not exhaustive totals. Persistence UNKNOWN is counted independently across recorded observations.</p>';
