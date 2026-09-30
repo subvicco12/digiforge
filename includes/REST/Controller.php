@@ -12,6 +12,7 @@ use DigiForge\Operations\RecoveryStagingVerifier;
 use DigiForge\Operations\RecoveryVerificationEvidence;
 use DigiForge\Operations\RecoveryDrillReviewCandidate;
 use DigiForge\Operations\RecoveryDrillAcceptance;
+use DigiForge\Operations\RecoveryOperationSupersession;
 use DigiForge\Operations\RecoveryBackupIdentityMarker;
 use DigiForge\Operations\RecoveryBackupIdentityBinding;
 use DigiForge\Operations\RecoveryBackupMarkerAttestation;
@@ -35,6 +36,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/evidence/plugin-package', ['methods' => 'POST', 'callback' => [$this, 'record_plugin_package_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/drill-evidence', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_evidence'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/drill-accept', ['methods' => 'POST', 'callback' => [$this, 'accept_recovery_drill'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/recovery/orchestration/supersede-stale', ['methods' => 'POST', 'callback' => [$this, 'supersede_stale_recovery'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration', ['methods' => 'GET', 'callback' => [$this, 'recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/plan', ['methods' => 'POST', 'callback' => [$this, 'plan_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/execute', ['methods' => 'POST', 'callback' => [$this, 'execute_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
@@ -126,6 +128,15 @@ final class Controller {
         $user=wp_get_current_user();
         $performedBy=(string)($user->user_email ?: $user->user_login);
         $result=RecoveryDrillAcceptance::accept($operationKey,$evidenceHash,$performedBy);
+        if ($result instanceof \WP_Error) return $result;
+        return new \WP_REST_Response($result,200);
+    }
+    public function supersede_stale_recovery(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $operationKey=trim(sanitize_text_field((string)($request->get_param('operation_key')??'')));
+        $confirmation=trim(sanitize_text_field((string)($request->get_param('confirmation')??'')));
+        $user=wp_get_current_user();
+        $performedBy=(string)($user->user_email ?: $user->user_login);
+        $result=RecoveryOperationSupersession::supersede($operationKey,$confirmation,$performedBy);
         if ($result instanceof \WP_Error) return $result;
         return new \WP_REST_Response($result,200);
     }
