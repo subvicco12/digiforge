@@ -32,7 +32,8 @@ final class RecoveryOrchestrator
             'database_backup_identifier' => (string) ($record['database_backup_identifier'] ?? ''),
             'plugin_package_identifier' => (string) ($record['plugin_package_identifier'] ?? ''),
             'provider' => (string) ($record['provider'] ?? ''),
-            'provider_capability_available' => has_filter('digiforge_recovery_provider_execute'),
+            'provider_capability_available' => RecoveryProviderRegistry::capabilities() !== [],
+            'provider_capabilities' => RecoveryProviderRegistry::capabilities(),
             'updated_at' => (string) ($record['updated_at'] ?? ''),
             'external_actions_performed' => false,
             'external_execution_authorized' => false,
@@ -80,7 +81,7 @@ final class RecoveryOrchestrator
         }
 
         $record = [
-            'state' => has_filter('digiforge_recovery_provider_execute') ? 'PLANNED' : 'PROVIDER_REQUIRED',
+            'state' => RecoveryProviderRegistry::capabilities() !== [] ? 'PLANNED' : 'PROVIDER_REQUIRED',
             'operation_key' => $operationKey,
             'target_environment' => 'staging',
             'target_site_url' => $targetSiteUrl,
@@ -107,11 +108,20 @@ final class RecoveryOrchestrator
         if ($operationKey === '' || ! hash_equals($record['operation_key'], $operationKey)) {
             return new \WP_Error('digiforge_recovery_operation_mismatch', __('The recovery operation key does not match the active plan.', 'digiforge'), ['status' => 409]);
         }
-        if (! has_filter('digiforge_recovery_provider_execute')) {
-            return new \WP_Error('digiforge_recovery_provider_required', __('No governed recovery provider adapter is registered.', 'digiforge'), ['status' => 501, 'state' => 'PROVIDER_REQUIRED']);
+        $capabilities = RecoveryProviderRegistry::capabilities();
+        $providerSlug = sanitize_key((string) ($record['provider'] ?? ''));
+        if ($providerSlug === '' && count($capabilities) === 1) {
+            $providerSlug = (string) array_key_first($capabilities);
+        }
+        $provider = RecoveryProviderRegistry::get($providerSlug);
+        if ($provider === null || (($capabilities[$providerSlug]['available'] ?? false) !== true)) {
+            return new \WP_Error('digiforge_recovery_provider_required', __('No available governed recovery provider adapter is registered.', 'digiforge'), ['status' => 501, 'state' => 'PROVIDER_REQUIRED']);
         }
 
-        $result = apply_filters('digiforge_recovery_provider_execute', null, $record);
+        $result = $provider->execute($record);
+        if ($result instanceof \WP_Error) {
+            return $result;
+        }
         if (! is_array($result)) {
             return new \WP_Error('digiforge_recovery_provider_invalid', __('The recovery provider returned no verifiable execution result.', 'digiforge'), ['status' => 502]);
         }
