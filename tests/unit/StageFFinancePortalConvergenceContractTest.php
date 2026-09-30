@@ -5,7 +5,7 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
 {
  public function testFinanceProjectionIsBoundedHashVerifiedAndNonAuthorizing():void{
   $r=(string)file_get_contents(__DIR__.'/../../includes/Finance/OperationsReadModel.php');
-  foreach(['min(50,','metrics_valid',"'money_movement_authorized'=>false","'tax_filing_authorized'=>false","'external_execution_authorized'=>false"]) as $v)self::assertStringContainsString($v,$r);
+  foreach(['min(50,','metrics_valid',"'money_movement_authorized'=>false","'tax_filing_authorized'=>false","'external_execution_authorized'=>false"] as $v)self::assertStringContainsString($v,$r);
   self::assertStringNotContainsString('wp_remote_',$r);
  }
  public function testPortalSurfacesProfitabilityWithoutFinancialAuthority():void{
