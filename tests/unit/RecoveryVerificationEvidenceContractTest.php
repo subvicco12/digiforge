@@ -10,7 +10,7 @@ final class RecoveryVerificationEvidenceContractTest extends TestCase
     {
         $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryVerificationEvidence.php');
         foreach ([
-            "('verified'] ?? false) !== true",
+            "(\$verification['verified'] ?? false) !== true",
             'RecoveryOrchestrator::snapshot()',
             "'reconciliation_required'] ?? false",
             "'target_environment'] ?? '') !== 'staging'",
