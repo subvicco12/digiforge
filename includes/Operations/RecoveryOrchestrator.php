@@ -325,7 +325,7 @@ final class RecoveryOrchestrator
         }
         $current = self::snapshot();
         $interlock = RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock');
-        if ($interlock instanceof \\WP_Error || !is_array($interlock) || $interlock === []
+        if ($interlock instanceof \WP_Error || !is_array($interlock) || $interlock === []
             || !hash_equals($operationKey,(string)($interlock['operation_key']??''))
             || ($current['manual_restore_reconciled']??false)!==true
             || ($current['state']??'')!=='VERIFY_REQUIRED') {
