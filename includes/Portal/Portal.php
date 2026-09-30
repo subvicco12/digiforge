@@ -303,6 +303,7 @@ final class Portal
         if ($view === 'audit') { $this->auditReconciliationOperations(); return; }
         if ($view === 'orders') { $this->orderOperations(); return; }
         if ($view === 'listings') { $this->listingOperations(); return; }
+        if ($view === 'digital') { $this->digitalFactoryOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'analytics') { $this->analyticsOperations(); return; }
         if ($view === 'automation') { $this->automationOperations(); return; }
@@ -345,6 +346,16 @@ final class Portal
         echo '<p class="df-muted">These links only navigate to governed internal workflows. This view cannot retry, publish, produce, fulfill, refund, change tax state, or move money.</p><p class="df-muted">Bounded non-secret audit identities available: '.esc_html($auditIdentityState==='AVAILABLE'?(string)count($auditIdentity):'UNAVAILABLE').'. Audit context payloads are excluded; visibility never grants retry or external execution authority.</p></section>';
         if($auditIdentityState!=='AVAILABLE')echo '<div class="df-notice df-notice-error">Audit identity evidence unavailable. Database read failed; an empty audit history is not inferred.</div>';
         $this->panelTable('Audit Log',Tables::audit_log());
+    }
+
+    private function digitalFactoryOperations():void
+    {
+        $repo=new \DigiForge\DigitalFactory\Repository();$products=$repo->all('digital_product',1,50);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
+        $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['APPROVED','RELEASE_READY','ACTIVE'],true))$counts['approved']++;}}
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
+        if(!$queryOk){echo '<div class="df-notice df-notice-error">Digital Factory evidence unavailable. Database reads failed; zero products or readiness is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>Recent digital products</span><b>'.esc_html((string)$counts['total']).'</b></div><div><span>Draft</span><b>'.esc_html((string)$counts['draft']).'</b></div><div><span>Review</span><b>'.esc_html((string)$counts['review']).'</b></div><div><span>Approved / release-ready</span><b>'.esc_html((string)$counts['approved']).'</b></div><div><span>External publish authority</span><b>NO</b></div></div>';if($items===[]){echo '<div class="df-empty">No digital products in the bounded view.</div>';}else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Digital product</th><th>Product version</th><th>Category</th><th>State</th><th>Readiness</th><th>Next governed step</th></tr></thead><tbody>';foreach($items as $row){$ready=is_array($row['readiness']??null)?$row['readiness']:json_decode((string)($row['readiness']??''),true);$blocked=is_array($ready)?count(array_filter($ready,static fn($v):bool=>$v!==true)):null;echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['name']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['category']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html($blocked===null?'UNVERIFIED':($blocked===0?'PASS':$blocked.' BLOCKED')).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('approvals')).'">Open Product Approval</a></td></tr>';}echo '</tbody></table></div>';}}
+        echo '<p class="df-muted">This view cannot publish to Etsy, mutate a marketplace listing, fulfill an order, or grant external execution authority.</p></section>';
+        foreach($this->tables('digital') as $label=>$table)$this->panelTable($label,$table);
     }
 
     private function listingOperations():void
