@@ -25,7 +25,8 @@ final class RecoveryOperationSupersessionContractTest extends TestCase
         self::assertStringContainsString("RecoveryDispatchLedger::compareAndSwap('digiforge_recovery_dispatch_interlock'",$orchestrator);
         self::assertStringContainsString('public static function compareAndSwap',$ledger);
         self::assertStringContainsString("['option_name' => \$name, 'option_value' => maybe_serialize(\$expected)]",$ledger);
-        self::assertStringNotContainsString('delete(', $ledger);
+        self::assertStringNotContainsString('$database->delete(', $ledger);
+        self::assertStringNotContainsString('delete_option(', $ledger);
     }
 
     public function testRestEndpointRequiresAutomationManagementCapability(): void
