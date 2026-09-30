@@ -17,6 +17,6 @@ final class RecoveryRestoredDatabaseAttestationContractTest extends TestCase
     public function testVerifierRequiresObservedMarkerToMatchImmutableBinding(): void
     {
         $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryStagingVerifier.php');
-        foreach (['RecoveryBackupIdentityBinding::read($operationKey)','RecoveryBackupIdentityMarker::read($operationKey)','database-backup/marker/','database_identity_verified','hash_equals'] as $needle) self::assertStringContainsString($needle,$code);
+        foreach (['RecoveryBackupIdentityBinding::read($identityOperationKey)','RecoveryBackupIdentityMarker::read($identityOperationKey)','database-backup/marker/','database_identity_verified','hash_equals',"(\$plan['backup_identity_binding_hash'] ?? '')"] as $needle) self::assertStringContainsString($needle,$code);
     }
 }

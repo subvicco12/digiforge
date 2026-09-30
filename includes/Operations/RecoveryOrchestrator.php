@@ -47,6 +47,8 @@ final class RecoveryOrchestrator
             'target_environment' => (string) ($record['target_environment'] ?? ''),
             'target_site_url' => (string) ($record['target_site_url'] ?? ''),
             'database_backup_identifier' => (string) ($record['database_backup_identifier'] ?? ''),
+            'backup_identity_operation_key' => (string) ($record['backup_identity_operation_key'] ?? ''),
+            'backup_identity_binding_hash' => (string) ($record['backup_identity_binding_hash'] ?? ''),
             'plugin_package_identifier' => (string) ($record['plugin_package_identifier'] ?? ''),
             'artifact_evidence_hash' => (string) ($record['artifact_evidence_hash'] ?? ''),
             'provider' => (string) ($record['provider'] ?? ''),
@@ -72,8 +74,9 @@ final class RecoveryOrchestrator
         $operationKey = trim(sanitize_text_field((string) ($input['operation_key'] ?? '')));
         $targetEnvironment = sanitize_key((string) ($input['target_environment'] ?? ''));
         $targetSiteUrl = esc_url_raw(trim((string) ($input['target_site_url'] ?? '')));
-        if ($operationKey === '' || strlen($operationKey) > 128 || $targetEnvironment !== 'staging' || $targetSiteUrl === '') {
-            return new \WP_Error('digiforge_recovery_plan_invalid', __('A bounded operation key and an explicit staging target URL are required.', 'digiforge'), ['status' => 400]);
+        $backupIdentityOperationKey = trim(sanitize_text_field((string) ($input['backup_identity_operation_key'] ?? '')));
+        if ($operationKey === '' || strlen($operationKey) > 128 || $backupIdentityOperationKey === '' || strlen($backupIdentityOperationKey) > 128 || $targetEnvironment !== 'staging' || $targetSiteUrl === '') {
+            return new \WP_Error('digiforge_recovery_plan_invalid', __('Bounded recovery and backup-identity operation keys plus an explicit staging target URL are required.', 'digiforge'), ['status' => 400]);
         }
 
         $home = trailingslashit(strtolower((string) home_url('/')));
@@ -91,11 +94,22 @@ final class RecoveryOrchestrator
             return new \WP_Error('digiforge_recovery_artifacts_unverified', __('Current verified and retrievable recovery artifacts are required.', 'digiforge'), ['status' => 409]);
         }
 
+        $identityBinding = RecoveryBackupIdentityBinding::read($backupIdentityOperationKey);
+        if ($identityBinding instanceof \WP_Error) { return $identityBinding; }
+        if ($identityBinding === []
+            || ($identityBinding['database_identity_proof_available'] ?? false) !== true
+            || ! hash_equals((string) ($backup['identifier'] ?? ''), (string) ($identityBinding['backup_identifier'] ?? ''))
+            || ! preg_match('/^[a-f0-9]{64}$/', (string) ($identityBinding['binding_hash'] ?? ''))) {
+            return new \WP_Error('digiforge_recovery_backup_identity_unbound', __('Recovery planning requires immutable identity evidence for the exact current database backup.', 'digiforge'), ['status' => 409]);
+        }
+
         $existing = self::snapshot();
         if ($existing['operation_key'] === $operationKey) {
             if ($existing['target_site_url'] !== $targetSiteUrl
                 || $existing['database_backup_identifier'] !== (string) ($backup['identifier'] ?? '')
                 || $existing['plugin_package_identifier'] !== (string) ($package['identifier'] ?? '')
+                || $existing['backup_identity_operation_key'] !== $backupIdentityOperationKey
+                || $existing['backup_identity_binding_hash'] !== (string) ($identityBinding['binding_hash'] ?? '')
                 || $existing['artifact_evidence_hash'] !== self::artifactEvidenceHash($artifacts)) {
                 return new \WP_Error('digiforge_recovery_idempotency_conflict', __('The recovery operation key is already bound to different inputs.', 'digiforge'), ['status' => 409]);
             }
@@ -112,6 +126,8 @@ final class RecoveryOrchestrator
             'target_environment' => 'staging',
             'target_site_url' => $targetSiteUrl,
             'database_backup_identifier' => (string) ($backup['identifier'] ?? ''),
+            'backup_identity_operation_key' => $backupIdentityOperationKey,
+            'backup_identity_binding_hash' => (string) ($identityBinding['binding_hash'] ?? ''),
             'plugin_package_identifier' => (string) ($package['identifier'] ?? ''),
             'artifact_evidence_hash' => self::artifactEvidenceHash($artifacts),
             'provider' => '',
@@ -193,6 +209,8 @@ final class RecoveryOrchestrator
             'target_environment' => $record['target_environment'],
             'target_site_url' => $record['target_site_url'],
             'database_backup_identifier' => $record['database_backup_identifier'],
+            'backup_identity_operation_key' => $record['backup_identity_operation_key'],
+            'backup_identity_binding_hash' => $record['backup_identity_binding_hash'],
             'plugin_package_identifier' => $record['plugin_package_identifier'],
             'artifact_evidence_hash' => $record['artifact_evidence_hash'],
             'provider' => $providerSlug,
