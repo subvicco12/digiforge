@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+use PHPUnit\Framework\TestCase;
+
+final class RecoveryStagingVerifierContractTest extends TestCase
+{
+    public function testVerifierIsReadOnlyFailClosedAndRequiresLockedStagingEvidence(): void
+    {
+        $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryStagingVerifier.php');
+        foreach ([
+            'RecoveryOrchestrator::snapshot()',
+            'RecoveryOrchestrator::safetyLocked()',
+            "'target_environment'] ?? '') !== 'staging'",
+            "'provider'] ?? '') !== 'hostinger'",
+            'wp_remote_get(',
+            "'redirection' => 0",
+            "'reject_unsafe_urls' => true",
+            "'sslverify' => true",
+            "'health_ok'",
+            "'stop_all_active'",
+            "'externally_locked'",
+            "'schema_current'",
+            "'plugin_version_exact'",
+            "'automation_disabled'",
+            "'activation_not_authorized'",
+            "'automation_unarmed'",
+            "'no_effective_feature_switches'",
+            "'drill_evidence_recorded' => false",
+            "'commerce_execution_authorized' => false",
+        ] as $needle) self::assertStringContainsString($needle,$code);
+        self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
+        self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
+        self::assertStringNotContainsString('wp_remote_post(', $code);
+        self::assertStringNotContainsString("'passed' => true", $code);
+    }
+
+    public function testManagementApiExposesSeparateVerificationOperation(): void
+    {
+        $controller=(string)file_get_contents(__DIR__.'/../../includes/REST/Controller.php');
+        self::assertStringContainsString("'/recovery/orchestration/verify'", $controller);
+        self::assertStringContainsString('RecoveryStagingVerifier::verify', $controller);
+        self::assertStringContainsString('recovery_orchestration_staging_verified', $controller);
+    }
+}
