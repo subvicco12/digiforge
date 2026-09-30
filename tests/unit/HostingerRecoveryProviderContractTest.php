@@ -20,11 +20,17 @@ final class HostingerRecoveryProviderContractTest extends TestCase
     public function testProviderTransportIsTargetBoundAndReconciliationFirst(): void
     {
         $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/HostingerRecoveryProvider.php');
-        foreach (["status = %s AND enabled = %d","'CONFIGURED'","'api_token'","'hosting_account'","'staging_domain'",'digiforge_hostinger_target_mismatch','digiforge_hostinger_current_site_refused','digiforge_hostinger_import_not_enabled'] as $needle) {
+        foreach (["status = %s AND enabled = %d","'CONFIGURED'","'api_token'","'hosting_account'","'staging_domain'",'digiforge_hostinger_target_mismatch','digiforge_hostinger_current_site_refused','digiforge_hostinger_artifact_paths_missing','digiforge_hostinger_result_unknown','digiforge_hostinger_reference_missing','digiforge_hostinger_reconcile_requires_site_verification'] as $needle) {
             self::assertStringContainsString($needle, $code);
         }
         self::assertStringContainsString('wp_remote_post(', $code);
         self::assertStringContainsString('CredentialVault::decrypt(', $code);
+        self::assertStringContainsString("'redirection' => 0", $code);
+        self::assertStringContainsString("'reject_unsafe_urls' => true", $code);
+        self::assertStringContainsString("'sslverify' => true", $code);
+        self::assertStringContainsString("'Idempotency-Key'", $code);
+        self::assertStringContainsString("'state' => 'in_progress'", $code);
+        self::assertStringContainsString("'reconciliation_required' => true", $code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString("'passed' => true", $code);
     }
