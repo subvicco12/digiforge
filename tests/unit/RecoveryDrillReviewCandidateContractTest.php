@@ -9,7 +9,7 @@ final class RecoveryDrillReviewCandidateContractTest extends TestCase
     public function testCandidateRequiresImmutableReceiptAndCannotRecordPass(): void
     {
         $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryDrillReviewCandidate.php');
-        foreach (['RecoveryOrchestrator::safetyLocked()','RecoveryVerificationEvidence::read($operationKey)',"'review_required' => true","'drill_evidence_recorded' => false","'passed' => false","'external_execution_authorized' => false","'commerce_execution_authorized' => false"] as $needle) self::assertStringContainsString($needle,$code);
+        foreach (['RecoveryOrchestrator::safetyLocked()','RecoveryVerificationEvidence::read($operationKey)',"'review_required' => true","'acceptance_blocked' => true","'acceptance_blocker' => 'DATABASE_IDENTITY_UNVERIFIED'","'restore_verified' => false","'database_identity_verified' => false","'drill_evidence_recorded' => false","'passed' => false","'external_execution_authorized' => false","'commerce_execution_authorized' => false"] as $needle) self::assertStringContainsString($needle,$code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
         self::assertStringNotContainsString('wp_remote_', $code);

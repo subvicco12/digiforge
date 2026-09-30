@@ -24,6 +24,8 @@ final class RecoveryDrillReviewCandidate
         }
         return [
             'review_required' => true,
+            'acceptance_blocked' => true,
+            'acceptance_blocker' => 'DATABASE_IDENTITY_UNVERIFIED',
             'operation_key' => $operationKey,
             'verification_evidence_hash' => (string) ($receipt['evidence_hash'] ?? ''),
             'environment' => 'staging',
@@ -32,7 +34,8 @@ final class RecoveryDrillReviewCandidate
             'target_site_url' => (string) ($receipt['target_site_url'] ?? ''),
             'verified_at' => (string) ($receipt['verified_at'] ?? ''),
             'proposed_checks' => [
-                'restore_verified' => true,
+                'restore_verified' => false,
+                'database_identity_verified' => false,
                 'schema_verified' => ($checks['schema_current'] ?? false) === true,
                 'application_health_verified' => ($checks['health_ok'] ?? false) === true
                     && ($checks['stop_all_active'] ?? false) === true
