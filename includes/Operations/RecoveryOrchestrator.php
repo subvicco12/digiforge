@@ -50,6 +50,9 @@ final class RecoveryOrchestrator
             'backup_identity_operation_key' => (string) ($record['backup_identity_operation_key'] ?? ''),
             'backup_identity_binding_hash' => (string) ($record['backup_identity_binding_hash'] ?? ''),
             'plugin_package_identifier' => (string) ($record['plugin_package_identifier'] ?? ''),
+            'plugin_package_version' => self::plannedPackageVersion($record),
+            'plugin_package_source_commit' => (string) ($record['plugin_package_source_commit'] ?? ''),
+            'plugin_package_sha256' => (string) ($record['plugin_package_sha256'] ?? ''),
             'artifact_evidence_hash' => (string) ($record['artifact_evidence_hash'] ?? ''),
             'provider' => (string) ($record['provider'] ?? ''),
             'provider_operation_reference' => (string) ($record['provider_operation_reference'] ?? ''),
@@ -109,6 +112,7 @@ final class RecoveryOrchestrator
             if ($existing['target_site_url'] !== $targetSiteUrl
                 || $existing['database_backup_identifier'] !== (string) ($backup['identifier'] ?? '')
                 || $existing['plugin_package_identifier'] !== (string) ($package['identifier'] ?? '')
+                || $existing['plugin_package_version'] !== (string) ($package['version'] ?? '')
                 || $existing['backup_identity_operation_key'] !== $backupIdentityOperationKey
                 || $existing['backup_identity_binding_hash'] !== (string) ($identityBinding['binding_hash'] ?? '')
                 || $existing['artifact_evidence_hash'] !== self::artifactEvidenceHash($artifacts)) {
@@ -130,6 +134,9 @@ final class RecoveryOrchestrator
             'backup_identity_operation_key' => $backupIdentityOperationKey,
             'backup_identity_binding_hash' => (string) ($identityBinding['binding_hash'] ?? ''),
             'plugin_package_identifier' => (string) ($package['identifier'] ?? ''),
+            'plugin_package_version' => (string) ($package['version'] ?? ''),
+            'plugin_package_source_commit' => (string) ($package['source_commit'] ?? ''),
+            'plugin_package_sha256' => (string) ($package['sha256'] ?? ''),
             'artifact_evidence_hash' => self::artifactEvidenceHash($artifacts),
             'provider' => '',
             'provider_operation_reference' => '',
@@ -213,6 +220,9 @@ final class RecoveryOrchestrator
             'backup_identity_operation_key' => $record['backup_identity_operation_key'],
             'backup_identity_binding_hash' => $record['backup_identity_binding_hash'],
             'plugin_package_identifier' => $record['plugin_package_identifier'],
+            'plugin_package_version' => $record['plugin_package_version'],
+            'plugin_package_source_commit' => $record['plugin_package_source_commit'],
+            'plugin_package_sha256' => $record['plugin_package_sha256'],
             'artifact_evidence_hash' => $record['artifact_evidence_hash'],
             'provider' => $providerSlug,
             'dispatch_state' => 'RECONCILIATION_REQUIRED',
@@ -277,6 +287,9 @@ final class RecoveryOrchestrator
             'backup_identity_operation_key' => $record['backup_identity_operation_key'],
             'backup_identity_binding_hash' => $record['backup_identity_binding_hash'],
             'plugin_package_identifier' => $record['plugin_package_identifier'],
+            'plugin_package_version' => $record['plugin_package_version'],
+            'plugin_package_source_commit' => $record['plugin_package_source_commit'],
+            'plugin_package_sha256' => $record['plugin_package_sha256'],
             'artifact_evidence_hash' => $record['artifact_evidence_hash'],
             'provider' => 'hostinger',
             'provider_operation_reference' => $providerReference,
@@ -310,6 +323,18 @@ final class RecoveryOrchestrator
             && Settings::get('activation_authorized', true) === false
             && Settings::get('automation_armed', true) === false
             && RecoveryDispatchLedger::safetyLocked();
+    }
+
+    /** Resolve the package version from immutable plan data; legacy plans derive it only from their frozen package identifier. */
+    public static function plannedPackageVersion(array $record): string
+    {
+        $version = trim((string) ($record['plugin_package_version'] ?? ''));
+        if ($version !== '') { return $version; }
+        $identifier = (string) ($record['plugin_package_identifier'] ?? '');
+        if (preg_match('/(?:^|-)v(\\d+\\.\\d+\\.\\d+)(?:-|$)/', $identifier, $matches) === 1) {
+            return (string) $matches[1];
+        }
+        return '';
     }
 
     public static function artifactEvidenceHash(array $artifacts): string
