@@ -49,11 +49,23 @@ final class ShopOperationsReadModel
             'shop'=>$shop,
             'shop_label'=>self::shops()[$shop],
             'query_state'=>['catalog'=>$catalogState,'ai_policies'=>$policiesState,'ai_usage'=>$usageState],
-            'catalog'=>$catalogState==='AVAILABLE'&&is_array($catalog)?$catalog:[],
+            'catalog'=>$catalogState==='AVAILABLE'&&is_array($catalog)?self::catalogEvidence($catalog):[],
             'ai_policies'=>$policiesState==='AVAILABLE'?$policies:[],
             'ai_usage'=>$usageState==='AVAILABLE'?$usage:[],
             'external_execution_performed'=>false,
         ];
+    }
+
+    /** @param array<string,mixed> $catalog @return array<string,mixed> */
+    private static function catalogEvidence(array $catalog):array
+    {
+        $migration=json_decode((string)($catalog['migration_metadata']??''),true);
+        $catalog['migration_metadata_valid']=is_array($migration);
+        $catalog['migration_metadata']=is_array($migration)?$migration:[];
+        $catalog['is_migration_candidate']=(int)($catalog['parent_version_id']??0)>0;
+        $catalog['production_authority']=false;
+        $catalog['promotion_authorized']=false;
+        return $catalog;
     }
 
     /** @return list<array<string,mixed>> */
