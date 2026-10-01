@@ -39,7 +39,7 @@ final class ShopOperationsEvidenceAvailabilityTest extends TestCase {
   try {
    $model=new \DigiForge\Portal\ShopOperationsReadModel();
    $state=null;self::assertSame([],$model->catalogItems(1,[],50,$state));self::assertSame('UNAVAILABLE',$state);
-   $stub->fail=false;$state=null;self::assertSame([],$model->catalogItems(1,[],50,$state));self::assertSame('AVAILABLE',$state);
+   $stub->fail=false;$stub->last_error='stale';$state=null;self::assertSame([],$model->catalogItems(1,[],50,$state));self::assertSame('AVAILABLE',$state);
   } finally { $GLOBALS['wpdb']=$previous; }
  }
 }
