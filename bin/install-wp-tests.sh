@@ -13,12 +13,12 @@ core_dir="${WP_CORE_DIR:-/tmp/wordpress}"
 rm -rf "${tests_dir}" "${core_dir}"
 mkdir -p "${tests_dir}" "${core_dir}"
 
-curl --fail --silent --show-error --location "https://wordpress.org/${wp_version}.tar.gz" |
+curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 2 "https://wordpress.org/${wp_version}.tar.gz" |
   tar --strip-components=1 -xz -C "${core_dir}"
 
-svn export --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/includes/ "${tests_dir}/includes"
-svn export --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/data/ "${tests_dir}/data"
-curl --fail --silent --show-error --location   https://develop.svn.wordpress.org/trunk/wp-tests-config-sample.php   --output "${tests_dir}/wp-tests-config.php"
+timeout 120 svn export --force --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/includes/ "${tests_dir}/includes"
+timeout 120 svn export --force --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/data/ "${tests_dir}/data"
+curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 2 https://develop.svn.wordpress.org/trunk/wp-tests-config-sample.php --output "${tests_dir}/wp-tests-config.php"
 
 sed -i "s/youremptytestdbnamehere/${database_name}/" "${tests_dir}/wp-tests-config.php"
 sed -i "s/yourusernamehere/${database_user}/" "${tests_dir}/wp-tests-config.php"
