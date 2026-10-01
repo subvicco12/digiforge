@@ -31,7 +31,7 @@ final class MasterCatalogV2IngestionReadModel
         if($ready){
             $wpdb->last_error='';
             $existing=$wpdb->get_row($wpdb->prepare(
-                'SELECT id,source_sha256,source_state,parent_version_id,row_count,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s ORDER BY id DESC LIMIT 1',
+                'SELECT id,source_sha256,source_state,parent_version_id,migration_metadata,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s ORDER BY id DESC LIMIT 1',
                 MasterCatalogV2Reference::CATALOG_KEY
             ),ARRAY_A);
             if(!empty($wpdb->last_error))return $this->blocked('V2_EVIDENCE_UNAVAILABLE');
@@ -40,7 +40,9 @@ final class MasterCatalogV2IngestionReadModel
                     &&(string)($existing['source_state']??'')==='MIGRATION_CANDIDATE'
                     &&(int)($existing['parent_version_id']??0)===(int)$parent['id']
                     &&(int)($existing['row_count']??0)===MasterCatalogV2Reference::ROW_COUNT
-                    &&(int)($existing['production_authority']??1)===0;
+                    &&preg_match('/^[a-f0-9]{64}$/',(string)($existing['fingerprint']??''))===1
+                    &&(int)($existing['production_authority']??1)===0
+                    &&$this->migrationEvidenceMatches((string)($existing['migration_metadata']??''),(int)$parent['id']);
                 return [
                     'query_state'=>'AVAILABLE',
                     'ingestion_readiness'=>$exact?'ALREADY_PERSISTED':'BLOCKED',
@@ -69,6 +71,20 @@ final class MasterCatalogV2IngestionReadModel
             'promotion_authorized'=>false,
             'external_execution_authorized'=>false,
         ];
+    }
+
+    private function migrationEvidenceMatches(string $json,int $parentVersionId):bool
+    {
+        $meta=json_decode($json,true);
+        return is_array($meta)
+            &&(string)($meta['source_state']??'')==='MIGRATION_CANDIDATE'
+            &&hash_equals(PersonalizedCatalogReference::CATALOG_KEY,(string)($meta['parent_catalog_key']??''))
+            &&(int)($meta['parent_version_id']??0)===$parentVersionId
+            &&hash_equals(MasterCatalogV2Reference::SOURCE_FILE,(string)($meta['source_file']??''))
+            &&hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,(string)($meta['source_sha256']??''))
+            &&preg_match('/^[a-f0-9]{64}$/',(string)($meta['fingerprint']??''))===1
+            &&empty($meta['production_authority'])
+            &&empty($meta['promotion_authorized']);
     }
 
     private function blocked(string $blocker):array
