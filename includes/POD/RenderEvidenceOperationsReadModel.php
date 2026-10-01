@@ -8,6 +8,7 @@ final class RenderEvidenceOperationsReadModel
 {
  public function snapshot(int $limit=50):array{
   global $wpdb;$limit=max(1,min(100,$limit));
+  $wpdb->last_error='';
   $rows=$wpdb->get_results($wpdb->prepare('SELECT id,order_id,provider_mapping_id,template_key,template_version,render_mode,review_status,reviewed_by,reviewed_at,external_execution_performed,created_at FROM '.Tables::pod_render_evidence().' ORDER BY id DESC LIMIT %d',$limit),ARRAY_A);
   if(!is_array($rows)||!empty($wpdb->last_error))return ['query_state'=>'UNAVAILABLE','counts'=>['renders'=>null,'unreviewed'=>null,'approved'=>null],'items'=>[],'external_execution_authorized'=>false,'external_execution_performed'=>false];
   $counts=['renders'=>0,'unreviewed'=>0,'approved'=>0];$items=[];
