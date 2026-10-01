@@ -80,4 +80,88 @@ final class PortalEvidenceAvailabilityTest extends WP_UnitTestCase
             self::assertSame([],$cost['breakdown']);
         } finally {$GLOBALS['wpdb']=$previous;}
     }
+    public function testProvenanceClearsStaleErrorsAcrossIndependentSources(): void
+    {
+        $previous=$GLOBALS['wpdb'];
+        $db=new class {
+            public string $prefix='wp_';
+            public string $last_error='stale';
+            public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_results(string $sql,mixed $format):?array{return [];}
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $projection=(new DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(20);
+            self::assertSame('AVAILABLE',$projection['query_state']);
+            self::assertSame('AVAILABLE',$projection['query_states']['bindings']);
+            self::assertSame('AVAILABLE',$projection['query_states']['closures']);
+            self::assertSame('AVAILABLE',$projection['query_states']['disagreements']);
+            self::assertSame('AVAILABLE',$projection['query_states']['legacy']);
+            self::assertSame([],$projection['items']);
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
+
+    public function testProvenanceCurrentSourceFailureDoesNotBlockLaterIndependentReadsOrBecomeZero(): void
+    {
+        $previous=$GLOBALS['wpdb'];
+        $db=new class {
+            public string $prefix='wp_';
+            public string $last_error='';
+            public int $resultCalls=0;
+            public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_results(string $sql,mixed $format):?array{
+                $this->resultCalls++;
+                if($this->resultCalls===1){$this->last_error='bindings failed';return null;}
+                return [];
+            }
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $projection=(new DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(20);
+            self::assertSame('PARTIAL_UNAVAILABLE',$projection['query_state']);
+            self::assertSame('UNAVAILABLE',$projection['query_states']['bindings']);
+            self::assertSame('AVAILABLE',$projection['query_states']['closures']);
+            self::assertSame('AVAILABLE',$projection['query_states']['disagreements']);
+            self::assertSame('AVAILABLE',$projection['query_states']['legacy']);
+            self::assertContains('bindings',$projection['unavailable_sources']);
+            self::assertSame([],$projection['items']);
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
+
+    public function testProvenanceCorrelationReadFailureMarksEvidenceUnavailableAndNeverObservesFalseCorrelation(): void
+    {
+        $previous=$GLOBALS['wpdb'];
+        $auth=hash('sha256','correlation-query-failure');
+        $db=new class($auth) {
+            public string $prefix='wp_';
+            public string $last_error='';
+            public int $resultCalls=0;
+            public int $rowCalls=0;
+            public function __construct(private string $auth){}
+            public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_results(string $sql,mixed $format):?array{
+                $this->resultCalls++;
+                if($this->resultCalls===1)return [['authorization_hash'=>$this->auth,'package_id'=>7,'package_hash'=>'bad','actual_package_hash'=>'good']];
+                return [];
+            }
+            public function get_row(string $sql,mixed $format):?array{
+                $this->rowCalls++;
+                if($this->rowCalls===1){$this->last_error='outcome failed';return null;}
+                return null;
+            }
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $projection=(new DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(20);
+            self::assertSame('PARTIAL_UNAVAILABLE',$projection['query_state']);
+            self::assertSame('UNAVAILABLE',$projection['query_states']['outcome_correlation']);
+            self::assertSame('EVIDENCE_UNAVAILABLE',$projection['items'][0]['operator_state']);
+            self::assertSame('UNAVAILABLE',$projection['items'][0]['evidence_state']);
+            self::assertNull($projection['items'][0]['correlation_hash']);
+            self::assertSame(0,$projection['open_count']);
+            self::assertFalse($projection['retry_permitted']);
+            self::assertFalse($projection['external_execution_authorized']);
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
+
 }
