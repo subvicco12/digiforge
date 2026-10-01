@@ -41,12 +41,14 @@ final class ShopOperationsReadModel
             );
         }
         $catalogState=(!empty($wpdb->last_error))?'UNAVAILABLE':'AVAILABLE';
+        $wpdb->last_error='';
         $policyWhere=$shop===self::ALL?'':$wpdb->prepare(' WHERE shop_key=%s',$shop);
         $policies=$wpdb->get_results(
             'SELECT shop_key,environment,currency,state,policy_hash,updated_at FROM '.Tables::shop_ai_policies().$policyWhere.' ORDER BY shop_key,environment',
             ARRAY_A
         );
         $policiesState=(is_array($policies)&&empty($wpdb->last_error))?'AVAILABLE':'UNAVAILABLE';
+        $wpdb->last_error='';
         $usageWhere=$shop===self::ALL?'':$wpdb->prepare(' WHERE shop_key=%s',$shop);
         $usage=$wpdb->get_results(
             'SELECT shop_key,workflow,stage,model_key,SUM(quantity) quantity,SUM(estimated_cost) estimated_cost,SUM(actual_cost) actual_cost,MAX(occurred_at) last_used_at FROM '.Tables::shop_ai_usage().$usageWhere.' GROUP BY shop_key,workflow,stage,model_key ORDER BY shop_key,workflow,stage,model_key',
