@@ -9,6 +9,7 @@ final class MasterCatalogV2IngestionService {
   global $wpdb;
   if(!hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,strtolower($sourceSha256))) return new WP_Error('v2_source_identity_mismatch','Master 500 v2 source workbook identity does not match the governed reference.');
   if(($normalized['catalog_key']??'')!==MasterCatalogV2Reference::CATALOG_KEY || !empty($normalized['production_authority']) || !empty($normalized['promotion_authorized'])) return new WP_Error('v2_contract_invalid','Master 500 v2 evidence must remain a non-authorizing migration candidate.');
+  $wpdb->last_error='';
   $parent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND source_sha256=%s AND source_state=%s ORDER BY id DESC LIMIT 1',PersonalizedCatalogReference::CATALOG_KEY,PersonalizedCatalogReference::SOURCE_SHA256,'IMMUTABLE_REFERENCE'),ARRAY_A);
   if(!is_array($parent)||!empty($wpdb->last_error)||(int)($parent['row_count']??0)!==PersonalizedCatalogReference::LISTING_COUNT||(int)($parent['production_authority']??1)!==0||!preg_match('/^[a-f0-9]{64}$/',(string)($parent['fingerprint']??''))) return new WP_Error('v1_parent_evidence_unavailable','Exact immutable Master 500 v1 parent evidence is required.');
   $mapped=$this->mapRows($normalized);
