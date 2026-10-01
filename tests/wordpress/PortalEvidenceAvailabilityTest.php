@@ -31,8 +31,10 @@ final class PortalEvidenceAvailabilityTest extends WP_UnitTestCase
             $provider=(new DigiForge\POD\ProviderStatusReadModel())->snapshot();
             self::assertSame('AVAILABLE',$provider['query_state']);
             self::assertSame(0,$provider['unknown_outcomes']);
-            $db->last_error='read failed';
+            $db->row=null;
+            $db->rows=null;
             self::assertSame('UNAVAILABLE',(new DigiForge\AI\CostKpiReadModel())->snapshot()['query_state']);
+            $db->last_error='read failed';
             self::assertSame('UNAVAILABLE',(new DigiForge\POD\ProviderStatusReadModel())->snapshot()['query_state']);
         } finally {
             $GLOBALS['wpdb']=$previous;
