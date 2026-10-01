@@ -63,6 +63,7 @@ require_once __DIR__ . '/../../includes/POD/BusinessScope.php';
 require_once __DIR__ . '/../../includes/POD/PersonalizedCatalogReference.php';
 require_once __DIR__ . '/../../includes/POD/MasterCatalogImportContract.php';
 require_once __DIR__ . '/../../includes/POD/MasterCatalogV2MigrationContract.php';
+require_once __DIR__ . '/../../includes/POD/MasterCatalogV2Reference.php';
 require_once __DIR__ . '/../../includes/POD/EtsyPersonalizationContract.php';
 require_once __DIR__ . '/../../includes/POD/PersonalizationSubmissionNormalizer.php';
 require_once __DIR__ . '/../../includes/Queue/JobState.php';

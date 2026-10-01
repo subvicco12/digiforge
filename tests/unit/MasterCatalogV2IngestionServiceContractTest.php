@@ -1,0 +1,16 @@
+<?php
+declare(strict_types=1);
+use PHPUnit\Framework\TestCase;
+final class MasterCatalogV2IngestionServiceContractTest extends TestCase {
+ public function testExactWorkbookIdentityAndV1ParentAreMandatory():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/MasterCatalogV2IngestionService.php');self::assertStringContainsString('MasterCatalogV2Reference::SOURCE_SHA256',$s);self::assertStringContainsString('PersonalizedCatalogReference::SOURCE_SHA256',$s);self::assertStringContainsString('v1_parent_evidence_unavailable',$s);}
+ public function testV2LineageIsPersistedWithoutAuthority():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/MasterCatalogV2IngestionService.php');foreach(['Source DG ID','V2 Successor ID','source_dg_id','origin','recommended_stage','disposition','migration_note','retain_as_overlay_test'] as $n)self::assertStringContainsString($n,$s);self::assertStringContainsString("'production_authority'=>false",$s);self::assertStringContainsString("'promotion_authorized'=>false",$s);self::assertStringContainsString("'MIGRATION_CANDIDATE'",$s);}
+ public function testRepositoryFailsClosedAroundTransactionBoundaries():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/GovernedCatalogRepository.php');self::assertStringContainsString('catalog_transaction_start_failed',$s);self::assertStringContainsString('catalog_commit_unknown',$s);self::assertStringContainsString('requires reconciliation before retry',$s);self::assertStringContainsString("'lineage'=>(array)(\$row['V2 Evidence']??[])",$s);}
+ public function testReferenceBindsReviewedWorkbook():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/MasterCatalogV2Reference.php');self::assertStringContainsString('56639c9122985ac17b46685bb8b91e5d29f387f16fff715b3488e9b4c2380f6d',$s);self::assertStringContainsString('Master_500_v2',$s);self::assertStringContainsString('Source_Migration_500',$s);}
+ public function testParentEvidenceMustBeCompleteAndNonAuthorizing():void{
+  $s=file_get_contents(__DIR__.'/../../includes/POD/MasterCatalogV2IngestionService.php');
+  $this->assertStringContainsString("row_count']??0", $s);
+  $this->assertStringContainsString('PersonalizedCatalogReference::LISTING_COUNT', $s);
+  $this->assertStringContainsString("production_authority']??1", $s);
+  $this->assertStringContainsString("parent['fingerprint']", $s);
+ }
+}
