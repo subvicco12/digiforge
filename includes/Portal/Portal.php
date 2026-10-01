@@ -8,6 +8,9 @@ use DigiForge\Core\Settings;
 use DigiForge\AI\CostKpiReadModel;
 use DigiForge\AI\LifecycleDenominatorReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
+use DigiForge\Orders\HumanGateOperationsReadModel;
+use DigiForge\Orders\Repository as OrderRepository;
+use DigiForge\POD\BusinessScopeRepository;
 use DigiForge\Listings\WebhookReconciliationReadModel;
 use DigiForge\Listings\EtsyReconciliationOperatorReadModel;
 use DigiForge\Listings\EtsyDigitalAttachmentReadModel;
@@ -50,6 +53,9 @@ final class Portal
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
+    private const PERSONALIZATION_REVIEW_ACTION = 'digiforge_portal_personalization_review';
+    private const OWNERSHIP_REVIEW_ACTION = 'digiforge_portal_ownership_review';
+
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
         'dashboard' => ['label' => 'Dashboard', 'cap' => 'manage_digiforge'],
@@ -86,6 +92,8 @@ final class Portal
         add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
+        add_action('admin_post_' . self::PERSONALIZATION_REVIEW_ACTION, [$this, 'personalizationReview']);
+        add_action('admin_post_' . self::OWNERSHIP_REVIEW_ACTION, [$this, 'ownershipReview']);
     }
 
     public function render(): string
@@ -134,6 +142,25 @@ final class Portal
         </div>
         <?php
         return (string) ob_get_clean();
+    }
+
+    public function personalizationReview(): void
+    {
+        $this->guard('manage_digiforge_orders');check_admin_referer(self::PERSONALIZATION_REVIEW_ACTION);
+        $id=isset($_POST['submission_id'])?absint($_POST['submission_id']):0;$decision=isset($_POST['decision'])?strtoupper(sanitize_key(wp_unslash($_POST['decision']))):'';
+        if($id<1||!in_array($decision,['APPROVED','REJECTED'],true))$this->redirect('orders','Valid personalization submission and APPROVED/REJECTED decision required.',true);
+        $result=(new OrderRepository())->reviewPersonalization($id,$decision);if(is_wp_error($result))$this->redirect('orders',$result->get_error_message(),true);
+        Logger::audit('portal_personalization_human_reviewed',['submission_id'=>$id,'decision'=>$decision,'external_execution_authorized'=>false,'external_execution_performed'=>false],'personalization_submission',(string)$id);
+        $this->redirect('orders',sprintf('Personalization submission #%d marked %s. No provider or marketplace execution was authorized.',$id,$decision));
+    }
+
+    public function ownershipReview(): void
+    {
+        $this->guard('manage_digiforge_pod');check_admin_referer(self::OWNERSHIP_REVIEW_ACTION);
+        $id=isset($_POST['mapping_id'])?absint($_POST['mapping_id']):0;if($id<1)$this->redirect('orders','Valid ownership mapping required.',true);
+        $result=(new BusinessScopeRepository())->approveMapping($id);if(is_wp_error($result))$this->redirect('orders',$result->get_error_message(),true);
+        Logger::audit('portal_pod_ownership_human_reviewed',['mapping_id'=>$id,'state'=>(string)($result['state']??''),'external_execution_authorized'=>false,'external_execution_performed'=>false],'pod_business_mapping',(string)$id);
+        $this->redirect('orders',sprintf('Ownership mapping #%d approved as human scope evidence. No provider or marketplace execution was authorized.',$id));
     }
 
     public function review(): void
@@ -382,6 +409,12 @@ final class Portal
     private function orderOperations():void
     {
         $ordersQueryState=null;$rows=(new OrderOperationsReadModel())->recent(50,$ordersQueryState);$orderReconciliation=new OrderReconciliationReadModel();$exceptions=(new OperationalExceptionReadModel())->snapshot(50);$fulfillmentExceptions=(array)$exceptions['fulfillment'];
+        $humanGates=(new HumanGateOperationsReadModel())->snapshot(50);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Personalization & ownership review queue</h2><p>Explicit human gates before downstream POD readiness. This queue is read only and grants no marketplace or provider authority.</p></div><span class="df-status">HUMAN GATES</span></div>';
+        if(($humanGates['query_state']['aggregate']??'UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more human-gate evidence sources are unavailable. No empty queue or approval is inferred.</div>';
+        if(($humanGates['query_state']['personalization']??'UNAVAILABLE')==='AVAILABLE'){echo '<h3>Personalization reviews</h3>';if($humanGates['personalization']===[])echo '<div class="df-empty">No pending personalization reviews in the bounded window.</div>';else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Submission</th><th>Order / line</th><th>Schema</th><th>Payload evidence</th><th>Status</th><th>Authority</th></tr></thead><tbody>';foreach($humanGates['personalization'] as $g)echo '<tr><td>#'.esc_html((string)$g['id']).'</td><td>#'.esc_html((string)($g['order_id']??0)).' / #'.esc_html((string)$g['order_line_item_id']).'</td><td>#'.esc_html((string)$g['personalization_schema_id']).'</td><td><code>'.esc_html(substr((string)$g['payload_hash'],0,12)).'…</code></td><td>'.esc_html((string)$g['review_status']).'</td><td><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::PERSONALIZATION_REVIEW_ACTION).'"><input type="hidden" name="submission_id" value="'.esc_attr((string)$g['id']).'">';wp_nonce_field(self::PERSONALIZATION_REVIEW_ACTION);echo '<button class="df-button df-button-compact" name="decision" value="APPROVED" type="submit">Approve evidence</button> <button class="df-button df-button-compact" name="decision" value="REJECTED" type="submit">Reject</button></form><small>External authority: NO</small></td></tr>';echo '</tbody></table></div>';}}
+        if(($humanGates['query_state']['ownership']??'UNAVAILABLE')==='AVAILABLE'){echo '<h3>POD ownership mappings</h3>';if($humanGates['ownership']===[])echo '<div class="df-empty">No DRAFT ownership mappings in the bounded window.</div>';else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Mapping</th><th>Business / store / program</th><th>Product</th><th>Provider mapping</th><th>State</th><th>Authority</th></tr></thead><tbody>';foreach($humanGates['ownership'] as $g)echo '<tr><td>#'.esc_html((string)$g['id']).'</td><td>#'.esc_html((string)$g['business_id']).' / #'.esc_html((string)$g['store_id']).' / #'.esc_html((string)$g['product_program_id']).'</td><td>#'.esc_html((string)$g['product_version_id']).'</td><td>#'.esc_html((string)$g['provider_mapping_id']).'</td><td>'.esc_html((string)$g['state']).'</td><td><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::OWNERSHIP_REVIEW_ACTION).'"><input type="hidden" name="mapping_id" value="'.esc_attr((string)$g['id']).'">';wp_nonce_field(self::OWNERSHIP_REVIEW_ACTION);echo '<button class="df-button df-button-compact" type="submit">Approve ownership</button></form><small>External authority: NO</small></td></tr>';echo '</tbody></table></div>';}}
+        echo '<p class="df-muted">Human review evidence is separate from Etsy publish, POD production, provider retry and external execution authorization.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
         if($ordersQueryState!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Recent order evidence unavailable. Database read failed; no empty order window is inferred.</div>';}elseif($rows===[]){echo '<div class="df-empty">No orders found in the recent window.</div>';}else{
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
