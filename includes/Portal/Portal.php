@@ -9,6 +9,8 @@ use DigiForge\AI\CostKpiReadModel;
 use DigiForge\AI\LifecycleDenominatorReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Orders\HumanGateOperationsReadModel;
+use DigiForge\Orders\Repository as OrderRepository;
+use DigiForge\POD\BusinessScopeRepository;
 use DigiForge\Listings\WebhookReconciliationReadModel;
 use DigiForge\Listings\EtsyReconciliationOperatorReadModel;
 use DigiForge\Listings\EtsyDigitalAttachmentReadModel;
@@ -49,6 +51,8 @@ final class Portal
     private const POD_RENDER_REVIEW_ACTION = 'digiforge_portal_pod_render_review';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
+    private const PERSONALIZATION_REVIEW_ACTION = 'digiforge_portal_personalization_review';
+    private const OWNERSHIP_REVIEW_ACTION = 'digiforge_portal_ownership_review';
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -86,6 +90,8 @@ final class Portal
         add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
+        add_action('admin_post_' . self::PERSONALIZATION_REVIEW_ACTION, [$this, 'personalizationReview']);
+        add_action('admin_post_' . self::OWNERSHIP_REVIEW_ACTION, [$this, 'ownershipReview']);
     }
 
     public function render(): string
@@ -134,6 +140,25 @@ final class Portal
         </div>
         <?php
         return (string) ob_get_clean();
+    }
+
+    public function personalizationReview(): void
+    {
+        $this->guard('manage_digiforge_orders');check_admin_referer(self::PERSONALIZATION_REVIEW_ACTION);
+        $id=isset($_POST['submission_id'])?absint($_POST['submission_id']):0;$decision=isset($_POST['decision'])?strtoupper(sanitize_key(wp_unslash($_POST['decision']))):'';
+        if($id<1||!in_array($decision,['APPROVED','REJECTED'],true))$this->redirect('orders','Valid personalization submission and APPROVED/REJECTED decision required.',true);
+        $result=(new OrderRepository())->reviewPersonalization($id,$decision);if(is_wp_error($result))$this->redirect('orders',$result->get_error_message(),true);
+        Logger::audit('portal_personalization_human_reviewed',['submission_id'=>$id,'decision'=>$decision,'external_execution_authorized'=>false,'external_execution_performed'=>false],'personalization_submission',(string)$id);
+        $this->redirect('orders',sprintf('Personalization submission #%d marked %s. No provider or marketplace execution was authorized.',$id,$decision));
+    }
+
+    public function ownershipReview(): void
+    {
+        $this->guard('manage_digiforge_pod');check_admin_referer(self::OWNERSHIP_REVIEW_ACTION);
+        $id=isset($_POST['mapping_id'])?absint($_POST['mapping_id']):0;if($id<1)$this->redirect('orders','Valid ownership mapping required.',true);
+        $result=(new BusinessScopeRepository())->approveMapping($id);if(is_wp_error($result))$this->redirect('orders',$result->get_error_message(),true);
+        Logger::audit('portal_pod_ownership_human_reviewed',['mapping_id'=>$id,'state'=>(string)($result['state']??''),'external_execution_authorized'=>false,'external_execution_performed'=>false],'pod_business_mapping',(string)$id);
+        $this->redirect('orders',sprintf('Ownership mapping #%d approved as human scope evidence. No provider or marketplace execution was authorized.',$id));
     }
 
     public function review(): void
