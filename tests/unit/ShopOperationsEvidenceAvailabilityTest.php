@@ -14,10 +14,15 @@ final class ShopOperationsEvidenceAvailabilityTest extends TestCase {
   };
   try {
    $data=(new \DigiForge\Portal\ShopOperationsReadModel())->snapshot('digital');
-   self::assertSame('UNAVAILABLE',$data['query_state']['catalog']);
+   self::assertSame('AVAILABLE',$data['query_state']['catalog']);
+   self::assertSame([],$data['catalog']);
    self::assertSame('UNAVAILABLE',$data['query_state']['ai_policies']);
    self::assertSame('UNAVAILABLE',$data['query_state']['ai_usage']);
    self::assertFalse($data['external_execution_performed']);
+   $pod=(new \DigiForge\Portal\ShopOperationsReadModel())->snapshot('personalized_pod');
+   self::assertSame('UNAVAILABLE',$pod['query_state']['catalog']);
+   self::assertSame('UNAVAILABLE',$pod['query_state']['ai_policies']);
+   self::assertSame('UNAVAILABLE',$pod['query_state']['ai_usage']);
   } finally { $GLOBALS['wpdb']=$previous; }
  }
  public function testCatalogItemsDistinguishesFailedFromLegitimateEmptyRead():void {
