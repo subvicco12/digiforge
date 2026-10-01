@@ -3,6 +3,8 @@ declare(strict_types=1);
 namespace DigiForge\Portal;
 
 use DigiForge\Database\Tables;
+use DigiForge\POD\MasterCatalogV2Reference;
+use DigiForge\POD\PersonalizedCatalogReference;
 
 /** Read-only operational projection for v6 shop-scoped portal views. */
 final class ShopOperationsReadModel
@@ -28,10 +30,16 @@ final class ShopOperationsReadModel
     {
         global $wpdb;
         $shop=self::normalize($shop);
-        $catalog=$wpdb->get_row(
-            'SELECT id,catalog_key,version_label,source_sha256,source_state,parent_version_id,migration_metadata,row_count,fingerprint,production_authority,created_at FROM '.Tables::catalog_versions().' ORDER BY id DESC LIMIT 1',
-            ARRAY_A
-        );
+        $catalogKey=$shop==='personalized_pod'?MasterCatalogV2Reference::CATALOG_KEY:null;
+        if($catalogKey===null){
+            $catalog=null;
+        }else{
+            $wpdb->last_error='';
+            $catalog=$wpdb->get_row(
+                $wpdb->prepare('SELECT id,catalog_key,version_label,source_sha256,source_state,parent_version_id,migration_metadata,row_count,fingerprint,production_authority,created_at FROM '.Tables::catalog_versions().' WHERE catalog_key=%s ORDER BY id DESC LIMIT 1',$catalogKey),
+                ARRAY_A
+            );
+        }
         $catalogState=(!empty($wpdb->last_error))?'UNAVAILABLE':'AVAILABLE';
         $policyWhere=$shop===self::ALL?'':$wpdb->prepare(' WHERE shop_key=%s',$shop);
         $policies=$wpdb->get_results(
@@ -60,12 +68,32 @@ final class ShopOperationsReadModel
     private static function catalogEvidence(array $catalog):array
     {
         $migration=json_decode((string)($catalog['migration_metadata']??''),true);
-        $catalog['migration_metadata_valid']=is_array($migration);
+        $catalog['migration_metadata_valid']=self::validV2MigrationEvidence($catalog,$migration);
         $catalog['migration_metadata']=is_array($migration)?$migration:[];
         $catalog['is_migration_candidate']=(int)($catalog['parent_version_id']??0)>0;
         $catalog['production_authority']=false;
         $catalog['promotion_authorized']=false;
         return $catalog;
+    }
+
+    private static function validV2MigrationEvidence(array $catalog,mixed $migration):bool
+    {
+        return is_array($migration)
+            &&(string)($catalog['catalog_key']??'')===MasterCatalogV2Reference::CATALOG_KEY
+            &&hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,(string)($catalog['source_sha256']??''))
+            &&(string)($catalog['source_state']??'')==='MIGRATION_CANDIDATE'
+            &&(int)($catalog['parent_version_id']??0)>0
+            &&(int)($catalog['row_count']??0)===MasterCatalogV2Reference::ROW_COUNT
+            &&preg_match('/^[a-f0-9]{64}$/',(string)($catalog['fingerprint']??''))===1
+            &&(int)($catalog['production_authority']??1)===0
+            &&(string)($migration['source_state']??'')==='MIGRATION_CANDIDATE'
+            &&hash_equals(PersonalizedCatalogReference::CATALOG_KEY,(string)($migration['parent_catalog_key']??''))
+            &&(int)($migration['parent_version_id']??0)===(int)$catalog['parent_version_id']
+            &&hash_equals(MasterCatalogV2Reference::SOURCE_FILE,(string)($migration['source_file']??''))
+            &&hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,(string)($migration['source_sha256']??''))
+            &&hash_equals((string)$catalog['fingerprint'],(string)($migration['fingerprint']??''))
+            &&empty($migration['production_authority'])
+            &&empty($migration['promotion_authorized']);
     }
 
     /** @return list<array<string,mixed>> */
