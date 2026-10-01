@@ -10,8 +10,9 @@ final class EtsyOrderQueryAvailabilityTest extends WP_UnitTestCase
             public string $prefix='wp_';
             public string $last_error='';
             public ?array $rows=null;
+            public bool $fail=false;
             public function prepare(string $sql,mixed ...$args):string{return $sql;}
-            public function get_results(string $sql,mixed $format):?array{return $this->rows;}
+            public function get_results(string $sql,mixed $format):?array{if($this->fail){$this->last_error='read failed';return null;}return $this->rows;}
         };
         $GLOBALS['wpdb']=$db;
         try {
@@ -32,13 +33,18 @@ final class EtsyOrderQueryAvailabilityTest extends WP_UnitTestCase
             self::assertSame([],$orders->recent(50,$state));
             self::assertSame('AVAILABLE',$state);
 
-            $db->last_error='read failed';
+            $db->fail=true;
             $state=null;
             self::assertSame([],$etsy->recent(50,$state));
             self::assertSame('UNAVAILABLE',$state);
             $state=null;
             self::assertSame([],$orders->recent(50,$state));
             self::assertSame('UNAVAILABLE',$state);
+
+            $db->fail=false;$db->last_error='stale prior failure';
+            $state=null;
+            self::assertSame([],$orders->recent(50,$state));
+            self::assertSame('AVAILABLE',$state);
         } finally {
             $GLOBALS['wpdb']=$previous;
         }
