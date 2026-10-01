@@ -38,4 +38,44 @@ final class PortalEvidenceAvailabilityTest extends WP_UnitTestCase
             $GLOBALS['wpdb']=$previous;
         }
     }
+
+    public function testCostQueriesResetStaleErrorsAndExposeIndependentStates(): void
+    {
+        $previous=$GLOBALS['wpdb'];
+        $db=new class {
+            public string $prefix='wp_';
+            public string $last_error='stale';
+            public int $calls=0;
+            public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_row(string $sql,mixed $format):?array{$this->calls++;return ['quantity'=>2,'estimated_cost'=>1.5,'actual_cost'=>1.0];}
+            public function get_results(string $sql,mixed $format):?array{$this->calls++;return [];}
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $cost=(new DigiForge\AI\CostKpiReadModel())->snapshot('digital');
+            self::assertSame('AVAILABLE',$cost['query_state']);
+            self::assertSame(['totals'=>'AVAILABLE','breakdown'=>'AVAILABLE'],$cost['query_states']);
+            self::assertSame(2,$cost['quantity']);
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
+
+    public function testCostBreakdownFailureCannotMasqueradeAsAvailableTotals(): void
+    {
+        $previous=$GLOBALS['wpdb'];
+        $db=new class {
+            public string $prefix='wp_';
+            public string $last_error='';
+            public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_row(string $sql,mixed $format):?array{return ['quantity'=>2,'estimated_cost'=>1.5,'actual_cost'=>1.0];}
+            public function get_results(string $sql,mixed $format):?array{$this->last_error='breakdown failed';return null;}
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $cost=(new DigiForge\AI\CostKpiReadModel())->snapshot('digital');
+            self::assertSame('UNAVAILABLE',$cost['query_state']);
+            self::assertSame(['totals'=>'AVAILABLE','breakdown'=>'UNAVAILABLE'],$cost['query_states']);
+            self::assertSame(0,$cost['quantity']);
+            self::assertSame([],$cost['breakdown']);
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
 }
