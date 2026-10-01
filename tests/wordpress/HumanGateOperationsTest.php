@@ -10,6 +10,6 @@ final class HumanGateOperationsTest extends WP_UnitTestCase{
  }
  public function testOwnershipApprovalUsesDraftOnlyAtomicRepositoryTransition():void{
   $src=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/BusinessScopeRepository.php');
-  self::assertStringContainsString("['state'=>'APPROVED'",$src);self::assertStringContainsString("['id'=>\$mappingId,'state'=>'DRAFT']",$src);self::assertStringContainsString('digiforge_scope_approval_conflict',$src);
+  self::assertStringContainsString("['state'=>'APPROVED'",$src);self::assertStringContainsString("['id'=>\$mappingId,'state'=>'DRAFT']",$src);self::assertStringContainsString('digiforge_scope_transition',$src);
  }
 }
