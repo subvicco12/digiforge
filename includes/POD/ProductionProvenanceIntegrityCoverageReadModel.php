@@ -19,11 +19,13 @@ final class ProductionProvenanceIntegrityCoverageReadModel
         ];
         $counts = [];
         foreach ($queries as $name => $sql) {
+            $wpdb->last_error = '';
             $value = $wpdb->get_var($sql);
-            $counts[$name] = $value === null ? null : (int) $value;
+            $counts[$name] = $value === null || !empty($wpdb->last_error) ? null : (int) $value;
         }
+        $wpdb->last_error = '';
         $historical = $wpdb->get_var('SELECT COUNT(*) FROM ' . Tables::pod_provenance_integrity_evidence());
-        $historical = $historical === null ? null : (int) $historical;
+        $historical = $historical === null || !empty($wpdb->last_error) ? null : (int) $historical;
         $complete = $historical !== null && !in_array(null, $counts, true);
         $candidates = $complete ? array_sum($counts) : null;
         $possible = $complete ? ($candidates > max(0, $visibleCurrent) || $historical > max(0, $visibleHistorical)) : null;
