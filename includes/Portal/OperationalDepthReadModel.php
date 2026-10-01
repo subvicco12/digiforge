@@ -8,13 +8,14 @@ use DigiForge\Orders\Repository as OrderRepository;
 final class OperationalDepthReadModel {
  public function aiBudget(string $shop):array {
   global $wpdb;$shop=ShopOperationsReadModel::normalize($shop);$where=$shop===ShopOperationsReadModel::ALL?'':$wpdb->prepare(' WHERE shop_key=%s',$shop);
+  $wpdb->last_error='';
   $policies=$wpdb->get_results('SELECT shop_key,environment,currency,state,policy_hash,updated_at FROM '.Tables::shop_ai_policies().$where.' ORDER BY shop_key,environment',ARRAY_A);
   $policyState=is_array($policies)&&empty($wpdb->last_error)?'AVAILABLE':'UNAVAILABLE';
   if($policyState==='UNAVAILABLE')$policies=[];
   return ['shop'=>$shop,'policies'=>$policies,'policies_query_state'=>$policyState,'cost'=>(new CostKpiReadModel())->snapshot($shop),'read_only'=>true,'external_execution_authorized'=>false];
  }
  public function fulfillmentProviders(int $limit=50, ?string &$queryState=null):array {
-  global $wpdb;$limit=max(1,min(100,$limit));
+  global $wpdb;$limit=max(1,min(100,$limit));$wpdb->last_error='';
   $plans=$wpdb->get_results($wpdb->prepare('SELECT fp.id,fp.order_id,fp.plan_version,fp.provider,fp.payload_hash,fp.readiness_hash,fp.state,fp.approved_by,fp.approved_at,fp.environment,fp.updated_at,o.environment AS order_environment,o.state AS order_state FROM '.Tables::fulfillment_plans().' fp LEFT JOIN '.Tables::orders().' o ON o.id=fp.order_id ORDER BY fp.id DESC LIMIT %d',$limit),ARRAY_A);
   if(!is_array($plans)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
   $queryState='AVAILABLE';
