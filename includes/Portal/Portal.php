@@ -8,6 +8,7 @@ use DigiForge\Core\Settings;
 use DigiForge\AI\CostKpiReadModel;
 use DigiForge\AI\LifecycleDenominatorReadModel;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
+use DigiForge\Orders\HumanGateOperationsReadModel;
 use DigiForge\Listings\WebhookReconciliationReadModel;
 use DigiForge\Listings\EtsyReconciliationOperatorReadModel;
 use DigiForge\Listings\EtsyDigitalAttachmentReadModel;
@@ -379,6 +380,12 @@ final class Portal
     private function orderOperations():void
     {
         $ordersQueryState=null;$rows=(new OrderOperationsReadModel())->recent(50,$ordersQueryState);$orderReconciliation=new OrderReconciliationReadModel();$exceptions=(new OperationalExceptionReadModel())->snapshot(50);$fulfillmentExceptions=(array)$exceptions['fulfillment'];
+        $humanGates=(new HumanGateOperationsReadModel())->snapshot(50);
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Personalization & ownership review queue</h2><p>Explicit human gates before downstream POD readiness. This queue is read only and grants no marketplace or provider authority.</p></div><span class="df-status">HUMAN GATES</span></div>';
+        if(($humanGates['query_state']['aggregate']??'UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more human-gate evidence sources are unavailable. No empty queue or approval is inferred.</div>';
+        if(($humanGates['query_state']['personalization']??'UNAVAILABLE')==='AVAILABLE'){echo '<h3>Personalization reviews</h3>';if($humanGates['personalization']===[])echo '<div class="df-empty">No pending personalization reviews in the bounded window.</div>';else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Submission</th><th>Order / line</th><th>Schema</th><th>Payload evidence</th><th>Status</th><th>Authority</th></tr></thead><tbody>';foreach($humanGates['personalization'] as $g)echo '<tr><td>#'.esc_html((string)$g['id']).'</td><td>#'.esc_html((string)($g['order_id']??0)).' / #'.esc_html((string)$g['order_line_item_id']).'</td><td>#'.esc_html((string)$g['personalization_schema_id']).'</td><td><code>'.esc_html(substr((string)$g['payload_hash'],0,12)).'…</code></td><td>'.esc_html((string)$g['review_status']).'</td><td>NO</td></tr>';echo '</tbody></table></div>';}}
+        if(($humanGates['query_state']['ownership']??'UNAVAILABLE')==='AVAILABLE'){echo '<h3>POD ownership mappings</h3>';if($humanGates['ownership']===[])echo '<div class="df-empty">No DRAFT ownership mappings in the bounded window.</div>';else{echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Mapping</th><th>Business / store / program</th><th>Product</th><th>Provider mapping</th><th>State</th><th>Authority</th></tr></thead><tbody>';foreach($humanGates['ownership'] as $g)echo '<tr><td>#'.esc_html((string)$g['id']).'</td><td>#'.esc_html((string)$g['business_id']).' / #'.esc_html((string)$g['store_id']).' / #'.esc_html((string)$g['product_program_id']).'</td><td>#'.esc_html((string)$g['product_version_id']).'</td><td>#'.esc_html((string)$g['provider_mapping_id']).'</td><td>'.esc_html((string)$g['state']).'</td><td>NO</td></tr>';echo '</tbody></table></div>';}}
+        echo '<p class="df-muted">Human review evidence is separate from Etsy publish, POD production, provider retry and external execution authorization.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Order readiness</h2><p>Readiness evidence is separate from external fulfillment authorization.</p></div><span class="df-status">READ ONLY</span></div>';
         if($ordersQueryState!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Recent order evidence unavailable. Database read failed; no empty order window is inferred.</div>';}elseif($rows===[]){echo '<div class="df-empty">No orders found in the recent window.</div>';}else{
         echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Order</th><th>Shop</th><th>State</th><th>Mode</th><th>Ready</th><th>External authorization</th></tr></thead><tbody>';
