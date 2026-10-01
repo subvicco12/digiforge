@@ -38,21 +38,25 @@ final class U3ApprovalInbox
     private function renderOperationalDecisionPanels(): string
     {
         global $wpdb;
+        $wpdb->last_error='';
         $listingReviews = $wpdb->get_results(
             "SELECT r.id,r.listing_id,r.decision,r.created_at,l.id AS subject_id,l.title,l.environment,l.updated_at AS subject_updated_at FROM " . Tables::listing_readiness_reviews() . " r LEFT JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $listingReviews=null;
+        $wpdb->last_error='';
         $personalization = $wpdb->get_results(
             "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at,li.id AS subject_id,li.environment AS line_environment,li.product_version_id AS line_product_version_id,s.id AS schema_subject_id,s.product_version_id AS schema_product_version_id,s.state AS schema_state FROM " . Tables::personalization_submissions() . " p LEFT JOIN " . Tables::order_line_items() . " li ON li.id=p.order_line_item_id LEFT JOIN " . Tables::personalization_schemas() . " s ON s.id=p.personalization_schema_id WHERE p.review_status NOT IN ('APPROVED','REJECTED') ORDER BY p.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $personalization=null;
+        $wpdb->last_error='';
         $podReviews = $wpdb->get_results(
             "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.id AS subject_id,m.provider,m.environment,m.updated_at AS subject_updated_at FROM " . Tables::pod_readiness_reviews() . " r LEFT JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $podReviews=null;
+        $wpdb->last_error='';
         $fulfillmentReviews = $wpdb->get_results(
             "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.id AS subject_id,p.order_id AS subject_order_id,p.provider,p.environment,p.state,p.updated_at AS subject_updated_at FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
@@ -95,6 +99,7 @@ final class U3ApprovalInbox
     private function pendingOperationalCount(): ?int
     {
         global $wpdb;
+        $wpdb->last_error='';
         $count=$wpdb->get_var(
             'SELECT (SELECT COUNT(*) FROM ' . Tables::listing_readiness_reviews() . " WHERE decision='PENDING')"
             . ' + (SELECT COUNT(*) FROM ' . Tables::personalization_submissions() . " WHERE review_status NOT IN ('APPROVED','REJECTED'))"
@@ -216,6 +221,7 @@ final class U3ApprovalInbox
     {
         global $wpdb;
         $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.id=(SELECT rb2.id FROM " . Tables::release_bundles() . " rb2 WHERE rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1) WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
+        $wpdb->last_error='';
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
         foreach ($rows as &$row) {
@@ -249,6 +255,7 @@ final class U3ApprovalInbox
     private function semanticChecks(int $planId): ?array
     {
         global $wpdb;
+        $wpdb->last_error='';
         $rows = $wpdb->get_results($wpdb->prepare("SELECT check_type,status,details,created_at FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' ORDER BY id ASC", $planId), ARRAY_A);
         return is_array($rows) && empty($wpdb->last_error) ? array_values($rows) : null;
     }
