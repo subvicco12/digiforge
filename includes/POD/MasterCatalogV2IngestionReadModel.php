@@ -10,6 +10,7 @@ final class MasterCatalogV2IngestionReadModel
     public function snapshot(): array
     {
         global $wpdb;
+        $wpdb->last_error='';
         $parent=$wpdb->get_row($wpdb->prepare(
             'SELECT id,catalog_key,version_label,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND source_sha256=%s AND source_state=%s ORDER BY id DESC LIMIT 1',
             PersonalizedCatalogReference::CATALOG_KEY,
@@ -42,7 +43,7 @@ final class MasterCatalogV2IngestionReadModel
                     &&(int)($existing['row_count']??0)===MasterCatalogV2Reference::ROW_COUNT
                     &&preg_match('/^[a-f0-9]{64}$/',(string)($existing['fingerprint']??''))===1
                     &&(int)($existing['production_authority']??1)===0
-                    &&$this->migrationEvidenceMatches((string)($existing['migration_metadata']??''),(int)$parent['id']);
+                    &&$this->migrationEvidenceMatches((string)($existing['migration_metadata']??''),(int)$parent['id'],(string)($existing['fingerprint']??''));
                 return [
                     'query_state'=>'AVAILABLE',
                     'ingestion_readiness'=>$exact?'ALREADY_PERSISTED':'BLOCKED',
@@ -73,7 +74,7 @@ final class MasterCatalogV2IngestionReadModel
         ];
     }
 
-    private function migrationEvidenceMatches(string $json,int $parentVersionId):bool
+    private function migrationEvidenceMatches(string $json,int $parentVersionId,string $fingerprint):bool
     {
         $meta=json_decode($json,true);
         return is_array($meta)
@@ -83,6 +84,7 @@ final class MasterCatalogV2IngestionReadModel
             &&hash_equals(MasterCatalogV2Reference::SOURCE_FILE,(string)($meta['source_file']??''))
             &&hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,(string)($meta['source_sha256']??''))
             &&preg_match('/^[a-f0-9]{64}$/',(string)($meta['fingerprint']??''))===1
+            &&hash_equals($fingerprint,(string)($meta['fingerprint']??''))
             &&empty($meta['production_authority'])
             &&empty($meta['promotion_authorized']);
     }
