@@ -1,0 +1,52 @@
+<?php
+declare(strict_types=1);
+namespace DigiForge\POD;
+
+use DigiForge\Database\Tables;
+
+/** Read-only readiness for a governed Master 500 v2 ingestion. Never promotion authority. */
+final class MasterCatalogV2IngestionReadModel
+{
+    public function snapshot(): array
+    {
+        global $wpdb;
+        $parent=$wpdb->get_row($wpdb->prepare(
+            'SELECT id,catalog_key,version_label,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND source_sha256=%s AND source_state=%s ORDER BY id DESC LIMIT 1',
+            PersonalizedCatalogReference::CATALOG_KEY,
+            PersonalizedCatalogReference::SOURCE_SHA256,
+            'IMMUTABLE_REFERENCE'
+        ),ARRAY_A);
+        if(!is_array($parent)||!empty($wpdb->last_error)){
+            return $this->blocked('PARENT_EVIDENCE_UNAVAILABLE');
+        }
+        $checks=[
+            'parent_catalog_key'=>hash_equals(PersonalizedCatalogReference::CATALOG_KEY,(string)($parent['catalog_key']??'')),
+            'parent_source_sha'=>hash_equals(PersonalizedCatalogReference::SOURCE_SHA256,(string)($parent['source_sha256']??'')),
+            'parent_state'=>(string)($parent['source_state']??'')==='IMMUTABLE_REFERENCE',
+            'parent_rows'=>(int)($parent['row_count']??0)===PersonalizedCatalogReference::LISTING_COUNT,
+            'parent_fingerprint'=>preg_match('/^[a-f0-9]{64}$/',(string)($parent['fingerprint']??''))===1,
+            'parent_non_authorizing'=>(int)($parent['production_authority']??1)===0,
+        ];
+        $ready=!in_array(false,$checks,true);
+        return [
+            'query_state'=>'AVAILABLE',
+            'ingestion_readiness'=>$ready?'READY_FOR_VALIDATED_INPUT':'BLOCKED',
+            'blocker'=>$ready?'':'PARENT_EVIDENCE_INVALID',
+            'parent_version_id'=>(int)($parent['id']??0),
+            'parent_version_label'=>(string)($parent['version_label']??''),
+            'v2_catalog_key'=>MasterCatalogV2Reference::CATALOG_KEY,
+            'v2_source_file'=>MasterCatalogV2Reference::SOURCE_FILE,
+            'v2_source_sha256'=>MasterCatalogV2Reference::SOURCE_SHA256,
+            'expected_rows'=>MasterCatalogV2Reference::ROW_COUNT,
+            'checks'=>$checks,
+            'production_authority'=>false,
+            'promotion_authorized'=>false,
+            'external_execution_authorized'=>false,
+        ];
+    }
+
+    private function blocked(string $blocker):array
+    {
+        return ['query_state'=>'UNAVAILABLE','ingestion_readiness'=>'BLOCKED','blocker'=>$blocker,'parent_version_id'=>0,'checks'=>[],'production_authority'=>false,'promotion_authorized'=>false,'external_execution_authorized'=>false];
+    }
+}
