@@ -59,8 +59,8 @@ final class PortalApprovalIntegrationReadinessContractTest extends TestCase {
   $previous=$GLOBALS['wpdb']??null;
   $GLOBALS['wpdb']=new class {
    public string $prefix='wp_';
-   public string $last_error='fixture failure';
-   public function get_results(string $sql,mixed $format):array{return [];}
+   public string $last_error='stale prior failure';
+   public function get_results(string $sql,mixed $format):?array{$this->last_error='fixture failure';return null;}
   };
   try {
    $snapshot=(new \DigiForge\Portal\IntegrationReadinessReadModel())->snapshot();

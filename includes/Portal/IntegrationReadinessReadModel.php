@@ -12,12 +12,14 @@ final class IntegrationReadinessReadModel
     public function snapshot(): array
     {
         global $wpdb;
+        $wpdb->last_error='';
         $rows=$wpdb->get_results('SELECT id,provider,environment,connection_key,display_name,status,enabled,updated_at,config FROM '.Tables::integrations().' ORDER BY id ASC',ARRAY_A);
         if (!is_array($rows) || !empty($wpdb->last_error)) {
             return ['query_state'=>'UNAVAILABLE','counts'=>null,'items'=>[],
                 'read_only'=>true,'connectivity_test_performed'=>false,
                 'credentials_exposed'=>false,'external_execution_authorized'=>false];
         }
+        $wpdb->last_error='';
         $secretRows=$wpdb->get_results('SELECT integration_id,secret_name,fingerprint FROM '.Tables::integration_secrets().' ORDER BY integration_id,secret_name',ARRAY_A);
         if (!is_array($secretRows) || !empty($wpdb->last_error)) {
             return ['query_state'=>'UNAVAILABLE','counts'=>null,'items'=>[],

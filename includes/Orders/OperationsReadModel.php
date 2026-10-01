@@ -11,6 +11,7 @@ final class OperationsReadModel
     public function recent(int $limit=50, ?string &$queryState=null):array
     {
         global $wpdb;$limit=max(1,min(100,$limit));
+        $wpdb->last_error='';
         $orders=$wpdb->get_results($wpdb->prepare('SELECT id,channel,environment,external_order_reference,shop_reference,currency,total_amount,personalization_required,state,approved_by,approved_at,created_at,updated_at FROM '.Tables::orders().' ORDER BY id DESC LIMIT %d',$limit),ARRAY_A);
         if(!is_array($orders)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
         $queryState='AVAILABLE';

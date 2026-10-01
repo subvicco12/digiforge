@@ -110,6 +110,7 @@ final class ShopOperationsReadModel
         }
         $limit=max(1,min(100,$limit));$args[]=$limit;
         $sql='SELECT listing_id,family,concept,engine,physical_product,supplier_gate,template_state,attributes,row_hash FROM '.Tables::catalog_items().' WHERE '.implode(' AND ',$where).' ORDER BY listing_id ASC LIMIT %d';
+        $wpdb->last_error='';
         $rows=$wpdb->get_results($wpdb->prepare($sql,...$args),ARRAY_A);
         if(!is_array($rows)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
         $queryState='AVAILABLE';return $rows;
