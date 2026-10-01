@@ -208,6 +208,7 @@ final class U3ApprovalInbox
     private function pendingProductCount(): ?int
     {
         global $wpdb;
+        $wpdb->last_error='';
         $count=$wpdb->get_var(
             'SELECT COUNT(*) FROM ' . Tables::production_plans() . ' pp'
             . ' INNER JOIN ' . Tables::product_versions() . ' pv ON pv.id=pp.product_version_id'
@@ -265,6 +266,7 @@ final class U3ApprovalInbox
     {
         global $wpdb;
         $sql = 'SELECT s.asset_key,s.asset_type,s.purpose,s.format,ar.id AS revision_id,ar.storage_reference,ar.mime_type,ar.byte_size,ar.state AS revision_state FROM ' . Tables::production_plan_assets() . ' pa INNER JOIN ' . Tables::asset_specs() . ' s ON s.id=pa.asset_spec_id INNER JOIN ' . Tables::asset_revisions() . ' ar ON ar.id=(SELECT ar2.id FROM ' . Tables::asset_revisions() . ' ar2 WHERE ar2.asset_spec_id=s.id ORDER BY ar2.id DESC LIMIT 1) WHERE pa.production_plan_id=%d AND pa.is_required=1 ORDER BY pa.sequence_no ASC';
+        $wpdb->last_error='';
         $rows = $wpdb->get_results($wpdb->prepare($sql, $planId), ARRAY_A);
         if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
         foreach ($rows as &$row) { $row['filename'] = sanitize_file_name(basename((string) ($row['storage_reference'] ?? 'asset'))); }
@@ -275,6 +277,7 @@ final class U3ApprovalInbox
     private function safeCount(string $sql): ?int
     {
         global $wpdb;
+        $wpdb->last_error='';
         $value=$wpdb->get_var($sql);
         return is_numeric($value) && empty($wpdb->last_error) ? (int)$value : null;
     }
