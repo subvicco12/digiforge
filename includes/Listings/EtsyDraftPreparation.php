@@ -11,7 +11,8 @@ final class EtsyDraftPreparation
     public function prepare(int $intentId):array|WP_Error
     {
         if($intentId<1)return new WP_Error('digiforge_etsy_intent','Valid Etsy intent ID is required.',['status'=>400]);
-        global $wpdb;$intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        global $wpdb;$wpdb->last_error='';$intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_intent_evidence_unavailable','Etsy intent evidence could not be read.',['status'=>503]);
         if(!is_array($intent))return new WP_Error('digiforge_etsy_intent_missing','Etsy intent not found.',['status'=>404]);
         if((string)($intent['state']??'')!=='BLOCKED')return new WP_Error('digiforge_etsy_intent_state','Only BLOCKED Etsy intents may be locally prepared.',['status'=>409]);
         $listingId=(int)($intent['listing_id']??0);$readiness=(new Repository())->readiness($listingId);
