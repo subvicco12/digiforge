@@ -38,12 +38,15 @@ final class EtsyScopedCredentialRetriever
         }
 
         global $wpdb;
+        $wpdb->last_error='';
         $rows=$wpdb->get_results(
             $wpdb->prepare(
                 'SELECT secret_name,ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name IN (%s,%s,%s)',
                 $integrationId,'access_token','keystring','shared_secret'
             ), ARRAY_A
         );
+        if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Authorized Etsy credential evidence could not be read.',503);
+        if(!is_array($rows))return self::error('evidence_unavailable','Authorized Etsy credential evidence is unavailable.',503);
         $material=[];
         foreach(is_array($rows)?$rows:[] as $secret){
             $name=(string)($secret['secret_name']??'');
@@ -57,8 +60,8 @@ final class EtsyScopedCredentialRetriever
         return $envelope;
     }
 
-    private static function error(string $code,string $message): WP_Error
+    private static function error(string $code,string $message,int $status=409): WP_Error
     {
-        return new WP_Error('digiforge_etsy_scoped_retrieval_'.$code,$message,['status'=>409]);
+        return new WP_Error('digiforge_etsy_scoped_retrieval_'.$code,$message,['status'=>$status]);
     }
 }
