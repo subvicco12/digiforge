@@ -34,11 +34,17 @@ final class EtsyPublishExecutionController
         $integrationId=(int)($body['integration_id']??0);$shopId=(int)($body['shop_id']??0);$intentId=(int)($body['intent_id']??0);$packageId=(int)($body['draft_package_id']??0);
         if($integrationId<1||$shopId<1||$intentId<1||$packageId<1)return self::error('scope','Integration, shop, approved intent and package are required.',400);
         global $wpdb;
+        $wpdb->last_error='';
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Approved Etsy intent evidence could not be read.',503);
+        $wpdb->last_error='';
         $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Approved Etsy draft package evidence could not be read.',503);
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId)return self::error('intent','Approved Etsy intent/package scope is required.',409);
         if(!is_array($package)||(int)($package['approved_by']??0)<1||empty($package['approved_at']))return self::error('package','Human-approved draft package is required.',409);
+        $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Approved listing evidence could not be read.',503);
         if(!is_array($listing)||($listing['state']??'')!=='APPROVED'||(int)($listing['approved_by']??0)<1)return self::error('listing','Explicitly approved listing is required.',409);
         $hash=strtolower(trim((string)($package['readiness_hash']??'')));if(!preg_match('/^[a-f0-9]{64}$/',$hash))return self::error('evidence','Approved readiness hash is required.',409);
         $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
