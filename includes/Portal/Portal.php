@@ -1062,7 +1062,7 @@ final class Portal
     private function countExcludingStates(string $table, string $column, array $states): ?int
     {
         global $wpdb;
-        if (! preg_match('/^[a-z0-9_]+$/i', $column) || $states === []) { return 0; }
+        if (! preg_match('/^[a-z0-9_]+$/i', $column) || $states === []) { return null; }
         $placeholders = implode(',', array_fill(0, count($states), '%s'));
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$column} NOT IN ({$placeholders})";
         $wpdb->last_error = '';
@@ -1073,7 +1073,7 @@ final class Portal
     private function countByState(string $table, string $column, string $state): ?int
     {
         global $wpdb;
-        if (! preg_match('/^[a-z0-9_]+$/i', $column)) { return 0; }
+        if (! preg_match('/^[a-z0-9_]+$/i', $column)) { return null; }
         $wpdb->last_error = '';
         $value = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column}=%s", $state));
         return $wpdb->last_error !== '' ? null : (int) $value;
