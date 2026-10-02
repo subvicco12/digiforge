@@ -53,6 +53,7 @@ final class EtsyOperationRepository
         global $wpdb;
         $table = $wpdb->prefix . 'digiforge_etsy_operations';
         $existing = $this->byKey((string)$record['shop_reference'], (string)$record['idempotency_key']);
+        if ($existing instanceof WP_Error) return $existing;
         if (is_array($existing)) {
             if (!$this->sameRequest($existing, $record)) {
                 return $this->error('idempotency_conflict', 'Idempotency key already belongs to a different Etsy operation.', 409);
@@ -64,6 +65,7 @@ final class EtsyOperationRepository
         $data = $record + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
         if ($wpdb->insert($table, $data) !== 1) {
             $existing = $this->byKey((string)$record['shop_reference'], (string)$record['idempotency_key']);
+            if ($existing instanceof WP_Error) return $existing;
             if (is_array($existing) && $this->sameRequest($existing, $record)) return $existing + ['idempotent_replay' => true];
             return $this->error('create_failed', 'Unable to persist Etsy operation record.', 500);
         }
@@ -242,19 +244,21 @@ final class EtsyOperationRepository
         return is_array($row) ? $row : null;
     }
 
-    /** @return array<string,mixed>|null */
+    /** @return array<string,mixed>|WP_Error|null */
     public function confirmedCreateForScope(int $intentId,int $packageId,string $shopReference): ?array
     {
         if($intentId<1||$packageId<1||trim($shopReference)==='')return null;
         global $wpdb;
+        $wpdb->last_error='';
         $row=$wpdb->get_row($wpdb->prepare(
             'SELECT * FROM '.$wpdb->prefix.'digiforge_etsy_operations WHERE intent_id=%d AND draft_package_id=%d AND shop_reference=%s AND operation_type=%s AND state=%s ORDER BY id DESC LIMIT 1',
             $intentId,$packageId,$shopReference,'CREATE_DRAFT',EtsyOperationLifecycle::CONFIRMED_SUCCESS
         ),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Confirmed CREATE_DRAFT evidence could not be read.',503);
         return is_array($row)?$row:null;
     }
 
-    /** @return array<string,mixed>|null */
+    /** @return array<string,mixed>|WP_Error|null */
     public function confirmedPublishForScope(int $intentId,int $packageId,string $shopReference,string $listingId): ?array
     {
         if($intentId<1||$packageId<1||trim($shopReference)===''||!ctype_digit($listingId))return null;
@@ -263,14 +267,17 @@ final class EtsyOperationRepository
             'SELECT * FROM '.$wpdb->prefix.'digiforge_etsy_operations WHERE intent_id=%d AND draft_package_id=%d AND shop_reference=%s AND operation_type=%s AND resource_reference=%s AND state=%s ORDER BY id DESC LIMIT 1',
             $intentId,$packageId,$shopReference,'PUBLISH_LISTING',$listingId,EtsyOperationLifecycle::CONFIRMED_SUCCESS
         ),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Confirmed PUBLISH_LISTING evidence could not be read.',503);
         return is_array($row)?$row:null;
     }
 
-    /** @return array<string,mixed>|null */
+    /** @return array<string,mixed>|WP_Error|null */
     public function byKey(string $shopReference, string $idempotencyKey): ?array
     {
         global $wpdb;
+        $wpdb->last_error='';
         $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . 'digiforge_etsy_operations WHERE shop_reference=%s AND idempotency_key=%s LIMIT 1',$shopReference,$idempotencyKey), ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Etsy operation idempotency evidence could not be read.',503);
         return is_array($row) ? $row : null;
     }
 
