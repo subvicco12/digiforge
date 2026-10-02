@@ -14,6 +14,6 @@ final class FinalReleaseCandidateEvidenceBindingTest extends TestCase {
   self::assertStringContainsString('No release-readiness result grants Etsy publish or POD production authority',$g);
  }
  public function testFinalMetadataRemainsV1084Schema23():void {
-  $p=file_get_contents(__DIR__.'/../../digiforge.php');self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.102';",$p);self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';",$p);
+  $p=file_get_contents(__DIR__.'/../../digiforge.php');self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.103';",$p);self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';",$p);
  }
 }
