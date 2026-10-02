@@ -18,5 +18,5 @@ final class ListingReadinessEvidenceAvailabilityContractTest extends TestCase {
   self::assertStringContainsString('$readiness=$this->readiness($listingId)',$c);
   self::assertStringContainsString('is_wp_error($readiness)||empty($readiness[\'ready\'])',$c);
  }
- public function testReadinessReadsClearStaleDatabaseErrorsBeforeIndependentQueries():void{$s=(string)file_get_contents(__DIR__.'/../../includes/Listings/Repository.php');self::assertStringContainsString("\$count=function(string \$sql)use(\$wpdb):int|WP_Error{\$wpdb->last_error='';\$raw=\$wpdb->get_var(\$sql);",$s);self::assertGreaterThanOrEqual(2,substr_count($s,"\$wpdb->last_error='';\$media"));}
+ public function testReadinessReadsClearStaleDatabaseErrorsBeforeIndependentQueries():void{$s=(string)file_get_contents(__DIR__.'/../../includes/Listings/Repository.php');self::assertStringContainsString("\$count=function(string \$sql)use(\$wpdb):int|WP_Error{\$wpdb->last_error='';\$raw=\$wpdb->get_var(\$sql);",$s);self::assertStringContainsString("\$wpdb->last_error='';\$mediaRows=\$wpdb->get_results",$s);self::assertStringContainsString("\$wpdb->last_error='';\$podBindings=\$wpdb->get_results",$s);}
 }
