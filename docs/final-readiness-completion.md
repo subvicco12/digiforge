@@ -4,7 +4,7 @@
 Complete DigiForge as a production-ready local-first WordPress platform without enabling any live Etsy, POD, AI, fulfillment, payment, refund, tax/GST, accounting, advertising, worker, schedule, webhook, or other external side effect.
 
 ## Release posture
-- Plugin release: 1.0.102.
+- Plugin release: 1.0.103.
 - Database schema: v23.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.

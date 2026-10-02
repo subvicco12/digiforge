@@ -1,3 +1,11 @@
+## 1.0.103 — 2026-10-02
+
+- Isolates Approval Inbox and production-provenance database evidence from stale prior query errors while preserving independent later reads.
+- Fails provenance anomaly projections closed when the current anomaly, outcome, lifecycle-closure, acknowledgement, historical-evidence, or coverage query is unavailable; unavailable evidence cannot become a false zero.
+- Makes downstream attention totals unavailable when provenance evidence is incomplete instead of presenting an authoritative zero.
+- Adds adversarial stale-error/current-error/later-success coverage and preserves read-only, no-retry, no-external-authority semantics.
+- Database schema remains v23. Installation performs no Etsy publish, POD production/provider dispatch, retry/replay, catalog promotion, money movement, tax filing, or other consequential external action.
+
 ## 1.0.93 — 2026-09-30
 
 - Starts Phase-1 Personalized POD operational completion by surfacing bounded authorization-package and current Printify preflight evidence in the live-site Personalized POD portal.

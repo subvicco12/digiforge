@@ -11,7 +11,7 @@ final class AttentionReadModel
     public function summary():array
     {
         global $wpdb;
-        $count=static function(string $sql)use($wpdb):?int{$value=$wpdb->get_var($sql);return $value===null||!empty($wpdb->last_error)?null:(int)$value;};
+        $count=static function(string $sql)use($wpdb):?int{$wpdb->last_error='';$value=$wpdb->get_var($sql);return $value===null||!empty($wpdb->last_error)?null:(int)$value;};
         $items=[
             'research_reviews'=>$count($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::research_candidates().' WHERE review_status=%s',\DigiForge\Research\Repository::REVIEW_PENDING)),
             'listing_decisions'=>$count("SELECT COUNT(*) FROM ".Tables::listing_readiness_reviews()." WHERE decision='PENDING'"),
@@ -35,7 +35,7 @@ final class AttentionReadModel
         $lifecycleClosures=$count("SELECT COUNT(*) FROM ".Tables::pod_lifecycle_closures());
         $items['execution_outcomes_pending']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_execution_outcomes()." o ON o.authorization_hash=n.authorization_hash WHERE o.id IS NULL");
         $items['production_legacy_unbound']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_authorization_bindings()." b ON b.authorization_hash=n.authorization_hash LEFT JOIN ".Tables::pod_lifecycle_closures()." c ON c.authorization_hash=n.authorization_hash WHERE b.id IS NULL AND c.id IS NULL");
-        $integrity=(new \DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(200);$items['production_provenance_integrity']=(int)$integrity['open_count'];$items['production_provenance_integrity_historical']=(int)$integrity['historical_count'];$items['production_provenance_integrity_acknowledged']=(int)$integrity['acknowledged_count'];
+        $integrity=(new \DigiForge\POD\ProductionProvenanceIntegrityReadModel())->recent(200);$integrityAvailable=(string)($integrity['query_state']??'UNAVAILABLE')==='AVAILABLE';$items['production_provenance_integrity']=$integrityAvailable?(int)$integrity['open_count']:null;$items['production_provenance_integrity_historical']=$integrityAvailable?(int)$integrity['historical_count']:null;$items['production_provenance_integrity_acknowledged']=$integrityAvailable?(int)$integrity['acknowledged_count']:null;
         $coverage=(new \DigiForge\POD\ProductionProvenanceIntegrityCoverageReadModel())->inspect((int)$integrity['current_count'],(int)$integrity['historical_count']);
         $unavailableSignals=array_keys(array_filter($items,static fn($value):bool=>$value===null));
         if($lifecycleClosures===null)$unavailableSignals[]='production_lifecycle_closures';

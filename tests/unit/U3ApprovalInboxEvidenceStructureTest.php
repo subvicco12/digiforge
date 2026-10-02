@@ -206,4 +206,30 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         } finally { $GLOBALS['wpdb'] = $previous; }
     }
 
+    public function testGate2IndependentCountsIgnoreStaleErrorsButFailOnCurrentErrors(): void
+    {
+        require_once __DIR__ . '/../../includes/Portal/U3ApprovalInbox.php';
+        require_once __DIR__ . '/../../includes/Database/Tables.php';
+        $previous = $GLOBALS['wpdb'] ?? null;
+        $db = new class {
+            public string $prefix='wp_';
+            public string $last_error='stale';
+            public int $calls=0;
+            public function get_var(string $sql): ?string {
+                $this->calls++;
+                if($this->calls===3){$this->last_error='current count failed';return null;}
+                return $this->calls===1?'4':'2';
+            }
+        };
+        $GLOBALS['wpdb']=$db;
+        try {
+            $inbox=(new ReflectionClass(\DigiForge\Portal\U3ApprovalInbox::class))->newInstanceWithoutConstructor();
+            self::assertSame(4,(new ReflectionMethod($inbox,'pendingProductCount'))->invoke($inbox));
+            $db->last_error='stale from prior query';
+            self::assertSame(2,(new ReflectionMethod($inbox,'safeCount'))->invoke($inbox,'SELECT COUNT(*)'));
+            self::assertNull((new ReflectionMethod($inbox,'safeCount'))->invoke($inbox,'SELECT COUNT(*)'));
+        } finally {$GLOBALS['wpdb']=$previous;}
+    }
+
+
 }

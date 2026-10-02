@@ -12,8 +12,8 @@ function pf_source(string $path): string { return (string) file_get_contents(__D
 
 // Release assertions intentionally track the current repository release candidate.
 $bootstrap = pf_source('digiforge.php');
-pf_expect(str_contains($bootstrap, '* Version: 1.0.102'), 'plugin header version matches the runtime version');
-pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '1.0.102'"), 'runtime version is 1.0.102');
+pf_expect(str_contains($bootstrap, '* Version: 1.0.103'), 'plugin header version matches the runtime version');
+pf_expect(str_contains($bootstrap, "DIGIFORGE_VERSION = '1.0.103'"), 'runtime version is 1.0.103');
 
 pf_expect(Lifecycle::initial('opportunity') === 'NEW', 'opportunities begin NEW');
 foreach (['product_family', 'product', 'product_version'] as $type) { pf_expect(Lifecycle::initial($type) === 'DRAFT', "$type begins DRAFT"); }
