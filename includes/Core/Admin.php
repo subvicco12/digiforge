@@ -198,6 +198,10 @@ final class Admin
     {
         $this->guard('manage_digiforge_products');
         $versions = (new Repository())->all('product_version', 1, Repository::MAX_PAGE_SIZE);
+        if (is_wp_error($versions)) {
+            echo '<div class="wrap"><h1>' . esc_html__('Product Factory', 'digiforge') . '</h1><div class="notice notice-error"><p>' . esc_html__('Product Factory evidence is unavailable. No empty portfolio is asserted.', 'digiforge') . '</p></div></div>';
+            return;
+        }
         $stateCounts = [];
         foreach (($versions['items'] ?? []) as $version) {
             if (! is_array($version)) { continue; }
@@ -227,7 +231,12 @@ final class Admin
     private function render_entities(string $type, string $label): void
     {
         $this->guard('manage_digiforge_products');
-        $items = (new Repository())->all($type)['items'];
+        $result = (new Repository())->all($type);
+        if (is_wp_error($result)) {
+            echo '<div class="wrap"><h1>' . esc_html($label) . '</h1><div class="notice notice-error"><p>' . esc_html__('Product Factory evidence is unavailable. No absence of records is asserted.', 'digiforge') . '</p></div></div>';
+            return;
+        }
+        $items = $result['items'];
         ?>
         <div class="wrap"><h1><?php echo esc_html($label); ?></h1><p><?php esc_html_e('Records are created and transitioned through the authenticated Product Factory REST API.', 'digiforge'); ?></p>
         <table class="widefat striped"><thead><tr><th><?php esc_html_e('ID', 'digiforge'); ?></th><th><?php esc_html_e('Name / version', 'digiforge'); ?></th><th><?php esc_html_e('State', 'digiforge'); ?></th><th><?php esc_html_e('Updated (UTC)', 'digiforge'); ?></th></tr></thead><tbody>
