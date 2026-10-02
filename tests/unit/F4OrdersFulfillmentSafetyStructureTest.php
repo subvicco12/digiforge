@@ -20,6 +20,8 @@ final class F4OrdersFulfillmentSafetyStructureTest extends TestCase
         self::assertStringContainsString('idempotency_payload_conflict',$repo);
         self::assertStringContainsString("['idempotent_replay'=>true]",$repo);
         self::assertStringContainsString('Idempotency key is too long.',$repo);
+        self::assertStringContainsString('idempotency_evidence_unavailable',$repo);
+        self::assertStringContainsString("\$wpdb->last_error=''", $repo);
     }
 
     public function testPersonalizationRequiresExplicitHumanApproval(): void
