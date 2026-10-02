@@ -44,6 +44,7 @@ final class EtsyOperationPreparationService
         if ($scope instanceof WP_Error) return $scope;
         if(in_array($operationType,['ATTACH_IMAGE','UPLOAD_FILE'],true)){
             $parent=$this->operations->confirmedCreateForScope((int)$operation['intent_id'],(int)$operation['draft_package_id'],(string)$operation['shop_reference']);
+            if($parent instanceof WP_Error)return $parent;
             if(!is_array($parent))return $this->error('create_parent_required','Media preparation requires a confirmed CREATE_DRAFT in the exact approved scope.',409);
             $sequence=EtsyPostCreateSequenceGuard::authorize($parent,$operation);
             if($sequence instanceof WP_Error)return $sequence;
