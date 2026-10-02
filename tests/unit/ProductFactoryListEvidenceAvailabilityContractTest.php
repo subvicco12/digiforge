@@ -13,5 +13,9 @@ final class ProductFactoryListEvidenceAvailabilityContractTest extends TestCase{
   $controller=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/ProductFactoryController.php');
   self::assertStringContainsString('private function index(\\WP_REST_Request $request, string $type): \\WP_REST_Response|\\WP_Error',$controller);
   self::assertStringContainsString('if (is_wp_error($result)) { return $result; }',$controller);
+  $admin=(string)file_get_contents(dirname(__DIR__,2).'/includes/Core/Admin.php');
+  self::assertStringContainsString('Product Factory evidence is unavailable. No empty portfolio is asserted.',$admin);
+  self::assertStringContainsString('Product Factory evidence is unavailable. No absence of records is asserted.',$admin);
+  self::assertGreaterThanOrEqual(2,substr_count($admin,'is_wp_error('));
  }
 }
