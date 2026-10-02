@@ -45,6 +45,8 @@ final class Readiness
             $recovery['evidence_hash'] = hash('sha256', (string) wp_json_encode($recovery));
         }
 
+        $externalActions = $this->externalActionsEvidence();
+
         $checks = [
             'schema_current' => $schemaCurrent,
             'stop_all_active' => $stopAll,
@@ -57,6 +59,7 @@ final class Readiness
             'retention_fail_closed' => RetentionPolicy::describe()['automatic_deletion_enabled'] === false,
             'recovery_drill_available' => method_exists(RecoveryDrill::class, 'evaluate'),
             'recovery_drill_passed' => ($recovery['status'] ?? '') === 'PASS' && ($drillEvidence['passed'] ?? false) === true,
+            'external_actions_query_verified' => $externalActions['query_state'] === 'AVAILABLE',
         ];
 
         $ready = ! in_array(false, $checks, true);
@@ -70,7 +73,8 @@ final class Readiness
             'recovery_artifact_evidence' => $artifactEvidence,
             'recovery_drill_evidence' => $drillEvidence,
             'effective_switches' => $effective,
-            'external_actions_performed' => $this->externalActionsPerformed(),
+            'external_actions_performed' => $externalActions['performed'],
+            'external_actions_query_state' => $externalActions['query_state'],
         ];
         $payload['evidence_hash'] = hash('sha256', (string) wp_json_encode($payload));
 
@@ -81,14 +85,19 @@ final class Readiness
     {
         return filter_var(get_option($name, false), FILTER_VALIDATE_BOOLEAN) === true;
     }
-    private function externalActionsPerformed(): bool
+    /** @return array{performed:?bool,query_state:string} */
+    private function externalActionsEvidence(): array
     {
         global $wpdb;
-        $table=$wpdb->prefix.'digiforge_etsy_operations';
-        $exists=$wpdb->get_var($wpdb->prepare(
+        $table = $wpdb->prefix . 'digiforge_etsy_operations';
+        $wpdb->last_error = '';
+        $exists = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$table} WHERE state IN (%s,%s,%s,%s,%s) LIMIT 1",
-            'SENT','UNKNOWN','RECONCILIATION','RECONCILED','CONFIRMED_SUCCESS'
+            'SENT', 'UNKNOWN', 'RECONCILIATION', 'RECONCILED', 'CONFIRMED_SUCCESS'
         ));
-        return (int)$exists>0;
+        if ($wpdb->last_error !== '') {
+            return ['performed' => null, 'query_state' => 'UNAVAILABLE'];
+        }
+        return ['performed' => (int) $exists > 0, 'query_state' => 'AVAILABLE'];
     }
 }
