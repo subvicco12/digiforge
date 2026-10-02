@@ -22,7 +22,7 @@ final class FinalReadinessStructureTest extends TestCase
         self::assertStringContainsString("'external_actions_query_verified'", $source);
         self::assertStringContainsString("'external_actions_query_state'", $source);
         self::assertStringContainsString("'UNAVAILABLE'", $source);
-        self::assertStringContainsString("$wpdb->last_error = ''", $source);
+        self::assertStringContainsString("\$wpdb->last_error = ''", $source);
         self::assertStringContainsString("'performed' => null", $source);
     }
 
