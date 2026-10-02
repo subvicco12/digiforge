@@ -23,6 +23,7 @@ final class EtsyPreCallReplacementService
         array $payload
     ): array|WP_Error {
         $source=$this->operations->find($sourceOperationId);
+        if($source instanceof WP_Error)return $source;
         if (!is_array($source)) return $this->error('source_not_found','Source Etsy operation was not found.');
 
         $recovery=EtsyPreCallRecoveryPlan::build($source,$prepared);
