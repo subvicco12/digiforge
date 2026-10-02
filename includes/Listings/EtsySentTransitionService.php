@@ -31,6 +31,7 @@ final class EtsySentTransitionService
         }
 
         $operation=$this->operations->find($operationId);
+        if($operation instanceof WP_Error)return $operation;
         if (!is_array($operation) || (string)($operation['state'] ?? '') !== EtsyOperationLifecycle::NOT_SENT) {
             return $this->error('operation_not_sendable','Only a NOT_SENT operation may be marked SENT.');
         }
