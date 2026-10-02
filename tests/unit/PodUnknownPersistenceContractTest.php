@@ -18,4 +18,5 @@ final class PodUnknownPersistenceContractTest extends TestCase{
   self::assertStringContainsString("network_request_attempted",$f);
   self::assertStringContainsString("?'UNKNOWN':'FAILED'",$f);
  }
+ public function testIndependentUnknownEvidenceReadsClearStaleErrors():void{$r=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/ExecutionUnknownRepository.php');self::assertGreaterThanOrEqual(5,substr_count($r,"\$wpdb->last_error=''"));}
 }
