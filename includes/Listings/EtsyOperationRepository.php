@@ -142,6 +142,7 @@ final class EtsyOperationRepository
         $reference=trim($reference);
         if($id<1||$reference===''||strlen($reference)>191||!preg_match('/^[A-Za-z0-9._:-]+$/',$reference))return $this->error('external_asset_reference','Invalid Etsy external asset reference.',400);
         $row=$this->find($id);
+        if($row instanceof WP_Error)return $row;
         if(!is_array($row)||(string)($row['state']??'')!==EtsyOperationLifecycle::CONFIRMED_SUCCESS)return $this->error('external_asset_reference_state','Asset identity requires confirmed success.',409);
         if(!in_array((string)($row['operation_type']??''),['UPLOAD_FILE','ATTACH_IMAGE'],true))return $this->error('external_asset_reference_type','Asset identity is only valid for media operations.',409);
         $existing=trim((string)($row['external_asset_reference']??''));
@@ -160,6 +161,7 @@ final class EtsyOperationRepository
             return $this->error('reconciliation_reference','Invalid Etsy reconciliation reference.',400);
         }
         $row=$this->find($id);
+        if($row instanceof WP_Error)return $row;
         if (!is_array($row)) return $this->error('not_found','Etsy operation record not found.',404);
         $state=(string)($row['state']??'');
         if (!in_array($state,[EtsyOperationLifecycle::SENT,EtsyOperationLifecycle::UNKNOWN,EtsyOperationLifecycle::RECONCILIATION,EtsyOperationLifecycle::RECONCILED],true)) {
@@ -177,6 +179,7 @@ final class EtsyOperationRepository
         ],['id'=>$id,'reconciliation_reference'=>'']);
         if ($updated!==1) {
             $current=$this->find($id);
+            if($current instanceof WP_Error)return $current;
             $persisted=is_array($current)?trim((string)($current['reconciliation_reference']??'')):'';
             if ($persisted!=='' && hash_equals($persisted,$reference)) return $current+['idempotent_reconciliation_reference'=>true];
             return $this->error('reconciliation_reference_conflict','Unable to atomically persist Etsy reconciliation reference.',409);
@@ -213,6 +216,7 @@ final class EtsyOperationRepository
         $updated=$wpdb->update($wpdb->prefix.'digiforge_etsy_operations',['reconciliation_evidence'=>$encoded,'updated_at'=>current_time('mysql',true)],['id'=>$id,'reconciliation_evidence'=>null]);
         if($updated!==1){
             $current=$this->find($id);
+            if($current instanceof WP_Error)return $current;
             $persisted=is_array($current)?(string)($current['reconciliation_evidence']??''):'';
             if($persisted!==''&&hash_equals(hash('sha256',$persisted),hash('sha256',$encoded)))return $current+['idempotent_reconciliation_evidence'=>true];
             return $this->error('reconciliation_evidence_conflict','Unable to atomically persist reconciliation evidence.',409);
@@ -237,12 +241,14 @@ final class EtsyOperationRepository
         $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$key));
     }
 
-    /** @return array<string,mixed>|null */
-    public function find(int $id): ?array
+    /** @return array<string,mixed>|WP_Error|null */
+    public function find(int $id): array|WP_Error|null
     {
         if ($id < 1) return null;
         global $wpdb;
+        $wpdb->last_error='';
         $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $wpdb->prefix . 'digiforge_etsy_operations WHERE id=%d LIMIT 1',$id), ARRAY_A);
+        if((string)$wpdb->last_error!=='')return $this->error('evidence_unavailable','Etsy operation entity evidence could not be read.',503);
         return is_array($row) ? $row : null;
     }
 
