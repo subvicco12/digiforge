@@ -34,6 +34,7 @@ final class ListingController
     public function list(\WP_REST_Request $r): \WP_REST_Response
     {
         $result=(new Repository())->list((string)$r['entity'],max(1,(int)($r->get_param('page')?:1)),min(100,max(1,(int)($r->get_param('per_page')?:20))));
+        if(($result['query_state']??'UNAVAILABLE')!=='AVAILABLE'||!is_array($result['items'])||!is_array($result['pagination']))return new \WP_REST_Response(['code'=>'listing_evidence_unavailable','message'=>'Listing list evidence could not be read.'],503);
         $response=new \WP_REST_Response($result['items']);
         $response->header('X-WP-Total',(string)$result['pagination']['total_items']);
         $response->header('X-WP-TotalPages',(string)$result['pagination']['total_pages']);
