@@ -12,7 +12,9 @@ final class EtsyVerifiedShopIdentity
     {
         if($integrationId<1||$shopId<1||trim($listingShopReference)==='') return self::error('identity','Integration, listing shop reference and numeric Etsy shop id are required.');
         global $wpdb;
+        $wpdb->last_error='';
         $row=$wpdb->get_row($wpdb->prepare('SELECT provider,status,config FROM '.Tables::integrations().' WHERE id=%d LIMIT 1',$integrationId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Configured Etsy integration evidence could not be read.',503);
         if(!is_array($row)||($row['provider']??'')!=='etsy'||($row['status']??'')!=='CONFIGURED') return self::error('integration','A configured Etsy integration is required.');
         $config=json_decode((string)($row['config']??'{}'),true);
         $test=is_array($config['_connection_test']??null)?$config['_connection_test']:[];
@@ -27,8 +29,10 @@ final class EtsyVerifiedShopIdentity
     public static function resolveAny(string $listingShopReference,int $shopId): array|WP_Error
     {
         global $wpdb;
+        $wpdb->last_error='';
         $ids=$wpdb->get_col("SELECT id FROM ".Tables::integrations()." WHERE provider='etsy' AND status='CONFIGURED' ORDER BY id ASC");
-        foreach((array)$ids as $id){
+        if(!is_array($ids)||!empty($wpdb->last_error)) return self::error('evidence_unavailable','Configured Etsy integration evidence could not be enumerated.',503);
+        foreach($ids as $id){
             $resolved=self::resolve((int)$id,$listingShopReference,$shopId);
             if(!($resolved instanceof WP_Error)) return $resolved;
         }
@@ -51,8 +55,8 @@ final class EtsyVerifiedShopIdentity
             && hash_equals((string)$binding['shop_name'],$verifiedName);
     }
 
-    private static function error(string $code,string $message): WP_Error
+    private static function error(string $code,string $message,int $status=409): WP_Error
     {
-        return new WP_Error('digiforge_etsy_verified_shop_'.$code,$message,['status'=>409]);
+        return new WP_Error('digiforge_etsy_verified_shop_'.$code,$message,['status'=>$status]);
     }
 }
