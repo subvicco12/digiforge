@@ -7,6 +7,7 @@ final class EtsyReconciliationOperatorReadModel {
  public function byId(int $id, ?string &$queryState=null):?array {
   if($id<1){$queryState='INVALID_ID';return null;}
   global $wpdb;$table=$wpdb->prefix.'digiforge_etsy_operations';
+  $wpdb->last_error='';
   $row=$wpdb->get_row($wpdb->prepare("SELECT id,shop_reference,operation_type,resource_reference,state,external_reference,reconciliation_reference,updated_at FROM $table WHERE id=%d AND state IN ('UNKNOWN','RECONCILIATION')",$id),ARRAY_A);
   if(!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return null;}
   if(!is_array($row)){$queryState='NOT_FOUND';return null;}
@@ -16,6 +17,7 @@ final class EtsyReconciliationOperatorReadModel {
  /** @return list<array<string,mixed>> */
  public function recent(int $limit=50, ?string &$queryState=null):array {
   global $wpdb;$limit=max(1,min(100,$limit));$table=$wpdb->prefix.'digiforge_etsy_operations';
+  $wpdb->last_error='';
   $rows=$wpdb->get_results($wpdb->prepare("SELECT id,shop_reference,operation_type,resource_reference,state,external_reference,reconciliation_reference,updated_at FROM $table WHERE state IN ('UNKNOWN','RECONCILIATION') ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
   if(!is_array($rows)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
   $queryState='AVAILABLE';
