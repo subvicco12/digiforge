@@ -8,6 +8,7 @@ final class Admin {
     public function render():void{
         if(!current_user_can('manage_digiforge_ai'))wp_die(esc_html__('You are not allowed to view DigiForge AI governance.','digiforge'));
         $repo=new Repository();$runs=$repo->list('runs',1,25);$usage=$repo->list('usage',1,25);$reviews=$repo->list('reviews',1,25);
+        if(is_wp_error($runs)||is_wp_error($usage)||is_wp_error($reviews)){echo '<div class="wrap"><h1>'.esc_html__('DigiForge AI Governance','digiforge').'</h1><div class="notice notice-error"><p>'.esc_html__('AI governance evidence is unavailable. No empty or zero-count state is asserted.','digiforge').'</p></div></div>';return;}
         ?>
         <div class="wrap"><h1><?php esc_html_e('DigiForge AI Governance','digiforge'); ?></h1>
         <p><?php esc_html_e('Local governance records only. AI execution and provider calls are disabled in this build.','digiforge'); ?></p>
