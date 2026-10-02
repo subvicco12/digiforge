@@ -43,12 +43,13 @@ final class EtsyPublishExecutionController
         $hash=strtolower(trim((string)($package['readiness_hash']??'')));if(!preg_match('/^[a-f0-9]{64}$/',$hash))return self::error('evidence','Approved readiness hash is required.',409);
         $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
         $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);if($identity instanceof WP_Error)return $identity;
-        $ops=new EtsyOperationRepository();$parent=$ops->confirmedCreateForScope($intentId,$packageId,(string)$shopId);if(!is_array($parent))return self::error('parent','Confirmed CREATE_DRAFT evidence is required.',409);
+        $ops=new EtsyOperationRepository();$parent=$ops->confirmedCreateForScope($intentId,$packageId,(string)$shopId);if($parent instanceof WP_Error)return $parent;if(!is_array($parent))return self::error('parent','Confirmed CREATE_DRAFT evidence is required.',409);
         $etsyListingId=trim((string)($parent['external_reference']??''));if(!ctype_digit($etsyListingId)||(int)$etsyListingId<1)return self::error('identity','Authoritative Etsy listing identity is invalid.',409);
-        if(is_array($ops->confirmedPublishForScope($intentId,$packageId,(string)$shopId,$etsyListingId)))return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_CONFIRMED','etsy_listing_id'=>(int)$etsyListingId,'external_execution_performed'=>false,'retry_permitted'=>false],200);
+        $confirmedPublish=$ops->confirmedPublishForScope($intentId,$packageId,(string)$shopId,$etsyListingId);if($confirmedPublish instanceof WP_Error)return $confirmedPublish;if(is_array($confirmedPublish))return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_CONFIRMED','etsy_listing_id'=>(int)$etsyListingId,'external_execution_performed'=>false,'retry_permitted'=>false],200);
         $plan=EtsyPublishListingOperation::plan($shopId,(int)$etsyListingId);if($plan instanceof WP_Error)return $plan;
         $payload=(array)$plan['payload'];$fingerprint=EtsyRequestFingerprint::fromPayload($payload);if($fingerprint instanceof WP_Error)return $fingerprint;
         $existing=$ops->byKey((string)$shopId,$key);
+        if($existing instanceof WP_Error)return $existing;
         if(is_array($existing)){
             $same=(int)($existing['intent_id']??0)===$intentId&&(int)($existing['draft_package_id']??0)===$packageId&&(string)($existing['operation_type']??'')==='PUBLISH_LISTING'&&hash_equals((string)($existing['resource_reference']??''),$etsyListingId)&&hash_equals((string)($existing['request_fingerprint']??''),$fingerprint)&&hash_equals((string)($existing['evidence_hash']??''),$hash);
             if(!$same)return self::error('idempotency','Idempotency key already belongs to a different Etsy publish request.',409);
