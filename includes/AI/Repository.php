@@ -204,8 +204,14 @@ final class Repository
         if (! Lifecycle::canTransition((string) $run['state'], $to)) {
             return $this->error('invalid_transition', 'Invalid AI run state transition.', 409);
         }
-        if ($to === Lifecycle::APPROVED_FOR_EXECUTION && ! $this->hasApproval($id, 'run')) {
-            return $this->error('review_required', 'Human approval is required.', 409);
+        if ($to === Lifecycle::APPROVED_FOR_EXECUTION) {
+            $approval = $this->hasApproval($id, 'run');
+            if (is_wp_error($approval)) {
+                return $approval;
+            }
+            if (! $approval) {
+                return $this->error('review_required', 'Human approval is required.', 409);
+            }
         }
         global $wpdb;
         $ok = $wpdb->update(
@@ -376,15 +382,20 @@ final class Repository
         return array_map([$this, 'normalize'], is_array($rows) ? $rows : []);
     }
 
-    private function hasApproval(int $runId, string $targetType): bool
+    private function hasApproval(int $runId, string $targetType): bool|\WP_Error
     {
         global $wpdb;
-        return (int) $wpdb->get_var($wpdb->prepare(
+        $wpdb->last_error = '';
+        $count = $wpdb->get_var($wpdb->prepare(
             'SELECT COUNT(*) FROM ' . Tables::ai_reviews() . ' WHERE run_id=%d AND target_type=%s AND decision=%s',
             $runId,
             $targetType,
             'APPROVED'
-        )) > 0;
+        ));
+        if ((string) $wpdb->last_error !== '' || $count === null) {
+            return $this->error('evidence_unavailable', 'Human approval evidence could not be read.', 503);
+        }
+        return (int) $count > 0;
     }
 
     private function insert(string $table, ?string $key, array $data, string $type): array|\WP_Error
