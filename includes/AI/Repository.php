@@ -406,7 +406,11 @@ final class Repository
         }
         global $wpdb;
         if ($key !== null) {
+            $wpdb->last_error = '';
             $existing = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $table . ' WHERE idempotency_key=%s', $key), ARRAY_A);
+            if ((string) $wpdb->last_error !== '') {
+                return $this->error('evidence_unavailable', 'AI idempotency evidence could not be read.', 503);
+            }
             if (is_array($existing)) {
                 return $this->normalize($existing) + ['idempotent_replay' => true];
             }
