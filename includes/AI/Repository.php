@@ -159,6 +159,9 @@ final class Repository
             return $this->error('schema_validation', 'Input failed schema validation.', 422);
         }
         $models = $this->modelsForEnvironment((string) $task['environment']);
+        if (is_wp_error($models)) {
+            return $models;
+        }
         $decision = (new RoutingPolicy())->choose($task, $models);
         if (is_wp_error($decision)) {
             return $decision;
@@ -375,11 +378,15 @@ final class Repository
         return $row;
     }
 
-    private function modelsForEnvironment(string $environment): array
+    private function modelsForEnvironment(string $environment): array|\WP_Error
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . Tables::ai_models() . ' WHERE environment=%s AND enabled=1', $environment), ARRAY_A);
-        return array_map([$this, 'normalize'], is_array($rows) ? $rows : []);
+        if ((string) $wpdb->last_error !== '' || ! is_array($rows)) {
+            return $this->error('evidence_unavailable', 'AI routing model evidence could not be read.', 503);
+        }
+        return array_map([$this, 'normalize'], $rows);
     }
 
     private function hasApproval(int $runId, string $targetType): bool|\WP_Error
