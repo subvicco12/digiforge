@@ -10,5 +10,8 @@ final class ProductFactoryListEvidenceAvailabilityContractTest extends TestCase{
   self::assertGreaterThanOrEqual(2,substr_count($s,"\$wpdb->last_error = '';"));
   self::assertStringContainsString('$total_raw === null',$s);
   self::assertStringContainsString("array_map([\$this, 'normalize'], \$rows)",$s);
+  $controller=(string)file_get_contents(dirname(__DIR__,2).'/includes/REST/ProductFactoryController.php');
+  self::assertStringContainsString('private function index(\\WP_REST_Request $request, string $type): \\WP_REST_Response|\\WP_Error',$controller);
+  self::assertStringContainsString('if (is_wp_error($result)) { return $result; }',$controller);
  }
 }
