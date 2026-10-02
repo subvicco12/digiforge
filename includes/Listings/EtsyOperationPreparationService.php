@@ -139,8 +139,12 @@ final class EtsyOperationPreparationService
         global $wpdb;
         $intentId=(int)($operation['intent_id']??0);
         $packageId=(int)($operation['draft_package_id']??0);
+        $wpdb->last_error='';
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return $this->error('scope_evidence_unavailable','Referenced Etsy intent evidence could not be read.',503);
+        $wpdb->last_error='';
         $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return $this->error('scope_evidence_unavailable','Referenced Etsy draft package evidence could not be read.',503);
         if (!is_array($intent) || (string)($intent['state']??'') !== 'APPROVED_INTENT') {
             return $this->error('intent_not_approved', 'Referenced Etsy intent is no longer approved.', 409);
         }
@@ -154,7 +158,9 @@ final class EtsyOperationPreparationService
         if ((int)($intent['draft_package_id']??0) !== $packageId || (int)($intent['listing_id']??0) !== (int)($package['listing_id']??0)) {
             return $this->error('scope_mismatch', 'Current intent and draft package approval scope does not match.', 409);
         }
+        $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        if(!empty($wpdb->last_error)) return $this->error('scope_evidence_unavailable','Referenced listing approval evidence could not be read.',503);
         if (!is_array($listing) || (string)($listing['state']??'') !== 'APPROVED') {
             return $this->error('listing_not_approved', 'Referenced listing approval is no longer valid.', 409);
         }
