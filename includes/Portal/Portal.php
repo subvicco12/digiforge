@@ -592,7 +592,8 @@ final class Portal
         $alertFocus=isset($_GET['df_alert_id'])?absint(wp_unslash($_GET['df_alert_id'])):0;
         if($alertFocus>0)$wpdb->last_error='';
         $focusedAlert=$alertFocus>0?$wpdb->get_row($wpdb->prepare('SELECT id,environment,alert_type,source_type,source_id,severity,state,created_at,updated_at FROM '.Tables::operational_alerts()." WHERE id=%d AND state NOT IN ('RESOLVED','DISMISSED','SUPERSEDED','CLOSED')",$alertFocus),ARRAY_A):null;
-        if(!$alertsReadFailed&&is_array($focusedAlert)&&!in_array($alertFocus,array_map('intval',array_column(is_array($alerts)?$alerts:[],'id')),true))$alerts=array_merge([$focusedAlert],is_array($alerts)?$alerts:[]);
+        $focusedAlertReadFailed=$alertFocus>0&&!empty($wpdb->last_error);
+        if(!$alertsReadFailed&&!$focusedAlertReadFailed&&is_array($focusedAlert)&&!in_array($alertFocus,array_map('intval',array_column(is_array($alerts)?$alerts:[],'id')),true))$alerts=array_merge([$focusedAlert],is_array($alerts)?$alerts:[]);
         echo '<section class="df-card-grid"><article class="df-stat-card"><span>Observed attention signals</span><strong>'.esc_html($attention['total_attention']===null?'UNAVAILABLE':(string)$attention['total_attention']).'</strong></article><article class="df-stat-card"><span>Personalization reviews</span><strong>'.esc_html($attention['personalization_reviews']===null?'UNAVAILABLE':(string)$attention['personalization_reviews']).'</strong></article><article class="df-stat-card"><span>Fulfillment decisions</span><strong>'.esc_html($attention['fulfillment_decisions']===null?'UNAVAILABLE':(string)$attention['fulfillment_decisions']).'</strong></article><article class="df-stat-card"><span>Open alerts</span><strong>'.esc_html($attention['open_operational_alerts']===null?'UNAVAILABLE':(string)$attention['open_operational_alerts']).'</strong></article><article class="df-stat-card"><span>Orders needing reconciliation</span><strong>'.esc_html($attention['orders_needing_reconciliation']===null?'UNAVAILABLE':(string)$attention['orders_needing_reconciliation']).'</strong></article></section>';
         if(($attention['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">Attention totals are unavailable because one or more source reads failed. Review the individual evidence sources; no empty queue is inferred.</div>';
         if(current_user_can('manage_digiforge_research')&&current_user_can('manage_digiforge_products'))echo '<p class="df-muted">Review recorded decisions: <a href="'.esc_url($this->url('approvals').'#df-approval-personalization').'">Personalization approval evidence</a> · <a href="'.esc_url($this->url('approvals').'#df-approval-fulfillment').'">Fulfillment approval evidence</a>. Links do not make a decision or authorize external action.</p>';
@@ -671,7 +672,7 @@ final class Portal
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Open operational alerts</h2><p>These records require human review or explicit recovery handling.</p></div>'
             . '<span>' . esc_html($attention['open_operational_alerts']===null?'UNAVAILABLE':(string)$attention['open_operational_alerts']) . ' open total</span></div>';
         if($alertFocus>0&&!is_array($focusedAlert))echo '<div class="df-notice df-notice-error">Requested operational alert is unavailable or closed. No recovery action is inferred.</div>';
-        if ($alertsReadFailed) {
+        if ($alertsReadFailed || $focusedAlertReadFailed) {
             echo '<div class="df-notice df-notice-error">Operational alert evidence unavailable. Database read failed; no empty queue is inferred.</div>';
         } elseif ($alerts === []) {
             echo '<div class="df-empty">No open operational alerts.</div>';
