@@ -52,9 +52,12 @@ final class EtsyControlledExecutionController
         $integrationId=(int)($body['integration_id']??0); $shopId=(int)($body['shop_id']??0); $intentId=(int)($body['intent_id']??0); $packageId=(int)($body['draft_package_id']??0); $assetRevisionId=(int)($body['asset_revision_id']??0); $rank=(int)($body['rank']??1);
         if($integrationId<1||$shopId<1||$intentId<1||$packageId<1||$assetRevisionId<1||$rank<1||$rank>10)return new WP_Error('digiforge_etsy_image_scope','Integration, shop, approved intent/package, image revision and bounded rank are required.',['status'=>400]);
         global $wpdb;
-        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A); $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        $wpdb->last_error='';
+        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy intent evidence could not be read.',['status'=>503]); $wpdb->last_error=''; $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy draft package evidence could not be read.',['status'=>503]);
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId||!is_array($package)||(int)($package['approved_by']??0)<1)return new WP_Error('digiforge_etsy_image_approval','Approved intent/package scope is required.',['status'=>409]);
-        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_image_listing','Approved listing is required.',['status'=>409]);
+        $wpdb->last_error='';
+        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved listing evidence could not be read.',['status'=>503]); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_image_listing','Approved listing is required.',['status'=>409]);
         $releaseBundleId=(int)$wpdb->get_var($wpdb->prepare('SELECT release_bundle_id FROM '.Tables::listing_media().' WHERE listing_id=%d AND state=%s ORDER BY position_index ASC,id ASC LIMIT 1',(int)$listing['id'],'BOUND'));
         $bundle=$wpdb->get_row($wpdb->prepare("SELECT * FROM ".Tables::release_bundles()." WHERE id=%d AND state='RELEASE_READY' AND approved_by>0 AND approved_at IS NOT NULL LIMIT 1",$releaseBundleId),ARRAY_A);
         $manifest=is_array($bundle)?json_decode((string)($bundle['manifest']??''),true):null;
@@ -100,9 +103,12 @@ final class EtsyControlledExecutionController
         $integrationId=(int)($body['integration_id']??0); $shopId=(int)($body['shop_id']??0); $intentId=(int)($body['intent_id']??0); $packageId=(int)($body['draft_package_id']??0);
         if($integrationId<1||$shopId<1||$intentId<1||$packageId<1)return new WP_Error('digiforge_etsy_file_scope','Integration, shop, approved intent and package are required.',['status'=>400]);
         global $wpdb;
-        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A); $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        $wpdb->last_error='';
+        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy intent evidence could not be read.',['status'=>503]); $wpdb->last_error=''; $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy draft package evidence could not be read.',['status'=>503]);
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId||!is_array($package)||(int)($package['approved_by']??0)<1)return new WP_Error('digiforge_etsy_file_approval','Approved intent/package scope is required.',['status'=>409]);
-        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_file_listing','Approved listing is required.',['status'=>409]);
+        $wpdb->last_error='';
+        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved listing evidence could not be read.',['status'=>503]); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_file_listing','Approved listing is required.',['status'=>409]);
         $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId); if($identity instanceof WP_Error)return $identity;
         $operations=new EtsyOperationRepository(); $parent=$operations->confirmedCreateForScope($intentId,$packageId,(string)$shopId); if($parent instanceof WP_Error)return $parent; if(!is_array($parent))return new WP_Error('digiforge_etsy_file_parent','A confirmed CREATE_DRAFT is required before digital upload.',['status'=>409]);
         $listingId=(int)($parent['external_reference']??0); if($listingId<1)return new WP_Error('digiforge_etsy_file_parent_identity','Confirmed CREATE_DRAFT listing identity is invalid.',['status'=>409]);
@@ -139,11 +145,17 @@ final class EtsyControlledExecutionController
         if($integrationId<1||$shopId<1||$intentId<1||$packageId<1||$classification===[]) return new WP_Error('digiforge_etsy_runtime_scope','Integration, shop, approved intent/package and verified Etsy classification are required.',['status'=>400]);
 
         global $wpdb;
+        $wpdb->last_error='';
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy intent evidence could not be read.',['status'=>503]);
+        $wpdb->last_error='';
         $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved Etsy draft package evidence could not be read.',['status'=>503]);
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId) return new WP_Error('digiforge_etsy_runtime_intent','Approved Etsy intent/package scope is required.',['status'=>409]);
         if(!is_array($package)||(int)($package['approved_by']??0)<1||empty($package['approved_at'])) return new WP_Error('digiforge_etsy_runtime_package','Human-approved draft package is required.',['status'=>409]);
+        $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved listing evidence could not be read.',['status'=>503]);
         if(!is_array($listing)||($listing['state']??'')!=='APPROVED') return new WP_Error('digiforge_etsy_runtime_listing','Approved listing is required.',['status'=>409]);
 
         $connection=(new ConnectionTester())->test($integrationId);
