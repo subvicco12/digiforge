@@ -71,13 +71,14 @@ final class EtsyOperationRepository
         }
         $id=(int)$wpdb->insert_id;
         Logger::audit('etsy_operation_created', ['intent_id'=>(int)$record['intent_id'],'draft_package_id'=>(int)$record['draft_package_id']], 'etsy_operation', (string)$id);
-        return $this->find($id) ?? $this->error('create_failed', 'Unable to reload Etsy operation record.', 500);
+        $created=$this->find($id); if($created instanceof WP_Error)return $created; return $created ?? $this->error('create_failed', 'Unable to reload Etsy operation record.', 500);
     }
 
     /** @return array<string,mixed>|WP_Error */
     public function transition(int $id, string $to, string $externalReference = ''): array|WP_Error
     {
         $row = $this->find($id);
+        if ($row instanceof WP_Error) return $row;
         if (!is_array($row)) return $this->error('not_found', 'Etsy operation record not found.', 404);
 
         $to = strtoupper(trim($to));
@@ -110,7 +111,7 @@ final class EtsyOperationRepository
             'to'=>$to,
             'external_reference_present'=>$externalReference !== '',
         ], 'etsy_operation', (string)$id);
-        return $this->find($id) ?? $this->error('not_found', 'Etsy operation record not found after transition.', 500);
+        $current=$this->find($id); if($current instanceof WP_Error)return $current; return $current ?? $this->error('not_found', 'Etsy operation record not found after transition.', 500);
     }
 
     /** @return array<string,mixed>|WP_Error */
@@ -148,7 +149,7 @@ final class EtsyOperationRepository
         global $wpdb;
         $updated=$wpdb->update($wpdb->prefix.'digiforge_etsy_operations',['external_asset_reference'=>$reference,'updated_at'=>current_time('mysql',true)],['id'=>$id,'external_asset_reference'=>'']);
         if($updated!==1)return $this->error('external_asset_reference_conflict','Unable to atomically persist Etsy asset identity.',409);
-        return $this->find($id)??$this->error('not_found','Etsy operation not found after asset identity update.',500);
+        $current=$this->find($id);if($current instanceof WP_Error)return $current;return $current??$this->error('not_found','Etsy operation not found after asset identity update.',500);
     }
 
     /** Persist bounded provider identity evidence learned from an attempted Etsy response. */
@@ -180,7 +181,7 @@ final class EtsyOperationRepository
             if ($persisted!=='' && hash_equals($persisted,$reference)) return $current+['idempotent_reconciliation_reference'=>true];
             return $this->error('reconciliation_reference_conflict','Unable to atomically persist Etsy reconciliation reference.',409);
         }
-        return $this->find($id)??$this->error('not_found','Etsy operation record not found after identity update.',500);
+        $current=$this->find($id);if($current instanceof WP_Error)return $current;return $current??$this->error('not_found','Etsy operation record not found after identity update.',500);
     }
 
     /** Persist a bounded non-secret canonical request snapshot for operation-specific reconciliation. */
@@ -190,6 +191,7 @@ final class EtsyOperationRepository
         $fingerprint=EtsyRequestFingerprint::fromPayload($payload);
         if($fingerprint instanceof WP_Error)return $fingerprint;
         $row=$this->find($id);
+        if($row instanceof WP_Error)return $row;
         if(!is_array($row))return $this->error('not_found','Etsy operation record not found.',404);
         $persistedFingerprint=(string)($row['request_fingerprint']??'');
         if(!hash_equals($persistedFingerprint,$fingerprint)){
@@ -215,7 +217,7 @@ final class EtsyOperationRepository
             if($persisted!==''&&hash_equals(hash('sha256',$persisted),hash('sha256',$encoded)))return $current+['idempotent_reconciliation_evidence'=>true];
             return $this->error('reconciliation_evidence_conflict','Unable to atomically persist reconciliation evidence.',409);
         }
-        return $this->find($id)??$this->error('not_found','Etsy operation record not found after evidence update.',500);
+        $current=$this->find($id);if($current instanceof WP_Error)return $current;return $current??$this->error('not_found','Etsy operation record not found after evidence update.',500);
     }
 
     /** Acquire a connection-scoped mutex so the same persisted operation cannot execute concurrently. */
