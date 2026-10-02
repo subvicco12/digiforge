@@ -154,7 +154,7 @@ final class Admin
             <table class="widefat striped"><tbody>
                 <tr><th><?php esc_html_e('Readiness status', 'digiforge'); ?></th><td><strong><?php echo esc_html((string) ($readiness['status'] ?? 'REVIEW_REQUIRED')); ?></strong></td></tr>
                 <tr><th><?php esc_html_e('Evidence hash', 'digiforge'); ?></th><td><code><?php echo esc_html((string) ($readiness['evidence_hash'] ?? '')); ?></code></td></tr>
-                <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><?php echo ! empty($readiness['external_actions_performed']) ? 'YES' : 'NO'; ?></td></tr>
+                <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><?php echo ($readiness['external_actions_query_state'] ?? 'UNAVAILABLE') !== 'AVAILABLE' ? esc_html__('UNAVAILABLE (query failed)', 'digiforge') : (! empty($readiness['external_actions_performed']) ? 'YES' : 'NO'); ?></td></tr>
             </tbody></table>
 
             <h2><?php esc_html_e('Readiness checks', 'digiforge'); ?></h2>
@@ -181,7 +181,7 @@ final class Admin
                 <tr><th><?php esc_html_e('Activation authorized', 'digiforge'); ?></th><td><strong><?php echo Settings::get('activation_authorized', false) ? 'YES' : 'NO'; ?></strong></td></tr>
                 <tr><th><?php esc_html_e('Automation armed', 'digiforge'); ?></th><td><strong><?php echo Settings::get('automation_armed', false) ? 'YES' : 'NO'; ?></strong></td></tr>
                 <tr><th><?php esc_html_e('Externally locked', 'digiforge'); ?></th><td><strong><?php echo ! empty($readiness['externally_locked']) ? 'YES' : 'NO'; ?></strong></td></tr>
-                <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><strong><?php echo ! empty($readiness['external_actions_performed']) ? 'YES' : 'NO'; ?></strong></td></tr>
+                <tr><th><?php esc_html_e('External actions performed', 'digiforge'); ?></th><td><strong><?php echo ($readiness['external_actions_query_state'] ?? 'UNAVAILABLE') !== 'AVAILABLE' ? esc_html__('UNAVAILABLE (query failed)', 'digiforge') : (! empty($readiness['external_actions_performed']) ? 'YES' : 'NO'); ?></strong></td></tr>
             </tbody></table>
 
             <h2><?php esc_html_e('Effective feature switches', 'digiforge'); ?></h2>
