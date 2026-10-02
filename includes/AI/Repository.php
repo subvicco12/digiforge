@@ -324,7 +324,7 @@ final class Repository
         ], 'ai_review');
     }
 
-    public function list(string $entity, int $page = 1, int $perPage = self::DEFAULT_PAGE_SIZE): array
+    public function list(string $entity, int $page = 1, int $perPage = self::DEFAULT_PAGE_SIZE): array|\WP_Error
     {
         $map = [
             'tasks' => Tables::ai_tasks(), 'models' => Tables::ai_models(), 'prompts' => Tables::ai_prompts(),
@@ -339,9 +339,14 @@ final class Repository
         $offset = ($page - 1) * $perPage;
         global $wpdb;
         $table = $map[$entity];
+        $wpdb->last_error = '';
         $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A);
-        $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
-        return ['items' => array_map([$this, 'normalize'], is_array($rows) ? $rows : []), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total_items' => $total, 'total_pages' => (int) ceil($total / $perPage)]];
+        if ((string) $wpdb->last_error !== '' || ! is_array($rows)) { return $this->error('evidence_unavailable', 'AI list evidence could not be read.', 503); }
+        $wpdb->last_error = '';
+        $total_raw = $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
+        if ((string) $wpdb->last_error !== '' || $total_raw === null) { return $this->error('evidence_unavailable', 'AI list count evidence could not be read.', 503); }
+        $total = (int) $total_raw;
+        return ['items' => array_map([$this, 'normalize'], $rows), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total_items' => $total, 'total_pages' => (int) ceil($total / $perPage)]];
     }
 
     public function find(string $table, int $id): ?array
