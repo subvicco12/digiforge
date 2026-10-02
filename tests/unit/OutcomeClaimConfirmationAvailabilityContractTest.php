@@ -14,4 +14,5 @@ final class OutcomeClaimConfirmationAvailabilityContractTest extends TestCase {
   self::assertStringContainsString("'retry_permitted'=>false",$c);
   self::assertStringContainsString("'external_execution_authorized'=>false",$c);
  }
+ public function testWinnerConfirmationClearsStaleDatabaseError():void{$c=(string)file_get_contents(__DIR__.'/../../includes/POD/ExecutionOutcomeClaimRepository.php');self::assertStringContainsString("\$wpdb->last_error='';\$winner=\$wpdb->get_row",$c);}
 }
