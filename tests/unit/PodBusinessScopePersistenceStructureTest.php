@@ -98,4 +98,13 @@ final class PodBusinessScopePersistenceStructureTest extends TestCase
         self::assertStringContainsString('bool $manageTransaction=true',$scope);
         self::assertStringContainsString('if($manageTransaction)',$scope);
     }
+    public function testIdempotencyAndOwnershipEvidenceFailClosedOnQueryFailure(): void
+    {
+        $source=file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('digiforge_idempotency_evidence_unavailable',$source);
+        self::assertStringContainsString('digiforge_scope_evidence_unavailable',$source);
+        self::assertStringContainsString("\$wpdb->last_error=''",$source);
+    }
+
 }
