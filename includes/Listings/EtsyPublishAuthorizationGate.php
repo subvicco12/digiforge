@@ -27,9 +27,15 @@ final class EtsyPublishAuthorizationGate
         if($listingId<1||$intentId<1||$packageId<1||$readinessHash==='') return self::error('evidence','Complete scoped prepublish evidence is required.');
 
         global $wpdb;
+        $wpdb->last_error='';
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted Etsy intent evidence could not be read.',503);
+        $wpdb->last_error='';
         $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted Etsy draft package evidence could not be read.',503);
+        $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',$listingId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted listing approval evidence could not be read.',503);
         if(!is_array($intent)||!is_array($package)||!is_array($listing)) return self::error('scope','Persisted publish scope is incomplete.');
         if((string)($intent['state']??'')!=='APPROVED_INTENT'
             || (int)($intent['listing_id']??0)!==$listingId
@@ -69,8 +75,8 @@ final class EtsyPublishAuthorizationGate
             'external_execution_performed'=>false,
         ];
     }
-    private static function error(string $code,string $message):WP_Error
+    private static function error(string $code,string $message,int $status=409):WP_Error
     {
-        return new WP_Error('digiforge_etsy_publish_gate_'.$code,$message,['status'=>409]);
+        return new WP_Error('digiforge_etsy_publish_gate_'.$code,$message,['status'=>$status]);
     }
 }
