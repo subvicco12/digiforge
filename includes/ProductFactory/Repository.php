@@ -61,17 +61,22 @@ final class Repository {
         if ((string) $wpdb->last_error !== '') { return $this->error('evidence_unavailable', 'Product Factory entity evidence could not be read.', 503); }
         return is_array($row) ? $this->normalize($row) : null;
     }
-    public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
+    public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array|\WP_Error {
         if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => ['page' => 1, 'per_page' => self::DEFAULT_PAGE_SIZE, 'total_items' => 0, 'total_pages' => 0]]; }
         $page = max(1, $page);
         $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
         $offset = ($page - 1) * $per_page;
         global $wpdb;
         $table = $this->table($type);
+        $wpdb->last_error = '';
         $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
-        $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
+        if ((string) $wpdb->last_error !== '' || ! is_array($rows)) { return $this->error('evidence_unavailable', 'Product Factory list evidence could not be read.', 503); }
+        $wpdb->last_error = '';
+        $total_raw = $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
+        if ((string) $wpdb->last_error !== '' || $total_raw === null) { return $this->error('evidence_unavailable', 'Product Factory list count evidence could not be read.', 503); }
+        $total = (int) $total_raw;
         return [
-            'items' => array_map([$this, 'normalize'], is_array($rows) ? $rows : []),
+            'items' => array_map([$this, 'normalize'], $rows),
             'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => (int) ceil($total / $per_page)],
         ];
     }
