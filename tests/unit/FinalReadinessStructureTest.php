@@ -19,7 +19,18 @@ final class FinalReadinessStructureTest extends TestCase
         self::assertStringNotContainsString('digiforge_recovery_plugin_package_available', $source);
         self::assertStringContainsString('digiforge_recovery_restore_instructions_available', $source);
         self::assertStringContainsString('FILTER_VALIDATE_BOOLEAN', $source);
-        self::assertStringContainsString('$this->externalActionsPerformed()', $source);
+        self::assertStringContainsString("'external_actions_query_verified'", $source);
+        self::assertStringContainsString("'external_actions_query_state'", $source);
+        self::assertStringContainsString("'UNAVAILABLE'", $source);
+        self::assertStringContainsString("$wpdb->last_error = ''", $source);
+        self::assertStringContainsString("'performed' => null", $source);
+    }
+
+    public function testAdminNeverRendersUnavailableExternalActionEvidenceAsNo(): void
+    {
+        $source = (string) file_get_contents(__DIR__ . '/../../includes/Core/Admin.php');
+        self::assertStringContainsString("external_actions_query_state", $source);
+        self::assertStringContainsString("UNAVAILABLE (query failed)", $source);
     }
 
     public function testHealthMonitorPropagatesQueueQueryHealth(): void
