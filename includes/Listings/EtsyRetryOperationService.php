@@ -39,6 +39,7 @@ final class EtsyRetryOperationService
         // The proposed key must never resolve to any prior operation in this shop,
         // including an ancestor earlier in a retry chain.
         $prior=$this->operations->byKey((string)($source['shop_reference']??''),(string)$plan['new_idempotency_key']);
+        if($prior instanceof WP_Error)return $prior;
         if (is_array($prior)) {
             return $this->error('idempotency_reuse','Retry idempotency key has already been used in this shop.');
         }
