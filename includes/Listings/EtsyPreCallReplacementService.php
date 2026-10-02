@@ -48,6 +48,7 @@ final class EtsyPreCallReplacementService
         }
 
         $prior=$this->operations->byKey((string)($source['shop_reference']??''),$newIdempotencyKey);
+        if($prior instanceof WP_Error)return $prior;
         if (is_array($prior)) return $this->error('idempotency_reuse','Replacement idempotency key has already been used in this shop.');
 
         $input=[
