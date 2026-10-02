@@ -7,4 +7,5 @@ final class ExecutionOutcomeRepositoryStructureTest extends TestCase{
   foreach(['pod_execution_receipts','pod_execution_failures','digiforge_outcome_invariant',"['status'=>409]","'retry_permitted'=>false"] as $x)self::assertStringContainsString($x,$s);
   self::assertStringNotContainsString('->insert(',$s);self::assertStringNotContainsString('wp_remote_',$s);
  }
+ public function testEachTerminalOutcomeReadClearsStaleDatabaseError():void{$s=(string)file_get_contents(dirname(__DIR__,2).'/includes/POD/ExecutionOutcomeRepository.php');self::assertGreaterThanOrEqual(3,substr_count($s,"\$wpdb->last_error=''"));}
 }
