@@ -32,7 +32,10 @@ final class Repository {
         $data = [$definition['label'] => $label, $definition['text'] => sanitize_textarea_field((string) ($input[$definition['text']] ?? '')), 'state' => Lifecycle::initial($type), 'idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => current_time('mysql', true), 'updated_at' => current_time('mysql', true)];
         if (isset($definition['parent'])) {
             $parent_id = absint($input[$definition['parent']] ?? 0);
-            if ($parent_id < 1 || $this->find($definition['parent_type'], $parent_id) === null) { return $this->error('invalid_relationship', 'A valid parent is required.'); }
+            if ($parent_id < 1) { return $this->error('invalid_relationship', 'A valid parent is required.'); }
+            $parent = $this->find($definition['parent_type'], $parent_id);
+            if (is_wp_error($parent)) { return $parent; }
+            if ($parent === null) { return $this->error('invalid_relationship', 'A valid parent is required.'); }
             $data[$definition['parent']] = $parent_id;
         }
         global $wpdb;
@@ -45,13 +48,17 @@ final class Repository {
             return $this->error('create_failed', 'Unable to create entity.', 500);
         }
         $entity = $this->find($type, (int) $wpdb->insert_id);
+        if (is_wp_error($entity)) { return $entity; }
         Logger::audit($type . '_created', ['state' => $data['state'], 'idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $wpdb->insert_id);
         return $entity ?? $this->error('create_failed', 'Unable to read created entity.', 500);
     }
 
-    public function find(string $type, int $id): ?array {
+    public function find(string $type, int $id): array|\WP_Error|null {
         if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; }
-        global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A);
+        global $wpdb;
+        $wpdb->last_error = '';
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A);
+        if ((string) $wpdb->last_error !== '') { return $this->error('evidence_unavailable', 'Product Factory entity evidence could not be read.', 503); }
         return is_array($row) ? $this->normalize($row) : null;
     }
     public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
@@ -70,6 +77,7 @@ final class Repository {
     }
     public function transition(string $type, int $id, string $to): array|\WP_Error {
         $entity = $this->find($type, $id); $to = strtoupper(sanitize_key($to));
+        if (is_wp_error($entity)) { return $entity; }
         if ($entity === null) { return $this->error('not_found', 'Entity not found.', 404); }
         $from = (string) $entity['state'];
         if (! Lifecycle::can_transition($type, $from, $to)) { return $this->error('invalid_transition', "Cannot transition $type from $from to $to.", 409); }
@@ -77,7 +85,9 @@ final class Repository {
         $updated = $wpdb->update($this->table($type), ['state' => $to, 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s'], ['%d', '%s']);
         if ($updated !== 1) { return $this->error('transition_conflict', 'Entity changed concurrently.', 409); }
         Logger::audit($type . '_state_changed', ['from' => $from, 'to' => $to], $type, (string) $id);
-        return $this->find($type, $id) ?? $this->error('not_found', 'Entity not found.', 404);
+        $entity = $this->find($type, $id);
+        if (is_wp_error($entity)) { return $entity; }
+        return $entity ?? $this->error('not_found', 'Entity not found.', 404);
     }
     private function find_by_key(string $type, string $key): array|\WP_Error|null {
         global $wpdb;
