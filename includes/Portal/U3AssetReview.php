@@ -36,12 +36,16 @@ final class U3AssetReview
         check_admin_referer(self::nonceAction($revisionId));
 
         global $wpdb;
+        $wpdb->last_error = '';
         $revision = $wpdb->get_row($wpdb->prepare(
             'SELECT ar.*,s.asset_type,s.asset_key,s.purpose FROM ' . Tables::asset_revisions() . ' ar '
             . 'INNER JOIN ' . Tables::asset_specs() . ' s ON s.id=ar.asset_spec_id '
             . 'WHERE ar.id=%d LIMIT 1',
             $revisionId
         ), ARRAY_A);
+        if ($wpdb->last_error !== '') {
+            wp_die(esc_html__('DigiForge asset revision evidence is unavailable.', 'digiforge'), '', ['response' => 503]);
+        }
         if (! is_array($revision)) {
             wp_die(esc_html__('DigiForge asset revision was not found.', 'digiforge'), '', ['response' => 404]);
         }
