@@ -19,6 +19,7 @@ final class EtsyReconciliationResultService
     {
         if ($operationId < 1) return $this->error('operation_id','A persisted Etsy operation id is required.');
         $operation=$this->operations->find($operationId);
+if($operation instanceof WP_Error)return $operation;
         if (!is_array($operation)) return $this->error('not_found','Etsy operation was not found.');
 
         $current=(string)($operation['state'] ?? '');
