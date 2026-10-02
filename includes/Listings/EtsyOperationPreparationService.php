@@ -29,6 +29,7 @@ final class EtsyOperationPreparationService
         array $payload
     ): array|WP_Error {
         $operation = $this->operations->find($operationId);
+if($operation instanceof WP_Error)return $operation;
         if (!is_array($operation)) {
             return $this->error('operation_not_found', 'Etsy operation record not found.', 404);
         }
