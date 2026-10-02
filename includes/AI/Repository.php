@@ -86,7 +86,9 @@ final class Repository
 
     public function createPromptVersion(int $promptId, array $input, ?string $key = null): array|\WP_Error
     {
-        if ($this->find(Tables::ai_prompts(), $promptId) === null) {
+        $promptParent = $this->find(Tables::ai_prompts(), $promptId);
+        if (is_wp_error($promptParent)) { return $promptParent; }
+        if ($promptParent === null) {
             return $this->error('not_found', 'Prompt not found.', 404);
         }
         $version = sanitize_text_field((string) ($input['version_label'] ?? ''));
@@ -144,7 +146,9 @@ final class Repository
         $taskId = absint($input['task_id'] ?? 0);
         $promptVersionId = absint($input['prompt_version_id'] ?? 0);
         $task = $this->find(Tables::ai_tasks(), $taskId);
+        if (is_wp_error($task)) { return $task; }
         $prompt = $this->find(Tables::ai_prompt_versions(), $promptVersionId);
+        if (is_wp_error($prompt)) { return $prompt; }
         if ($task === null || $prompt === null) {
             return $this->error('invalid_relationship', 'Valid task_id and prompt_version_id are required.');
         }
@@ -201,6 +205,7 @@ final class Repository
             return $this->error('execution_disabled', 'AI execution states are unavailable in Batch 5.', 409);
         }
         $run = $this->find(Tables::ai_runs(), $id);
+        if (is_wp_error($run)) { return $run; }
         if ($run === null) {
             return $this->error('not_found', 'AI run not found.', 404);
         }
@@ -228,12 +233,15 @@ final class Repository
             return $this->error('conflict', 'AI run changed concurrently.', 409);
         }
         Logger::audit('ai_run_transitioned', ['from' => $run['state'], 'to' => $to], 'ai_run', (string) $id);
-        return $this->find(Tables::ai_runs(), $id) ?? $this->error('not_found', 'AI run not found.', 404);
+        $updated = $this->find(Tables::ai_runs(), $id);
+        if (is_wp_error($updated)) { return $updated; }
+        return $updated ?? $this->error('not_found', 'AI run not found.', 404);
     }
 
     public function storeOutput(int $runId, array $input, ?string $key = null): array|\WP_Error
     {
         $run = $this->find(Tables::ai_runs(), $runId);
+        if (is_wp_error($run)) { return $run; }
         if ($run === null) {
             return $this->error('not_found', 'AI run not found.', 404);
         }
@@ -242,6 +250,7 @@ final class Repository
             return $this->error('validation', 'payload must be structured.');
         }
         $prompt = $this->find(Tables::ai_prompt_versions(), (int) $run['prompt_version_id']);
+        if (is_wp_error($prompt)) { return $prompt; }
         if ($prompt === null) {
             return $this->error('invalid_relationship', 'Prompt version missing.', 409);
         }
@@ -271,10 +280,12 @@ final class Repository
     public function recordUsage(int $runId, array $input, ?string $key = null): array|\WP_Error
     {
         $run = $this->find(Tables::ai_runs(), $runId);
+        if (is_wp_error($run)) { return $run; }
         if ($run === null) {
             return $this->error('not_found', 'AI run not found.', 404);
         }
         $model = $this->find(Tables::ai_models(), (int) $run['model_id']);
+        if (is_wp_error($model)) { return $model; }
         if ($model === null) {
             return $this->error('invalid_relationship', 'Model missing.', 409);
         }
@@ -298,6 +309,7 @@ final class Repository
     public function review(int $runId, array $input, ?string $key = null): array|\WP_Error
     {
         $run = $this->find(Tables::ai_runs(), $runId);
+        if (is_wp_error($run)) { return $run; }
         if ($run === null) {
             return $this->error('not_found', 'AI run not found.', 404);
         }
@@ -310,8 +322,10 @@ final class Repository
             return $this->error('validation', 'Invalid review target.');
         }
         $targetId = $targetType === 'run' ? $runId : absint($input['target_id'] ?? 0);
-        if ($targetType === 'output' && $this->find(Tables::ai_outputs(), $targetId) === null) {
-            return $this->error('not_found', 'AI output not found.', 404);
+        if ($targetType === 'output') {
+            $target = $this->find(Tables::ai_outputs(), $targetId);
+            if (is_wp_error($target)) { return $target; }
+            if ($target === null) { return $this->error('not_found', 'AI output not found.', 404); }
         }
         return $this->insert(Tables::ai_reviews(), $key, [
             'run_id' => $runId,
@@ -349,10 +363,12 @@ final class Repository
         return ['items' => array_map([$this, 'normalize'], $rows), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total_items' => $total, 'total_pages' => (int) ceil($total / $perPage)]];
     }
 
-    public function find(string $table, int $id): ?array
+    public function find(string $table, int $id): array|\WP_Error|null
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $table . ' WHERE id=%d', $id), ARRAY_A);
+        if ((string) $wpdb->last_error !== '') { return $this->error('evidence_unavailable', 'AI entity evidence could not be read.', 503); }
         return is_array($row) ? $this->normalize($row) : null;
     }
 
@@ -433,7 +449,9 @@ final class Repository
         }
         $id = (int) $wpdb->insert_id;
         Logger::audit($type . '_created', ['idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $id);
-        return $this->find($table, $id) ?? $this->error('create_failed', 'Unable to read AI governance record.', 500);
+        $created = $this->find($table, $id);
+        if (is_wp_error($created)) { return $created; }
+        return $created ?? $this->error('create_failed', 'Unable to read AI governance record.', 500);
     }
 
     private function idempotencyKey(?string $key): string|null|\WP_Error
