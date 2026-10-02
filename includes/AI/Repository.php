@@ -94,11 +94,15 @@ final class Repository
             return $this->error('validation', 'version_label is required.');
         }
         global $wpdb;
+        $wpdb->last_error = '';
         $existing = $wpdb->get_var($wpdb->prepare(
             'SELECT id FROM ' . Tables::ai_prompt_versions() . ' WHERE prompt_id=%d AND version_label=%s',
             $promptId,
             $version
         ));
+        if ((string) $wpdb->last_error !== '') {
+            return $this->error('evidence_unavailable', 'Prompt version uniqueness evidence could not be read.', 503);
+        }
         if ($existing !== null) {
             return $this->error('immutable_version', 'Prompt versions are immutable; create a new version label.', 409);
         }
