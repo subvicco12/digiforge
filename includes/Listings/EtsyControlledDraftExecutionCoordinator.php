@@ -53,6 +53,7 @@ final class EtsyControlledDraftExecutionCoordinator
         if($operationId<1 || !$this->operations->acquireExecutionLock($operationId)) return self::error('claimed','Etsy operation is already being executed.');
         try {
             $current=$this->operations->find($operationId);
+if($current instanceof WP_Error)return $current;
             if(!is_array($current)||(string)($current['state']??'')!==EtsyOperationLifecycle::NOT_SENT) return self::error('stale','Only the current persisted NOT_SENT operation may execute.');
 
             $transport['operation_type']=(string)($operation['operation_type']??'');
