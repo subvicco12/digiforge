@@ -45,6 +45,7 @@ final class EtsyOrderWebhookLifecycle
                 if(!is_array($item))continue;
                 $etsyListingId=$this->reference($item,['listing_id','listingId']);
                 $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
+                if($resolved instanceof WP_Error)return $resolved;
                 if(!is_array($resolved)){$reviewRequired=true;continue;}
                 $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
                 $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
