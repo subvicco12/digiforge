@@ -29,4 +29,5 @@ final class PodReadinessEvidenceAvailabilityContractTest extends TestCase {
         self::assertStringContainsString("!is_array(\$rows)||!empty(\$wpdb->last_error)", $source);
     }
 
+ public function testReadinessCountClearsStaleDatabaseErrorsBeforeEachCount():void{$s=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');self::assertStringContainsString("\$wpdb->last_error='';\n        \$value=\$wpdb->get_var(\$sql);",$s);}
 }
