@@ -19,8 +19,10 @@ final class EtsyWebhookDeduplicator {
         ));
         if($inserted===false)return new WP_Error('digiforge_etsy_webhook_idempotency','Webhook deduplication storage failed.',['status'=>503]);
         if($inserted===0){
-            $row=$wpdb->get_row($wpdb->prepare("SELECT status FROM {$table} WHERE operation_key=%s LIMIT 1",$key),ARRAY_A);
-            if(is_array($row)&&strtoupper((string)($row['status']??''))==='FAILED'){
+            $wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT status FROM {$table} WHERE operation_key=%s LIMIT 1",$key),ARRAY_A);
+            if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_webhook_idempotency_evidence_unavailable','Webhook deduplication evidence could not be read.',['status'=>503]);
+            if(!is_array($row))return new WP_Error('digiforge_etsy_webhook_idempotency_evidence_unavailable','Webhook deduplication evidence is unavailable after an ignored claim.',['status'=>503]);
+            if(strtoupper((string)($row['status']??''))==='FAILED'){
                 $updated=$wpdb->query($wpdb->prepare("UPDATE {$table} SET status=%s,updated_at=%s WHERE operation_key=%s AND status=%s",'RECEIVED',$now,$key,'FAILED'));
                 if($updated===1)return ['state'=>'ETSY_WEBHOOK_RETRY_CLAIMED','event_id'=>$eventId,'process_permitted'=>true,'external_execution_performed'=>false];
             }
