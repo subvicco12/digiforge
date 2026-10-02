@@ -10,8 +10,12 @@ final class FocusedEtsyOrderReadinessAvailabilityTest extends WP_UnitTestCase
             public string $prefix='wp_';
             public string $last_error='';
             public ?array $row=null;
+            public bool $failQuery=false;
             public function prepare(string $sql,mixed ...$args):string{return $sql;}
-            public function get_row(string $sql,mixed $format):?array{return $this->row;}
+            public function get_row(string $sql,mixed $format):?array{
+                $this->last_error=$this->failQuery?'query failed':'';
+                return $this->row;
+            }
         };
         $GLOBALS['wpdb']=$db;
         try {
@@ -19,7 +23,8 @@ final class FocusedEtsyOrderReadinessAvailabilityTest extends WP_UnitTestCase
             $state=null;
             self::assertNull($model->byId(17,$state));
             self::assertSame('NOT_FOUND',$state);
-            $db->last_error='query failed';
+            $db->last_error='stale error';
+            $db->failQuery=true;
             $state=null;
             self::assertNull($model->byId(17,$state));
             self::assertSame('UNAVAILABLE',$state);
