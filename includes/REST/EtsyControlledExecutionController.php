@@ -64,6 +64,7 @@ final class EtsyControlledExecutionController
         $releaseBundleId=is_numeric($releaseBundleRaw)?(int)$releaseBundleRaw:0;
         $wpdb->last_error='';
         $bundle=$wpdb->get_row($wpdb->prepare("SELECT * FROM ".Tables::release_bundles()." WHERE id=%d AND state='RELEASE_READY' AND approved_by>0 AND approved_at IS NOT NULL LIMIT 1",$releaseBundleId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_image_evidence_unavailable','Approved release-bundle evidence could not be read.',['status'=>503]);
         $manifest=is_array($bundle)?json_decode((string)($bundle['manifest']??''),true):null;
         if(!is_array($manifest))return new WP_Error('digiforge_etsy_image_bundle','Approved bound release bundle is required.',['status'=>409]);
         $wpdb->last_error='';
