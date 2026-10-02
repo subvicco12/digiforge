@@ -10,6 +10,7 @@ final class ScopedPolicyEvidenceAvailabilityTest extends TestCase {
    public string $prefix='wp_'; public string $last_error='stale prior error';
    public function prepare(string $sql,mixed ...$args):string{return $sql;}
    public function get_results(string $sql,mixed $format):?array{$this->last_error='policy unavailable';return null;}
+   public function get_row(string $sql,mixed $format):?array{$this->last_error='policy unavailable';return null;}
   };
   try {
    $repo=new \DigiForge\Portal\ScopedCapabilityPolicyRepository();
@@ -23,7 +24,7 @@ final class ScopedPolicyEvidenceAvailabilityTest extends TestCase {
   require_once __DIR__.'/../../includes/Database/Tables.php';
   $previous=$GLOBALS['wpdb']??null;
   $GLOBALS['wpdb']=new class {
-   public string $prefix='wp_'; public string $last_error='';
+   public string $prefix='wp_'; public string $last_error='stale prior error';
    public function prepare(string $sql,mixed ...$args):string{return $sql;}
    public function get_results(string $sql,mixed $format):array{return [];}
    public function get_row(string $sql,mixed $format):?array{return null;}
