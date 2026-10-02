@@ -17,6 +17,7 @@ final class EtsyReconciliationService
     public function begin(int $operationId): array|WP_Error
     {
         $operation=$this->operations->find($operationId);
+if($operation instanceof WP_Error)return $operation;
         if (!is_array($operation)) return self::error('not_found','Etsy operation was not found.');
         $plan=EtsyReconciliationPlan::build($operation);
         if ($plan instanceof WP_Error) return $plan;
