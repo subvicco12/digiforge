@@ -43,7 +43,8 @@ final class FrontendAdminPortalStructureTest extends TestCase
         self::assertStringContainsString("return \$wpdb->last_error !== '' ? null : (int) \$value;", $portal);
         self::assertStringNotContainsString("{ return 0; }", $portal);
         self::assertGreaterThanOrEqual(7, substr_count($portal, "\$wpdb->last_error = ''"));
-        self::assertStringContainsString("$pendingAvailable=is_array($pending)&&empty($wpdb->last_error)", $portal);
-        self::assertStringContainsString("$alertsReadFailed=!is_array($alerts)||!empty($wpdb->last_error)", $portal);
+        self::assertStringContainsString("\$pendingAvailable=is_array(\$pending)&&empty(\$wpdb->last_error)", $portal);
+        self::assertStringContainsString("\$alertsReadFailed=!is_array(\$alerts)||!empty(\$wpdb->last_error)", $portal);
+        self::assertStringContainsString("\$focusedAlertReadFailed=\$alertFocus>0&&!empty(\$wpdb->last_error)", $portal);
     }
 }
