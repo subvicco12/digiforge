@@ -27,8 +27,9 @@ final class ProductFactoryController {
     }
     public function can_view(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge') || Capabilities::can('manage_digiforge_products'); }
     public function can_manage(\WP_REST_Request $request): bool { return Capabilities::can('manage_digiforge_products'); }
-    private function index(\WP_REST_Request $request, string $type): \WP_REST_Response {
+    private function index(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
         $result = $this->repository->all($type, absint($request->get_param('page')), absint($request->get_param('per_page')));
+        if (is_wp_error($result)) { return $result; }
         $response = new \WP_REST_Response($result, 200);
         $response->header('X-WP-Total', (string) $result['pagination']['total_items']);
         $response->header('X-WP-TotalPages', (string) $result['pagination']['total_pages']);
