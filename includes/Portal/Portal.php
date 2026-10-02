@@ -557,7 +557,7 @@ final class Portal
         echo '<section class="df-card-grid">';
         foreach ($cards as $label => $value) {
             echo '<article class="df-stat-card"><span>' . esc_html($label) . '</span><strong>'
-                . esc_html((string) $value) . '</strong></article>';
+                . esc_html($value === null ? 'UNAVAILABLE' : (string) $value) . '</strong></article>';
         }
         echo '</section>';
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Approval queue</h2><a href="'
@@ -1037,38 +1037,46 @@ final class Portal
         return $rows;
     }
 
-    private function pendingCount(): int
+    private function pendingCount(): ?int
     {
         global $wpdb;
-        return (int) $wpdb->get_var(
+        $wpdb->last_error = '';
+        $value = $wpdb->get_var(
             $wpdb->prepare(
                 'SELECT COUNT(*) FROM ' . Tables::research_candidates() . ' WHERE review_status=%s',
                 ResearchRepository::REVIEW_PENDING
             )
         );
+        return $wpdb->last_error !== '' ? null : (int) $value;
     }
 
-    private function count(string $table): int
+    private function count(string $table): ?int
     {
         global $wpdb;
-        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        $wpdb->last_error = '';
+        $value = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        return $wpdb->last_error !== '' ? null : (int) $value;
     }
 
     /** @param list<string> $states */
-    private function countExcludingStates(string $table, string $column, array $states): int
+    private function countExcludingStates(string $table, string $column, array $states): ?int
     {
         global $wpdb;
         if (! preg_match('/^[a-z0-9_]+$/i', $column) || $states === []) { return 0; }
         $placeholders = implode(',', array_fill(0, count($states), '%s'));
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$column} NOT IN ({$placeholders})";
-        return (int) $wpdb->get_var($wpdb->prepare($sql, ...$states));
+        $wpdb->last_error = '';
+        $value = $wpdb->get_var($wpdb->prepare($sql, ...$states));
+        return $wpdb->last_error !== '' ? null : (int) $value;
     }
 
-    private function countByState(string $table, string $column, string $state): int
+    private function countByState(string $table, string $column, string $state): ?int
     {
         global $wpdb;
         if (! preg_match('/^[a-z0-9_]+$/i', $column)) { return 0; }
-        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column}=%s", $state));
+        $wpdb->last_error = '';
+        $value = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column}=%s", $state));
+        return $wpdb->last_error !== '' ? null : (int) $value;
     }
 
     private function cell(string $key, mixed $value): string
