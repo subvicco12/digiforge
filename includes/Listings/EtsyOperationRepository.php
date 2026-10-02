@@ -117,14 +117,14 @@ final class EtsyOperationRepository
     private function approvedScope(int $intentId, int $packageId, string $shopReference): array|WP_Error
     {
         global $wpdb;
-        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
-        $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        $wpdb->last_error='';$intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Approved intent scope evidence could not be read.',503);
+        $wpdb->last_error='';$package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Approved draft-package scope evidence could not be read.',503);
         if (!is_array($intent) || (string)($intent['state']??'') !== 'APPROVED_INTENT') return $this->error('intent_not_approved','Etsy operation requires an approved intent.',409);
         if (!is_array($package) || (int)($package['approved_by']??0) < 1 || empty($package['approved_at'])) return $this->error('package_not_approved','Etsy operation requires an approved draft package.',409);
         if ((int)($intent['draft_package_id']??0) !== $packageId || (int)($intent['listing_id']??0) !== (int)($package['listing_id']??0)) {
             return $this->error('scope_mismatch','Intent and draft package must belong to the same listing scope.',409);
         }
-        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);
+        $wpdb->last_error='';$listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Approved listing scope evidence could not be read.',503);
         if (!is_array($listing)) return $this->error('shop_scope_mismatch','Approved listing scope is unavailable.',409);
         $listingShop=(string)($listing['shop_reference']??'');
         if (!hash_equals($listingShop,$shopReference)) {
