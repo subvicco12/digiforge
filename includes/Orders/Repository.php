@@ -109,13 +109,14 @@ final class Repository
     private function readinessCount(string $sql): ?int
     {
         global $wpdb;
+        $wpdb->last_error='';
         $value=$wpdb->get_var($sql);
         return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;
     }
 
     public function list(string $entity,int $page=1,int $perPage=20): array
     {
-        $tables=['orders'=>Tables::orders(),'items'=>Tables::order_line_items(),'personalizations'=>Tables::personalization_submissions(),'plans'=>Tables::fulfillment_plans(),'intents'=>Tables::fulfillment_intents(),'reviews'=>Tables::fulfillment_readiness_reviews()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A)?:[];$total=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table");return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))]];
+        $tables=['orders'=>Tables::orders(),'items'=>Tables::order_line_items(),'personalizations'=>Tables::personalization_submissions(),'plans'=>Tables::fulfillment_plans(),'intents'=>Tables::fulfillment_intents(),'reviews'=>Tables::fulfillment_readiness_reviews()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
     }
 
     private function insert(string $table,?string $key,array $data,string $objectType): array|WP_Error
