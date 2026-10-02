@@ -58,11 +58,17 @@ final class EtsyControlledExecutionController
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId||!is_array($package)||(int)($package['approved_by']??0)<1)return new WP_Error('digiforge_etsy_image_approval','Approved intent/package scope is required.',['status'=>409]);
         $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved listing evidence could not be read.',['status'=>503]); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_image_listing','Approved listing is required.',['status'=>409]);
-        $releaseBundleId=(int)$wpdb->get_var($wpdb->prepare('SELECT release_bundle_id FROM '.Tables::listing_media().' WHERE listing_id=%d AND state=%s ORDER BY position_index ASC,id ASC LIMIT 1',(int)$listing['id'],'BOUND'));
+        $wpdb->last_error='';
+        $releaseBundleRaw=$wpdb->get_var($wpdb->prepare('SELECT release_bundle_id FROM '.Tables::listing_media().' WHERE listing_id=%d AND state=%s ORDER BY position_index ASC,id ASC LIMIT 1',(int)$listing['id'],'BOUND'));
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_image_evidence_unavailable','Bound release-bundle evidence could not be read.',['status'=>503]);
+        $releaseBundleId=is_numeric($releaseBundleRaw)?(int)$releaseBundleRaw:0;
+        $wpdb->last_error='';
         $bundle=$wpdb->get_row($wpdb->prepare("SELECT * FROM ".Tables::release_bundles()." WHERE id=%d AND state='RELEASE_READY' AND approved_by>0 AND approved_at IS NOT NULL LIMIT 1",$releaseBundleId),ARRAY_A);
         $manifest=is_array($bundle)?json_decode((string)($bundle['manifest']??''),true):null;
         if(!is_array($manifest))return new WP_Error('digiforge_etsy_image_bundle','Approved bound release bundle is required.',['status'=>409]);
+        $wpdb->last_error='';
         $asset=$wpdb->get_row($wpdb->prepare('SELECT ar.*,s.product_version_id,s.asset_type,s.format FROM '.Tables::asset_revisions().' ar JOIN '.Tables::asset_specs().' s ON s.id=ar.asset_spec_id WHERE ar.id=%d LIMIT 1',$assetRevisionId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_image_evidence_unavailable','Asset revision evidence could not be read.',['status'=>503]);
         if(!is_array($asset)||(int)($asset['product_version_id']??0)!==(int)$listing['product_version_id']||($asset['state']??'')!=='APPROVED'||($asset['asset_type']??'')!=='listing_image'||!in_array(strtolower((string)($asset['format']??'')),['png','jpg','jpeg','webp'],true))return new WP_Error('digiforge_etsy_image_asset','Image revision is not an approved listing-image asset for this product.',['status'=>409]);
         $manifestEntry=null; foreach($manifest as $entry){if(is_array($entry)&&(int)($entry['asset_revision_id']??0)===$assetRevisionId){$manifestEntry=$entry;break;}}
         if(is_array($manifestEntry)){
@@ -75,7 +81,9 @@ final class EtsyControlledExecutionController
             if(!is_array($provenance)||($provenance['derivation_type']??'')!=='local_svg_to_png'||($provenance['approval_inherited']??true)!==false||($provenance['external_action_performed']??true)!==false||$sourceRevisionId<1||$sourceSpecId<1||!preg_match('/^[a-f0-9]{64}$/',$sourceChecksum))return new WP_Error('digiforge_etsy_image_lineage','Derived listing image lacks bounded local source provenance.',['status'=>409]);
             $sourceManifestEntry=null; foreach($manifest as $entry){if(is_array($entry)&&(int)($entry['asset_revision_id']??0)===$sourceRevisionId&&(int)($entry['asset_spec_id']??0)===$sourceSpecId){$sourceManifestEntry=$entry;break;}}
             if(!is_array($sourceManifestEntry)||!hash_equals(strtolower((string)($sourceManifestEntry['checksum_sha256']??'')),$sourceChecksum))return new WP_Error('digiforge_etsy_image_lineage','Derived listing image source is not checksum-bound to the approved release bundle.',['status'=>409]);
+            $wpdb->last_error='';
             $source=$wpdb->get_row($wpdb->prepare('SELECT ar.*,s.product_version_id FROM '.Tables::asset_revisions().' ar JOIN '.Tables::asset_specs().' s ON s.id=ar.asset_spec_id WHERE ar.id=%d AND ar.asset_spec_id=%d LIMIT 1',$sourceRevisionId,$sourceSpecId),ARRAY_A);
+            if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_image_evidence_unavailable','Derived image source revision evidence could not be read.',['status'=>503]);
             if(!is_array($source)||(int)($source['product_version_id']??0)!==(int)$listing['product_version_id']||($source['state']??'')!=='APPROVED'||!hash_equals(strtolower((string)($source['checksum_sha256']??'')),$sourceChecksum)||!hash_equals((string)($source['storage_reference']??''),(string)($provenance['source_storage_reference']??'')))return new WP_Error('digiforge_etsy_image_lineage','Derived listing image source no longer matches approved immutable source evidence.',['status'=>409]);
         }
         $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId); if($identity instanceof WP_Error)return $identity;
