@@ -31,4 +31,13 @@ final class PodBatch2ConsolidatedCertificationTest extends TestCase{
   $r=dirname(__DIR__,2).'/includes/POD/';
   foreach(['ReadinessGate.php','Validator.php','ProductionTemplateContract.php','ProductionTemplateRepository.php','ProviderRouter.php','ProviderRoutePreparation.php'] as $f)self::assertFileExists($r.$f,$f);
  }
+    public function testProviderRouteEvidenceQueriesFailClosed(): void
+    {
+        $source=file_get_contents(__DIR__.'/../../includes/POD/ProviderRoutePreparation.php');
+        self::assertIsString($source);
+        self::assertStringContainsString('digiforge_provider_intent_evidence_unavailable',$source);
+        self::assertStringContainsString('digiforge_provider_personalization_evidence_unavailable',$source);
+        self::assertGreaterThanOrEqual(2,substr_count($source,"\$wpdb->last_error=''"));
+    }
+
 }

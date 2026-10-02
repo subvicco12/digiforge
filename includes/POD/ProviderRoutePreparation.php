@@ -11,7 +11,8 @@ final class ProviderRoutePreparation
     public function prepare(int $intentId):array|WP_Error
     {
         if($intentId<1)return new WP_Error('digiforge_provider_intent','Valid provider intent ID is required.',['status'=>400]);
-        global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_provider_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_provider_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_provider_intent_evidence_unavailable','Provider intent evidence could not be read.',['status'=>500]);
         if(!is_array($row))return new WP_Error('digiforge_provider_intent_missing','Provider intent not found.',['status'=>404]);
         if((string)($row['state']??'')!=='BLOCKED')return new WP_Error('digiforge_provider_intent_state','Only BLOCKED provider intents may be locally prepared.',['status'=>409]);
         $payload=json_decode((string)($row['input_payload']??'{}'),true);
@@ -19,7 +20,8 @@ final class ProviderRoutePreparation
         if((string)($row['intent_type']??'')==='PREPARE_PERSONALIZATION'){
             $submissionId=absint($payload['personalization_submission_id']??0);
             if($submissionId<1)return new WP_Error('digiforge_provider_personalization_submission','Persisted personalization submission is required.',['status'=>409]);
-            $submission=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::personalization_submissions().' WHERE id=%d LIMIT 1',$submissionId),ARRAY_A);
+            $wpdb->last_error='';$submission=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::personalization_submissions().' WHERE id=%d LIMIT 1',$submissionId),ARRAY_A);
+            if(!empty($wpdb->last_error))return new WP_Error('digiforge_provider_personalization_evidence_unavailable','Personalization evidence could not be read.',['status'=>500]);
             if(!is_array($submission)||(string)($submission['review_status']??'')!=='APPROVED'||(int)($submission['reviewed_by']??0)<1||empty($submission['reviewed_at']))
                 return new WP_Error('digiforge_provider_personalization_review','Persisted human-approved personalization evidence is required.',['status'=>409]);
             $schemaId=absint($row['personalization_schema_id']??0);
