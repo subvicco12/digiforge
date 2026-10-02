@@ -30,6 +30,18 @@ final class EtsyOrderWebhookLifecycle
         if($type==='ORDER.PAID'){
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
             if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$existing['id']),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
+            $prepared=[];$reviewRequired=$items===[];
+            foreach(array_slice($items,0,100) as $index=>$item){
+                if(!is_array($item))continue;
+                $etsyListingId=$this->reference($item,['listing_id','listingId']);
+                $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
+                if($resolved instanceof WP_Error)return $resolved;
+                if(!is_array($resolved)){$reviewRequired=true;continue;}
+                $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
+                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
+                $prepared[]=['index'=>$index,'item'=>$item,'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>$providerMappingId];
+            }
             $order=$this->orders->createOrder([
                 'channel'=>'etsy','environment'=>'production','external_order_reference'=>$orderRef,
                 'shop_reference'=>$shopRef,'buyer_reference'=>$this->reference($payload,['buyer_id','buyerId']),
@@ -39,17 +51,10 @@ final class EtsyOrderWebhookLifecycle
                 'metadata'=>['source'=>'etsy_webhook','event_id'=>$eventId],
             ],'etsy_webhook:'.$eventId);
             if($order instanceof WP_Error)return $order;
-            $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
-            $normalized=[];$reviewRequired=$items===[];
-            foreach(array_slice($items,0,100) as $index=>$item){
-                if(!is_array($item))continue;
-                $etsyListingId=$this->reference($item,['listing_id','listingId']);
-                $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
-                if($resolved instanceof WP_Error)return $resolved;
-                if(!is_array($resolved)){$reviewRequired=true;continue;}
-                $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
-                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
-                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>$providerMappingId,'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
+            $normalized=[];
+            foreach($prepared as $entry){
+                $item=$entry['item'];$index=(int)$entry['index'];
+                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>(int)$entry['listing_id'],'product_version_id'=>(int)$entry['product_version_id'],'provider_mapping_id'=>(int)$entry['provider_mapping_id'],'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
                 if($line instanceof WP_Error){$reviewRequired=true;continue;}
                 $normalized[]=(int)$line['id'];
             }
