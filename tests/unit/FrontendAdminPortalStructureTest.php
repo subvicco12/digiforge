@@ -38,5 +38,8 @@ final class FrontendAdminPortalStructureTest extends TestCase
         self::assertStringContainsString('Publish-ready listings', $portal);
         self::assertStringContainsString('Production journey', $portal);
         self::assertStringContainsString('Listing / Publish Approval', $portal);
+        self::assertStringContainsString("$value === null ? 'UNAVAILABLE'", $portal);
+        self::assertStringContainsString("\$wpdb->last_error = ''", $portal);
+        self::assertStringContainsString("return \$wpdb->last_error !== '' ? null : (int) \$value;", $portal);
     }
 }
