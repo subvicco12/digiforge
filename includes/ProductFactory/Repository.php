@@ -24,7 +24,11 @@ final class Repository {
         $key = $idempotency_key === null ? null : sanitize_text_field($idempotency_key);
         if ($key === '') { $key = null; }
         if ($key !== null && strlen($key) > 191) { return $this->error('validation', 'Idempotency key is too long.'); }
-        if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; }
+        if ($key !== null) {
+            $existing = $this->find_by_key($type, $key);
+            if (is_wp_error($existing)) { return $existing; }
+            if ($existing !== null) { return $existing + ['idempotent_replay' => true]; }
+        }
         $data = [$definition['label'] => $label, $definition['text'] => sanitize_textarea_field((string) ($input[$definition['text']] ?? '')), 'state' => Lifecycle::initial($type), 'idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => current_time('mysql', true), 'updated_at' => current_time('mysql', true)];
         if (isset($definition['parent'])) {
             $parent_id = absint($input[$definition['parent']] ?? 0);
@@ -33,7 +37,11 @@ final class Repository {
         }
         global $wpdb;
         if (! $wpdb->insert($this->table($type), $data)) {
-            if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; }
+            if ($key !== null) {
+                $existing = $this->find_by_key($type, $key);
+                if (is_wp_error($existing)) { return $existing; }
+                if ($existing !== null) { return $existing + ['idempotent_replay' => true]; }
+            }
             return $this->error('create_failed', 'Unable to create entity.', 500);
         }
         $entity = $this->find($type, (int) $wpdb->insert_id);
@@ -71,7 +79,13 @@ final class Repository {
         Logger::audit($type . '_state_changed', ['from' => $from, 'to' => $to], $type, (string) $id);
         return $this->find($type, $id) ?? $this->error('not_found', 'Entity not found.', 404);
     }
-    private function find_by_key(string $type, string $key): ?array { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); return is_array($row) ? $this->normalize($row) : null; }
+    private function find_by_key(string $type, string $key): array|\WP_Error|null {
+        global $wpdb;
+        $wpdb->last_error = '';
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A);
+        if ((string) $wpdb->last_error !== '') { return $this->error('evidence_unavailable', 'Product Factory idempotency evidence could not be read.', 503); }
+        return is_array($row) ? $this->normalize($row) : null;
+    }
     private function table(string $type): string { $method = self::DEFINITIONS[$type]['table']; return Tables::$method(); }
     private function normalize(array $row): array { foreach (['id', 'opportunity_id', 'product_family_id', 'product_id', 'created_by'] as $key) { if (isset($row[$key])) { $row[$key] = (int) $row[$key]; } } unset($row['idempotency_key']); return $row; }
     private function error(string $code, string $message, int $status = 400): \WP_Error { return new \WP_Error('digiforge_' . $code, __($message, 'digiforge'), ['status' => $status]); }
