@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class ProductionTemplatePersistenceEvidenceContractTest extends TestCase{public function testTemplateReadsAndInsertRaceFailClosed():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionTemplateRepository.php');self::assertStringContainsString('digiforge_template_evidence_unavailable',$s);self::assertStringContainsString('digiforge_template_confirmation_unavailable',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);}}
