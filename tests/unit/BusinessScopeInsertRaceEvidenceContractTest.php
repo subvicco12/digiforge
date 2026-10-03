@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class BusinessScopeInsertRaceEvidenceContractTest extends TestCase{public function testInsertRaceRequiresDurableWinnerEvidence():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');self::assertStringContainsString('digiforge_scope_race_evidence_unavailable',$s);self::assertStringContainsString('concurrently assigned business ownership',$s);self::assertStringContainsString("hash_equals((string)(\$winner['request_fingerprint']??''),\$fingerprint)",$s);}}
