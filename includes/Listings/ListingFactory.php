@@ -27,14 +27,19 @@ final class ListingFactory
         }
 
         global $wpdb;
+        $wpdb->last_error = '';
         $version = $wpdb->get_row(
             $wpdb->prepare('SELECT * FROM ' . Tables::product_versions() . ' WHERE id=%d LIMIT 1', $productVersionId),
             ARRAY_A
         );
+        if ((string) $wpdb->last_error !== '') {
+            return $this->error('listing_factory_product_version_evidence_unavailable', 'Product version approval evidence could not be read.', 503);
+        }
         if (! is_array($version) || (string) ($version['state'] ?? '') !== 'APPROVED') {
             return $this->error('listing_factory_gate2', 'Product version must be human-approved before listing preparation.', 409);
         }
 
+        $wpdb->last_error = '';
         $bundle = $wpdb->get_row(
             $wpdb->prepare(
                 'SELECT b.* FROM ' . Tables::release_bundles() . ' b INNER JOIN ' . Tables::production_plans()
@@ -44,6 +49,9 @@ final class ListingFactory
             ),
             ARRAY_A
         );
+        if ((string) $wpdb->last_error !== '') {
+            return $this->error('listing_factory_release_evidence_unavailable', 'Approved release-bundle evidence could not be read.', 503);
+        }
         if (! is_array($bundle)) {
             return $this->error('listing_factory_release', 'An approved release-ready bundle is required.', 409);
         }
