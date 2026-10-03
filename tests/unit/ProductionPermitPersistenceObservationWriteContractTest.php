@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class ProductionPermitPersistenceObservationWriteContractTest extends TestCase{public function testObservationWriteFailuresAreOperatorVisible():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionPermitPersistenceObservationRepository.php');self::assertStringContainsString('production_permit_observation_write_failed',$s);self::assertStringContainsString('operation=update',$s);self::assertStringContainsString('operation=insert',$s);self::assertStringContainsString('operator_attention_required=true',$s);}}
