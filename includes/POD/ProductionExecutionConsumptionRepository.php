@@ -31,7 +31,8 @@ final class ProductionExecutionConsumptionRepository
    $binding=['package_id'=>$packageId,'package_hash'=>$packageHash,'authorization_hash'=>$authorizationHash,'nonce_hash'=>$nonceHash,'bound_by'=>$actorId,'bound_at'=>$now];
    if($wpdb->insert($bindingTable,$binding,['%d','%s','%s','%s','%d','%s'])===false){
     self::rollback();
-    $winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$bindingTable.' WHERE authorization_hash=%s OR nonce_hash=%s LIMIT 1',$authorizationHash,$nonceHash),ARRAY_A);
+    $wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$bindingTable.' WHERE authorization_hash=%s OR nonce_hash=%s LIMIT 1',$authorizationHash,$nonceHash),ARRAY_A);
+    if(!empty($wpdb->last_error))return new WP_Error('production_permit_evidence_unavailable','Authorization provenance race evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
     if(is_array($winner))return new WP_Error('production_permit_package_binding_conflict','Authorization provenance conflicts with durable evidence.',['status'=>409,'retry_permitted'=>false,'external_execution_authorized'=>false]);
     return new WP_Error('production_permit_package_binding_store','Authorization provenance could not be persisted; transaction was rolled back before any execution authority was granted.',['status'=>500,'retry_permitted'=>false,'external_execution_authorized'=>false]);
    }
@@ -41,7 +42,8 @@ final class ProductionExecutionConsumptionRepository
  }
  private static function rollback():void{global $wpdb;$wpdb->last_error='';$rolledBack=$wpdb->query('ROLLBACK');if($rolledBack===false||!empty($wpdb->last_error))error_log('[DigiForge] production_permit_transaction_rollback_failed; primary_error_preserved=true; operator_attention_required=true');}
  private static function nonceFailure(string $nonceHash):WP_Error{
-  global $wpdb;$winner=$wpdb->get_var($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_nonces().' WHERE nonce_hash=%s LIMIT 1',$nonceHash));
+  global $wpdb;$wpdb->last_error='';$winner=$wpdb->get_var($wpdb->prepare('SELECT authorization_hash FROM '.Tables::pod_execution_nonces().' WHERE nonce_hash=%s LIMIT 1',$nonceHash));
+  if(!empty($wpdb->last_error))return new WP_Error('production_permit_evidence_unavailable','Concurrent nonce evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   if(is_string($winner)&&$winner!=='')return new WP_Error('digiforge_execution_replay','Execution nonce was consumed concurrently.',['status'=>409,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   return new WP_Error('digiforge_nonce_store','Execution nonce could not be consumed.',['status'=>500,'retry_permitted'=>false,'external_execution_authorized'=>false]);
  }
