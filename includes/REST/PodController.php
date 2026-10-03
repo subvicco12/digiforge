@@ -27,9 +27,10 @@ final class PodController
         });
     }
     public function canManage(): bool{return current_user_can('manage_digiforge_pod');}
-    public function list(\WP_REST_Request $r): \WP_REST_Response
+    public function list(\WP_REST_Request $r): mixed
     {
         $result=(new Repository())->list((string)$r['entity'],max(1,(int)($r->get_param('page')?:1)),min(100,max(1,(int)($r->get_param('per_page')?:20))));
+        if(is_wp_error($result))return $result;
         $response=new \WP_REST_Response($result['items']);$response->header('X-WP-Total',(string)$result['pagination']['total_items']);$response->header('X-WP-TotalPages',(string)$result['pagination']['total_pages']);return $response;
     }
     public function createCatalog(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_catalog_create',fn()=>(new Repository())->createCatalog((array)$r->get_json_params(),$this->rawKey($r)),201);}
