@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class PodTransitionDbEvidenceContractTest extends TestCase{public function testTransitionClearsAndChecksDbErrorBeforeClassifyingConflict():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/Repository.php');self::assertStringContainsString("\$wpdb->last_error='';\$updated=\$wpdb->update",$s);self::assertStringContainsString("\$updated===false||!empty(\$wpdb->last_error)",$s);self::assertStringContainsString("'update_failed','Unable to update POD state.',503",$s);}}
