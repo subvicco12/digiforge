@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class PrintifyReconciliationInsertRaceContractTest extends TestCase{public function testInsertRaceReconcilesWinnerAndDbUncertainty():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/PrintifyReconciliationRepository.php');self::assertStringContainsString('digiforge_printify_reconciliation_confirmation_unavailable',$s);self::assertStringContainsString("WHERE unknown_hash=%s AND reconciliation_hash=%s LIMIT 1",$s);self::assertStringContainsString("'retry_permitted'=>false",$s);}}
