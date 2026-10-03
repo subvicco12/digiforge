@@ -34,7 +34,7 @@ final class PodRepositoryEvidenceAvailabilityContractTest extends TestCase
         $start=strpos($s,'public function readiness(int $mappingId)');
         $end=strpos($s,'public function list(',$start);
         $method=substr($s,$start,$end-$start);
-        self::assertStringContainsString("$count=function(string \$sql)use(\$wpdb):int|WP_Error{\$wpdb->last_error='';",$method);
+        self::assertStringContainsString("\$count=function(string \$sql)use(\$wpdb):int|WP_Error{\$wpdb->last_error='';",$method);
         self::assertStringContainsString("if(is_wp_error(\$plan))return \$plan;",$method);
         self::assertStringContainsString("\$wpdb->last_error='';\$cost=\$wpdb->get_row",$method);
     }
