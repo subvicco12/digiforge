@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class ProductionPermitTransactionBoundaryEvidenceContractTest extends TestCase{public function testStartAndCommitClearAndCheckDbErrorState():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionExecutionConsumptionRepository.php');self::assertStringContainsString("\$wpdb->last_error='';if(\$wpdb->query('START TRANSACTION')===false||!empty(\$wpdb->last_error))",$s);self::assertStringContainsString("\$wpdb->last_error='';if(\$wpdb->query('COMMIT')===false||!empty(\$wpdb->last_error))",$s);self::assertStringContainsString('production_permit_consumption_commit_unknown',$s);}}
