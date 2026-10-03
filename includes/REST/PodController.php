@@ -42,13 +42,18 @@ final class PodController
         try{
             // Provider mapping replay happens first because its stable database ID is part of
             // the immutable business-scope fingerprint. Both writes share this transaction.
-            $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping)){$wpdb->query('ROLLBACK');return $mapping;}
+            $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping)){$this->rollbackMappingTransaction();return $mapping;}
             $input['provider_mapping_id']=(int)($mapping['id']??0);
-            $scoped=$scopedRepo->createMapping($input,$key,false);if(is_wp_error($scoped)){$wpdb->query('ROLLBACK');return $scoped;}
+            $scoped=$scopedRepo->createMapping($input,$key,false);if(is_wp_error($scoped)){$this->rollbackMappingTransaction();return $scoped;}
             $wpdb->last_error='';$committed=$wpdb->query('COMMIT');if($committed===false||!empty($wpdb->last_error))return new \WP_Error('digiforge_mapping_commit_unknown','Provider mapping and business ownership commit outcome is unknown; do not retry automatically.',['status'=>503,'retry_permitted'=>false]);
             $status=!empty($mapping['idempotent_replay'])?200:201;
             return new \WP_REST_Response(['provider_mapping'=>$mapping,'business_mapping'=>$scoped],$status);
-        }catch(\Throwable){$wpdb->query('ROLLBACK');return new \WP_Error('digiforge_mapping_atomicity','Provider mapping and business ownership could not be created atomically.',['status'=>500]);}
+        }catch(\Throwable){$this->rollbackMappingTransaction();return new \WP_Error('digiforge_mapping_atomicity','Provider mapping and business ownership could not be created atomically.',['status'=>500]);}
+    }
+    private function rollbackMappingTransaction(): void
+    {
+        global $wpdb;$wpdb->last_error='';$rolledBack=$wpdb->query('ROLLBACK');
+        if($rolledBack===false||!empty($wpdb->last_error))error_log('[DigiForge] pod_mapping_transaction_rollback_failed; primary_error_preserved=true; operator_attention_required=true');
     }
     public function createPrintArea(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_print_area_create',fn()=>(new Repository())->createPrintArea((array)$r->get_json_params(),$this->rawKey($r)),201);}
     public function createPersonalization(\WP_REST_Request $r): mixed{return $this->mutate($r,'pod_personalization_create',fn()=>(new Repository())->createPersonalizationSchema((array)$r->get_json_params(),$this->rawKey($r)),201);}
