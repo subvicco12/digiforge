@@ -241,7 +241,18 @@ final class EtsyOperationRepository
         if ($id < 1) return;
         global $wpdb;
         $key='digiforge_etsy_operation_'.$id;
-        $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$key));
+        $wpdb->last_error='';
+        $released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$key));
+        if((string)$wpdb->last_error!==''||(int)$released!==1){
+            Logger::audit('etsy_execution_lock_release_failed',[
+                'operation_id'=>$id,
+                'release_result'=>$released===null?'NULL':(string)$released,
+                'database_error_present'=>(string)$wpdb->last_error!=='',
+                'external_outcome_preserved'=>true,
+                'operator_attention_required'=>true,
+            ],'etsy_operation',(string)$id);
+            error_log('DigiForge Etsy execution lock release failed for operation '.$id.'. External outcome preserved; operator attention required.');
+        }
     }
 
     /** @return array<string,mixed>|WP_Error|null */
