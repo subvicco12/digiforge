@@ -38,14 +38,14 @@ final class PodController
     {
         $key=$this->rawKey($r);if($key===null)return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
         $input=(array)$r->get_json_params();$scopedRepo=new BusinessScopeRepository();global $wpdb;
-        $wpdb->query('START TRANSACTION');
+        $wpdb->last_error='';$started=$wpdb->query('START TRANSACTION');if($started===false||!empty($wpdb->last_error))return new \WP_Error('digiforge_mapping_transaction_unavailable','Provider mapping transaction could not be started.',['status'=>500]);
         try{
             // Provider mapping replay happens first because its stable database ID is part of
             // the immutable business-scope fingerprint. Both writes share this transaction.
             $mapping=(new Repository())->createMapping($input,$key);if(is_wp_error($mapping)){$wpdb->query('ROLLBACK');return $mapping;}
             $input['provider_mapping_id']=(int)($mapping['id']??0);
             $scoped=$scopedRepo->createMapping($input,$key,false);if(is_wp_error($scoped)){$wpdb->query('ROLLBACK');return $scoped;}
-            $wpdb->query('COMMIT');
+            $wpdb->last_error='';$committed=$wpdb->query('COMMIT');if($committed===false||!empty($wpdb->last_error))return new \WP_Error('digiforge_mapping_commit_unknown','Provider mapping and business ownership commit outcome is unknown; do not retry automatically.',['status'=>503,'retry_permitted'=>false]);
             $status=!empty($mapping['idempotent_replay'])?200:201;
             return new \WP_REST_Response(['provider_mapping'=>$mapping,'business_mapping'=>$scoped],$status);
         }catch(\Throwable){$wpdb->query('ROLLBACK');return new \WP_Error('digiforge_mapping_atomicity','Provider mapping and business ownership could not be created atomically.',['status'=>500]);}
