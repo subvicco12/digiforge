@@ -31,7 +31,12 @@ final class PrintifyCatalogPersistenceStructureTest extends TestCase
 
     public function testConcurrentPhysicalIdentityInsertConvergesByRefetch(): void
     {
-        $source=$this->source();self::assertStringContainsString('findPhysical',$source);self::assertStringContainsString("if(\$ok===false)",$source);self::assertStringContainsString('persistExisting($winner,$data)',$source);self::assertStringContainsString("SELECT * FROM '.\$table.' WHERE id=%d",$source);self::assertStringContainsString("(is_array(\$fresh)?\$fresh:\$existing)+['catalog_change_detected'=>false,'idempotent'=>true]",$source);self::assertStringNotContainsString('return $this->persistVariant($raw)',$source);
+        $source=$this->source();self::assertStringContainsString('findPhysical',$source);self::assertStringContainsString("if(\$ok===false)",$source);self::assertStringContainsString('persistExisting($winner,$data)',$source);self::assertStringContainsString("SELECT * FROM '.\$table.' WHERE id=%d",$source);self::assertStringContainsString('digiforge_printify_catalog_confirmation',$source);self::assertStringContainsString("'retry_permitted'=>false",$source);self::assertStringContainsString("'external_execution_authorized'=>false",$source);self::assertStringNotContainsString('return $this->persistVariant($raw)',$source);
+    }
+
+    public function testDatabaseEvidenceIsIsolatedAndFailsClosed(): void
+    {
+        $source=$this->source();self::assertStringContainsString("array|WP_Error|null",$source);self::assertStringContainsString("\$wpdb->last_error=''",$source);self::assertStringContainsString('digiforge_printify_catalog_evidence_unavailable',$source);self::assertStringContainsString('digiforge_printify_catalog_confirmation',$source);
     }
 
     public function testCatalogPersistenceCannotMutateProductionTemplatesOrExecuteProviderActions(): void
