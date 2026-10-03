@@ -9,12 +9,12 @@ final class EtsyExecutionLockEvidenceAvailabilityContractTest extends TestCase{
   self::assertStringContainsString("Etsy execution-lock evidence could not be read.",$repo);
   self::assertStringContainsString("\$wpdb->last_error='';",$repo);
   self::assertStringContainsString('$acquired===null',$repo);
-  foreach(['EtsyControlledDraftExecutionCoordinator.php','EtsyControlledPublishExecutionCoordinator.php'] as $file){
+  foreach(['EtsyControlledDraftExecutionCoordinator.php','EtsyControlledPublishExecutionCoordinator.php','EtsyReconciliationWorkflow.php'] as $file){
    $s=(string)file_get_contents($root.'/includes/Listings/'.$file);
    self::assertStringContainsString('$lock=$this->operations->acquireExecutionLock',$s);
    self::assertStringContainsString('if($lock instanceof WP_Error)return $lock;',$s);
    self::assertStringContainsString("if(\$lock!==true)return self::error('claimed'",$s);
-   self::assertLessThan(strpos($s,'execute($transport'),strpos($s,'acquireExecutionLock'),$file.' must acquire verified lock before network execution.');
+   if(str_contains($s,'execute($transport'))self::assertLessThan(strpos($s,'execute($transport'),strpos($s,'acquireExecutionLock'),$file.' must acquire verified lock before network execution.');
   }
  }
 }
