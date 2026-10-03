@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class RenderEvidenceInsertRaceContractTest extends TestCase{public function testInsertRaceRequiresDurableEvidenceHashWinner():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/RenderEvidenceRepository.php');self::assertStringContainsString('render_evidence_race_unavailable',$s);self::assertStringContainsString("WHERE evidence_hash=%s",$s);self::assertStringContainsString("'idempotent_replay'=>true",$s);}}
