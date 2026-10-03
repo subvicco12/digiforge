@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class AuthorizationReviewPersistenceEvidenceContractTest extends TestCase{public function testDbFailureIsNotFlattenedIntoReviewConflict():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionAuthorizationRepository.php');self::assertStringContainsString('authorization_review_persistence_failed',$s);self::assertStringContainsString('authorization_review_conflict',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}
