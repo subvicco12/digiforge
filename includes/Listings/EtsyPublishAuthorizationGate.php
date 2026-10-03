@@ -46,7 +46,7 @@ final class EtsyPublishAuthorizationGate
             || (int)($package['approved_by']??0)<1 || empty($package['approved_at'])) return self::error('approval','Durable authenticated listing and package approvals are required.');
 
         $current=(new Repository())->readiness($listingId);
-        if($current instanceof WP_Error||empty($current['ready'])) return self::error('readiness','Listing is no longer release-ready.');
+        if($current instanceof WP_Error)return $current;if(empty($current['ready'])) return self::error('readiness','Listing is no longer release-ready.');
         $currentHash=strtolower(trim((string)($current['hash']??'')));
         $packageHash=strtolower(trim((string)($package['readiness_hash']??'')));
         if($currentHash===''||$packageHash===''||!hash_equals($currentHash,$packageHash)||!hash_equals($currentHash,$readinessHash)) return self::error('readiness','Current readiness no longer matches the approved package and prepublish evidence.');
