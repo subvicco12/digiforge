@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class BusinessScopeReplayCommitEvidenceContractTest extends TestCase{public function testReplayCommitAmbiguityIsNonRetryable():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');self::assertStringContainsString('digiforge_scope_replay_commit_unknown',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}
