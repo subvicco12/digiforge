@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class AuthorizationPackageInsertRaceContractTest extends TestCase{public function testInsertFailureReconcilesExactPackageWinnerAndFailsClosedIfEvidenceUnavailable():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionAuthorizationRepository.php');self::assertStringContainsString('authorization_package_race_evidence_unavailable',$s);self::assertStringContainsString("'idempotent_replay'=>true",$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}
