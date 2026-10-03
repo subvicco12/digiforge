@@ -14,7 +14,9 @@ final class ProductionTemplateRepository
         try{$row=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
         global $wpdb;
         $table=\DigiForge\Database\Tables::pod_production_templates();
+        $wpdb->last_error='';
         $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s AND template_version=%d LIMIT 1',$row['template_id'],$row['template_version']),ARRAY_A);
+        if(!empty($wpdb->last_error)) return new WP_Error('digiforge_template_evidence_unavailable','Production template evidence could not be read.',['status'=>503,'retry_permitted'=>false]);
         if(is_array($existing)){
             if(hash_equals((string)($existing['fingerprint']??''),(string)$row['fingerprint'])) return $existing+['idempotent'=>true];
             try{ProductionTemplateContract::assertMutable($existing);}catch(\LogicException $e){return new WP_Error('digiforge_template_immutable',$e->getMessage(),['status'=>409]);}
@@ -29,7 +31,7 @@ final class ProductionTemplateRepository
             'created_by'=>get_current_user_id(),'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true),
         ];
         if(!is_string($data['variant_ids'])||!is_string($data['print_areas'])) return new WP_Error('digiforge_template_encode','Production template metadata could not be encoded.',['status'=>500]);
-        if($wpdb->insert($table,$data)===false) return new WP_Error('digiforge_template_insert','Production template could not be stored.',['status'=>500]);
+        if($wpdb->insert($table,$data)===false){$wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s AND template_version=%d LIMIT 1',$row['template_id'],$row['template_version']),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('digiforge_template_confirmation_unavailable','Template persistence outcome is uncertain; do not retry automatically.',['status'=>503,'retry_permitted'=>false]);if(is_array($winner)&&hash_equals((string)($winner['fingerprint']??''),(string)$row['fingerprint']))return $winner+['idempotent'=>true];return new WP_Error('digiforge_template_insert','Production template could not be stored.',['status'=>500]);}
         return $data+['id'=>(int)$wpdb->insert_id,'idempotent'=>false];
     }
 
@@ -40,7 +42,9 @@ final class ProductionTemplateRepository
         if($templateId==='') return new WP_Error('digiforge_template_id_required','template_id is required for catalog drift.',['status'=>400]);
         global $wpdb;
         $table=\DigiForge\Database\Tables::pod_production_templates();
+        $wpdb->last_error='';
         $latest=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s ORDER BY template_version DESC LIMIT 1',$templateId),ARRAY_A);
+        if(!empty($wpdb->last_error)) return new WP_Error('digiforge_template_evidence_unavailable','Latest production template evidence could not be read.',['status'=>503,'retry_permitted'=>false]);
         $input['template_version']=is_array($latest)?((int)$latest['template_version']+1):1;
         $input['template_status']='DRAFT';
         try{$candidate=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
