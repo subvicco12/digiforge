@@ -15,7 +15,7 @@ final class ReleaseEvidence
         if(!empty($wpdb->last_error))return new WP_Error('digiforge_draft_package_evidence_unavailable','Etsy draft package evidence could not be read.',['status'=>503]);
         if(!is_array($package))return new WP_Error('digiforge_draft_package_missing','Etsy draft package not found.',['status'=>404]);
         $listingId=(int)($package['listing_id']??0);$current=(new Repository())->readiness($listingId);
-        if(is_wp_error($current)||empty($current['ready']))return new WP_Error('digiforge_listing_not_ready','Current listing readiness does not pass.',['status'=>409]);
+        if(is_wp_error($current))return $current;if(empty($current['ready']))return new WP_Error('digiforge_listing_not_ready','Current listing readiness does not pass.',['status'=>409]);
         $stored=(string)($package['readiness_hash']??'');$actual=(string)($current['hash']??'');
         if($stored===''||$actual===''||!hash_equals($stored,$actual))return new WP_Error('digiforge_listing_evidence_stale','Draft package readiness evidence is stale.',['status'=>409]);
         return ['state'=>'LISTING_RELEASE_EVIDENCE_VERIFIED','draft_package_id'=>$packageId,'listing_id'=>$listingId,'readiness_hash'=>$actual,'publish_authorized'=>false,'etsy_api_invoked'=>false,'external_execution_performed'=>false];
