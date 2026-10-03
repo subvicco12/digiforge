@@ -21,9 +21,19 @@ final class Migrator {
             return true;
         }
 
+        $wpdb->last_error = '';
         $existing_jobs_table = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like(Tables::jobs())));
+        if ($wpdb->last_error !== '') {
+            update_option('digiforge_last_migration_failure',['error_code'=>'LEGACY_JOBS_TABLE_EVIDENCE_UNAVAILABLE','occurred_at'=>current_time('mysql',true)],false);
+            return false;
+        }
         if ($existing_jobs_table === Tables::jobs() && $currentVersion < 2) {
-            $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
+            $wpdb->last_error = '';
+            $cleanupResult = $wpdb->query('UPDATE ' . Tables::jobs() . " SET idempotency_key = NULL WHERE idempotency_key = ''");
+            if ($cleanupResult === false || $wpdb->last_error !== '') {
+                update_option('digiforge_last_migration_failure',['error_code'=>'LEGACY_JOBS_IDEMPOTENCY_CLEANUP_FAILED','occurred_at'=>current_time('mysql',true)],false);
+                return false;
+            }
         }
 
         $baseSql = [
