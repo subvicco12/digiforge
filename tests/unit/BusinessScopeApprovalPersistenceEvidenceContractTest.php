@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class BusinessScopeApprovalPersistenceEvidenceContractTest extends TestCase{public function testDbFailureIsNotFlattenedIntoTransitionConflict():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');self::assertStringContainsString('digiforge_scope_approval_persistence_failed',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}

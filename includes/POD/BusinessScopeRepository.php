@@ -32,8 +32,8 @@ final class BusinessScopeRepository
     public function approveMapping(int $id): array|WP_Error
     {
         global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('digiforge_scope_reviewer_required','Authenticated human reviewer required.',['status'=>403]);
-        $now=current_time('mysql',true);$ok=$wpdb->update(Tables::pod_business_mappings(),['state'=>'APPROVED','approved_by'=>$reviewer,'approved_at'=>$now,'updated_at'=>$now],['id'=>$id,'state'=>'DRAFT']);
-        if($ok!==1)return new WP_Error('digiforge_scope_transition','Ownership must exist in DRAFT state and approval cannot be overwritten.',['status'=>409]);
+        $now=current_time('mysql',true);$wpdb->last_error='';$ok=$wpdb->update(Tables::pod_business_mappings(),['state'=>'APPROVED','approved_by'=>$reviewer,'approved_at'=>$now,'updated_at'=>$now],['id'=>$id,'state'=>'DRAFT']);
+        if($ok!==1){if(!empty($wpdb->last_error))return new WP_Error('digiforge_scope_approval_persistence_failed','Ownership approval could not be persisted.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return new WP_Error('digiforge_scope_transition','Ownership must exist in DRAFT state and approval cannot be overwritten.',['status'=>409]);}
         $wpdb->last_error='';$approved=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE id=%d',$id),ARRAY_A);if(!is_array($approved)||!empty($wpdb->last_error))return new WP_Error('digiforge_scope_confirmation_unavailable','Ownership approval completed but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false]);return $approved;
     }
 
