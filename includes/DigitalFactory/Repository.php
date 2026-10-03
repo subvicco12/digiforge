@@ -117,7 +117,7 @@ final class Repository {
         return $this->find('digital_product', $id) ?? $this->error('not_found', 'Digital product not found.', 404);
     }
 
-    public function find(string $type, int $id): array|\\WP_Error|null { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital entity evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
+    public function find(string $type, int $id): array|\WP_Error|null { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital entity evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
     public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
         $page = max(1, $page); $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
         if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => compact('page', 'per_page') + ['total_items' => 0, 'total_pages' => 0]]; }
@@ -243,7 +243,7 @@ final class Repository {
     }
 
     private function key(?string $key): string|null|\WP_Error { if ($key === null || trim($key) === '') { return null; } $key = sanitize_text_field($key); return strlen($key) > 191 ? $this->error('validation', 'Idempotency key is too long.') : $key; }
-    private function find_by_key(string $type, string $key): array|\\WP_Error|null { global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital idempotency evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
+    private function find_by_key(string $type, string $key): array|\WP_Error|null { global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital idempotency evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
     private function table(string $type): string { $method = self::DEFINITIONS[$type]['table']; return Tables::$method(); }
     private function normalize(array $row): array { foreach (array_merge(['id', 'created_by'], self::IDS) as $field) { if (isset($row[$field])) { $row[$field] = (int) $row[$field]; } } unset($row['idempotency_key'], $row['license_code_hash']); foreach (array_merge(['readiness'], self::STRUCTURED) as $field) { if (isset($row[$field]) && is_string($row[$field])) { $decoded = json_decode($row[$field], true); if (is_array($decoded)) { $row[$field] = $decoded; } } } return $row; }
     private function error(string $code, string $message, int $status = 400): \WP_Error { return new \WP_Error('digiforge_' . $code, __($message, 'digiforge'), ['status' => $status]); }
