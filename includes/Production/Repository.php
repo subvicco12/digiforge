@@ -109,7 +109,7 @@ final class Repository
         if($from===$to){return $row+['idempotent_transition'=>true];}
         if($kind==='bundle'&&$to==='RELEASE_READY')return $this->error('readiness_validation_required','Bundle RELEASE_READY is set only by deterministic bundle validation.',409);
         if(!Lifecycle::can($kind,$from,$to))return $this->error('invalid_transition','Illegal production state transition.',409);$data=['state'=>$to,'updated_at'=>$this->now()];if($to==='APPROVED'&&in_array($kind,['plan','bundle'],true)){$uid=get_current_user_id();if($uid<1)return $this->error('authorization','Approval requires an authenticated reviewer.',403);$data['approved_by']=$uid;$data['approved_at']=$this->now();}
-        global $wpdb;$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>$from]);if($updated===false)return $this->error('update_failed','Unable to update production state.',500);if($updated===0)return $this->error('state_conflict','Production state changed concurrently.',409);Logger::audit('production_state_changed',['entity'=>$entity,'from'=>$from,'to'=>$to],$entity,(string)$id);$confirmed=$this->find($table,$id);if(is_wp_error($confirmed))return $confirmed;return $confirmed??$this->error('not_found','Production record not found.',404);
+        global $wpdb;$wpdb->last_error='';$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>$from]);if($updated===false||!empty($wpdb->last_error))return $this->error('update_failed','Unable to update production state.',500);if($updated===0)return $this->error('state_conflict','Production state changed concurrently.',409);Logger::audit('production_state_changed',['entity'=>$entity,'from'=>$from,'to'=>$to],$entity,(string)$id);$confirmed=$this->find($table,$id);if(is_wp_error($confirmed))return $confirmed;return $confirmed??$this->error('not_found','Production record not found.',404);
     }
 
     public function list(string $entity,int $page=1,int $perPage=20):array
@@ -121,14 +121,15 @@ final class Repository
     {
         global $wpdb;$key=$key===null?null:sanitize_text_field($key);if($key==='')$key=null;if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key too long.');
         if($key!==null){
-            $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Production idempotency evidence could not be read.',503);
             if(is_array($existing)){
                 if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was replayed with different production data.',409);
                 return $this->normalize($existing)+['idempotent_replay'=>true];
             }
             $data['idempotency_key']=$key;
         }
-        if(!$wpdb->insert($table,$data))return $this->error('create_failed','Unable to create production record.',500);$insertId=(int)$wpdb->insert_id;Logger::audit($type.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$type,(string)$insertId);$created=$this->find($table,$insertId);if(is_wp_error($created))return $created;return $created??$this->error('create_failed','Unable to read production record.',500);
+        $wpdb->last_error='';$inserted=$wpdb->insert($table,$data);if($inserted!==1||!empty($wpdb->last_error)){if($key!==null){$wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);if(empty($wpdb->last_error)&&is_array($winner)&&$this->replayCompatible($winner,$data))return $this->normalize($winner)+['idempotent_replay'=>true];}return $this->error('create_failed','Unable to create production record.',500);}$insertId=(int)$wpdb->insert_id;Logger::audit($type.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$type,(string)$insertId);$created=$this->find($table,$insertId);if(is_wp_error($created))return $created;return $created??$this->error('create_failed','Unable to read production record.',500);
     }
 
     private function replayCompatible(array $existing,array $requested):bool
