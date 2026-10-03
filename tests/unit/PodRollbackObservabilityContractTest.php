@@ -8,6 +8,6 @@ final class PodRollbackObservabilityContractTest extends TestCase{
   self::assertStringContainsString('pod_scope_rollback_failed',$s);
   self::assertStringContainsString('primary_error_preserved=true',$s);
   self::assertStringContainsString('operator_attention_required=true',$s);
-  self::assertStringNotContainsString("\$wpdb->query('ROLLBACK')",$s);
+  self::assertSame(1,substr_count($s,"query('ROLLBACK')"));
  }
 }
