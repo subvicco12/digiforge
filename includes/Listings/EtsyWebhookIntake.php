@@ -16,9 +16,9 @@ final class EtsyWebhookIntake {
         if($claim instanceof WP_Error)return $claim;
         if(($claim['process_permitted']??false)!==true)return $claim;
         $result=(new EtsyOrderWebhookLifecycle(new \DigiForge\Orders\Repository()))->apply($verified);
-        if($result instanceof WP_Error){$this->dedup->markFailed((string)$verified['event_id']);$evidence->markFailed((string)$verified['event_id']);return $result;}
+        if($result instanceof WP_Error){$dedupFailed=$this->dedup->markFailed((string)$verified['event_id']);$evidenceFailed=$evidence->markFailed((string)$verified['event_id']);if(!$dedupFailed||!$evidenceFailed)return new WP_Error('digiforge_etsy_webhook_failure_evidence_unavailable','Webhook processing failed and durable failure evidence could not be completed.',['status'=>503,'reconciliation_required'=>true,'external_execution_performed'=>false]);return $result;}
         $resultHash=hash('sha256',wp_json_encode($result));
-        $this->dedup->markProcessed((string)$verified['event_id'],$resultHash);$evidence->markProcessed((string)$verified['event_id'],$resultHash);
+        $dedupProcessed=$this->dedup->markProcessed((string)$verified['event_id'],$resultHash);$evidenceProcessed=$evidence->markProcessed((string)$verified['event_id'],$resultHash);if(!$dedupProcessed||!$evidenceProcessed)return new WP_Error('digiforge_etsy_webhook_completion_evidence_unavailable','Webhook lifecycle completed but durable completion evidence is uncertain.',['status'=>503,'reconciliation_required'=>true,'external_execution_performed'=>false]);
         return $result+['webhook_verified'=>true,'external_execution_performed'=>false];
     }
 }
