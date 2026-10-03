@@ -20,8 +20,8 @@ final class ProductionAuthorizationRepository
  }
  public function approveForReview(int $id):array|WP_Error{
   global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('authorization_reviewer_required','Authenticated human reviewer required.',['status'=>403]);$now=current_time('mysql',true);
-  $ok=$wpdb->update(Tables::pod_authorization_packages(),['state'=>'APPROVED_PACKAGE','approved_by'=>$reviewer,'approved_at'=>$now],['id'=>$id,'state'=>'REVIEW_REQUIRED','external_execution_authorized'=>0,'external_execution_performed'=>0]);
-  if($ok!==1)return new WP_Error('authorization_review_conflict','Authorization package must be pending review and cannot be overwritten.',['status'=>409]);
+  $wpdb->last_error='';$ok=$wpdb->update(Tables::pod_authorization_packages(),['state'=>'APPROVED_PACKAGE','approved_by'=>$reviewer,'approved_at'=>$now],['id'=>$id,'state'=>'REVIEW_REQUIRED','external_execution_authorized'=>0,'external_execution_performed'=>0]);
+  if($ok!==1){if(!empty($wpdb->last_error))return new WP_Error('authorization_review_persistence_failed','Authorization review could not be persisted.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return new WP_Error('authorization_review_conflict','Authorization package must be pending review and cannot be overwritten.',['status'=>409]);}
   $wpdb->last_error='';$approved=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$id),ARRAY_A);if(!is_array($approved)||!empty($wpdb->last_error))return new WP_Error('authorization_review_confirmation_unavailable','Authorization review update completed but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $approved;
  }
 }
