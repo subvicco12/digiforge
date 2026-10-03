@@ -87,7 +87,9 @@ final class Repository {
         $from = (string) $entity['state'];
         if (! Lifecycle::can_transition($type, $from, $to)) { return $this->error('invalid_transition', "Cannot transition $type from $from to $to.", 409); }
         global $wpdb;
+        $wpdb->last_error = '';
         $updated = $wpdb->update($this->table($type), ['state' => $to, 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s'], ['%d', '%s']);
+        if ($updated === false || (string) $wpdb->last_error !== '') { return $this->error('transition_failed', 'Entity transition persistence is unavailable.', 503); }
         if ($updated !== 1) { return $this->error('transition_conflict', 'Entity changed concurrently.', 409); }
         Logger::audit($type . '_state_changed', ['from' => $from, 'to' => $to], $type, (string) $id);
         $entity = $this->find($type, $id);
