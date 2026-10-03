@@ -25,7 +25,7 @@ final class Repository {
 
     public function ingest(array $input, ?string $key = null): array|\WP_Error {
         $sourceId = absint($input['source_id'] ?? 0);
-        if ($sourceId < 1 || $this->find(Tables::research_sources(), $sourceId) === null) return $this->error('invalid_source','Valid source_id required.');
+        $source=$sourceId<1?null:$this->find(Tables::research_sources(),$sourceId);if(is_wp_error($source))return $source;if ($sourceId < 1 || $source === null) return $this->error('invalid_source','Valid source_id required.');
         $externalId = sanitize_text_field((string)($input['external_id'] ?? ''));
         $title = sanitize_text_field((string)($input['title'] ?? ''));
         $body = sanitize_textarea_field((string)($input['body'] ?? ''));
@@ -33,8 +33,8 @@ final class Repository {
         $canonical = $this->canonical($title . ' ' . $body);
         $hash = hash('sha256', $sourceId.'|'.$externalId.'|'.$canonical);
         global $wpdb;
-        $existing = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_observations().' WHERE content_hash=%s',$hash),ARRAY_A);
-        if (is_array($existing)) return $this->normalize($existing)+['deduplicated'=>true];
+        $wpdb->last_error='';$existing = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_observations().' WHERE content_hash=%s',$hash),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('research_evidence_unavailable','Research deduplication evidence could not be read.',503);if (is_array($existing)) return $this->normalize($existing)+['deduplicated'=>true];
         $row = $this->insertIdempotent(Tables::research_observations(), $key, [
             'source_id'=>$sourceId,'external_id'=>$externalId,'title'=>$title,'body'=>$body,'content_hash'=>$hash,
             'observed_at'=>$this->safeDate($input['observed_at'] ?? null),'provenance'=>wp_json_encode($this->sanitizeConfig((array)($input['provenance'] ?? []))),
@@ -45,7 +45,7 @@ final class Repository {
     }
 
     public function addEvidence(int $observationId, array $input, ?string $key = null): array|\WP_Error {
-        if ($this->find(Tables::research_observations(),$observationId)===null) return $this->error('not_found','Observation not found.',404);
+        $observation=$this->find(Tables::research_observations(),$observationId);if(is_wp_error($observation))return $observation;if ($observation===null) return $this->error('not_found','Observation not found.',404);
         $kind = sanitize_key((string)($input['evidence_type'] ?? 'note'));
         $value = sanitize_textarea_field((string)($input['value'] ?? ''));
         if ($value==='') return $this->error('validation','Evidence value is required.');
@@ -62,8 +62,8 @@ final class Repository {
         $canonical=$this->canonical($title);
         $fingerprint=hash('sha256',$canonical);
         global $wpdb;
-        $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_candidates().' WHERE fingerprint=%s',$fingerprint),ARRAY_A);
-        if(is_array($existing)) return $this->normalize($existing)+['deduplicated'=>true];
+        $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_candidates().' WHERE fingerprint=%s',$fingerprint),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('research_evidence_unavailable','Research deduplication evidence could not be read.',503);if(is_array($existing)) return $this->normalize($existing)+['deduplicated'=>true];
         $score=$this->score((array)($input['signals'] ?? []));
         return $this->insertIdempotent(Tables::research_candidates(),$key,[
             'title'=>$title,'canonical_title'=>$canonical,'fingerprint'=>$fingerprint,'summary'=>sanitize_textarea_field((string)($input['summary'] ?? '')),
@@ -142,13 +142,13 @@ final class Repository {
         $key=$key===null?null:sanitize_text_field($key); if($key==='')$key=null; if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key too long.');
         global $wpdb;
         if($key!==null){
-            $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
-            if(is_array($existing)) return $this->idempotentReplay($existing,$data);
+            $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            if(!empty($wpdb->last_error))return $this->error('research_idempotency_evidence_unavailable','Research idempotency evidence could not be read.',503);if(empty($wpdb->last_error)&&is_array($existing)) return $this->idempotentReplay($existing,$data);
             $data['idempotency_key']=$key;
         }
-        if(!$wpdb->insert($table,$data)){
+        $wpdb->last_error='';$inserted=$wpdb->insert($table,$data);if($inserted!==1||!empty($wpdb->last_error)){
             if($key!==null){
-                $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+                $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
                 if(is_array($existing)) return $this->idempotentReplay($existing,$data);
             }
             return $this->error('create_failed','Unable to create research record.',500);
@@ -160,7 +160,7 @@ final class Repository {
     private function sameReplayValue(string $key,mixed $stored,mixed $incoming):bool{if(in_array($key,['config','provenance','score_inputs'],true))return $this->canonicalJson($stored)===$this->canonicalJson($incoming);if(is_numeric($stored)&&is_numeric($incoming))return (string)(0+$stored)===(string)(0+$incoming);return (string)$stored===(string)$incoming;}
     private function canonicalJson(mixed $value):string{if(is_string($value)){$decoded=json_decode($value,true);if(json_last_error()===JSON_ERROR_NONE)$value=$decoded;}return wp_json_encode($this->sortRecursive($value));}
     private function sortRecursive(mixed $value):mixed{if(!is_array($value))return $value;if(array_is_list($value))return array_map([$this,'sortRecursive'],$value);ksort($value);foreach($value as $key=>$item)$value[$key]=$this->sortRecursive($item);return $value;}
-    private function find(string $table,int $id):?array{global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);return is_array($row)?$this->normalize($row):null;}
+    private function find(string $table,int $id):array|\\WP_Error|null{global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('research_evidence_unavailable','Research authority evidence could not be read.',503);return is_array($row)?$this->normalize($row):null;}
     public function normalize(array $row):array{foreach(['id','source_id','observation_id','candidate_id','evidence_id','created_by','reviewed_by','opportunity_id'] as $k){if(isset($row[$k]))$row[$k]=(int)$row[$k];}if(isset($row['score']))$row['score']=(float)$row['score'];unset($row['idempotency_key']);foreach(['config','provenance','score_inputs'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);$row[$k]=is_array($d)?$d:[];}}return $row;}
     private function canonical(string $value):string{$value=strtolower(trim(preg_replace('/\s+/u',' ',wp_strip_all_tags($value))??''));return substr($value,0,255);}
     private function score(array $signals):float{$s=$this->numericSignals($signals);$weights=['demand'=>0.35,'competition_gap'=>0.25,'margin'=>0.20,'trend'=>0.10,'evidence_quality'=>0.10];$score=0.0;foreach($weights as $k=>$w)$score+=($s[$k]??0.0)*$w;return round(max(0,min(100,$score)),2);}
