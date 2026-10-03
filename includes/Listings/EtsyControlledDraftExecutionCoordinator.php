@@ -50,7 +50,8 @@ final class EtsyControlledDraftExecutionCoordinator
         }
 
         $operationId=(int)($operation['id']??0);
-        if($operationId<1 || !$this->operations->acquireExecutionLock($operationId)) return self::error('claimed','Etsy operation is already being executed.');
+        if($operationId<1)return self::error('claimed','Etsy operation is already being executed.');
+        $lock=$this->operations->acquireExecutionLock($operationId);if($lock instanceof WP_Error)return $lock;if($lock!==true)return self::error('claimed','Etsy operation is already being executed.');
         try {
             $current=$this->operations->find($operationId);
 if($current instanceof WP_Error)return $current;

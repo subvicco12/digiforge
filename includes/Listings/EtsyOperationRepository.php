@@ -225,12 +225,15 @@ final class EtsyOperationRepository
     }
 
     /** Acquire a connection-scoped mutex so the same persisted operation cannot execute concurrently. */
-    public function acquireExecutionLock(int $id): bool
+    public function acquireExecutionLock(int $id): bool|WP_Error
     {
         if ($id < 1) return false;
         global $wpdb;
         $key='digiforge_etsy_operation_'.$id;
-        return (int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$key))===1;
+        $wpdb->last_error='';
+        $acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$key));
+        if((string)$wpdb->last_error!==''||$acquired===null)return $this->error('lock_evidence_unavailable','Etsy execution-lock evidence could not be read.',503);
+        return (int)$acquired===1;
     }
 
     public function releaseExecutionLock(int $id): void

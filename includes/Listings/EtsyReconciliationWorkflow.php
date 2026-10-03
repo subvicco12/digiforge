@@ -15,7 +15,7 @@ final class EtsyReconciliationWorkflow
     public function prepare(int $operationId,int $integrationId):array|WP_Error
     {
         if($operationId<1||$integrationId<1)return self::error('identity','Persisted operation and integration identifiers are required.');
-        if(!$this->operations->acquireExecutionLock($operationId))return self::error('locked','Etsy operation reconciliation is already in progress.');
+        $lock=$this->operations->acquireExecutionLock($operationId);if($lock instanceof WP_Error)return $lock;if($lock!==true)return self::error('locked','Etsy operation reconciliation is already in progress.');
         try{
             $operation=$this->operations->find($operationId);
         if($operation instanceof WP_Error)return $operation;
@@ -68,7 +68,7 @@ final class EtsyReconciliationWorkflow
             ||($lookup['external_retry_performed']??null)!==false
             ||($lookup['automatic_retry_performed']??null)!==false
             ||!is_array($lookup['result']??null))return self::error('lookup','Bound read-only Etsy lookup evidence is required.');
-        if(!$this->operations->acquireExecutionLock($operationId))return self::error('locked','Etsy operation reconciliation is already in progress.');
+        $lock=$this->operations->acquireExecutionLock($operationId);if($lock instanceof WP_Error)return $lock;if($lock!==true)return self::error('locked','Etsy operation reconciliation is already in progress.');
         try{
             $operation=$this->operations->find($operationId);
         if($operation instanceof WP_Error)return $operation;
