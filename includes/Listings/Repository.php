@@ -71,7 +71,8 @@ final class Repository
 
     public function createReadinessReview(int $listingId, ?string $key=null): array|WP_Error
     {
-        $listing=$this->find(Tables::listings(),$listingId);
+        $listing=$this->findEvidence(Tables::listings(),$listingId,'gate3_listing_evidence_unavailable','Gate 3 listing evidence could not be read.');
+        if($listing instanceof WP_Error)return $listing;
         if(!is_array($listing))return $this->error('not_found','Listing not found.',404);
         if((string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing must be REVIEW_REQUIRED before Gate 3 review evidence is created.',409);
         $readiness=$this->readiness($listingId);
@@ -124,14 +125,16 @@ final class Repository
 
     public function decideReadinessReview(int $reviewId,string $decision): array|WP_Error
     {
-        $review=$this->find(Tables::listing_readiness_reviews(),$reviewId);
+        $review=$this->findEvidence(Tables::listing_readiness_reviews(),$reviewId,'gate3_review_evidence_unavailable','Gate 3 review evidence could not be read.');
+        if($review instanceof WP_Error)return $review;
         if(!is_array($review))return $this->error('review_not_found','Listing readiness review not found.',404);
         if((string)($review['decision']??'')!=='PENDING')return $this->error('review_decided','Listing readiness review has already been decided.',409);
         if(get_current_user_id()<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
         $decision=strtoupper(sanitize_key($decision));
         if(!in_array($decision,['APPROVED','REJECTED'],true))return $this->error('review_decision','Decision must be APPROVED or REJECTED.');
         $listingId=(int)($review['listing_id']??0);
-        $listing=$this->find(Tables::listings(),$listingId);
+        $listing=$this->findEvidence(Tables::listings(),$listingId,'gate3_listing_evidence_unavailable','Gate 3 listing evidence could not be read.');
+        if($listing instanceof WP_Error)return $listing;
         if(!is_array($listing)||(string)($listing['state']??'')!=='REVIEW_REQUIRED')return $this->error('review_state','Listing is no longer awaiting Gate 3 review.',409);
         if($decision==='APPROVED'){
             $current=$this->readiness($listingId);
@@ -154,7 +157,7 @@ final class Repository
         if($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');return $this->error('database_error','Gate 3 decision could not be committed.',500);}
         Logger::audit('listing_state_changed',['entity'=>'listing','from'=>'REVIEW_REQUIRED','to'=>$targetState],'listing',(string)$listingId);
         Logger::audit('listing_readiness_review_decided',['listing_id'=>$listingId,'decision'=>$decision],'listing_readiness_review',(string)$reviewId);
-        return $this->find(Tables::listing_readiness_reviews(),$reviewId)?:[];
+        $decided=$this->findEvidence(Tables::listing_readiness_reviews(),$reviewId,'gate3_decision_readback_evidence_unavailable','Committed Gate 3 decision evidence could not be read.');if($decided instanceof WP_Error)return $decided;if(!is_array($decided))return $this->error('gate3_decision_readback_evidence_unavailable','Committed Gate 3 decision evidence could not be read.',503);return $decided;
     }
 
     public function createDraftPackage(array $input,?string $key=null): array|WP_Error
