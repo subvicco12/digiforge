@@ -64,7 +64,7 @@ final class Repository {
         if (is_wp_error($fields)) { return $fields; }
         $key = $this->key($idempotency_key);
         if (is_wp_error($key)) { return $key; }
-        if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; }
+        if ($key !== null) { $existing=$this->find_by_key($type,$key); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} }
         $data = $this->sanitize($input);
         if (is_wp_error($data)) { return $data; }
         $required = $this->validate_required($definition, $data);
@@ -77,7 +77,7 @@ final class Repository {
         $data = $validated;
         $now = current_time('mysql', true); $data += ['idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
         global $wpdb;
-        if (! $wpdb->insert($this->table($type), $data)) { if ($key !== null && ($existing = $this->find_by_key($type, $key)) !== null) { return $existing + ['idempotent_replay' => true]; } return $this->error('create_failed', 'Unable to create digital entity.', 500); }
+        $wpdb->last_error=''; if ($wpdb->insert($this->table($type), $data)!==1 || !empty($wpdb->last_error)) { if ($key !== null) { $existing=$this->find_by_key($type,$key); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} } return $this->error('create_failed', 'Unable to create digital entity.', 500); }
         $id = (int) $wpdb->insert_id;
         Logger::audit($type . '_created', ['idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $id);
         return $this->find($type, $id) ?? $this->error('create_failed', 'Unable to read created entity.', 500);
@@ -86,7 +86,7 @@ final class Repository {
     public function update(string $type, int $id, array $input): array|\WP_Error {
         $definition = self::DEFINITIONS[$type] ?? null;
         if ($definition === null) { return $this->error('invalid_type', 'Unknown digital entity type.'); }
-        $current = $this->find($type, $id); if ($current === null) { return $this->error('not_found', 'Digital entity not found.', 404); }
+        $current = $this->find($type, $id); if(is_wp_error($current)){return $current;} if ($current === null) { return $this->error('not_found', 'Digital entity not found.', 404); }
         $fields = $this->validate_fields($input, $definition['update']);
         if (is_wp_error($fields)) { return $fields; }
         $data = $this->sanitize($input);
@@ -107,17 +107,17 @@ final class Repository {
     }
 
     public function transition(int $id, string $to): array|\WP_Error {
-        $entity = $this->find('digital_product', $id); $to = strtoupper(sanitize_key($to));
+        $entity = $this->find('digital_product', $id); if(is_wp_error($entity)){return $entity;} $to = strtoupper(sanitize_key($to));
         if ($entity === null) { return $this->error('not_found', 'Digital product not found.', 404); }
         $from = (string) $entity['state']; if (! Lifecycle::can_transition($from, $to)) { return $this->error('invalid_transition', "Cannot transition digital product from $from to $to.", 409); }
         $readiness = Lifecycle::advance_readiness(is_array($entity['readiness'] ?? null) ? $entity['readiness'] : [], $to);
-        global $wpdb; $updated = $wpdb->update(Tables::digital_products(), ['state' => $to, 'readiness' => wp_json_encode($readiness), 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s', '%s'], ['%d', '%s']);
-        if ($updated !== 1) { return $this->error('transition_conflict', 'Digital product changed concurrently.', 409); }
+        global $wpdb; $wpdb->last_error=''; $updated = $wpdb->update(Tables::digital_products(), ['state' => $to, 'readiness' => wp_json_encode($readiness), 'updated_at' => current_time('mysql', true)], ['id' => $id, 'state' => $from], ['%s', '%s', '%s'], ['%d', '%s']);
+        if($updated===false||!empty($wpdb->last_error)){return $this->error('transition_failed','Digital product transition persistence is unavailable.',503);} if ($updated !== 1) { return $this->error('transition_conflict', 'Digital product changed concurrently.', 409); }
         Logger::audit('digital_product_state_changed', ['from' => $from, 'to' => $to, 'readiness' => $readiness], 'digital_product', (string) $id);
         return $this->find('digital_product', $id) ?? $this->error('not_found', 'Digital product not found.', 404);
     }
 
-    public function find(string $type, int $id): ?array { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); return is_array($row) ? $this->normalize($row) : null; }
+    public function find(string $type, int $id): array|\\WP_Error|null { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital entity evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
     public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
         $page = max(1, $page); $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
         if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => compact('page', 'per_page') + ['total_items' => 0, 'total_pages' => 0]]; }
@@ -243,7 +243,7 @@ final class Repository {
     }
 
     private function key(?string $key): string|null|\WP_Error { if ($key === null || trim($key) === '') { return null; } $key = sanitize_text_field($key); return strlen($key) > 191 ? $this->error('validation', 'Idempotency key is too long.') : $key; }
-    private function find_by_key(string $type, string $key): ?array { global $wpdb; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); return is_array($row) ? $this->normalize($row) : null; }
+    private function find_by_key(string $type, string $key): array|\\WP_Error|null { global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital idempotency evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
     private function table(string $type): string { $method = self::DEFINITIONS[$type]['table']; return Tables::$method(); }
     private function normalize(array $row): array { foreach (array_merge(['id', 'created_by'], self::IDS) as $field) { if (isset($row[$field])) { $row[$field] = (int) $row[$field]; } } unset($row['idempotency_key'], $row['license_code_hash']); foreach (array_merge(['readiness'], self::STRUCTURED) as $field) { if (isset($row[$field]) && is_string($row[$field])) { $decoded = json_decode($row[$field], true); if (is_array($decoded)) { $row[$field] = $decoded; } } } return $row; }
     private function error(string $code, string $message, int $status = 400): \WP_Error { return new \WP_Error('digiforge_' . $code, __($message, 'digiforge'), ['status' => $status]); }
