@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class ProductionPermitRaceEvidenceContractTest extends TestCase{public function testRaceWinnerReadsFailClosedWhenEvidenceUnavailable():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionExecutionConsumptionRepository.php');self::assertGreaterThanOrEqual(5,substr_count($s,"\$wpdb->last_error=''"));self::assertStringContainsString('Authorization provenance race evidence is unavailable',$s);self::assertStringContainsString('Concurrent nonce evidence is unavailable',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);}}
