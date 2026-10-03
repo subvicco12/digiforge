@@ -174,7 +174,8 @@ if($operation instanceof WP_Error)return $operation;
         }
 
         $currentReadiness = (new Repository())->readiness((int)$intent['listing_id']);
-        if ($currentReadiness instanceof WP_Error || empty($currentReadiness['ready'])) {
+        if ($currentReadiness instanceof WP_Error) return $currentReadiness;
+        if (empty($currentReadiness['ready'])) {
             return $this->error('listing_not_ready', 'Referenced listing is no longer release-ready.', 409);
         }
         $persistedReadinessHash = strtolower(trim((string)($package['readiness_hash'] ?? '')));
