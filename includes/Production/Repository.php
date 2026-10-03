@@ -46,7 +46,7 @@ final class Repository
     public function linkAsset(int $planId,int $specId,bool $required=true,int $sequence=0): bool|WP_Error
     {
         $plan=$this->find(Tables::production_plans(),$planId);$spec=$this->find(Tables::asset_specs(),$specId);
-        if(is_wp_error($plan))return $plan;if(is_wp_error($spec))return $spec;if($plan===null||$spec===null)return $this->error('not_found','Production plan or asset specification not found.',404);
+        if($plan===null||$spec===null)return $this->error('not_found','Production plan or asset specification not found.',404);
         if((int)$plan['product_version_id']!==(int)$spec['product_version_id'])return $this->error('invalid_relationship','Plan and asset specification must belong to the same product version.',409);
         global $wpdb;$ok=$wpdb->query($wpdb->prepare('INSERT IGNORE INTO '.Tables::production_plan_assets().' (production_plan_id,asset_spec_id,is_required,sequence_no,created_at) VALUES (%d,%d,%d,%d,%s)',$planId,$specId,$required?1:0,max(0,$sequence),$this->now()));
         if($ok===false)return $this->error('link_failed','Unable to link production asset.',500);Logger::audit('production_asset_linked',['asset_spec_id'=>$specId,'required'=>$required],'production_plan',(string)$planId);return true;
@@ -55,7 +55,7 @@ final class Repository
     public function createIntent(array $input, ?string $key=null): array|WP_Error
     {
         $planId=absint($input['production_plan_id']??0);$specId=absint($input['asset_spec_id']??0);$plan=$this->find(Tables::production_plans(),$planId);$spec=$this->find(Tables::asset_specs(),$specId);
-        if(is_wp_error($plan))return $plan;if(is_wp_error($spec))return $spec;if($plan===null||$spec===null||(int)$plan['product_version_id']!==(int)$spec['product_version_id'])return $this->error('invalid_parent','Plan and asset specification must exist and share a product version.');
+        if($plan===null||$spec===null||(int)$plan['product_version_id']!==(int)$spec['product_version_id'])return $this->error('invalid_parent','Plan and asset specification must exist and share a product version.');
         $intent=strtoupper(sanitize_key((string)($input['intent_type']??'')));$provider=sanitize_key((string)($input['provider_class']??'internal'));
         if(!in_array($intent,['DESIGN','RENDER','EXPORT','PACKAGE','PREVIEW','COPY','LOCAL_TRANSFORM'],true)||!in_array($provider,['internal','ai','canva','manual','future_provider'],true))return $this->error('validation','Invalid production intent.');
         $payload=$this->validator->boundedStructured((array)($input['input_payload']??[]));if(is_wp_error($payload))return $payload;
@@ -94,22 +94,22 @@ final class Repository
 
     public function validateBundle(int $bundleId): array|WP_Error
     {
-        $bundle=$this->find(Tables::release_bundles(),$bundleId);if(is_wp_error($bundle))return $bundle;if($bundle===null)return $this->error('not_found','Bundle not found.',404);$plan=$this->find(Tables::production_plans(),(int)$bundle['production_plan_id']);if(is_wp_error($plan))return $plan;if($plan===null)return $this->error('invalid_parent','Production plan not found.',409);
+        $bundle=$this->find(Tables::release_bundles(),$bundleId);if($bundle===null)return $this->error('not_found','Bundle not found.',404);$plan=$this->find(Tables::production_plans(),(int)$bundle['production_plan_id']);if($plan===null)return $this->error('invalid_parent','Production plan not found.',409);
         global $wpdb;$required=$wpdb->get_results($wpdb->prepare('SELECT asset_spec_id FROM '.Tables::production_plan_assets().' WHERE production_plan_id=%d AND is_required=1 ORDER BY sequence_no ASC,asset_spec_id ASC',(int)$plan['id']),ARRAY_A)?:[];
         $manifest=[];$missing=[];$qaBlockers=[];
         foreach($required as $link){$specId=(int)$link['asset_spec_id'];$rev=$wpdb->get_row($wpdb->prepare("SELECT * FROM ".Tables::asset_revisions()." WHERE asset_spec_id=%d AND state='APPROVED' ORDER BY id DESC LIMIT 1",$specId),ARRAY_A);if(!is_array($rev)){$missing[]=$specId;continue;}$qaTotal=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::production_qa()." WHERE target_type='revision' AND target_id=%d",(int)$rev['id']));$qaBad=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::production_qa()." WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')",(int)$rev['id']));if($qaTotal<1||$qaBad>0){$qaBlockers[]=(int)$rev['id'];continue;}$manifest[]=['asset_spec_id'=>$specId,'asset_revision_id'=>(int)$rev['id'],'checksum_sha256'=>(string)$rev['checksum_sha256']];}
         $humanApproved=(int)($bundle['approved_by']??0)>0;$planApproved=($plan['state']??'')==='APPROVED';$ready=$planApproved&&$required!==[]&&$missing===[]&&$qaBlockers===[]&&$humanApproved;
         $manifestJson=$this->validator->canonicalJson($manifest);$checksum=hash('sha256',$manifestJson);$readiness=['ready'=>$ready,'missing_assets'=>$missing,'qa_blockers'=>$qaBlockers,'human_approved'=>$humanApproved,'plan_approved'=>$planApproved,'required_asset_count'=>count($required)];
-        $next=$ready?'RELEASE_READY':((string)$bundle['state']==='APPROVED'?'APPROVED':'REVIEW_REQUIRED');$wpdb->update(Tables::release_bundles(),['manifest'=>$manifestJson,'checksum_sha256'=>$checksum,'readiness'=>wp_json_encode($readiness),'state'=>$next,'updated_at'=>$this->now()],['id'=>$bundleId]);Logger::audit('release_bundle_validated',$readiness,'release_bundle',(string)$bundleId);$confirmed=$this->find(Tables::release_bundles(),$bundleId);if(is_wp_error($confirmed))return $confirmed;return $confirmed??$this->error('not_found','Bundle not found.',404);
+        $next=$ready?'RELEASE_READY':((string)$bundle['state']==='APPROVED'?'APPROVED':'REVIEW_REQUIRED');$wpdb->update(Tables::release_bundles(),['manifest'=>$manifestJson,'checksum_sha256'=>$checksum,'readiness'=>wp_json_encode($readiness),'state'=>$next,'updated_at'=>$this->now()],['id'=>$bundleId]);Logger::audit('release_bundle_validated',$readiness,'release_bundle',(string)$bundleId);return $this->find(Tables::release_bundles(),$bundleId)??$this->error('not_found','Bundle not found.',404);
     }
 
     public function transition(string $entity,int $id,string $to): array|WP_Error
     {
-        $map=['spec'=>[Tables::asset_specs(),'spec'],'plan'=>[Tables::production_plans(),'plan'],'intent'=>[Tables::production_intents(),'intent'],'revision'=>[Tables::asset_revisions(),'revision'],'bundle'=>[Tables::release_bundles(),'bundle']];if(!isset($map[$entity]))return $this->error('validation','Unknown production entity.');[$table,$kind]=$map[$entity];$row=$this->find($table,$id);if(is_wp_error($row))return $row;if($row===null)return $this->error('not_found','Production record not found.',404);$from=(string)$row['state'];$to=strtoupper(sanitize_key($to));
+        $map=['spec'=>[Tables::asset_specs(),'spec'],'plan'=>[Tables::production_plans(),'plan'],'intent'=>[Tables::production_intents(),'intent'],'revision'=>[Tables::asset_revisions(),'revision'],'bundle'=>[Tables::release_bundles(),'bundle']];if(!isset($map[$entity]))return $this->error('validation','Unknown production entity.');[$table,$kind]=$map[$entity];$row=$this->find($table,$id);if($row===null)return $this->error('not_found','Production record not found.',404);$from=(string)$row['state'];$to=strtoupper(sanitize_key($to));
         if($from===$to){return $row+['idempotent_transition'=>true];}
         if($kind==='bundle'&&$to==='RELEASE_READY')return $this->error('readiness_validation_required','Bundle RELEASE_READY is set only by deterministic bundle validation.',409);
         if(!Lifecycle::can($kind,$from,$to))return $this->error('invalid_transition','Illegal production state transition.',409);$data=['state'=>$to,'updated_at'=>$this->now()];if($to==='APPROVED'&&in_array($kind,['plan','bundle'],true)){$uid=get_current_user_id();if($uid<1)return $this->error('authorization','Approval requires an authenticated reviewer.',403);$data['approved_by']=$uid;$data['approved_at']=$this->now();}
-        global $wpdb;$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>$from]);if($updated===false)return $this->error('update_failed','Unable to update production state.',500);if($updated===0)return $this->error('state_conflict','Production state changed concurrently.',409);Logger::audit('production_state_changed',['entity'=>$entity,'from'=>$from,'to'=>$to],$entity,(string)$id);$confirmed=$this->find($table,$id);if(is_wp_error($confirmed))return $confirmed;return $confirmed??$this->error('not_found','Production record not found.',404);
+        global $wpdb;$wpdb->last_error='';$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>$from]);if($updated===false||!empty($wpdb->last_error))return $this->error('update_failed','Unable to update production state.',500);if($updated===0)return $this->error('state_conflict','Production state changed concurrently.',409);Logger::audit('production_state_changed',['entity'=>$entity,'from'=>$from,'to'=>$to],$entity,(string)$id);return $this->find($table,$id)??$this->error('not_found','Production record not found.',404);
     }
 
     public function list(string $entity,int $page=1,int $perPage=20):array
@@ -121,14 +121,15 @@ final class Repository
     {
         global $wpdb;$key=$key===null?null:sanitize_text_field($key);if($key==='')$key=null;if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key too long.');
         if($key!==null){
-            $existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);
+            if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Production idempotency evidence could not be read.',503);
             if(is_array($existing)){
                 if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was replayed with different production data.',409);
                 return $this->normalize($existing)+['idempotent_replay'=>true];
             }
             $data['idempotency_key']=$key;
         }
-        if(!$wpdb->insert($table,$data))return $this->error('create_failed','Unable to create production record.',500);$insertId=(int)$wpdb->insert_id;Logger::audit($type.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$type,(string)$insertId);$created=$this->find($table,$insertId);if(is_wp_error($created))return $created;return $created??$this->error('create_failed','Unable to read production record.',500);
+        $wpdb->last_error='';$inserted=$wpdb->insert($table,$data);if($inserted!==1||!empty($wpdb->last_error)){if($key!==null){$wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE idempotency_key=%s',$key),ARRAY_A);if(empty($wpdb->last_error)&&is_array($winner)&&$this->replayCompatible($winner,$data))return $this->normalize($winner)+['idempotent_replay'=>true];}return $this->error('create_failed','Unable to create production record.',500);}$insertId=(int)$wpdb->insert_id;Logger::audit($type.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$type,(string)$insertId);return $this->find($table,$insertId)??$this->error('create_failed','Unable to read production record.',500);
     }
 
     private function replayCompatible(array $existing,array $requested):bool
@@ -143,7 +144,7 @@ final class Repository
     }
 
     private function exists(string $table,int $id):bool{global $wpdb;return(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE id=%d',$id))>0;}
-    private function find(string $table,int $id):array|WP_Error|null{global $wpdb;$wpdb->last_error='';$r=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Production record evidence could not be read.',503);return is_array($r)?$this->normalize($r):null;}
+    private function find(string $table,int $id):?array{global $wpdb;$r=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);return is_array($r)?$this->normalize($r):null;}
     public function normalize(array $row):array{unset($row['idempotency_key']);foreach(['content_requirements','design_constraints','input_payload','provenance','details','manifest','readiness'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);if(is_array($d))$row[$k]=$d;}}return $row;}
     private function now():string{return current_time('mysql',true);}
     private function error(string $code,string $message,int $status=400):WP_Error{return new WP_Error('digiforge_'.$code,__($message,'digiforge'),['status'=>$status]);}
