@@ -19,7 +19,8 @@ final class EtsyControlledPublishExecutionCoordinator
         if($pf instanceof WP_Error)return $pf;if($af instanceof WP_Error)return $af;if(!hash_equals($pf,$af))return self::error('payload','Publish payload differs from authorized payload.');
         $transport=(new EtsyControlledTransportOrchestrator())->prepare($prepared,$operation,$tokenMetadata,'PATCH',(string)$plan['endpoint'],$headers);
         if($transport instanceof WP_Error)return $transport;
-        $id=(int)($operation['id']??0);if($id<1||!$this->operations->acquireExecutionLock($id))return self::error('claimed','Publish operation is already being executed.');
+        $id=(int)($operation['id']??0);if($id<1)return self::error('claimed','Publish operation is already being executed.');
+        $lock=$this->operations->acquireExecutionLock($id);if($lock instanceof WP_Error)return $lock;if($lock!==true)return self::error('claimed','Publish operation is already being executed.');
         try{
             $current=$this->operations->find($id);
 if($current instanceof WP_Error)return $current;if(!is_array($current)||(string)($current['state']??'')!==EtsyOperationLifecycle::NOT_SENT)return self::error('stale','Only a current NOT_SENT publish operation may execute.');
