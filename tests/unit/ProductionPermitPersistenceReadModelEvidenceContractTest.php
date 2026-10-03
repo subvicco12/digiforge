@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;
+final class ProductionPermitPersistenceReadModelEvidenceContractTest extends TestCase{public function testEachReconciliationReadClearsStaleDbError():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/ProductionPermitPersistenceReadModel.php');self::assertGreaterThanOrEqual(2,substr_count($s,"\$wpdb->last_error=''"));self::assertStringContainsString("'persistence_state'=>'EVIDENCE_UNAVAILABLE'",$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}
