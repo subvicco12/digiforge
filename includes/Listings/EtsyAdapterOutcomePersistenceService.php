@@ -19,6 +19,7 @@ final class EtsyAdapterOutcomePersistenceService
         if ($operationId < 1) return $this->error('operation_id','A persisted Etsy operation id is required.');
 
         $operation=$this->operations->find($operationId);
+        if($operation instanceof WP_Error)return $operation;
         if (!is_array($operation) || (string)($operation['state'] ?? '') !== EtsyOperationLifecycle::SENT) {
             return $this->error('operation_not_sent','Adapter outcomes may only be recorded for SENT operations.');
         }

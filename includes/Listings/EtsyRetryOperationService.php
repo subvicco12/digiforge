@@ -22,6 +22,7 @@ final class EtsyRetryOperationService
         array $payload
     ): array|WP_Error {
         $source=$this->operations->find($sourceOperationId);
+if($source instanceof WP_Error)return $source;
         if (!is_array($source)) return $this->error('source_not_found','Source Etsy operation was not found.');
 
         $plan=EtsyRetryPlan::build($source,$newIdempotencyKey);

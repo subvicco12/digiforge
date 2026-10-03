@@ -26,6 +26,7 @@ final class EtsyHttpReconciliationCoordinator
         if($operationId<1) return self::error('operation','A persisted Etsy operation id is required.');
 
         $operation=$this->operations->find($operationId);
+if($operation instanceof WP_Error)return $operation;
         if(!is_array($operation)||(string)($operation['state']??'')!==EtsyOperationLifecycle::UNKNOWN) {
             return self::error('state','The persisted Etsy operation must still be UNKNOWN.');
         }
