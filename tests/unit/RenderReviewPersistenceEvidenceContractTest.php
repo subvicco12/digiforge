@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);use PHPUnit\Framework\TestCase;final class RenderReviewPersistenceEvidenceContractTest extends TestCase{public function testDbFailureIsDistinctFromReviewConflict():void{$s=(string)file_get_contents(__DIR__.'/../../includes/POD/RenderEvidenceRepository.php');self::assertStringContainsString('render_review_persistence_failed',$s);self::assertStringContainsString("'retry_permitted'=>false",$s);self::assertStringContainsString("'external_execution_authorized'=>false",$s);}}
