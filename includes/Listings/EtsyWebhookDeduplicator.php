@@ -35,13 +35,13 @@ final class EtsyWebhookDeduplicator {
     {
         global $wpdb;
         $key='etsy_webhook:'.hash('sha256',trim($eventId));
-        return $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}digiforge_idempotency SET status=%s,updated_at=%s WHERE operation_key=%s AND status=%s",'FAILED',current_time('mysql',true),$key,'RECEIVED'))===1;
+        $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}digiforge_idempotency SET status=%s,updated_at=%s WHERE operation_key=%s AND status=%s",'FAILED',current_time('mysql',true),$key,'RECEIVED'));return $updated===1&&empty($wpdb->last_error);
     }
 
     public function markProcessed(string $eventId,string $responseHash=''): bool
     {
         global $wpdb;
         $key='etsy_webhook:'.hash('sha256',trim($eventId));
-        return $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}digiforge_idempotency SET status=%s,response_hash=%s,updated_at=%s WHERE operation_key=%s AND status=%s",'PROCESSED',$responseHash,current_time('mysql',true),$key,'RECEIVED'))===1;
+        $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}digiforge_idempotency SET status=%s,response_hash=%s,updated_at=%s WHERE operation_key=%s AND status=%s",'PROCESSED',$responseHash,current_time('mysql',true),$key,'RECEIVED'));return $updated===1&&empty($wpdb->last_error);
     }
 }
