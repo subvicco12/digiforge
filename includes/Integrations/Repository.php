@@ -134,14 +134,14 @@ final class Repository {
     public function migrateSecretName(int $integrationId, string $from, string $to): true|\WP_Error {
         global $wpdb;
         $from = sanitize_key($from); $to = sanitize_key($to);
-        $row = $wpdb->get_row($wpdb->prepare('SELECT id,ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $from), ARRAY_A);
+        $wpdb->last_error='';$row = $wpdb->get_row($wpdb->prepare('SELECT id,ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $from), ARRAY_A);if(!empty($wpdb->last_error))return new \WP_Error('credential_migration_read_unavailable',__('Credential migration source evidence is unavailable.','digiforge'),['status'=>503]);
         if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
         try { $plaintext = CredentialVault::decrypt((string) $row['ciphertext'], self::secretContext($integrationId, $from)); }
         catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); }
         $stored = $this->storeSecret($integrationId, $to, $plaintext);
         unset($plaintext);
         if (is_wp_error($stored)) { return $stored; }
-        if ($wpdb->delete(Tables::integration_secrets(), ['id' => (int) $row['id']]) === false) { return new \WP_Error('credential_migration_cleanup_failed', __('Credential was migrated but the obsolete alias could not be removed.', 'digiforge'), ['status' => 500]); }
+        $wpdb->last_error='';$deleted=$wpdb->delete(Tables::integration_secrets(), ['id' => (int) $row['id']]); if ($deleted === false || !empty($wpdb->last_error)) { return new \WP_Error('credential_migration_cleanup_failed', __('Credential was migrated but obsolete-alias cleanup outcome is uncertain; reconciliation is required.', 'digiforge'), ['status' => 503]); }
         Logger::audit('integration_secret_name_migrated', ['from' => $from, 'to' => $to], 'integration', (string) $integrationId);
         return true;
     }
