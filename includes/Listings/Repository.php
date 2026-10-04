@@ -147,14 +147,14 @@ final class Repository
         $targetState=$decision==='APPROVED'?'APPROVED':'REJECTED';
         if(!Lifecycle::can('listing',(string)$listing['state'],$targetState))return $this->error('invalid_transition','Lifecycle transition is not permitted.',409);
         global $wpdb;$now=$this->now();$reviewer=get_current_user_id();
-        $wpdb->query('START TRANSACTION');
-        $reviewUpdated=$wpdb->update(Tables::listing_readiness_reviews(),['decision'=>$decision,'reviewed_by'=>$reviewer,'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$reviewId,'decision'=>'PENDING']);
-        if($reviewUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('review_conflict','Listing review changed concurrently or could not be recorded.',409);}
+        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return $this->error('gate3_transaction_unavailable','Gate 3 decision transaction could not be started.',503);
+        $wpdb->last_error='';$reviewUpdated=$wpdb->update(Tables::listing_readiness_reviews(),['decision'=>$decision,'reviewed_by'=>$reviewer,'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$reviewId,'decision'=>'PENDING']);
+        if($reviewUpdated===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('gate3_persistence_unavailable','Gate 3 review decision could not be persisted.',503);}if($reviewUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('review_conflict','Listing review changed concurrently.',409);}
         $listingData=['state'=>$targetState,'updated_at'=>$now];
         if($targetState==='APPROVED'){$listingData['approved_by']=$reviewer;$listingData['approved_at']=$now;}
-        $listingUpdated=$wpdb->update(Tables::listings(),$listingData,['id'=>$listingId,'state'=>'REVIEW_REQUIRED']);
-        if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently or could not be recorded.',409);}
-        if($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');return $this->error('database_error','Gate 3 decision could not be committed.',500);}
+        $wpdb->last_error='';$listingUpdated=$wpdb->update(Tables::listings(),$listingData,['id'=>$listingId,'state'=>'REVIEW_REQUIRED']);
+        if($listingUpdated===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('gate3_persistence_unavailable','Gate 3 listing state could not be persisted.',503);}if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently.',409);}
+        $wpdb->last_error='';if($wpdb->query('COMMIT')===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('gate3_commit_unknown','Gate 3 decision commit outcome is uncertain; reconciliation is required.',503);}
         Logger::audit('listing_state_changed',['entity'=>'listing','from'=>'REVIEW_REQUIRED','to'=>$targetState],'listing',(string)$listingId);
         Logger::audit('listing_readiness_review_decided',['listing_id'=>$listingId,'decision'=>$decision],'listing_readiness_review',(string)$reviewId);
         $decided=$this->findEvidence(Tables::listing_readiness_reviews(),$reviewId,'gate3_decision_readback_evidence_unavailable','Committed Gate 3 decision evidence could not be read.');if($decided instanceof WP_Error)return $decided;if(!is_array($decided))return $this->error('gate3_decision_readback_evidence_unavailable','Committed Gate 3 decision evidence could not be read.',503);return $decided;
