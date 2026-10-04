@@ -115,7 +115,7 @@ final class Repository {
         if (! $integration) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '') { return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]); }
-        $existing = (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $name));
+        $wpdb->last_error='';$existingRaw=$wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, $name));if(!empty($wpdb->last_error))return new \WP_Error('credential_delete_lookup_unavailable',__('Credential deletion lookup evidence is unavailable.','digiforge'),['status'=>503]);$existing=(int)$existingRaw;
         if ($existing <= 0) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
         $config = is_array($integration['config'] ?? null) ? $integration['config'] : [];
         unset($config['_connection_test']);
