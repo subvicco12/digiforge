@@ -39,7 +39,7 @@ final class Repository {
         if ($existingId > 0) { return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409, 'integration_id' => $existingId]); }
         $now = current_time('mysql', true);
         $record = $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
-        $ok = $wpdb->insert(Tables::integrations(), $record);
+        $wpdb->last_error='';$ok = $wpdb->insert(Tables::integrations(), $record);
         if ($ok === false) {
             $dbError = (string) $wpdb->last_error;
             $reference = substr(hash('sha256', $dbError . '|' . $data['provider'] . '|' . $data['environment']), 0, 12);
@@ -49,6 +49,7 @@ final class Repository {
             return new \WP_Error('integration_create_failed', sprintf(__('Could not create integration. Error reference: %s', 'digiforge'), $reference), ['status' => 500, 'error_reference' => $reference]);
         }
         $id = (int) $wpdb->insert_id;
+        if(!empty($wpdb->last_error)||$id<1)return new \WP_Error('integration_create_outcome_unknown',__('Integration create outcome is uncertain; reconciliation is required.','digiforge'),['status'=>503]);
         Logger::audit('integration_created', ['provider' => $data['provider'], 'environment' => $data['environment']], 'integration', (string) $id);
         $created=$this->find($id);if(is_wp_error($created))return $created;if(!is_array($created))return new \WP_Error('integration_create_readback_unavailable',__('Integration was written but readback evidence is unavailable; reconciliation is required.','digiforge'),['status'=>503]);return $created;
     }
@@ -66,7 +67,7 @@ final class Repository {
         $data['updated_at'] = current_time('mysql', true);
         $wpdb->last_error='';$updated=$wpdb->update(Tables::integrations(), $data, ['id' => $id]); if ($updated === false || !empty($wpdb->last_error)) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 503]); }
         Logger::audit('integration_updated', ['fields' => array_keys($data)], 'integration', (string) $id);
-        return $this->find($id) ?? [];
+        $confirmed=$this->find($id);if(is_wp_error($confirmed))return $confirmed;if(!is_array($confirmed))return new \WP_Error('integration_update_readback_unavailable',__('Integration update was accepted but readback evidence is unavailable; reconciliation is required.','digiforge'),['status'=>503]);return $confirmed;
     }
 
     public function setEnabled(int $id, bool $enabled): array|\WP_Error {
