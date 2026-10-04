@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+use PHPUnit\Framework\TestCase;
+final class IntegrationFindErrorPropagationContractTest extends TestCase {
+ public function testFindErrorsArePropagatedBeforeNotFoundBranches(): void {
+  $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Integrations/Repository.php');
+  self::assertGreaterThanOrEqual(5,substr_count($s,'is_wp_error($current)')+substr_count($s,'is_wp_error($integration)'));
+  self::assertStringContainsString('$integration=$this->find($integrationId); if(is_wp_error($integration)){return $integration;}', $s);
+ }
+}
