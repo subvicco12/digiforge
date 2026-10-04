@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace DigiForge\Queue;
 
 use DigiForge\Database\Tables;
-use WP_Error;
 
 /** Persists governed job intent. Worker execution remains deliberately absent. */
 final class JobRepository
 {
-    public function enqueue(string $type, array $payload = [], string $idempotencyKey = ''): int|false|WP_Error
+    public function enqueue(string $type, array $payload = [], string $idempotencyKey = ''): int|false
     {
         global $wpdb;
         $idempotencyKey = sanitize_text_field($idempotencyKey);
         if ($idempotencyKey !== '') {
-            $wpdb->last_error='';$found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
-            if(!empty($wpdb->last_error))return new WP_Error('job_idempotency_evidence_unavailable','Job idempotency evidence is unavailable; enqueue is blocked.',['status'=>503]);
+            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
             if ($found) {
                 return (int) $found;
             }
@@ -38,8 +36,7 @@ final class JobRepository
         }
 
         if ($idempotencyKey !== '') {
-            $wpdb->last_error='';            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
-            if(!empty($wpdb->last_error))return new WP_Error('job_idempotency_evidence_unavailable','Job idempotency reconciliation evidence is unavailable; do not retry automatically.',['status'=>503]);
+            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
             if ($found) {
                 return (int) $found;
             }
@@ -131,6 +128,7 @@ final class JobRepository
     public function scheduleRetry(int $id, int $delaySeconds, string $error): bool
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 'SELECT attempts, max_attempts FROM ' . Tables::jobs() . " WHERE id = %d AND state = 'RUNNING'",
@@ -138,6 +136,9 @@ final class JobRepository
             ),
             ARRAY_A
         );
+        if (! empty($wpdb->last_error)) {
+            return false;
+        }
         if (! is_array($row)) {
             return false;
         }
