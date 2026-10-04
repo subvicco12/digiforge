@@ -128,6 +128,7 @@ final class JobRepository
     public function scheduleRetry(int $id, int $delaySeconds, string $error): bool
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 'SELECT attempts, max_attempts FROM ' . Tables::jobs() . " WHERE id = %d AND state = 'RUNNING'",
@@ -135,6 +136,9 @@ final class JobRepository
             ),
             ARRAY_A
         );
+        if (! empty($wpdb->last_error)) {
+            return false;
+        }
         if (! is_array($row)) {
             return false;
         }
