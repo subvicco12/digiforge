@@ -102,8 +102,10 @@ final class EtsyOperationRepository
         global $wpdb;
         $data = ['state' => $to, 'updated_at' => current_time('mysql', true)];
         if ($externalReference !== '') $data['external_reference'] = $externalReference;
+        $wpdb->last_error = '';
         $updated = $wpdb->update($wpdb->prefix . 'digiforge_etsy_operations', $data, ['id' => $id, 'state' => $from]);
-        if ($updated !== 1) return $this->error('transition_conflict', 'Etsy operation state changed concurrently or update failed.', 409);
+        if ($updated === false || (string) $wpdb->last_error !== '') return $this->error('transition_persistence_unavailable', 'Etsy operation state persistence is unavailable.', 503);
+        if ($updated !== 1) return $this->error('transition_conflict', 'Etsy operation state changed concurrently.', 409);
 
         Logger::audit('etsy_operation_state_changed', [
             'actor_id'=>get_current_user_id(),
