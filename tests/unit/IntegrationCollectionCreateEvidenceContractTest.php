@@ -1,0 +1,11 @@
+<?php
+declare(strict_types=1);
+use PHPUnit\Framework\TestCase;
+final class IntegrationCollectionCreateEvidenceContractTest extends TestCase {
+ public function testCollectionAndCreateRequireDatabaseEvidence(): void {
+  $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Integrations/Repository.php');
+  foreach(['integration_count_unavailable','integration_collection_unavailable','integration_create_preflight_unavailable','integration_create_readback_unavailable'] as $needle) self::assertStringContainsString($needle,$s);
+  self::assertStringContainsString('reconciliation is required',$s);
+  self::assertStringContainsString('private function publicRow(array $row): array|\\WP_Error',$s);
+ }
+}
