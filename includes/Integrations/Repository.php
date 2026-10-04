@@ -93,10 +93,10 @@ final class Repository {
         try { $ciphertext = CredentialVault::encrypt($plaintext, $context); $fingerprint = CredentialVault::fingerprint($plaintext, $context); }
         catch (\Throwable $e) { return new \WP_Error('secret_encryption_failed', __('Credential encryption is unavailable.', 'digiforge'), ['status' => 500]); }
         $now = current_time('mysql', true);
-        $existing = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s', $integrationId, $name));
+        $wpdb->last_error='';$existing = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s', $integrationId, $name));if(!empty($wpdb->last_error))return new \WP_Error('credential_lookup_unavailable',__('Credential lookup evidence is unavailable.','digiforge'),['status'=>503]);
         $data = ['ciphertext' => $ciphertext, 'fingerprint' => $fingerprint, 'updated_at' => $now];
-        $ok = $existing ? $wpdb->update(Tables::integration_secrets(), $data, ['id' => (int) $existing]) : $wpdb->insert(Tables::integration_secrets(), $data + ['integration_id' => $integrationId, 'secret_name' => $name, 'created_at' => $now]);
-        if ($ok === false) { return new \WP_Error('secret_store_failed', __('Could not store credential.', 'digiforge'), ['status' => 500]); }
+        $wpdb->last_error='';$ok = $existing ? $wpdb->update(Tables::integration_secrets(), $data, ['id' => (int) $existing]) : $wpdb->insert(Tables::integration_secrets(), $data + ['integration_id' => $integrationId, 'secret_name' => $name, 'created_at' => $now]);
+        if ($ok === false || !empty($wpdb->last_error)) { return new \WP_Error('secret_store_failed', __('Could not store credential.', 'digiforge'), ['status' => 503]); }
         Logger::audit('integration_secret_stored', ['secret_name' => $name, 'fingerprint' => $fingerprint], 'integration', (string) $integrationId);
         return true;
     }
