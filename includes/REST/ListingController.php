@@ -96,7 +96,7 @@ final class ListingController
         if($header==='') return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header or _idempotency_key JSON field is required.','digiforge'),['status'=>400]);
         if(strlen($header)>191) return new \WP_Error('invalid_idempotency_key',__('Idempotency key is too long.','digiforge'),['status'=>400]);
         $storage=hash('sha256',$operation.'|'.$header); $guard=new Idempotency();
-        if(!$guard->reserve($storage,$operation)) return new \WP_Error('idempotency_conflict',__('This listing mutation has already been submitted.','digiforge'),['status'=>409]);
+        $reservation=$guard->reserve($storage,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation) return new \WP_Error('idempotency_conflict',__('This listing mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable){$guard->release($storage);return new \WP_Error('listing_mutation_failed',__('Listing mutation failed.','digiforge'),['status'=>500]);}
         if(is_wp_error($result)){$guard->release($storage);return $result;}
         $encoded=wp_json_encode($result); if(!$guard->complete($storage,is_string($encoded)?$encoded:'')) return new \WP_Error('idempotency_finalize_failed',__('Mutation completed but idempotency state could not be finalized.','digiforge'),['status'=>500]);

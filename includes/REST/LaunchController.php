@@ -192,7 +192,7 @@ final class LaunchController
 
         $storageKey = hash('sha256', $operation . '|' . $idempotencyKey);
         $idempotency = new Idempotency();
-        if (! $idempotency->reserve($storageKey, $operation)) {
+        $reservation = $idempotency->reserve($storageKey, $operation); if (is_wp_error($reservation)) { return $reservation; } if (! $reservation) {
             return new \WP_Error('idempotency_conflict', __('This launch mutation has already been submitted.', 'digiforge'), ['status' => 409]);
         }
         try {

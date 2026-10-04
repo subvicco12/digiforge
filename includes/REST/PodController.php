@@ -68,7 +68,7 @@ final class PodController
         if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES)return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $header=trim((string)$r->get_header('Idempotency-Key'));if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
         $storage=hash('sha256',$operation.'|'.$header);$guard=new Idempotency();
-        if(!$guard->reserve($storage,$operation)){
+        $reservation=$guard->reserve($storage,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation){
             $state=$guard->status($storage);
             if($state==='SUCCESS') return new \WP_Error('idempotency_replay',__('This POD mutation already completed successfully; replay the persisted resource instead of executing it again.','digiforge'),['status'=>409]);
             return new \WP_Error('idempotency_conflict',__('This POD mutation is already pending.','digiforge'),['status'=>409]);

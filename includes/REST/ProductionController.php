@@ -146,7 +146,7 @@ final class ProductionController
     {
         if(strlen((string)$r->get_body())>self::MAX_BODY_BYTES) return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         $storage=hash('sha256',$operation.'|'.$key);$guard=new Idempotency();
-        if(!$guard->reserve($storage,$operation)) return new \WP_Error('idempotency_conflict',__('This production mutation has already been submitted.','digiforge'),['status'=>409]);
+        $reservation=$guard->reserve($storage,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation) return new \WP_Error('idempotency_conflict',__('This production mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable){$guard->release($storage);return new \WP_Error('production_mutation_failed',__('Production mutation failed.','digiforge'),['status'=>500]);}
         if(is_wp_error($result)){$guard->release($storage);return $result;}
         $encoded=wp_json_encode($result);if(!$guard->complete($storage,is_string($encoded)?$encoded:''))return new \WP_Error('idempotency_finalize_failed',__('Mutation completed but idempotency state could not be finalized.','digiforge'),['status'=>500]);

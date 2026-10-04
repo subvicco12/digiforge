@@ -4,12 +4,12 @@ namespace DigiForge\Queue;
 use DigiForge\Database\Tables;
 /** Reserves operation keys before future external side effects to prevent duplicate requests. */
 final class Idempotency {
-    public function reserve(string $key, string $operation_type): bool {
+    public function reserve(string $key, string $operation_type): bool|\WP_Error {
         global $wpdb;
         $key = sanitize_text_field($key);
         $operation_type = sanitize_key($operation_type);
         if ($key === '' || $operation_type === '') { return false; }
-        return 1 === $wpdb->query($wpdb->prepare('INSERT IGNORE INTO ' . Tables::idempotency() . ' (operation_key, operation_type, status, created_at, updated_at) VALUES (%s,%s,%s,UTC_TIMESTAMP(),UTC_TIMESTAMP())', $key, $operation_type, 'PENDING'));
+        $wpdb->last_error = ''; $reserved = $wpdb->query($wpdb->prepare('INSERT IGNORE INTO ' . Tables::idempotency() . ' (operation_key, operation_type, status, created_at, updated_at) VALUES (%s,%s,%s,UTC_TIMESTAMP(),UTC_TIMESTAMP())', $key, $operation_type, 'PENDING')); if ($reserved === false || (string) $wpdb->last_error !== '') { return new \WP_Error('idempotency_evidence_unavailable', 'Idempotency reservation evidence is unavailable; mutation is blocked.', ['status'=>503]); } return 1 === $reserved;
     }
     /** Returns persisted reservation state for replay-aware REST boundaries. */
     public function status(string $key): ?string {
