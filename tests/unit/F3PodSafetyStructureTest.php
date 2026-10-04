@@ -58,7 +58,7 @@ final class F3PodSafetyStructureTest extends TestCase
         self::assertStringContainsString('already pending',$controller);
         $idempotency=file_get_contents(__DIR__.'/../../includes/Queue/Idempotency.php');
         self::assertIsString($idempotency);
-        self::assertStringContainsString('public function status(string $key): ?string',$idempotency);
+        self::assertStringContainsString('public function status(string $key): string|\\WP_Error|null',$idempotency);
         self::assertStringContainsString("SELECT status FROM ", $idempotency);
         self::assertStringContainsString("hash('sha256',\$operation.'|'.\$header)",$controller);
     }
