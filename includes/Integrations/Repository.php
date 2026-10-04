@@ -11,12 +11,16 @@ final class Repository {
     public const ENVIRONMENTS = ['sandbox','test','production'];
     public const STATUSES = ['DISCONNECTED','CONFIGURED','PAUSED','ERROR'];
 
-    public function all(int $page = 1, int $perPage = 50): array {
+    public function all(int $page = 1, int $perPage = 50): array|\WP_Error {
         global $wpdb;
         $page = max(1, $page); $perPage = min(100, max(1, $perPage)); $offset = ($page - 1) * $perPage;
-        $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . Tables::integrations());
-        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' ORDER BY provider, environment, display_name LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A) ?: [];
-        return ['items' => array_map([$this, 'publicRow'], $rows), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'total_pages' => max(1, (int) ceil($total / $perPage))]];
+        $wpdb->last_error='';$count=$wpdb->get_var('SELECT COUNT(*) FROM ' . Tables::integrations());
+        if(!empty($wpdb->last_error)||$count===null)return new \WP_Error('integration_count_unavailable',__('Integration count evidence is unavailable.','digiforge'),['status'=>503]);
+        $total=(int)$count;
+        $wpdb->last_error='';$rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' ORDER BY provider, environment, display_name LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A);
+        if(!empty($wpdb->last_error)||!is_array($rows))return new \WP_Error('integration_collection_unavailable',__('Integration collection evidence is unavailable.','digiforge'),['status'=>503]);
+        $items=[];foreach($rows as $row){$public=$this->publicRow($row);if(is_wp_error($public))return $public;$items[]=$public;}
+        return ['items' => $items, 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'total_pages' => max(1, (int) ceil($total / $perPage))]];
     }
 
     public function find(int $id): ?array {
@@ -28,7 +32,9 @@ final class Repository {
     public function create(array $input): array|\WP_Error {
         global $wpdb;
         $data = $this->sanitizeConnection($input, true); if (is_wp_error($data)) { return $data; }
-        $existingId = (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integrations() . ' WHERE provider = %s AND environment = %s AND connection_key = %s LIMIT 1', $data['provider'], $data['environment'], $data['connection_key']));
+        $wpdb->last_error='';$existingRaw=$wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::integrations() . ' WHERE provider = %s AND environment = %s AND connection_key = %s LIMIT 1', $data['provider'], $data['environment'], $data['connection_key']));
+        if(!empty($wpdb->last_error))return new \WP_Error('integration_create_preflight_unavailable',__('Integration uniqueness evidence is unavailable.','digiforge'),['status'=>503]);
+        $existingId=(int)$existingRaw;
         if ($existingId > 0) { return new \WP_Error('integration_exists', __('An integration with this provider, environment, and connection key already exists.', 'digiforge'), ['status' => 409, 'integration_id' => $existingId]); }
         $now = current_time('mysql', true);
         $record = $data + ['created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
@@ -43,7 +49,7 @@ final class Repository {
         }
         $id = (int) $wpdb->insert_id;
         Logger::audit('integration_created', ['provider' => $data['provider'], 'environment' => $data['environment']], 'integration', (string) $id);
-        return $this->find($id) ?? [];
+        $created=$this->find($id);if(is_wp_error($created))return $created;if(!is_array($created))return new \WP_Error('integration_create_readback_unavailable',__('Integration was written but readback evidence is unavailable; reconciliation is required.','digiforge'),['status'=>503]);return $created;
     }
 
     public function update(int $id, array $input): array|\WP_Error {
@@ -177,9 +183,9 @@ final class Repository {
         return $out;
     }
 
-    private function publicRow(array $row): array {
+    private function publicRow(array $row): array|\WP_Error {
         unset($row['ciphertext']);
-        $row['id'] = (int) $row['id']; $row['enabled'] = (bool) $row['enabled']; $row['config'] = json_decode((string) ($row['config'] ?? '{}'), true) ?: []; $row['secrets'] = $this->secretMetadata((int) $row['id']); $row['provider_label'] = ProviderCatalog::label((string) $row['provider']); $row['suggested_secrets'] = ProviderCatalog::suggestedSecrets((string) $row['provider']);
+        $row['id'] = (int) $row['id']; $row['enabled'] = (bool) $row['enabled']; $row['config'] = json_decode((string) ($row['config'] ?? '{}'), true) ?: []; $metadata=$this->secretMetadata((int)$row['id']);if(is_wp_error($metadata))return $metadata;$row['secrets']=$metadata; $row['provider_label'] = ProviderCatalog::label((string) $row['provider']); $row['suggested_secrets'] = ProviderCatalog::suggestedSecrets((string) $row['provider']);
         return $row;
     }
 }
