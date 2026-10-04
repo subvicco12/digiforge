@@ -125,7 +125,8 @@ final class Repository {
         $result=(new ProductRepository())->create('opportunity',['title'=>$candidate['title'],'description'=>$candidate['summary'] ?? ''],$key);
         if(is_wp_error($result)) return $result;
         global $wpdb;
-        $wpdb->update(Tables::research_candidates(),['opportunity_id'=>(int)$result['id'],'updated_at'=>current_time('mysql',true)],['id'=>$candidateId],['%d','%s'],['%d']);
+        $wpdb->last_error='';$linked=$wpdb->update(Tables::research_candidates(),['opportunity_id'=>(int)$result['id'],'updated_at'=>current_time('mysql',true)],['id'=>$candidateId],['%d','%s'],['%d']);
+        if($linked===false||!empty($wpdb->last_error))return $this->error('promotion_link_persistence_unknown','Opportunity was created but candidate promotion-link persistence is uncertain; reconciliation is required.',503);
         Logger::audit('research_candidate_promoted',['opportunity_id'=>(int)$result['id']],'research_candidate',(string)$candidateId);
         return $result;
     }
