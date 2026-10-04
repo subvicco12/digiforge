@@ -19,9 +19,10 @@ final class Repository {
         return ['items' => array_map([$this, 'publicRow'], $rows), 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'total_pages' => max(1, (int) ceil($total / $perPage))]];
     }
 
-    public function find(int $id): ?array {
+    public function find(int $id): array|\WP_Error|null {
         global $wpdb;
-        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' WHERE id = %d', $id), ARRAY_A);
+        $wpdb->last_error='';$row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::integrations() . ' WHERE id = %d', $id), ARRAY_A);
+        if(!empty($wpdb->last_error))return new \WP_Error('integration_read_unavailable',__('Integration read evidence is unavailable.','digiforge'),['status'=>503]);
         return is_array($row) ? $this->publicRow($row) : null;
     }
 
@@ -55,7 +56,7 @@ final class Repository {
         if (($data['enabled'] ?? 0) === 1 && $this->secretMetadata($id) === []) { return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]); }
         if (($data['enabled'] ?? 0) === 1 && (($data['status'] ?? $current['status']) !== 'CONFIGURED')) { return new \WP_Error('integration_not_configured', __('Integration status must be CONFIGURED before it can be enabled.', 'digiforge'), ['status' => 409]); }
         $data['updated_at'] = current_time('mysql', true);
-        if ($wpdb->update(Tables::integrations(), $data, ['id' => $id]) === false) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 500]); }
+        $wpdb->last_error='';$updated=$wpdb->update(Tables::integrations(), $data, ['id' => $id]); if ($updated === false || !empty($wpdb->last_error)) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 503]); }
         Logger::audit('integration_updated', ['fields' => array_keys($data)], 'integration', (string) $id);
         return $this->find($id) ?? [];
     }
