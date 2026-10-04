@@ -12,26 +12,26 @@ final class Idempotency {
         $wpdb->last_error = ''; $reserved = $wpdb->query($wpdb->prepare('INSERT IGNORE INTO ' . Tables::idempotency() . ' (operation_key, operation_type, status, created_at, updated_at) VALUES (%s,%s,%s,UTC_TIMESTAMP(),UTC_TIMESTAMP())', $key, $operation_type, 'PENDING')); if ($reserved === false || (string) $wpdb->last_error !== '') { return new \WP_Error('idempotency_evidence_unavailable', 'Idempotency reservation evidence is unavailable; mutation is blocked.', ['status'=>503]); } return 1 === $reserved;
     }
     /** Returns persisted reservation state for replay-aware REST boundaries. */
-    public function status(string $key): ?string {
+    public function status(string $key): string|\WP_Error|null {
         global $wpdb;
         $key = sanitize_text_field($key);
         if ($key === '') { return null; }
-        $status = $wpdb->get_var($wpdb->prepare('SELECT status FROM ' . Tables::idempotency() . ' WHERE operation_key = %s', $key));
+        $wpdb->last_error='';$status = $wpdb->get_var($wpdb->prepare('SELECT status FROM ' . Tables::idempotency() . ' WHERE operation_key = %s', $key));if(!empty($wpdb->last_error))return new \WP_Error('idempotency_status_unavailable','Idempotency status evidence is unavailable; no replay state is inferred.',['status'=>503]);
         return is_string($status) && $status !== '' ? $status : null;
     }
     public function complete(string $key, string $response_hash = ''): bool {
         global $wpdb;
         $key = sanitize_text_field($key);
         if ($key === '') { return false; }
-        $updated = $wpdb->update(Tables::idempotency(), ['status' => 'SUCCESS', 'response_hash' => hash('sha256', $response_hash), 'updated_at' => current_time('mysql', true)], ['operation_key' => $key], ['%s','%s','%s'], ['%s']);
-        if (false === $updated) { return false; }
+        $wpdb->last_error='';$updated = $wpdb->update(Tables::idempotency(), ['status' => 'SUCCESS', 'response_hash' => hash('sha256', $response_hash), 'updated_at' => current_time('mysql', true)], ['operation_key' => $key], ['%s','%s','%s'], ['%s']);
+        if (false === $updated || !empty($wpdb->last_error)) { return false; }
         if ($updated > 0) { return true; }
-        return (bool) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::idempotency() . ' WHERE operation_key = %s', $key));
+        $wpdb->last_error='';$confirmed=$wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::idempotency() . ' WHERE operation_key = %s AND status = %s', $key, 'SUCCESS'));return empty($wpdb->last_error)&&(int)$confirmed>0;
     }
     public function release(string $key): bool {
         global $wpdb;
         $key = sanitize_text_field($key);
         if ($key === '') { return false; }
-        return false !== $wpdb->delete(Tables::idempotency(), ['operation_key' => $key, 'status' => 'PENDING'], ['%s','%s']);
+        $wpdb->last_error='';$deleted=$wpdb->delete(Tables::idempotency(), ['operation_key' => $key, 'status' => 'PENDING'], ['%s','%s']);return $deleted!==false&&empty($wpdb->last_error);
     }
 }
