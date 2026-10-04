@@ -52,7 +52,8 @@ final class Repository {
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $data = $this->sanitizeConnection($input, false); if (is_wp_error($data)) { return $data; }
         if ($data === []) { return new \WP_Error('integration_empty_update', __('No writable integration fields supplied.', 'digiforge'), ['status' => 400]); }
-        if (($data['enabled'] ?? 0) === 1 && $this->secretMetadata($id) === []) { return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]); }
+        $metadata=$this->secretMetadata($id);if(is_wp_error($metadata))return $metadata;
+        if (($data['enabled'] ?? 0) === 1 && $metadata === []) { return new \WP_Error('integration_credentials_required', __('Store at least one credential before enabling an integration.', 'digiforge'), ['status' => 409]); }
         if (($data['enabled'] ?? 0) === 1 && (($data['status'] ?? $current['status']) !== 'CONFIGURED')) { return new \WP_Error('integration_not_configured', __('Integration status must be CONFIGURED before it can be enabled.', 'digiforge'), ['status' => 409]); }
         $data['updated_at'] = current_time('mysql', true);
         if ($wpdb->update(Tables::integrations(), $data, ['id' => $id]) === false) { return new \WP_Error('integration_update_failed', __('Could not update integration.', 'digiforge'), ['status' => 500]); }
@@ -145,9 +146,9 @@ final class Repository {
         return true;
     }
 
-    public function secretMetadata(int $integrationId): array {
+    public function secretMetadata(int $integrationId): array|\WP_Error {
         global $wpdb;
-        return $wpdb->get_results($wpdb->prepare('SELECT secret_name,fingerprint,updated_at FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d ORDER BY secret_name', $integrationId), ARRAY_A) ?: [];
+        $wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT secret_name,fingerprint,updated_at FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d ORDER BY secret_name', $integrationId), ARRAY_A);if(!empty($wpdb->last_error))return new \WP_Error('credential_metadata_unavailable',__('Credential metadata evidence is unavailable.','digiforge'),['status'=>503]);return is_array($rows)?$rows:[];
     }
 
     public static function secretContext(int $integrationId, string $name): string { return 'integration:' . $integrationId . ':secret:' . sanitize_key($name); }
