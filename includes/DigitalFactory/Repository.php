@@ -101,7 +101,7 @@ final class Repository {
         $relationship = $this->validate_relationships($type, $prospective); if (is_wp_error($relationship)) { return $relationship; }
         $descendants = $this->validate_descendants($type, $id, $prospective); if (is_wp_error($descendants)) { return $descendants; }
         $data['updated_at'] = current_time('mysql', true); global $wpdb;
-        if ($wpdb->update($this->table($type), $data, ['id' => $id]) === false) { return $this->error('update_failed', 'Unable to update digital entity.', 500); }
+        $wpdb->last_error = ''; $updated = $wpdb->update($this->table($type), $data, ['id' => $id]); if ($updated === false || !empty($wpdb->last_error)) { return $this->error('update_failed', 'Unable to update digital entity.', 503); }
         Logger::audit($type . '_updated', ['fields' => array_keys($data)], $type, (string) $id);
         return $this->find($type, $id) ?? $this->error('not_found', 'Digital entity not found.', 404);
     }
