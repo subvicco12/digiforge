@@ -39,7 +39,7 @@ final class EtsyOrderWebhookLifecycle
                 if($resolved instanceof WP_Error)return $resolved;
                 if(!is_array($resolved)){$reviewRequired=true;continue;}
                 $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
-                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
+                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($listingId,$productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
                 $prepared[]=['index'=>$index,'item'=>$item,'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>$providerMappingId];
             }
             $order=$this->orders->createOrder([
@@ -59,7 +59,10 @@ final class EtsyOrderWebhookLifecycle
                 $normalized[]=(int)$line['id'];
             }
             if(count($items)>100)$reviewRequired=true;
-            return ['state'=>$reviewRequired?'ETSY_ORDER_REVIEW_REQUIRED':'ETSY_ORDER_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$order['id'],'line_item_ids'=>$normalized,'line_item_count'=>count($normalized),'unmatched_line_items'=>$reviewRequired,'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            $targetState=$reviewRequired?'REVIEW_REQUIRED':'VALIDATED';
+            $persisted=$this->orders->transition('order',(int)$order['id'],$targetState);
+            if($persisted instanceof WP_Error)return $persisted;
+            return ['state'=>$reviewRequired?'ETSY_ORDER_REVIEW_REQUIRED':'ETSY_ORDER_VALIDATED','persisted_order_state'=>(string)($persisted['state']??''),'event_id'=>$eventId,'order_id'=>(int)$order['id'],'line_item_ids'=>$normalized,'line_item_count'=>count($normalized),'unmatched_line_items'=>$reviewRequired,'fulfillment_authorized'=>false,'external_execution_performed'=>false];
         }
 
         $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
