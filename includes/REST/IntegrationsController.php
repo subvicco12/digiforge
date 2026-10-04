@@ -85,7 +85,7 @@ final class IntegrationsController {
         if ($header === '' || strlen($header) > 191) { return new \WP_Error('missing_idempotency_key', __('A bounded Idempotency-Key header is required; the connection-test route also accepts idempotency_key in its authenticated JSON body.', 'digiforge'), ['status' => 400]); }
         $storageKey = hash('sha256', $operation . '|' . $header);
         $idempotency = new Idempotency();
-        if (! $idempotency->reserve($storageKey, $operation)) { return new \WP_Error('idempotency_conflict', __('This mutation has already been submitted.', 'digiforge'), ['status' => 409]); }
+        $reservation = $idempotency->reserve($storageKey, $operation); if (is_wp_error($reservation)) { return $reservation; } if (! $reservation) { return new \WP_Error('idempotency_conflict', __('This mutation has already been submitted.', 'digiforge'), ['status' => 409]); }
         try { $result = $callback(); }
         catch (\Throwable $e) { $idempotency->release($storageKey); return new \WP_Error('integration_mutation_failed', __('Integration mutation failed.', 'digiforge'), ['status' => 500]); }
         if (is_wp_error($result)) { $idempotency->release($storageKey); return $result; }
