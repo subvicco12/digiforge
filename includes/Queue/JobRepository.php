@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace DigiForge\Queue;
 
 use DigiForge\Database\Tables;
+use WP_Error;
 
 /** Persists governed job intent. Worker execution remains deliberately absent. */
 final class JobRepository
 {
-    public function enqueue(string $type, array $payload = [], string $idempotencyKey = ''): int|false
+    public function enqueue(string $type, array $payload = [], string $idempotencyKey = ''): int|false|WP_Error
     {
         global $wpdb;
         $idempotencyKey = sanitize_text_field($idempotencyKey);
         if ($idempotencyKey !== '') {
-            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
+            $wpdb->last_error='';$found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
+            if(!empty($wpdb->last_error))return new WP_Error('job_idempotency_evidence_unavailable','Job idempotency evidence is unavailable; enqueue is blocked.',['status'=>503]);
             if ($found) {
                 return (int) $found;
             }
@@ -36,7 +38,8 @@ final class JobRepository
         }
 
         if ($idempotencyKey !== '') {
-            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
+            $wpdb->last_error='';            $found = $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . Tables::jobs() . ' WHERE idempotency_key = %s', $idempotencyKey));
+            if(!empty($wpdb->last_error))return new WP_Error('job_idempotency_evidence_unavailable','Job idempotency reconciliation evidence is unavailable; do not retry automatically.',['status'=>503]);
             if ($found) {
                 return (int) $found;
             }
