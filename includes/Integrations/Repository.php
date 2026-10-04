@@ -50,6 +50,7 @@ final class Repository {
     public function update(int $id, array $input): array|\WP_Error {
         global $wpdb;
         $current = $this->find($id);
+        if (is_wp_error($current)) { return $current; }
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $data = $this->sanitizeConnection($input, false); if (is_wp_error($data)) { return $data; }
         if ($data === []) { return new \WP_Error('integration_empty_update', __('No writable integration fields supplied.', 'digiforge'), ['status' => 400]); }
@@ -64,6 +65,7 @@ final class Repository {
 
     public function setEnabled(int $id, bool $enabled): array|\WP_Error {
         $current = $this->find($id);
+        if (is_wp_error($current)) { return $current; }
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         return $this->update($id, ['enabled' => $enabled, 'status' => $current['status']]);
     }
@@ -71,6 +73,7 @@ final class Repository {
     public function delete(int $id): true|\WP_Error {
         global $wpdb;
         $current = $this->find($id);
+        if (is_wp_error($current)) { return $current; }
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         if ((bool) $current['enabled']) { return new \WP_Error('integration_delete_enabled', __('Disable this connector before deleting it.', 'digiforge'), ['status' => 409]); }
         $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return new \WP_Error('integration_delete_transaction_unavailable',__('Connector deletion transaction could not be started.','digiforge'),['status'=>503]);
@@ -87,7 +90,7 @@ final class Repository {
 
     public function storeSecret(int $integrationId, string $name, string $plaintext): true|\WP_Error {
         global $wpdb;
-        if (! $this->find($integrationId)) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
+        $integration=$this->find($integrationId); if(is_wp_error($integration)){return $integration;} if (! $integration) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '' || $plaintext === '') { return new \WP_Error('invalid_secret', __('Secret name and value are required.', 'digiforge'), ['status' => 400]); }
         if (strlen($name) > 64 || preg_match('/^[a-z][a-z0-9_-]*$/', $name) !== 1) { return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]); }
@@ -106,6 +109,7 @@ final class Repository {
     public function deleteSecret(int $integrationId, string $name): true|\WP_Error {
         global $wpdb;
         $integration = $this->find($integrationId);
+        if (is_wp_error($integration)) { return $integration; }
         if (! $integration) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         $name = sanitize_key($name);
         if ($name === '') { return new \WP_Error('invalid_secret_name', __('Credential name is invalid.', 'digiforge'), ['status' => 400]); }
