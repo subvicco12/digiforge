@@ -69,7 +69,7 @@ final class PodController
         $header=trim((string)$r->get_header('Idempotency-Key'));if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
         $storage=hash('sha256',$operation.'|'.$header);$guard=new Idempotency();
         $reservation=$guard->reserve($storage,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation){
-            $state=$guard->status($storage);
+            $state=$guard->status($storage);if(is_wp_error($state))return $state;
             if($state==='SUCCESS') return new \WP_Error('idempotency_replay',__('This POD mutation already completed successfully; replay the persisted resource instead of executing it again.','digiforge'),['status'=>409]);
             return new \WP_Error('idempotency_conflict',__('This POD mutation is already pending.','digiforge'),['status'=>409]);
         }
