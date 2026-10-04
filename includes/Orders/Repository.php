@@ -101,7 +101,83 @@ final class Repository
         $unmapped=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
         if($digitalLines===null||$unmapped===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
         $podLines=max(0,$lineCount-$digitalLines);
-        $checks=['order_approved'=>(string)$order['state']==='APPROVED','line_items_present'=>$lineCount>0,'line_items_valid'=>$invalidLines===0,'provider_mappings_present'=>$unmapped===0,'personalization_reviewed'=>$personalizationMissing===0,'human_approval'=>(int)$order['approved_by']>0&&!empty($order['approved_at'])];
+        $digitalDeliveryMissing=0;
+        if($digitalLines>0){$etsyOperations=$wpdb->prefix.'digiforge_etsy_operations';$digitalDeliveryMissing=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id) AND (li.listing_id=0 OR NOT EXISTS (SELECT 1 FROM ".Tables::etsy_draft_packages()." pkg INNER JOIN {$etsyOperations} op ON op.draft_package_id=pkg.id WHERE pkg.listing_id=li.listing_id AND op.shop_reference=%s AND op.operation_type='UPLOAD_FILE' AND op.state='CONFIRMED_SUCCESS' AND op.external_reference REGEXP '^[1-9][0-9]*
+        $payload=OrderReadinessProjection::project($orderId,FulfillmentMode::classify($digitalLines>0,$podLines>0),$checks,false);
+        $payload['hash']=hash('sha256',Validator::canonicalJson($payload));
+        return $payload;
+    }
+
+    private function readinessCount(string $sql): ?int
+    {
+        global $wpdb;
+        $wpdb->last_error='';
+        $value=$wpdb->get_var($sql);
+        return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;
+    }
+
+    public function list(string $entity,int $page=1,int $perPage=20): array
+    {
+        $tables=['orders'=>Tables::orders(),'items'=>Tables::order_line_items(),'personalizations'=>Tables::personalization_submissions(),'plans'=>Tables::fulfillment_plans(),'intents'=>Tables::fulfillment_intents(),'reviews'=>Tables::fulfillment_readiness_reviews()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
+    }
+
+    private function insert(string $table,?string $key,array $data,string $objectType): array|WP_Error
+    {
+        global $wpdb;$key=$key===null?null:sanitize_text_field($key);if($key==='')$key=null;if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key is too long.');if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);if(is_array($existing)){if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable order data.',409);return $existing+['idempotent_replay'=>true];}$data['idempotency_key']=$key;}
+        if($wpdb->insert($table,$data)!==1){if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(empty($wpdb->last_error)&&is_array($existing)&&$this->replayCompatible($existing,$data))return $existing+['idempotent_replay'=>true];}return $this->error('database_error','Unable to persist order record.',500);}$id=(int)$wpdb->insert_id;if($id<1)return $this->error('create_outcome_unknown','Order persistence succeeded without a usable insert identifier; reconciliation is required.',503);Logger::audit($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id);$created=$this->find($table,$id);if(is_wp_error($created))return $created;return $created??$this->error('create_readback_unavailable','Order record persisted but could not be confirmed.',503);
+    }
+
+    private function replayCompatible(array $existing,array $incoming): bool
+    {
+        $ignore=['id','idempotency_key','state','created_at','updated_at','created_by','approved_by','approved_at','review_status','reviewed_by','reviewed_at'];foreach($incoming as $field=>$value){if(in_array($field,$ignore,true)||!array_key_exists($field,$existing))continue;$left=$existing[$field];if(is_numeric($value)&&is_numeric($left)){if((string)(float)$left!==(string)(float)$value)return false;}elseif((string)$left!==(string)$value)return false;}return true;
+    }
+
+    private function find(string $table,int $id): array|WP_Error|null
+    {
+        if($id<1)return null;global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d LIMIT 1",$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','Order authority evidence could not be read.',503);return is_array($row)?$row:null;
+    }
+    private function now(): string{return current_time('mysql',true);}
+    private function error(string $code,string $message,int $status=400): WP_Error{return new WP_Error($code,__($message,'digiforge'),['status'=>$status]);}
+}
+ AND op.external_asset_reference REGEXP '^[1-9][0-9]*
+        $payload=OrderReadinessProjection::project($orderId,FulfillmentMode::classify($digitalLines>0,$podLines>0),$checks,false);
+        $payload['hash']=hash('sha256',Validator::canonicalJson($payload));
+        return $payload;
+    }
+
+    private function readinessCount(string $sql): ?int
+    {
+        global $wpdb;
+        $wpdb->last_error='';
+        $value=$wpdb->get_var($sql);
+        return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;
+    }
+
+    public function list(string $entity,int $page=1,int $perPage=20): array
+    {
+        $tables=['orders'=>Tables::orders(),'items'=>Tables::order_line_items(),'personalizations'=>Tables::personalization_submissions(),'plans'=>Tables::fulfillment_plans(),'intents'=>Tables::fulfillment_intents(),'reviews'=>Tables::fulfillment_readiness_reviews()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
+    }
+
+    private function insert(string $table,?string $key,array $data,string $objectType): array|WP_Error
+    {
+        global $wpdb;$key=$key===null?null:sanitize_text_field($key);if($key==='')$key=null;if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key is too long.');if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);if(is_array($existing)){if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable order data.',409);return $existing+['idempotent_replay'=>true];}$data['idempotency_key']=$key;}
+        if($wpdb->insert($table,$data)!==1){if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(empty($wpdb->last_error)&&is_array($existing)&&$this->replayCompatible($existing,$data))return $existing+['idempotent_replay'=>true];}return $this->error('database_error','Unable to persist order record.',500);}$id=(int)$wpdb->insert_id;if($id<1)return $this->error('create_outcome_unknown','Order persistence succeeded without a usable insert identifier; reconciliation is required.',503);Logger::audit($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id);$created=$this->find($table,$id);if(is_wp_error($created))return $created;return $created??$this->error('create_readback_unavailable','Order record persisted but could not be confirmed.',503);
+    }
+
+    private function replayCompatible(array $existing,array $incoming): bool
+    {
+        $ignore=['id','idempotency_key','state','created_at','updated_at','created_by','approved_by','approved_at','review_status','reviewed_by','reviewed_at'];foreach($incoming as $field=>$value){if(in_array($field,$ignore,true)||!array_key_exists($field,$existing))continue;$left=$existing[$field];if(is_numeric($value)&&is_numeric($left)){if((string)(float)$left!==(string)(float)$value)return false;}elseif((string)$left!==(string)$value)return false;}return true;
+    }
+
+    private function find(string $table,int $id): array|WP_Error|null
+    {
+        if($id<1)return null;global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d LIMIT 1",$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','Order authority evidence could not be read.',503);return is_array($row)?$row:null;
+    }
+    private function now(): string{return current_time('mysql',true);}
+    private function error(string $code,string $message,int $status=400): WP_Error{return new WP_Error($code,__($message,'digiforge'),['status'=>$status]);}
+}
+ AND op.resource_reference=op.external_reference))",$orderId,(string)$order['shop_reference']));if($digitalDeliveryMissing===null)return $this->error('order_readiness_evidence_unavailable','Digital delivery evidence could not be read.',500);}
+        $checks=['order_approved'=>(string)$order['state']==='APPROVED','line_items_present'=>$lineCount>0,'line_items_valid'=>$invalidLines===0,'provider_mappings_present'=>$unmapped===0,'digital_delivery_configured'=>$digitalDeliveryMissing===0,'personalization_reviewed'=>$personalizationMissing===0,'human_approval'=>(int)$order['approved_by']>0&&!empty($order['approved_at'])];
         $payload=OrderReadinessProjection::project($orderId,FulfillmentMode::classify($digitalLines>0,$podLines>0),$checks,false);
         $payload['hash']=hash('sha256',Validator::canonicalJson($payload));
         return $payload;
