@@ -71,14 +71,14 @@ final class Repository {
         $current = $this->find($id);
         if (! $current) { return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]); }
         if ((bool) $current['enabled']) { return new \WP_Error('integration_delete_enabled', __('Disable this connector before deleting it.', 'digiforge'), ['status' => 409]); }
-        $wpdb->query('START TRANSACTION');
-        $secretDeleted = $wpdb->delete(Tables::integration_secrets(), ['integration_id' => $id]);
-        $integrationDeleted = $wpdb->delete(Tables::integrations(), ['id' => $id]);
-        if ($secretDeleted === false || $integrationDeleted !== 1) {
+        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return new \WP_Error('integration_delete_transaction_unavailable',__('Connector deletion transaction could not be started.','digiforge'),['status'=>503]);
+        $wpdb->last_error='';$secretDeleted = $wpdb->delete(Tables::integration_secrets(), ['integration_id' => $id]);
+        $secretDeleteError=(string)$wpdb->last_error;$wpdb->last_error='';$integrationDeleted = $wpdb->delete(Tables::integrations(), ['id' => $id]);
+        if ($secretDeleted === false || $secretDeleteError!=='' || $integrationDeleted === false || !empty($wpdb->last_error)) {
             $wpdb->query('ROLLBACK');
             return new \WP_Error('integration_delete_failed', __('Could not delete the connector safely.', 'digiforge'), ['status' => 500]);
         }
-        $wpdb->query('COMMIT');
+        $wpdb->last_error='';if($wpdb->query('COMMIT')===false||!empty($wpdb->last_error))return new \WP_Error('integration_delete_commit_unknown',__('Connector deletion commit outcome is uncertain; reconciliation is required.','digiforge'),['status'=>503]);
         Logger::audit('integration_deleted', ['provider' => $current['provider'], 'connection_key' => $current['connection_key']], 'integration', (string) $id);
         return true;
     }
@@ -113,19 +113,19 @@ final class Repository {
         unset($config['_connection_test']);
         $encoded = wp_json_encode($config);
         if (! is_string($encoded)) { return new \WP_Error('integration_config_encode_failed', __('Connector configuration could not be updated safely.', 'digiforge'), ['status' => 500]); }
-        $wpdb->query('START TRANSACTION');
-        $deleted = $wpdb->delete(Tables::integration_secrets(), ['id' => $existing]);
-        $updated = $wpdb->update(Tables::integrations(), [
+        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return new \WP_Error('credential_delete_transaction_unavailable',__('Credential deletion transaction could not be started.','digiforge'),['status'=>503]);
+        $wpdb->last_error='';$deleted = $wpdb->delete(Tables::integration_secrets(), ['id' => $existing]);
+        $deleteError=(string)$wpdb->last_error;$wpdb->last_error='';$updated = $wpdb->update(Tables::integrations(), [
             'status' => 'DISCONNECTED',
             'enabled' => 0,
             'config' => $encoded,
             'updated_at' => current_time('mysql', true),
         ], ['id' => $integrationId]);
-        if ($deleted !== 1 || $updated === false) {
+        if ($deleted !== 1 || $deleteError!=='' || $updated === false || !empty($wpdb->last_error)) {
             $wpdb->query('ROLLBACK');
             return new \WP_Error('credential_delete_failed', __('Could not delete the credential safely.', 'digiforge'), ['status' => 500]);
         }
-        $wpdb->query('COMMIT');
+        $wpdb->last_error='';if($wpdb->query('COMMIT')===false||!empty($wpdb->last_error))return new \WP_Error('credential_delete_commit_unknown',__('Credential deletion commit outcome is uncertain; reconciliation is required.','digiforge'),['status'=>503]);
         Logger::audit('integration_secret_deleted', ['secret_name' => $name, 'connector_disabled' => true], 'integration', (string) $integrationId);
         return true;
     }
