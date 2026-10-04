@@ -91,7 +91,7 @@ final class Repository
     public function createLegacyReadinessReview(int $listingId, ?string $key=null): array|WP_Error
     {
         global $wpdb;
-        if($wpdb->query('START TRANSACTION')===false)return $this->error('database_error','Legacy Gate 3 repair could not start a transaction.',500);
+        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return $this->error('legacy_gate3_transaction_unavailable','Legacy Gate 3 repair transaction could not be started.',503);
         $locked=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d FOR UPDATE',$listingId),ARRAY_A);
         if(!empty($wpdb->last_error)||!is_array($locked)){$wpdb->query('ROLLBACK');return $this->error('not_found','Listing not found or could not be locked.',404);}
         if((string)($locked['state']??'')!=='APPROVED'){$wpdb->query('ROLLBACK');return $this->error('legacy_repair_state','Legacy Gate 3 repair applies only to an already APPROVED listing.',409);}
@@ -104,8 +104,8 @@ final class Repository
         foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
             if(empty($checks[$required])){$wpdb->query('ROLLBACK');return $this->error('review_not_ready','Current listing prerequisites must pass before legacy Gate 3 repair.',409);}
         }
-        $listingUpdated=$wpdb->update(Tables::listings(),['state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'updated_at'=>$this->now()],['id'=>$listingId,'state'=>'APPROVED']);
-        if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently or could not enter legacy Gate 3 review.',409);}
+        $wpdb->last_error='';$listingUpdated=$wpdb->update(Tables::listings(),['state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'updated_at'=>$this->now()],['id'=>$listingId,'state'=>'APPROVED']);
+        if($listingUpdated===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('legacy_gate3_persistence_unavailable','Legacy Gate 3 listing transition could not be persisted.',503);}if($listingUpdated!==1){$wpdb->query('ROLLBACK');return $this->error('transition_conflict','Listing state changed concurrently.',409);}
         $readiness=$this->readiness($listingId);
         if(is_wp_error($readiness)){$wpdb->query('ROLLBACK');return $readiness;}
         $postChecks=(array)($readiness['checks']??[]);
@@ -118,7 +118,7 @@ final class Repository
             'decision'=>'PENDING','reviewed_by'=>0,'reviewed_at'=>null,'created_at'=>$this->now(),'updated_at'=>$this->now()
         ],'listing_readiness_review');
         if(is_wp_error($review)){$wpdb->query('ROLLBACK');return $review;}
-        if($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');return $this->error('database_error','Legacy Gate 3 repair could not be committed.',500);}
+        $wpdb->last_error='';if($wpdb->query('COMMIT')===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('legacy_gate3_commit_unknown','Legacy Gate 3 repair commit outcome is uncertain; reconciliation is required.',503);}
         Logger::audit('listing_legacy_gate3_review_created',['listing_id'=>$listingId,'prior_state'=>'APPROVED','new_state'=>'REVIEW_REQUIRED'],'listing_readiness_review',(string)($review['id']??0));
         return $review+['external_actions_performed'=>false];
     }
