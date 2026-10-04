@@ -87,24 +87,22 @@ final class Repository {
         $decision=strtoupper(sanitize_key($decision));
         if(!in_array($decision,[self::REVIEW_APPROVED,self::REVIEW_REJECTED],true)) return $this->error('validation','Decision must be APPROVED or REJECTED.');
         $candidate=$this->find(Tables::research_candidates(),$candidateId);
+        if(is_wp_error($candidate))return $candidate;
         if($candidate===null) return $this->error('not_found','Candidate not found.',404);
         if (($candidate['review_status'] ?? '') === $decision) return $candidate + ['idempotent_review'=>true];
         if (($candidate['review_status'] ?? '') !== self::REVIEW_PENDING) return $this->error('review_conflict','Candidate has already received a final review.',409);
         global $wpdb;
         $now=current_time('mysql',true);
-        $wpdb->query('START TRANSACTION');
+        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||!empty($wpdb->last_error))return $this->error('review_transaction_unavailable','Candidate review transaction could not be started.',503);
         try {
-            $inserted=$wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>$reviewer,'reviewed_at'=>$now]);
-            if($inserted===false){
+            $wpdb->last_error='';$inserted=$wpdb->insert(Tables::research_reviews(),['candidate_id'=>$candidateId,'decision'=>$decision,'notes'=>sanitize_textarea_field($notes),'reviewed_by'=>$reviewer,'reviewed_at'=>$now]);
+            if($inserted!==1||!empty($wpdb->last_error)){
                 $wpdb->query('ROLLBACK');
                 return $this->error('review_create_failed','Unable to save candidate review.',500);
             }
-            $updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId,'review_status'=>self::REVIEW_PENDING]);
-            if($updated!==1){
-                $wpdb->query('ROLLBACK');
-                return $this->error('review_conflict','Candidate review changed concurrently or could not be saved.',409);
-            }
-            $wpdb->query('COMMIT');
+            $wpdb->last_error='';$updated=$wpdb->update(Tables::research_candidates(),['review_status'=>$decision,'updated_at'=>$now],['id'=>$candidateId,'review_status'=>self::REVIEW_PENDING]);
+            if($updated===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('review_persistence_unavailable','Candidate review state could not be persisted.',503);}if($updated!==1){$wpdb->query('ROLLBACK');return $this->error('review_conflict','Candidate review changed concurrently.',409);}
+            $wpdb->last_error='';if($wpdb->query('COMMIT')===false||!empty($wpdb->last_error)){$wpdb->query('ROLLBACK');return $this->error('review_commit_unknown','Candidate review commit outcome is uncertain; reconciliation is required.',503);}
         } catch (\Throwable $e) {
             $wpdb->query('ROLLBACK');
             return $this->error('review_create_failed','Unable to save candidate review.',500);
