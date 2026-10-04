@@ -15,7 +15,7 @@ final class Repository
     public function createSpec(array $input, ?string $key = null): array|WP_Error
     {
         $pv=absint($input['product_version_id']??0);
-        if($pv<1||!$this->exists(Tables::product_versions(),$pv)) return $this->error('invalid_parent','A valid product_version_id is required.');
+        if($pv<1)return $this->error('invalid_parent','A valid product_version_id is required.');$parent=$this->exists(Tables::product_versions(),$pv);if(is_wp_error($parent))return $parent;if(!$parent)return $this->error('invalid_parent','A valid product_version_id is required.');
         $content=$this->validator->boundedStructured((array)($input['content_requirements']??[])); if(is_wp_error($content))return $content;
         $design=$this->validator->boundedStructured((array)($input['design_constraints']??[])); if(is_wp_error($design))return $design;
         $w=absint($input['width_px']??0);$h=absint($input['height_px']??0);$dpi=absint($input['dpi']??0);if($e=$this->validator->dimensions($w,$h,$dpi))return $e;
@@ -33,7 +33,7 @@ final class Repository
 
     public function createPlan(array $input, ?string $key = null): array|WP_Error
     {
-        $pv=absint($input['product_version_id']??0);if($pv<1||!$this->exists(Tables::product_versions(),$pv))return $this->error('invalid_parent','A valid product_version_id is required.');
+        $pv=absint($input['product_version_id']??0);if($pv<1)return $this->error('invalid_parent','A valid product_version_id is required.');$parent=$this->exists(Tables::product_versions(),$pv);if(is_wp_error($parent))return $parent;if(!$parent)return $this->error('invalid_parent','A valid product_version_id is required.');
         $planKey=sanitize_key((string)($input['plan_key']??''));$version=sanitize_text_field((string)($input['version_label']??''));$channel=sanitize_key((string)($input['channel']??''));$type=sanitize_key((string)($input['production_type']??''));
         if($planKey===''||$version===''||!in_array($channel,['digital','pod','hybrid'],true)||$type==='')return $this->error('validation','Invalid production plan fields.');
         return $this->insert(Tables::production_plans(),$key,[
@@ -66,7 +66,7 @@ final class Repository
 
     public function addRevision(array $input, ?string $key=null): array|WP_Error
     {
-        $spec=absint($input['asset_spec_id']??0);if(!$this->exists(Tables::asset_specs(),$spec))return $this->error('invalid_parent','Valid asset_spec_id is required.');
+        $spec=absint($input['asset_spec_id']??0);$parent=$this->exists(Tables::asset_specs(),$spec);if(is_wp_error($parent))return $parent;if(!$parent)return $this->error('invalid_parent','Valid asset_spec_id is required.');
         $checksum=strtolower(sanitize_text_field((string)($input['checksum_sha256']??'')));$storage=sanitize_text_field((string)($input['storage_reference']??''));if(!$this->validator->checksum($checksum)||!$this->validator->storageReference($storage))return $this->error('validation','Invalid checksum or local storage reference.');
         $w=absint($input['width_px']??0);$h=absint($input['height_px']??0);if($e=$this->validator->dimensions($w,$h,0))return $e;
         $prov=$this->validator->boundedStructured((array)($input['provenance']??[]));if(is_wp_error($prov))return $prov;$label=sanitize_text_field((string)($input['revision_label']??''));if($label==='')return $this->error('validation','revision_label is required.');
@@ -79,7 +79,7 @@ final class Repository
     {
         $type=sanitize_key((string)($input['target_type']??''));$id=absint($input['target_id']??0);$check=sanitize_key((string)($input['check_type']??''));$status=strtoupper(sanitize_key((string)($input['status']??'PENDING')));
         $targets=['revision'=>Tables::asset_revisions(),'spec'=>Tables::asset_specs(),'plan'=>Tables::production_plans(),'bundle'=>Tables::release_bundles()];
-        if(!isset($targets[$type])||$id<1||!$this->exists($targets[$type],$id)||$check===''||!in_array($status,['PENDING','PASS','FAIL','WAIVED'],true))return $this->error('validation','Invalid QA target or fields.');
+        if(!isset($targets[$type])||$id<1||$check===''||!in_array($status,['PENDING','PASS','FAIL','WAIVED'],true))return $this->error('validation','Invalid QA target or fields.');$parent=$this->exists($targets[$type],$id);if(is_wp_error($parent))return $parent;if(!$parent)return $this->error('validation','Invalid QA target or fields.');
         $details=$this->validator->boundedStructured((array)($input['details']??[]));if(is_wp_error($details))return $details;$reviewer=0;$reviewedAt=null;$reason='';
         if($status==='WAIVED'){$reason=sanitize_text_field((string)($input['waiver_reason']??''));$reviewer=get_current_user_id();if($reason===''||$reviewer<1)return $this->error('authorization','WAIVED requires an authenticated reviewer and reason.',403);$reviewedAt=$this->now();}
         return $this->insert(Tables::production_qa(),$key,['target_type'=>$type,'target_id'=>$id,'check_type'=>$check,'check_version'=>sanitize_text_field((string)($input['check_version']??'v1')),
@@ -88,7 +88,7 @@ final class Repository
 
     public function createBundle(array $input, ?string $key=null): array|WP_Error
     {
-        $plan=absint($input['production_plan_id']??0);if(!$this->exists(Tables::production_plans(),$plan))return $this->error('invalid_parent','Valid production_plan_id is required.');$bundle=sanitize_key((string)($input['bundle_key']??''));$version=sanitize_text_field((string)($input['version_label']??''));if($bundle===''||$version==='')return $this->error('validation','bundle_key and version_label are required.');
+        $plan=absint($input['production_plan_id']??0);$parent=$this->exists(Tables::production_plans(),$plan);if(is_wp_error($parent))return $parent;if(!$parent)return $this->error('invalid_parent','Valid production_plan_id is required.');$bundle=sanitize_key((string)($input['bundle_key']??''));$version=sanitize_text_field((string)($input['version_label']??''));if($bundle===''||$version==='')return $this->error('validation','bundle_key and version_label are required.');
         return $this->insert(Tables::release_bundles(),$key,['production_plan_id'=>$plan,'bundle_key'=>$bundle,'version_label'=>$version,'manifest'=>'[]','checksum_sha256'=>'','state'=>'DRAFT','approved_by'=>0,'approved_at'=>null,'readiness'=>'{}','created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()], 'release_bundle');
     }
 
@@ -143,7 +143,7 @@ final class Repository
         return true;
     }
 
-    private function exists(string $table,int $id):bool{global $wpdb;return(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE id=%d',$id))>0;}
+    private function exists(string $table,int $id):bool|WP_Error{global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE id=%d',$id));if(!empty($wpdb->last_error)||$raw===null)return $this->error('evidence_unavailable','Production parent evidence could not be read.',503);return(int)$raw>0;}
     private function find(string $table,int $id):array|WP_Error|null{global $wpdb;$wpdb->last_error='';$r=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Production record evidence could not be read.',503);return is_array($r)?$this->normalize($r):null;}
     public function normalize(array $row):array{unset($row['idempotency_key']);foreach(['content_requirements','design_constraints','input_payload','provenance','details','manifest','readiness'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);if(is_array($d))$row[$k]=$d;}}return $row;}
     private function now():string{return current_time('mysql',true);}
