@@ -74,9 +74,9 @@ final class IsolatedStagingSmoke
             'currency'=>(string)$listing['currency'],'personalization_payload'=>[]
         ],$operationKey.':item');
         if($item instanceof WP_Error)return $item;
-        foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED'] as $state){
-            if((string)($order['state']??'')===$state)continue;
-            $order=$orders->transition('order',(int)$order['id'],$state);
+        foreach(['RECEIVED'=>'VALIDATED','VALIDATED'=>'REVIEW_REQUIRED','REVIEW_REQUIRED'=>'APPROVED'] as $from=>$to){
+            if((string)($order['state']??'')!==$from)continue;
+            $order=$orders->transition('order',(int)$order['id'],$to);
             if($order instanceof WP_Error)return $order;
         }
         $readiness=$orders->readiness((int)$order['id']);
@@ -88,9 +88,9 @@ final class IsolatedStagingSmoke
             'cost_snapshot_metadata'=>['external_provider_cost'=>0,'fixture'=>'P5_INTERNAL_ONLY']
         ],$operationKey.':plan');
         if($plan instanceof WP_Error)return $plan;
-        foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED'] as $state){
-            if((string)($plan['state']??'')===$state)continue;
-            $plan=$orders->transition('plan',(int)$plan['id'],$state);
+        foreach(['DRAFT'=>'VALIDATED','VALIDATED'=>'REVIEW_REQUIRED','REVIEW_REQUIRED'=>'APPROVED'] as $from=>$to){
+            if((string)($plan['state']??'')!==$from)continue;
+            $plan=$orders->transition('plan',(int)$plan['id'],$to);
             if($plan instanceof WP_Error)return $plan;
         }
 
