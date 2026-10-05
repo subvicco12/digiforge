@@ -5,6 +5,7 @@ use DigiForge\Core\Capabilities;
 use DigiForge\Core\Config;
 use DigiForge\Core\Settings;
 use DigiForge\Operations\Readiness;
+use DigiForge\Operations\IsolatedStagingSmoke;
 use DigiForge\Operations\RecoveryEvidence;
 use DigiForge\Operations\RecoveryDrillEvidence;
 use DigiForge\Operations\RecoveryOrchestrator;
@@ -43,6 +44,7 @@ final class Controller {
         register_rest_route('digiforge/v1', '/recovery/orchestration/reconcile-manual', ['methods' => 'POST', 'callback' => [$this, 'reconcile_manual_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/verify', ['methods' => 'POST', 'callback' => [$this, 'verify_recovery_orchestration'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/recovery/orchestration/drill-review', ['methods' => 'GET', 'callback' => [$this, 'recovery_drill_review_candidate'], 'permission_callback' => [$this, 'can_manage']]);
+        register_rest_route('digiforge/v1', '/internal-smoke/p5', ['methods' => 'POST', 'callback' => [$this, 'p5_smoke'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls', ['methods' => 'GET', 'callback' => [$this, 'controls'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/protection/restore', ['methods' => 'POST', 'callback' => [$this, 'restore_protection'], 'permission_callback' => [$this, 'can_manage']]);
         register_rest_route('digiforge/v1', '/controls/(?P<key>[a-z_]+)', ['methods' => 'POST', 'callback' => [$this, 'update_control'], 'permission_callback' => [$this, 'can_manage'], 'args' => ['key' => ['sanitize_callback' => 'sanitize_key'], 'enabled' => ['required' => true, 'validate_callback' => static fn($v) => is_bool($v) || in_array($v, [0,1,'0','1'], true)]]]);
@@ -80,6 +82,10 @@ final class Controller {
             'read_only'=>true,
             'external_actions_performed'=>false,
         ],200);
+    }
+    public function p5_smoke(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
+        $result=IsolatedStagingSmoke::run(absint($request->get_param('listing_id')),trim(sanitize_text_field((string)$request->get_param('operation_key'))));
+        return $result instanceof \WP_Error?$result:new \WP_REST_Response($result,200);
     }
     public function recovery_evidence(\WP_REST_Request $request): \WP_REST_Response { return new \WP_REST_Response(RecoveryEvidence::snapshot() + ['external_actions_performed' => false], 200); }
     public function recovery_database_backup_marker(\WP_REST_Request $request): \WP_REST_Response|\WP_Error {
