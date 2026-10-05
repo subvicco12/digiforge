@@ -95,9 +95,23 @@ final class RecoveryOperationSupersession
         $existing=RecoveryDispatchLedger::read($archiveName);
         if ($existing instanceof \WP_Error) return $existing;
         if ($existing!==[]) {
-            return hash_equals((string)($existing['evidence_hash']??''),(string)$receipt['evidence_hash'])
-                ? $existing+['replayed'=>true]
-                : new \WP_Error('digiforge_recovery_supersession_conflict', __('Immutable supersession evidence already exists with different facts.', 'digiforge'), ['status'=>409]);
+            $same = ($existing['state']??'')==='SUPERSEDED'
+                && hash_equals($operationKey,(string)($existing['operation_key']??''))
+                && hash_equals((string)($plan['database_backup_identifier']??''),(string)($existing['database_backup_identifier']??''))
+                && hash_equals((string)($plan['plugin_package_identifier']??''),(string)($existing['plugin_package_identifier']??''))
+                && hash_equals($plannedVersion,(string)($existing['plugin_package_version']??''))
+                && hash_equals($observedVersion,(string)($existing['observed_plugin_version']??''))
+                && hash_equals((string)($currentPackage['identifier']??''),(string)($existing['current_plugin_package_identifier']??''))
+                && ($existing['reason']??'')==='STALE_EXACT_VERSION_MISMATCH'
+                && ($existing['retry_permitted']??true)===false
+                && ($existing['reconciliation_required']??true)===false;
+            if (!$same) {
+                return new \WP_Error('digiforge_recovery_supersession_conflict', __('Immutable supersession evidence already exists with different facts.', 'digiforge'), ['status'=>409]);
+            }
+            if (!RecoveryOrchestrator::terminallySupersede($operationKey,$existing)) {
+                return new \WP_Error('digiforge_recovery_supersession_handoff_failed', __('Supersession receipt exists, but the global recovery slot could not be terminally handed off. Reconciliation remains required.', 'digiforge'), ['status'=>500,'reconciliation_required'=>true]);
+            }
+            return $existing+['replayed'=>true];
         }
         if (!Logger::write('recovery_operation_supersession_authorized',[
             'operation_key'=>$operationKey,'planned_version'=>$plannedVersion,'observed_version'=>$observedVersion,
