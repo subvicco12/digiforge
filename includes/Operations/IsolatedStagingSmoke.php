@@ -73,6 +73,7 @@ final class IsolatedStagingSmoke
         ],$operationKey.':item');
         if($item instanceof WP_Error)return $item;
         foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED'] as $state){
+            if((string)($order['state']??'')===$state)continue;
             $order=$orders->transition('order',(int)$order['id'],$state);
             if($order instanceof WP_Error)return $order;
         }
@@ -86,6 +87,7 @@ final class IsolatedStagingSmoke
         ],$operationKey.':plan');
         if($plan instanceof WP_Error)return $plan;
         foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED'] as $state){
+            if((string)($plan['state']??'')===$state)continue;
             $plan=$orders->transition('plan',(int)$plan['id'],$state);
             if($plan instanceof WP_Error)return $plan;
         }
