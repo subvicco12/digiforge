@@ -5,7 +5,7 @@ Authority: DigiForge Ultimate Master Blueprint v6.0.
 This document records the repository-side completion boundary only. It does not claim production deployment, provider connectivity, backup existence, recovery-drill PASS, catalog-v2 promotion, or external execution.
 
 ## Exact candidate
-- Parent certified main: `18c87f1b712954896cb1d9a003a21cb688f1a69b`
+- Parent certified main: `34fc13d735325874caa0f98a324b15cc1980e6ff` (merge of exact-head certified PR #975)
 - Plugin release: `1.0.103`
 - Database schema: `23`
 - External execution during certification: **NO**
@@ -21,6 +21,12 @@ This document records the repository-side completion boundary only. It does not 
 - Master 500 v2 remains governed migration evidence and carries no production authority.
 - Shop-scoped AI quantity/budget controls remain ceilings, not execution grants.
 - Portal/operator reconciliation and attention surfaces preserve unavailable/current-evidence semantics.
+- Isolated-staging P5 completed the governed local digital workflow through order #1, line #1, readiness, approved fulfillment plan #1, finance ledger #1 and calculated finance period #1.
+- Same-key P5 replay returned the same record identifiers with no duplicate order, plan, ledger or period.
+- P5 produced no new external action evidence; preserved Etsy operation counts remained NOT_SENT 2, SENT 0, CONFIRMED_SUCCESS 4, CONFIRMED_FAILURE 3, UNKNOWN 0, RECONCILIATION 0 and RECONCILED 0.
+- Post-P5 staging health remained OK with STOP ALL ON, activation authorization OFF, automation unarmed, all effective external switches OFF, queue query verified and no expired leases.
+- Canonical Control Center, Orders, Finance and Safety portal surfaces rendered after acceptance.
+- Staging recovery remained REVIEW_REQUIRED because backup verification was stale and the prior recovery drill was neither fresh nor bound to the current artifact; this was not treated as PASS.
 
 ## Repository certification gate
 The exact head containing this document must pass the standard DigiForge Engineering & Safety Audit. Its uploaded plugin artifact must independently verify:
