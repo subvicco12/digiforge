@@ -85,7 +85,7 @@ final class FinanceController
     }
 
     private function key(\WP_REST_Request $request): ?string
-    { $key=trim((string)$request->get_header('Idempotency-Key')); return $key===''?null:$key; }
+    { $header=trim((string)$request->get_header('Idempotency-Key')); $params=$request->get_json_params(); $bodyKey=is_array($params)?trim((string)($params['idempotency_key']??'')):''; $key=$header!==''?$header:$bodyKey; return $key===''?null:$key; }
 
     private function mutate(\WP_REST_Request $request,string $operation,callable $callback,int $success=200): mixed
     {
@@ -93,8 +93,10 @@ final class FinanceController
             return new \WP_Error('payload_too_large',__('JSON body exceeds 64 KiB.','digiforge'),['status'=>413]);
         }
         $header=trim((string)$request->get_header('Idempotency-Key'));
-        if($header==='') return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
-        $storage=hash('sha256',$operation.'|'.$header); $guard=new Idempotency();
+        $params=$request->get_json_params(); $bodyKey=is_array($params)?trim((string)($params['idempotency_key']??'')):''; $key=$header!==''?$header:$bodyKey;
+        if($key===''||strlen($key)>191) return new \WP_Error('missing_idempotency_key',__('A bounded Idempotency-Key header or JSON idempotency_key is required.','digiforge'),['status'=>400]);
+        if($header!==''&&$bodyKey!==''&&!hash_equals($header,$bodyKey)) return new \WP_Error('idempotency_key_mismatch',__('Header and body idempotency keys must match when both are supplied.','digiforge'),['status'=>409]);
+        $storage=hash('sha256',$operation.'|'.$key); $guard=new Idempotency();
         $reservation=$guard->reserve($storage,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation) return new \WP_Error('idempotency_conflict',__('This finance mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable){$guard->release($storage);return new \WP_Error('finance_mutation_failed',__('Finance mutation failed.','digiforge'),['status'=>500]);}
         if(is_wp_error($result)){$guard->release($storage);return $result;}
