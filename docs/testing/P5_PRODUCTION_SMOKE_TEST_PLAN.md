@@ -9,7 +9,7 @@ Before any smoke test:
 - Activation authorization must remain OFF.
 - Automation armed must remain FALSE.
 - All external feature switches must remain FALSE.
-- `external_actions_performed` must remain FALSE.
+- The smoke test itself must perform no external actions. Preserve historical external-operation evidence; do not clear or rewrite confirmed production history to manufacture a FALSE indicator.
 - No external credentials may be exercised.
 - Tests must use local/internal repositories, mock records, or fixture data only.
 
@@ -56,7 +56,7 @@ P5 passes only when all of the following are true:
 - No external HTTP execution occurs as part of the smoke path.
 - No external feature switch changes from FALSE.
 - STOP ALL remains ON for the entire run.
-- `external_actions_performed` remains FALSE.
+- The smoke test produces no new external-action evidence, while historical external-operation evidence remains immutable.
 - Audit evidence can trace the workflow.
 - Readiness does not regress because of the smoke test itself.
 
@@ -85,4 +85,4 @@ Retain:
 - recovery evidence hash,
 - queue health snapshot,
 - confirmation that all effective external switches remained false,
-- confirmation that `external_actions_performed=false`.
+- confirmation that the smoke test produced no external action, with historical external-operation evidence preserved.
