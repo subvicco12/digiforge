@@ -16,6 +16,8 @@ final class IsolatedStagingSmokeContractTest extends TestCase
         self::assertStringContainsString("CONFIRMED_SUCCESS",$source);
         self::assertStringContainsString("new OrderRepository()",$source);
         self::assertStringContainsString("new FinanceRepository()",$source);
+        self::assertStringContainsString("if((string)(\$order['state']??'')===\$state)continue;",$source);
+        self::assertStringContainsString("if((string)(\$plan['state']??'')===\$state)continue;",$source);
         self::assertStringContainsString("'external_actions_performed'=>false",$source);
         self::assertStringContainsString("'commerce_execution_authorized'=>false",$source);
         self::assertStringNotContainsString('PrintifyClient',$source);
