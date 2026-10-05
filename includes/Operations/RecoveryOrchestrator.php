@@ -325,10 +325,10 @@ final class RecoveryOrchestrator
         }
         $current = self::snapshot();
         $interlock = RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock');
-        if ($interlock instanceof \WP_Error || !is_array($interlock) || $interlock === []
-            || !hash_equals($operationKey,(string)($interlock['operation_key']??''))
+        if ($interlock instanceof \WP_Error
             || ($current['manual_restore_reconciled']??false)!==true
-            || ($current['state']??'')!=='VERIFY_REQUIRED') {
+            || ($current['state']??'')!=='VERIFY_REQUIRED'
+            || !hash_equals($operationKey,(string)($current['operation_key']??''))) {
             return false;
         }
         $terminal = $receipt + [
@@ -336,11 +336,26 @@ final class RecoveryOrchestrator
             'manual_restore_reconciled'=>true,
             'provider'=>(string)($current['provider']??'hostinger'),
             'provider_operation_reference'=>(string)($current['provider_operation_reference']??''),
-            'updated_at'=>gmdate('c'),
+            'updated_at'=>(string)($receipt['superseded_at']??gmdate('c')),
         ];
-        if (!RecoveryDispatchLedger::compareAndSwap('digiforge_recovery_dispatch_interlock',$interlock,$terminal)) {
-            return false;
+        if ($interlock === []) {
+            // Legacy manually reconciled drills can predate the global interlock.
+            // Claim the empty slot atomically with the immutable terminal receipt;
+            // never manufacture or delete an executable recovery claim.
+            if (!RecoveryDispatchLedger::insert('digiforge_recovery_dispatch_interlock',$terminal)) {
+                $committed=RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock');
+                if ($committed instanceof \WP_Error || $committed!==$terminal) return false;
+            }
+        } else {
+            if (!hash_equals($operationKey,(string)($interlock['operation_key']??''))) return false;
+            if (($interlock['state']??'')==='SUPERSEDED') {
+                if ($interlock!==$terminal) return false;
+            } elseif (!RecoveryDispatchLedger::compareAndSwap('digiforge_recovery_dispatch_interlock',$interlock,$terminal)) {
+                return false;
+            }
         }
+        $stored=get_option(self::OPTION);
+        if ($stored===$terminal) return true;
         return update_option(self::OPTION,$terminal,false) && get_option(self::OPTION)===$terminal;
     }
 
