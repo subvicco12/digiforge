@@ -27,6 +27,20 @@ final class RecoveryOperationSupersessionContractTest extends TestCase
         self::assertStringContainsString("['option_name' => \$name, 'option_value' => maybe_serialize(\$expected)]",$ledger);
         self::assertStringNotContainsString('$database->delete(', $ledger);
         self::assertStringNotContainsString('delete_option(', $ledger);
+        self::assertStringContainsString("if (\$interlock === [])", $orchestrator);
+        self::assertStringContainsString("RecoveryDispatchLedger::insert('digiforge_recovery_dispatch_interlock',\$terminal)", $orchestrator);
+        self::assertStringContainsString("if ((\$interlock['state']??'')==='SUPERSEDED')", $orchestrator);
+        self::assertStringContainsString("if (\$stored===\$terminal) return true;", $orchestrator);
+    }
+
+    public function testPersistedReceiptResumesFailedTerminalHandoff(): void
+    {
+        $code=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryOperationSupersession.php');
+        self::assertStringContainsString("if (\$existing!==[])",$code);
+        self::assertStringContainsString("RecoveryOrchestrator::terminallySupersede(\$operationKey,\$existing)",$code);
+        self::assertStringContainsString("return \$existing+['replayed'=>true]",$code);
+        self::assertStringContainsString("hash_equals(\$observedVersion,(string)(\$existing['observed_plugin_version']??''))",$code);
+        self::assertStringNotContainsString("hash_equals((string)(\$existing['evidence_hash']??''),(string)\$receipt['evidence_hash'])",$code);
     }
 
     public function testRestEndpointRequiresAutomationManagementCapability(): void
