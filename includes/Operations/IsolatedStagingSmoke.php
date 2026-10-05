@@ -50,9 +50,8 @@ final class IsolatedStagingSmoke
         if ($digital !== 1) {
             return new WP_Error('digiforge_smoke_digital_authority', __('Smoke requires exactly one local digital-product authority record.', 'digiforge'), ['status'=>409]);
         }
-        $packageId=(int)($listing['draft_package_id']??0);
-        $package=$packageId>0?$wpdb->get_row($wpdb->prepare("SELECT id FROM ".Tables::etsy_draft_packages()." WHERE id=%d AND state='APPROVED' LIMIT 1",$packageId),ARRAY_A):null;
-        if(!is_array($package)) return new WP_Error('digiforge_smoke_draft_evidence',__('Smoke requires the listing-bound approved local Etsy draft package.','digiforge'),['status'=>409]);
+        $package=$wpdb->get_row($wpdb->prepare("SELECT id,approved_by,approved_at FROM ".Tables::etsy_draft_packages()." WHERE listing_id=%d AND approved_by>0 AND approved_at IS NOT NULL ORDER BY id DESC LIMIT 1",$listingId),ARRAY_A);
+        if(!is_array($package)) return new WP_Error('digiforge_smoke_draft_evidence',__('Smoke requires a human-approved local Etsy draft package bound to the listing.','digiforge'),['status'=>409]);
         $opTable=$wpdb->prefix.'digiforge_etsy_operations';
         $delivery=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $opTable WHERE draft_package_id=%d AND shop_reference=%s AND operation_type='UPLOAD_FILE' AND state='CONFIRMED_SUCCESS' AND external_reference REGEXP '^[1-9][0-9]*$' AND external_asset_reference REGEXP '^[1-9][0-9]*$' AND resource_reference=external_reference",(int)$package['id'],(string)$listing['shop_reference']));
         if($delivery<1) return new WP_Error('digiforge_smoke_delivery_evidence',__('Smoke requires preserved confirmed immutable digital delivery evidence.','digiforge'),['status'=>409]);
