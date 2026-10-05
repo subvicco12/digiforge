@@ -14,6 +14,9 @@ final class IsolatedStagingSmokeContractTest extends TestCase
         self::assertStringContainsString("Settings::get('automation_armed', true) === false",$source);
         self::assertStringContainsString("Settings::safety_locked()",$source);
         self::assertStringContainsString("CONFIRMED_SUCCESS",$source);
+        self::assertStringContainsString("SELECT DISTINCT shop_reference",$source);
+        self::assertStringContainsString("count(\$shops)!==1",$source);
+        self::assertStringContainsString("'shop_reference'=>\$shopReference",$source);
         self::assertStringContainsString("WHERE listing_id=%d AND approved_by>0 AND approved_at IS NOT NULL",$source);
         self::assertStringContainsString("SELECT id,approved_by,approved_at",$source);
         self::assertStringNotContainsString("(int)(\$listing['draft_package_id']??0)",$source);
