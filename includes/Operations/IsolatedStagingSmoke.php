@@ -53,14 +53,16 @@ final class IsolatedStagingSmoke
         $package=$wpdb->get_row($wpdb->prepare("SELECT id,approved_by,approved_at FROM ".Tables::etsy_draft_packages()." WHERE listing_id=%d AND approved_by>0 AND approved_at IS NOT NULL ORDER BY id DESC LIMIT 1",$listingId),ARRAY_A);
         if(!is_array($package)) return new WP_Error('digiforge_smoke_draft_evidence',__('Smoke requires a human-approved local Etsy draft package bound to the listing.','digiforge'),['status'=>409]);
         $opTable=$wpdb->prefix.'digiforge_etsy_operations';
-        $delivery=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $opTable WHERE draft_package_id=%d AND shop_reference=%s AND operation_type='UPLOAD_FILE' AND state='CONFIRMED_SUCCESS' AND external_reference REGEXP '^[1-9][0-9]*$' AND external_asset_reference REGEXP '^[1-9][0-9]*$' AND resource_reference=external_reference",(int)$package['id'],(string)$listing['shop_reference']));
-        if($delivery<1) return new WP_Error('digiforge_smoke_delivery_evidence',__('Smoke requires preserved confirmed immutable digital delivery evidence.','digiforge'),['status'=>409]);
+        $wpdb->last_error='';
+        $shops=$wpdb->get_col($wpdb->prepare("SELECT DISTINCT shop_reference FROM $opTable WHERE draft_package_id=%d AND operation_type='UPLOAD_FILE' AND state='CONFIRMED_SUCCESS' AND shop_reference REGEXP '^[1-9][0-9]*$' AND external_reference REGEXP '^[1-9][0-9]*$' AND external_asset_reference REGEXP '^[1-9][0-9]*$' AND resource_reference=external_reference ORDER BY shop_reference ASC",(int)$package['id']));
+        if(!is_array($shops)||!empty($wpdb->last_error)||count($shops)!==1) return new WP_Error('digiforge_smoke_delivery_evidence',__('Smoke requires one unambiguous confirmed immutable Etsy shop and digital delivery identity.','digiforge'),['status'=>409]);
+        $shopReference=(string)$shops[0];
 
         $orders=new OrderRepository();
         $order=$orders->createOrder([
             'channel'=>'etsy','environment'=>(string)$listing['environment'],
             'external_order_reference'=>'P5-LOCAL-'.$operationKey,
-            'shop_reference'=>(string)$listing['shop_reference'],'buyer_reference'=>'P5-LOCAL-NON-PII',
+            'shop_reference'=>$shopReference,'buyer_reference'=>'P5-LOCAL-NON-PII',
             'currency'=>(string)$listing['currency'],'subtotal_amount'=>(float)$listing['price_amount'],
             'shipping_amount'=>0,'tax_amount'=>0,'total_amount'=>(float)$listing['price_amount'],
             'personalization_required'=>false,'metadata'=>['fixture'=>'P5_INTERNAL_ONLY']
