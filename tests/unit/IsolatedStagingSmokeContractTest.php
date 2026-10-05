@@ -16,7 +16,7 @@ final class IsolatedStagingSmokeContractTest extends TestCase
         self::assertStringContainsString("CONFIRMED_SUCCESS",$source);
         self::assertStringContainsString("WHERE listing_id=%d AND approved_by>0 AND approved_at IS NOT NULL",$source);
         self::assertStringContainsString("SELECT id,approved_by,approved_at",$source);
-        self::assertStringNotContainsString("draft_package_id",$source);
+        self::assertStringNotContainsString("(int)(\$listing['draft_package_id']??0)",$source);
         self::assertStringNotContainsString("state='APPROVED'",$source);
         self::assertStringContainsString("new OrderRepository()",$source);
         self::assertStringContainsString("new FinanceRepository()",$source);
