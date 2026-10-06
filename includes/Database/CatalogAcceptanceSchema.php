@@ -20,7 +20,7 @@ final class CatalogAcceptanceSchema {
   acknowledgement_hash char(64) NOT NULL,
   reviewed_at datetime NOT NULL,
   PRIMARY KEY  (id),
-  UNIQUE KEY version_decision (catalog_version_id,decision),
+  UNIQUE KEY catalog_version (catalog_version_id),
   UNIQUE KEY acknowledgement_hash (acknowledgement_hash),
   KEY parent_version (parent_version_id),
   KEY reviewed_at (reviewed_at)
