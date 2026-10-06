@@ -72,7 +72,7 @@ final class Repository
 
     private function validateAnalyticsDimension(string $type,int $id,string $environment):true|WP_Error
     {
-        $table=match($type){'product'=>Tables::products(),'listing'=>Tables::listings(),'order'=>Tables::orders(),'provider'=>Tables::provider_mappings(),'shop'=>Tables::etsy_shops(),default=>''};
+        $table=match($type){'product'=>Tables::products(),'listing'=>Tables::listings(),'order'=>Tables::orders(),'provider'=>Tables::pod_mappings(),'shop'=>Tables::stores(),default=>''};
         if($table==='')return $this->error('invalid_analytics_dimension','Unsupported analytics dimension.',409);
         $row=$this->find($table,$id);if(is_wp_error($row))return $row;if(!is_array($row))return $this->error('invalid_analytics_dimension','Analytics dimension identity was not found.',409);
         if(isset($row['environment'])&&(string)$row['environment']!==$environment)return $this->error('environment_mismatch','Analytics dimension environment must match.',409);
