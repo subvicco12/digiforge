@@ -33,6 +33,7 @@ use DigiForge\Operations\AuditCorrelationReadModel;
 use DigiForge\POD\ProviderStatusReadModel;
 use DigiForge\POD\PersonalizedCatalogReference;
 use DigiForge\POD\MasterCatalogV2IngestionReadModel;
+use DigiForge\POD\MasterCatalogV2AcceptanceRepository;
 use DigiForge\POD\PersonalizedPodOperationsReadModel;
 use DigiForge\POD\ProductionAuthorizationRepository;
 use DigiForge\POD\RenderEvidenceOperationsReadModel;
@@ -53,6 +54,7 @@ final class Portal
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
     private const POD_PACKAGE_REVIEW_ACTION = 'digiforge_portal_pod_package_review';
     private const POD_RENDER_REVIEW_ACTION = 'digiforge_portal_pod_render_review';
+    private const MASTER500_ACCEPTANCE_ACTION = 'digiforge_portal_master500_acceptance';
     private const RECOVERY_PLAN_ACTION = 'digiforge_portal_recovery_plan';
     private const RECOVERY_ACCEPT_ACTION = 'digiforge_portal_recovery_accept';
 
@@ -94,6 +96,7 @@ final class Portal
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
         add_action('admin_post_' . self::POD_PACKAGE_REVIEW_ACTION, [$this, 'podPackageReview']);
         add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
+        add_action('admin_post_' . self::MASTER500_ACCEPTANCE_ACTION, [$this, 'master500Acceptance']);
         add_action('admin_post_' . self::RECOVERY_PLAN_ACTION, [$this, 'recoveryPlan']);
         add_action('admin_post_' . self::RECOVERY_ACCEPT_ACTION, [$this, 'recoveryAccept']);
         add_action('admin_post_' . self::PERSONALIZATION_REVIEW_ACTION, [$this, 'personalizationReview']);
@@ -189,6 +192,23 @@ final class Portal
             (string) $id
         );
         $this->redirect('approvals', sprintf('Candidate #%d marked %s.', $id, $decision));
+    }
+
+    public function master500Acceptance(): void
+    {
+        $this->guard('manage_digiforge_pod');
+        check_admin_referer(self::MASTER500_ACCEPTANCE_ACTION);
+        $versionId=isset($_POST['catalog_version_id'])?absint($_POST['catalog_version_id']):0;
+        $decision=isset($_POST['decision'])?strtoupper(sanitize_key(wp_unslash($_POST['decision']))):'';
+        $result=(new MasterCatalogV2AcceptanceRepository())->record($versionId,$decision,get_current_user_id());
+        if(is_wp_error($result))$this->redirect('pod_personalized',$result->get_error_message(),true);
+        Logger::audit('portal_master500_migration_acceptance_recorded',[
+            'catalog_version_id'=>$versionId,'decision'=>(string)$result['decision'],
+            'acknowledgement_hash'=>(string)$result['acknowledgement_hash'],
+            'production_authority'=>false,'promotion_authorized'=>false,
+            'external_execution_authorized'=>false,'external_execution_performed'=>false,
+        ],'catalog_version',(string)$versionId);
+        $this->redirect('pod_personalized',sprintf('Master 500 v2 candidate #%d marked %s as immutable human migration evidence. No promotion, publication or provider execution was authorized.',$versionId,(string)$result['decision']));
     }
 
     public function podRenderReview(): void
@@ -545,7 +565,7 @@ final class Portal
         }
         echo '<p class="df-muted">PREFLIGHT_CURRENT means the already human-approved package still matches current order readiness, approved Printify mapping/geometry, validated production template and active business ownership. It does not authorize production. STOP ALL and the external safety lock continue to outrank this evidence.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 v2 ingestion readiness</h2><p>Preflight evidence for a separately validated migration-candidate ingestion. This panel does not upload, import, promote or publish anything.</p></div><span class="df-status">'.esc_html((string)($v2Ingestion['ingestion_readiness']??'BLOCKED')).'</span></div>';
-        if(($v2Ingestion['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Exact immutable v1 parent evidence is unavailable. V2 ingestion readiness is BLOCKED and is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>V1 parent</span><b>#'.esc_html((string)($v2Ingestion['parent_version_id']??0)).'</b></div><div><span>Expected v2 rows</span><b>'.esc_html((string)($v2Ingestion['expected_rows']??0)).'</b></div><div><span>Production authority</span><b>NO</b></div><div><span>Promotion authorized</span><b>NO</b></div></div><p class="df-muted">Governed v2 source SHA256: '.esc_html((string)($v2Ingestion['v2_source_sha256']??'')).'. READY_FOR_VALIDATED_INPUT means exact parent evidence is present and no persisted v2 candidate was found. ALREADY_PERSISTED means the stored v2 source, parent, row count, fingerprint and migration-lineage evidence match the governed candidate. BLOCKED with EXISTING_V2_EVIDENCE_CONFLICT requires reconciliation before any ingestion retry.</p>';}echo '<p class="df-muted">No raw upload or automatic ingestion action is exposed here. A migration candidate never replaces v1 automatically and never grants Etsy publish or POD production authority.</p></section>';
+        if(($v2Ingestion['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<div class="df-notice df-notice-error">Exact immutable v1 parent evidence is unavailable. V2 ingestion readiness is BLOCKED and is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>V1 parent</span><b>#'.esc_html((string)($v2Ingestion['parent_version_id']??0)).'</b></div><div><span>Expected v2 rows</span><b>'.esc_html((string)($v2Ingestion['expected_rows']??0)).'</b></div><div><span>Production authority</span><b>NO</b></div><div><span>Promotion authorized</span><b>NO</b></div></div><p class="df-muted">Governed v2 source SHA256: '.esc_html((string)($v2Ingestion['v2_source_sha256']??'')).'. READY_FOR_VALIDATED_INPUT means exact parent evidence is present and no persisted v2 candidate was found. ALREADY_PERSISTED means the stored v2 source, parent, row count, fingerprint and migration-lineage evidence match the governed candidate. BLOCKED with EXISTING_V2_EVIDENCE_CONFLICT requires reconciliation before any ingestion retry.</p>';}echo '<p class="df-muted">No raw upload or automatic ingestion action is exposed here. A migration candidate never replaces v1 automatically and never grants Etsy publish or POD production authority.</p>';if(($v2Ingestion['query_state']??'UNAVAILABLE')==='AVAILABLE'&&($v2Ingestion['ingestion_readiness']??'')==='ALREADY_PERSISTED'&&(int)($v2Ingestion['v2_version_id']??0)>0){echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'" class="df-inline-form"><input type="hidden" name="action" value="'.esc_attr(self::MASTER500_ACCEPTANCE_ACTION).'"><input type="hidden" name="catalog_version_id" value="'.esc_attr((string)$v2Ingestion['v2_version_id']).'">';wp_nonce_field(self::MASTER500_ACCEPTANCE_ACTION);echo '<button class="df-button" name="decision" value="ACCEPT" type="submit">Accept exact migration evidence</button> <button class="df-button" name="decision" value="REJECT" type="submit">Reject exact migration evidence</button></form><p class="df-muted">This records immutable local human review only. ACCEPT does not promote the candidate or grant production/external authority.</p>';}echo '</section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Master 500 governed source</h2><p>Immutable Personalized POD reference. Catalog data is evidence, not production authority.</p></div><span class="df-status">'.esc_html((string)$m['source_state']).'</span></div>';
         echo '<div class="df-signal-grid"><div><span>Catalog</span><b>'.esc_html((string)$m['catalog_key']).'</b></div><div><span>Concepts</span><b>'.esc_html((string)$m['listing_count']).'</b></div><div><span>Engines</span><b>'.esc_html((string)$m['personalization_engine_count']).'</b></div><div><span>Production authority</span><b>NO</b></div></div></section>';
         if(($ops['query_state']['catalog']??'UNAVAILABLE')!=='AVAILABLE')echo '<section class="df-panel"><div class="df-notice df-notice-error">Governed catalog evidence unavailable. Database read failed; missing catalog evidence is not inferred.</div></section>';elseif($catalog!==[])echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Governed catalog version</h2><p>Persisted provenance and migration lineage. Visibility does not grant production authority.</p></div><span class="df-status">'.esc_html((string)($catalog['source_state']??'UNKNOWN')).'</span></div><div class="df-signal-grid"><div><span>Version</span><b>'.esc_html((string)($catalog['version_label']??'' )).'</b></div><div><span>Rows</span><b>'.esc_html((string)($catalog['row_count']??0)).'</b></div><div><span>Parent version</span><b>'.esc_html((string)($catalog['parent_version_id']??0)).'</b></div><div><span>Authority</span><b>NO</b></div><div><span>Migration candidate</span><b>'.(!empty($catalog['is_migration_candidate'])?'YES':'NO').'</b></div><div><span>Promotion authorized</span><b>NO</b></div><div><span>Lineage evidence</span><b>'.(!empty($catalog['migration_metadata_valid'])?'VERIFIED FORMAT':'UNAVAILABLE').'</b></div></div><p class="df-muted">Source SHA256: '.esc_html((string)($catalog['source_sha256']??'')).' · Fingerprint: '.esc_html((string)($catalog['fingerprint']??'')).'</p><p class="df-muted">A persisted migration candidate never replaces the immutable v1 baseline automatically and never grants Etsy publication or POD provider execution authority.</p></section>';
