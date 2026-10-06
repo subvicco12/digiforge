@@ -11,27 +11,28 @@ final class MigrationPlanTest extends TestCase
 {
     public function testPendingMigrationsAreOrderedAndResumable(): void
     {
-        self::assertSame([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(0));
-        self::assertSame([3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(2));
-        self::assertSame([5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(4));
-        self::assertSame([6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(5));
-        self::assertSame([7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(6));
-        self::assertSame([8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(7));
-        self::assertSame([9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(8));
-        self::assertSame([10,11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(9));
-        self::assertSame([11,12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(10));
-        self::assertSame([12,13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(11));
-        self::assertSame([13,14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(12));
-        self::assertSame([14,15,16,17,18,19,20,21,22,23], MigrationPlan::pending(13));
-        self::assertSame([15,16,17,18,19,20,21,22,23], MigrationPlan::pending(14));
-        self::assertSame([16,17,18,19,20,21,22,23], MigrationPlan::pending(15));
-        self::assertSame([17,18,19,20,21,22,23], MigrationPlan::pending(16));
-        self::assertSame([18,19,20,21,22,23], MigrationPlan::pending(17));
-        self::assertSame([19,20,21,22,23], MigrationPlan::pending(18));
-        self::assertSame([20,21,22,23], MigrationPlan::pending(19));
-        self::assertSame([21,22,23], MigrationPlan::pending(20));
-        self::assertSame([22,23], MigrationPlan::pending(21));
-        self::assertSame([23], MigrationPlan::pending(22));
-        self::assertSame([], MigrationPlan::pending(23));
+        self::assertSame(range(1, MigrationPlan::LATEST), MigrationPlan::pending(0));
+        self::assertSame(range(3, MigrationPlan::LATEST), MigrationPlan::pending(2));
+        self::assertSame(range(5, MigrationPlan::LATEST), MigrationPlan::pending(4));
+        self::assertSame(range(6, MigrationPlan::LATEST), MigrationPlan::pending(5));
+        self::assertSame(range(7, MigrationPlan::LATEST), MigrationPlan::pending(6));
+        self::assertSame(range(8, MigrationPlan::LATEST), MigrationPlan::pending(7));
+        self::assertSame(range(9, MigrationPlan::LATEST), MigrationPlan::pending(8));
+        self::assertSame(range(10, MigrationPlan::LATEST), MigrationPlan::pending(9));
+        self::assertSame(range(11, MigrationPlan::LATEST), MigrationPlan::pending(10));
+        self::assertSame(range(12, MigrationPlan::LATEST), MigrationPlan::pending(11));
+        self::assertSame(range(13, MigrationPlan::LATEST), MigrationPlan::pending(12));
+        self::assertSame(range(14, MigrationPlan::LATEST), MigrationPlan::pending(13));
+        self::assertSame(range(15, MigrationPlan::LATEST), MigrationPlan::pending(14));
+        self::assertSame(range(16, MigrationPlan::LATEST), MigrationPlan::pending(15));
+        self::assertSame(range(17, MigrationPlan::LATEST), MigrationPlan::pending(16));
+        self::assertSame(range(18, MigrationPlan::LATEST), MigrationPlan::pending(17));
+        self::assertSame(range(19, MigrationPlan::LATEST), MigrationPlan::pending(18));
+        self::assertSame(range(20, MigrationPlan::LATEST), MigrationPlan::pending(19));
+        self::assertSame(range(21, MigrationPlan::LATEST), MigrationPlan::pending(20));
+        self::assertSame(range(22, MigrationPlan::LATEST), MigrationPlan::pending(21));
+        self::assertSame(range(23, MigrationPlan::LATEST), MigrationPlan::pending(22));
+        self::assertSame([24], MigrationPlan::pending(23));
+        self::assertSame([], MigrationPlan::pending(MigrationPlan::LATEST));
     }
 }
