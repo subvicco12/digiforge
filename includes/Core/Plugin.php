@@ -12,6 +12,7 @@ use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
 use DigiForge\Database\V6OperationalSchema;
 use DigiForge\Database\ScopedPolicySchema;
+use DigiForge\Database\CatalogAcceptanceSchema;
 use DigiForge\REST\Controller;
 use DigiForge\REST\ProductFactoryController;
 use DigiForge\REST\DigitalFactoryController;
@@ -52,6 +53,7 @@ final class Plugin {
         // additive operational chain on normal boot so code/schema cannot diverge.
         if (! V6OperationalSchema::migrateIfNeeded()) { return; }
         if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
+        if (! CatalogAcceptanceSchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
         \DigiForge\Operations\RecoveryProviderRegistry::register(new \DigiForge\Operations\HostingerRecoveryProvider());
         (new Controller())->register();

@@ -90,6 +90,7 @@ final class Tables {
     public static function operational_alerts(): string { return self::name('operational_alerts'); }
     public static function catalog_versions(): string { return self::name('catalog_versions'); }
     public static function catalog_items(): string { return self::name('catalog_items'); }
+    public static function catalog_acceptance_evidence(): string { return self::name('catalog_acceptance_evidence'); }
     public static function shop_ai_policies(): string { return self::name('shop_ai_policies'); }
     public static function scoped_capability_policies(): string { return self::name('scoped_capability_policies'); }
     public static function shop_ai_usage(): string { return self::name('shop_ai_usage'); }
