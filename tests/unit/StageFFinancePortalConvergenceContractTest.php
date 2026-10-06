@@ -12,4 +12,8 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
   $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
   foreach(['Profitability periods','Net operating profit','Margin','HASH VERIFIED','Profitability evidence cannot move money'] as $v)self::assertStringContainsString($v,$p);
  }
+ public function testAnalyticsPortalFailsClosedAndVerifiesSnapshotEvidence():void{
+  $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
+  foreach(["\$kpi['query_state']","\$denominators['query_state']","Operational analytics evidence unavailable","Analytics snapshot evidence unavailable","No empty history is inferred","HASH VERIFIED","Analytics snapshots cannot authorize external execution"] as $v)self::assertStringContainsString($v,$p);
+ }
 }
