@@ -5,7 +5,7 @@ Complete DigiForge as a production-ready local-first WordPress platform without 
 
 ## Release posture
 - Plugin release: 1.0.103.
-- Database schema: v23.
+- Core plugin database version: v23; additive catalog acceptance schema: v24.
 - STOP ALL remains ON.
 - `automation_armed` remains internal and non-user-writable.
 - Add `activation_authorized`, internal and non-user-writable, default false.
@@ -33,7 +33,7 @@ The report must expose only non-secret status metadata and return an overall sta
 
 ## Final verification
 Hosted CI must cover:
-- version 1.0.95 with schema v23
+- version 1.0.103 with core database version v23 and additive catalog acceptance schema v24
 - internal activation gates are non-writable
 - effective switches remain false while required internal/scoped gates are false or STOP ALL is true
 - deterministic readiness report
@@ -47,5 +47,9 @@ Hosted CI must cover:
 Merging this release means DigiForge is code-complete, tested, packaged, documented and ready for controlled deployment. It does not authorize enabling integrations or external automation. Separate explicit activation authorization is required later.
 
 
-## v1.0.95 release-candidate certification
-This release candidate packages DigiForge v1.0.95 through the standard Engineering & Safety Audit. Runtime change completes governed Master 500 v2 migration-candidate persistence with exact source identity, immutable v1 parent evidence, preserved lineage and fail-closed transaction handling; schema, activation state and commerce/external execution authority remain unchanged. Catalog persistence cannot promote v2 or authorize external execution.
+## Current final-convergence certification posture
+DigiForge remains on plugin version 1.0.103 with core database version v23 and additive catalog acceptance schema v24 while final convergence changes are certified through the standard Engineering & Safety Audit. Master 500 v2 remains a governed MIGRATION_CANDIDATE with exact source identity, immutable v1 parent evidence and immutable human ACCEPT/REJECT evidence; acceptance does not promote the catalog or authorize production/external execution.
+
+Portal analytics now fails closed when KPI, lifecycle-denominator or analytics-snapshot evidence is unavailable, and persisted analytics snapshots are presented through the bounded hash-verifying finance operations read model. Queue/recovery and integration surfaces remain observational unless separately authorized.
+
+Database-backup recovery certification is deferred by owner instruction and must remain recorded as deferred rather than inferred or fabricated. Production deployment and every external activation remain separate explicit authorization boundaries.
