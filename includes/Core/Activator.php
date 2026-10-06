@@ -11,6 +11,7 @@ use DigiForge\Database\PodSchema;
 use DigiForge\Database\ProductionSchema;
 use DigiForge\Database\V6OperationalSchema;
 use DigiForge\Database\ScopedPolicySchema;
+use DigiForge\Database\CatalogAcceptanceSchema;
 final class Activator {
     public static function activate(): void {
         Capabilities::add();
@@ -44,6 +45,9 @@ final class Activator {
             return;
         }
         if (! ScopedPolicySchema::migrateIfNeeded()) {
+            return;
+        }
+        if (! CatalogAcceptanceSchema::migrateIfNeeded()) {
             return;
         }
         Settings::ensure_defaults();
