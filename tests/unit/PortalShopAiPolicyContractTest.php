@@ -12,6 +12,12 @@ final class PortalShopAiPolicyContractTest extends TestCase
         self::assertStringContainsString('check_admin_referer(self::SAVE_AI_POLICY_ACTION)',$s);
         self::assertStringContainsString('(new ShopAiGovernanceRepository())->savePolicy($policy, \'production\')',$s);
         self::assertStringContainsString('foreach (ShopAiPlan::STAGES as $stage)',$s);
+        self::assertStringContainsString("sanitize_text_field(wp_unslash(\$_POST[\$key]))",$s);
+        self::assertStringContainsString("(new ShopAiGovernanceRepository())->evaluate(\$shop,'production')",$s);
+        self::assertStringContainsString("get_error_code()==='ai_policy_missing'",$s);
+        self::assertStringContainsString('Editing is blocked to avoid replacing an unknown policy with defaults.',$s);
+        self::assertStringContainsString("\$editor['budgets']['run']",$s);
+        self::assertStringContainsString("\$editor['stages'][\$stage]",$s);
         self::assertStringContainsString("'external_execution_authorized' => false",$s);
         self::assertStringContainsString("'external_execution_performed' => false",$s);
         self::assertStringContainsString('No AI run, automation activation or external execution was authorized.',$s);
