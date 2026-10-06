@@ -9,6 +9,6 @@ final class FinalAiPolicyPortalEvidenceContractTest extends TestCase {
  }
  public function testShopAiRepositoryRequiresExplicitRunContextForPositiveRunBudget():void {
   $c=(string)file_get_contents(__DIR__.'/../../includes/AI/ShopAiGovernanceRepository.php');
-  foreach(['EXPLICIT_RUN_CONTEXT_REQUIRED',"'authoritative'=>"+String.fromCharCode(36)+"explicit",String.fromCharCode(36)+"runBudget>0&&!"+String.fromCharCode(36)+"explicit",'ai_policy_evidence_unavailable'] as $needle) self::assertStringContainsString($needle,$c);
+  foreach(['EXPLICIT_RUN_CONTEXT_REQUIRED',"'authoritative'=>$explicit",'$runBudget>0&&!$explicit','ai_policy_evidence_unavailable'] as $needle) self::assertStringContainsString($needle,$c);
  }
 }
