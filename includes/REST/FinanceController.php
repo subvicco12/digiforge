@@ -33,6 +33,9 @@ final class FinanceController
             register_rest_route(self::NS, '/finance/periods/calculate', [
                 'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'calculatePeriod'],
             ]);
+            register_rest_route(self::NS, '/finance/analytics', [
+                'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createAnalytics'],
+            ]);
             register_rest_route(self::NS, '/finance/intents', [
                 'methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createIntent'],
             ]);
@@ -73,6 +76,9 @@ final class FinanceController
 
     public function calculatePeriod(\WP_REST_Request $request): mixed
     { return $this->mutate($request,'finance_period_calculate',fn()=>(new Repository())->calculatePeriod((array)$request->get_json_params(),$this->key($request)),201); }
+
+    public function createAnalytics(\WP_REST_Request $request): mixed
+    { return $this->mutate($request,'finance_analytics_create',fn()=>(new Repository())->createAnalyticsSnapshot((array)$request->get_json_params(),$this->key($request)),201); }
 
     public function createIntent(\WP_REST_Request $request): mixed
     { return $this->mutate($request,'finance_intent_create',fn()=>(new Repository())->createIntent((array)$request->get_json_params(),$this->key($request)),201); }
