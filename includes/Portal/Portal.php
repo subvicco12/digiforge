@@ -7,6 +7,8 @@ namespace DigiForge\Portal;
 use DigiForge\Core\Settings;
 use DigiForge\AI\CostKpiReadModel;
 use DigiForge\AI\LifecycleDenominatorReadModel;
+use DigiForge\AI\ShopAiGovernanceRepository;
+use DigiForge\AI\ShopAiPlan;
 use DigiForge\Orders\OperationsReadModel as OrderOperationsReadModel;
 use DigiForge\Orders\HumanGateOperationsReadModel;
 use DigiForge\Orders\Repository as OrderRepository;
@@ -47,6 +49,7 @@ final class Portal
     private const REVIEW_ACTION = 'digiforge_portal_review_research';
     private const DEVELOP_ACTION = 'digiforge_portal_develop_candidate';
     private const SAVE_AI_SECRET_ACTION = 'digiforge_portal_save_ai_secret';
+    private const SAVE_AI_POLICY_ACTION = 'digiforge_portal_save_ai_policy';
     private const LISTING_REVIEW_ACTION = 'digiforge_portal_listing_review';
     private const POD_PACKAGE_REVIEW_ACTION = 'digiforge_portal_pod_package_review';
     private const POD_RENDER_REVIEW_ACTION = 'digiforge_portal_pod_render_review';
@@ -87,6 +90,7 @@ final class Portal
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
+        add_action('admin_post_' . self::SAVE_AI_POLICY_ACTION, [$this, 'saveAiPolicy']);
         add_action('admin_post_' . self::LISTING_REVIEW_ACTION, [$this, 'listingReview']);
         add_action('admin_post_' . self::POD_PACKAGE_REVIEW_ACTION, [$this, 'podPackageReview']);
         add_action('admin_post_' . self::POD_RENDER_REVIEW_ACTION, [$this, 'podRenderReview']);
@@ -276,6 +280,40 @@ final class Portal
         $this->redirect('listings', sprintf('Gate 3 review #%d marked %s. No Etsy publish was performed.', $reviewId, $decision));
     }
 
+    public function saveAiPolicy(): void
+    {
+        $this->guard('manage_digiforge_ai');
+        check_admin_referer(self::SAVE_AI_POLICY_ACTION);
+        $shop = isset($_POST['shop_key']) ? sanitize_key(wp_unslash($_POST['shop_key'])) : '';
+        $currency = isset($_POST['currency']) ? strtoupper(sanitize_text_field(wp_unslash($_POST['currency']))) : 'INR';
+        if ($shop === '' || $shop === ShopOperationsReadModel::ALL) {
+            $this->redirect('ai_budget', 'Choose one concrete shop before saving an AI policy.', true);
+        }
+        $policy = ['shop_key' => $shop, 'currency' => $currency, 'budgets' => [
+            'run' => max(0, (float) ($_POST['budget_run'] ?? 0)),
+            'day' => max(0, (float) ($_POST['budget_day'] ?? 0)),
+            'month' => max(0, (float) ($_POST['budget_month'] ?? 0)),
+        ], 'stages' => []];
+        foreach (ShopAiPlan::STAGES as $stage) {
+            $policy['stages'][$stage] = [
+                'limit' => max(0, (int) ($_POST['stage_' . $stage . '_limit'] ?? 0)),
+                'estimated_unit_cost' => max(0, (float) ($_POST['stage_' . $stage . '_unit_cost'] ?? 0)),
+            ];
+        }
+        $result = (new ShopAiGovernanceRepository())->savePolicy($policy, 'production');
+        if (is_wp_error($result)) {
+            $this->redirect('ai_budget', $result->get_error_message(), true);
+        }
+        Logger::audit('portal_shop_ai_policy_saved', [
+            'shop_key' => $shop,
+            'environment' => 'production',
+            'policy_hash' => (string) ($result['policy_hash'] ?? ''),
+            'external_execution_authorized' => false,
+            'external_execution_performed' => false,
+        ], 'shop_ai_policy', (string) ($result['id'] ?? ''));
+        $this->redirect('ai_budget', 'Shop AI policy saved and read-back confirmed. No AI run, automation activation or external execution was authorized.');
+    }
+
     public function saveAiSecret(): void
     {
         $this->guard('manage_digiforge_connections');
@@ -428,7 +466,8 @@ final class Portal
         $attentionSummary=(new AttentionReadModel())->summary();$attentionUnavailable=($attentionSummary['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE';
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$data=(new OperationalDepthReadModel())->aiBudget($shop);$cost=(array)$data['cost'];$policies=(array)$data['policies'];if(($data['policies_query_state']??'UNAVAILABLE')!=='AVAILABLE'||($cost['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<section class="df-panel"><h2>AI & Budget</h2><div class="df-notice df-notice-error">AI policy or cost evidence unavailable. Database read failed; counts and spend cannot be verified.</div><p>External execution authority: NO</p></section>';return;}$hierarchy=(new HierarchicalPolicyReadModel())->snapshot($shop);$scenarios=(new HierarchicalPolicyReadModel())->scenarios($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI & Budget</h2><p>Shop-scoped policy identities, quantities and estimated/actual spend. Policy evidence never grants execution authority. Global disable always wins; a narrower shop/workflow scope cannot override a disabled parent.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Shop scope</span><b>'.esc_html(ShopOperationsReadModel::shops()[$shop]).'</b></div><div><span>Active policy records</span><b>'.esc_html((string)count($policies)).'</b></div><div><span>Attributed quantity</span><b>'.esc_html((string)($cost['quantity']??0)).'</b></div><div><span>Estimated spend</span><b>'.esc_html(number_format((float)($cost['estimated_cost']??0),4)).'</b></div><div><span>Actual spend</span><b>'.esc_html(number_format((float)($cost['actual_cost']??0),4)).'</b></div><div><span>External execution authority</span><b>NO</b></div></div>';
-        if($policies!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Shop</th><th>Environment</th><th>Currency</th><th>State</th><th>Policy identity</th><th>Updated</th></tr></thead><tbody>';foreach($policies as $row){echo '<tr><td>'.esc_html((string)$row['shop_key']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html((string)$row['currency']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['policy_hash'],0,12)).'…</code></td><td>'.esc_html((string)$row['updated_at']).'</td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No AI policy exists for this shop scope.</div>';}if(($scenarios['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more AI planning scenarios could not verify authoritative shop policy/usage evidence. No permissive planning result is inferred.</div>';echo '<p class="df-muted">Planning scenarios evaluated: '.esc_html((string)count((array)$scenarios['scenarios'])).' · unavailable: '.esc_html((string)($scenarios['unavailable_scenarios']??0)).'. Quantities 1 / 5 / 10 are evaluated for each governed stage against the current shop policy and budget ceilings. Scenarios are preflight evidence only; they do not run AI or authorize external execution.</p></section>';
+        if($policies!==[]){echo '<div class="df-table-wrap"><table class="df-table"><thead><tr><th>Shop</th><th>Environment</th><th>Currency</th><th>State</th><th>Policy identity</th><th>Updated</th></tr></thead><tbody>';foreach($policies as $row){echo '<tr><td>'.esc_html((string)$row['shop_key']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html((string)$row['currency']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['policy_hash'],0,12)).'…</code></td><td>'.esc_html((string)$row['updated_at']).'</td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No AI policy exists for this shop scope.</div>';}if(($scenarios['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more AI planning scenarios could not verify authoritative shop policy/usage evidence. No permissive planning result is inferred.</div>';echo '<p class="df-muted">Planning scenarios evaluated: '.esc_html((string)count((array)$scenarios['scenarios'])).' · unavailable: '.esc_html((string)($scenarios['unavailable_scenarios']??0)).'. Quantities 1 / 5 / 10 are evaluated for each governed stage against the current shop policy and budget ceilings. Scenarios are preflight evidence only; they do not run AI or authorize external execution.</p>';
+        if($shop!==ShopOperationsReadModel::ALL){echo '<hr><h3>Shop AI policy</h3><p class="df-muted">Local governance only. Saving ceilings does not run AI, arm automation, or authorize external execution.</p><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::SAVE_AI_POLICY_ACTION).'"><input type="hidden" name="shop_key" value="'.esc_attr($shop).'">';wp_nonce_field(self::SAVE_AI_POLICY_ACTION);echo '<p><label>Currency <input name="currency" maxlength="3" value="INR" required></label> <label>Run budget <input type="number" min="0" step="0.000001" name="budget_run" value="0"></label> <label>Daily budget <input type="number" min="0" step="0.000001" name="budget_day" value="0"></label> <label>Monthly budget <input type="number" min="0" step="0.000001" name="budget_month" value="0"></label></p><div class="df-table-wrap"><table class="df-table"><thead><tr><th>Stage</th><th>Monthly quantity ceiling</th><th>Estimated unit cost</th></tr></thead><tbody>';foreach(ShopAiPlan::STAGES as $stage){echo '<tr><td>'.esc_html($stage).'</td><td><input type="number" min="0" step="1" name="stage_'.esc_attr($stage).'_limit" value="0"></td><td><input type="number" min="0" step="0.000001" name="stage_'.esc_attr($stage).'_unit_cost" value="0"></td></tr>';}echo '</tbody></table></div><p><button class="df-button" type="submit">Save shop AI policy</button></p></form>';}else{echo '<div class="df-notice">Select one concrete shop to edit its AI policy. All-shops scope remains read only.</div>';}echo '</section>';
     }
 
     private function fulfillmentProviders():void
