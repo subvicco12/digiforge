@@ -45,7 +45,7 @@ final class MigrationTest extends WP_UnitTestCase
         foreach (['locked_by','lease_expires_at','next_attempt_at','dead_lettered_at'] as $column) self::assertContains($column, $columns);
         foreach (array_merge([DigiForge\Database\Tables::integrations(), DigiForge\Database\Tables::integration_secrets(), DigiForge\Database\Tables::research_sources(), DigiForge\Database\Tables::research_observations(), DigiForge\Database\Tables::research_evidence(), DigiForge\Database\Tables::research_candidates(), DigiForge\Database\Tables::research_candidate_evidence(), DigiForge\Database\Tables::research_reviews(), DigiForge\Database\Tables::ai_tasks(), DigiForge\Database\Tables::ai_models(), DigiForge\Database\Tables::ai_prompts(), DigiForge\Database\Tables::ai_prompt_versions(), DigiForge\Database\Tables::ai_runs(), DigiForge\Database\Tables::ai_outputs(), DigiForge\Database\Tables::ai_usage(), DigiForge\Database\Tables::ai_reviews()], $this->productionTables(), $this->podTables(), $this->businessScopeTables(), $this->listingTables(), $this->orderTables(), $this->financeTables()) as $table) self::assertSame($table, $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table))));
         self::assertSame(DigiForge\Database\MigrationPlan::LATEST, (int) get_option('digiforge_db_schema_version'));
-        self::assertSame((string) DigiForge\Database\MigrationPlan::LATEST, (string) get_option('digiforge_db_version'));
+        self::assertSame('23', (string) get_option('digiforge_db_version'));
         self::assertContains('run_id',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
         self::assertContains('run_started_at',$wpdb->get_col('SHOW COLUMNS FROM '.DigiForge\Database\Tables::shop_ai_usage(),0));
         foreach([DigiForge\Database\Tables::pod_render_evidence(),DigiForge\Database\Tables::pod_authorization_packages()] as $table) self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
@@ -150,7 +150,7 @@ final class MigrationTest extends WP_UnitTestCase
         DigiForge\Core\Activator::activate();
         self::assertSame($before,$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N));
         self::assertSame($countBefore,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
-        self::assertSame(23,(int)get_option('digiforge_db_schema_version'));
+        self::assertSame(DigiForge\Database\MigrationPlan::LATEST,(int)get_option('digiforge_db_schema_version'));
     }
 
     public function testActivePluginBootRepairsV22ToV23WithoutActivationHook(): void
