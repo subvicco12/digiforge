@@ -48,7 +48,7 @@ final class Repository
         try{$environment=Validator::environment((string)($input['environment']??''));$start=Validator::date((string)($input['period_start']??''));$end=Validator::date((string)($input['period_end']??''));$metrics=Validator::structured((array)($input['metrics']??[]));$freshness=Validator::structured((array)($input['freshness_metadata']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}
         if($start>$end)return $this->error('validation','Period start must not be after period end.');
         $dimension=strtolower(trim((string)($input['dimension_type']??'')));if(!in_array($dimension,['product','listing','order','provider','shop','portfolio'],true))return $this->error('validation','Invalid analytics dimension.');
-        $dimensionId=absint($input['dimension_id']??0);if($dimension==='portfolio'){if($dimensionId!==0)return $this->error('validation','Portfolio analytics dimension_id must be zero.');}elseif($dimensionId<1){return $this->error('validation','Analytics dimension requires a positive local identity.');}
+        $dimensionId=absint($input['dimension_id']??0);if($dimension==='portfolio'){if($dimensionId!==0)return $this->error('validation','Portfolio analytics dimension_id must be zero.');}elseif($dimensionId<1){return $this->error('validation','Analytics dimension requires a positive local identity.');}else{$relationship=$this->validateAnalyticsDimension($dimension,$dimensionId,$environment);if(is_wp_error($relationship))return $relationship;}
         if($metrics===[])return $this->error('validation','Analytics metrics must not be empty.');
         $version=sanitize_key((string)($input['calculation_version']??'v1'));if($version==='')return $this->error('validation','Analytics calculation version is required.');
         $metricsJson=Validator::canonicalJson($metrics);$canonical=['environment'=>$environment,'dimension_type'=>$dimension,'dimension_id'=>$dimensionId,'period_start'=>$start,'period_end'=>$end,'metrics'=>$metrics,'freshness_metadata'=>$freshness,'calculation_version'=>$version];
@@ -68,6 +68,15 @@ final class Repository
     public function list(string $entity,int $page=1,int $perPage=20):array
     {
         $tables=['ledger'=>Tables::finance_ledger(),'fx'=>Tables::fx_snapshots(),'tax'=>Tables::tax_classifications(),'periods'=>Tables::finance_periods(),'analytics'=>Tables::analytics_snapshots(),'alerts'=>Tables::operational_alerts(),'intents'=>Tables::finance_intents()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
+    }
+
+    private function validateAnalyticsDimension(string $type,int $id,string $environment):true|WP_Error
+    {
+        $table=match($type){'product'=>Tables::products(),'listing'=>Tables::listings(),'order'=>Tables::orders(),'provider'=>Tables::provider_mappings(),'shop'=>Tables::etsy_shops(),default=>''};
+        if($table==='')return $this->error('invalid_analytics_dimension','Unsupported analytics dimension.',409);
+        $row=$this->find($table,$id);if(is_wp_error($row))return $row;if(!is_array($row))return $this->error('invalid_analytics_dimension','Analytics dimension identity was not found.',409);
+        if(isset($row['environment'])&&(string)$row['environment']!==$environment)return $this->error('environment_mismatch','Analytics dimension environment must match.',409);
+        return true;
     }
 
     private function validateSource(string $type,int $id,string $environment):true|WP_Error
