@@ -52,14 +52,23 @@ final class GovernedGeneration
         $projection = $this->governance->evaluate($shop, 'production', $runContext);
         if ($projection instanceof WP_Error) return $projection;
         $unitCost = max(0.0, (float)($projection['stages'][$stage]['estimated_unit_cost'] ?? 0));
+        $budgets = (array)($projection['budgets'] ?? []);
+        if (max(0.0, (float)($budgets['run'] ?? 0)) > 0
+            || max(0.0, (float)($budgets['day'] ?? 0)) > 0
+            || max(0.0, (float)($budgets['month'] ?? 0)) > 0) {
+            return new WP_Error(
+                'ai_generation_cost_accounting_unavailable',
+                'AI generation is blocked because a monetary budget is active but authoritative actual-cost attribution is unavailable.'
+            );
+        }
         $preflight = ShopAiPlan::preflight($projection, $stage, 1, $unitCost);
         if (empty($preflight['execution_allowed'])) {
             return new WP_Error('ai_generation_budget_blocked', 'Shop AI policy does not authorize this generation attempt.', ['reasons'=>$preflight['reasons'] ?? []]);
         }
 
         // Reserve quantity before the provider call so concurrent starts cannot
-        // bypass stage ceilings. Monetary actual_cost is intentionally not
-        // fabricated; authoritative provider-cost attribution remains separate.
+        // bypass stage ceilings. This path is allowed only when monetary budgets
+        // are disabled, so zero actual_cost is not used to satisfy a money limit.
         $usage = $this->governance->recordUsage([
             'shop_key'=>$shop,
             'workflow'=>'product_factory',
