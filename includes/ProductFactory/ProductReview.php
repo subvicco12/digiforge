@@ -25,6 +25,7 @@ final class ProductReview
 
         $products = new Repository();
         $version = $products->find('product_version', $productVersionId);
+        if (is_wp_error($version)) { return $version; }
         if ($version === null) {
             return $this->error('not_found', 'Product version not found.', 404);
         }
@@ -86,6 +87,7 @@ final class ProductReview
 
         $productId = (int) ($version['product_id'] ?? 0);
         $product = $products->find('product', $productId);
+        if (is_wp_error($product)) { return $product; }
         if ($product !== null && (string) ($product['state'] ?? '') === 'DRAFT') {
             $readyProduct = $products->transition('product', $productId, 'READY');
             if (is_wp_error($readyProduct)) { return $readyProduct; }
