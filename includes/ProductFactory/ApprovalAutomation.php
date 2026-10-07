@@ -6,6 +6,7 @@ namespace DigiForge\ProductFactory;
 
 use DigiForge\Database\Tables;
 use DigiForge\Core\Settings;
+use DigiForge\AI\GovernedGeneration;
 use DigiForge\Security\Logger;
 use WP_Error;
 
@@ -273,7 +274,7 @@ final class ApprovalAutomation
             $engine=new \DigiForge\Launch\ExecutionEngine();
             $brief=$engine->developmentBrief($candidateId,$shop);
             if(is_wp_error($brief)){$this->terminalError($candidateId,$shop,$runKey,$brief,$stateKey,$state);return;}
-            $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,8000);
+            $started=(new GovernedGeneration())->startBackgroundDevelop($shop,'develop',$brief,$runKey.'-develop-start-'.((int)($state['development_start_retries']??0)+1),$this->aiRunContext($runKey,$createdAt),8000);
             if(is_wp_error($started)){
                 if($this->retryStage($candidateId,$shop,$runKey,'develop',$started,$stateKey,$state,'development_start_retries'))return;
                 $this->terminalError($candidateId,$shop,$runKey,$started,$stateKey,$state);return;
@@ -299,7 +300,7 @@ final class ApprovalAutomation
                 if($this->retryStage($candidateId,$shop,$runKey,'development_poll',$developed,$stateKey,$state,'development_persist_retries'))return;
                 $this->terminalError($candidateId,$shop,$runKey,$developed,$stateKey,$state);return;
             }
-            $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($orchestrator->manifestBrief($developed,$shop),16000);
+            $started=(new GovernedGeneration())->startBackgroundDevelop($shop,'develop',$orchestrator->manifestBrief($developed,$shop),$runKey.'-manifest-start-'.((int)($state['manifest_start_retries']??0)+1),$this->aiRunContext($runKey,$createdAt),16000);
             if(is_wp_error($started)){
                 if($this->retryStage($candidateId,$shop,$runKey,'development_poll',$started,$stateKey,$state,'manifest_start_retries'))return;
                 $this->terminalError($candidateId,$shop,$runKey,$started,$stateKey,$state);return;
@@ -348,7 +349,7 @@ final class ApprovalAutomation
                 $qaRepairs++;$issues=$this->qaIssues($result);
                 $issueText=implode("\n",array_map(static fn($issue):string=>sanitize_text_field((string)$issue),$issues));
                 $brief=$orchestrator->manifestRepairBrief($state['developed'],$shop,$issueText,[]);
-                $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,16000);
+                $started=(new GovernedGeneration())->startBackgroundDevelop($shop,'qa',$brief,$runKey.'-qa-repair-'.$qaRepairs,$this->aiRunContext($runKey,$createdAt),16000);
                 if(!is_wp_error($started)){
                     $state['qa_repair_attempts']=$qaRepairs;$state['manifest_response_id']=(string)$started['response_id'];unset($state['manifest_ai']);
                     $state['build_key']=$runKey.'-qa-repair-'.$qaRepairs;update_option($stateKey,$state,false);
@@ -362,6 +363,12 @@ final class ApprovalAutomation
 
         delete_option($stateKey);$this->clearActive($candidateId,$shop,$runKey);
         Logger::audit('u3_product_build_completed',['shop'=>$shop,'run_key'=>$runKey,'product_version_id'=>(int)($result['product_version']['id']??0),'workflow_status'=>(string)($result['workflow_status']??''),'product_approval_required'=>(bool)($result['product_approval_required']??false),'external_actions'=>false],'research_candidate',(string)$candidateId);
+    }
+
+    /** @return array{run_id:string,started_at:string} */
+    private function aiRunContext(string $runKey, int $createdAt): array
+    {
+        return ['run_id' => sanitize_key($runKey), 'started_at' => gmdate('Y-m-d H:i:s', max(1, $createdAt))];
     }
 
     /** @param array<string,mixed> $state @param list<string> $clear */
@@ -385,7 +392,7 @@ final class ApprovalAutomation
         if($attempt>=self::MAX_MANIFEST_REPAIRS)return false;
         $attempt++;$issues=[$error->get_error_code().': '.$error->get_error_message()];
         $brief=$orchestrator->manifestRepairBrief($developed,$shop,implode("\n",$issues),$badPayload);
-        $started=(new \DigiForge\Launch\OpenAIClient())->startBackgroundDevelop($brief,16000);
+        $started=(new GovernedGeneration())->startBackgroundDevelop($shop,'develop',$brief,$runKey.'-manifest-repair-'.$attempt,$this->aiRunContext($runKey,(int)($state['created_at']??time())),16000);
         if(is_wp_error($started))return false;
         $state['manifest_repair_attempts']=$attempt;$state['manifest_response_id']=(string)$started['response_id'];unset($state['manifest_ai']);
         $state['build_key']=$runKey.'-manifest-repair-'.$attempt;update_option($stateKey,$state,false);

@@ -19,7 +19,7 @@ final class U3ProductFactoryStructureTest extends TestCase
     }
     public function testSemanticQaIsIndependentAndFailClosed(): void
     {
-        $source=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/SemanticQa.php'); self::assertStringContainsString('(new OpenAIClient())->develop(',$source); foreach(['specification_match','ip_trademark_risk','prohibited_content','link_qr_integrity','mockup_production_separation'] as $needle) self::assertStringContainsString("'{$needle}'",$source); self::assertStringContainsString("'passed' => false",$source);
+        $source=(string)file_get_contents(__DIR__.'/../../includes/ProductFactory/SemanticQa.php'); self::assertStringContainsString("(new GovernedGeneration())->develop(\$shop, 'qa'",$source); foreach(['specification_match','ip_trademark_risk','prohibited_content','link_qr_integrity','mockup_production_separation'] as $needle) self::assertStringContainsString("'{$needle}'",$source); self::assertStringContainsString("'passed' => false",$source);
     }
     public function testLaunchApiExposesBuildAndHumanReviewSeparately(): void
     {
