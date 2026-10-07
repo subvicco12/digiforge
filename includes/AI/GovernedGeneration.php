@@ -61,7 +61,8 @@ final class GovernedGeneration
                 'AI generation is blocked because a monetary budget is active but authoritative actual-cost attribution is unavailable.'
             );
         }
-        $preflight = ShopAiPlan::preflight($projection, $stage, 1, $unitCost);
+        $preflight = $this->governance->preflight($shop, $stage, 1, $unitCost, 'production', $runContext);
+        if ($preflight instanceof WP_Error) return $preflight;
         if (empty($preflight['execution_allowed'])) {
             return new WP_Error('ai_generation_budget_blocked', 'Shop AI policy does not authorize this generation attempt.', ['reasons'=>$preflight['reasons'] ?? []]);
         }
