@@ -602,6 +602,8 @@ final class Portal
 
     private function dashboard(): void
     {
+        $attentionSummary=(new AttentionReadModel())->summary();
+        $attentionUnavailable=($attentionSummary['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE';
         $cards = [
             'Pending opportunity approvals' => $this->pendingCount(),
             'Product approvals' => $this->countByState(Tables::production_plans(), 'state', 'REVIEW_REQUIRED'),
