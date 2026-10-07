@@ -30,10 +30,12 @@ final class ProductReview
             return $this->error('not_found', 'Product version not found.', 404);
         }
         $plan = $this->plan($productVersionId);
+        if (is_wp_error($plan)) { return $plan; }
         if ($plan === null || (string) ($plan['state'] ?? '') !== 'REVIEW_REQUIRED') {
             return $this->error('review_not_ready', 'Product production plan is not awaiting review.', 409);
         }
         $bundle = $this->bundle((int) $plan['id']);
+        if (is_wp_error($bundle)) { return $bundle; }
         if ($bundle === null || (string) ($bundle['state'] ?? '') !== 'REVIEW_REQUIRED') {
             return $this->error('review_not_ready', 'Product release bundle is not awaiting review.', 409);
         }
@@ -118,25 +120,29 @@ final class ProductReview
         ];
     }
 
-    /** @return array<string,mixed>|null */
-    private function plan(int $productVersionId): ?array
+    /** @return array<string,mixed>|WP_Error|null */
+    private function plan(int $productVersionId): array|WP_Error|null
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row($wpdb->prepare(
             'SELECT * FROM ' . Tables::production_plans() . ' WHERE product_version_id=%d ORDER BY id DESC LIMIT 1',
             $productVersionId
         ), ARRAY_A);
+        if (! empty($wpdb->last_error)) { return $this->error('approval_evidence_unavailable', 'Product Approval plan evidence is unavailable; approval is blocked.', 503); }
         return is_array($row) ? $row : null;
     }
 
-    /** @return array<string,mixed>|null */
-    private function bundle(int $planId): ?array
+    /** @return array<string,mixed>|WP_Error|null */
+    private function bundle(int $planId): array|WP_Error|null
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row($wpdb->prepare(
             'SELECT * FROM ' . Tables::release_bundles() . ' WHERE production_plan_id=%d ORDER BY id DESC LIMIT 1',
             $planId
         ), ARRAY_A);
+        if (! empty($wpdb->last_error)) { return $this->error('approval_evidence_unavailable', 'Product Approval bundle evidence is unavailable; approval is blocked.', 503); }
         return is_array($row) ? $row : null;
     }
 
@@ -144,11 +150,13 @@ final class ProductReview
     private function planQaPassed(int $planId): true|WP_Error
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $totalRaw = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
             $planId
         ));
         if(!empty($wpdb->last_error)||!is_numeric($totalRaw))return $this->error('qa_evidence_unavailable','Product Approval QA evidence is unavailable; approval is blocked.',503);
+        $wpdb->last_error = '';
         $badRaw = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%' AND status NOT IN ('PASS','WAIVED')",
             $planId
@@ -165,27 +173,33 @@ final class ProductReview
     private function requiredQaPassedRevisions(int $planId): array|WP_Error
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $specIds = $wpdb->get_col($wpdb->prepare(
             'SELECT asset_spec_id FROM ' . Tables::production_plan_assets() . ' WHERE production_plan_id=%d AND is_required=1 ORDER BY sequence_no ASC',
             $planId
         ));
+        if (! empty($wpdb->last_error)) { return $this->error('qa_evidence_unavailable', 'Required asset evidence is unavailable; approval is blocked.', 503); }
         if (! is_array($specIds) || $specIds === []) {
             return $this->error('qa_missing', 'No required production assets exist.', 409);
         }
         $revisions = [];
         foreach ($specIds as $specId) {
+            $wpdb->last_error = '';
             $revision = $wpdb->get_row($wpdb->prepare(
                 'SELECT * FROM ' . Tables::asset_revisions() . ' WHERE asset_spec_id=%d ORDER BY id DESC LIMIT 1',
                 (int) $specId
             ), ARRAY_A);
+            if (! empty($wpdb->last_error)) { return $this->error('qa_evidence_unavailable', 'Required asset revision evidence is unavailable; approval is blocked.', 503); }
             if (! is_array($revision) || (string) ($revision['state'] ?? '') !== 'QA_PASSED') {
                 return $this->error('qa_failed', 'Every required asset must pass QA before Product Approval.', 409);
             }
+            $wpdb->last_error = '';
             $badRaw = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d AND status NOT IN ('PASS','WAIVED')",
                 (int) $revision['id']
             ));
             if(!empty($wpdb->last_error)||!is_numeric($badRaw))return $this->error('qa_evidence_unavailable','Required asset QA evidence is unavailable; approval is blocked.',503);
+            $wpdb->last_error = '';
             $totalRaw = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='revision' AND target_id=%d",
                 (int) $revision['id']
