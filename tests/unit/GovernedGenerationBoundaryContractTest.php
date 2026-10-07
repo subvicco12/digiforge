@@ -18,7 +18,7 @@ foreach([$guard,$engine,$automation,$orchestrator,$qa] as $source){
 }
 $must=[
  [$guard,'ShopAiGovernanceRepository','shared boundary evaluates shop governance'],
- [$guard,'ShopAiPlan::preflight','shared boundary performs canonical preflight'],
+ [$guard,"governance->preflight",'shared boundary uses the governance repository canonical preflight'],
  [$guard,"ai_generation_cost_accounting_unavailable",'money budgets fail closed without truthful actual-cost accounting'],
  [$guard,'idempotent_replay','generation attempt replay cannot repeat provider execution'],
  [$engine,"GovernedGeneration())->research",'research generation is governed'],
