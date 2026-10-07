@@ -77,6 +77,13 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
   self::assertStringContainsString('Existing mutation routes retain their required `Idempotency-Key` header contracts',$plan);
   self::assertStringContainsString('QA success is not human approval',$plan);
  }
+ public function testFinalConvergenceDocumentationCannotRegressToPre987Scope():void{
+  $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.103_CONTROLLED_DEPLOYMENT_PLAN.md');
+  $evidence=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.103_FINAL_CONVERGENCE_EVIDENCE.md');
+  foreach(['governed Product Factory AI generation boundary','authoritative shop policy/preflight','deterministic attempt identity','Stage-F dashboard attention-evidence correction','UNAVAILABLE rather than zero'] as $needle)self::assertStringContainsString($needle,$plan);
+  foreach(['Deferred means REVIEW_REQUIRED, never PASS','production deployment remain separate explicit authority boundaries','external_actions_performed=false','production_activation_authorized=false'] as $needle)self::assertStringContainsString($needle,$evidence);
+ }
+
  public function testPostInstallRuntimeAcceptanceRemainsFailClosed():void{
   $checklist=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.103_POST_INSTALL_RUNTIME_ACCEPTANCE.md');
   foreach(['Plugin version | 1.0.103','Database schema | 23 / 23','STOP ALL | ON','Activation authorization | OFF','Automation armed | FALSE','UNAVAILABLE is not PASS','does not grant Etsy publish, POD production','neither performs nor authorizes a destructive staging restore'] as $needle)self::assertStringContainsString($needle,$checklist);
