@@ -86,7 +86,7 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
 
  public function testPostInstallRuntimeAcceptanceRemainsFailClosed():void{
   $checklist=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.103_POST_INSTALL_RUNTIME_ACCEPTANCE.md');
-  foreach(['Plugin version | 1.0.103','Database schema | 23 / 23','STOP ALL | ON','Activation authorization | OFF','Automation armed | FALSE','UNAVAILABLE is not PASS','does not grant Etsy publish, POD production','neither performs nor authorizes a destructive staging restore'] as $needle)self::assertStringContainsString($needle,$checklist);
+  foreach(['Plugin version | 1.0.103','Core plugin DB version | 23','Runtime schema after additive catalog-acceptance migration | 24 / 24','STOP ALL | ON','Activation authorization | OFF','Automation armed | FALSE','UNAVAILABLE is not PASS','does not grant Etsy publish, POD production','neither performs nor authorizes a destructive staging restore'] as $needle)self::assertStringContainsString($needle,$checklist);
  }
 
 }
