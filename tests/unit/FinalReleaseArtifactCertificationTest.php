@@ -66,7 +66,9 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
  public function testCurrentDeploymentPlanFailsClosedAndMatchesCertifiedRelease():void{
   $plan=(string)file_get_contents(dirname(__DIR__,2).'/docs/releases/V1.0.103_CONTROLLED_DEPLOYMENT_PLAN.md');
   self::assertStringContainsString('Candidate: DigiForge 1.0.103',$plan);
-  self::assertStringContainsString('Expected schema after migration: 23',$plan);
+  self::assertStringContainsString('Core package schema metadata: 23',$plan);
+  self::assertStringContainsString('Expected runtime schema after additive catalog-acceptance migration: 24',$plan);
+  self::assertStringContainsString('post-install readiness must report runtime schema 24/24',$plan);
   self::assertStringContainsString('current STOP ALL / activation / automation posture',$plan);
   self::assertStringContainsString('must be preserved',$plan);
   self::assertStringContainsString('Historical external-action evidence MUST NOT be cleared or rewritten',$plan);
