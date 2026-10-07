@@ -11,4 +11,14 @@ final class UninstallCredentialCleanupTest extends TestCase{
   self::assertNotFalse($delete);
   self::assertLessThan($delete,$gate);
  }
+ public function testOptedInUninstallCoversEveryRegisteredDigiForgeTable():void{
+  $tables=(string)file_get_contents(dirname(__DIR__,2).'/includes/Database/Tables.php');
+  $uninstall=(string)file_get_contents(dirname(__DIR__,2).'/uninstall.php');
+  preg_match_all("/self::name\\('([^']+)'\\)/",$tables,$matches);
+  $registered=array_values(array_unique($matches[1]??[]));
+  self::assertNotEmpty($registered);
+  foreach($registered as $suffix){
+   self::assertStringContainsString("'".$suffix."'",$uninstall,'Uninstall cleanup is missing registered table suffix: '.$suffix);
+  }
+ }
 }
