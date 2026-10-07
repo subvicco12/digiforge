@@ -129,12 +129,18 @@ final class Repository {
         return $result;
     }
 
-    public function list(string $entity,int $page=1,int $perPage=20): array {
+    public function list(string $entity,int $page=1,int $perPage=20): array|\WP_Error {
         $map=['sources'=>Tables::research_sources(),'observations'=>Tables::research_observations(),'evidence'=>Tables::research_evidence(),'candidates'=>Tables::research_candidates(),'reviews'=>Tables::research_reviews()];
         if(!isset($map[$entity])) return ['items'=>[],'pagination'=>['page'=>1,'per_page'=>20,'total_items'=>0,'total_pages'=>0]];
         $page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;global $wpdb;$table=$map[$entity];
-        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.$table.' ORDER BY id DESC LIMIT %d OFFSET %d',$perPage,$offset),ARRAY_A);$total=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.$table);
-        return ['items'=>array_map([$this,'normalize'],is_array($rows)?$rows:[]),'pagination'=>['page'=>$page,'per_page'=>$perPage,'total_items'=>$total,'total_pages'=>(int)ceil($total/$perPage)]];
+        $wpdb->last_error='';
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.$table.' ORDER BY id DESC LIMIT %d OFFSET %d',$perPage,$offset),ARRAY_A);
+        if(!is_array($rows)||!empty($wpdb->last_error))return $this->error('research_list_evidence_unavailable','Research list evidence could not be read.',503);
+        $wpdb->last_error='';
+        $rawTotal=$wpdb->get_var('SELECT COUNT(*) FROM '.$table);
+        if(!empty($wpdb->last_error)||!is_numeric($rawTotal))return $this->error('research_list_evidence_unavailable','Research list evidence could not be read.',503);
+        $total=(int)$rawTotal;
+        return ['items'=>array_map([$this,'normalize'],$rows),'pagination'=>['page'=>$page,'per_page'=>$perPage,'total_items'=>$total,'total_pages'=>(int)ceil($total/$perPage)]];
     }
 
     private function insertIdempotent(string $table,?string $key,array $data,string $type): array|\WP_Error {
