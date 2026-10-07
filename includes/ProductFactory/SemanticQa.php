@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace DigiForge\ProductFactory;
 
-use DigiForge\Launch\OpenAIClient;
+use DigiForge\AI\GovernedGeneration;
 use WP_Error;
 
 /** Independent AI review of produced content before Gate 2. */
@@ -15,7 +15,7 @@ final class SemanticQa
      * @param list<array<string,mixed>> $assets
      * @return array{passed:bool,checks:list<array<string,mixed>>,model:string,response_id:string,usage:array<string,mixed>}|WP_Error
      */
-    public function inspect(array $specification, array $assets): array|WP_Error
+    public function inspect(array $specification, array $assets, string $shop, string $attemptKey): array|WP_Error
     {
         $inventory = [];
         foreach ($assets as $asset) {
@@ -32,7 +32,7 @@ final class SemanticQa
             ];
         }
 
-        $response = (new OpenAIClient())->develop($this->prompt($specification, $inventory));
+        $response = (new GovernedGeneration())->develop($shop, 'qa', $this->prompt($specification, $inventory), $attemptKey);
         if (is_wp_error($response)) {
             return $response;
         }
