@@ -210,6 +210,7 @@ final class Repository {
     private function validate_descendants(string $type, int $id, array $data): true|\WP_Error {
         global $wpdb; $mismatch = false;
         $count = function(string $sql) use ($wpdb): int|\WP_Error {
+            $wpdb->last_error='';
             $raw=$wpdb->get_var($sql);
             if(!empty($wpdb->last_error)||!is_numeric($raw)){return $this->error('relationship_evidence_unavailable','Descendant relationship evidence is unavailable; update is blocked.',503);}
             return (int)$raw;
@@ -235,6 +236,7 @@ final class Repository {
         $target_names = ['digital_file' => 'file', 'digital_file_version' => 'file_version', 'digital_package' => 'package', 'digital_preview' => 'preview', 'digital_template' => 'template', 'digital_license' => 'license'];
         if (isset($target_names[$type])) {
             $owner = $type === 'digital_file_version' ? $this->find('digital_file', (int) $data['digital_file_id']) : $data;
+            if(is_wp_error($owner)){return $owner;}
             if ($owner === null || ! isset($owner['digital_product_id'])) { return $this->error('invalid_relationship', 'Unable to resolve descendant ownership.'); }
             $check=$hasMismatch($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_download_checks() . ' WHERE target_type = %s AND target_id = %d AND digital_product_id <> %d', $target_names[$type], $id, $owner['digital_product_id']));
             if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;
