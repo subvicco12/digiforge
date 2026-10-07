@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DigiForge\Launch;
 
 use DigiForge\Core\Settings;
+use DigiForge\AI\GovernedGeneration;
 use DigiForge\Database\Tables;
 use DigiForge\ProductFactory\Repository as ProductRepository;
 use DigiForge\Research\Repository as ResearchRepository;
@@ -29,7 +30,7 @@ final class ExecutionEngine
         $query = sanitize_text_field((string) ($input['query'] ?? 'Find a commercially attractive Etsy product opportunity'));
 
         $brief = $this->researchPrompt($market, $shop, $focus, $query);
-        $ai = (new OpenAIClient())->research($brief);
+        $ai = (new GovernedGeneration())->research($shop, $brief, $key . '-research');
         if (is_wp_error($ai)) {
             return $ai;
         }
@@ -129,7 +130,7 @@ final class ExecutionEngine
         }
 
         $brief = $this->developmentPrompt($candidate, $shop);
-        $ai = (new OpenAIClient())->develop($brief);
+        $ai = (new GovernedGeneration())->develop($shop, 'develop', $brief, $key . '-develop');
         if (is_wp_error($ai)) {
             return $ai;
         }
