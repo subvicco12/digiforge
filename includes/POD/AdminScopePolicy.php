@@ -23,6 +23,8 @@ final class AdminScopePolicy
             return BusinessScope::resolveConfigured($input);
         } catch (\InvalidArgumentException $e) {
             return new WP_Error('digiforge_pod_admin_scope', $e->getMessage(), ['status' => 409]);
+        } catch (\RuntimeException $e) {
+            return new WP_Error('digiforge_pod_scope_evidence_unavailable', 'POD registry evidence is unavailable; administration and readiness remain blocked.', ['status' => 503, 'retry_permitted' => false, 'external_execution_authorized' => false]);
         }
     }
 
