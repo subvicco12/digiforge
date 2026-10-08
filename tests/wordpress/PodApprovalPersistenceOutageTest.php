@@ -23,7 +23,7 @@ final class PodApprovalPersistenceOutageTest extends WP_UnitTestCase
         ]));
         $id = (int) $wpdb->insert_id;
         $filter = static function (string $sql) use ($table): string {
-            if (str_contains($sql, 'UPDATE ' . $table . ' SET ')) {
+            if (str_contains($sql, 'UPDATE `' . $table . '` SET ')) {
                 return 'UPDATE digiforge_test_missing_approval_write SET state=\'APPROVED\'';
             }
             return $sql;
