@@ -56,8 +56,8 @@ final class PodOwnershipReplayCommitUncertaintyTest extends WP_UnitTestCase
         };
         add_filter('query', $filter);
         try {
-            // A different idempotency key bypasses the early replay lookup but reaches
-            // existing-owner equivalence only if the original ownership key matches.
+            // An exact idempotency key is resolved by the initial replay lookup,
+            // before START TRANSACTION or any COMMIT attempt.
             $result = $repo->createMapping($scope, 'original-' . $key);
             self::assertIsArray($result);
             self::assertSame(0, $commits, 'Exact idempotency replay returns before a transaction.');
