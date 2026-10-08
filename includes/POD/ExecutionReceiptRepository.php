@@ -36,11 +36,12 @@ final class ExecutionReceiptRepository
   }
   $claim=ExecutionOutcomeClaimRepository::claim($auth,'SUCCEEDED',$hash);if(is_wp_error($claim))return $claim;
   $row=['action'=>$action,'evidence_hash'=>$evidence,'authorization_hash'=>$auth,'nonce_hash'=>$nonce,'external_reference'=>$external,'executed_by'=>$actor,'executed_at'=>gmdate('Y-m-d H:i:s',$executedAt),'receipt_hash'=>$hash,'created_at'=>current_time('mysql',true)];
-  if($wpdb->insert($table,$row)===false){
+  $wpdb->last_error='';if($wpdb->insert($table,$row)!==1){
    $wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$auth),ARRAY_A);
    if(!empty($wpdb->last_error))return new WP_Error('digiforge_terminal_insert_confirmation_unavailable','Terminal outcome may have persisted but confirmation is unavailable; do not retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
    if(is_array($winner)&&hash_equals((string)$winner['receipt_hash'],$hash))return $winner;
-   return new WP_Error('digiforge_receipt_store','Execution receipt could not be persisted.',['status'=>409]);
+   if(!is_array($winner))return new WP_Error('digiforge_terminal_insert_confirmation_unavailable','Terminal outcome persistence is uncertain; do not retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
+   return new WP_Error('digiforge_receipt_store','Execution receipt conflicts with existing evidence.',['status'=>409]);
   }
   $row['id']=(int)$wpdb->insert_id;return $row;
  }
