@@ -25,6 +25,9 @@ final class PodActiveOwnershipEvidenceOutageTest extends WP_UnitTestCase
             $result = (new \DigiForge\POD\BusinessScopeRepository())->assertActiveOwnershipForMapping(2147483647);
             self::assertWPError($result);
             self::assertSame('digiforge_scope_evidence_unavailable', $result->get_error_code());
+            self::assertSame(503, $result->get_error_data()['status']);
+            self::assertSame(false, $result->get_error_data()['retry_permitted']);
+            self::assertSame(false, $result->get_error_data()['external_execution_authorized']);
             self::assertSame(1, $reads);
         } finally {
             remove_filter('query', $filter);
