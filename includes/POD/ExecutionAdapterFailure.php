@@ -2,13 +2,13 @@
 declare(strict_types=1);
 namespace DigiForge\POD;
 
-/** Converts a pre-send adapter WP_Error into minimal FAILED evidence. Post-send ambiguity must be returned explicitly as UNKNOWN by the adapter. */
+/** Converts a provably pre-send adapter error to FAILED; absent attempt evidence remains UNKNOWN. */
 final class ExecutionAdapterFailure
 {
  /** @return array<string,mixed> */
  public static function fromError(array $permit,\WP_Error $error):array
  {
-  $data=$error->get_error_data();$data=is_array($data)?$data:[];$attempted=(bool)($data['network_request_attempted']??false);
+  $data=$error->get_error_data();$data=is_array($data)?$data:[];$attempted=($data['network_request_attempted']??null)!==false;
   return [
    'status'=>$attempted?'UNKNOWN':'FAILED',
    'action'=>(string)($permit['action']??''),
