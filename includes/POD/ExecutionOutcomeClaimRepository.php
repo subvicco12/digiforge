@@ -9,10 +9,11 @@ final class ExecutionOutcomeClaimRepository{
   $authorizationHash=strtolower(trim($authorizationHash));$outcomeHash=strtolower(trim($outcomeHash));$outcomeType=strtoupper(trim($outcomeType));
   if(!preg_match('/^[a-f0-9]{64}$/',$authorizationHash)||!preg_match('/^[a-f0-9]{64}$/',$outcomeHash)||!in_array($outcomeType,['SUCCEEDED','FAILED','UNKNOWN'],true))return new WP_Error('digiforge_outcome_claim_binding','Valid authorization, outcome type, and outcome hash required.',['status'=>400]);
   global $wpdb;$table=Tables::pod_execution_outcomes();$row=['authorization_hash'=>$authorizationHash,'outcome_type'=>$outcomeType,'outcome_hash'=>$outcomeHash,'created_at'=>current_time('mysql',true)];
-  if($wpdb->insert($table,$row)!==false){$row['id']=(int)$wpdb->insert_id;return $row;}
+  $wpdb->last_error='';if($wpdb->insert($table,$row)===1){$row['id']=(int)$wpdb->insert_id;return $row;}
   $wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE authorization_hash=%s LIMIT 1',$authorizationHash),ARRAY_A);
   if(!empty($wpdb->last_error))return new WP_Error('digiforge_outcome_claim_confirmation_unavailable','Execution outcome claim result is uncertain; reconcile before any retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   if(is_array($winner)&&hash_equals((string)$winner['outcome_hash'],$outcomeHash)&&hash_equals((string)$winner['outcome_type'],$outcomeType))return $winner;
+  if(!is_array($winner))return new WP_Error('digiforge_outcome_claim_confirmation_unavailable','Execution outcome claim result is uncertain; reconcile before any retry.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
   return new WP_Error('digiforge_outcome_claim_conflict','Authorization is already claimed by a different execution outcome.',['status'=>409]);
  }
 }
