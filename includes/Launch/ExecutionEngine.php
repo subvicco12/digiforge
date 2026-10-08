@@ -202,7 +202,7 @@ final class ExecutionEngine
         $sql = $wpdb->prepare('SELECT * FROM ' . Tables::research_candidates() . ' WHERE id=%d', $id);
         $queryResult = $wpdb->query($sql);
         if ($queryResult === false || (string) $wpdb->last_error !== '') return $this->error('candidate_evidence_unavailable', 'Research candidate authority evidence is unavailable.', 503);
-        $row = $wpdb->get_row(null, ARRAY_A);
+        $row = isset($wpdb->last_result[0]) ? (array) $wpdb->last_result[0] : null;
         if ((string) $wpdb->last_error !== '') return $this->error('candidate_evidence_unavailable', 'Research candidate authority evidence is unavailable.', 503);
         return is_array($row) ? $row : null;
     }
