@@ -23,7 +23,10 @@ final class Repository
     {
         global $wpdb;
         $wpdb->last_error='';
-        $row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE external_order_reference=%s AND shop_reference=%s ORDER BY id DESC LIMIT 1',$externalReference,$shopReference),ARRAY_A);
+        $wpdb->flush();
+        $queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE external_order_reference=%s AND shop_reference=%s ORDER BY id DESC LIMIT 1',$externalReference,$shopReference));
+        if($queryResult===false||!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','External order reference evidence could not be read.',503);
+        $row=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
         if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','External order reference evidence could not be read.',503);
         return is_array($row)?$row:null;
     }
