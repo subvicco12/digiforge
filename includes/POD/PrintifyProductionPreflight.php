@@ -10,7 +10,7 @@ final class PrintifyProductionPreflight
 {
  public function evaluate(int $packageId):array|WP_Error{
   global $wpdb;
-  $wpdb->last_error='';$package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$packageId),ARRAY_A);
+  $wpdb->last_error='';$wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$packageId));if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);$package=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
   if(!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);
   if(!is_array($package))return new WP_Error('printify_preflight_package_missing','Authorization package not found.',['status'=>404]);
   $blockers=[];
@@ -21,13 +21,13 @@ final class PrintifyProductionPreflight
   $currentHash=hash('sha256',wp_json_encode($readiness));
   if(!hash_equals((string)$package['readiness_hash'],$currentHash))$blockers[]='ORDER_READINESS_STALE';
   if(empty($readiness['ready']))$blockers[]='ORDER_NOT_READY';
-  $wpdb->last_error='';$mapping=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_mappings().' WHERE id=%d',(int)$package['provider_mapping_id']),ARRAY_A);
+  $wpdb->last_error='';$wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::pod_mappings().' WHERE id=%d',(int)$package['provider_mapping_id']));if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);$mapping=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
   if(!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);
   if(!is_array($mapping)||(string)($mapping['provider']??'')!=='printify'||(string)($mapping['state']??'')!=='APPROVED'||(int)($mapping['approved_by']??0)<1||empty($mapping['approved_at']))$blockers[]='PRINTIFY_MAPPING_NOT_CERTIFIED';
   $wpdb->last_error='';$areasRaw=$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::pod_print_areas()." WHERE provider_mapping_id=%d AND state='APPROVED'",(int)$package['provider_mapping_id']));
   if(!empty($wpdb->last_error)||!is_numeric($areasRaw))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);$areas=(int)$areasRaw;
   if($areas<1)$blockers[]='PRINTIFY_GEOMETRY_NOT_CERTIFIED';
-  $wpdb->last_error='';$template=$wpdb->get_row($wpdb->prepare("SELECT * FROM ".Tables::pod_production_templates()." WHERE supplier='printify' AND provider_blueprint_id=%d AND template_status='VALIDATED' ORDER BY template_version DESC LIMIT 1",(int)($mapping['provider_product_key']??0)),ARRAY_A);
+  $wpdb->last_error='';$wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare("SELECT * FROM ".Tables::pod_production_templates()." WHERE supplier='printify' AND provider_blueprint_id=%d AND template_status='VALIDATED' ORDER BY template_version DESC LIMIT 1",(int)($mapping['provider_product_key']??0)));if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);$template=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
   if(!empty($wpdb->last_error))return new WP_Error('printify_preflight_evidence_unavailable','Printify preflight evidence is unavailable; execution remains blocked.',['status'=>503,'external_execution_authorized'=>false]);
   if(!is_array($template))$blockers[]='PRINTIFY_TEMPLATE_NOT_VALIDATED';
   if(is_array($template)){
