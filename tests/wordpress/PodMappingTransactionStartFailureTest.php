@@ -36,6 +36,9 @@ final class PodMappingTransactionStartFailureTest extends WP_UnitTestCase
             ], $key);
             self::assertWPError($result);
             self::assertSame('digiforge_scope_transaction_unavailable', $result->get_error_code());
+            self::assertSame(503, $result->get_error_data()['status']);
+            self::assertSame(false, $result->get_error_data()['retry_permitted']);
+            self::assertSame(false, $result->get_error_data()['external_execution_authorized']);
             self::assertSame(1, $starts);
             self::assertSame(0, $registryReads);
             self::assertSame(0, (int) $wpdb->get_var($wpdb->prepare(
