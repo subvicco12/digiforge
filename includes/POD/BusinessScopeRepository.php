@@ -23,9 +23,9 @@ final class BusinessScopeRepository
         global $wpdb;if($mappingId<1)return new WP_Error('digiforge_scope_validation','Valid provider mapping is required.',['status'=>400]);
         $sql='SELECT m.*,b.business_key,s.store_key,p.program_key FROM '.Tables::pod_business_mappings().' m INNER JOIN '.Tables::businesses().' b ON b.id=m.business_id INNER JOIN '.Tables::stores().' s ON s.id=m.store_id AND s.business_id=b.id INNER JOIN '.Tables::product_programs().' p ON p.id=m.product_program_id AND p.business_id=b.id AND p.store_id=s.id WHERE m.provider_mapping_id=%d AND m.state=%s AND m.approved_by>0 AND m.approved_at IS NOT NULL AND b.status=%s AND s.status=%s AND p.status=%s LIMIT 1';
         $wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare($sql,$mappingId,'APPROVED','ACTIVE','ACTIVE','ACTIVE'));
-        if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('digiforge_scope_evidence_unavailable','Active POD ownership evidence could not be read.',['status'=>500]);
+        if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('digiforge_scope_evidence_unavailable','Active POD ownership evidence could not be read.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
         $row=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
-        if(!empty($wpdb->last_error))return new WP_Error('digiforge_scope_evidence_unavailable','Active POD ownership evidence could not be read.',['status'=>500]);
+        if(!empty($wpdb->last_error))return new WP_Error('digiforge_scope_evidence_unavailable','Active POD ownership evidence could not be read.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);
         if(!is_array($row))return new WP_Error('digiforge_scope_inactive','Provider mapping has no approved active business/store/product-program ownership.',['status'=>409]);
         if(sanitize_key((string)$row['business_key'])===BusinessScope::DIGICRAFTIFY_GOODS&&strtoupper((string)$row['program_key'])!==BusinessScope::PERSONALIZED_POD)return new WP_Error('digiforge_scope_validation','DigiCraftifyGoods is restricted to PERSONALIZED_POD',['status'=>409]);
         return $row;
