@@ -117,6 +117,7 @@ final class ExecutionEngine
             return $this->error('switch_disabled', 'AI and Product Development must be effectively authorized before development can run.', 409);
         }
         $candidate = $this->candidate($candidateId);
+        if (is_wp_error($candidate)) return $candidate;
         if ($candidate === null) {
             return $this->error('not_found', 'Research candidate not found.', 404);
         }
@@ -193,10 +194,12 @@ final class ExecutionEngine
     }
 
     /** @return array<string,mixed>|null */
-    private function candidate(int $id): ?array
+    private function candidate(int $id): array|\WP_Error|null
     {
         global $wpdb;
+        $wpdb->last_error = '';
         $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::research_candidates() . ' WHERE id=%d', $id), ARRAY_A);
+        if ((string) $wpdb->last_error !== '') return $this->error('candidate_evidence_unavailable', 'Research candidate authority evidence is unavailable.', 503);
         return is_array($row) ? $row : null;
     }
 
@@ -225,6 +228,7 @@ final class ExecutionEngine
             return $this->error('switch_disabled', 'AI and Product Development must be configured on before internal development can run.', 409);
         }
         $candidate = $this->candidate($candidateId);
+        if (is_wp_error($candidate)) return $candidate;
         if ($candidate === null) {
             return $this->error('not_found', 'Research candidate not found.', 404);
         }
@@ -242,6 +246,7 @@ final class ExecutionEngine
     public function persistDevelopment(int $candidateId, string $shop, string $key, array $ai): array|\WP_Error
     {
         $candidate = $this->candidate($candidateId);
+        if (is_wp_error($candidate)) return $candidate;
         if ($candidate === null) return $this->error('not_found', 'Research candidate not found.', 404);
         if (($candidate['review_status'] ?? '') !== ResearchRepository::REVIEW_APPROVED) return $this->error('approval_required', 'Research candidate must be explicitly APPROVED before product development.', 409);
         $shop = sanitize_key($shop); if (! in_array($shop, ['digital','goods'], true)) return $this->error('validation', 'shop must be digital or goods.');
