@@ -12,7 +12,7 @@ final class BusinessScopeRepository
     public function replay(array $input,?string $idempotencyKey): array|WP_Error|null
     {
         global $wpdb;$key=$idempotencyKey===null?null:sanitize_text_field($idempotencyKey);if($key===null||$key==='')return null;
-        $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE idempotency_key=%s LIMIT 1',$key),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('digiforge_idempotency_evidence_unavailable','Idempotency evidence could not be read.',['status'=>500]);if(!is_array($existing))return null;
+        $wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE idempotency_key=%s LIMIT 1',$key));if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('digiforge_idempotency_evidence_unavailable','Idempotency evidence could not be read.',['status'=>500]);$existing=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;if(!empty($wpdb->last_error))return new WP_Error('digiforge_idempotency_evidence_unavailable','Idempotency evidence could not be read.',['status'=>500]);if(!is_array($existing))return null;
         $fingerprint=$this->requestFingerprint($input);if(is_wp_error($fingerprint))return $fingerprint;
         return hash_equals((string)($existing['request_fingerprint']??''),$fingerprint)?$existing:new WP_Error('digiforge_idempotency_conflict','Idempotency key is already bound to a different business scope or mapping.',['status'=>409]);
     }
