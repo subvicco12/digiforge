@@ -7,7 +7,7 @@ final class PodBusinessScopeEvidenceAvailabilityContractTest extends TestCase
  public function testIndependentScopeReadsClearStaleErrorsAndFailClosed():void{
   $s=(string)file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');
   foreach(['Active POD ownership evidence could not be read.','Business scope evidence could not be read.','Store scope evidence could not be read.','Product-program scope evidence could not be read.','Provider mapping evidence could not be read.'] as $n)self::assertStringContainsString($n,$s);
-  self::assertGreaterThanOrEqual(6,substr_count($s,"\$wpdb->last_error=''"));
+  self::assertGreaterThanOrEqual(6,substr_count($s,"\$wpdb->flush()"));
  }
  public function testPostWriteReadbacksAndCommitUncertaintyDoNotInviteRetry():void{
   $s=(string)file_get_contents(__DIR__.'/../../includes/POD/BusinessScopeRepository.php');
