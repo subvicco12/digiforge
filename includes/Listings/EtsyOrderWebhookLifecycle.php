@@ -29,6 +29,7 @@ final class EtsyOrderWebhookLifecycle
 
         if($type==='ORDER.PAID'){
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
+            if($existing instanceof WP_Error)return $existing;
             if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$existing['id']),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
             $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
             $prepared=[];$reviewRequired=$items===[];
@@ -66,6 +67,7 @@ final class EtsyOrderWebhookLifecycle
         }
 
         $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
+        if($existing instanceof WP_Error)return $existing;
         if($existing===null)return self::error('order_not_found','Verified Etsy event references no local order.');
         if($type==='ORDER.CANCELED'){
             $state=(string)$existing['state'];
