@@ -198,7 +198,11 @@ final class ExecutionEngine
     {
         global $wpdb;
         $wpdb->last_error = '';
-        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::research_candidates() . ' WHERE id=%d', $id), ARRAY_A);
+        $wpdb->flush();
+        $sql = $wpdb->prepare('SELECT * FROM ' . Tables::research_candidates() . ' WHERE id=%d', $id);
+        $queryResult = $wpdb->query($sql);
+        if ($queryResult === false || (string) $wpdb->last_error !== '') return $this->error('candidate_evidence_unavailable', 'Research candidate authority evidence is unavailable.', 503);
+        $row = $wpdb->get_row(null, ARRAY_A);
         if ((string) $wpdb->last_error !== '') return $this->error('candidate_evidence_unavailable', 'Research candidate authority evidence is unavailable.', 503);
         return is_array($row) ? $row : null;
     }
