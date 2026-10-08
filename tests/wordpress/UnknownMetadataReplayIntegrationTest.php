@@ -41,24 +41,24 @@ final class UnknownMetadataReplayIntegrationTest extends WP_UnitTestCase {
  }
  public function testLowercaseUnknownWithoutIdentityAlsoBlocksReplay():void {
   $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>str_repeat('a',64)];
-  $authorization=DigiForge\\POD\\ExecutionAuthorization::issue($approval,'ETSY_DRAFT_CREATE',7,'unknown_lowercase_nonce_001',900);
+  $authorization=DigiForge\POD\ExecutionAuthorization::issue($approval,'ETSY_DRAFT_CREATE',7,'unknown_lowercase_nonce_001',900);
   self::assertIsArray($authorization);
-  $adapter=new class implements DigiForge\\POD\\ExecutionAdapter {
+  $adapter=new class implements DigiForge\POD\ExecutionAdapter {
    public int $calls=0;
    public function execute(array $permit,array $payload):array|WP_Error {
     $this->calls++;
     return ['status'=>' unknown ','request_fingerprint'=>'','reconciliation_identity'=>[]];
    }
   };
-  $result=DigiForge\\POD\\ControlledExecutionTransaction::execute($adapter,$authorization,'ETSY_DRAFT_CREATE',str_repeat('a',64),8,time(),['safe'=>'payload']);
+  $result=DigiForge\POD\ControlledExecutionTransaction::execute($adapter,$authorization,'ETSY_DRAFT_CREATE',str_repeat('a',64),8,time(),['safe'=>'payload']);
   self::assertWPError($result);
   self::assertSame('digiforge_transaction_reconciliation_evidence_unavailable',$result->get_error_code());
   self::assertFalse($result->get_error_data()['retry_permitted']);
   self::assertTrue($result->get_error_data()['reconciliation_required']);
   self::assertFalse($result->get_error_data()['external_execution_authorized']);
   global $wpdb;
-  self::assertSame(1,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\\Database\\Tables::pod_execution_nonces().' WHERE authorization_hash=%s',$authorization['authorization_hash'])));
-  $replay=DigiForge\\POD\\ControlledExecutionTransaction::execute($adapter,$authorization,'ETSY_DRAFT_CREATE',str_repeat('a',64),8,time(),['safe'=>'payload']);
+  self::assertSame(1,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::pod_execution_nonces().' WHERE authorization_hash=%s',$authorization['authorization_hash'])));
+  $replay=DigiForge\POD\ControlledExecutionTransaction::execute($adapter,$authorization,'ETSY_DRAFT_CREATE',str_repeat('a',64),8,time(),['safe'=>'payload']);
   self::assertWPError($replay);
   self::assertSame('digiforge_execution_replay',$replay->get_error_code());
   self::assertSame(1,$adapter->calls);
