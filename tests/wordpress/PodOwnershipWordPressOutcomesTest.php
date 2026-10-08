@@ -25,17 +25,20 @@ final class PodOwnershipWordPressOutcomesTest extends WP_UnitTestCase
 
     public function testQueryFailureIsNotMisclassifiedAsMissingOwnership(): void
     {
-        global $wpdb;
-        $table = \DigiForge\Database\Tables::pod_business_mappings();
-        $renamed = $table . '_unavailable_test';
-        self::assertSame(0, (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s', $renamed)));
-        $wpdb->query('RENAME TABLE ' . $table . ' TO ' . $renamed);
+        $table = \\DigiForge\\Database\\Tables::pod_business_mappings();
+        $filter = static function (string $sql) use ($table): string {
+            if (str_contains($sql, 'SELECT m.*,b.business_key,s.store_key,p.program_key FROM ' . $table . ' m ')) {
+                return 'SELECT * FROM digiforge_test_intentionally_missing_authority_table';
+            }
+            return $sql;
+        };
+        add_filter('query', $filter);
         try {
-            $result = (new \DigiForge\POD\BusinessScopeRepository())->assertActiveOwnershipForMapping(2147483647);
+            $result = (new \\DigiForge\\POD\\BusinessScopeRepository())->assertActiveOwnershipForMapping(2147483647);
             self::assertWPError($result);
             self::assertSame('digiforge_scope_evidence_unavailable', $result->get_error_code());
         } finally {
-            $wpdb->query('RENAME TABLE ' . $renamed . ' TO ' . $table);
+            remove_filter('query', $filter);
         }
     }
 }
