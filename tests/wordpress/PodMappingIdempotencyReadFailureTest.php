@@ -40,6 +40,9 @@ final class PodMappingIdempotencyReadFailureTest extends WP_UnitTestCase
             ], 'idempotency-read-outage-' . wp_rand(100000, 999999));
             self::assertWPError($result);
             self::assertSame('digiforge_idempotency_evidence_unavailable', $result->get_error_code());
+            self::assertSame(503, $result->get_error_data()['status']);
+            self::assertSame(false, $result->get_error_data()['retry_permitted']);
+            self::assertSame(false, $result->get_error_data()['external_execution_authorized']);
             self::assertSame(1, $reads);
             self::assertSame(0, $transactions);
             self::assertSame(0, $registryReads);
