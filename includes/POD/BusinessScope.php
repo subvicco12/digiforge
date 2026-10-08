@@ -47,9 +47,10 @@ final class BusinessScope
         $businessRef = self::requiredToken($input['business_id'] ?? null, 'business_id');
         $storeRef = self::requiredToken($input['store_id'] ?? null, 'store_id');
 
-        $business = ctype_digit($businessRef)
-            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE id=%d AND status=%s LIMIT 1', (int) $businessRef, self::ACTIVE), ARRAY_A)
-            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE business_key=%s AND status=%s LIMIT 1', $businessRef, self::ACTIVE), ARRAY_A);
+        $businessSql = ctype_digit($businessRef)
+            ? $wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE id=%d AND status=%s LIMIT 1', (int) $businessRef, self::ACTIVE)
+            : $wpdb->prepare('SELECT * FROM ' . Tables::businesses() . ' WHERE business_key=%s AND status=%s LIMIT 1', $businessRef, self::ACTIVE);
+        $business = self::queryRegistryRow($businessSql, 'business');
         if (!is_array($business) || (int) ($business['id'] ?? 0) < 1) {
             throw new \InvalidArgumentException('active configured business is required');
         }
@@ -59,21 +60,22 @@ final class BusinessScope
         }
 
         $businessId = (int) $business['id'];
-        $store = ctype_digit($storeRef)
-            ? $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE id=%d AND business_id=%d AND status=%s LIMIT 1', (int) $storeRef, $businessId, self::ACTIVE), ARRAY_A)
-            : $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE store_key=%s AND business_id=%d AND status=%s LIMIT 1', $storeRef, $businessId, self::ACTIVE), ARRAY_A);
+        $storeSql = ctype_digit($storeRef)
+            ? $wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE id=%d AND business_id=%d AND status=%s LIMIT 1', (int) $storeRef, $businessId, self::ACTIVE)
+            : $wpdb->prepare('SELECT * FROM ' . Tables::stores() . ' WHERE store_key=%s AND business_id=%d AND status=%s LIMIT 1', $storeRef, $businessId, self::ACTIVE);
+        $store = self::queryRegistryRow($storeSql, 'store');
         if (!is_array($store) || (int) ($store['id'] ?? 0) < 1) {
             throw new \InvalidArgumentException('active configured store owned by business is required');
         }
 
         $storeId = (int) $store['id'];
-        $programRow = $wpdb->get_row($wpdb->prepare(
+        $programRow = self::queryRegistryRow($wpdb->prepare(
             'SELECT * FROM ' . Tables::product_programs() . ' WHERE business_id=%d AND store_id=%d AND program_key=%s AND status=%s LIMIT 1',
             $businessId,
             $storeId,
             $program,
             self::ACTIVE
-        ), ARRAY_A);
+        ), 'product_program');
         if (!is_array($programRow) || (int) ($programRow['id'] ?? 0) < 1) {
             throw new \InvalidArgumentException('active configured product program is required for business/store');
         }
@@ -84,6 +86,22 @@ final class BusinessScope
             'product_program_id' => (int) $programRow['id'],
             'product_program' => $program,
         ];
+    }
+
+    /**
+     * Distinguish unavailable registry evidence from a genuinely absent ACTIVE row.
+     * The caller may reject missing records as configuration errors, but SQL failures
+     * must remain independently identifiable to upstream fail-closed handlers.
+     */
+    private static function queryRegistryRow(string $sql, string $scope): ?array
+    {
+        global $wpdb;
+        $wpdb->flush();
+        $outcome = $wpdb->query($sql);
+        if ($outcome === false || !empty($wpdb->last_error)) {
+            throw new \RuntimeException('POD ' . $scope . ' registry evidence unavailable');
+        }
+        return isset($wpdb->last_result[0]) ? (array) $wpdb->last_result[0] : null;
     }
 
     public static function assertMatches(array $expected, array $actual): void
