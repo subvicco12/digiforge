@@ -28,13 +28,22 @@ final class EtsyPublishAuthorizationGate
 
         global $wpdb;
         $wpdb->last_error='';
-        $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        $wpdb->flush();
+        $queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId));
+        if($queryResult===false||!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted intent evidence query failed.',503);
+        $intent=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
         if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted Etsy intent evidence could not be read.',503);
         $wpdb->last_error='';
-        $package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId),ARRAY_A);
+        $wpdb->flush();
+        $queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::etsy_draft_packages().' WHERE id=%d LIMIT 1',$packageId));
+        if($queryResult===false||!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted package evidence query failed.',503);
+        $package=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
         if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted Etsy draft package evidence could not be read.',503);
         $wpdb->last_error='';
-        $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',$listingId),ARRAY_A);
+        $wpdb->flush();
+        $queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',$listingId));
+        if($queryResult===false||!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted listing evidence query failed.',503);
+        $listing=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
         if(!empty($wpdb->last_error)) return self::error('evidence_unavailable','Persisted listing approval evidence could not be read.',503);
         if(!is_array($intent)||!is_array($package)||!is_array($listing)) return self::error('scope','Persisted publish scope is incomplete.');
         if((string)($intent['state']??'')!=='APPROVED_INTENT'
