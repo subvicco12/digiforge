@@ -9,7 +9,7 @@ final class PodCreationCommitUncertaintyTest extends WP_UnitTestCase
         \DigiForge\Core\Activator::activate();
     }
 
-    public function testCommitFailureReturnsUnknownOutcomeWithoutAutomaticRetry(): void
+    public function testMissingProviderMappingRejectsBeforeCommit(): void
     {
         global $wpdb;
         $tables = \DigiForge\Database\Tables::class;
@@ -43,12 +43,13 @@ final class PodCreationCommitUncertaintyTest extends WP_UnitTestCase
             $scope = ['business_id' => $key, 'store_id' => $key, 'product_program' => 'PERSONALIZED_POD'];
             $resolved = \DigiForge\POD\BusinessScope::resolveConfigured($scope);
             self::assertSame($businessId, $resolved['business_id']);
-            // Existing ownership replay reaches the COMMIT boundary without provider writes.
+            // Invalid provider mapping must reject before the COMMIT boundary.
             $result = (new \DigiForge\POD\BusinessScopeRepository())->createMapping(
                 $scope + ['product_version_id' => 2147483647, 'provider_mapping_id' => 2147483647],
                 'commit-uncertainty-' . $key
             );
             self::assertWPError($result);
+            self::assertSame('digiforge_scope_relationship', $result->get_error_code());
             self::assertSame(0, $commits, 'Missing provider mapping must reject before COMMIT.');
         } finally {
             remove_filter('query', $filter);
