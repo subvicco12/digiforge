@@ -31,7 +31,11 @@ final class ControlledExecutionTransaction
   if(is_wp_error($raw))$raw=ExecutionAdapterFailure::fromError($permit,$raw);
 
   $normalized=ExecutionAdapterResult::normalize($permit,$raw);
-  if(is_wp_error($normalized))return $normalized;
+  if(is_wp_error($normalized)) {
+   if(($raw['status']??null)==='UNKNOWN')
+    return new WP_Error('digiforge_transaction_reconciliation_evidence_unavailable','UNKNOWN adapter outcome has incomplete reconciliation evidence.',['status'=>503,'retry_permitted'=>false,'reconciliation_required'=>true,'external_execution_authorized'=>false]);
+   return $normalized;
+  }
   if(($normalized['status']??'')==='UNKNOWN'){
    $unknown=ExecutionUnknownRecord::record($authorization,$permit,$normalized,$actor,$now);
    if(is_wp_error($unknown))return $unknown;
