@@ -19,10 +19,12 @@ final class Repository
         return $this->insert(Tables::orders(),$key,['channel'=>$channel,'environment'=>$environment,'external_order_reference'=>sanitize_text_field((string)($input['external_order_reference']??'')),'shop_reference'=>sanitize_text_field((string)($input['shop_reference']??'')),'buyer_reference'=>sanitize_text_field((string)($input['buyer_reference']??'')),'currency'=>$currency,'subtotal_amount'=>$subtotal,'shipping_amount'=>$shipping,'tax_amount'=>$tax,'total_amount'=>$total,'personalization_required'=>!empty($input['personalization_required'])?1:0,'state'=>'RECEIVED','approved_by'=>0,'approved_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'order');
     }
 
-    public function findByExternalReference(string $externalReference,string $shopReference): ?array
+    public function findByExternalReference(string $externalReference,string $shopReference): array|WP_Error|null
     {
         global $wpdb;
+        $wpdb->last_error='';
         $row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE external_order_reference=%s AND shop_reference=%s ORDER BY id DESC LIMIT 1',$externalReference,$shopReference),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','External order reference evidence could not be read.',503);
         return is_array($row)?$row:null;
     }
 
