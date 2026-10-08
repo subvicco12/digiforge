@@ -34,7 +34,7 @@ final class ControlledExecutionTransactionFailureTest extends WP_UnitTestCase
             public int $calls=0;
             public function execute(array $permit,array $payload):array|WP_Error {
                 $this->calls++;
-                return new WP_Error('provider_timeout','SECRET provider message',['token'=>'must-not-persist']);
+                return new WP_Error('provider_timeout','SECRET provider message',['token'=>'must-not-persist','network_request_attempted'=>false]);
             }
         };
 
