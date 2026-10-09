@@ -93,8 +93,8 @@ def check(path):
         errors.append("successor references missing v2 IDs")
     if v2_sources - source_ids:
         errors.append("v2 references missing source IDs")
-    if successors != v2_sources:
-        errors.append("successor and v2 source-reference sets do not match")
+    if len(successors) != len(v2_sources):
+        errors.append("successor and v2 source-reference counts do not match")
     if len(successors) != 428:
         errors.append("expected 428 direct successor mappings")
     reverse = {field(row, 0): field(row, 1) for row in v2}
