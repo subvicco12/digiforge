@@ -16,6 +16,14 @@ final class RecoveryBackupMarkerAttestation
         $record=RecoveryDispatchLedger::read('digiforge_recovery_backup_marker_'.$operationKeyHash);
         if ($record instanceof \WP_Error) return $record;
         if ($record===[]) return new \WP_Error('digiforge_recovery_marker_attestation_missing', __('The requested database recovery marker is not present.', 'digiforge'), ['status'=>404]);
+        $markerContents = $record;
+        unset($markerContents['marker_hash']);
+        $markerJson = wp_json_encode($markerContents, JSON_UNESCAPED_SLASHES);
+        if (! is_string($markerJson)
+            || ! hash_equals(hash('sha256', $markerJson), (string) ($record['marker_hash'] ?? ''))
+            || ! hash_equals($operationKeyHash, (string) ($record['operation_key_hash'] ?? ''))) {
+            return new \WP_Error('digiforge_recovery_marker_attestation_integrity', __('Restored backup marker integrity could not be verified.', 'digiforge'), ['status'=>409]);
+        }
         return [
             'marker_version'=>(int)($record['marker_version']??0),
             'operation_key_hash'=>(string)($record['operation_key_hash']??''),
