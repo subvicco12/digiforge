@@ -22,6 +22,11 @@ def assess(evidence):
     require(evidence.get("backup_checksum_verified") is True, "backup checksum unverified")
     require(evidence.get("installed_package_identity_verified") is True, "installed package identity unverified")
     require(bool(SHA.fullmatch(str(evidence.get("installed_commit_sha", "")))), "installed commit SHA missing")
+    for field in ("certified_package_sha256", "installed_package_sha256", "drill_package_sha256", "backup_sha256", "drill_backup_sha256"):
+        require(bool(SHA.fullmatch(str(evidence.get(field, "")))), field + " missing or malformed")
+    require(evidence.get("installed_package_sha256") == evidence.get("certified_package_sha256"), "installed package does not match certified package")
+    require(evidence.get("drill_package_sha256") == evidence.get("certified_package_sha256"), "drill package not bound to certified package")
+    require(evidence.get("drill_backup_sha256") == evidence.get("backup_sha256"), "drill backup not bound to current backup")
     require(evidence.get("drill_fresh") is True, "drill evidence stale")
     require(evidence.get("drill_bound_to_current_artifacts") is True, "drill evidence unbound")
     require(evidence.get("drill_passed") is True, "drill evidence not passed")
