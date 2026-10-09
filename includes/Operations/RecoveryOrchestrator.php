@@ -92,12 +92,7 @@ final class RecoveryOrchestrator
             return new \WP_Error('digiforge_recovery_target_production', __('Recovery orchestration refuses the current site as its restore target.', 'digiforge'), ['status' => 409]);
         }
 
-        $targetParts = wp_parse_url($targetSiteUrl);
-        if (! is_array($targetParts) || ($targetParts['scheme'] ?? '') !== 'https'
-            || strtolower((string) ($targetParts['host'] ?? '')) !== 'digiforgestaging.converentis.com'
-            || isset($targetParts['port'], $targetParts['user']) || isset($targetParts['pass'])
-            || isset($targetParts['query']) || isset($targetParts['fragment'])
-            || ! in_array($targetParts['path'] ?? '', ['', '/'], true)) {
+        if (! self::canonicalStagingTarget($targetSiteUrl)) {
             return new \WP_Error('digiforge_recovery_target_invalid', __('Recovery requires the exact isolated HTTPS staging root.', 'digiforge'), ['status' => 409]);
         }
 
