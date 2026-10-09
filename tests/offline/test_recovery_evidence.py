@@ -53,6 +53,16 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertFalse(result["checker_performed_external_actions"])
         self.assertNotIn("external_actions_performed", result)
 
+    def test_non_object_evidence_fails_closed(self):
+        for value in (None, [], "text", 42):
+            with self.subTest(value=value):
+                self.assertEqual("REVIEW_REQUIRED", module.assess(value)["status"])
+
+    def test_non_string_digest_fails_closed(self):
+        record = self.valid()
+        record["backup_sha256"] = 123
+        self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
     def test_unlocked_environment_fails_closed(self):
         record = self.valid()
         record["externally_locked"] = False
