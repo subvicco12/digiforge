@@ -66,7 +66,7 @@ final class UnknownMetadataReplayIntegrationTest extends WP_UnitTestCase {
 
  public function testExplicitPreSendFailurePersistsFailureAndBlocksReplay():void {
   $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>str_repeat('a',64)];
-  $authorization=DigiForge\POD\ExecutionAuthorization::issue($approval,'ETSY_DRAFT_CREATE',7,'presend_error_nonce_001',900);
+  $authorization=DigiForge\POD\ExecutionAuthorization::issue($approval,'ETSY_DRAFT_CREATE',7,'presend_adapter_error_nonce_001',900);
   self::assertIsArray($authorization);
   $adapter=new class implements DigiForge\POD\ExecutionAdapter {
    public int $calls=0;
