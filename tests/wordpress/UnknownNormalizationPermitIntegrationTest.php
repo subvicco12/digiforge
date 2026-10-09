@@ -33,4 +33,15 @@ final class UnknownNormalizationPermitIntegrationTest extends WP_UnitTestCase {
   self::assertFalse($normalized['retry_permitted']);
  }
 
+ public function testUnknownRejectsMalformedFingerprintEvenWithIdentity():void {
+  $permit=['state'=>'ADAPTER_CALL_PERMITTED','nonce_consumed'=>true,'external_execution_performed'=>false,'action'=>'ETSY_DRAFT_CREATE','authorization_hash'=>str_repeat('a',64),'evidence_hash'=>str_repeat('b',64)];
+  foreach(['',str_repeat('a',63),str_repeat('a',65),str_repeat('g',64),'not-a-sha256',null] as $fingerprint) {
+   $result=['status'=>'UNKNOWN','reconciliation_identity'=>['provider'=>'mock','request_id'=>'request-2']];
+   if($fingerprint!==null)$result['request_fingerprint']=$fingerprint;
+   $normalized=DigiForge\POD\ExecutionAdapterResult::normalize($permit,$result);
+   self::assertWPError($normalized);
+   self::assertSame('digiforge_adapter_reconciliation_identity',$normalized->get_error_code());
+  }
+ }
+
 }
