@@ -6,6 +6,7 @@ import re
 import sys
 
 SHA = re.compile(r"^[0-9a-f]{64}$")
+GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 def assess(evidence):
     errors = []
@@ -21,7 +22,7 @@ def assess(evidence):
     require(evidence.get("backup_currently_retrievable") is True, "current backup retrieval unverified")
     require(evidence.get("backup_checksum_verified") is True, "backup checksum unverified")
     require(evidence.get("installed_package_identity_verified") is True, "installed package identity unverified")
-    require(bool(SHA.fullmatch(str(evidence.get("installed_commit_sha", "")))), "installed commit SHA missing")
+    require(bool(GIT_COMMIT.fullmatch(str(evidence.get("installed_commit_sha", "")))), "installed Git commit SHA missing or malformed")
     for field in ("certified_package_sha256", "installed_package_sha256", "drill_package_sha256", "backup_sha256", "drill_backup_sha256"):
         require(bool(SHA.fullmatch(str(evidence.get(field, "")))), field + " missing or malformed")
     require(evidence.get("installed_package_sha256") == evidence.get("certified_package_sha256"), "installed package does not match certified package")
@@ -31,7 +32,7 @@ def assess(evidence):
     require(evidence.get("drill_bound_to_current_artifacts") is True, "drill evidence unbound")
     require(evidence.get("drill_passed") is True, "drill evidence not passed")
     return {"status": "REVIEW_REQUIRED" if errors else "EVIDENCE_PREDICATES_PASS",
-            "errors": errors, "read_only": True, "external_actions_performed": False}
+            "errors": errors, "read_only": True, "checker_performed_external_actions": False}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -45,7 +46,7 @@ def main():
         result = assess(data)
     except (OSError, ValueError, json.JSONDecodeError):
         result = {"status": "REVIEW_REQUIRED", "errors": ["invalid evidence file"],
-                  "read_only": True, "external_actions_performed": False}
+                  "read_only": True, "checker_performed_external_actions": False}
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "EVIDENCE_PREDICATES_PASS" else 1
 
