@@ -28,6 +28,7 @@ final class RecoveryStagingVerifierContractTest extends TestCase
             "'drill_evidence_recorded' => false",
             "'commerce_execution_authorized' => false",
         ] as $needle) self::assertStringContainsString($needle,$code);
+        self::assertStringContainsString("!== 'digiforgestaging.converentis.com'", $code);
         self::assertStringNotContainsString('RecoveryEvidence::snapshot()', $code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
