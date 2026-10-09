@@ -19,6 +19,9 @@ class RecoveryEvidenceTests(unittest.TestCase):
             "backup_checksum_verified": True, "installed_package_identity_verified": True,
             "installed_commit_sha": "a" * 64, "drill_fresh": True,
             "drill_bound_to_current_artifacts": True, "drill_passed": True,
+            "certified_package_sha256": "b" * 64, "installed_package_sha256": "b" * 64,
+            "drill_package_sha256": "b" * 64, "backup_sha256": "c" * 64,
+            "drill_backup_sha256": "c" * 64,
         }
 
     def test_complete_evidence_only_passes_predicates(self):
@@ -29,6 +32,13 @@ class RecoveryEvidenceTests(unittest.TestCase):
             with self.subTest(key=key):
                 record = self.valid()
                 record.pop(key)
+                self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
+    def test_artifact_digest_mismatch_fails_closed(self):
+        for key in ("installed_package_sha256", "drill_package_sha256", "drill_backup_sha256"):
+            with self.subTest(key=key):
+                record = self.valid()
+                record[key] = "d" * 64
                 self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
 
     def test_unlocked_environment_fails_closed(self):
