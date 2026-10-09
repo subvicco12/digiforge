@@ -93,7 +93,22 @@ def check(path):
         errors.append("successor references missing v2 IDs")
     if v2_sources - source_ids:
         errors.append("v2 references missing source IDs")
+    if successors != v2_sources:
+        errors.append("successor and v2 source-reference sets do not match")
+    if len(successors) != 428:
+        errors.append("expected 428 direct successor mappings")
     reverse = {field(row, 0): field(row, 1) for row in v2}
+    origins = collections.Counter(field(row, 8) for row in v2)
+    if origins != {"V1 retained": 428, "V2 addition": 30, "V2 new family": 42}:
+        errors.append("unexpected v2 origin distribution")
+    for i, row in enumerate(v2, 2):
+        origin, source_ref = field(row, 8), field(row, 1)
+        if (origin == "V1 retained") != bool(source_ref):
+            errors.append("v2 row %d: origin/source reference mismatch" % i)
+        if not field(row, 5) or not field(row, 6) or not field(row, 7) or not field(row, 9):
+            errors.append("v2 row %d: required supplier/template/stage field blank" % i)
+        if field(row, 6) not in {"PRINTIFY_PRIMARY", "ROUTE_BY_BASE_PRODUCT", "PROVIDER_RESEARCH_REQUIRED"}:
+            errors.append("v2 row %d: unknown supplier gate" % i)
     for i, row in enumerate(source, 2):
         disposition, successor = field(row, 5), field(row, 7)
         if disposition not in {"KEEP", "MERGE", "DOWNGRADE"}:
@@ -102,6 +117,8 @@ def check(path):
             errors.append("source row %d: missing/mismatched KEEP lineage" % i)
         if disposition != "KEEP" and successor:
             errors.append("source row %d: non-KEEP direct successor" % i)
+    if collections.Counter(field(row, 5) for row in source) != {"KEEP": 428, "MERGE": 37, "DOWNGRADE": 35}:
+        errors.append("unexpected source disposition distribution")
     counts = collections.Counter(field(row, 2) for row in v2)
     targets = {}
     for i, row in enumerate(families, 2):
@@ -116,6 +133,8 @@ def check(path):
         if name in targets:
             errors.append("family row %d: duplicate family" % i)
         targets[name] = number
+    if len(targets) != 24:
+        errors.append("expected exactly 24 family targets")
     if counts != collections.Counter(targets):
         errors.append("family counts differ from targets")
     summary = {"source_rows": len(source), "v2_rows": len(v2),
