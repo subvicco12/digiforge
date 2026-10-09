@@ -25,3 +25,12 @@ Authority: Ultimate Master Blueprint v6.0, completion ledger #959 and current ce
 ## Release decision
 
 Until deferred backup/recovery evidence and required explicit approvals exist, keep production deployment blocked and external execution disabled. Do not substitute repository tests, provider mocks or prior staging acceptance for those gates.
+
+
+## Audit #4409 staging installation evidence (2026-10-09; read-only observations)
+
+- Certified main: `313db42f44c4ab1b378b6c414356ad31d3f1dc62`; Engineering & Safety Audit #4409, workflow run `37959119236`, SUCCESS.
+- GitHub artifact ID `11630856973`, outer artifact digest `sha256:37c14c53a79897769594b9a7bbb9c982434b64d355c039921317ad200cce7a41`; packaged inner ZIP digest reported `sha256:e6da619ba041746e99601e6ad424072f9900fa516b515dca0a498f964e58e225`.
+- Owner reported installing the supplied plugin ZIP on isolated staging. Read-only authenticated WordPress checks afterward show DigiForge active at version 1.0.103; health OK; runtime schema 24/24; STOP ALL true; externally locked true; automation false; activation not authorized; automation unarmed; no effective feature switches.
+- **Classification: STAGING HEALTH VERIFIED; EXACT PACKAGE IDENTITY UNVERIFIED.** Version 1.0.103 is shared by prior accepted packages; the live endpoints do not expose the exact installed commit or file checksum. Do not upgrade this to exact-artifact ACCEPTED without an independent on-host checksum or signed installation manifest matching Audit #4409.
+- Readiness remains REVIEW_REQUIRED: backup retrievability gate false and current recovery-drill evidence stale/unbound. This installation authorization did not authorize a recovery drill, production deployment, provider execution or Master 500 promotion.
