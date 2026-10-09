@@ -17,7 +17,7 @@ class RecoveryEvidenceTests(unittest.TestCase):
             "automation_enabled": False, "external_actions_performed": False,
             "runtime_schema_current": True, "backup_currently_retrievable": True,
             "backup_checksum_verified": True, "installed_package_identity_verified": True,
-            "installed_commit_sha": "a" * 64, "drill_fresh": True,
+            "installed_commit_sha": "a" * 40, "drill_fresh": True,
             "drill_bound_to_current_artifacts": True, "drill_passed": True,
             "certified_package_sha256": "b" * 64, "installed_package_sha256": "b" * 64,
             "drill_package_sha256": "b" * 64, "backup_sha256": "c" * 64,
@@ -40,6 +40,18 @@ class RecoveryEvidenceTests(unittest.TestCase):
                 record = self.valid()
                 record[key] = "d" * 64
                 self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
+    def test_commit_sha_requires_40_hex_digits(self):
+        for bad in ("a" * 64, "a" * 39, "z" * 40):
+            with self.subTest(bad=bad):
+                record = self.valid()
+                record["installed_commit_sha"] = bad
+                self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
+    def test_checker_output_does_not_claim_source_actions(self):
+        result = module.assess(self.valid())
+        self.assertFalse(result["checker_performed_external_actions"])
+        self.assertNotIn("external_actions_performed", result)
 
     def test_unlocked_environment_fails_closed(self):
         record = self.valid()
