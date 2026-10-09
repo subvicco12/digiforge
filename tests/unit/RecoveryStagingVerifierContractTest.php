@@ -29,6 +29,10 @@ final class RecoveryStagingVerifierContractTest extends TestCase
             "'commerce_execution_authorized' => false",
         ] as $needle) self::assertStringContainsString($needle,$code);
         self::assertStringContainsString("!== 'digiforgestaging.converentis.com'", $code);
+        $orchestrator=(string)file_get_contents(__DIR__.'/../../includes/Operations/RecoveryOrchestrator.php');
+        self::assertStringContainsString('canonicalStagingTarget($targetSiteUrl)', $orchestrator);
+        self::assertStringContainsString("=== 'digiforgestaging.converentis.com'", $orchestrator);
+        self::assertGreaterThanOrEqual(3, substr_count($orchestrator, 'canonicalStagingTarget('));
         self::assertStringNotContainsString('RecoveryEvidence::snapshot()', $code);
         self::assertStringNotContainsString('RecoveryDrillEvidence::store', $code);
         self::assertStringNotContainsString('RecoveryOrchestrator::execute', $code);
