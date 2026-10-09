@@ -2,6 +2,10 @@
 """Offline regression tests for the Master 500 candidate validator."""
 import importlib.util
 import pathlib
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -26,6 +30,29 @@ class Master500ValidatorTests(unittest.TestCase):
     def run_check(self, rows):
         with patch.object(validator, "load_rows", return_value=rows):
             return validator.check("unused.xlsx")
+
+    def test_missing_workbook_cli_fails_closed_as_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = pathlib.Path(directory) / "missing.xlsx"
+            run = subprocess.run([sys.executable, str(MODULE_PATH), str(missing)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            report = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", report["status"])
+            self.assertIsNone(report["sha256"])
+            self.assertTrue(report["errors"])
+
+    def test_corrupt_workbook_cli_fails_closed_as_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            corrupt = pathlib.Path(directory) / "corrupt.xlsx"
+            corrupt.write_bytes(b"not an XLSX archive")
+            run = subprocess.run([sys.executable, str(MODULE_PATH), str(corrupt)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            report = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", report["status"])
+            self.assertTrue(report["sha256"])
+            self.assertTrue(report["errors"])
 
     def test_valid_candidate_is_structural_only(self):
         errors, summary = self.run_check(self.fixtures())
