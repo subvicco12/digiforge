@@ -25,7 +25,11 @@ final class RecoveryBackupIdentityMarker
         $name = self::PREFIX . hash('sha256', $operationKey);
         $existing = RecoveryDispatchLedger::read($name);
         if ($existing instanceof \WP_Error) return $existing;
-        if ($existing !== []) return $existing + ['replayed' => true];
+        if ($existing !== []) {
+            $attested = RecoveryBackupMarkerAttestation::attest(hash('sha256', $operationKey));
+            if ($attested instanceof \WP_Error) return $attested;
+            return $existing + ['replayed' => true];
+        }
 
         try { $nonce = bin2hex(random_bytes(32)); }
         catch (\Throwable) {
@@ -52,7 +56,11 @@ final class RecoveryBackupIdentityMarker
     {
         $operationKey = trim(sanitize_text_field($operationKey));
         if ($operationKey === '') return new \WP_Error('digiforge_recovery_backup_marker_key_required', __('A backup preparation operation key is required.', 'digiforge'), ['status' => 400]);
-        return RecoveryDispatchLedger::read(self::PREFIX . hash('sha256', $operationKey));
+        $record = RecoveryDispatchLedger::read(self::PREFIX . hash('sha256', $operationKey));
+        if ($record instanceof \WP_Error || $record === []) return $record;
+        $attested = RecoveryBackupMarkerAttestation::attest(hash('sha256', $operationKey));
+        if ($attested instanceof \WP_Error) return $attested;
+        return $record;
     }
 
 }
