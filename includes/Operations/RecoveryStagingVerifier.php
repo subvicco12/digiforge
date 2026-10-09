@@ -91,7 +91,8 @@ final class RecoveryStagingVerifier
         $homeHost = strtolower((string) wp_parse_url(home_url('/'), PHP_URL_HOST));
         if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || isset($parts['port']) || isset($parts['user']) || isset($parts['pass'])
             || isset($parts['query']) || isset($parts['fragment']) || ! in_array($parts['path'] ?? '', ['', '/'], true)
-            || strtolower((string) ($parts['host'] ?? '')) === $homeHost || strtolower((string) ($parts['host'] ?? '')) === 'digiforge.converentis.com') {
+            || strtolower((string) ($parts['host'] ?? '')) !== 'digiforgestaging.converentis.com'
+            || strtolower((string) ($parts['host'] ?? '')) === $homeHost) {
             return new \WP_Error('digiforge_recovery_verify_target', __('Verification target must be an exact isolated HTTPS staging root.', 'digiforge'), ['status' => 409]);
         }
         return trailingslashit($url);
