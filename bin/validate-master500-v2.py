@@ -106,12 +106,16 @@ def check(path):
         origin, source_ref = field(row, 8), field(row, 1)
         if (origin == "V1 retained") != bool(source_ref):
             errors.append("v2 row %d: origin/source reference mismatch" % i)
+        if any(not field(row, index) for index in (2, 3, 4)):
+            errors.append("v2 row %d: required family/concept/engine field blank" % i)
         if not field(row, 5) or not field(row, 6) or not field(row, 7) or not field(row, 9):
             errors.append("v2 row %d: required supplier/template/stage field blank" % i)
         if field(row, 6) not in {"PRINTIFY_PRIMARY", "ROUTE_BY_BASE_PRODUCT", "PROVIDER_RESEARCH_REQUIRED"}:
             errors.append("v2 row %d: unknown supplier gate" % i)
     for i, row in enumerate(source, 2):
         disposition, successor = field(row, 5), field(row, 7)
+        if any(not field(row, index) for index in (1, 2, 3, 4)):
+            errors.append("source row %d: required wave/family/concept/engine field blank" % i)
         if disposition not in {"KEEP", "MERGE", "DOWNGRADE"}:
             errors.append("source row %d: invalid disposition" % i)
         if disposition == "KEEP" and (not successor or reverse.get(successor) != field(row, 0)):
