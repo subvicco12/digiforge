@@ -50,6 +50,31 @@ class RecoveryEvidenceTests(unittest.TestCase):
             self.assertEqual("REVIEW_REQUIRED", result["status"])
             self.assertTrue(result["errors"])
 
+    def test_complete_evidence_cli_passes_predicates_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "evidence.json"
+            evidence.write_text(json.dumps(self.valid()), encoding="utf-8")
+            run = subprocess.run([sys.executable, str(path), str(evidence)],
+                                 capture_output=True, text=True, check=False)
+            self.assertEqual(0, run.returncode)
+            result = json.loads(run.stdout)
+            self.assertEqual("EVIDENCE_PREDICATES_PASS", result["status"])
+            self.assertTrue(result["read_only"])
+            self.assertFalse(result["checker_performed_external_actions"])
+
+    def test_unlocked_evidence_cli_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "unlocked.json"
+            record = self.valid()
+            record["externally_locked"] = False
+            evidence.write_text(json.dumps(record), encoding="utf-8")
+            run = subprocess.run([sys.executable, str(path), str(evidence)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            result = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", result["status"])
+            self.assertTrue(any("external safety lock" in error for error in result["errors"]))
+
     def test_complete_evidence_only_passes_predicates(self):
         self.assertEqual("EVIDENCE_PREDICATES_PASS", module.assess(self.valid())["status"])
 
