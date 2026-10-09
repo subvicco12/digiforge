@@ -125,6 +125,7 @@ def check(path):
     for i, row in enumerate(families, 2):
         name, target = field(row, 0), field(row, 2)
         if not name:
+            errors.append("family row %d: blank family" % i)
             continue
         try:
             number = int(target)
