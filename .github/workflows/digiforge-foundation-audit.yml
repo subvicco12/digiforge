@@ -68,6 +68,9 @@ jobs:
       - name: Legacy and unit tests
         run: composer test
 
+      - name: Offline catalog and recovery evidence regression tests
+        run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
+
       - name: Install WordPress integration fixture
         run: |
           sudo apt-get update -qq
