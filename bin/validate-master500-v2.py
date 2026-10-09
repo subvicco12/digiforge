@@ -93,8 +93,9 @@ def check(path):
         errors.append("successor references missing v2 IDs")
     if v2_sources - source_ids:
         errors.append("v2 references missing source IDs")
-    if len(successors) != len(v2_sources):
-        errors.append("successor and v2 source-reference counts do not match")
+    expected_sources = {field(row, 0) for row in source if field(row, 5) == "KEEP"}
+    if v2_sources != expected_sources:
+        errors.append("v2 source references do not match KEEP source IDs")
     if len(successors) != 428:
         errors.append("expected 428 direct successor mappings")
     reverse = {field(row, 0): field(row, 1) for row in v2}
@@ -135,6 +136,10 @@ def check(path):
         targets[name] = number
     if len(targets) != 24:
         errors.append("expected exactly 24 family targets")
+    if any(value <= 0 for value in targets.values()):
+        errors.append("family targets must be positive")
+    if sum(targets.values()) != 500:
+        errors.append("family targets must sum to 500")
     if counts != collections.Counter(targets):
         errors.append("family counts differ from targets")
     summary = {"source_rows": len(source), "v2_rows": len(v2),
@@ -146,9 +151,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workbook", help="Local XLSX candidate file; never modified")
     args = parser.parse_args()
-    with open(args.workbook, "rb") as stream:
-        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    digest = None
     try:
+        with open(args.workbook, "rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
         errors, summary = check(args.workbook)
     except (OSError, ValueError, KeyError, IndexError, ET.ParseError, zipfile.BadZipFile) as exc:
         errors, summary = ["unreadable or invalid workbook: " + type(exc).__name__], {}

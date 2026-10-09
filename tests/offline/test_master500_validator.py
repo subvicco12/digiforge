@@ -56,6 +56,18 @@ class Master500ValidatorTests(unittest.TestCase):
         errors, _ = self.run_check(rows)
         self.assertTrue(errors)
 
+    def test_nonkeep_source_reference_fails_closed(self):
+        rows = self.fixtures()
+        rows["Master_500_v2"][429][1] = "DG-429"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(any("source references" in error or "origin/source" in error for error in errors))
+
+    def test_negative_family_target_fails_closed(self):
+        rows = self.fixtures()
+        rows["Family_Rebalance"][1][2] = "-1"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(errors)
+
     def test_family_target_mismatch_fails_closed(self):
         rows = self.fixtures()
         rows["Family_Rebalance"][1][2] = "499"
