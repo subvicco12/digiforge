@@ -10,6 +10,9 @@ GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 def assess(evidence):
     errors = []
+    if not isinstance(evidence, dict):
+        return {"status": "REVIEW_REQUIRED", "errors": ["expected evidence object"],
+                "read_only": True, "checker_performed_external_actions": False}
     def require(condition, message):
         if not condition:
             errors.append(message)
@@ -22,9 +25,11 @@ def assess(evidence):
     require(evidence.get("backup_currently_retrievable") is True, "current backup retrieval unverified")
     require(evidence.get("backup_checksum_verified") is True, "backup checksum unverified")
     require(evidence.get("installed_package_identity_verified") is True, "installed package identity unverified")
-    require(bool(GIT_COMMIT.fullmatch(str(evidence.get("installed_commit_sha", "")))), "installed Git commit SHA missing or malformed")
+    commit = evidence.get("installed_commit_sha")
+    require(isinstance(commit, str) and bool(GIT_COMMIT.fullmatch(commit)), "installed Git commit SHA missing or malformed")
     for field in ("certified_package_sha256", "installed_package_sha256", "drill_package_sha256", "backup_sha256", "drill_backup_sha256"):
-        require(bool(SHA.fullmatch(str(evidence.get(field, "")))), field + " missing or malformed")
+        value = evidence.get(field)
+        require(isinstance(value, str) and bool(SHA.fullmatch(value)), field + " missing or malformed")
     require(evidence.get("installed_package_sha256") == evidence.get("certified_package_sha256"), "installed package does not match certified package")
     require(evidence.get("drill_package_sha256") == evidence.get("certified_package_sha256"), "drill package not bound to certified package")
     require(evidence.get("drill_backup_sha256") == evidence.get("backup_sha256"), "drill backup not bound to current backup")
