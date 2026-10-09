@@ -9,4 +9,5 @@ final class UnknownReconciliationMetadataFailClosedTest extends TestCase {
   self::assertStringContainsString("'retry_permitted'=>false,'reconciliation_required'=>true,'external_execution_authorized'=>false",$s);
   self::assertStringContainsString('ExecutionUnknownRepository::save',$s);
  }
+
 }
