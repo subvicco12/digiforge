@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Read-only fail-closed assessment of redacted recovery evidence JSON."""
+import argparse
+import json
+import re
+import sys
+
+SHA = re.compile(r"^[0-9a-f]{64}$")
+
+def assess(evidence):
+    errors = []
+    def require(condition, message):
+        if not condition:
+            errors.append(message)
+    require(evidence.get("environment") == "digiforgestaging.converentis.com", "isolated staging identity unverified")
+    require(evidence.get("stop_all") is True, "STOP ALL not confirmed")
+    require(evidence.get("externally_locked") is True, "external safety lock not confirmed")
+    require(evidence.get("automation_enabled") is False, "automation not confirmed disabled")
+    require(evidence.get("external_actions_performed") is False, "external action evidence unsafe")
+    require(evidence.get("runtime_schema_current") is True, "runtime schema not confirmed current")
+    require(evidence.get("backup_currently_retrievable") is True, "current backup retrieval unverified")
+    require(evidence.get("backup_checksum_verified") is True, "backup checksum unverified")
+    require(evidence.get("installed_package_identity_verified") is True, "installed package identity unverified")
+    require(bool(SHA.fullmatch(str(evidence.get("installed_commit_sha", "")))), "installed commit SHA missing")
+    require(evidence.get("drill_fresh") is True, "drill evidence stale")
+    require(evidence.get("drill_bound_to_current_artifacts") is True, "drill evidence unbound")
+    require(evidence.get("drill_passed") is True, "drill evidence not passed")
+    return {"status": "REVIEW_REQUIRED" if errors else "EVIDENCE_PREDICATES_PASS",
+            "errors": errors, "read_only": True, "external_actions_performed": False}
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("evidence_json", help="Local redacted evidence file; never modified")
+    args = parser.parse_args()
+    try:
+        with open(args.evidence_json, encoding="utf-8") as stream:
+            data = json.load(stream)
+        if not isinstance(data, dict):
+            raise ValueError("expected JSON object")
+        result = assess(data)
+    except (OSError, ValueError, json.JSONDecodeError):
+        result = {"status": "REVIEW_REQUIRED", "errors": ["invalid evidence file"],
+                  "read_only": True, "external_actions_performed": False}
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["status"] == "EVIDENCE_PREDICATES_PASS" else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
