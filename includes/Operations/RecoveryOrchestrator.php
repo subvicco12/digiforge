@@ -92,6 +92,10 @@ final class RecoveryOrchestrator
             return new \WP_Error('digiforge_recovery_target_production', __('Recovery orchestration refuses the current site as its restore target.', 'digiforge'), ['status' => 409]);
         }
 
+        if (! self::canonicalStagingTarget($targetSiteUrl)) {
+            return new \WP_Error('digiforge_recovery_target_invalid', __('Recovery requires the exact isolated HTTPS staging root.', 'digiforge'), ['status' => 409]);
+        }
+
         $artifacts = RecoveryEvidence::snapshot();
         $backup = is_array($artifacts['database_backup'] ?? null) ? $artifacts['database_backup'] : [];
         $package = is_array($artifacts['plugin_package'] ?? null) ? $artifacts['plugin_package'] : [];
@@ -163,6 +167,9 @@ final class RecoveryOrchestrator
         $record = self::snapshot();
         if ($operationKey === '' || ! hash_equals($record['operation_key'], $operationKey)) {
             return new \WP_Error('digiforge_recovery_operation_mismatch', __('The recovery operation key does not match the active plan.', 'digiforge'), ['status' => 409]);
+        }
+        if (! self::canonicalStagingTarget((string) ($record['target_site_url'] ?? ''))) {
+            return new \WP_Error('digiforge_recovery_target_invalid', __('Recovery requires the exact isolated HTTPS staging root.', 'digiforge'), ['status' => 409]);
         }
         if (self::claim($operationKey) !== [] || ! in_array($record['state'], ['PLANNED', 'PROVIDER_REQUIRED'], true)) {
             return new \WP_Error('digiforge_recovery_reconciliation_required', __('Recovery dispatch was already claimed. Reconciliation is required; never retry blindly.', 'digiforge'), ['status' => 409, 'reconciliation_required' => true]);
@@ -268,6 +275,9 @@ final class RecoveryOrchestrator
         $providerReference = trim(sanitize_text_field($providerReference));
         if ($providerReference === '' || strlen($providerReference) > 190) {
             return new \WP_Error('digiforge_recovery_manual_reference_required', __('A bounded provider/manual restore reference is required.', 'digiforge'), ['status' => 400]);
+        }
+        if (! self::canonicalStagingTarget((string) ($record['target_site_url'] ?? ''))) {
+            return new \WP_Error('digiforge_recovery_target_invalid', __('Recovery requires the exact isolated HTTPS staging root.', 'digiforge'), ['status' => 409]);
         }
         if (($record['manual_restore_reconciled'] ?? false) === true) {
             if (hash_equals((string) ($record['provider_operation_reference'] ?? ''), $providerReference)) {
@@ -405,4 +415,14 @@ final class RecoveryOrchestrator
             && self::claim((string) ($plan['operation_key'] ?? '')) === $plan
             && RecoveryDispatchLedger::read('digiforge_recovery_dispatch_interlock') === $plan;
     }
+    private static function canonicalStagingTarget(string $url): bool
+    {
+        $parts = wp_parse_url($url);
+        return is_array($parts) && ($parts['scheme'] ?? '') === 'https'
+            && strtolower((string) ($parts['host'] ?? '')) === 'digiforgestaging.converentis.com'
+            && ! isset($parts['port']) && ! isset($parts['user']) && ! isset($parts['pass'])
+            && ! isset($parts['query']) && ! isset($parts['fragment'])
+            && in_array($parts['path'] ?? '', ['', '/'], true);
+    }
+
 }

@@ -37,7 +37,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         self::assertTrue(RecoveryEvidence::storeDatabaseBackup(['identifier'=>'backup-'.$this->key,'captured_at'=>gmdate('c'),'location'=>'backup.sql','verification_method'=>'retrieval','verified_at'=>gmdate('c'),'verified_by'=>'test','retrievable'=>true]));
         self::assertIsArray(RecoveryBackupIdentityBinding::bind($this->key,'backup-'.$this->key));
         self::assertTrue(RecoveryEvidence::storePluginPackage(['identifier'=>'package-'.$this->key,'version'=>'test','source_commit'=>str_repeat('a',40),'sha256'=>str_repeat('b',64),'location'=>'package.zip','retrievable'=>true,'checksum_verified'=>true]));
-        $this->config = ['hosting_account'=>'test_account','staging_domain'=>'isolated.example.org','archive_path'=>'backup.zip','database_path'=>'backup.sql','database_backup_identifier'=>'backup-'.$this->key,'plugin_package_identifier'=>'package-'.$this->key];
+        $this->config = ['hosting_account'=>'test_account','staging_domain'=>'digiforgestaging.converentis.com','archive_path'=>'backup.zip','database_path'=>'backup.sql','database_backup_identifier'=>'backup-'.$this->key,'plugin_package_identifier'=>'package-'.$this->key];
         $this->config['artifact_evidence_hash']=RecoveryOrchestrator::artifactEvidenceHash(RecoveryEvidence::snapshot());
         $this->repository = new Repository();
         $created=$this->repository->create(['provider'=>'hostinger','environment'=>'test','connection_key'=>$this->key,'display_name'=>'Recovery test','status'=>'CONFIGURED','enabled'=>false,'config'=>$this->config]);
@@ -73,7 +73,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         return $this->response;
     }
 
-    private function plan(string $target='https://isolated.example.org/'): array|WP_Error
+    private function plan(string $target='https://digiforgestaging.converentis.com/'): array|WP_Error
     {
         return RecoveryOrchestrator::plan(['operation_key'=>$this->key,'backup_identity_operation_key'=>$this->key,'target_environment'=>'staging','target_site_url'=>$target]);
     }
@@ -104,7 +104,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         self::assertSame('digiforge_hostinger_reference_missing',$result->get_error_code());
         self::assertSame('UNKNOWN',RecoveryOrchestrator::snapshot()['state']);
         self::assertSame('hostinger',RecoveryOrchestrator::snapshot()['provider']);
-        self::assertSame('https://developers.hostinger.com/api/hosting/v1/accounts/test_account/websites/isolated.example.org/wordpress/import',$this->request['url']);
+        self::assertSame('https://developers.hostinger.com/api/hosting/v1/accounts/test_account/websites/digiforgestaging.converentis.com/wordpress/import',$this->request['url']);
         self::assertSame(['archive_path'=>'backup.zip','sql_path'=>'backup.sql'],json_decode($this->request['args']['body'],true));
         self::assertArrayNotHasKey('Idempotency-Key',$this->request['args']['headers']);
         self::assertSame(0,$this->request['args']['redirection']);
@@ -151,7 +151,7 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
 
     public function testWrongCurrentAndNonRootTargetsNeverDispatch(): void
     {
-        foreach(['https://wrong.example.org/','https://isolated.example.org/subsite','http://isolated.example.org/','https://isolated.example.org:8443/','https://user@isolated.example.org/',home_url('/'),'https://digiforge.converentis.com/'] as $url){
+        foreach(['https://wrong.example.org/','https://digiforgestaging.converentis.com/subsite','http://digiforgestaging.converentis.com/','https://digiforgestaging.converentis.com:8443/','https://user@digiforgestaging.converentis.com/',home_url('/'),'https://digiforge.converentis.com/'] as $url){
             delete_option('digiforge_recovery_orchestration');
             delete_option('digiforge_recovery_dispatch_interlock');
             $this->key=wp_generate_uuid4();
