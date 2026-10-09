@@ -21,7 +21,7 @@ final class RecoveryBackupMarkerAttestation
             'operation_key_hash'=>(string)($record['operation_key_hash']??''),
             'marker_hash'=>(string)($record['marker_hash']??''),
             'prepared_at'=>(string)($record['prepared_at']??''),
-            'backup_certified'=>($record['backup_certified']??true)===true,
+            'backup_certified'=>($record['backup_certified']??false)===true,
             'external_actions_performed'=>false,
             'read_only'=>true,
         ];
