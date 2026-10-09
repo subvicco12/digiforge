@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     services:
       mariadb:
-        image: mariadb:10.11
+        image: public.ecr.aws/docker/library/mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: root
           MARIADB_DATABASE: digiforge_tests
