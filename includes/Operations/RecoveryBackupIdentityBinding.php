@@ -20,6 +20,12 @@ final class RecoveryBackupIdentityBinding
         if ($marker === [] || ($marker['backup_certified'] ?? true) !== false || (string)($marker['backup_identifier'] ?? '') !== '') {
             return new \WP_Error('digiforge_recovery_backup_marker_invalid', __('An immutable unbound pre-capture marker is required.', 'digiforge'), ['status' => 409]);
         }
+        $markerContents = $marker;
+        unset($markerContents['marker_hash']);
+        $markerJson = wp_json_encode($markerContents, JSON_UNESCAPED_SLASHES);
+        if (! is_string($markerJson) || ! hash_equals(hash('sha256', $markerJson), (string) ($marker['marker_hash'] ?? ''))) {
+            return new \WP_Error('digiforge_recovery_backup_marker_integrity', __('Backup identity marker integrity could not be verified.', 'digiforge'), ['status' => 409]);
+        }
         $backupIdentifier = trim(sanitize_text_field($backupIdentifier));
         $snapshot = RecoveryEvidence::snapshot();
         $backup = is_array($snapshot['database_backup'] ?? null) ? $snapshot['database_backup'] : [];
