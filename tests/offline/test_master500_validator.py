@@ -15,10 +15,13 @@ class Master500ValidatorTests(unittest.TestCase):
         source = [["Source DG ID", "Wave", "V1 Family", "V1 Concept", "Engine", "Disposition", "Migration Note", "V2 Successor ID"]]
         v2 = [["V2 ID", "Source DG ID", "Family", "Concept", "Engine", "Physical Product", "Supplier Gate", "Template State", "Origin", "Recommended Stage"]]
         for i in range(1, 501):
-            source.append([f"DG-{i:03}", "W1", "Family", "Concept", "ENGINE", "KEEP", "", f"DG2-{i:03}"])
-            v2.append([f"DG2-{i:03}", f"DG-{i:03}", "Family", "Concept", "ENGINE", "PP-001", "PRINTIFY_PRIMARY", "TEMPLATE_RESEARCH", "V1 retained", "Re-score"])
+            disposition = "KEEP" if i <= 428 else "MERGE" if i <= 465 else "DOWNGRADE"
+            successor = f"DG2-{i:03}" if i <= 428 else ""
+            source.append([f"DG-{i:03}", "W1", f"Family-{(i - 1) % 24:02}", "Concept", "ENGINE", disposition, "", successor])
+            origin = "V1 retained" if i <= 428 else "V2 addition" if i <= 458 else "V2 new family"
+            v2.append([f"DG2-{i:03}", f"DG-{i:03}" if i <= 428 else "", f"Family-{(i - 1) % 24:02}", "Concept", "ENGINE", "PP-001", "PRINTIFY_PRIMARY", "TEMPLATE_RESEARCH", origin, "Re-score"])
         return {"Source_Migration_500": source, "Master_500_v2": v2,
-                "Family_Rebalance": [["Family", "V1 Count", "V2 Target"], ["Family", "500", "500"]]}
+                "Family_Rebalance": [["Family", "V1 Count", "V2 Target"]] + [[f"Family-{i:02}", "0", str(21 if i < 20 else 20)] for i in range(24)]}
 
     def run_check(self, rows):
         with patch.object(validator, "load_rows", return_value=rows):
@@ -38,6 +41,18 @@ class Master500ValidatorTests(unittest.TestCase):
     def test_duplicate_v2_id_fails_closed(self):
         rows = self.fixtures()
         rows["Master_500_v2"][2][0] = "DG2-001"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(errors)
+
+    def test_unexpected_supplier_gate_fails_closed(self):
+        rows = self.fixtures()
+        rows["Master_500_v2"][1][6] = "UNAPPROVED_PROVIDER"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(errors)
+
+    def test_missing_reverse_mapping_fails_closed(self):
+        rows = self.fixtures()
+        rows["Master_500_v2"][1][1] = ""
         errors, _ = self.run_check(rows)
         self.assertTrue(errors)
 
