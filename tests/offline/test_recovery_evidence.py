@@ -2,6 +2,10 @@
 """Unit tests for read-only recovery evidence predicates."""
 import importlib.util
 import pathlib
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
 
 path = pathlib.Path(__file__).resolve().parents[2] / "bin" / "check-recovery-evidence.py"
@@ -23,6 +27,28 @@ class RecoveryEvidenceTests(unittest.TestCase):
             "drill_package_sha256": "b" * 64, "backup_sha256": "c" * 64,
             "drill_backup_sha256": "c" * 64,
         }
+
+    def test_missing_evidence_cli_fails_closed_as_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = pathlib.Path(directory) / "missing.json"
+            run = subprocess.run([sys.executable, str(path), str(missing)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            result = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", result["status"])
+            self.assertTrue(result["read_only"])
+            self.assertFalse(result["checker_performed_external_actions"])
+
+    def test_malformed_evidence_cli_fails_closed_as_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            malformed = pathlib.Path(directory) / "malformed.json"
+            malformed.write_text("{not-json", encoding="utf-8")
+            run = subprocess.run([sys.executable, str(path), str(malformed)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            result = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", result["status"])
+            self.assertTrue(result["errors"])
 
     def test_complete_evidence_only_passes_predicates(self):
         self.assertEqual("EVIDENCE_PREDICATES_PASS", module.assess(self.valid())["status"])
