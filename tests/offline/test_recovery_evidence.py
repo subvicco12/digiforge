@@ -114,6 +114,20 @@ class RecoveryEvidenceTests(unittest.TestCase):
         record["backup_sha256"] = 123
         self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
 
+    def test_boolean_safety_flags_reject_truthy_and_numeric_values(self):
+        expected = {"stop_all": True, "externally_locked": True,
+                    "automation_enabled": False, "external_actions_performed": False,
+                    "runtime_schema_current": True, "backup_currently_retrievable": True,
+                    "backup_checksum_verified": True, "installed_package_identity_verified": True,
+                    "drill_fresh": True, "drill_bound_to_current_artifacts": True,
+                    "drill_passed": True}
+        for key, required in expected.items():
+            for value in ("true" if required else "false", 1 if required else 0):
+                with self.subTest(key=key, value=value):
+                    record = self.valid()
+                    record[key] = value
+                    self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
     def test_unlocked_environment_fails_closed(self):
         record = self.valid()
         record["externally_locked"] = False
