@@ -7,6 +7,42 @@ use PHPUnit\Framework\TestCase;
 
 final class FinancePeriodHashReadModelTest extends TestCase
 {
+    public function testDatabaseReadFailureIsUnavailableNotAnEmptyHistory(): void
+    {
+        if (! defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
+        require_once dirname(__DIR__, 2) . '/includes/Database/Tables.php';
+        require_once dirname(__DIR__, 2) . '/includes/Finance/Validator.php';
+        require_once dirname(__DIR__, 2) . '/includes/Finance/OperationsReadModel.php';
+
+        global $wpdb;
+        $original = $wpdb ?? null;
+        try {
+            $wpdb = new class {
+                public string $prefix = 'wp_';
+                public string $last_error = '';
+                public function prepare(string $sql, mixed ...$args): string { return $sql; }
+                public function get_results(string $sql, mixed $mode): ?array
+                {
+                    if (str_contains($sql, 'finance_periods')) {
+                        $this->last_error = 'database unavailable';
+                        return null;
+                    }
+                    return [];
+                }
+            };
+            $result = (new OperationsReadModel())->snapshot(999);
+            self::assertSame('UNAVAILABLE', $result['query_state']['periods']);
+            self::assertSame('AVAILABLE', $result['query_state']['analytics']);
+            self::assertSame([], $result['periods']);
+            self::assertSame([], $result['analytics']);
+            self::assertFalse($result['money_movement_authorized']);
+            self::assertFalse($result['tax_filing_authorized']);
+            self::assertFalse($result['external_execution_authorized']);
+        } finally {
+            $wpdb = $original;
+        }
+    }
+
     public function testPeriodAndAnalyticsHashesFollowTheirDistinctWriterContracts(): void
     {
         if (! defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
