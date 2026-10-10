@@ -33,7 +33,9 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             $result = (new SourceCompletenessReadModel())->snapshot('test', '2026-09-01', '2026-09-30');
             self::assertSame($state, $result['state']);
             self::assertSame($missing, $result['missing_revenue_order_ids']);
-            self::assertSame('NOT_VERIFIED', $result['cost_coverage_state']);
+            foreach (['cost_coverage_state', 'etsy_transaction_timing_state', 'etsy_fee_coverage_state', 'pod_actual_cost_coverage_state'] as $field) {
+                self::assertSame('NOT_VERIFIED', $result[$field]);
+            }
             self::assertFalse($result['approval_authorized']);
             self::assertFalse($result['external_execution_authorized']);
         } finally {
@@ -71,6 +73,9 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             $result = (new SourceCompletenessReadModel())->snapshot('test', '2026-09-01', '2026-09-30');
             self::assertSame('UNAVAILABLE', $result['state']);
             self::assertNull($result['missing_revenue_order_ids']);
+            foreach (['cost_coverage_state', 'etsy_transaction_timing_state', 'etsy_fee_coverage_state', 'pod_actual_cost_coverage_state'] as $field) {
+                self::assertSame('NOT_VERIFIED', $result[$field]);
+            }
             self::assertFalse($result['approval_authorized']);
         } finally {
             $wpdb = $original;
