@@ -78,6 +78,8 @@ def load_rows(path):
                         value = strings[int(raw.text)]
                     else:
                         value = raw.text or ""
+                    if index - 1 in values:
+                        raise ValueError("worksheet row contains duplicate cell column")
                     values[index - 1] = str(value).strip()
                 rows.append([values.get(i, "") for i in range(max(values, default=-1) + 1)])
             output[name] = rows
