@@ -48,6 +48,19 @@ class Master500ValidatorTests(unittest.TestCase):
             self.assertNotEqual(0, run.returncode)
             self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
 
+    def test_duplicate_workbook_relationship_ids_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "duplicate-relations.xlsx"
+            relationships = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                             '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/>'
+                             '<Relationship Id="rId1" Target="worksheets/sheet2.xml"/>'
+                             '</Relationships>')
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("xl/workbook.xml", '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>')
+                archive.writestr("xl/_rels/workbook.xml.rels", relationships)
+            with self.assertRaisesRegex(ValueError, "duplicate relationship IDs"):
+                validator.load_rows(workbook)
+
     def test_duplicate_archive_path_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "duplicate.xlsx"
