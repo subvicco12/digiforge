@@ -50,7 +50,13 @@ final class OpenAIClient
         $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
         if($status<200||$status>=300||!is_array($decoded))return new \WP_Error('digiforge_launch_ai_provider',__('AI provider rejected the background request.','digiforge'),['status'=>502]);
         $id=sanitize_text_field((string)($decoded['id']??'')); if($id==='')return new \WP_Error('digiforge_launch_ai_empty',__('AI provider did not return a response id.','digiforge'),['status'=>502]);
-        return ['response_id'=>$id,'status'=>sanitize_key((string)($decoded['status']??'queued'))];
+        $result=['response_id'=>$id,'status'=>sanitize_key((string)($decoded['status']??'queued')),'provider_response_sha256'=>hash('sha256',(string)wp_remote_retrieve_body($response))];
+        if($result['status']==='completed'){
+            $payload=$this->decodeJsonObject($this->extractOutputText($decoded));
+            if(!is_array($payload))return new \WP_Error('digiforge_launch_ai_invalid_json','Completed background output was not valid structured JSON.',['status'=>502]);
+            $result+=['payload'=>$payload,'model'=>sanitize_text_field((string)($decoded['model']??'')),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[]];
+        }
+        return $result;
     }
 
     /** Poll a background response; completed responses are decoded with the same strict JSON contract. */
@@ -63,12 +69,15 @@ final class OpenAIClient
         if(is_wp_error($response))return new \WP_Error('digiforge_launch_ai_transport',__('AI background poll failed.','digiforge'),['status'=>502]);
         $http=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
         if($http<200||$http>=300||!is_array($decoded))return new \WP_Error('digiforge_launch_ai_provider',__('AI provider rejected the background poll.','digiforge'),['status'=>502]);
+        if(($decoded['id']??null)!==$responseId)return new \WP_Error('digiforge_launch_ai_identity','Returned provider response identity does not match the requested reservation.',['status'=>502,'retry_permitted'=>false]);
         $status=sanitize_key((string)($decoded['status']??''));
         if(in_array($status,['queued','in_progress'],true))return ['response_id'=>$responseId,'status'=>$status];
         if($status==='incomplete'||$status==='failed'||$status==='cancelled')return new \WP_Error('digiforge_launch_ai_incomplete',__('AI background response did not complete successfully.','digiforge'),['status'=>502,'response_status'=>$status]);
         $text=$this->extractOutputText($decoded);$payload=$this->decodeJsonObject($text);
         if($status!=='completed'||!is_array($payload))return new \WP_Error('digiforge_launch_ai_invalid_json',__('AI background output was not valid structured JSON.','digiforge'),['status'=>502]);
-        return ['response_id'=>$responseId,'status'=>'completed','payload'=>$payload,'model'=>sanitize_text_field((string)($decoded['model']??self::DEFAULT_MODEL)),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[]];
+        $completed=['response_id'=>$responseId,'status'=>'completed','payload'=>$payload,'model'=>sanitize_text_field((string)($decoded['model']??'')),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[],'provider_response_sha256'=>hash('sha256',(string)wp_remote_retrieve_body($response))];
+        $evidence=(new \DigiForge\AI\ProviderEvidenceRepository())->completeByResponse($completed);
+        return is_wp_error($evidence)?$evidence:$completed+['ai_usage_id'=>(int)$evidence['usage_id'],'ai_cost_state'=>$evidence['cost_state']];
     }
 
     private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
@@ -102,7 +111,7 @@ final class OpenAIClient
         $text=$this->extractOutputText($decoded);if($text==='')return new \WP_Error('digiforge_launch_ai_empty',__('AI provider returned no usable text.','digiforge'),['status'=>502]);
         $payload=$this->decodeJsonObject($text);
         if(!is_array($payload)){Logger::audit('launch_openai_invalid_json',['response_id'=>sanitize_text_field((string)($decoded['id']??'')),'response_status'=>$responseStatus,'output_chars'=>strlen($text),'json_error'=>sanitize_text_field(json_last_error_msg())],'launch_execution');return new \WP_Error('digiforge_launch_ai_invalid_json',__('AI provider output was not valid structured JSON.','digiforge'),['status'=>502]);}
-        return ['payload'=>$payload,'response_id'=>sanitize_text_field((string)($decoded['id']??'')),'model'=>sanitize_text_field((string)($decoded['model']??self::DEFAULT_MODEL)),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[]];
+        return ['payload'=>$payload,'response_id'=>sanitize_text_field((string)($decoded['id']??'')),'model'=>sanitize_text_field((string)($decoded['model']??'')),'usage'=>is_array($decoded['usage']??null)?$decoded['usage']:[],'provider_response_sha256'=>hash('sha256',(string)wp_remote_retrieve_body($response))];
     }
 
     private function rateLimitError(array $response,array $decoded):\WP_Error

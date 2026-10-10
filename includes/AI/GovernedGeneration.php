@@ -76,6 +76,13 @@ final class GovernedGeneration
             return new WP_Error('ai_generation_attempt_replayed', 'This AI generation attempt was already reserved; provider execution will not be repeated.');
         }
 
-        return $provider();
+        $response = $provider();
+        if ($response instanceof WP_Error) return $response;
+        $evidence = (new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'], $shop, $response);
+        if ($evidence instanceof WP_Error) {
+            $evidence->add_data(array_replace((array)$evidence->get_error_data(), ['provider_execution_performed'=>true, 'retry_permitted'=>false]));
+            return $evidence;
+        }
+        return $response + ['ai_usage_id'=>(int)$usage['id'], 'ai_cost_state'=>$evidence['cost_state']];
     }
 }
