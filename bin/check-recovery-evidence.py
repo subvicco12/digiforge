@@ -68,7 +68,9 @@ def main():
     try:
         if os.path.islink(args.evidence_json):
             raise ValueError("evidence symlink not permitted")
-        with open(args.evidence_json, "rb") as stream:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        descriptor = os.open(args.evidence_json, flags)
+        with os.fdopen(descriptor, "rb") as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 raise ValueError("evidence must be a regular file")
             payload = stream.read(1024 * 1024 + 1)
