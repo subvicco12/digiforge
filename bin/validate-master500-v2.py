@@ -4,6 +4,7 @@ import argparse
 import collections
 import hashlib
 import json
+import io
 import posixpath
 import re
 import sys
@@ -19,6 +20,7 @@ class WorksheetRows(list):
     def __init__(self):
         super().__init__()
         self.row_numbers = []
+        self.formulas = []
 
 
 class ValidationErrors(list):
@@ -41,7 +43,7 @@ def canonical_rows_sha256(rows):
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True,
                                     separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
 
-def load_rows(path):
+def load_rows(path, all_sheets=False):
     with zipfile.ZipFile(path) as archive:
         entries = archive.infolist()
         if len({item.filename for item in entries}) != len(entries):
@@ -71,7 +73,8 @@ def load_rows(path):
             if name in seen_sheet_names:
                 raise ValueError("workbook contains duplicate worksheet names")
             seen_sheet_names.add(name)
-            if name not in {"Source_Migration_500", "Master_500_v2", "Family_Rebalance"}:
+            governed = name in {"Source_Migration_500", "Master_500_v2", "Family_Rebalance"}
+            if not governed and not all_sheets:
                 continue
             relationship_id = sheet.attrib["{" + NS["r"] + "}id"]
             relation = next((entry for entry in relations if entry.attrib.get("Id") == relationship_id), None)
@@ -127,8 +130,11 @@ def load_rows(path):
                     if index < previous_column_index:
                         raise ValueError("worksheet cell columns must be strictly increasing")
                     previous_column_index = index
-                    if cell.find("m:f", NS) is not None:
+                    formula = cell.find("m:f", NS)
+                    if formula is not None and governed:
                         raise ValueError("formula cells are forbidden in governed candidate evidence")
+                    if formula is not None and (formula.attrib or not formula.text):
+                        raise ValueError("unsupported shared, array, or empty planning formula")
                     raw = cell.find("m:v", NS)
                     if cell.attrib.get("t") == "inlineStr":
                         value = "".join(t.text or "" for t in cell.findall(".//m:t", NS))
@@ -146,11 +152,32 @@ def load_rows(path):
                         value = raw.text or ""
                     if index - 1 in values:
                         raise ValueError("worksheet row contains duplicate cell column")
-                    values[index - 1] = str(value).strip()
+                    values[index - 1] = str(value) if all_sheets else str(value).strip()
+                    if formula is not None:
+                        rows.formulas.append({"cell": ref, "formula": "=" + formula.text, "cached_value": str(value)})
                 rows.append([values.get(i, "") for i in range(max(values, default=-1) + 1)])
                 rows.row_numbers.append(canonical_row_number)
             output[name] = rows
         return output
+
+def source_receipt(path):
+    """Read every worksheet without evaluating formulas or granting approval."""
+    rows = load_rows(path, all_sheets=True)
+    expected = {"Executive_Summary", "Family_Rebalance", "Source_Migration_500",
+                "Master_500_v2", "AI_Launch_Model", "Research_Evidence"}
+    if set(rows) != expected:
+        raise ValueError("original source receipt requires exactly the six Master 500 v2 worksheets")
+    sheets = {name: {"physical_row_numbers": data.row_numbers,
+                     "rows": list(data), "formulas": data.formulas,
+                     "populated_rows": sum(any(value != "" for value in row) for row in data),
+                     "last_physical_row": max(data.row_numbers, default=0)}
+              for name, data in rows.items()}
+    payload = json.dumps(sheets, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return {"scope": "ALL_SIX_SOURCE_WORKSHEETS", "sheets": sheets,
+            "source_cells_sha256": hashlib.sha256(payload).hexdigest(),
+            "formula_evaluation_performed": False,
+            "planning_approval_granted": False}
 
 def check(path):
     errors = ValidationErrors()
@@ -267,12 +294,19 @@ def check(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workbook", help="Local XLSX candidate file; never modified")
+    parser.add_argument("--source-receipt", action="store_true",
+                        help="Include all six source sheets and unevaluated planning formulas")
     args = parser.parse_args()
     digest = None
     try:
         with open(args.workbook, "rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        errors, summary = check(args.workbook)
+            snapshot = stream.read(100 * 1024 * 1024 + 1)
+        if len(snapshot) > 100 * 1024 * 1024:
+            raise ValueError("workbook file exceeds safe snapshot size")
+        digest = hashlib.sha256(snapshot).hexdigest()
+        errors, summary = check(io.BytesIO(snapshot))
+        if args.source_receipt:
+            summary["original_source_receipt"] = source_receipt(io.BytesIO(snapshot))
     except (OSError, ValueError, KeyError, IndexError, ET.ParseError, zipfile.BadZipFile) as exc:
         errors, summary = ["unreadable or invalid workbook: " + type(exc).__name__], {}
     print(json.dumps({"status": "REVIEW_REQUIRED" if errors else "STRUCTURAL_PASS_ONLY",
