@@ -9,6 +9,8 @@ final class FinancePeriodHashReadModelTest extends TestCase
 {
     public function testPeriodAndAnalyticsHashesFollowTheirDistinctWriterContracts(): void
     {
+        if (! defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
+        require_once dirname(__DIR__, 2) . '/includes/Database/Tables.php';
         require_once dirname(__DIR__, 2) . '/includes/Finance/Validator.php';
         require_once dirname(__DIR__, 2) . '/includes/Finance/OperationsReadModel.php';
 
@@ -37,6 +39,7 @@ final class FinancePeriodHashReadModelTest extends TestCase
         try {
             $wpdb = new class($period, $analytics) {
                 public string $last_error = '';
+                public string $prefix = 'wp_';
                 public function __construct(private array $period, private array $analytics) {}
                 public function prepare(string $sql, mixed ...$args): string { return $sql; }
                 public function get_results(string $sql, mixed $mode): array
