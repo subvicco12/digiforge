@@ -15,6 +15,11 @@ REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 
 def load_rows(path):
     with zipfile.ZipFile(path) as archive:
+        entries = archive.infolist()
+        if len(entries) > 2000 or sum(item.file_size for item in entries) > 100 * 1024 * 1024:
+            raise ValueError("workbook archive exceeds safe entry or uncompressed size limits")
+        if any(item.file_size > 25 * 1024 * 1024 for item in entries):
+            raise ValueError("workbook archive contains oversized entry")
         names = set(archive.namelist())
         workbook = ET.fromstring(archive.read("xl/workbook.xml"))
         relations = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
