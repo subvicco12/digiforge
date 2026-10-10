@@ -61,6 +61,33 @@ class Master500ValidatorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate relationship IDs"):
                 validator.load_rows(workbook)
 
+    def test_missing_worksheet_relationship_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "missing-relation.xlsx"
+            xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                   '<sheets><sheet name="Source_Migration_500" r:id="missing"/></sheets></workbook>')
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("xl/workbook.xml", xml)
+                archive.writestr("xl/_rels/workbook.xml.rels", "<Relationships/>")
+            with self.assertRaisesRegex((ValueError, KeyError), "relationship"):
+                validator.load_rows(workbook)
+
+    def test_external_worksheet_relationship_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "external-sheet.xlsx"
+            workbook_xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                            '<sheets><sheet name="Source_Migration_500" r:id="rId1"/></sheets></workbook>')
+            rels_xml = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                        '<Relationship Id="rId1" Target="worksheets/sheet1.xml" TargetMode="External"/>'
+                        '</Relationships>')
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("xl/workbook.xml", workbook_xml)
+                archive.writestr("xl/_rels/workbook.xml.rels", rels_xml)
+            with self.assertRaisesRegex(ValueError, "external worksheet relationship"):
+                validator.load_rows(workbook)
+
     def test_duplicate_archive_path_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "duplicate.xlsx"
