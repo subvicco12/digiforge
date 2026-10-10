@@ -58,6 +58,12 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_fdopen_failure_closes_descriptor(self):
+        import inspect
+        source = inspect.getsource(module.main)
+        self.assertIn("except BaseException:", source)
+        self.assertIn("os.close(descriptor)", source)
+
     def test_close_on_exec_flag_used_when_available(self):
         import inspect
         source = inspect.getsource(module.main)
