@@ -2,6 +2,7 @@
 """Read-only fail-closed assessment of redacted recovery evidence JSON."""
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -52,6 +53,8 @@ def main():
     parser.add_argument("evidence_json", help="Local redacted evidence file; never modified")
     args = parser.parse_args()
     try:
+        if os.stat(args.evidence_json).st_size > 1024 * 1024:
+            raise ValueError("evidence file exceeds size limit")
         with open(args.evidence_json, encoding="utf-8") as stream:
             data = json.load(stream, object_pairs_hook=reject_duplicate_keys)
         if not isinstance(data, dict):
