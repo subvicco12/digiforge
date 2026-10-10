@@ -140,6 +140,25 @@ class Master500ValidatorTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, error):
                     validator.load_rows(workbook)
 
+    def test_oversized_coordinate_digits_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "oversized-coordinate.xlsx"
+            xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                   '<sheets><sheet name="Source_Migration_500" r:id="rId1"/></sheets></workbook>')
+            rels = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+            for row_id, cell_ref, expected in [("9" * 5000, "A1", "row exceeds Excel"),
+                                               ("1", "A" + "9" * 5000, "cell reference malformed")]:
+                sheet = ('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                         f'<sheetData><row r="{row_id}"><c r="{cell_ref}"><v>x</v></c></row></sheetData></worksheet>')
+                with zipfile.ZipFile(workbook, "w") as archive:
+                    archive.writestr("xl/workbook.xml", xml)
+                    archive.writestr("xl/_rels/workbook.xml.rels", rels)
+                    archive.writestr("xl/worksheets/sheet1.xml", sheet)
+                with self.assertRaisesRegex(ValueError, expected):
+                    validator.load_rows(workbook)
+
     def test_out_of_order_cell_columns_fail_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "out-of-order-cells.xlsx"
