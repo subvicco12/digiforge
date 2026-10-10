@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import warnings
 from unittest.mock import patch
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[2] / "bin" / "validate-master500-v2.py"
@@ -31,6 +32,19 @@ class Master500ValidatorTests(unittest.TestCase):
     def run_check(self, rows):
         with patch.object(validator, "load_rows", return_value=rows):
             return validator.check("unused.xlsx")
+
+    def test_duplicate_archive_path_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "duplicate.xlsx"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                with zipfile.ZipFile(workbook, "w") as archive:
+                    archive.writestr("xl/workbook.xml", "first")
+                    archive.writestr("xl/workbook.xml", "second")
+            run = subprocess.run([sys.executable, str(MODULE_PATH), str(workbook)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
 
     def test_oversized_archive_entry_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
