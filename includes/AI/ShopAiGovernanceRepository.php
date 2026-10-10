@@ -42,7 +42,7 @@ final class ShopAiGovernanceRepository {
   $unitCost=max(0.0,(float)($projection['stages'][$stage]['estimated_unit_cost']??0));
   $check=ShopAiPlan::preflight($projection,$stage,1,$unitCost);
   if(empty($check['execution_allowed']))return new WP_Error('ai_generation_budget_blocked','Shop AI policy does not authorize this generation attempt.',['reasons'=>$check['reasons']??[]]);
-  return $this->recordUsage(['shop_key'=>$shop,'workflow'=>'product_factory','stage'=>$stage,'model_key'=>'','quantity'=>1,'estimated_cost'=>$unitCost,'actual_cost'=>0,'currency'=>(string)($projection['currency']??'USD'),'run_context'=>$runContext],'generation-'.$attemptKey);
+  return $this->recordUsage(['shop_key'=>$shop,'workflow'=>$stage==='research'?'research':'product_factory','stage'=>$stage,'model_key'=>'','quantity'=>1,'estimated_cost'=>$unitCost,'actual_cost'=>0,'currency'=>(string)($projection['currency']??'USD'),'run_context'=>$runContext],'generation-'.$attemptKey);
  }
 
  public function recordUsage(array $input,?string $key=null):array|WP_Error{

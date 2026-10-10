@@ -34,4 +34,15 @@ final class AiProviderSettlementTest extends WP_UnitTestCase {
   $other=(new DigiForge\AI\ShopAiGovernanceRepository())->reserveGeneration($this->shop,'develop','line-'.wp_generate_uuid4());$two=$this->response();$r->recordOutcome((int)$other['id'],$this->shop,$two);$charge['response_id']=$two['response_id'];$conflict=$r->settle((int)$other['id'],$this->shop,$charge);self::assertTrue(is_wp_error($conflict));self::assertSame('ai_evidence_conflict',$conflict->get_error_code());
  }
 
+ public function testCostModelProjectionUsesMeteredProviderModel():void {
+  $r=new DigiForge\AI\ProviderEvidenceRepository();$response=$this->response();self::assertFalse(is_wp_error($r->recordOutcome((int)$this->usage['id'],$this->shop,$response)));global $wpdb;self::assertSame('fixture-model',$wpdb->get_var($wpdb->prepare('SELECT model_key FROM '.DigiForge\Database\Tables::shop_ai_usage().' WHERE id=%d',$this->usage['id'])));
+ }
+
+ public function testResearchWorkflowIsNotAttributedToProductFactory():void {
+  $gov=new DigiForge\AI\ShopAiGovernanceRepository();$gov->savePolicy(['shop_key'=>$this->shop,'currency'=>'USD','stages'=>['research'=>['limit'=>8]]]);$usage=$gov->reserveGeneration($this->shop,'research','research-'.wp_generate_uuid4());self::assertFalse(is_wp_error($usage));$r=(new DigiForge\AI\ProviderEvidenceRepository())->recordOutcome((int)$usage['id'],$this->shop,$this->response());self::assertFalse(is_wp_error($r));self::assertSame('research',$r['workflow']);
+ }
+ public function testModelProjectionFailurePreservesMeteringAndBlocksAutomaticRepairOrSettlement():void {
+  $repo=new DigiForge\AI\ProviderEvidenceRepository();$response=$this->response();$table=DigiForge\Database\Tables::shop_ai_usage();$filter=static fn(string $sql):string=>str_starts_with($sql,'UPDATE '.$table.' SET model_key=')?'SELECT * FROM digiforge_missing_model_projection':$sql;add_filter('query',$filter);try{$r=$repo->recordOutcome((int)$this->usage['id'],$this->shop,$response);}finally{remove_filter('query',$filter);}self::assertTrue(is_wp_error($r));self::assertSame('RECONCILIATION_REQUIRED',$repo->snapshot((int)$this->usage['id'],$this->shop)['cost_state']);self::assertTrue(is_wp_error($repo->recordOutcome((int)$this->usage['id'],$this->shop,$response)));self::assertTrue(is_wp_error($repo->settle((int)$this->usage['id'],$this->shop,$this->charge($response))));
+ }
+
 }
