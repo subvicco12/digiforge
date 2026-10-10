@@ -43,6 +43,7 @@ final class ExecutionEngine
 
         $repo = new ResearchRepository();
         $source = $repo->createSource([
+            'shop_key' => $shop,
             'name' => 'DigiForge OpenAI Web Research',
             'source_type' => 'openai_web_search',
             'environment' => 'production',
@@ -83,6 +84,7 @@ final class ExecutionEngine
         }
 
         $candidate = $repo->createCandidate([
+            'shop_key' => $shop,
             'title' => $title,
             'summary' => $summary,
             'signals' => is_array($payload['signals'] ?? null) ? $payload['signals'] : [],
@@ -130,11 +132,13 @@ final class ExecutionEngine
             return $this->error('validation', 'shop must be digital or goods.');
         }
 
+        $scope=(new ResearchRepository())->assertCandidateShop($candidateId,$shop);if(is_wp_error($scope))return $scope;
         $brief = $this->developmentPrompt($candidate, $shop);
         $ai = (new GovernedGeneration())->develop($shop, 'develop', $brief, $key . '-develop');
         if (is_wp_error($ai)) {
             return $ai;
         }
+        $scope=(new ResearchRepository())->assertCandidateShop($candidateId,$shop);if(is_wp_error($scope))return $scope;
         $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
         if ($shop === 'digital') { $normalized = $this->normalizeDigitalSpecification($spec); if (is_wp_error($normalized)) return $normalized; $spec = $normalized; }
         $productName = sanitize_text_field((string) ($spec['product_name'] ?? $candidate['title']));
@@ -243,6 +247,7 @@ final class ExecutionEngine
         if (! in_array($shop, ['digital', 'goods'], true)) {
             return $this->error('validation', 'shop must be digital or goods.');
         }
+        $scope=(new ResearchRepository())->assertCandidateShop($candidateId,$shop);if(is_wp_error($scope))return $scope;
         return $this->developmentPrompt($candidate, $shop);
     }
 
@@ -254,6 +259,7 @@ final class ExecutionEngine
         if ($candidate === null) return $this->error('not_found', 'Research candidate not found.', 404);
         if (($candidate['review_status'] ?? '') !== ResearchRepository::REVIEW_APPROVED) return $this->error('approval_required', 'Research candidate must be explicitly APPROVED before product development.', 409);
         $shop = sanitize_key($shop); if (! in_array($shop, ['digital','goods'], true)) return $this->error('validation', 'shop must be digital or goods.');
+        $scope=(new ResearchRepository())->assertCandidateShop($candidateId,$shop);if(is_wp_error($scope))return $scope;
         $spec = is_array($ai['payload'] ?? null) ? $ai['payload'] : [];
         if ($spec === []) return $this->error('invalid_development_output', 'Development output did not contain a usable structured specification.', 502);
         if ($shop === 'digital') { $normalized = $this->normalizeDigitalSpecification($spec); if (is_wp_error($normalized)) return $normalized; $spec = $normalized; }
