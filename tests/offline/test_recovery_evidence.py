@@ -39,6 +39,15 @@ class RecoveryEvidenceTests(unittest.TestCase):
             self.assertTrue(result["read_only"])
             self.assertFalse(result["checker_performed_external_actions"])
 
+    def test_oversized_evidence_cli_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "oversized.json"
+            evidence.write_text(" " * (1024 * 1024 + 1), encoding="utf-8")
+            run = subprocess.run([sys.executable, str(path), str(evidence)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
+
     def test_duplicate_safety_key_cli_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "duplicate.json"
