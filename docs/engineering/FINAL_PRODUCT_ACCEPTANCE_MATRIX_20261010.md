@@ -1,4 +1,6 @@
-# Final product source-to-code acceptance matrix — 2026-10-10
+# Preliminary source-to-code matrix — historical pre-attachment baseline
+
+**Superseded source-access limitation:** both originals are now read. See [original-source reconciliation](original-source/README.md), the complete original-text inventory and catalog/formula records. The statements below about missing attachments describe the earlier baseline only.
 
 Baseline: main `844107ab9baf7e1303cd47708e9eab3bc700b348`, independently matched by fetch and remote lookup. Authority: issue #959 (read 2026-10-10), repository v6 convergence and Master 500 contracts. Environment certification remains FAIL for independently unverified latest published configuration; GitHub push and exact-SHA verification passed.
 

@@ -58,6 +58,84 @@ class Master500ValidatorTests(unittest.TestCase):
             archive.writestr('xl/workbook.xml', ET.tostring(workbook))
             archive.writestr('xl/_rels/workbook.xml.rels', ET.tostring(relationships))
 
+    def test_cli_hash_and_receipt_use_one_immutable_snapshot(self):
+        import contextlib
+        import hashlib
+        import io
+        rows = self.fixtures()
+        rows.update({"Executive_Summary": [["Source"]], "AI_Launch_Model": [["Planning"]],
+                     "Research_Evidence": [["Evidence A"]]})
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'source.xlsx'
+            self.write_workbook(path, rows)
+            original_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            original_check = validator.check
+            def replace_after_check(snapshot):
+                result = original_check(snapshot)
+                rows['Research_Evidence'][0][0] = 'Evidence B'
+                self.write_workbook(path, rows)
+                return result
+            stdout = io.StringIO()
+            with patch.object(sys, 'argv', ['validator', '--source-receipt', str(path)]), \
+                 patch.object(validator, 'check', side_effect=replace_after_check), \
+                 contextlib.redirect_stdout(stdout):
+                self.assertEqual(0, validator.main())
+            report = json.loads(stdout.getvalue())
+            self.assertEqual(original_sha, report['sha256'])
+            self.assertEqual('Evidence A', report['summary']['original_source_receipt']['sheets']['Research_Evidence']['rows'][0][0])
+            self.assertNotEqual(original_sha, hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_source_receipt_requires_all_six_sheets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'source.xlsx'
+            self.write_workbook(path, self.fixtures())
+            with self.assertRaisesRegex(ValueError, 'six'):
+                validator.source_receipt(path)
+
+    def test_source_receipt_covers_supplemental_content_and_preserves_whitespace(self):
+        rows = self.fixtures()
+        rows.update({"Executive_Summary": [[" Original source "]],
+                     "AI_Launch_Model": [["Planning only"]],
+                     "Research_Evidence": [["Evidence only"]]})
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'source.xlsx'
+            self.write_workbook(path, rows)
+            receipt = validator.source_receipt(path)
+            self.assertEqual(6, len(receipt['sheets']))
+            self.assertEqual(' Original source ', receipt['sheets']['Executive_Summary']['rows'][0][0])
+            self.assertFalse(receipt['formula_evaluation_performed'])
+            self.assertFalse(receipt['planning_approval_granted'])
+            rows['Research_Evidence'][0][0] = 'Changed evidence'
+            self.write_workbook(path, rows)
+            self.assertNotEqual(receipt['source_cells_sha256'], validator.source_receipt(path)['source_cells_sha256'])
+
+    def test_planning_formula_and_cached_value_are_preserved_without_evaluation(self):
+        rows = self.fixtures()
+        rows.update({"Executive_Summary": [["Source"]], "AI_Launch_Model": [["0"]],
+                     "Research_Evidence": [["Evidence"]]})
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'source.xlsx'
+            self.write_workbook(path, rows)
+            with zipfile.ZipFile(path) as archive:
+                files = {name: archive.read(name) for name in archive.namelist()}
+            from xml.etree import ElementTree as ET
+            sheet_path = 'xl/worksheets/sheet5.xml'
+            root = ET.fromstring(files[sheet_path])
+            cell = root.find('.//m:c', validator.NS)
+            cell.attrib.pop('t')
+            for child in list(cell):
+                cell.remove(child)
+            ET.SubElement(cell, '{%s}f' % validator.NS['m']).text = 'SUM(H4:H9)'
+            ET.SubElement(cell, '{%s}v' % validator.NS['m']).text = '12.5'
+            files[sheet_path] = ET.tostring(root)
+            with zipfile.ZipFile(path, 'w') as archive:
+                for name, content in files.items():
+                    archive.writestr(name, content)
+            receipt = validator.source_receipt(path)
+            self.assertEqual([{'cell': 'A1', 'formula': '=SUM(H4:H9)', 'cached_value': '12.5'}],
+                             receipt['sheets']['AI_Launch_Model']['formulas'])
+            self.assertEqual([], validator.check(path)[0])
+
     def test_unknown_recommended_stage_fails_with_exact_location(self):
         rows = self.fixtures()
         rows['Master_500_v2'][1][9] = 'AUTO_PUBLISH'
