@@ -23,6 +23,13 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
   self::assertStringContainsString("if(\$rows===[])return \$this->error('ledger_evidence_missing'",$writer);
   self::assertStringContainsString("'No ledger entries exist for this period; a zero-profit result would be unsupported.'",$writer);
  }
+ public function testPeriodApprovalRequiresReconciledIntegrityVerifiedEvidence():void{
+  $writer=(string)file_get_contents(__DIR__.'/../../includes/Finance/Repository.php');
+  self::assertStringContainsString("'period_integrity_invalid'",$writer);
+  self::assertStringContainsString("'reconciliation_required'",$writer);
+  self::assertStringContainsString("hash_equals((string)\$row['metrics_hash'],Validator::hash(\$canonical))",$writer);
+  self::assertStringContainsString("['unresolved_reconciliation_count']",$writer);
+ }
  public function testPortalSurfacesProfitabilityWithoutFinancialAuthority():void{
   $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
   foreach(['Profitability periods','Net operating profit','Margin','HASH VERIFIED','Profitability evidence cannot move money'] as $v)self::assertStringContainsString($v,$p);
