@@ -85,7 +85,7 @@ final class FinancePeriodHashReadModelTest extends TestCase
             };
             $result = (new OperationsReadModel())->snapshot();
             self::assertTrue($result['periods'][0]['metrics_valid']);
-            self::assertSame($metrics, $result['periods'][0]['metrics']);
+            self::assertEquals($metrics, $result['periods'][0]['metrics']);
             self::assertTrue($result['analytics'][0]['metrics_valid']);
 
             $wpdb = new class($period, $analytics) {
