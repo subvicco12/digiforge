@@ -53,6 +53,8 @@ final class SourceCompletenessReadModel
                 'missing_revenue_order_ids' => null,
                 'orphan_revenue_order_ids' => null,
                 'duplicate_revenue_order_ids' => null,
+                'invalid_order_row_count' => null,
+                'invalid_revenue_row_count' => null,
                 'cost_coverage_state' => 'NOT_VERIFIED',
                 'etsy_transaction_timing_state' => 'NOT_VERIFIED',
                 'etsy_fee_coverage_state' => 'NOT_VERIFIED',
@@ -63,24 +65,33 @@ final class SourceCompletenessReadModel
         }
 
         $expected = [];
+        $invalidOrderRows = 0;
         foreach ($orders as $row) {
-            $id = (int) ($row['id'] ?? 0);
-            if ($id > 0) $expected[$id] = true;
+            $rawId = is_array($row) ? ($row['id'] ?? null) : null;
+            if (!is_scalar($rawId) || !ctype_digit((string) $rawId) || (int) $rawId < 1) {
+                ++$invalidOrderRows;
+                continue;
+            }
+            $expected[(int) $rawId] = true;
         }
         $covered = [];
         $revenueCounts = [];
+        $invalidRevenueRows = 0;
         foreach ($revenue as $row) {
-            $revenueId = (int) ($row['source_id'] ?? 0);
-            $revenueCounts[$revenueId] = ($revenueCounts[$revenueId] ?? 0) + 1;
-            $id = (int) ($row['source_id'] ?? 0);
-            if ($id > 0 && isset($expected[$id])) $covered[$id] = true;
+            $rawId = is_array($row) ? ($row['source_id'] ?? null) : null;
+            if (!is_scalar($rawId) || !ctype_digit((string) $rawId) || (int) $rawId < 1) {
+                ++$invalidRevenueRows;
+                continue;
+            }
+            $id = (int) $rawId;
+            $revenueCounts[$id] = ($revenueCounts[$id] ?? 0) + 1;
+            if (isset($expected[$id])) $covered[$id] = true;
         }
         $missing = array_keys(array_diff_key($expected, $covered));
         sort($missing, SORT_NUMERIC);
         $orphanRevenue = [];
-        foreach ($revenue as $row) {
-            $id = (int) ($row['source_id'] ?? 0);
-            if ($id < 1 || !isset($expected[$id])) $orphanRevenue[$id] = true;
+        foreach ($revenueCounts as $id => $count) {
+            if (!isset($expected[$id])) $orphanRevenue[$id] = true;
         }
         $duplicateRevenueIds = [];
         foreach ($revenueCounts as $revenueId => $count) {
@@ -94,13 +105,15 @@ final class SourceCompletenessReadModel
         // Revenue ledger effective_date likewise does not prove Etsy fee settlement or POD actual cost.
 
         return [
-            'state' => $zeroActivity ? 'ZERO_ACTIVITY' : ($orphanIds !== [] ? 'UNMATCHED_REVENUE_EVIDENCE' : ($duplicateRevenueIds !== [] ? 'DUPLICATE_REVENUE_EVIDENCE' : ($missing === [] ? 'REVENUE_COVERED_COSTS_UNVERIFIED' : 'MISSING_REVENUE_EVIDENCE'))),
+            'state' => ($invalidOrderRows > 0 || $invalidRevenueRows > 0) ? 'INVALID_SOURCE_EVIDENCE' : ($zeroActivity ? 'ZERO_ACTIVITY' : ($orphanIds !== [] ? 'UNMATCHED_REVENUE_EVIDENCE' : ($duplicateRevenueIds !== [] ? 'DUPLICATE_REVENUE_EVIDENCE' : ($missing === [] ? 'REVENUE_COVERED_COSTS_UNVERIFIED' : 'MISSING_REVENUE_EVIDENCE')))),
             'query_state' => ['orders' => 'AVAILABLE', 'revenue' => 'AVAILABLE'],
             'expected_order_count' => count($expected),
             'revenue_covered_order_count' => count($covered),
             'missing_revenue_order_ids' => $missing,
             'orphan_revenue_order_ids' => $orphanIds,
             'duplicate_revenue_order_ids' => $duplicateRevenueIds,
+            'invalid_order_row_count' => $invalidOrderRows,
+            'invalid_revenue_row_count' => $invalidRevenueRows,
             'cost_coverage_state' => 'NOT_VERIFIED',
             'etsy_transaction_timing_state' => 'NOT_VERIFIED',
             'etsy_fee_coverage_state' => 'NOT_VERIFIED',
