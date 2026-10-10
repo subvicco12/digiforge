@@ -51,7 +51,10 @@ def load_rows(path):
                 raise ValueError("worksheet relationship missing")
             if relation.attrib.get("TargetMode", "Internal") != "Internal":
                 raise ValueError("external worksheet relationship is forbidden")
-            target = targets[relationship_id].lstrip("/")
+            raw_target = targets[relationship_id]
+            if ".." in raw_target.replace("\\", "/").split("/"):
+                raise ValueError("worksheet relationship contains parent traversal")
+            target = raw_target.lstrip("/")
             if not target.startswith("xl/"):
                 target = "xl/" + target
             normalized = posixpath.normpath(target)
