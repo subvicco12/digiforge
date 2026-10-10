@@ -90,6 +90,7 @@ final class FinancePeriodHashReadModelTest extends TestCase
 
             $wpdb = new class($period, $analytics) {
                 public string $last_error = '';
+                public string $prefix = 'wp_';
                 public function __construct(private array $period, private array $analytics) {}
                 public function prepare(string $sql, mixed ...$args): string { return $sql; }
                 public function get_results(string $sql, mixed $mode): array
