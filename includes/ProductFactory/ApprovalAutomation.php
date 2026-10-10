@@ -461,16 +461,10 @@ final class ApprovalAutomation
     private function resolveShop(int $candidateId): string
     {
         global $wpdb;
-        $config = $wpdb->get_var($wpdb->prepare(
-            'SELECT s.config FROM ' . Tables::research_candidate_evidence() . ' ce '
-            . 'INNER JOIN ' . Tables::research_evidence() . ' e ON e.id=ce.evidence_id '
-            . 'INNER JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id '
-            . 'INNER JOIN ' . Tables::research_sources() . ' s ON s.id=o.source_id '
-            . 'WHERE ce.candidate_id=%d ORDER BY ce.evidence_id ASC LIMIT 1',
-            $candidateId
-        ));
-        $decoded = is_string($config) ? json_decode($config, true) : null;
-        $shop = is_array($decoded) ? sanitize_key((string) ($decoded['shop'] ?? '')) : '';
+        $config=$wpdb->get_var($wpdb->prepare('SELECT score_inputs FROM '.Tables::research_candidates().' WHERE id=%d',$candidateId));
+        $decoded=is_string($config)?json_decode($config,true):null;
+        $shop=is_array($decoded)?sanitize_key((string)($decoded['shop_key']??'')):'';
+        if($shop==='personalized_pod')$shop='goods';
         return in_array($shop, ['digital', 'goods'], true) ? $shop : '';
     }
 }

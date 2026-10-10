@@ -16,9 +16,12 @@ final class Repository {
         $name = sanitize_text_field((string)($input['name'] ?? ''));
         $kind = sanitize_key((string)($input['source_type'] ?? 'manual'));
         if ($name === '' || $kind === '') return $this->error('validation','Source name and type are required.');
+        $shop=$this->shop((string)($input['shop_key']??''));if($shop==='')return $this->error('research_scope_required','Explicit research shop ownership is required.');
+        $config=$this->sanitizeConfig((array)($input['config']??[]));$config['shop_key']=$shop;
+        $key=$this->scopedKey($shop,$key);
         return $this->insertIdempotent(Tables::research_sources(), $key, [
             'name'=>$name,'source_type'=>$kind,'environment'=>$this->environment($input['environment'] ?? 'sandbox'),
-            'enabled'=>0,'config'=>wp_json_encode($this->sanitizeConfig((array)($input['config'] ?? []))),
+            'enabled'=>0,'config'=>wp_json_encode($config),
             'created_by'=>get_current_user_id(),'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)
         ], 'research_source');
     }
@@ -26,6 +29,9 @@ final class Repository {
     public function ingest(array $input, ?string $key = null): array|\WP_Error {
         $sourceId = absint($input['source_id'] ?? 0);
         $source=$sourceId<1?null:$this->find(Tables::research_sources(),$sourceId);if(is_wp_error($source))return $source;if ($sourceId < 1 || $source === null) return $this->error('invalid_source','Valid source_id required.');
+        $shop=$this->owner($source);if($shop==='')return $this->error('research_scope_required','Legacy unassigned sources require explicit reconciliation.');
+        if(isset($input['shop_key'])&&$this->shop((string)$input['shop_key'])!==$shop)return $this->error('research_scope_mismatch','Observation shop does not match its source.');
+        $key=$this->scopedKey($shop,$key);
         $externalId = sanitize_text_field((string)($input['external_id'] ?? ''));
         $title = sanitize_text_field((string)($input['title'] ?? ''));
         $body = sanitize_textarea_field((string)($input['body'] ?? ''));
@@ -46,6 +52,9 @@ final class Repository {
 
     public function addEvidence(int $observationId, array $input, ?string $key = null): array|\WP_Error {
         $observation=$this->find(Tables::research_observations(),$observationId);if(is_wp_error($observation))return $observation;if ($observation===null) return $this->error('not_found','Observation not found.',404);
+        $source=$this->find(Tables::research_sources(),(int)$observation['source_id']);if(is_wp_error($source))return $source;$shop=is_array($source)?$this->owner($source):'';if($shop==='')return $this->error('research_scope_required','Evidence requires an assigned source shop.');
+        if(isset($input['shop_key'])&&$this->shop((string)$input['shop_key'])!==$shop)return $this->error('research_scope_mismatch','Evidence shop does not match its source.');
+        $key=$this->scopedKey($shop,$key);
         $kind = sanitize_key((string)($input['evidence_type'] ?? 'note'));
         $value = sanitize_textarea_field((string)($input['value'] ?? ''));
         if ($value==='') return $this->error('validation','Evidence value is required.');
@@ -59,21 +68,28 @@ final class Repository {
     public function createCandidate(array $input, ?string $key = null): array|\WP_Error {
         $title=sanitize_text_field((string)($input['title'] ?? ''));
         if ($title==='') return $this->error('validation','Candidate title is required.');
+        $shop=$this->shop((string)($input['shop_key']??''));if($shop==='')return $this->error('research_scope_required','Explicit research shop ownership is required.');
+        $key=$this->scopedKey($shop,$key);
         $canonical=$this->canonical($title);
-        $fingerprint=hash('sha256',$canonical);
+        $fingerprint=hash('sha256','shop-v1|'.$shop.'|'.$canonical);
         global $wpdb;
         $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_candidates().' WHERE fingerprint=%s',$fingerprint),ARRAY_A);
         if(!empty($wpdb->last_error))return $this->error('research_evidence_unavailable','Research deduplication evidence could not be read.',503);if(is_array($existing)) return $this->normalize($existing)+['deduplicated'=>true];
         $score=$this->score((array)($input['signals'] ?? []));
         return $this->insertIdempotent(Tables::research_candidates(),$key,[
             'title'=>$title,'canonical_title'=>$canonical,'fingerprint'=>$fingerprint,'summary'=>sanitize_textarea_field((string)($input['summary'] ?? '')),
-            'score'=>$score,'score_version'=>self::SCORE_VERSION,'score_inputs'=>wp_json_encode($this->numericSignals((array)($input['signals'] ?? []))),
+            'score'=>$score,'score_version'=>self::SCORE_VERSION,'score_inputs'=>wp_json_encode($this->numericSignals((array)($input['signals'] ?? []))+['shop_key'=>$shop]),
             'review_status'=>self::REVIEW_PENDING,'opportunity_id'=>0,'created_by'=>get_current_user_id(),'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)
         ],'research_candidate');
     }
 
     public function linkEvidence(int $candidateId,int $evidenceId): bool|\WP_Error {
-        if($this->find(Tables::research_candidates(),$candidateId)===null || $this->find(Tables::research_evidence(),$evidenceId)===null) return $this->error('not_found','Candidate or evidence not found.',404);
+        $candidate=$this->find(Tables::research_candidates(),$candidateId);$evidence=$this->find(Tables::research_evidence(),$evidenceId);
+        if(is_wp_error($candidate))return $candidate;if(is_wp_error($evidence))return $evidence;
+        if($candidate===null||$evidence===null)return $this->error('not_found','Candidate or evidence not found.',404);
+        $observation=$this->find(Tables::research_observations(),(int)$evidence['observation_id']);if(is_wp_error($observation))return $observation;
+        $source=is_array($observation)?$this->find(Tables::research_sources(),(int)$observation['source_id']):null;if(is_wp_error($source))return $source;
+        $owner=$this->owner($candidate);if($owner===''||!is_array($source)||$owner!==$this->owner($source))return $this->error('research_scope_mismatch','Candidate and evidence require the same explicit shop ownership.');
         global $wpdb;
         $ok=$wpdb->query($wpdb->prepare('INSERT IGNORE INTO '.Tables::research_candidate_evidence().' (candidate_id,evidence_id,created_at) VALUES (%d,%d,%s)',$candidateId,$evidenceId,current_time('mysql',true)));
         if($ok===false) return $this->error('link_failed','Unable to link evidence.',500);
@@ -89,6 +105,7 @@ final class Repository {
         $candidate=$this->find(Tables::research_candidates(),$candidateId);
         if(is_wp_error($candidate))return $candidate;
         if($candidate===null) return $this->error('not_found','Candidate not found.',404);
+        if($this->owner($candidate)==='')return $this->error('research_scope_required','Legacy unassigned candidates require explicit reconciliation before review.');
         if (($candidate['review_status'] ?? '') === $decision) return $candidate + ['idempotent_review'=>true];
         if (($candidate['review_status'] ?? '') !== self::REVIEW_PENDING) return $this->error('review_conflict','Candidate has already received a final review.',409);
         global $wpdb;
@@ -114,12 +131,14 @@ final class Repository {
     public function promote(int $candidateId, ?string $idempotencyKey = null): array|\WP_Error {
         $candidate=$this->find(Tables::research_candidates(),$candidateId);
         if($candidate===null) return $this->error('not_found','Candidate not found.',404);
+        if(is_wp_error($candidate))return $candidate;
+        $shop=$this->owner($candidate);if($shop==='')return $this->error('research_scope_required','Legacy unassigned candidates cannot be promoted.');
         if(($candidate['review_status'] ?? '')!==self::REVIEW_APPROVED) return $this->error('approval_required','Candidate requires explicit approval before promotion.',409);
         if((int)($candidate['opportunity_id'] ?? 0)>0) {
             $existing=(new ProductRepository())->find('opportunity',(int)$candidate['opportunity_id']);
             if($existing!==null) return $existing+['idempotent_replay'=>true];
         }
-        $key=$idempotencyKey ?: 'research-candidate-'.$candidateId;
+        $key=$this->scopedKey($shop,$idempotencyKey ?: 'research-candidate-'.$candidateId);
         $result=(new ProductRepository())->create('opportunity',['title'=>$candidate['title'],'description'=>$candidate['summary'] ?? ''],$key);
         if(is_wp_error($result)) return $result;
         global $wpdb;
@@ -129,15 +148,16 @@ final class Repository {
         return $result;
     }
 
-    public function list(string $entity,int $page=1,int $perPage=20): array|\WP_Error {
+    public function list(string $entity,int $page=1,int $perPage=20,?string $shop=null): array|\WP_Error {
         $map=['sources'=>Tables::research_sources(),'observations'=>Tables::research_observations(),'evidence'=>Tables::research_evidence(),'candidates'=>Tables::research_candidates(),'reviews'=>Tables::research_reviews()];
         if(!isset($map[$entity])) return ['items'=>[],'pagination'=>['page'=>1,'per_page'=>20,'total_items'=>0,'total_pages'=>0]];
         $page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;global $wpdb;$table=$map[$entity];
+        $where='';if($shop!==null){$scope=$this->shop($shop);if($scope==='')return $this->error('research_scope_required','A concrete research shop is required.');$filter=$this->scopeFilter($entity,'t',$scope);$where=' WHERE '.$filter;}
         $wpdb->last_error='';
-        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.$table.' ORDER BY id DESC LIMIT %d OFFSET %d',$perPage,$offset),ARRAY_A);
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT t.* FROM '.$table.' t'.$where.' ORDER BY t.id DESC LIMIT %d OFFSET %d',$perPage,$offset),ARRAY_A);
         if(!is_array($rows)||!empty($wpdb->last_error))return $this->error('research_list_evidence_unavailable','Research list evidence could not be read.',503);
         $wpdb->last_error='';
-        $rawTotal=$wpdb->get_var('SELECT COUNT(*) FROM '.$table);
+        $rawTotal=$wpdb->get_var('SELECT COUNT(*) FROM '.$table.' t'.$where);
         if(!empty($wpdb->last_error)||!is_numeric($rawTotal))return $this->error('research_list_evidence_unavailable','Research list evidence could not be read.',503);
         $total=(int)$rawTotal;
         return ['items'=>array_map([$this,'normalize'],$rows),'pagination'=>['page'=>$page,'per_page'=>$perPage,'total_items'=>$total,'total_pages'=>(int)ceil($total/$perPage)]];
@@ -166,7 +186,26 @@ final class Repository {
     private function canonicalJson(mixed $value):string{if(is_string($value)){$decoded=json_decode($value,true);if(json_last_error()===JSON_ERROR_NONE)$value=$decoded;}return wp_json_encode($this->sortRecursive($value));}
     private function sortRecursive(mixed $value):mixed{if(!is_array($value))return $value;if(array_is_list($value))return array_map([$this,'sortRecursive'],$value);ksort($value);foreach($value as $key=>$item)$value[$key]=$this->sortRecursive($item);return $value;}
     private function find(string $table,int $id):array|\WP_Error|null{global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('research_evidence_unavailable','Research authority evidence could not be read.',503);return is_array($row)?$this->normalize($row):null;}
-    public function normalize(array $row):array{foreach(['id','source_id','observation_id','candidate_id','evidence_id','created_by','reviewed_by','opportunity_id'] as $k){if(isset($row[$k]))$row[$k]=(int)$row[$k];}if(isset($row['score']))$row['score']=(float)$row['score'];unset($row['idempotency_key']);foreach(['config','provenance','score_inputs'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);$row[$k]=is_array($d)?$d:[];}}return $row;}
+    public function normalize(array $row):array{foreach(['id','source_id','observation_id','candidate_id','evidence_id','created_by','reviewed_by','opportunity_id'] as $k){if(isset($row[$k]))$row[$k]=(int)$row[$k];}if(isset($row['score']))$row['score']=(float)$row['score'];unset($row['idempotency_key']);foreach(['config','provenance','score_inputs'] as $k){if(isset($row[$k])&&is_string($row[$k])){$d=json_decode($row[$k],true);$row[$k]=is_array($d)?$d:[];}}if(isset($row['config'])||isset($row['score_inputs']))$row['shop_key']=$this->owner($row);return $row;}
+    public function assertCandidateShop(int $id,string $shop):true|\WP_Error {
+        $candidate=$this->find(Tables::research_candidates(),$id);if(is_wp_error($candidate))return $candidate;
+        if(!is_array($candidate)||$this->owner($candidate)===''||$this->owner($candidate)!==$this->shop($shop))return $this->error('research_scope_mismatch','Candidate is not assigned to this shop.');
+        return true;
+    }
+    private function scopeFilter(string $entity,string $alias,string $shop):string {
+        global $wpdb;
+        $json=static fn(string $column):string=>$wpdb->prepare('CASE WHEN JSON_VALID('.$column.') THEN JSON_UNQUOTE(JSON_EXTRACT('.$column.',%s)) ELSE NULL END=%s','$.shop_key',$shop);
+        return match($entity){
+            'sources'=>$json($alias.'.config'), 'candidates'=>$json($alias.'.score_inputs'),
+            'observations'=>'EXISTS (SELECT 1 FROM '.Tables::research_sources().' s WHERE s.id='.$alias.'.source_id AND '.$json('s.config').')',
+            'evidence'=>'EXISTS (SELECT 1 FROM '.Tables::research_observations().' o INNER JOIN '.Tables::research_sources().' s ON s.id=o.source_id WHERE o.id='.$alias.'.observation_id AND '.$json('s.config').')',
+            'reviews'=>'EXISTS (SELECT 1 FROM '.Tables::research_candidates().' c WHERE c.id='.$alias.'.candidate_id AND '.$json('c.score_inputs').')',
+            default=>'1=0',
+        };
+    }
+    private function shop(string $shop):string {$shop=sanitize_key($shop);if($shop==='goods')$shop='personalized_pod';return in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true)?$shop:'';}
+    private function owner(array $row):string {foreach(['config','score_inputs'] as $field){$value=$row[$field]??[];if(is_string($value))$value=json_decode($value,true);if(is_array($value)&&isset($value['shop_key']))return $this->shop((string)$value['shop_key']);}return '';}
+    private function scopedKey(string $shop,?string $key):?string {return $key===null?null:'research-'.hash('sha256',$shop.'|'.sanitize_text_field($key));}
     private function canonical(string $value):string{$value=strtolower(trim(preg_replace('/\s+/u',' ',wp_strip_all_tags($value))??''));return substr($value,0,255);}
     private function score(array $signals):float{$s=$this->numericSignals($signals);$weights=['demand'=>0.35,'competition_gap'=>0.25,'margin'=>0.20,'trend'=>0.10,'evidence_quality'=>0.10];$score=0.0;foreach($weights as $k=>$w)$score+=($s[$k]??0.0)*$w;return round(max(0,min(100,$score)),2);}
     private function numericSignals(array $signals):array{$out=[];foreach(['demand','competition_gap','margin','trend','evidence_quality'] as $k)$out[$k]=max(0,min(100,(float)($signals[$k]??0)));return $out;}
