@@ -71,6 +71,8 @@ def main():
         if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
             raise ValueError("safe evidence file opening unsupported")
         flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+        if hasattr(os, "O_CLOEXEC"):
+            flags |= os.O_CLOEXEC
         descriptor = os.open(args.evidence_json, flags)
         with os.fdopen(descriptor, "rb") as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
