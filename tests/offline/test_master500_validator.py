@@ -111,6 +111,18 @@ class Master500ValidatorTests(unittest.TestCase):
         errors, _ = self.run_check(rows)
         self.assertTrue(any("blank family" in error for error in errors))
 
+    def test_noninteger_family_target_fails_closed(self):
+        rows = self.fixtures()
+        rows["Family_Rebalance"][1][2] = "not-a-number"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(any("noninteger target" in error for error in errors))
+
+    def test_duplicate_family_target_fails_closed(self):
+        rows = self.fixtures()
+        rows["Family_Rebalance"][2][0] = rows["Family_Rebalance"][1][0]
+        errors, _ = self.run_check(rows)
+        self.assertTrue(any("duplicate family" in error for error in errors))
+
     def test_negative_family_target_fails_closed(self):
         rows = self.fixtures()
         rows["Family_Rebalance"][1][2] = "-1"
