@@ -72,6 +72,8 @@ def load_rows(path):
                 row_number = row.attrib.get("r", "")
                 if not re.fullmatch(r"[1-9][0-9]*", row_number):
                     raise ValueError("worksheet row number malformed")
+                if len(row_number) > 7:
+                    raise ValueError("worksheet row exceeds Excel coordinate bounds")
                 canonical_row_number = int(row_number)
                 if canonical_row_number > 1048576:
                     raise ValueError("worksheet row exceeds Excel coordinate bounds")
@@ -86,7 +88,7 @@ def load_rows(path):
                 for cell in row.findall("m:c", NS):
                     ref = cell.attrib.get("r", "")
                     match = re.fullmatch(r"([A-Z]+)([1-9][0-9]*)", ref)
-                    if not match or int(match.group(2)) != int(row.attrib.get("r", "0")):
+                    if not match or len(match.group(2)) > 7 or int(match.group(2)) != canonical_row_number:
                         raise ValueError("worksheet cell reference malformed or row mismatched")
                     index = 0
                     for char in match.group(1):
