@@ -34,6 +34,7 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             self::assertSame($state, $result['state']);
             self::assertSame($missing, $result['missing_revenue_order_ids']);
             self::assertSame($state === 'UNMATCHED_REVENUE_EVIDENCE' ? [8] : [], $result['orphan_revenue_order_ids']);
+            self::assertSame($state === 'DUPLICATE_REVENUE_EVIDENCE' ? [7] : [], $result['duplicate_revenue_order_ids']);
             foreach (['cost_coverage_state', 'etsy_transaction_timing_state', 'etsy_fee_coverage_state', 'pod_actual_cost_coverage_state'] as $field) {
                 self::assertSame('NOT_VERIFIED', $result[$field]);
             }
@@ -51,6 +52,7 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             'order without revenue' => [[['id' => 7]], [], 'MISSING_REVENUE_EVIDENCE', [7]],
             'covered revenue with costs unverified' => [[['id' => 7]], [['source_id' => 7]], 'REVENUE_COVERED_COSTS_UNVERIFIED', []],
             'unmatched revenue record' => [[['id' => 7]], [['source_id' => 7], ['source_id' => 8]], 'UNMATCHED_REVENUE_EVIDENCE', []],
+            'duplicate revenue record' => [[['id' => 7]], [['source_id' => 7], ['source_id' => 7]], 'DUPLICATE_REVENUE_EVIDENCE', []],
         ];
     }
 
@@ -76,6 +78,7 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             self::assertSame('UNAVAILABLE', $result['state']);
             self::assertNull($result['missing_revenue_order_ids']);
             self::assertNull($result['orphan_revenue_order_ids']);
+            self::assertNull($result['duplicate_revenue_order_ids']);
             foreach (['cost_coverage_state', 'etsy_transaction_timing_state', 'etsy_fee_coverage_state', 'pod_actual_cost_coverage_state'] as $field) {
                 self::assertSame('NOT_VERIFIED', $result[$field]);
             }
