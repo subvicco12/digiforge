@@ -18,6 +18,11 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
   self::assertStringContainsString('metrics_hash\'=>Validator::hash($canonical)',$writer);
   self::assertStringContainsString("'metrics_hash'=>hash('sha256',\$metricsJson)",$writer);
  }
+ public function testEmptyFinanceLedgerCannotProduceCertifiedZeroProfit():void{
+  $writer=(string)file_get_contents(__DIR__.'/../../includes/Finance/Repository.php');
+  self::assertStringContainsString("if(\$rows===[])return \$this->error('ledger_evidence_missing'",$writer);
+  self::assertStringContainsString("'No ledger entries exist for this period; a zero-profit result would be unsupported.'",$writer);
+ }
  public function testPortalSurfacesProfitabilityWithoutFinancialAuthority():void{
   $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
   foreach(['Profitability periods','Net operating profit','Margin','HASH VERIFIED','Profitability evidence cannot move money'] as $v)self::assertStringContainsString($v,$p);
