@@ -89,6 +89,22 @@ class Master500ValidatorTests(unittest.TestCase):
         errors, _ = self.run_check(rows)
         self.assertTrue(any("source references" in error or "origin/source" in error for error in errors))
 
+    def test_required_source_descriptive_fields_fail_closed(self):
+        for column in (1, 2, 3, 4):
+            with self.subTest(column=column):
+                rows = self.fixtures()
+                rows["Source_Migration_500"][1][column] = ""
+                errors, _ = self.run_check(rows)
+                self.assertTrue(any("required wave/family/concept/engine" in error for error in errors))
+
+    def test_required_v2_descriptive_fields_fail_closed(self):
+        for column in (2, 3, 4):
+            with self.subTest(column=column):
+                rows = self.fixtures()
+                rows["Master_500_v2"][1][column] = ""
+                errors, _ = self.run_check(rows)
+                self.assertTrue(any("required family/concept/engine" in error for error in errors))
+
     def test_blank_family_row_fails_closed(self):
         rows = self.fixtures()
         rows["Family_Rebalance"].append(["", "", ""])
