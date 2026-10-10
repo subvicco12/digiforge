@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import sys
 
 SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -65,7 +66,11 @@ def main():
     parser.add_argument("evidence_json", help="Local redacted evidence file; never modified")
     args = parser.parse_args()
     try:
+        if os.path.islink(args.evidence_json):
+            raise ValueError("evidence symlink not permitted")
         with open(args.evidence_json, "rb") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ValueError("evidence must be a regular file")
             payload = stream.read(1024 * 1024 + 1)
         if len(payload) > 1024 * 1024:
             raise ValueError("evidence file exceeds size limit")
