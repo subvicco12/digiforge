@@ -1,4 +1,4 @@
-Current convergence evidence: [integrated report](../INTEGRATED_SOURCE_CONVERGENCE_20261011.md) and [section reconciliation](section-reconciliation.md). The report below records the earlier source-ingestion milestone; its test counts and open traces are historical. Full requirement acceptance remains incomplete.
+Current convergence evidence: [final non-finance candidate report](../FINAL_NONFINANCE_CANDIDATE_20261011.md) and [section reconciliation](section-reconciliation.md). The report below records the earlier source-ingestion milestone; its test counts and open traces are historical. Full requirement acceptance remains incomplete.
 
 # Original-source acceptance reconciliation — 2026-10-10
 

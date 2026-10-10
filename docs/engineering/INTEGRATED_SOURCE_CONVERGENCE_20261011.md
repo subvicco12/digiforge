@@ -1,3 +1,5 @@
+Historical milestone at integrated head6be26179f242b815ed5d40986735a7de43bdbbbf. Current evidence and remaining gaps: [final non-finance candidate report](FINAL_NONFINANCE_CANDIDATE_20261011.md). Historical test counts and assertions below do not certify the new candidate.
+
 # Integrated original-source convergence — 2026-10-11
 
 Baseline main `844107ab9baf7e1303cd47708e9eab3bc700b348` was fetched and independently matched by remote SHA. Issue #959 and original sources were reconciled. This candidate integrates reviewed code without changing PRs #1148–#1152 or the deferred finance PR #1147.
