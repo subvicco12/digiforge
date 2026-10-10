@@ -85,6 +85,8 @@ def main():
                 raise ValueError("evidence must be a regular file")
             if metadata.st_nlink != 1:
                 raise ValueError("evidence hard links not permitted")
+            if metadata.st_uid != os.geteuid():
+                raise ValueError("evidence file owner does not match checker")
             if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 raise ValueError("evidence file writable by group or others")
             payload = stream.read(1024 * 1024 + 1)
