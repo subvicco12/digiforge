@@ -37,11 +37,12 @@ class Master500ValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "duplicate-sheets.xlsx"
             xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                   '<sheets><sheet name="Source_Migration_500"/>'
+                   '<sheets><sheet name="Source_Migration_500" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId1"/>'
                    '<sheet name="Source_Migration_500"/></sheets></workbook>')
             with zipfile.ZipFile(workbook, "w") as archive:
                 archive.writestr("xl/workbook.xml", xml)
-                archive.writestr("xl/_rels/workbook.xml.rels", "<Relationships/>")
+                archive.writestr("xl/_rels/workbook.xml.rels", '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+                archive.writestr("xl/worksheets/sheet1.xml", '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>')
             run = subprocess.run([sys.executable, str(MODULE_PATH), str(workbook)],
                                  capture_output=True, text=True, check=False)
             self.assertNotEqual(0, run.returncode)
