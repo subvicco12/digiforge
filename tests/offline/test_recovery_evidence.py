@@ -39,6 +39,19 @@ class RecoveryEvidenceTests(unittest.TestCase):
             self.assertTrue(result["read_only"])
             self.assertFalse(result["checker_performed_external_actions"])
 
+    def test_duplicate_safety_key_cli_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "duplicate.json"
+            payload = json.dumps(self.valid())
+            payload = payload.replace('"stop_all": true', '"stop_all": false, "stop_all": true')
+            evidence.write_text(payload, encoding="utf-8")
+            run = subprocess.run([sys.executable, str(path), str(evidence)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            result = json.loads(run.stdout)
+            self.assertEqual("REVIEW_REQUIRED", result["status"])
+            self.assertTrue(result["errors"])
+
     def test_malformed_evidence_cli_fails_closed_as_json(self):
         with tempfile.TemporaryDirectory() as directory:
             malformed = pathlib.Path(directory) / "malformed.json"
