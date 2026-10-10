@@ -67,6 +67,7 @@ def load_rows(path):
             root = ET.fromstring(archive.read(normalized))
             rows = []
             seen_row_numbers = set()
+            previous_row_number = 0
             for row in root.findall(".//m:sheetData/m:row", NS):
                 row_number = row.attrib.get("r", "")
                 if not re.fullmatch(r"[1-9][0-9]*", row_number):
@@ -76,6 +77,9 @@ def load_rows(path):
                     raise ValueError("worksheet row exceeds Excel coordinate bounds")
                 if canonical_row_number in seen_row_numbers:
                     raise ValueError("worksheet contains duplicate row numbers")
+                if canonical_row_number <= previous_row_number:
+                    raise ValueError("worksheet row numbers must be strictly increasing")
+                previous_row_number = canonical_row_number
                 seen_row_numbers.add(canonical_row_number)
                 values = {}
                 for cell in row.findall("m:c", NS):
