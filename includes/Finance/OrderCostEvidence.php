@@ -22,14 +22,22 @@ final class OrderCostEvidence
         if (!is_int($evidence['order_id']) || $evidence['order_id'] < 1
             || !in_array($evidence['environment'], ['test', 'live'], true)
             || !is_string($evidence['etsy_transaction_id'])
+            || trim($evidence['etsy_transaction_id']) === ''
             || !is_string($evidence['etsy_fee_source_ref'])
+            || trim($evidence['etsy_fee_source_ref']) === ''
             || !is_string($evidence['pod_charge_source_ref'])
-            || !preg_match('/^[A-Z]{3}$/D', (string) $evidence['currency'])
-            || !preg_match('/^[a-f0-9]{64}$/D', (string) $evidence['source_hash'])) {
+            || trim($evidence['pod_charge_source_ref']) === ''
+            || !is_string($evidence['currency'])
+            || !preg_match('/^[A-Z]{3}$/D', $evidence['currency'])
+            || !is_string($evidence['source_hash'])
+            || !preg_match('/^[a-f0-9]{64}$/D', $evidence['source_hash'])) {
             return ['state' => 'INVALID_EVIDENCE', 'verified' => false];
         }
+        if (!is_string($evidence['etsy_paid_at'])) {
+            return ['state' => 'INVALID_TIMING', 'verified' => false];
+        }
         $paidAt = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', (string) $evidence['etsy_paid_at']);
-        if (!$paidAt || $paidAt->format('Y-m-d\TH:i:sP') !== $evidence['etsy_paid_at']) {
+        if (!$paidAt || \DateTimeImmutable::getLastErrors() !== false || $paidAt->format('Y-m-d\TH:i:sP') !== $evidence['etsy_paid_at']) {
             return ['state' => 'INVALID_TIMING', 'verified' => false];
         }
         foreach (['etsy_fee_amount', 'pod_actual_cost_amount'] as $field) {
