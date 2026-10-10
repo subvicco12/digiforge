@@ -7,6 +7,11 @@ use WP_Error;
 /** Immutable certified render evidence; review never performs provider execution. */
 final class RenderEvidenceRepository
 {
+ public function createFromArtifacts(array $input,string $outputPath,string $previewPath):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);
+  $v=new RenderArtifactVerifier();$output=$v->readArtifact($outputPath);if($output instanceof WP_Error)return $output;$preview=$v->readArtifact($previewPath);if($preview instanceof WP_Error)return $preview;
+  $input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordFromArtifacts($render,$outputPath,$previewPath);return $receipt instanceof WP_Error?$receipt:$render;
+ }
  public function create(array $input):array|WP_Error{
   global $wpdb;$orderId=absint($input['order_id']??0);$mappingId=absint($input['provider_mapping_id']??0);
   $templateKey=sanitize_text_field((string)($input['template_key']??''));$version=sanitize_text_field((string)($input['template_version']??''));
@@ -28,7 +33,8 @@ final class RenderEvidenceRepository
  }
  private static function evidenceUnavailable():WP_Error{return new WP_Error('render_evidence_unavailable','Render prerequisite evidence is unavailable; render certification is blocked.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
  public function approve(int $id):array|WP_Error{
-  global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);$now=current_time('mysql',true);
+  global $wpdb;$reviewer=get_current_user_id();if($reviewer<1||!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);$now=current_time('mysql',true);
+  $wpdb->last_error='';$render=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$id),ARRAY_A);if($wpdb->last_error!==''||!is_array($render))return self::evidenceUnavailable();$certified=(new RenderArtifactVerifier())->assertCertified($render);if($certified instanceof WP_Error)return $certified;
   $wpdb->last_error='';$ok=$wpdb->update(Tables::pod_render_evidence(),['review_status'=>'APPROVED','reviewed_by'=>$reviewer,'reviewed_at'=>$now],['id'=>$id,'review_status'=>'UNREVIEWED','external_execution_performed'=>0]);
   if($ok!==1){if(!empty($wpdb->last_error))return new WP_Error('render_review_persistence_failed','Render review could not be persisted.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return new WP_Error('render_review_conflict','Render evidence must be unreviewed and cannot be overwritten.',['status'=>409]);}
   $wpdb->last_error='';$approved=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$id),ARRAY_A);if(!is_array($approved)||!empty($wpdb->last_error))return new WP_Error('render_review_confirmation_unavailable','Render review update completed but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $approved;
