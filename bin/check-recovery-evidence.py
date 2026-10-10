@@ -65,15 +65,16 @@ def main():
     parser.add_argument("evidence_json", help="Local redacted evidence file; never modified")
     args = parser.parse_args()
     try:
-        if os.stat(args.evidence_json).st_size > 1024 * 1024:
+        with open(args.evidence_json, "rb") as stream:
+            payload = stream.read(1024 * 1024 + 1)
+        if len(payload) > 1024 * 1024:
             raise ValueError("evidence file exceeds size limit")
-        with open(args.evidence_json, encoding="utf-8") as stream:
-            data = json.load(stream, object_pairs_hook=reject_duplicate_keys,
-                             parse_constant=reject_nonfinite_constant)
+        data = json.loads(payload.decode("utf-8"), object_pairs_hook=reject_duplicate_keys,
+                          parse_constant=reject_nonfinite_constant)
         if not isinstance(data, dict):
             raise ValueError("expected JSON object")
         result = assess(data)
-    except (OSError, ValueError, json.JSONDecodeError):
+    except (OSError, ValueError, UnicodeError, json.JSONDecodeError):
         result = {"status": "REVIEW_REQUIRED", "errors": ["invalid evidence file"],
                   "read_only": True, "checker_performed_external_actions": False}
     print(json.dumps(result, indent=2, sort_keys=True))
