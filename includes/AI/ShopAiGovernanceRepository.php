@@ -20,6 +20,31 @@ final class ShopAiGovernanceRepository {
   return ShopAiPlan::preflight($projection,$stage,$quantity,$estimatedCost);
  }
 
+ /** Serialize the final policy check and durable quantity reservation per shop. */
+ public static function generationLockName(string $shop):string {
+  return 'digiforge-ai-'.substr(hash('sha256',sanitize_key($shop)),0,50);
+ }
+ public function reserveGeneration(string $shop,string $stage,string $attemptKey,?array $runContext=null):array|WP_Error {
+  global $wpdb;$shop=sanitize_key($shop);$stage=sanitize_key($stage);$attemptKey=sanitize_text_field($attemptKey);
+  if($shop===''||$attemptKey===''||!in_array($stage,ShopAiPlan::STAGES,true))return new WP_Error('ai_generation_context_invalid','Valid shop, stage and attempt identity are required.');
+  $lock=self::generationLockName($shop);$wpdb->last_error='';
+  $acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));
+  if(!empty($wpdb->last_error)||(string)$acquired!=='1')return new WP_Error('ai_generation_reservation_busy','Shop AI reservation is unavailable or busy; no provider call is authorized.');
+  try{$result=$this->reserveGenerationLocked($shop,$stage,$attemptKey,$runContext);}
+  catch(\Throwable $e){$result=new WP_Error('ai_generation_reservation_uncertain','AI reservation outcome is uncertain; provider execution is blocked.');}
+  finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$releaseError=!empty($wpdb->last_error)||(string)$released!=='1';}
+  if($releaseError)return new WP_Error('ai_generation_reservation_lock_uncertain','AI reservation lock release is uncertain; provider execution is blocked.');
+  return $result;
+ }
+ private function reserveGenerationLocked(string $shop,string $stage,string $attemptKey,?array $runContext):array|WP_Error {
+  $projection=$this->evaluate($shop,'production',$runContext);if($projection instanceof WP_Error)return $projection;
+  foreach((array)($projection['budgets']??[]) as $budget)if((float)$budget>0)return new WP_Error('ai_generation_cost_accounting_unavailable','Monetary budgets require authoritative actual-cost attribution before generation.');
+  $unitCost=max(0.0,(float)($projection['stages'][$stage]['estimated_unit_cost']??0));
+  $check=ShopAiPlan::preflight($projection,$stage,1,$unitCost);
+  if(empty($check['execution_allowed']))return new WP_Error('ai_generation_budget_blocked','Shop AI policy does not authorize this generation attempt.',['reasons'=>$check['reasons']??[]]);
+  return $this->recordUsage(['shop_key'=>$shop,'workflow'=>$stage==='research'?'research':'product_factory','stage'=>$stage,'model_key'=>'','quantity'=>1,'estimated_cost'=>$unitCost,'actual_cost'=>0,'currency'=>(string)($projection['currency']??'USD'),'run_context'=>$runContext],'generation-'.$attemptKey);
+ }
+
  public function recordUsage(array $input,?string $key=null):array|WP_Error{
   global $wpdb;$shop=sanitize_key((string)($input['shop_key']??''));$stage=sanitize_key((string)($input['stage']??''));if($shop===''||!in_array($stage,ShopAiPlan::STAGES,true))return new WP_Error('invalid_ai_usage','Valid shop_key and stage are required.');
   $runContext=$input['run_context']??null;$runId='';$runStartedAt=null;if(is_array($runContext)){$normalized=AiRunContext::normalize((string)($runContext['run_id']??''),(string)($runContext['started_at']??''));if($normalized instanceof WP_Error)return $normalized;$runId=$normalized['run_id'];$runStartedAt=$normalized['started_at'];}

@@ -386,6 +386,7 @@ final class ApprovalAutomation
     /** @param array<string,mixed> $developed @param array<string,mixed> $state @param array<string,mixed> $badPayload */
     private function restartManifest(int $candidateId,string $shop,string $runKey,array $developed,WP_Error $error,string $stateKey,array $state,Orchestrator $orchestrator,array $badPayload=[]):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         $attempt=(int)($state['manifest_repair_attempts']??0);
         $structural=str_starts_with($error->get_error_code(),'digiforge_production_')||str_starts_with($error->get_error_code(),'digiforge_u3_');
         if(!$structural&&!$this->retryable($error))return false;
@@ -416,6 +417,7 @@ final class ApprovalAutomation
 
     private function retryable(WP_Error $error):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         return in_array($error->get_error_code(),[
             'digiforge_launch_ai_transport','digiforge_launch_ai_provider','digiforge_launch_ai_incomplete',
             'digiforge_launch_ai_invalid_json','digiforge_launch_ai_rate_limited','digiforge_create_failed'

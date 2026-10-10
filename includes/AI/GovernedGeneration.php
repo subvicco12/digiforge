@@ -67,25 +67,30 @@ final class GovernedGeneration
             return new WP_Error('ai_generation_budget_blocked', 'Shop AI policy does not authorize this generation attempt.', ['reasons'=>$preflight['reasons'] ?? []]);
         }
 
-        // Reserve quantity before the provider call so concurrent starts cannot
-        // bypass stage ceilings. This path is allowed only when monetary budgets
-        // are disabled, so zero actual_cost is not used to satisfy a money limit.
-        $usage = $this->governance->recordUsage([
-            'shop_key'=>$shop,
-            'workflow'=>'product_factory',
-            'stage'=>$stage,
-            'model_key'=>'',
-            'quantity'=>1,
-            'estimated_cost'=>$unitCost,
-            'actual_cost'=>0,
-            'currency'=>(string)($projection['currency'] ?? 'USD'),
-            'run_context'=>$runContext,
-        ], 'generation-'.$attemptKey);
+        // The final check and durable reservation share a database lock. No
+        // provider execution occurs while holding it; an uncertain reservation
+        // or release blocks the call and leaves consumed quantities conservative.
+        $usage = $this->governance->reserveGeneration($shop, $stage, $attemptKey, $runContext);
         if ($usage instanceof WP_Error) return $usage;
         if (! empty($usage['idempotent_replay'])) {
             return new WP_Error('ai_generation_attempt_replayed', 'This AI generation attempt was already reserved; provider execution will not be repeated.');
         }
 
-        return $provider();
+        $response = $provider();
+        if ($response instanceof WP_Error) {
+            $data=(array)$response->get_error_data();$meter=$data['provider_metering']??null;unset($data['provider_metering']);
+            if(is_array($meter)){
+                $receipt=(new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'],$shop,$meter);
+                if($receipt instanceof WP_Error){$receipt->add_data(array_replace((array)$receipt->get_error_data(),['provider_execution_performed'=>true,'ai_usage_id'=>(int)$usage['id'],'retry_permitted'=>false]));return $receipt;}
+                $data+=['ai_cost_state'=>$receipt['cost_state'],'provider_execution_performed'=>true];
+            }else{$data+=['ai_cost_state'=>'UNRECONCILED_PROVIDER_OUTCOME'];}
+            $response->add_data(array_replace($data,['ai_usage_id'=>(int)$usage['id'],'provider_attempt_reserved'=>true,'retry_permitted'=>false]));return $response;
+        }
+        $evidence = (new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'], $shop, $response);
+        if ($evidence instanceof WP_Error) {
+            $evidence->add_data(array_replace((array)$evidence->get_error_data(), ['provider_execution_performed'=>true, 'retry_permitted'=>false]));
+            return $evidence;
+        }
+        return $response + ['ai_usage_id'=>(int)$usage['id'], 'ai_cost_state'=>$evidence['cost_state']];
     }
 }
