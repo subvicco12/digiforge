@@ -39,13 +39,21 @@ def assess(evidence):
     return {"status": "REVIEW_REQUIRED" if errors else "EVIDENCE_PREDICATES_PASS",
             "errors": errors, "read_only": True, "checker_performed_external_actions": False}
 
+def reject_duplicate_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON evidence key")
+        result[key] = value
+    return result
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("evidence_json", help="Local redacted evidence file; never modified")
     args = parser.parse_args()
     try:
         with open(args.evidence_json, encoding="utf-8") as stream:
-            data = json.load(stream)
+            data = json.load(stream, object_pairs_hook=reject_duplicate_keys)
         if not isinstance(data, dict):
             raise ValueError("expected JSON object")
         result = assess(data)
