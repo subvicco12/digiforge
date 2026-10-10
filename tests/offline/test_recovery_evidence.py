@@ -63,8 +63,9 @@ class RecoveryEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "owned.json"
             evidence.write_text("{}", encoding="utf-8")
-            with patch.object(module.os, "geteuid", return_value=os.stat(evidence).st_uid + 1):
-                result = module.main(["--evidence-json", str(evidence)])
+            with patch.object(module.os, "geteuid", return_value=os.stat(evidence).st_uid + 1), \
+                 patch.object(sys, "argv", ["check-recovery-evidence.py", str(evidence)]):
+                result = module.main()
             self.assertEqual(result, 1)
 
     def test_group_writable_evidence_fails_closed(self):
