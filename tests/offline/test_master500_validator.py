@@ -103,6 +103,25 @@ class Master500ValidatorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "external worksheet relationship"):
                 validator.load_rows(workbook)
 
+    def test_malformed_cell_reference_fails_closed(self):
+        for cell_ref in ("A1junk", "A2", "A0"):
+            with self.subTest(cell_ref=cell_ref), tempfile.TemporaryDirectory() as directory:
+                workbook = pathlib.Path(directory) / "malformed-cell.xlsx"
+                xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                       '<sheets><sheet name="Source_Migration_500" r:id="rId1"/></sheets></workbook>')
+                rels = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                        '<Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+                sheet = ('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                         '<sheetData><row r="1"><c r="' + cell_ref + '"><v>one</v></c>'
+                         '</row></sheetData></worksheet>')
+                with zipfile.ZipFile(workbook, "w") as archive:
+                    archive.writestr("xl/workbook.xml", xml)
+                    archive.writestr("xl/_rels/workbook.xml.rels", rels)
+                    archive.writestr("xl/worksheets/sheet1.xml", sheet)
+                with self.assertRaisesRegex(ValueError, "cell reference malformed"):
+                    validator.load_rows(workbook)
+
     def test_duplicate_cell_column_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "duplicate-cell.xlsx"
