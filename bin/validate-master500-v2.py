@@ -16,6 +16,8 @@ REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 def load_rows(path):
     with zipfile.ZipFile(path) as archive:
         entries = archive.infolist()
+        if len({item.filename for item in entries}) != len(entries):
+            raise ValueError("workbook archive contains duplicate entry paths")
         if len(entries) > 2000 or sum(item.file_size for item in entries) > 100 * 1024 * 1024:
             raise ValueError("workbook archive exceeds safe entry or uncompressed size limits")
         if any(item.file_size > 25 * 1024 * 1024 for item in entries):
