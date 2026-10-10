@@ -26,7 +26,11 @@ def load_rows(path):
         names = set(archive.namelist())
         workbook = ET.fromstring(archive.read("xl/workbook.xml"))
         relations = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
-        targets = {r.attrib["Id"]: r.attrib["Target"] for r in relations}
+        relation_entries = relations.findall(REL + "Relationship")
+        relation_ids = [entry.attrib["Id"] for entry in relation_entries]
+        if len(relation_ids) != len(set(relation_ids)):
+            raise ValueError("workbook contains duplicate relationship IDs")
+        targets = {entry.attrib["Id"]: entry.attrib["Target"] for entry in relation_entries}
         strings = []
         if "xl/sharedStrings.xml" in names:
             root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
