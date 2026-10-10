@@ -33,8 +33,12 @@ def load_rows(path):
             strings = ["".join(t.text or "" for t in si.findall(".//m:t", NS))
                        for si in root.findall("m:si", NS)]
         output = {}
+        seen_sheet_names = set()
         for sheet in workbook.findall(".//m:sheets/m:sheet", NS):
             name = sheet.attrib["name"]
+            if name in seen_sheet_names:
+                raise ValueError("workbook contains duplicate worksheet names")
+            seen_sheet_names.add(name)
             if name not in {"Source_Migration_500", "Master_500_v2", "Family_Rebalance"}:
                 continue
             target = targets[sheet.attrib["{" + NS["r"] + "}id"]].lstrip("/")
