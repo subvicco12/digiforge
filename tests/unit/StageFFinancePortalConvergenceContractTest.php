@@ -16,7 +16,7 @@ final class StageFFinancePortalConvergenceContractTest extends TestCase
   self::assertStringContainsString('array_map($normalizePeriod,$periods)',$r);
   self::assertStringContainsString('array_map($normalizeAnalytics,$analytics)',$r);
   self::assertStringContainsString('metrics_hash\'=>Validator::hash($canonical)',$writer);
-  self::assertStringContainsString("'metrics_hash'=>hash('sha256',$metricsJson)",$writer);
+  self::assertStringContainsString("'metrics_hash'=>hash('sha256',\$metricsJson)",$writer);
  }
  public function testPortalSurfacesProfitabilityWithoutFinancialAuthority():void{
   $p=(string)file_get_contents(__DIR__.'/../../includes/Portal/Portal.php');
