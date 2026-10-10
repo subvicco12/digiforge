@@ -72,6 +72,8 @@ def load_rows(path):
                 if not re.fullmatch(r"[1-9][0-9]*", row_number):
                     raise ValueError("worksheet row number malformed")
                 canonical_row_number = int(row_number)
+                if canonical_row_number > 1048576:
+                    raise ValueError("worksheet row exceeds Excel coordinate bounds")
                 if canonical_row_number in seen_row_numbers:
                     raise ValueError("worksheet contains duplicate row numbers")
                 seen_row_numbers.add(canonical_row_number)
@@ -84,6 +86,8 @@ def load_rows(path):
                     index = 0
                     for char in match.group(1):
                         index = index * 26 + ord(char) - 64
+                        if index > 16384:
+                            raise ValueError("worksheet cell exceeds Excel column bounds")
                     raw = cell.find("m:v", NS)
                     if cell.attrib.get("t") == "inlineStr":
                         value = "".join(t.text or "" for t in cell.findall(".//m:t", NS))
