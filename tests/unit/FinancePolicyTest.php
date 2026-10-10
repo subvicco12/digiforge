@@ -38,6 +38,26 @@ final class FinancePolicyTest extends TestCase
         );
     }
 
+    public function testNonFiniteFinancialNumbersAreRejected(): void
+    {
+        foreach ([INF, -INF, NAN] as $invalid) {
+            foreach (['amount', 'positiveRate'] as $method) {
+                try {
+                    Validator::$method($invalid);
+                    self::fail('Non-finite finance value was accepted.');
+                } catch (InvalidArgumentException $expected) {
+                    self::assertNotSame('', $expected->getMessage());
+                }
+            }
+            try {
+                Validator::convert(1.0, $invalid);
+                self::fail('Non-finite FX conversion rate was accepted.');
+            } catch (InvalidArgumentException $expected) {
+                self::assertNotSame('', $expected->getMessage());
+            }
+        }
+    }
+
     public function testRecursiveCredentialKeysAreRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
