@@ -109,6 +109,16 @@ class RecoveryEvidenceTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual("REVIEW_REQUIRED", module.assess(value)["status"])
 
+    def test_all_digest_fields_reject_wrong_type_or_case(self):
+        fields = ("certified_package_sha256", "installed_package_sha256",
+                  "drill_package_sha256", "backup_sha256", "drill_backup_sha256")
+        for key in fields:
+            for bad in (123, None, "A" * 64, "a" * 63):
+                with self.subTest(key=key, value=bad):
+                    record = self.valid()
+                    record[key] = bad
+                    self.assertEqual("REVIEW_REQUIRED", module.assess(record)["status"])
+
     def test_non_string_digest_fails_closed(self):
         record = self.valid()
         record["backup_sha256"] = 123
