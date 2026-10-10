@@ -45,7 +45,11 @@ def load_rows(path):
             seen_sheet_names.add(name)
             if name not in {"Source_Migration_500", "Master_500_v2", "Family_Rebalance"}:
                 continue
-            target = targets[sheet.attrib["{" + NS["r"] + "}id"]].lstrip("/")
+            relationship_id = sheet.attrib["{" + NS["r"] + "}id"]
+            relation = next(entry for entry in relation_entries if entry.attrib["Id"] == relationship_id)
+            if relation.attrib.get("TargetMode", "Internal") != "Internal":
+                raise ValueError("external worksheet relationship is forbidden")
+            target = targets[relationship_id].lstrip("/")
             if not target.startswith("xl/"):
                 target = "xl/" + target
             normalized = posixpath.normpath(target)
