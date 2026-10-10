@@ -58,6 +58,13 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_safe_open_flags_are_required(self):
+        import inspect
+        source = inspect.getsource(module.main)
+        self.assertIn('hasattr(os, "O_NOFOLLOW")', source)
+        self.assertIn('hasattr(os, "O_NONBLOCK")', source)
+        self.assertNotIn('getattr(os, "O_NOFOLLOW", 0)', source)
+
     def test_fifo_evidence_cli_fails_closed_without_blocking(self):
         if not hasattr(os, "mkfifo"):
             self.skipTest("FIFO not supported")
