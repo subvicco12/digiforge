@@ -4,6 +4,7 @@ import argparse
 import collections
 import hashlib
 import json
+import posixpath
 import re
 import sys
 import zipfile
@@ -39,7 +40,10 @@ def load_rows(path):
             target = targets[sheet.attrib["{" + NS["r"] + "}id"]].lstrip("/")
             if not target.startswith("xl/"):
                 target = "xl/" + target
-            root = ET.fromstring(archive.read(target))
+            normalized = posixpath.normpath(target)
+            if not normalized.startswith("xl/worksheets/") or normalized not in names:
+                raise ValueError("worksheet target escapes expected archive directory")
+            root = ET.fromstring(archive.read(normalized))
             rows = []
             for row in root.findall(".//m:sheetData/m:row", NS):
                 values = {}
