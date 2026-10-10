@@ -80,8 +80,11 @@ def main():
             os.close(descriptor)
             raise
         with stream:
-            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+            metadata = os.fstat(stream.fileno())
+            if not stat.S_ISREG(metadata.st_mode):
                 raise ValueError("evidence must be a regular file")
+            if metadata.st_nlink != 1:
+                raise ValueError("evidence hard links not permitted")
             payload = stream.read(1024 * 1024 + 1)
         if len(payload) > 1024 * 1024:
             raise ValueError("evidence file exceeds size limit")
