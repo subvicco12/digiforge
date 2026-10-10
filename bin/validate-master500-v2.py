@@ -62,7 +62,14 @@ def load_rows(path):
                 raise ValueError("worksheet target escapes expected archive directory")
             root = ET.fromstring(archive.read(normalized))
             rows = []
+            seen_row_numbers = set()
             for row in root.findall(".//m:sheetData/m:row", NS):
+                row_number = row.attrib.get("r", "")
+                if not re.fullmatch(r"[1-9][0-9]*", row_number):
+                    raise ValueError("worksheet row number malformed")
+                if row_number in seen_row_numbers:
+                    raise ValueError("worksheet contains duplicate row numbers")
+                seen_row_numbers.add(row_number)
                 values = {}
                 for cell in row.findall("m:c", NS):
                     ref = cell.attrib.get("r", "")
