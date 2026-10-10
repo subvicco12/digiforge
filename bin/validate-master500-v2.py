@@ -38,6 +38,7 @@ def load_rows(path):
                        for si in root.findall("m:si", NS)]
         output = {}
         seen_sheet_names = set()
+        seen_sheet_targets = set()
         for sheet in workbook.findall(".//m:sheets/m:sheet", NS):
             name = sheet.attrib["name"]
             if name in seen_sheet_names:
@@ -60,6 +61,9 @@ def load_rows(path):
             normalized = posixpath.normpath(target)
             if not normalized.startswith("xl/worksheets/") or normalized not in names:
                 raise ValueError("worksheet target escapes expected archive directory")
+            if normalized in seen_sheet_targets:
+                raise ValueError("multiple required worksheets share an archive target")
+            seen_sheet_targets.add(normalized)
             root = ET.fromstring(archive.read(normalized))
             rows = []
             seen_row_numbers = set()
