@@ -57,6 +57,15 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_invalid_utf8_evidence_cli_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "invalid-utf8.json"
+            evidence.write_bytes(b"\\xff")
+            run = subprocess.run([sys.executable, str(path), str(evidence)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
+
     def test_oversized_evidence_cli_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "oversized.json"
