@@ -65,6 +65,26 @@ class Master500ValidatorTests(unittest.TestCase):
         errors, _ = self.run_check(rows)
         self.assertTrue(errors)
 
+    def test_blank_source_and_candidate_identifiers_fail_closed(self):
+        for sheet in ("Source_Migration_500", "Master_500_v2"):
+            with self.subTest(sheet=sheet):
+                rows = self.fixtures()
+                rows[sheet][1][0] = ""
+                errors, _ = self.run_check(rows)
+                self.assertTrue(any("blank identifier" in error for error in errors))
+
+    def test_duplicate_source_id_fails_closed(self):
+        rows = self.fixtures()
+        rows["Source_Migration_500"][2][0] = rows["Source_Migration_500"][1][0]
+        errors, _ = self.run_check(rows)
+        self.assertTrue(any("duplicate identifier" in error for error in errors))
+
+    def test_nonkeep_direct_successor_fails_closed(self):
+        rows = self.fixtures()
+        rows["Source_Migration_500"][429][7] = "DG2-429"
+        errors, _ = self.run_check(rows)
+        self.assertTrue(any("non-KEEP direct successor" in error for error in errors))
+
     def test_duplicate_v2_id_fails_closed(self):
         rows = self.fixtures()
         rows["Master_500_v2"][2][0] = "DG2-001"
