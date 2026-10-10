@@ -73,6 +73,21 @@ class Master500ValidatorTests(unittest.TestCase):
             with self.assertRaisesRegex((ValueError, KeyError), "relationship"):
                 validator.load_rows(workbook)
 
+    def test_worksheet_parent_traversal_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "parent-traversal.xlsx"
+            xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                   '<sheets><sheet name="Source_Migration_500" r:id="rId1"/></sheets></workbook>')
+            rels = ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    '<Relationship Id="rId1" Target="worksheets/../worksheets/sheet1.xml"/>'
+                    '</Relationships>')
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("xl/workbook.xml", xml)
+                archive.writestr("xl/_rels/workbook.xml.rels", rels)
+            with self.assertRaisesRegex(ValueError, "parent traversal"):
+                validator.load_rows(workbook)
+
     def test_external_worksheet_relationship_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "external-sheet.xlsx"
