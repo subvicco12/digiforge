@@ -50,6 +50,13 @@ class RecoveryEvidenceTests(unittest.TestCase):
                 self.assertNotEqual(0, run.returncode)
                 self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
 
+    def test_unexpected_evidence_field_fails_closed(self):
+        evidence = self.valid()
+        evidence["unverified_override"] = True
+        result = module.assess(evidence)
+        self.assertEqual("REVIEW_REQUIRED", result["status"])
+        self.assertIn("unexpected recovery evidence fields", result["errors"])
+
     def test_oversized_evidence_cli_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "oversized.json"
