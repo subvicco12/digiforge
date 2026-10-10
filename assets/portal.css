@@ -11,3 +11,7 @@
 
 /* Portal controls remain usable without wp-admin theme styles. */
 .df-portal-shell input:not([type=hidden]):not([type=checkbox]):not([type=radio]),.df-portal-shell select,.df-portal-shell textarea,.df-portal-shell button{min-height:44px;max-width:100%;box-sizing:border-box;font:inherit}
+
+.df-portal-shell :focus-visible{outline:3px solid var(--df-brand);outline-offset:3px}.df-portal-sidebar :focus-visible{outline-color:#fff}
+
+.df-panel{overflow-wrap:anywhere}
