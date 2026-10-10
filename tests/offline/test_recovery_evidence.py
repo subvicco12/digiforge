@@ -57,6 +57,17 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_symlink_evidence_cli_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = pathlib.Path(directory) / "evidence.json"
+            target.write_text(json.dumps(self.valid()), encoding="utf-8")
+            link = pathlib.Path(directory) / "linked.json"
+            link.symlink_to(target)
+            run = subprocess.run([sys.executable, str(path), str(link)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
+
     def test_invalid_utf8_evidence_cli_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "invalid-utf8.json"
