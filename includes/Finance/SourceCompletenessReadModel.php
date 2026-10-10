@@ -51,6 +51,7 @@ final class SourceCompletenessReadModel
                 'expected_order_count' => null,
                 'revenue_covered_order_count' => null,
                 'missing_revenue_order_ids' => null,
+                'orphan_revenue_order_ids' => null,
                 'cost_coverage_state' => 'NOT_VERIFIED',
                 'etsy_transaction_timing_state' => 'NOT_VERIFIED',
                 'etsy_fee_coverage_state' => 'NOT_VERIFIED',
@@ -72,16 +73,24 @@ final class SourceCompletenessReadModel
         }
         $missing = array_keys(array_diff_key($expected, $covered));
         sort($missing, SORT_NUMERIC);
+        $orphanRevenue = [];
+        foreach ($revenue as $row) {
+            $id = (int) ($row['source_id'] ?? 0);
+            if ($id < 1 || !isset($expected[$id])) $orphanRevenue[$id] = true;
+        }
+        $orphanIds = array_keys($orphanRevenue);
+        sort($orphanIds, SORT_NUMERIC);
         $zeroActivity = $expected === [] && $revenue === [];
         // Local order created_at is an intake timestamp, not authoritative Etsy paid_at.
         // Revenue ledger effective_date likewise does not prove Etsy fee settlement or POD actual cost.
 
         return [
-            'state' => $zeroActivity ? 'ZERO_ACTIVITY' : ($missing === [] ? 'REVENUE_COVERED_COSTS_UNVERIFIED' : 'MISSING_REVENUE_EVIDENCE'),
+            'state' => $zeroActivity ? 'ZERO_ACTIVITY' : ($orphanIds !== [] ? 'UNMATCHED_REVENUE_EVIDENCE' : ($missing === [] ? 'REVENUE_COVERED_COSTS_UNVERIFIED' : 'MISSING_REVENUE_EVIDENCE')),
             'query_state' => ['orders' => 'AVAILABLE', 'revenue' => 'AVAILABLE'],
             'expected_order_count' => count($expected),
             'revenue_covered_order_count' => count($covered),
             'missing_revenue_order_ids' => $missing,
+            'orphan_revenue_order_ids' => $orphanIds,
             'cost_coverage_state' => 'NOT_VERIFIED',
             'etsy_transaction_timing_state' => 'NOT_VERIFIED',
             'etsy_fee_coverage_state' => 'NOT_VERIFIED',
