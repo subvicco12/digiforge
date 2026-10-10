@@ -1084,6 +1084,8 @@ final class Portal
         if ($status !== '') {
             $sql .= $wpdb->prepare(' WHERE review_status=%s', $status);
         }
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
+        if($shop!==ShopOperationsReadModel::ALL){$sql.=($status!==''?' AND ':' WHERE ').$wpdb->prepare('CASE WHEN JSON_VALID(score_inputs) THEN JSON_UNQUOTE(JSON_EXTRACT(score_inputs,%s)) ELSE NULL END=%s','$.shop_key',$shop);}
         $sql .= $wpdb->prepare(' ORDER BY id DESC LIMIT %d', $limit);
         $wpdb->last_error = '';
         $rows = $wpdb->get_results($sql, ARRAY_A);
