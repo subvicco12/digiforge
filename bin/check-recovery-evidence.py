@@ -14,6 +14,15 @@ def assess(evidence):
     if not isinstance(evidence, dict):
         return {"status": "REVIEW_REQUIRED", "errors": ["expected evidence object"],
                 "read_only": True, "checker_performed_external_actions": False}
+    allowed_keys = {"environment", "stop_all", "externally_locked", "automation_enabled",
+                    "external_actions_performed", "runtime_schema_current",
+                    "backup_currently_retrievable", "backup_checksum_verified",
+                    "installed_package_identity_verified", "installed_commit_sha",
+                    "certified_package_sha256", "installed_package_sha256",
+                    "drill_package_sha256", "backup_sha256", "drill_backup_sha256",
+                    "drill_fresh", "drill_bound_to_current_artifacts", "drill_passed"}
+    if set(evidence) - allowed_keys:
+        errors.append("unexpected recovery evidence fields")
     def require(condition, message):
         if not condition:
             errors.append(message)
