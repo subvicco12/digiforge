@@ -13,10 +13,11 @@ Baseline main `844107ab9baf7e1303cd47708e9eab3bc700b348` was fetched and indepen
 | #1152 | 660a8381914f4ea532d90ca123c0806a69081714 | 38076345676 SUCCESS | Atomic AI quantity reservation |
 | #1153 | 5545e69921bc1d5eb39e4b65ec525d3b7001128c | 38077737123 SUCCESS | Includes #1152; shop/cycle template cap |
 | #1154 | a224f3b2219555333193e83347865a1436a459d3 | 38078216555 SUCCESS | Independent research ownership |
+| #1156 | 2bd226ae569058cb952fde766355b9e9a0dae9af | Final exact-head audit required | Immutable creation replay lineage |
 
-All seven changes are combined here; original commit identities are preserved in this ledger although cherry-picks have new identities. Do not merge overlapping PRs blindly: #1150 contains #1148/#1149, and #1153 contains #1152. The final integrated head requires its own successful audit, regardless of component audits. Existing individual PRs stay open for review; none was merged or closed by this task.
+All eight changes are combined here; original commit identities are preserved in this ledger although cherry-picks have new identities. Do not merge overlapping PRs blindly: #1150 contains #1148/#1149, and #1153 contains #1152. The final integrated head requires its own successful audit, regardless of component audits. Existing individual PRs stay open for review; none was merged or closed by this task.
 
-The only integration-specific test fixture change supplies an explicit owned shop and template-cap policy for the geometry drift scenario. It does not add or activate a production policy. It reconciles the geometry and cap contracts rather than bypassing the cap.
+The integration-specific test fixture change supplies an explicit owned shop and template-cap policy for the geometry drift scenario. It does not add or activate a production policy. It reconciles the geometry and cap contracts rather than bypassing the cap.
 
 ## Original-source coverage and evidence limits
 
@@ -24,16 +25,16 @@ The only integration-specific test fixture change supplies an explicit owned sho
 
 This is a complete source inventory/trace ledger, **not complete requirement acceptance**. The cap's specific requirement has local behavioral acceptance; unrelated requirements do not inherit that result. Source normalization gives `STRUCTURAL_PASS_ONLY`, with `production_authority=false` and `promotion_authorized=false`.
 
-Independent review required two evidence corrections: POD lifecycle source-string checks do not establish immutable ProductFactory version behavior; directly inserted approved fixtures and synthetic preview hashes verify persisted evidence review/authorization boundaries, not artwork rendering or buyer-preview parity. Those broader acceptances remain open.
+Independent review required two evidence corrections: POD lifecycle source-string checks do not establish immutable ProductFactory version behavior; directly inserted approved fixtures and synthetic preview hashes verify persisted evidence review/authorization boundaries, not artwork rendering or buyer-preview parity. Those broader acceptances remain open. The additional #1156 behavioral regression now proves exact canonical creation replay/parent lineage, but does not certify every ProductFactory version/asset requirement.
 
 ## Integrated local verification
 
 - Legacy suites, 1,164 PHP unit tests / 7,379 assertions, configured PHPStan and PHPCS passed.
-- 222 WordPress integration tests / 1,982 assertions passed on a new disposable database. Expected database fault injection and baseline PHP deprecations/warnings remain visible.
+- 226 WordPress integration tests / 2,004 assertions passed on a new disposable database. Expected database fault injection and baseline PHP deprecations/warnings remain visible.
 - All 71 offline catalog/recovery regression tests passed.
 - Composer dependency installation succeeded; live security advisory audit returned empty advisories and abandoned-package lists. No dependency change is included.
 - The actual original workbook passed the six-sheet offline structural validator without modification; original hash and governed digest match the source inventory.
-- PHP syntax, diff whitespace and scoped hard-coded secret-pattern checks are required before publication; final exact-head GitHub audit independently reruns configured checks.
+- PHP syntax (951 files before the additional test, plus both changed replay files), diff whitespace and CI-equivalent per-line hard-coded secret-pattern checks passed; final exact-head GitHub audit independently reruns configured checks.
 
 These tests cover local WordPress persistence, portal forms/projections, quantity/cap locks and replay boundaries, ownership isolation, catalog receipts and offline safety contracts. They do not certify an interactive browser walkthrough, live provider execution, production installation or backup restoration.
 

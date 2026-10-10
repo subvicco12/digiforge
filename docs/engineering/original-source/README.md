@@ -1,3 +1,5 @@
+Current convergence evidence: [integrated report](../INTEGRATED_SOURCE_CONVERGENCE_20261011.md) and [section reconciliation](section-reconciliation.md). The report below records the earlier source-ingestion milestone; its test counts and open traces are historical. Full requirement acceptance remains incomplete.
+
 # Original-source acceptance reconciliation — 2026-10-10
 
 Baseline main: `844107ab9baf7e1303cd47708e9eab3bc700b348`, fetched and independently matched by `ls-remote`. Issue #959 was reread. PR #1148 exact head `b8316939a30790035a4dd00b1971a01b78545ccd` passed audit run 38074062339; PR #1149 exact head `28d675a67509ce6b841dce3bfe808b02d058521e` passed run 38074091709. Both remain open, with no review findings at reconciliation. This integration branch includes both changes without modifying either PR.
