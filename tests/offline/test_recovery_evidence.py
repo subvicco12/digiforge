@@ -58,6 +58,16 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_group_writable_evidence_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "writable.json"
+            evidence.write_text("{}", encoding="utf-8")
+            evidence.chmod(0o664)
+            result = subprocess.run([sys.executable, str(path), str(evidence)],
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(json.loads(result.stdout)["status"], "REVIEW_REQUIRED")
+
     def test_hard_linked_evidence_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             original = pathlib.Path(directory) / "original.json"
