@@ -64,7 +64,7 @@ class RecoveryEvidenceTests(unittest.TestCase):
             linked = pathlib.Path(directory) / "linked.json"
             original.write_text("{}", encoding="utf-8")
             os.link(original, linked)
-            result = subprocess.run([sys.executable, str(MODULE_PATH), str(linked)],
+            result = subprocess.run([sys.executable, str(path), str(linked)],
                                     capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 1)
             self.assertEqual(json.loads(result.stdout)["status"], "REVIEW_REQUIRED")
