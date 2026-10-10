@@ -3,6 +3,7 @@
 import importlib.util
 import pathlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -56,6 +57,17 @@ class RecoveryEvidenceTests(unittest.TestCase):
         result = module.assess(evidence)
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
+
+    def test_fifo_evidence_cli_fails_closed_without_blocking(self):
+        if not hasattr(os, "mkfifo"):
+            self.skipTest("FIFO not supported")
+        with tempfile.TemporaryDirectory() as directory:
+            fifo = pathlib.Path(directory) / "evidence.fifo"
+            os.mkfifo(fifo)
+            run = subprocess.run([sys.executable, str(path), str(fifo)],
+                                 capture_output=True, text=True, check=False, timeout=5)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
 
     def test_symlink_evidence_cli_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
