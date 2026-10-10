@@ -21,3 +21,11 @@ The 2026-10-09 offline inspection found 500 unique source IDs, 500 unique v2 IDs
 ## Execution boundary
 
 Do not import into production, update the live catalog, promote, publish to Etsy, dispatch to POD providers or arm automation without distinct explicit owner authorization and governed evidence.
+
+## Review receipt implementation
+
+The offline CLI emits raw workbook `sha256`, a `canonical_rows_sha256` over the sorted required-sheet names and their normalized ordered cell rows, and structured `exceptions` alongside legacy `errors`. Packaging/compression differences do not change the canonical digest; source decision changes do. It is a review digest, not the PHP ingestion fingerprint or a source-identity override. Formula cells in governed sheets are rejected because cached formula results are not immutable literal evidence. Invalid shared-string references also fail closed.
+
+Cell-level exceptions include sheet, physical Excel row, column and identifier where available; workbook-wide discrepancies legitimately have null cell coordinates. All receipts explicitly set production and promotion authority false, including invalid-input receipts. STRUCTURAL_PASS_ONLY remains separate from economic, provider, licensing and human-promotion gates.
+
+Verification: 67 offline tests passed, including real XLSX parsing, compression-independent digests, semantic tamper sensitivity, forbidden formula evidence, stage vocabulary and sparse physical-row diagnostics. Original owner XLSX is inaccessible in this task; its current raw/canonical digests are not asserted here. Independent review identified two location-report defects, reproduced and fixed with regressions before publication.
