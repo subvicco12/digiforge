@@ -82,6 +82,7 @@ def load_rows(path):
                 previous_row_number = canonical_row_number
                 seen_row_numbers.add(canonical_row_number)
                 values = {}
+                previous_column_index = 0
                 for cell in row.findall("m:c", NS):
                     ref = cell.attrib.get("r", "")
                     match = re.fullmatch(r"([A-Z]+)([1-9][0-9]*)", ref)
@@ -92,6 +93,11 @@ def load_rows(path):
                         index = index * 26 + ord(char) - 64
                         if index > 16384:
                             raise ValueError("worksheet cell exceeds Excel column bounds")
+                    if index == previous_column_index:
+                        raise ValueError("worksheet row contains duplicate cell column")
+                    if index < previous_column_index:
+                        raise ValueError("worksheet cell columns must be strictly increasing")
+                    previous_column_index = index
                     raw = cell.find("m:v", NS)
                     if cell.attrib.get("t") == "inlineStr":
                         value = "".join(t.text or "" for t in cell.findall(".//m:t", NS))
