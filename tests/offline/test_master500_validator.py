@@ -135,7 +135,7 @@ class Master500ValidatorTests(unittest.TestCase):
                 archive.writestr("xl/workbook.xml", xml)
                 archive.writestr("xl/_rels/workbook.xml.rels", rels)
                 archive.writestr("xl/worksheets/sheet1.xml", sheet)
-            with self.assertRaisesRegex(ValueError, "duplicate row numbers"):
+            with self.assertRaisesRegex(ValueError, "row number malformed"):
                 validator.load_rows(workbook)
 
     def test_duplicate_row_numbers_fail_closed(self):
