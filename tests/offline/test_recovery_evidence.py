@@ -58,6 +58,12 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_close_on_exec_flag_used_when_available(self):
+        import inspect
+        source = inspect.getsource(module.main)
+        self.assertIn('if hasattr(os, "O_CLOEXEC"):', source)
+        self.assertIn("flags |= os.O_CLOEXEC", source)
+
     def test_safe_open_flags_are_required(self):
         import inspect
         source = inspect.getsource(module.main)
