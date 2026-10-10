@@ -58,6 +58,15 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.assertEqual("REVIEW_REQUIRED", result["status"])
         self.assertIn("unexpected recovery evidence fields", result["errors"])
 
+    def test_evidence_owner_mismatch_fails_closed(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = pathlib.Path(directory) / "owned.json"
+            evidence.write_text("{}", encoding="utf-8")
+            with patch.object(module.os, "geteuid", return_value=os.stat(evidence).st_uid + 1):
+                result = module.main(["--evidence-json", str(evidence)])
+            self.assertEqual(result, 1)
+
     def test_group_writable_evidence_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "writable.json"
