@@ -33,6 +33,20 @@ class Master500ValidatorTests(unittest.TestCase):
         with patch.object(validator, "load_rows", return_value=rows):
             return validator.check("unused.xlsx")
 
+    def test_duplicate_workbook_sheet_names_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workbook = pathlib.Path(directory) / "duplicate-sheets.xlsx"
+            xml = ('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                   '<sheets><sheet name="Source_Migration_500"/>'
+                   '<sheet name="Source_Migration_500"/></sheets></workbook>')
+            with zipfile.ZipFile(workbook, "w") as archive:
+                archive.writestr("xl/workbook.xml", xml)
+                archive.writestr("xl/_rels/workbook.xml.rels", "<Relationships/>")
+            run = subprocess.run([sys.executable, str(MODULE_PATH), str(workbook)],
+                                 capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, run.returncode)
+            self.assertEqual("REVIEW_REQUIRED", json.loads(run.stdout)["status"])
+
     def test_duplicate_archive_path_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             workbook = pathlib.Path(directory) / "duplicate.xlsx"
