@@ -66,9 +66,9 @@ def load_rows(path):
                 values = {}
                 for cell in row.findall("m:c", NS):
                     ref = cell.attrib.get("r", "")
-                    match = re.match(r"([A-Z]+)", ref)
-                    if not match:
-                        continue
+                    match = re.fullmatch(r"([A-Z]+)([1-9][0-9]*)", ref)
+                    if not match or int(match.group(2)) != int(row.attrib.get("r", "0")):
+                        raise ValueError("worksheet cell reference malformed or row mismatched")
                     index = 0
                     for char in match.group(1):
                         index = index * 26 + ord(char) - 64
