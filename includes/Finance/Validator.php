@@ -46,7 +46,7 @@ final class Validator
             throw new InvalidArgumentException('Invalid amount.');
         }
         $amount = round((float) $value, 4);
-        if ($amount < -9999999999.9999 || $amount > 9999999999.9999) {
+        if (! is_finite($amount) || $amount < -9999999999.9999 || $amount > 9999999999.9999) {
             throw new InvalidArgumentException('Amount outside allowed bounds.');
         }
         return $amount;
@@ -58,7 +58,7 @@ final class Validator
             throw new InvalidArgumentException('Invalid FX rate.');
         }
         $rate = round((float) $value, 10);
-        if ($rate <= 0 || $rate > 999999999.9999999999) {
+        if (! is_finite($rate) || $rate <= 0 || $rate > 999999999.9999999999) {
             throw new InvalidArgumentException('FX rate outside allowed bounds.');
         }
         return $rate;
@@ -116,8 +116,8 @@ final class Validator
 
     public static function convert(float $amount, float $rate): float
     {
-        if ($rate <= 0) {
-            throw new InvalidArgumentException('FX rate must be positive.');
+        if (! is_finite($rate) || $rate <= 0) {
+            throw new InvalidArgumentException('FX rate must be positive and finite.');
         }
         return round($amount * $rate, 4);
     }
