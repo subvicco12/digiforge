@@ -12,6 +12,9 @@ final class RenderEvidenceRepository
   $v=new RenderArtifactVerifier();$output=$v->readArtifact($outputPath);if($output instanceof WP_Error)return $output;$preview=$v->readArtifact($previewPath);if($preview instanceof WP_Error)return $preview;
   $input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordFromArtifacts($render,$outputPath,$previewPath);return $receipt instanceof WP_Error?$receipt:$render;
  }
+ public function createFromPanelArtifacts(array $input,array $outputPaths,array $previewPaths):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);$v=new RenderArtifactVerifier();$output=$v->readPanels($outputPaths);if($output instanceof WP_Error)return $output;$preview=$v->readPanels($previewPaths);if($preview instanceof WP_Error)return $preview;$input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordPanelArtifacts($render,$outputPaths,$previewPaths);return $receipt instanceof WP_Error?$receipt:$render;
+ }
  public function create(array $input):array|WP_Error{
   global $wpdb;$orderId=absint($input['order_id']??0);$mappingId=absint($input['provider_mapping_id']??0);
   $templateKey=sanitize_text_field((string)($input['template_key']??''));$version=sanitize_text_field((string)($input['template_version']??''));

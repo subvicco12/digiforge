@@ -7,6 +7,11 @@ use WP_Error;
 /** Shop-scoped AI ceilings and attributable usage evidence. */
 final class ShopAiGovernanceRepository {
  public function savePolicy(array $policy,string $environment='production'):array|WP_Error{
+  global $wpdb;$shop=sanitize_key((string)($policy['shop_key']??''));if($shop==='')return new WP_Error('invalid_ai_policy','shop_key is required');$lock=self::generationLockName($shop);$wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));if($wpdb->last_error!==''||(string)$acquired!=='1')return new WP_Error('ai_policy_accounting_busy','Policy edit requires exclusive shop accounting access.');
+  try{$result=$this->savePolicyLocked($policy,$environment);}catch(\Throwable){$result=new WP_Error('ai_policy_persistence_uncertain','Policy persistence is uncertain.');}finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$uncertain=$wpdb->last_error!==''||(string)$released!=='1';}return $uncertain?new WP_Error('ai_policy_lock_uncertain','Policy accounting lock release is uncertain.'):$result;
+ }
+ private function savePolicyLocked(array $policy,string $environment):array|WP_Error{
+
   global $wpdb;try{$projection=ShopAiPlan::evaluate($policy);if(array_key_exists('template_cap',$policy)){if(!is_array($policy['template_cap']))throw new \InvalidArgumentException('template_cap must be an object');\DigiForge\POD\TemplateCyclePolicy::at($policy['template_cap'],time());}}catch(\InvalidArgumentException $e){return new WP_Error('invalid_ai_policy',$e->getMessage());}
   $shop=(string)$projection['shop_key'];$json=wp_json_encode($policy);$hash=hash('sha256',(string)$json);$now=current_time('mysql',true);
   $wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare('SELECT id FROM '.Tables::shop_ai_policies().' WHERE shop_key=%s AND environment=%s',$shop,$environment),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('ai_policy_evidence_unavailable','Shop AI policy evidence is unavailable.');
@@ -24,25 +29,34 @@ final class ShopAiGovernanceRepository {
  public static function generationLockName(string $shop):string {
   return 'digiforge-ai-'.substr(hash('sha256',sanitize_key($shop)),0,50);
  }
- public function reserveGeneration(string $shop,string $stage,string $attemptKey,?array $runContext=null):array|WP_Error {
+ public function reserveGeneration(string $shop,string $stage,string $attemptKey,?array $runContext=null,?array $monetaryContract=null,array $costAttribution=[]):array|WP_Error {
   global $wpdb;$shop=sanitize_key($shop);$stage=sanitize_key($stage);$attemptKey=sanitize_text_field($attemptKey);
   if($shop===''||$attemptKey===''||!in_array($stage,ShopAiPlan::STAGES,true))return new WP_Error('ai_generation_context_invalid','Valid shop, stage and attempt identity are required.');
+  if($runContext!==null){$normalized=AiRunContext::normalize((string)($runContext['run_id']??''),(string)($runContext['started_at']??''));if($normalized instanceof WP_Error)return $normalized;$runContext=$normalized;}
   $lock=self::generationLockName($shop);$wpdb->last_error='';
   $acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));
   if(!empty($wpdb->last_error)||(string)$acquired!=='1')return new WP_Error('ai_generation_reservation_busy','Shop AI reservation is unavailable or busy; no provider call is authorized.');
-  try{$result=$this->reserveGenerationLocked($shop,$stage,$attemptKey,$runContext);}
+  try{$result=$this->reserveGenerationLocked($shop,$stage,$attemptKey,$runContext,$monetaryContract,$costAttribution);}
   catch(\Throwable $e){$result=new WP_Error('ai_generation_reservation_uncertain','AI reservation outcome is uncertain; provider execution is blocked.');}
   finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$releaseError=!empty($wpdb->last_error)||(string)$released!=='1';}
   if($releaseError)return new WP_Error('ai_generation_reservation_lock_uncertain','AI reservation lock release is uncertain; provider execution is blocked.');
   return $result;
  }
- private function reserveGenerationLocked(string $shop,string $stage,string $attemptKey,?array $runContext):array|WP_Error {
+ private function reserveGenerationLocked(string $shop,string $stage,string $attemptKey,?array $runContext,?array $monetaryContract,array $costAttribution):array|WP_Error {
   $projection=$this->evaluate($shop,'production',$runContext);if($projection instanceof WP_Error)return $projection;
-  foreach((array)($projection['budgets']??[]) as $budget)if((float)$budget>0)return new WP_Error('ai_generation_cost_accounting_unavailable','Monetary budgets require authoritative actual-cost attribution before generation.');
-  $unitCost=max(0.0,(float)($projection['stages'][$stage]['estimated_unit_cost']??0));
+  $combined=$monetaryContract??[];foreach(['product_id','order_id']as $field)if(array_key_exists($field,$costAttribution)){if(array_key_exists($field,$combined)&&(int)$combined[$field]!==(int)$costAttribution[$field])return new WP_Error('ai_generation_attribution_conflict','Explicit attribution sources disagree.');$combined[$field]=$costAttribution[$field];}
+  $attribution=(new MonetaryReservationRepository())->validateAttribution($shop,$combined);if($attribution instanceof WP_Error)return $attribution;
+  $monetary=false;foreach((array)($projection['budgets']??[]) as $budget)if((float)$budget>0)$monetary=true;
+  $hold=null;if($monetary||$monetaryContract!==null){if($monetaryContract===null)return new WP_Error('ai_generation_cost_accounting_unavailable','Monetary budgets require a reviewed exact-request ceiling.');$hold=(new MonetaryReservationRepository())->reserveLocked($shop,$stage,$attemptKey,$projection,$runContext,$combined);if($hold instanceof WP_Error)return $hold;}
+
+  $unitCost=$hold!==null?(float)$hold['maximum_charge']:max(0.0,(float)($projection['stages'][$stage]['estimated_unit_cost']??0));
   $check=ShopAiPlan::preflight($projection,$stage,1,$unitCost);
   if(empty($check['execution_allowed']))return new WP_Error('ai_generation_budget_blocked','Shop AI policy does not authorize this generation attempt.',['reasons'=>$check['reasons']??[]]);
-  return $this->recordUsage(['shop_key'=>$shop,'workflow'=>$stage==='research'?'research':'product_factory','stage'=>$stage,'model_key'=>'','quantity'=>1,'estimated_cost'=>$unitCost,'actual_cost'=>0,'currency'=>(string)($projection['currency']??'USD'),'run_context'=>$runContext],'generation-'.$attemptKey);
+  $usage=$this->recordUsage(['shop_key'=>$shop,'workflow'=>$stage==='research'?'research':'product_factory','stage'=>$stage,'model_key'=>'','product_id'=>(int)($hold['product_id']??$attribution['product_id']),'order_id'=>(int)($hold['order_id']??$attribution['order_id']),'quantity'=>1,'estimated_cost'=>$unitCost,'actual_cost'=>0,'currency'=>(string)($projection['currency']??'USD'),'run_context'=>$runContext],'generation-'.$attemptKey);
+  if($usage instanceof WP_Error)return $usage;
+  if($usage['shop_key']!==$shop||$usage['stage']!==$stage||$usage['run_id']!==(string)($runContext['run_id']??'')||(int)$usage['product_id']!==(int)($hold['product_id']??$attribution['product_id'])||(int)$usage['order_id']!==(int)($hold['order_id']??$attribution['order_id']))return new WP_Error('ai_generation_replay_conflict','Existing generation identity conflicts with shop, stage or run.');
+  if($hold!==null){$linked=(new MonetaryReservationRepository())->link($usage,$hold);if($linked instanceof WP_Error)return $linked;}
+  return $usage;
  }
 
  public function recordUsage(array $input,?string $key=null):array|WP_Error{

@@ -39,4 +39,9 @@ final class AiBackgroundMeteringTest extends WP_UnitTestCase {
   self::assertTrue(is_wp_error($error));self::assertSame('digiforge_launch_ai_incomplete',$error->get_error_code());self::assertFalse($error->get_error_data()['retry_permitted']);$state=$repo->snapshot((int)$usage['id'],$shop);self::assertSame('incomplete',$state['metering']['provider_status']);self::assertSame(30,$state['metering']['usage']['total_tokens']);
  }
 
+ public function testResearchQuoteFingerprintIncludesActualWebSearchBody():void {
+  $body=$this->body('resp_quote_research');$captured='';$filter=static function($pre,array $args)use(&$captured,$body){$captured=(string)$args['body'];return ['headers'=>[],'response'=>['code'=>200],'body'=>wp_json_encode($body),'cookies'=>[]];};add_filter('pre_http_request',$filter,false,2);
+  try{self::assertNotWPError((new DigiForge\Launch\OpenAIClient())->research('quoted research'));}finally{remove_filter('pre_http_request',$filter);}
+  $contract=DigiForge\Launch\OpenAIClient::generationContract('quoted research',4000,false,true);self::assertSame(hash('sha256',$captured),$contract['request_sha256']);self::assertSame([['type'=>'web_search']],json_decode($captured,true)['tools']);
+ }
 }

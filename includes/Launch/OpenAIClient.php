@@ -14,6 +14,18 @@ final class OpenAIClient
     private const RESPONSES_URL = 'https://api.openai.com/v1/responses';
     private const DEFAULT_MODEL = 'gpt-5.6-luna';
 
+    /** Fingerprint the exact text-only request; does not expose prompt or contact the provider. */
+    public static function generationContract(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false):array
+    {
+        return ['provider'=>'openai','model'=>self::DEFAULT_MODEL,'request_sha256'=>hash('sha256',(string)wp_json_encode(self::generationBody($brief,$maxOutputTokens,$background,$webSearch))),'output_token_limit'=>max(1000,min(16000,$maxOutputTokens)),'web_search_call_limit'=>$webSearch?1:0];
+    }
+    private static function generationBody(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false):array
+    {
+        $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']]];
+        if($webSearch){$body['tools']=[['type'=>'web_search']];$body['max_tool_calls']=1;}
+        if($background)$body+=['background'=>true,'store'=>true];return $body;
+    }
+
     public function research(string $brief): array|\WP_Error { return $this->request($brief, true, 4000); }
 
     /** Exactly one minimal provider request; no web search, persistence, retry, or downstream workflow. */
@@ -44,7 +56,7 @@ final class OpenAIClient
     {
         $connector=$this->connector(); if(is_wp_error($connector))return $connector;
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
-        $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']],'background'=>true,'store'=>true];
+        $body=self::generationBody($brief,$maxOutputTokens,true);
         $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
         if(is_wp_error($response))return new \WP_Error('digiforge_launch_ai_transport',__('AI background request failed.','digiforge'),['status'=>502]);
         $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
@@ -85,8 +97,7 @@ final class OpenAIClient
     {
         $connector=$this->connector(); if(is_wp_error($connector))return $connector;
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
-        $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']]];
-        if($webSearch)$body['tools']=[['type'=>'web_search']];
+        $body=self::generationBody($brief,$maxOutputTokens,false,$webSearch);
         $response=wp_remote_post(self::RESPONSES_URL,[
             'timeout' => 90,
             'redirection' => 0,

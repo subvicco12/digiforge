@@ -53,6 +53,7 @@ final class ProviderEvidenceRepository
                 return $existing+['idempotent_replay'=>true];
             }
             $saved=$this->put('completion_' . $usageId, $receipt);if($saved instanceof WP_Error)return $saved;
+            $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&!self::matchesBound($bound,$model,$meter))return $this->error('reconciliation_required','Provider model or token metering exceeds its authoritative request ceiling; metering proof is retained.',503);
             global $wpdb;
             if((string)$usage['model_key']!==''&&(string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Existing model projection conflicts with provider metering.',503);
             $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage()." SET model_key=%s WHERE id=%d AND shop_key=%s AND model_key=''",$model,$usageId,$shop));
@@ -86,27 +87,43 @@ final class ProviderEvidenceRepository
             $parts=explode('.',$amount);$amount=$parts[0].'.'.str_pad($parts[1]??'',6,'0');
             if(!is_string($currency)||!preg_match('/^[A-Z]{3}$/D',$currency)||$currency!==$usage['currency'])return $this->error('currency_conflict','Provider charge currency must match the immutable reservation; conversion is not inferred.');
             if(($evidence['source']??'')!=='provider_statement'||!preg_match('/^[a-f0-9]{64}$/D',(string)($evidence['source_sha256']??'')))return $this->error('invalid','Real provider statement provenance is required.');
+            if(isset($evidence['source_document'])&&(!is_string($evidence['source_document'])||strlen($evidence['source_document'])>32768||!hash_equals($evidence['source_sha256'],hash('sha256',$evidence['source_document']))))return $this->error('invalid','Actual retained provider statement bytes must match their immutable fingerprint.');
             foreach(['invoice_id','line_id'] as $field)if(!is_string($evidence[$field]??null)||!preg_match('/^[A-Za-z0-9_.:-]{1,191}$/D',$evidence[$field]))return $this->error('invalid','Bounded provider invoice and line identities required.');
             if(($evidence['response_id']??null)!==$meter['response_id']||($evidence['model']??null)!==$meter['model'])return $this->error('identity_conflict','Provider charge must match the exact metered response and model.');
+            $reservation=(new MonetaryReservationRepository())->reservation($usageId);if($reservation instanceof WP_Error)return $reservation;
+            if($reservation!==null&&!isset($evidence['source_document']))return $this->error('source_document_required','An authoritative monetary hold requires actual reviewed provider statement bytes, never a caller hash alone.');
+            if(isset($evidence['source_document'])){
+                $doc=json_decode($evidence['source_document'],true);if(!is_array($doc)||($doc['provider']??null)!=='openai'||($doc['invoice_id']??null)!==$evidence['invoice_id']||!is_array($doc['lines']??null)||count($doc['lines'])>100)return $this->error('invalid','Retained statement must identify its original provider invoice and lines.');
+                $matches=[];$ids=[];foreach($doc['lines']as $line){if(!is_array($line)||!is_string($line['line_id']??null)||isset($ids[$line['line_id']]))return $this->error('invalid','Retained statement line identities must be unique.');$ids[$line['line_id']]=true;if(($line['response_id']??null)===$meter['response_id'])$matches[]=$line;}
+                if(count($matches)!==1)return $this->error('identity_conflict','Retained statement must identify exactly one metered response.');$line=$matches[0];foreach(['line_id','response_id','model','currency']as $field)if(($line[$field]??null)!==$evidence[$field])return $this->error('identity_conflict','Retained source and charge identity disagree.');$sourceAmount=MonetaryReservationRepository::micros($line['amount']??null);if($sourceAmount instanceof WP_Error||$sourceAmount!==MonetaryReservationRepository::micros($amount))return $this->error('identity_conflict','Retained source and actual charge amount disagree.');
+            }
             $charge=['usage_id'=>$usageId,'shop_key'=>$shop,'provider'=>'openai','response_id'=>$meter['response_id'],'model'=>$meter['model'],
                 'source'=>'provider_statement','source_sha256'=>$evidence['source_sha256'],'invoice_id'=>$evidence['invoice_id'],'line_id'=>$evidence['line_id'],'amount'=>$amount,'currency'=>$currency];
             $old=$this->read('settlement_'.$usageId);if($old instanceof WP_Error)return $old;
             if($old!==null){
+                if($reservation!==null&&(!is_string($old['source_document']??null)||!hash_equals($charge['source_sha256'],hash('sha256',$old['source_document']))))return $this->error('reconciliation_required','Existing immutable settlement lacks retained authoritative source bytes; history cannot be promoted by replay.',503);
                 if(($old['charge']??null)!==$charge)return $this->error('conflict','Immutable charge evidence conflicts with an existing settlement.',409);
                 if((string)$usage['actual_cost']!==$amount)return $this->error('reconciliation_required','Recorded charge and cost projection disagree; reconcile without automatically retrying.',503);
+                $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&MonetaryReservationRepository::micros($amount)>MonetaryReservationRepository::micros($bound['maximum_charge']))return $this->error('reservation_bound_exceeded','Recorded authoritative charge exceeds its reserved ceiling; reconciliation remains required.',409);
                 return array_replace($old,['idempotent_replay'=>true,'cost_state'=>'REVIEWED_PROVIDER_CHARGE']);
             }
             if((float)$usage['actual_cost']!==0.0)return $this->error('reconciliation_required','Existing cost without matching provider settlement requires reconciliation.',503);
             $line=$this->put('charge_'.hash('sha256','openai|'.$charge['invoice_id'].'|'.$charge['line_id']),$charge);if($line instanceof WP_Error)return $line;
             // Preserve immutable proof BEFORE changing the cost projection. A partial write is visible and fail closed.
-            $receipt=['charge'=>$charge,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>current_time('mysql',true),'cost_state'=>'PROVIDER_CHARGE_RECORDED'];
+            $receipt=['charge'=>$charge,'source_document'=>$evidence['source_document']??null,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>current_time('mysql',true),'cost_state'=>'PROVIDER_CHARGE_RECORDED'];
             $saved=$this->put('settlement_'.$usageId,$receipt);if($saved instanceof WP_Error)return $saved;
             $wpdb->last_error='';$ok=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage().' SET actual_cost=%s WHERE id=%d AND shop_key=%s AND currency=%s AND actual_cost=0',$amount,$usageId,$shop,$currency));
             if($ok===false||(string)$wpdb->last_error!=='')return $this->error('reconciliation_required','Charge proof is recorded but cost persistence is uncertain; no automatic retry.',503);
             $confirmed=$this->usage($usageId,$shop);if($confirmed instanceof WP_Error)return $confirmed;
             if((string)$confirmed['actual_cost']!==$amount)return $this->error('reconciliation_required','Recorded provider charge could not be confirmed against the cost projection.',503);
+            $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&MonetaryReservationRepository::micros($amount)>MonetaryReservationRepository::micros($bound['maximum_charge']))return $this->error('reservation_bound_exceeded','Authoritative charge is preserved but exceeds its reserved ceiling; human reconciliation is required.',409);
             return array_replace($saved,['cost_state'=>'REVIEWED_PROVIDER_CHARGE']);
         });
+    }
+
+    private static function matchesBound(array $bound,string $model,array $meter):bool
+    {
+        return $bound['model']===$model&&(!isset($bound['maximum_billable_input_tokens'])||$meter['input_tokens']<=$bound['maximum_billable_input_tokens'])&&(!isset($bound['output_token_limit'])||$meter['output_tokens']<=$bound['output_token_limit']);
     }
 
     public function snapshot(int $usageId,string $shop):array|WP_Error
@@ -117,7 +134,9 @@ final class ProviderEvidenceRepository
         $state=$meter===null?'PENDING_PROVIDER_COMPLETION':'AWAITING_PROVIDER_CHARGE';
         if($charge!==null)$state=(string)$usage['actual_cost']===(string)$charge['charge']['amount']?'REVIEWED_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
         if($meter!==null&&(string)$usage['model_key']!==$meter['model'])$state='RECONCILIATION_REQUIRED';
-        return ['usage_id'=>$usageId,'shop_key'=>$shop,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge,'external_execution_authorized'=>false];
+        $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&$charge!==null&&!is_string($charge['source_document']??null))$state='RECONCILIATION_REQUIRED';if($bound!==null&&$meter!==null&&!self::matchesBound($bound,$meter['model'],$meter['usage']))$state='RECONCILIATION_REQUIRED';if($bound!==null&&MonetaryReservationRepository::micros((string)$usage['actual_cost'])>MonetaryReservationRepository::micros($bound['maximum_charge']))$state='RESERVATION_BOUND_EXCEEDED';
+        $attribution=(new CostAttributionRepository())->forUsage($usageId,$shop);if($attribution instanceof WP_Error)return $attribution;
+        return ['usage_id'=>$usageId,'shop_key'=>$shop,'attribution'=>$attribution,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge,'reservation'=>$bound,'external_execution_authorized'=>false];
     }
 
     private function usage(int $id,string $shop):array|WP_Error

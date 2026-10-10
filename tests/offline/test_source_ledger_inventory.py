@@ -44,3 +44,16 @@ class SourceLedgerInventoryTests(unittest.TestCase):
                     path, number, *_ = reference.split(':')
                     self.assertTrue((ROOT / path).is_file(), reference)
                     self.assertLessEqual(int(number), len((ROOT / path).read_text().splitlines()), reference)
+
+    def test_each_master_id_has_an_explicit_uncertified_engine_boundary(self):
+        book = json.loads((LEDGER / 'workbook-original-complete.json').read_text())
+        matrix = rows('catalog-engine-reconciliation.tsv')
+        self.assertEqual(500, len(matrix))
+        self.assertEqual(500, len({r['Original V2 ID'] for r in matrix}))
+        for source, trace in zip(book['Master_500_v2']['rows'][1:], matrix):
+            self.assertEqual(source[0], trace['Original V2 ID'])
+            self.assertEqual(source[1] or '', trace['Original source DG ID'])
+            self.assertEqual(source[4], trace['Original engine'])
+            self.assertEqual(source[9], trace['Original recommended stage'])
+            self.assertEqual('NOT_CERTIFIED_OR_PROMOTED', trace['Catalog acceptance'])
+        self.assertTrue(any(r['Software boundary'] == 'MISSING_SOFTWARE_ADAPTER' for r in matrix))
