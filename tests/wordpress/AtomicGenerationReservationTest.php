@@ -1,0 +1,11 @@
+<?php
+declare(strict_types=1);
+use DigiForge\AI\ShopAiGovernanceRepository;
+final class AtomicGenerationReservationTest extends WP_UnitTestCase {
+ private ShopAiGovernanceRepository $repo;
+ private string $shop;
+ public function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();$this->repo=new ShopAiGovernanceRepository();$this->shop='atomic-'.wp_rand();$saved=$this->repo->savePolicy(['shop_key'=>$this->shop,'currency'=>'USD','stages'=>['develop'=>['limit'=>1,'estimated_unit_cost'=>0]]]);self::assertFalse(is_wp_error($saved));}
+ public function testLastSlotCannotBeReservedTwiceAndLockIsReleased():void {$first=$this->repo->reserveGeneration($this->shop,'develop','first');self::assertFalse(is_wp_error($first));$second=$this->repo->reserveGeneration($this->shop,'develop','second');self::assertTrue(is_wp_error($second));self::assertSame('ai_generation_budget_blocked',$second->get_error_code());global $wpdb;self::assertSame('1',$wpdb->get_var($wpdb->prepare('SELECT IS_FREE_LOCK(%s)',ShopAiGovernanceRepository::generationLockName($this->shop))));}
+ public function testAnotherConnectionHoldingShopLockBlocksReservation():void {$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$lock=ShopAiGovernanceRepository::generationLockName($this->shop);self::assertSame('1',$other->get_var($other->prepare('SELECT GET_LOCK(%s,0)',$lock)));try{$result=$this->repo->reserveGeneration($this->shop,'develop','blocked');self::assertTrue(is_wp_error($result));self::assertSame('ai_generation_reservation_busy',$result->get_error_code());}finally{$other->get_var($other->prepare('SELECT RELEASE_LOCK(%s)',$lock));$other->close();}$result=$this->repo->reserveGeneration($this->shop,'develop','after-release');self::assertFalse(is_wp_error($result));}
+ public function testMoneyBudgetStillFailsClosedAndDoesNotConsumeSlot():void {$saved=$this->repo->savePolicy(['shop_key'=>$this->shop,'currency'=>'USD','budgets'=>['month'=>1],'stages'=>['develop'=>['limit'=>1]]]);self::assertFalse(is_wp_error($saved));$r=$this->repo->reserveGeneration($this->shop,'develop','money');self::assertTrue(is_wp_error($r));self::assertSame('ai_generation_cost_accounting_unavailable',$r->get_error_code());self::assertSame(0,$this->repo->evaluate($this->shop)['stages']['develop']['used']);}
+}
