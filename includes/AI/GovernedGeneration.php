@@ -77,7 +77,15 @@ final class GovernedGeneration
         }
 
         $response = $provider();
-        if ($response instanceof WP_Error) return $response;
+        if ($response instanceof WP_Error) {
+            $data=(array)$response->get_error_data();$meter=$data['provider_metering']??null;unset($data['provider_metering']);
+            if(is_array($meter)){
+                $receipt=(new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'],$shop,$meter);
+                if($receipt instanceof WP_Error){$receipt->add_data(array_replace((array)$receipt->get_error_data(),['provider_execution_performed'=>true,'ai_usage_id'=>(int)$usage['id'],'retry_permitted'=>false]));return $receipt;}
+                $data+=['ai_cost_state'=>$receipt['cost_state'],'provider_execution_performed'=>true];
+            }else{$data+=['ai_cost_state'=>'UNRECONCILED_PROVIDER_OUTCOME'];}
+            $response->add_data(array_replace($data,['ai_usage_id'=>(int)$usage['id'],'provider_attempt_reserved'=>true,'retry_permitted'=>false]));return $response;
+        }
         $evidence = (new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'], $shop, $response);
         if ($evidence instanceof WP_Error) {
             $evidence->add_data(array_replace((array)$evidence->get_error_data(), ['provider_execution_performed'=>true, 'retry_permitted'=>false]));

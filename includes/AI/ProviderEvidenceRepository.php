@@ -36,7 +36,7 @@ final class ProviderEvidenceRepository
             }
             $receipt = $binding + ['workflow'=>(string)$usage['workflow'], 'task'=>(string)$usage['stage'], 'model'=>$model,
                 'run_id'=>(string)$usage['run_id'], 'product_id'=>(int)$usage['product_id'], 'order_id'=>(int)$usage['order_id'],
-                'usage'=>$meter, 'currency'=>(string)$usage['currency'], 'provider_response_sha256'=>hash('sha256',(string)wp_json_encode($response)), 'provenance'=>'NORMALIZED_PROVIDER_ENVELOPE', 'cost_state'=>'AWAITING_PROVIDER_CHARGE'];
+                'usage'=>$meter, 'provider_status'=>(string)($response['status']??'unreported'), 'currency'=>(string)$usage['currency'], 'provider_response_sha256'=>hash('sha256',(string)wp_json_encode($response)), 'provenance'=>'NORMALIZED_PROVIDER_ENVELOPE', 'cost_state'=>'AWAITING_PROVIDER_CHARGE'];
             if (isset($response['provider_response_sha256'])) {
                 if (!is_string($response['provider_response_sha256']) || !preg_match('/^[a-f0-9]{64}$/D',$response['provider_response_sha256'])) return $this->error('invalid','Provider response hash is invalid.');
                 $receipt['provider_response_sha256']=$response['provider_response_sha256'];$receipt['provenance']='PROVIDER_HTTP_BODY';
@@ -49,9 +49,16 @@ final class ProviderEvidenceRepository
                 $identity=$receipt;$previous=$existing;
                 unset($identity['provider_response_sha256'],$identity['provenance'],$previous['provider_response_sha256'],$previous['provenance']);
                 if($identity!==$previous)return $this->error('conflict','Immutable provider metering identity conflict.',409);
+                if((string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Metering proof and model projection disagree; automatic repair is withheld.',503);
                 return $existing+['idempotent_replay'=>true];
             }
-            return $this->put('completion_' . $usageId, $receipt);
+            $saved=$this->put('completion_' . $usageId, $receipt);if($saved instanceof WP_Error)return $saved;
+            global $wpdb;
+            if((string)$usage['model_key']!==''&&(string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Existing model projection conflicts with provider metering.',503);
+            $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage()." SET model_key=%s WHERE id=%d AND shop_key=%s AND model_key=''",$model,$usageId,$shop));
+            if($updated===false||$wpdb->last_error!=='')return $this->error('reconciliation_required','Metering proof is preserved but model projection is uncertain.',503);
+            $confirmed=$this->usage($usageId,$shop);if($confirmed instanceof WP_Error)return $confirmed;
+            return (string)$confirmed['model_key']===$model?$saved:$this->error('reconciliation_required','Provider model projection could not be confirmed.',503);
         });
     }
 
@@ -73,6 +80,7 @@ final class ProviderEvidenceRepository
             $usage=$this->usage($usageId,$shop);if($usage instanceof WP_Error)return $usage;
             $meter=$this->read('completion_'.$usageId);if($meter instanceof WP_Error)return $meter;
             if($meter===null)return $this->error('metering_missing','Provider completion evidence is required before charge settlement.');
+            if((string)$usage['model_key']!==$meter['model'])return $this->error('reconciliation_required','Provider model must agree with the cost projection before charge settlement.',503);
             $amount=$evidence['amount']??null;$currency=$evidence['currency']??null;
             if(!is_string($amount)||!preg_match('/^(?:0|[1-9][0-9]{0,7})(?:\.[0-9]{1,6})?$/D',$amount))return $this->error('invalid','Provider amount requires a bounded decimal string, never a derived token estimate.');
             $parts=explode('.',$amount);$amount=$parts[0].'.'.str_pad($parts[1]??'',6,'0');
@@ -108,6 +116,7 @@ final class ProviderEvidenceRepository
         $charge=$this->read('settlement_'.$usageId);if($charge instanceof WP_Error)return $charge;
         $state=$meter===null?'PENDING_PROVIDER_COMPLETION':'AWAITING_PROVIDER_CHARGE';
         if($charge!==null)$state=(string)$usage['actual_cost']===(string)$charge['charge']['amount']?'REVIEWED_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
+        if($meter!==null&&(string)$usage['model_key']!==$meter['model'])$state='RECONCILIATION_REQUIRED';
         return ['usage_id'=>$usageId,'shop_key'=>$shop,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge,'external_execution_authorized'=>false];
     }
 

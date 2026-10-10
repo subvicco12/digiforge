@@ -27,4 +27,16 @@ final class AiBackgroundMeteringTest extends WP_UnitTestCase {
   }finally{remove_filter('pre_http_request',$filter);}
  }
 
+ public function testInvalidStructuredOutputStillPreservesProviderMetering():void {
+  $id='resp_'.str_replace('-','',wp_generate_uuid4());$body=$this->body($id);$body['output_text']='not JSON';$filter=static fn()=>['headers'=>[],'response'=>['code'=>200],'body'=>wp_json_encode($body),'cookies'=>[]];add_filter('pre_http_request',$filter);
+  $shop='invalid-'.wp_rand();$gov=new DigiForge\AI\ShopAiGovernanceRepository();$gov->savePolicy(['shop_key'=>$shop,'stages'=>['develop'=>['limit'=>8]]]);$method=new ReflectionMethod(DigiForge\AI\GovernedGeneration::class,'execute');
+  try{$error=$method->invoke(new DigiForge\AI\GovernedGeneration(),$shop,'develop','invalid-'.wp_generate_uuid4(),null,fn()=>(new DigiForge\Launch\OpenAIClient())->develop('offline invalid output'));}finally{remove_filter('pre_http_request',$filter);}
+  self::assertTrue(is_wp_error($error));self::assertSame('digiforge_launch_ai_invalid_json',$error->get_error_code());$data=$error->get_error_data();self::assertArrayHasKey('ai_usage_id',$data);self::assertFalse($data['retry_permitted']);$state=(new DigiForge\AI\ProviderEvidenceRepository())->snapshot((int)$data['ai_usage_id'],$shop);self::assertSame(30,$state['metering']['usage']['total_tokens']);self::assertSame('AWAITING_PROVIDER_CHARGE',$state['cost_state']);
+ }
+ public function testIncompleteBackgroundPollPreservesBoundMeteringAndNeverRetries():void {
+  $id='resp_'.str_replace('-','',wp_generate_uuid4());$shop='failed-'.wp_rand();$gov=new DigiForge\AI\ShopAiGovernanceRepository();$gov->savePolicy(['shop_key'=>$shop,'stages'=>['develop'=>['limit'=>8]]]);$usage=$gov->reserveGeneration($shop,'develop','failed-'.wp_generate_uuid4());$repo=new DigiForge\AI\ProviderEvidenceRepository();$repo->recordOutcome((int)$usage['id'],$shop,['response_id'=>$id,'status'=>'queued']);$body=$this->body($id);$body['status']='incomplete';$body['output_text']='partial';$filter=static fn()=>['headers'=>[],'response'=>['code'=>200],'body'=>wp_json_encode($body),'cookies'=>[]];add_filter('pre_http_request',$filter);
+  try{$error=(new DigiForge\Launch\OpenAIClient())->retrieveBackground($id);}finally{remove_filter('pre_http_request',$filter);}
+  self::assertTrue(is_wp_error($error));self::assertSame('digiforge_launch_ai_incomplete',$error->get_error_code());self::assertFalse($error->get_error_data()['retry_permitted']);$state=$repo->snapshot((int)$usage['id'],$shop);self::assertSame('incomplete',$state['metering']['provider_status']);self::assertSame(30,$state['metering']['usage']['total_tokens']);
+ }
+
 }
