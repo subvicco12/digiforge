@@ -261,9 +261,43 @@ final class RenderArtifactCertificationTest extends WP_UnitTestCase {
 
  public function testBoundedUploadRejectsInvalidImagesAndApprovalRebindingWithoutRetainingCallerPaths():void {
   $input=$this->deterministicFixture();[$key,$record,$doc]=$this->familyCutout($input['order_id']);$workflow=new DigiForge\POD\PersonalizedDesignWorkflow();$source=DigiForge\ProductFactory\AssetStorage::absolutePath($record['source']['storage_reference']);$mask=DigiForge\ProductFactory\AssetStorage::absolutePath($record['mask']['storage_reference']);$upload=['shop_key'=>'personalized_pod','key'=>'upload-'.wp_generate_uuid4(),'order_id'=>$input['order_id'],'source_base64'=>base64_encode(file_get_contents($source)),'mask_base64'=>base64_encode(file_get_contents($mask)),'rights'=>$record['rights'],'style'=>'CS01','options'=>[]];
-  try{self::assertWPError($workflow->upload($upload));foreach(['not base64',base64_encode('not an image'),base64_encode('<svg><script>bad</script></svg>')]as $bad)self::assertWPError($workflow->upload(array_replace($upload,['source_base64'=>$bad])));self::assertWPError($workflow->upload(array_replace($upload,['shop_key'=>'digital'])));$upload['source_base64']=base64_encode(DigiForge\POD\RasterArtworkCodec::encode(64,64,str_repeat("\x10\x20\xff\xff",4096)));$new=$workflow->upload($upload);self::assertNotWPError($new);self::assertSame('REVIEW_REQUIRED',$new['state']);self::assertArrayNotHasKey('path',$new['source']);self::assertFalse($new['commercial_certified']);self::assertSame($new,$workflow->upload($upload));$corrupt=$new;$corrupt['sha256']=[];$option='df_cutout_'.hash('sha256','personalized_pod|'.$upload['key']);update_option($option,wp_json_encode($corrupt));self::assertWPError((new DigiForge\POD\CustomerCutoutRepository())->read('personalized_pod',$upload['key']));update_option($option,DigiForge\Orders\Validator::canonicalJson($new));$reviewer=get_current_user_id();wp_set_current_user(self::factory()->user->create(['role'=>'subscriber']));self::assertWPError($workflow->upload($upload));wp_set_current_user($reviewer);global $wpdb;$wpdb->delete(DigiForge\Database\Tables::audit_log(),['event_type'=>'customer_cutout_ingested','object_id'=>$new['sha256']]);self::assertWPError((new DigiForge\POD\CustomerCutoutRepository())->read('personalized_pod',$upload['key']));}finally{unlink($doc);}
+  try{self::assertWPError($workflow->upload($upload));
+   foreach(['not base64',base64_encode('not an image'),base64_encode('<svg><script>bad</script></svg>')]as $bad)self::assertWPError($workflow->upload(array_replace($upload,['source_base64'=>$bad])));
+   self::assertWPError($workflow->upload(array_replace($upload,['shop_key'=>'digital'])));
+   $upload['source_base64']=base64_encode(DigiForge\POD\RasterArtworkCodec::encode(64,64,str_repeat("\x10\x20\xff\xff",4096)));
+   $new=$workflow->upload($upload);
+   self::assertNotWPError($new);
+   self::assertSame('REVIEW_REQUIRED',$new['state']);
+   self::assertArrayNotHasKey('path',$new['source']);
+   self::assertFalse($new['commercial_certified']);
+   self::assertSame($new,$workflow->upload($upload));
+   $corrupt=$new;
+   $corrupt['sha256']=[];
+   $option='df_cutout_'.hash('sha256','personalized_pod|'.$upload['key']);
+   update_option($option,wp_json_encode($corrupt));
+   self::assertWPError((new DigiForge\POD\CustomerCutoutRepository())->read('personalized_pod',$upload['key']));
+   update_option($option,DigiForge\Orders\Validator::canonicalJson($new));
+   $reviewer=get_current_user_id();
+   wp_set_current_user(self::factory()->user->create(['role'=>'subscriber']));
+   self::assertWPError($workflow->upload($upload));
+   wp_set_current_user($reviewer);
+   global $wpdb;
+   $this->deleteCutoutIngestionAudit($new['sha256']);
+   self::assertWPError((new DigiForge\POD\CustomerCutoutRepository())->read('personalized_pod',$upload['key']));
+   }finally{unlink($doc);
+   }
  }
 
+ private function deleteCutoutIngestionAudit(string $sha):void {
+  global $wpdb;
+  self::assertGreaterThan(0,$wpdb->delete(DigiForge\Database\Tables::audit_log(),['event_type'=>'customer_cutout_ingested','object_id'=>$sha],['%s','%s']));
+ }
+ public function testCutoutAuditEvidenceDeletionTreatsScientificLookingShaAsString():void {
+  wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));$sha=str_pad('2e30',64,'a');
+  self::assertTrue(DigiForge\Security\Logger::write('customer_cutout_ingested',['sha256'=>$sha],'customer_cutout',$sha));
+  $this->deleteCutoutIngestionAudit($sha);global $wpdb;
+  self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::audit_log().' WHERE event_type=%s AND object_id=%s','customer_cutout_ingested',$sha)));
+ }
  public function testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat():void {
   $input=$this->deterministicFixture('AOP_PATTERN',[$this->familyArea()]);[$unused,$manual,$doc]=$this->familyCutout($input['order_id']);$workflow=new DigiForge\POD\PersonalizedDesignWorkflow();$repo=new DigiForge\POD\CustomerCutoutRepository();
   $rgba=str_repeat("\xf0\xf0\xf0\xff",4096);for($y=20;$y<44;$y++)for($x=20;$x<44;$x++){$i=($y*64+$x)*4;$rgba[$i]="\x80";$rgba[$i+1]="\x30";$rgba[$i+2]="\x10";}$png=DigiForge\POD\RasterArtworkCodec::encode(64,64,$rgba);$rights=$manual['rights'];$rights['segmentation_method']='offline_selected_grabcut';

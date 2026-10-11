@@ -54,7 +54,7 @@ def build():
             evidence = result[-1]
             evidence['bounded_proof'] += ' FACE_REPEAT now also has tested operator-selected offline GrabCut segmentation and metadata-free PNG/JPEG normalization; semantic/artistic and supplier certification are not inferred.'
             evidence['related_implementation_references'] += '; includes/POD/OfflineCutoutPipeline.php:6; includes/POD/CustomerCutoutRepository.php:11; docs/engineering/face-cutout-automation.md:1'
-            evidence['exact_test_references'] += '; tests/offline/test_face_segmentation.py:36; tests/unit/OfflineCutoutPipelineTest.php:1; tests/wordpress/RenderArtifactCertificationTest.php:267::testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat'
+            evidence['exact_test_references'] += '; tests/offline/test_face_segmentation.py:36; tests/unit/OfflineCutoutPipelineTest.php:1; tests/wordpress/RenderArtifactCertificationTest.php:301::testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat'
             evidence['remaining_contract_or_acceptance'] += ' Existing aggregate engine classification is not upgraded by FACE_CUTOUT; PT04/artistic transforms, ground-truth fine-edge quality and supplier certification remain separate.'
     assert sum(len(v['rows']) for v in workbook.values()) == len(workbook_ledger) == 1065
     seen = set()
