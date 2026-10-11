@@ -24,3 +24,6 @@
 
 # Supplied design evidence must retain its original bytes and recorded SHA-256.
 /assets/pod-designs/v1/sources/** -text whitespace=cr-at-eol
+
+# Preserve the pilot attachment's exact member hashes, including CSV CRLF bytes.
+/docs/engineering/visual-certification-pilot-v1/** -text whitespace=cr-at-eol
