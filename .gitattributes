@@ -21,3 +21,6 @@
 
 # Preserve the uploaded acceptance-source fixture bytes and recorded SHA-256.
 /tests/wordpress/fixtures/five-engine-licensed-manifest-template.csv -text
+
+# Supplied design evidence must retain its original bytes and recorded SHA-256.
+/assets/pod-designs/v1/sources/** -text whitespace=cr-at-eol
