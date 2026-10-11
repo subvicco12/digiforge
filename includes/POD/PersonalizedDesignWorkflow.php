@@ -10,7 +10,7 @@ final class PersonalizedDesignWorkflow
 {
  public function register():void {
   add_action('rest_api_init',function():void {
-   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>($method==='upload'?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
+   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review','/pod/customer-artwork/segment'=>'segmentUpload']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>(in_array($method,['upload','segmentUpload'],true)?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
   });
  }
  public function draft(array $input):array|WP_Error {
@@ -37,6 +37,13 @@ final class PersonalizedDesignWorkflow
   try{foreach(['source','mask']as $kind){$encoded=$input[$kind.'_base64']??null;if($kind==='mask'&&$encoded===null)continue;if(!is_string($encoded)||strlen($encoded)>6000000)return self::error('bounded_upload_required');$bytes=base64_decode($encoded,true);if(!is_string($bytes)||strlen($bytes)>4500000||base64_encode($bytes)!==$encoded)return self::error('canonical_upload_required');$path=tempnam(sys_get_temp_dir(),'df-design-upload-');if($path===false)return self::error('storage_unavailable');$paths[$kind]=$path;if(file_put_contents($path,$bytes,LOCK_EX)!==strlen($bytes))return self::error('storage_uncertain');}
    return (new CustomerCutoutRepository())->ingest($input['shop_key'],$input['key'],$input['order_id'],$paths['source'],$paths['mask']??null,$input['rights'],$input['style'],$input['options']);
   }finally{foreach($paths as $path)unlink($path);}
+ }
+ public function segmentUpload(array $input):array|WP_Error {
+  $scope=$this->scope($input,['shop_key','key','order_id','source_base64','rights','style','options','selection']);if($scope instanceof WP_Error)return $scope;
+  if(!is_string($input['key']??null)||!is_int($input['order_id']??null)||!is_array($input['rights']??null)||!is_string($input['style']??null)||!is_array($input['options']??null)||!is_array($input['selection']??null))return self::error('typed_input_required');
+  $encoded=$input['source_base64']??null;if(!is_string($encoded)||strlen($encoded)>6000000)return self::error('bounded_upload_required');$bytes=base64_decode($encoded,true);if(!is_string($bytes)||strlen($bytes)>4500000||base64_encode($bytes)!==$encoded)return self::error('canonical_upload_required');
+  $path=tempnam(sys_get_temp_dir(),'df-segment-upload-');if($path===false)return self::error('storage_unavailable');
+  try{if(file_put_contents($path,$bytes,LOCK_EX)!==strlen($bytes))return self::error('storage_uncertain');return (new CustomerCutoutRepository())->segment($input['shop_key'],$input['key'],$input['order_id'],$path,$input['rights'],$input['style'],$input['options'],$input['selection']);}finally{unlink($path);}
  }
  private function path(mixed $reference):string|WP_Error {
   if(!is_string($reference)||strlen($reference)>512||!preg_match('~^digiforge/product-factory/[A-Za-z0-9_./-]+$~D',$reference)||array_intersect(explode('/',$reference),['.','..','']))return self::error('protected_upload_required');if(str_contains($reference,'/shop-')&&!str_contains($reference,'/shop-personalized_pod/'))return self::error('shop_conflict');$path=AssetStorage::absolutePath($reference);return $path??self::error('protected_upload_required');

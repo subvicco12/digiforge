@@ -65,6 +65,22 @@ jobs:
           done < <(find . -name '*.php' -not -path './.git/*' -not -path './vendor/*' -print0)
           exit "$status"
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned offline cutout processor
+        run: |
+          python3 -m venv /tmp/digiforge-cutout-runtime
+          /tmp/digiforge-cutout-runtime/bin/pip install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=/tmp/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$(/tmp/digiforge-cutout-runtime/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Audit offline processor dependency advisories
+        run: python3 bin/audit-cutout-dependencies.py
+
       - name: Legacy and unit tests
         run: composer test
 
