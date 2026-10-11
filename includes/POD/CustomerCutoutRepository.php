@@ -56,11 +56,34 @@ final class CustomerCutoutRepository
         $record=$this->read($shop,$key);if($record instanceof WP_Error)return $record;
         $flags=$this->reviewFlags($record);if(($record['segmentation']['selection_boundary_contact']??false)===true)return self::error('selection_clipped','Selected region clips the segmented subject; revise selection or use reviewed alpha fallback.');
         if(count($review)!==count($flags)||array_diff(array_keys($review),$flags))return self::error('review_required');foreach($review as $flag)if($flag!==false)return self::error('manual_review_failed');
-        $name='df_cutout_review_'.$record['sha256'];$old=$this->option($name);if($old instanceof WP_Error)return $old;
-        if($old===null){$approval=['cutout_sha256'=>$record['sha256'],'review'=>$review,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>gmdate('Y-m-d H:i:s'),'commercial_certified'=>false];$approval['sha256']=hash('sha256',Validator::canonicalJson($approval));$old=$this->put($name,$approval);if($old instanceof WP_Error)return $old;
+        $qa=$this->qa($record);if($qa instanceof WP_Error)return $qa;
+        $name='df_cutout_review_qa_v1_'.$record['sha256'];$old=$this->option($name);if($old instanceof WP_Error)return $old;
+        if($old===null){$approval=['cutout_sha256'=>$record['sha256'],'review'=>$review,'visual_qa'=>$qa,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>gmdate('Y-m-d H:i:s'),'commercial_certified'=>false];$approval['sha256']=hash('sha256',Validator::canonicalJson($approval));$old=$this->put($name,$approval);if($old instanceof WP_Error)return $old;
             if(!Logger::write('customer_cutout_reviewed',['approval_sha256'=>$approval['sha256'],'external_execution_authorized'=>false],'customer_cutout',$record['sha256']))return self::error('audit_uncertain');}
         $verified=$this->approval($record);if($verified instanceof WP_Error)return $verified;
         $index='df_cutout_result_'.hash('sha256',$shop.'|'.$record['order_id'].'|'.$record['result']['storage_reference']);$saved=$this->put($index,['key'=>$key,'sha256'=>$record['sha256']]);return $saved instanceof WP_Error?$saved:$record+['review'=>$verified,'review_state'=>'APPROVED_LOCAL_ONLY'];
+    }
+
+    /** Authenticated evidence from actual retained pixels, never caller measurements. */
+    public function visualQa(string $shop,string $key):array|WP_Error
+    {
+        $record=$this->read($shop,$key);return $record instanceof WP_Error?$record:$this->qa($record);
+    }
+    public function visualPreviews(string $shop,string $key):array|WP_Error
+    {
+        $record=$this->read($shop,$key);if($record instanceof WP_Error)return $record;
+        try{return CutoutVisualQa::previews($this->bytes($record['result']));}catch(\Throwable){return self::error('qa_unavailable');}
+    }
+    private function qa(array $record):array|WP_Error
+    {
+        try{
+            if($record['style']==='SOURCE_PHOTO')return ['version'=>CutoutVisualQa::VERSION,'state'=>'NOT_A_CUTOUT','cutout_sha256'=>$record['sha256'],'commercial_certified'=>false];
+            $mask=CutoutVisualQa::measure($this->bytes($record['mask']));$result=CutoutVisualQa::measure($this->bytes($record['result']));
+            if($mask['critical_defects']!==[]||$result['critical_defects']!==[])return self::error('qa_critical_defect','Empty, opaque or canvas-clipped cutouts cannot be approved.');
+            $previews=CutoutVisualQa::previews($this->bytes($record['result']));
+            $qa=['version'=>CutoutVisualQa::VERSION,'cutout_sha256'=>$record['sha256'],'source_sha256'=>$record['source']['sha256'],'mask'=>$mask,'result'=>$result,'preview_sha256'=>array_map(static fn(string $png):string=>hash('sha256',$png),$previews),'state'=>'OPERATOR_REVIEW_REQUIRED','commercial_certified'=>false,'supplier_certified'=>false,'external_execution_authorized'=>false];
+            $qa['sha256']=hash('sha256',Validator::canonicalJson($qa));return $qa;
+        }catch(\Throwable){return self::error('qa_unavailable');}
     }
 
     public function read(string $shop,string $key):array|WP_Error
@@ -89,7 +112,8 @@ final class CustomerCutoutRepository
     private function approval(array $record):array|WP_Error
     {
         if(($record['segmentation']['selection_boundary_contact']??false)===true)return self::error('selection_clipped');
-        $a=$this->option('df_cutout_review_'.$record['sha256']);if($a instanceof WP_Error)return $a;if(!is_array($a)||($a['reviewed_by']??0)<1||($a['cutout_sha256']??null)!==$record['sha256'])return self::error('approved_cutout_required');$h=$a['sha256']??'';if(!is_string($h)||!preg_match('/^[a-f0-9]{64}$/D',$h)||!is_array($a['review']??null)||count($a['review'])!==count($this->reviewFlags($record))||array_diff(array_keys($a['review']),$this->reviewFlags($record))||array_filter($a['review'],static fn($value):bool=>$value!==false))return self::error('review_conflict');$p=$a;unset($p['sha256']);if(!hash_equals($h,hash('sha256',Validator::canonicalJson($p))))return self::error('review_conflict');
+        $a=$this->option('df_cutout_review_qa_v1_'.$record['sha256']);if($a instanceof WP_Error)return $a;if(!is_array($a)||($a['reviewed_by']??0)<1||($a['cutout_sha256']??null)!==$record['sha256'])return self::error('approved_cutout_required');$h=$a['sha256']??'';if(!is_string($h)||!preg_match('/^[a-f0-9]{64}$/D',$h)||!is_array($a['review']??null)||count($a['review'])!==count($this->reviewFlags($record))||array_diff(array_keys($a['review']),$this->reviewFlags($record))||array_filter($a['review'],static fn($value):bool=>$value!==false))return self::error('review_conflict');$p=$a;unset($p['sha256']);if(!hash_equals($h,hash('sha256',Validator::canonicalJson($p))))return self::error('review_conflict');
+        $qa=$this->qa($record);if($qa instanceof WP_Error)return $qa;if(!is_array($a['visual_qa']??null)||Validator::canonicalJson($qa)!==Validator::canonicalJson($a['visual_qa']))return self::error('qa_review_conflict','Current measured pixel QA must be bound to this exact operator approval.');
         return $this->audited('customer_cutout_reviewed',$record['sha256'],'approval_sha256',$h)?$a:self::error('audit_uncertain');
     }
     private function audited(string $event,string $object,string $field,string $sha):bool
