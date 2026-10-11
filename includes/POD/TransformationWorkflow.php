@@ -17,6 +17,7 @@ final class TransformationWorkflow
             TransformationEngineContract::exact($mode,['mode','version','prompt_revision','prompt_sha256','fixture_manifest_sha256','input_fields','evidence_kind']);
             foreach(['mode','version','prompt_revision'] as $field)TransformationEngineContract::token($mode[$field]??null);
             if($mode['version']!==TransformationEngineContract::VERSION||!in_array($mode['evidence_kind']??null,['SYNTHETIC_TEST_ONLY','OWNER_SUPPLIED'],true))throw new \InvalidArgumentException('Exact mode revision/evidence required.');
+            if($mode['evidence_kind']==='OWNER_SUPPLIED'&&!in_array($mode['mode'],TransformationVisualContract::MODES,true))throw new \InvalidArgumentException('Only named owner-approved artistic modes permitted.');
             foreach(['prompt_sha256','fixture_manifest_sha256'] as $field)TransformationEngineContract::hash($mode[$field]??null);
             if(!is_array($mode['input_fields']??null)||count($mode['input_fields'])>20)throw new \InvalidArgumentException('Bounded typed mode schema required.');
             // Validate schema independently of required variable values.
@@ -41,7 +42,7 @@ final class TransformationWorkflow
             $personalization=$this->personalization($shop,$request,$manifest);if($personalization instanceof WP_Error)return $personalization;
             $context=$this->context($shop,$request);if($context instanceof WP_Error)return $context;
             $source=$this->inspect($sourcePath,$request['limits'],'input');if($source instanceof WP_Error)return $source;if($manifest['source_asset_sha256']!==$source['sha256'])return self::error('source_fixture_conflict');
-            $rightsCheck=$this->rights($manifest);if($rightsCheck instanceof WP_Error)return $rightsCheck;
+            $rightsCheck=$this->rights($manifest);if($rightsCheck instanceof WP_Error)return $rightsCheck;if(isset($manifest['visual_fixture'])){$bound=TransformationVisualContract::bind($manifest['visual_fixture'],['rights'=>$manifest,'request'=>$request,'source'=>$source]);if($bound instanceof WP_Error)return $bound;}
             $fingerprint=hash('sha256',Validator::canonicalJson(['shop_key'=>$shop,'job_key_sha256'=>hash('sha256',$key),'request'=>$request,'source'=>$source,'rights'=>$manifest]));$current=$this->load($shop,$key);if($current instanceof WP_Error)return $current;if($current!==null)return $current['job_hash']===$fingerprint?$current:self::error('idempotency_conflict');
             $stored=(new RenderArtifactStore())->retain($sourcePath,$source,$shop);if($stored instanceof WP_Error)return $stored;
             $record=['job_hash'=>$fingerprint,'shop_key'=>$shop,'request'=>$request,'rights'=>$manifest,'source'=>$stored,'state'=>'DRAFT','certification'=>$manifest['evidence_kind']==='SYNTHETIC_TEST_ONLY'?'SYNTHETIC_TEST_ONLY':'NOT_CERTIFIED','production_ready'=>false,'color_profile_certification'=>'UNKNOWN_NOT_CERTIFIED','external_execution_authorized'=>false,'external_execution_performed'=>false,'charge_provenance_state'=>'UNATTRIBUTED','created_by'=>get_current_user_id(),'created_at'=>gmdate('Y-m-d H:i:s')];
@@ -85,6 +86,22 @@ final class TransformationWorkflow
             return ['review'=>$review+['reviewed_by'=>get_current_user_id(),'reviewed_at'=>gmdate('Y-m-d H:i:s')],'production_ready'=>false];
         });
     }
+    public function recordVisualReview(string $shop,string $key,array $review):array|WP_Error
+    {
+        return $this->run($shop,$key,function()use($shop,$key,$review){$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;
+            if($job['state']!=='HUMAN_REVIEW'&&!isset($job['visual_review']))return self::error('invalid_transition');$evidence=TransformationVisualContract::review($job,$review);if($evidence instanceof WP_Error)return $evidence;
+            if(isset($job['visual_review']))return $job['visual_review']['review_sha256']===$evidence['review_sha256']?$job:self::error('immutable_visual_review_conflict');
+            if($job['state']!=='HUMAN_REVIEW')return self::error('invalid_transition');
+            return $this->append($shop,$key,$job,array_replace($job,['visual_review'=>$evidence,'state'=>$evidence['visual_acceptance_state']==='REJECTED'?'REJECTED':'HUMAN_REVIEW','production_ready'=>false]));});
+    }
+    public function visualCertification(string $shop,string $key):array|WP_Error
+    {
+        $job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;$blockers=['APPROVED_THRESHOLD_AND_REVIEWER_POLICY_REQUIRED','REPRESENTATIVE_FIXTURE_COUNT_APPROVAL_REQUIRED','SUPPLIER_PRINT_CERTIFICATION_REQUIRED','PROVIDER_PERMISSIONS_AND_SPENDING_CEILINGS_REQUIRED','RELEASE_AUTHORIZATION_REQUIRED'];
+        if($job['rights']['evidence_kind']!=='OWNER_SUPPLIED'||!isset($job['rights']['visual_fixture']))$blockers[]='LICENSED_FIXTURES_REQUIRED';
+        if(!isset($job['visual_review']))$blockers[]='ENGINE_SPECIFIC_VISUAL_REVIEW_REQUIRED';
+        if($job['request']['engine_id']==='VINTAGE_PORTRAIT')$blockers[]='FIRST_APPROVED_PRODUCT_AND_ERA_REQUIRED';
+        return ['visual_contract_state'=>'CONTRACT_APPROVED','visual_acceptance_state'=>$job['state']==='REJECTED'?'REJECTED':($job['visual_review']['visual_acceptance_state']??'VISUAL_REVIEW_PENDING'),'print_state'=>'PRINT_CERTIFICATION_PENDING','release_state'=>'RELEASE_BLOCKED','blockers'=>$blockers,'commercial_quality_certified'=>false,'supplier_certified'=>false,'catalog_activation_allowed'=>false,'production_ready'=>false,'external_execution_authorized'=>false];
+    }
     public function cancel(string $shop,string $key):array|WP_Error
     {
         return $this->run($shop,$key,function()use($shop,$key){$job=$this->load($shop,$key);if($job instanceof WP_Error)return $job;if($job===null)return self::error('not_found');if($job['state']==='CANCELLED')return $job;if(in_array($job['state'],['APPROVED','REJECTED'],true))return self::error('terminal_review_immutable');return $this->append($shop,$key,$job,array_replace($job,['state'=>'CANCELLED']));});
@@ -93,7 +110,8 @@ final class TransformationWorkflow
     {
         $gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;$job=$this->load($shop,$key);if($job instanceof WP_Error)return $job;if($job===null)return self::error('not_found');
         $personalization=$this->personalization($shop,$job['request'],$job['rights']);if($personalization instanceof WP_Error)return $personalization;
-        $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;
+        $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;if(isset($job['rights']['visual_fixture'])){$bound=TransformationVisualContract::bind($job['rights']['visual_fixture'],$job);if($bound instanceof WP_Error)return $bound;}
+        if(isset($job['visual_review']['print_mockup'])){$mockup=$job['visual_review']['print_mockup'];$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($mockup['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;}
         foreach(['source','result'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
         return $job;
     }
@@ -128,7 +146,7 @@ final class TransformationWorkflow
         foreach(['license_uri_or_document'=>'rights_document_sha256','consent_document_reference'=>'consent_document_sha256','retention_policy_reference'=>'retention_policy_sha256'] as $referenceField=>$hashField){
             $path=AssetStorage::absolutePath($manifest[$referenceField]);if($path===null||is_link($path))return self::error('rights_document_required');$bytes=@file_get_contents($path,false,null,0,65537);if(!is_string($bytes)||strlen($bytes)>65536||!hash_equals($manifest[$hashField],hash('sha256',$bytes)))return self::error('rights_document_conflict');
         }
-        $reference=AssetStorage::absolutePath($manifest['storage_location']);if($reference===null)return self::error('approved_reference_required');$artifact=(new RenderArtifactVerifier())->readArtifact($reference);return $artifact instanceof WP_Error||$artifact['sha256']!==$manifest['result_asset_sha256']?self::error('approved_reference_conflict'):true;
+        $reference=AssetStorage::absolutePath($manifest['storage_location']);if($reference===null)return self::error('approved_reference_required');$artifact=(new RenderArtifactVerifier())->readArtifact($reference);return $artifact instanceof WP_Error||$artifact['sha256']!==($manifest['reference_asset_sha256']??$manifest['result_asset_sha256'])?self::error('approved_reference_conflict'):true;
     }
     private function inspect(string $path,array $limits,string $kind):array|WP_Error
     {

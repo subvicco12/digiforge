@@ -7,7 +7,7 @@ final class TransformationFixtureManifest
 {
     public static function normalize(array $manifest):array
     {
-        TransformationEngineContract::exact($manifest,['evidence_kind','fixture_id','engine_id','mode','version','source_asset_sha256','result_asset_sha256','MIME','pixel_size','provenance','license_holder','license_uri_or_document','permitted_uses','consent_basis','review_owner','approved_at','expiry','qa_rubric_revision','template_id','supplier_route','storage_location','rights_document_sha256','consent_document_sha256','retention_policy_sha256','consent_document_reference','retention_policy_reference']);
+        TransformationEngineContract::exact($manifest,['evidence_kind','fixture_id','engine_id','mode','version','source_asset_sha256','result_asset_sha256','MIME','pixel_size','provenance','license_holder','license_uri_or_document','permitted_uses','consent_basis','review_owner','approved_at','expiry','qa_rubric_revision','template_id','supplier_route','storage_location','rights_document_sha256','consent_document_sha256','retention_policy_sha256','consent_document_reference','retention_policy_reference','visual_fixture','license_document_id','consent_evidence_id','retention_policy_id','reference_asset_sha256']);
         $kind=$manifest['evidence_kind']??null;if(!in_array($kind,['SYNTHETIC_TEST_ONLY','OWNER_SUPPLIED'],true))throw new \InvalidArgumentException('Explicit rights/fixture evidence kind required.');
         foreach(['fixture_id','engine_id','version','qa_rubric_revision','review_owner','template_id'] as $field)TransformationEngineContract::token($manifest[$field]??null);
         if(!in_array($manifest['engine_id'],TransformationEngineContract::ENGINES,true)||$manifest['version']!==TransformationEngineContract::VERSION)throw new \InvalidArgumentException('Exact fixture engine contract required.');
@@ -25,6 +25,9 @@ final class TransformationFixtureManifest
             foreach(['approved_at','expiry'] as $field){$value=$manifest[$field]??null;$date=is_string($value)?\DateTimeImmutable::createFromFormat('!Y-m-d H:i:s',$value,new \DateTimeZone('UTC')):false;if($date===false||$date->format('Y-m-d H:i:s')!==$value)throw new \InvalidArgumentException('Exact UTC approval/expiry required.');}
             if($manifest['approved_at']>$manifest['expiry']||$manifest['approved_at']>gmdate('Y-m-d H:i:s')||$manifest['expiry']<=gmdate('Y-m-d H:i:s'))throw new \InvalidArgumentException('Current rights approval and unexpired license required.');
         }
+        if(isset($manifest['reference_asset_sha256']))TransformationEngineContract::hash($manifest['reference_asset_sha256']);
+        foreach(['license_document_id','consent_evidence_id','retention_policy_id'] as $field)if(isset($manifest[$field]))TransformationEngineContract::token($manifest[$field]);
+        if(isset($manifest['visual_fixture'])&&!is_array($manifest['visual_fixture']))throw new \InvalidArgumentException('Typed visual fixture required.');
         if(isset($manifest['mode']))TransformationEngineContract::token($manifest['mode']);
         return $manifest+['licensed'=>false,'rights_declaration_present'=>$kind==='OWNER_SUPPLIED','commercial_quality_certified'=>false,'supplier_certified'=>false];
     }
