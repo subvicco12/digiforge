@@ -49,6 +49,13 @@ def build():
         else:
             status = 'IMPLEMENTED_NOT_FULLY_VERIFIED'
         result.append(dict(zip(FIELDS, ['blueprint', row[LOCATOR], row['Original section'], row['Original source text'], status, row['Verification scope'] if status == 'VERIFIED_LOCAL_BOUNDARY' else 'No requirement-specific full acceptance established by associated references.', row['Exact implementation reference'], row['Exact test references'], row['Remaining acceptance / authority boundary'], 'REQUIREMENTS_ONLY_NOT_EXECUTION_AUTHORIZATION'])))
+        if row[LOCATOR] == 'word/document.xml/p89':
+            # Record bounded follow-on evidence without changing the aggregate engine status.
+            evidence = result[-1]
+            evidence['bounded_proof'] += ' FACE_REPEAT now also has tested operator-selected offline GrabCut segmentation and metadata-free PNG/JPEG normalization; semantic/artistic and supplier certification are not inferred.'
+            evidence['related_implementation_references'] += '; includes/POD/OfflineCutoutPipeline.php:6; includes/POD/CustomerCutoutRepository.php:11; docs/engineering/face-cutout-automation.md:1'
+            evidence['exact_test_references'] += '; tests/offline/test_face_segmentation.py:36; tests/unit/OfflineCutoutPipelineTest.php:1; tests/wordpress/RenderArtifactCertificationTest.php:267::testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat'
+            evidence['remaining_contract_or_acceptance'] += ' Existing aggregate engine classification is not upgraded by FACE_CUTOUT; PT04/artistic transforms, ground-truth fine-edge quality and supplier certification remain separate.'
     assert sum(len(v['rows']) for v in workbook.values()) == len(workbook_ledger) == 1065
     seen = set()
     for row in workbook_ledger:
