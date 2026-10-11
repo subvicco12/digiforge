@@ -21,4 +21,13 @@ final class RasterPdfAdapter
         if(!is_string($rgb)||strlen($rgb)!==$width*$height*3||!hash_equals(self::encode($width,$height,$rgb,$dpi),$pdf))throw new \InvalidArgumentException('PDF pixels, physical resolution, structure or exact canonical bytes disagree.');
         return ['width_px'=>$width,'height_px'=>$height,'dpi'=>$dpi,'pixel_sha256'=>hash('sha256',$rgb),'mime'=>'application/pdf','adapter_version'=>'bounded-raster-pdf-v1'];
     }
+    /** Complete pixels from this exact canonical PDF only; never trusts caller metadata. */
+    public static function pixels(string $pdf):array
+    {
+        $metadata=self::inspect($pdf);
+        preg_match('~/Subtype /Image /Width ([1-9][0-9]*) /Height ([1-9][0-9]*) /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ([0-9]+) >>\nstream\n~',$pdf,$match,PREG_OFFSET_CAPTURE);
+        $offset=$match[0][1]+strlen($match[0][0]);$rgb=gzuncompress(substr($pdf,$offset,(int)$match[3][0]),$metadata['width_px']*$metadata['height_px']*3+1);
+        if(!is_string($rgb))throw new \InvalidArgumentException('Canonical PDF pixels unavailable.');$rgba='';for($i=0;$i<strlen($rgb);$i+=3)$rgba.=substr($rgb,$i,3)."\xff";
+        return $metadata+['rgba'=>$rgba];
+    }
 }

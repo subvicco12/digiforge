@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/../support/MasterCatalogCandidateFixture.php';
+require_once __DIR__.'/../support/MasterCatalogStoredEvidenceFixture.php';
 use DigiForge\POD\MasterCatalogV2MigrationContract as Contract;
 use DigiForge\POD\MasterCatalogV2IngestionService as Service;
 use DigiForge\POD\MasterCatalogV2Reference as Reference;
@@ -10,9 +11,8 @@ final class MasterCatalogMixedCandidateTest extends WP_UnitTestCase {
  public function setUp():void {
   parent::setUp();DigiForge\Core\Activator::activate();
   wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
-  global $wpdb;
-  $wpdb->insert(Tables::catalog_versions(),['catalog_key'=>ParentReference::CATALOG_KEY,'version_label'=>'mixed-parent-'.wp_rand(),'source_sha256'=>ParentReference::SOURCE_SHA256,'source_state'=>'IMMUTABLE_REFERENCE','parent_version_id'=>0,'migration_metadata'=>'{}','row_count'=>500,'fingerprint'=>hash('sha256','mixed-parent-'.wp_rand()),'production_authority'=>0,'created_by'=>get_current_user_id(),'created_at'=>current_time('mysql',true)]);
-  self::assertSame(1,$wpdb->rows_affected);
+  MasterCatalogStoredEvidenceFixture::resetCatalogEvidence();
+  self::assertNotWPError(MasterCatalogStoredEvidenceFixture::persistParent());
  }
  private function candidate():array {
   [$m,$x]=MasterCatalogCandidateFixture::rows();

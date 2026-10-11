@@ -16,4 +16,12 @@ final class ArtworkGeometryQaTest extends TestCase
  /** @dataProvider fittedSources */
  public function testContainPlacementUsesActualImageScaleNotLetterboxSize(array $image):void {self::assertTrue(class_exists(ArtworkGeometryQa::class));$policy=ArtworkGeometryQa::policy($this->area());$policy['min_image_dpi']=300;ArtworkGeometryQa::placement($policy,['x'=>5,'y'=>5,'width'=>30,'height'=>30],$image);self::assertFalse($policy['supplier_certified']);}
 
+ private function bleedArea():array {$area=$this->area();$area['qa_geometry']['bleed']=['trim_box'=>['x'=>3,'y'=>4,'width'=>94,'height'=>72],'margins_px'=>['left'=>3,'right'=>3,'top'=>4,'bottom'=>4]];return $area;}
+ public function testExplicitBleedGeometryPreservesProviderMarginsWithoutCertification():void {$policy=ArtworkGeometryQa::policy($this->bleedArea());self::assertSame('VERIFIED_LOCAL_BLEED_GEOMETRY',$policy['bleed_state']);self::assertSame(94,$policy['bleed']['trim_box']['width']);self::assertFalse($policy['supplier_certified']);}
+ public function testMissingBleedEvidenceCannotBeInferredFromSafeZone():void {self::assertSame('MISSING_BLEED_GEOMETRY',ArtworkGeometryQa::policy($this->area())['bleed_state']);}
+ public static function badBleed():array {return [['left',2],['right',-1],['top','4'],['bottom',null]];}
+ /** @dataProvider badBleed */
+ public function testBleedMarginsMustExactlyReconcileTrimAndFullCanvas(string $side,mixed $value):void {$area=$this->bleedArea();$area['qa_geometry']['bleed']['margins_px'][$side]=$value;$this->expectException(InvalidArgumentException::class);ArtworkGeometryQa::policy($area);}
+ public function testSafeZoneCannotExtendIntoDeclaredBleed():void {$area=$this->bleedArea();$area['qa_geometry']['safe_zone']['x']=2;$this->expectException(InvalidArgumentException::class);ArtworkGeometryQa::policy($area);}
+
 }

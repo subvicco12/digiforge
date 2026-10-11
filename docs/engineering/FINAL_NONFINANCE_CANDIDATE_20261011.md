@@ -1,3 +1,5 @@
+> Latest bounded acceptance milestone: see [NONFINANCE_ACCEPTANCE_CLOSURE_20261011.md](NONFINANCE_ACCEPTANCE_CLOSURE_20261011.md). Full product acceptance remains incomplete.
+
 # DigiForge integrated non-finance candidate — 2026-10-11
 
 Later gap-closure evidence is in `FINAL_GAP_CLOSURE_20261011.md`; it supersedes the remaining-renderer assertions below while preserving this prior milestone record.

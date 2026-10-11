@@ -7,13 +7,23 @@ final class ArtworkGeometryQa
 {
  public static function policy(array $area):array
  {
-  if(!array_key_exists('qa_geometry',$area))return ['state'=>'MISSING_GEOMETRY','supplier_certified'=>false];
+  if(!array_key_exists('qa_geometry',$area))return ['state'=>'MISSING_GEOMETRY','bleed_state'=>'MISSING_BLEED_GEOMETRY','supplier_certified'=>false];
   $qa=$area['qa_geometry'];
-  if(!is_array($qa)||count($qa)!==3||array_diff(array_keys($qa),['safe_zone','seam_exclusions','min_image_dpi'])!==[]||!is_int($qa['min_image_dpi']??null)||$qa['min_image_dpi']<72||$qa['min_image_dpi']>1200||!is_int($area['dpi']??null)||$area['dpi']<72||$area['dpi']>1200)throw new \InvalidArgumentException('Exact bounded QA geometry and template resolution required.');
+  if(!is_array($qa)||array_diff(['safe_zone','seam_exclusions','min_image_dpi'],array_keys($qa))!==[]||array_diff(array_keys($qa),['safe_zone','seam_exclusions','min_image_dpi','bleed'])!==[]||!is_int($qa['min_image_dpi']??null)||$qa['min_image_dpi']<72||$qa['min_image_dpi']>1200||!is_int($area['dpi']??null)||$area['dpi']<72||$area['dpi']>1200)throw new \InvalidArgumentException('Exact bounded QA geometry and template resolution required.');
   $safe=self::box($qa['safe_zone']??null,$area);
   $seams=$qa['seam_exclusions']??null;if(!is_array($seams)||!array_is_list($seams)||count($seams)>32)throw new \InvalidArgumentException('Explicit bounded seam exclusions required.');
   foreach($seams as &$seam)$seam=self::box($seam,$area);unset($seam);
-  return ['state'=>'VERIFIED_LOCAL_GEOMETRY','safe_zone'=>$safe,'seam_exclusions'=>$seams,'min_image_dpi'=>$qa['min_image_dpi'],'dpi'=>$area['dpi'],'supplier_certified'=>false];
+  $bleedState='MISSING_BLEED_GEOMETRY';$bleed=null;
+  if(array_key_exists('bleed',$qa)){
+   $bleed=$qa['bleed'];if(!is_array($bleed)||count($bleed)!==2||array_diff(array_keys($bleed),['trim_box','margins_px'])!==[])throw new \InvalidArgumentException('Explicit trim box and bleed margins required.');
+   $trim=self::box($bleed['trim_box']??null,$area);$margins=$bleed['margins_px']??null;
+   if(!is_array($margins)||count($margins)!==4||array_diff(array_keys($margins),['left','right','top','bottom'])!==[])throw new \InvalidArgumentException('Exact four bleed margins required.');
+   foreach($margins as $margin)if(!is_int($margin)||$margin<0||$margin>10000)throw new \InvalidArgumentException('Bounded integer bleed margins required.');
+   if($trim['x']!==$margins['left']||$trim['y']!==$margins['top']||$trim['x']+$trim['width']+$margins['right']!==$area['width_px']||$trim['y']+$trim['height']+$margins['bottom']!==$area['height_px'])throw new \InvalidArgumentException('Trim and bleed must exactly reconcile the complete canvas.');
+   if($safe['x']<$trim['x']||$safe['y']<$trim['y']||$safe['x']+$safe['width']>$trim['x']+$trim['width']||$safe['y']+$safe['height']>$trim['y']+$trim['height'])throw new \InvalidArgumentException('Safe zone cannot extend into bleed.');
+   $bleed=['trim_box'=>$trim,'margins_px'=>$margins];$bleedState='VERIFIED_LOCAL_BLEED_GEOMETRY';
+  }
+  return ['state'=>'VERIFIED_LOCAL_GEOMETRY','safe_zone'=>$safe,'seam_exclusions'=>$seams,'min_image_dpi'=>$qa['min_image_dpi'],'dpi'=>$area['dpi'],'bleed_state'=>$bleedState]+($bleed===null?[]:['bleed'=>$bleed])+['supplier_certified'=>false];
  }
  public static function placement(array $policy,array $bounds,?array $image=null):void
  {

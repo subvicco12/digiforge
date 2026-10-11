@@ -39,6 +39,15 @@ M={
 34:('docs/engineering/original-source/README.md','','AUTHORITY_BOUNDARY','Attached handoff instructions are source context; current user request controls this task.'),
 35:('docs/engineering/original-source/source-inventory.json','','SOURCE_CONTEXT','Consolidation/provenance record preserved verbatim.'),
 36:('docs/engineering/original-source/source-inventory.json','','AUTHORITY_BOUNDARY','Source supersession preserved; archives retained; no destructive action authorized.')}
+# New bounded acceptance references; partial section status is deliberately retained.
+for section, implementation, tests, evidence in [
+ (11, 'includes/Listings/ListingFactory.php', 'tests/wordpress/OfflineListingOrderLineageTest.php', ' Native digital listing preparation derives shop and environment from reviewed research lineage and replays pending review; external publication remains deferred.'),
+ (12, 'includes/POD/ArtworkPixelQa.php;includes/POD/StoredArtworkVisualQa.php', 'tests/unit/ArtworkPixelQaTest.php', ' Explicit bleed and reviewed panel-edge contracts are checked against decoded retained SVG/PNG/canonical PDF pixels; missing contracts remain visible, supplier certification false.'),
+ (13, 'includes/POD/GovernedCatalogRepository.php;includes/POD/MasterCatalogV2AcceptanceRepository.php', 'tests/wordpress/MasterCatalogStoredSourceAcceptanceTest.php', ' Actual original V2 rows and migration decisions verified locally against complete stored children and reconstructed fingerprints; V1 parent is a synthetic test fixture, not authentic original-V1 certification.'),
+ (14, 'includes/POD/ArtworkGeometryQa.php;includes/POD/ArtworkPixelQa.php', 'tests/unit/ArtworkGeometryQaTest.php;tests/unit/ArtworkPixelQaTest.php', ' Explicit trim/margin/safe-zone reconciliation, opaque bleed pixels and exact reviewed panel-edge continuity verified locally; absent supplier contracts cannot be inferred.'),
+ (17, 'includes/Orders/Repository.php', 'tests/wordpress/OfflineListingOrderLineageTest.php', ' Native received-order line insertion rejects cross-shop/channel/environment listing relationships; paid-order/provider execution remains unverified.')]:
+ implementation_before, tests_before, status, boundary=M[section]
+ M[section]=(implementation_before+';'+implementation, tests_before+';'+tests, status, boundary+evidence)
 # Exact source-anchor overrides for original acceptance list and newly verified cap.
 A={226:(5,None),227:(6,None),228:(7,None),229:(11,None),230:(12,None),231:(14,None),232:(20,None),233:(19,None),234:(17,None),235:(21,None),236:(22,None),237:(23,None),238:(20,'228 offline browser cases cover19non-financeviews/fourshopprofiles/threewidths; complete server/operator/deployed-theme acceptance remains unverified.'),239:(29,'Owner-deferred backup/restore operational certification; no recovery workspace touched.'),240:(27,'Final PR exact-head audit required; production installation not authorized or certified.'),241:(31,None)}
 def refs(path,test=False):
