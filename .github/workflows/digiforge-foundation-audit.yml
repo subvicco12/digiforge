@@ -79,10 +79,15 @@ jobs:
           echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
 
       - name: Audit offline processor dependency advisories
-        run: python3 bin/audit-cutout-dependencies.py
+        run: |
+          python3 bin/audit-cutout-dependencies.py
+          python3 bin/audit-cutout-dependencies.py --sam-matting
 
       - name: Legacy and unit tests
         run: composer test
+
+      - name: Experimental matting boundary static analysis
+        run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php
 
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
