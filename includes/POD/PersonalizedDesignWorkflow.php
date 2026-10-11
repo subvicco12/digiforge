@@ -10,8 +10,20 @@ final class PersonalizedDesignWorkflow
 {
  public function register():void {
   add_action('rest_api_init',function():void {
-   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review','/pod/customer-artwork/segment'=>'segmentUpload','/pod/customer-artwork/qa'=>'qa']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>(in_array($method,['upload','segmentUpload'],true)?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
+   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review','/pod/customer-artwork/segment'=>'segmentUpload','/pod/customer-artwork/qa'=>'qa','/pod/visual-review/evidence'=>'visualEvidence','/pod/visual-review/assign'=>'visualAssignment','/pod/visual-review/decision'=>'visualDecision','/pod/visual-review/inspect'=>'visualInspection']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>(in_array($method,['upload','segmentUpload','visualEvidence'],true)?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
   });
+ }
+ public function visualEvidence(array $input):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');return (new CutoutVisualReviewRepository())->intake($input);
+ }
+ public function visualAssignment(array $input):array|WP_Error {
+  $scope=$this->scope($input,['shop_key','case_key','case_sha256','reviewer_id']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['case_key']??null)||!is_string($input['case_sha256']??null)||!is_int($input['reviewer_id']??null))return self::error('typed_input_required');return (new CutoutVisualReviewRepository())->assign($input['shop_key'],$input['case_key'],$input['case_sha256'],$input['reviewer_id']);
+ }
+ public function visualDecision(array $input):array|WP_Error {
+  $scope=$this->scope($input,['shop_key','case_key','assignment_sha256','outcome','flags','annotations']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['case_key']??null)||!is_string($input['assignment_sha256']??null)||!is_string($input['outcome']??null)||!is_array($input['flags']??null)||!is_array($input['annotations']??null))return self::error('typed_input_required');return (new CutoutVisualReviewRepository())->decide($input['shop_key'],$input['case_key'],$input['assignment_sha256'],$input['outcome'],$input['flags'],$input['annotations']);
+ }
+ public function visualInspection(array $input):array|WP_Error {
+  $scope=$this->scope($input,['shop_key','case_key','render_id','position']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['case_key']??null)||!is_int($input['render_id']??0)||!is_string($input['position']??''))return self::error('typed_input_required');return (new CutoutVisualReviewRepository())->inspect($input['shop_key'],$input['case_key'],$input['render_id']??0,$input['position']??'');
  }
  public function draft(array $input):array|WP_Error {
   $scope=$this->scope($input,['shop_key','template_key','template_version','family_id','settings','bitmap_font']);if($scope instanceof WP_Error)return $scope;
