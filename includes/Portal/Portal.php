@@ -445,7 +445,7 @@ final class Portal
 
     private function digitalFactoryOperations():void
     {
-        $repo=new \DigiForge\DigitalFactory\Repository();$products=$repo->all('digital_product',1,50);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
+        $repo=new \DigiForge\DigitalFactory\Repository();$selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$products=$repo->all('digital_product',1,50,$selected===ShopOperationsReadModel::ALL?null:$selected);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
         $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['APPROVED','RELEASE_READY','ACTIVE'],true))$counts['approved']++;}}
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
         if(!$queryOk){echo '<div class="df-notice df-notice-error">Digital Factory evidence unavailable. Database reads failed; zero products or readiness is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>Recent digital products</span><b>'.esc_html((string)$counts['total']).'</b></div><div><span>Draft</span><b>'.esc_html((string)$counts['draft']).'</b></div><div><span>Review</span><b>'.esc_html((string)$counts['review']).'</b></div><div><span>Approved / release-ready</span><b>'.esc_html((string)$counts['approved']).'</b></div><div><span>External publish authority</span><b>NO</b></div></div>';if($items===[]){echo '<div class="df-empty">No digital products in the bounded view.</div>';}else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Digital product</th><th>Product version</th><th>Category</th><th>State</th><th>Readiness</th><th>Next governed step</th></tr></thead><tbody>';foreach($items as $row){$ready=is_array($row['readiness']??null)?$row['readiness']:json_decode((string)($row['readiness']??''),true);$blocked=is_array($ready)?count(array_filter($ready,static fn($v):bool=>$v!==true)):null;echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['name']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['category']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html($blocked===null?'UNVERIFIED':($blocked===0?'PASS':$blocked.' BLOCKED')).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('approvals')).'">Open Product Approval</a></td></tr>';}echo '</tbody></table></div>';}}
@@ -1023,10 +1023,12 @@ final class Portal
         if($shop===ShopOperationsReadModel::ALL)return '';
         $research=(new ResearchRepository())->portalScopeFilter($table,$shop);
         if($research!==null)return $research;
+        $product=ProductEvidenceScope::forTable($table,$shop);
+        if($product!==null)return $product;
         if($table===Tables::listings())return $wpdb->prepare('BINARY shop_reference=BINARY %s',$shop);
         if(in_array($table,[Tables::listing_seo(),Tables::listing_media(),Tables::listing_pod_bindings(),Tables::etsy_draft_packages(),Tables::etsy_intents(),Tables::listing_readiness_reviews()],true))return $wpdb->prepare('EXISTS (SELECT 1 FROM '.Tables::listings().' l WHERE l.id='.$table.'.listing_id AND BINARY l.shop_reference=BINARY %s)',$shop);
-        $owner=$wpdb->prepare('BINARY o.shop_reference=BINARY %s',$shop);
-        if($table===Tables::orders())return $wpdb->prepare('BINARY shop_reference=BINARY %s',$shop);
+        $owner=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');
+        if($table===Tables::orders())return \DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,$table);
         if(in_array($table,[Tables::order_line_items(),Tables::fulfillment_plans(),Tables::fulfillment_intents(),Tables::fulfillment_readiness_reviews()],true)){
             return 'EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.$table.'.order_id AND '.$owner.')';
         }
@@ -1242,7 +1244,7 @@ final class Portal
     {
         $args = [
             'df_view' => $view,
-            'df_message' => $message,
+            'df_message' => rawurlencode($message),
             'df_error' => $error ? 1 : 0,
         ];
         wp_safe_redirect(add_query_arg($args, $this->baseUrl()));
@@ -1254,7 +1256,7 @@ final class Portal
         $target = wp_validate_redirect($url, $this->baseUrl());
         $target = add_query_arg([
             'df_view' => 'integrations',
-            'df_message' => $message,
+            'df_message' => rawurlencode($message),
             'df_error' => $error ? 1 : 0,
         ], $target);
         wp_safe_redirect($target);

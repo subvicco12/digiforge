@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 require_once __DIR__.'/../support/MasterCatalogStoredEvidenceFixture.php';
 use DigiForge\Database\Tables;
 use DigiForge\POD\GovernedCatalogRepository;
@@ -24,7 +25,7 @@ final class MasterCatalogStoredSourceAcceptanceTest extends WP_UnitTestCase {
    self::assertCount(500,GovernedCatalogRepository::verifyVersionEvidence($parent));self::assertCount(500,GovernedCatalogRepository::verifyVersionEvidence($v2));
    $meta=json_decode($v2['migration_metadata'],true);self::assertSame($input['migration'],$meta['source_migration']);self::assertSame(['KEEP','MERGE','DOWNGRADE'],array_values(array_unique(array_column($meta['source_migration'],'Disposition'))));
    $readiness=(new MasterCatalogV2IngestionReadModel())->snapshot();self::assertSame('ALREADY_PERSISTED',$readiness['ingestion_readiness']);self::assertFalse($readiness['promotion_authorized']);
-   $acceptance=new MasterCatalogV2AcceptanceRepository();self::assertSame('PENDING',$acceptance->current((int)$v2['id'])['decision_state']);$decision=$acceptance->record((int)$v2['id'],'ACCEPT',get_current_user_id());self::assertNotWPError($decision);self::assertFalse($decision['external_execution_authorized']);self::assertFalse($decision['production_authority']);self::assertFalse($decision['promotion_authorized']);
+   $acceptance=new MasterCatalogV2AcceptanceRepository();self::assertSame('PENDING',$acceptance->current((int)$v2['id'])['decision_state']);PortalActionAcceptanceFixture::invoke('MASTER500_ACCEPTANCE_ACTION',['catalog_version_id'=>$v2['id'],'decision'=>'ACCEPT']);$decision=$acceptance->record((int)$v2['id'],'ACCEPT',get_current_user_id());self::assertNotWPError($decision);self::assertFalse($decision['external_execution_authorized']);self::assertFalse($decision['production_authority']);self::assertFalse($decision['promotion_authorized']);
    self::assertTrue($acceptance->record((int)$v2['id'],'ACCEPT',get_current_user_id())['replayed']);self::assertWPError($acceptance->record((int)$v2['id'],'REJECT',get_current_user_id()));self::assertSame('RECORDED',$acceptance->current((int)$v2['id'])['decision_state']);
    $replay=(new MasterCatalogV2IngestionService())->ingest($input,MasterCatalogV2Reference::SOURCE_SHA256,$label);self::assertNotWPError($replay);self::assertTrue($replay['idempotent_replay']);self::assertSame($v2['id'],$replay['id']);self::assertSame([],$http);self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
   }finally{remove_filter('pre_http_request',$guard,10);}

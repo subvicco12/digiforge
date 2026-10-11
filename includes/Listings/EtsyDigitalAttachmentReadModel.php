@@ -11,7 +11,8 @@ final class EtsyDigitalAttachmentReadModel
         global $wpdb;
         $limit = max(1, min(100, $limit));
         $table = $wpdb->prefix . 'digiforge_etsy_operations';
-        $scope=$shop===null?'':$wpdb->prepare(' AND BINARY shop_reference=BINARY %s',$shop);
+        $environment='(SELECT l.environment FROM '.\DigiForge\Database\Tables::etsy_draft_packages().' pkg INNER JOIN '.\DigiForge\Database\Tables::listings().' l ON l.id=pkg.listing_id WHERE pkg.id='.$table.'.draft_package_id LIMIT 1)';
+        $scope=$shop===null?'':' AND '.EtsyStoredShopScope::matches($wpdb->prepare('%s',$shop),$table.'.shop_reference',$environment);
         $evidenceState = 'UNAVAILABLE';
         $wpdb->last_error = '';
         $rows = $wpdb->get_results($wpdb->prepare(

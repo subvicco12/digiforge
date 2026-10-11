@@ -60,6 +60,13 @@ final class ProductionTemplateContract
             }
             $normalizedAreas[]=$normalized;
         }
+        // Original Blueprint p103 rejects this blueprint for the US route. Missing
+        // route evidence cannot silently assume a permitted region.
+        if($supplier==='printify'&&$blueprint===1509){
+            $regions=[];
+            foreach($normalizedAreas as $area){$region=$area['region']??null;if(!is_string($region)||preg_match('/^[A-Za-z]{2}$/D',$region)!==1)throw new \InvalidArgumentException('Printify blueprint 1509 requires explicit region evidence');$region=strtoupper($region);if($region==='US')throw new \InvalidArgumentException('Printify blueprint 1509 is rejected for the US route');$regions[$region]=true;}
+            if(count($regions)!==1)throw new \InvalidArgumentException('Printify blueprint 1509 region evidence is conflicting');
+        }
         usort($normalizedAreas,static fn(array $a,array $b):int=>[$a['position'],$a['decoration_method'],$a['width_px'],$a['height_px']]<=>[$b['position'],$b['decoration_method'],$b['width_px'],$b['height_px']]);
         $canonical=['template_id'=>$templateId,'template_version'=>$version,'supplier'=>$supplier,'provider_blueprint_id'=>$blueprint,'provider_id'=>$provider,'variant_ids'=>$variants,'print_areas'=>$normalizedAreas,'personalization_pipeline'=>$pipeline,'personalization_engine'=>$engine,'template_status'=>$status];
         $encoded=wp_json_encode($canonical);

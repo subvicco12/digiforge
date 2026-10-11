@@ -9,7 +9,7 @@ final class OperationalExceptionReadModel {
  public function snapshot(int $limit=50, ?string $shop=null):array {
   global $wpdb;
   $limit=max(1,min(100,$limit));
-  $scope=$shop===null?'':$wpdb->prepare(' AND EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.Tables::fulfillment_intents().'.order_id AND BINARY o.shop_reference=BINARY %s)',$shop);
+  $scope=$shop===null?'':' AND EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.Tables::fulfillment_intents().'.order_id AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').')';
   $wpdb->last_error='';
   $fulfillment=$wpdb->get_results($wpdb->prepare("SELECT id,order_id,fulfillment_plan_id,intent_type,state,updated_at FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope." ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
   $fulfillmentRowsAvailable=is_array($fulfillment)&&empty($wpdb->last_error);
