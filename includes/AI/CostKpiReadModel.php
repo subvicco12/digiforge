@@ -21,7 +21,13 @@ final class CostKpiReadModel
         $groupsState=$groupsAvailable?'AVAILABLE':'UNAVAILABLE';
         $queryState=$totalsAvailable&&$groupsAvailable?'AVAILABLE':'UNAVAILABLE';
         $currencyCount=(int)($totals['currency_count']??0);$currency=(string)($totals['currency']??'USD');if($currencyCount>1)$queryState='UNAVAILABLE';
-        $commercial=(new CommercialCostKpiReadModel())->snapshot($shop,gmdate('Y-m-01 00:00:00'),gmdate('Y-m-01 00:00:00',strtotime('first day of next month UTC')),$currency);
+        $start=gmdate('Y-m-01 00:00:00');$end=gmdate('Y-m-01 00:00:00',strtotime('first day of next month UTC'));
+        // Commercial cohorts select currency from generation in this period. Administrative
+        // capacity and historical rows cannot select a different currency for reviewed costs.
+        $wpdb->last_error='';$cohortCurrency=null;if(in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true))$cohortCurrency=$wpdb->get_var($wpdb->prepare('SELECT MIN(currency) FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND idempotency_key LIKE %s AND occurred_at>=%s AND occurred_at<%s',$shop,'generation-%',$start,$end));
+        $currencyReadAvailable=$wpdb->last_error==='';
+        $commercial=(new CommercialCostKpiReadModel())->snapshot($shop,$start,$end,is_string($cohortCurrency)&&$cohortCurrency!==''?$cohortCurrency:'USD');
+        if(!$currencyReadAvailable){$commercial['query_state']='UNAVAILABLE';foreach($commercial['metrics']as &$metric){if($metric['state']==='FINANCE_DEFERRED')continue;$metric['state']='UNAVAILABLE';$metric['cost_per_outcome']=null;$metric['denominator']=null;$metric['cost']=null;}unset($metric);}
         if($queryState==='UNAVAILABLE'){$totals=[];$groups=[];}
         $quantity=(int)($totals['quantity']??0);$actual=(float)($totals['actual_cost']??0);
         $business=[];foreach(['opportunity','qualified_opportunity','developed_product','approved_listing','sale']as $metric)$business['cost_per_'.$metric]=$commercial['metrics'][$metric]['cost_per_outcome'];$business['cost_per_gross_profit']=null;

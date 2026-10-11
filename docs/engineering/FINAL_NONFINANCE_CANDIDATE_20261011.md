@@ -1,5 +1,7 @@
 # DigiForge integrated non-finance candidate — 2026-10-11
 
+Later gap-closure evidence is in `FINAL_GAP_CLOSURE_20261011.md`; it supersedes the remaining-renderer assertions below while preserving this prior milestone record.
+
 Overall: **NOT FINAL-PRODUCT COMPLETE**. This report supersedes the earlier header-only raster and unavailable-KPI assertions. The batch continues PR #1161 from independently verified `7a1b87026fdbd5b65a1a9dfa96383d7d68c05467`; main was fetched and verified at `844107ab9baf7e1303cd47708e9eab3bc700b348`. The final exact candidate SHA, independent remote verification and Engineering & Safety Audit run are recorded on [PR #1161](https://github.com/subvicco12/digiforge/pull/1161). Local acceptance does not replace that publication/audit gate.
 
 Finance PR #1147 and its recovery workspace are untouched. STOP ALL ON, external lock ON, automation OFF remain the authorized state. No merge, deployment, provider activation, Etsy/POD external execution, catalog promotion or CI/security/release weakening occurred. Runtime production safety has not been independently observed.
