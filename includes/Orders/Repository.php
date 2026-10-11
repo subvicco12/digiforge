@@ -19,13 +19,15 @@ final class Repository
         return $this->insert(Tables::orders(),$key,['channel'=>$channel,'environment'=>$environment,'external_order_reference'=>sanitize_text_field((string)($input['external_order_reference']??'')),'shop_reference'=>sanitize_text_field((string)($input['shop_reference']??'')),'buyer_reference'=>sanitize_text_field((string)($input['buyer_reference']??'')),'currency'=>$currency,'subtotal_amount'=>$subtotal,'shipping_amount'=>$shipping,'tax_amount'=>$tax,'total_amount'=>$total,'personalization_required'=>!empty($input['personalization_required'])?1:0,'state'=>'RECEIVED','approved_by'=>0,'approved_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'order');
     }
 
+    /** Exact production Etsy webhook identity; ambiguous historical rows fail closed. */
     public function findByExternalReference(string $externalReference,string $shopReference): array|WP_Error|null
     {
         global $wpdb;
         $wpdb->last_error='';
         $wpdb->flush();
-        $queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE external_order_reference=%s AND shop_reference=%s ORDER BY id DESC LIMIT 1',$externalReference,$shopReference));
+        $queryResult=$wpdb->query($wpdb->prepare("SELECT * FROM ".Tables::orders()." WHERE BINARY external_order_reference=BINARY %s AND BINARY shop_reference=BINARY %s AND BINARY environment=BINARY 'production' AND BINARY channel=BINARY 'etsy' ORDER BY id DESC LIMIT 2",$externalReference,$shopReference));
         if($queryResult===false||!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','External order reference evidence could not be read.',503);
+        if($queryResult>1)return $this->error('order_reference_ambiguous','More than one production Etsy order has this exact identity; reconciliation is required.',409);
         $row=isset($wpdb->last_result[0])?(array)$wpdb->last_result[0]:null;
         if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','External order reference evidence could not be read.',503);
         return is_array($row)?$row:null;

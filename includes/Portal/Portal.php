@@ -955,8 +955,9 @@ final class Portal
 
     private function panelTable(string $label, string $table): void
     {
+        $count=$this->count($table);
         echo '<section class="df-panel"><div class="df-panel-head"><h2>' . esc_html($label) . '</h2><span>'
-            . esc_html((string) $this->count($table)) . ' records</span></div>';
+            . esc_html($count===null?'UNAVAILABLE':(string)$count.' records') . '</span></div>';
         $this->table($table);
         echo '</section>';
     }
@@ -964,7 +965,12 @@ final class Portal
     private function table(string $table): void
     {
         global $wpdb;
+        $wpdb->last_error='';
         $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC LIMIT 50", ARRAY_A);
+        if(!is_array($rows)||$wpdb->last_error!==''){
+            echo '<div class="df-notice df-notice-error">Evidence unavailable. Source records could not be read; an empty queue or completed review is not inferred.</div>';
+            return;
+        }
         $focusTables = [
             'listing_review' => Tables::listing_readiness_reviews(),
             'personalization' => Tables::personalization_submissions(),
@@ -975,7 +981,9 @@ final class Portal
         $focusId = isset($_GET['df_focus_id']) ? absint(wp_unslash($_GET['df_focus_id'])) : 0;
         $focused = $focusId > 0 && isset($focusTables[$focusType]) && $focusTables[$focusType] === $table;
         if ($focused) {
+            $wpdb->last_error='';
             $record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId), ARRAY_A);
+            if($wpdb->last_error!=='')$record=null;
             if (is_array($record) && !in_array($focusId, array_map('intval', array_column(is_array($rows) ? $rows : [], 'id')), true)) {
                 $rows = array_merge([$record], is_array($rows) ? $rows : []);
             }
@@ -1127,7 +1135,7 @@ final class Portal
                 ResearchRepository::REVIEW_PENDING
             )
         );
-        return $wpdb->last_error !== '' ? null : (int) $value;
+        return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 
     private function count(string $table): ?int
@@ -1135,7 +1143,7 @@ final class Portal
         global $wpdb;
         $wpdb->last_error = '';
         $value = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
-        return $wpdb->last_error !== '' ? null : (int) $value;
+        return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 
     /** @param list<string> $states */
@@ -1147,7 +1155,7 @@ final class Portal
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$column} NOT IN ({$placeholders})";
         $wpdb->last_error = '';
         $value = $wpdb->get_var($wpdb->prepare($sql, ...$states));
-        return $wpdb->last_error !== '' ? null : (int) $value;
+        return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 
     private function countByState(string $table, string $column, string $state): ?int
@@ -1156,7 +1164,7 @@ final class Portal
         if (! preg_match('/^[a-z0-9_]+$/i', $column)) { return null; }
         $wpdb->last_error = '';
         $value = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE {$column}=%s", $state));
-        return $wpdb->last_error !== '' ? null : (int) $value;
+        return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 
     private function cell(string $key, mixed $value): string
