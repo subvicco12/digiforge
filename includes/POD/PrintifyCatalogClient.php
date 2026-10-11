@@ -47,6 +47,13 @@ final class PrintifyCatalogClient
         return $this->get($token, self::V1 . 'catalog/blueprints/' . $this->id($blueprintId) . '/print_providers/' . $this->id($providerId) . '/variants.json');
     }
 
+    /** Return the exact read-only response plus transport-derived provenance for template binding. */
+    public function variantsWithEvidence(string $token, int $blueprintId, int $providerId): array|WP_Error
+    {
+        $url=self::V1.'catalog/blueprints/'.$this->id($blueprintId).'/print_providers/'.$this->id($providerId).'/variants.json';
+        return $this->getWithEvidence($token,$url);
+    }
+
     public function shipping(string $token, int $blueprintId, int $providerId, ?string $method = null): array|WP_Error
     {
         $base = self::V2 . 'catalog/blueprints/' . $this->id($blueprintId) . '/print_providers/' . $this->id($providerId) . '/shipping';
@@ -65,6 +72,14 @@ final class PrintifyCatalogClient
     }
 
     private function get(string $token, string $url): array|WP_Error
+    {
+        $result=$this->getWithEvidence($token,$url);
+        if(is_wp_error($result))return $result;
+        return $result['data'];
+    }
+
+    /** Internal response wrapper keeps raw-body evidence local and never exposes headers or secrets. */
+    private function getWithEvidence(string $token,string $url): array|WP_Error
     {
         $token = trim($token);
         if ($token === '') return new WP_Error('digiforge_printify_credentials', 'Printify credential is required.', ['status'=>409]);
@@ -89,7 +104,12 @@ final class PrintifyCatalogClient
             try { $decoded=json_decode($body,true,512,JSON_THROW_ON_ERROR); }
             catch (\JsonException) { return new WP_Error('digiforge_printify_json','Printify returned invalid JSON.',['status'=>502]); }
             if (!is_array($decoded)) return new WP_Error('digiforge_printify_shape','Printify returned an unsupported response shape.',['status'=>502]);
-            return $decoded;
+            return ['data'=>$decoded,'source_evidence'=>[
+                'schema'=>'printify-catalog-response-v1',
+                'endpoint_path'=>(string)(parse_url($url,PHP_URL_PATH)?:''),
+                'response_sha256'=>hash('sha256',$body),
+                'observed_at'=>gmdate('Y-m-d\\TH:i:s\\Z'),
+            ]];
         }
         return new WP_Error('digiforge_printify_rate_limit','Printify catalog rate limit retry budget exhausted.',['status'=>429]);
     }

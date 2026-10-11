@@ -12,6 +12,7 @@ final class ProductionTemplateRepository
     public function save(array $input): array|WP_Error
     {
         try{$normalized=ProductionTemplateContract::normalize($input);}catch(\Throwable $e){return new WP_Error('digiforge_template_invalid',$e->getMessage(),['status'=>400]);}
+        if(($normalized['supplier']??'')==='printify'&&($normalized['template_status']??'')!=='DRAFT'){$catalog=$this->assertCatalogSnapshot($normalized);if($catalog instanceof WP_Error)return $catalog;}
         if(sanitize_key((string)($input['shop_key']??''))==='')return new WP_Error('template_cycle_scope_required','A shop is required for production-template access.');
         global $wpdb;$lock='digiforge-template-'.substr(hash('sha256',$normalized['template_id']),0,45);
         $wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));
@@ -53,6 +54,13 @@ final class ProductionTemplateRepository
         if(!is_string($data['variant_ids'])||!is_string($data['print_areas'])) return new WP_Error('digiforge_template_encode','Production template metadata could not be encoded.',['status'=>500]);
         if($wpdb->insert($table,$data)===false){$wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE template_id=%s AND template_version=%d LIMIT 1',$row['template_id'],$row['template_version']),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('digiforge_template_confirmation_unavailable','Template persistence outcome is uncertain; do not retry automatically.',['status'=>503,'retry_permitted'=>false]);if(is_array($winner)&&hash_equals((string)($winner['fingerprint']??''),(string)$row['fingerprint']))return $winner+['idempotent'=>true];return new WP_Error('digiforge_template_insert','Production template could not be stored.',['status'=>500]);}
         return $data+['id'=>(int)$wpdb->insert_id,'idempotent'=>false];
+    }
+
+    /** Non-draft geometry must still equal an exact locally persisted Printify variant snapshot. */
+    private function assertCatalogSnapshot(array $template): ?WP_Error
+    {
+        global $wpdb;$checked=[];foreach($template['print_areas'] as $area){foreach((array)($area['_catalog_bindings']??[]) as $binding){$variant=(int)$binding['variant_id'];$identity=$binding['environment'].':'.$variant;if(isset($checked[$identity]))continue;$checked[$identity]=true;$key=(int)$template['provider_id'].':'.$variant;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT attributes,source_revision FROM '.\DigiForge\Database\Tables::pod_catalog().' WHERE provider=%s AND environment=%s AND provider_product_key=%s AND provider_variant_key=%s LIMIT 1','printify',(string)$binding['environment'],(string)$template['provider_blueprint_id'],$key),ARRAY_A);if($wpdb->last_error!==''||!is_array($row))return new WP_Error('digiforge_template_catalog_unavailable','Exact persisted Printify variant evidence is required before locking geometry.',['status'=>409]);$attributes=json_decode((string)$row['attributes'],true);$evidence=is_array($attributes)?($attributes['_digiforge_source_evidence']??null):null;if(!is_array($evidence)||($evidence['schema']??null)!=='printify-variant-evidence-v1'||($evidence['variant_sha256']??null)!==$binding['variant_sha256']||($evidence['observed_at']??null)!==$binding['observed_at']||(string)$row['source_revision']!==(string)$binding['source_revision'])return new WP_Error('digiforge_template_catalog_stale','Printify catalog evidence changed or was re-observed; refresh geometry and create a new template version.',['status'=>409]);}}
+        return null;
     }
 
     /** Catalog/geometry drift never mutates an existing version; it creates the next DRAFT candidate. */
