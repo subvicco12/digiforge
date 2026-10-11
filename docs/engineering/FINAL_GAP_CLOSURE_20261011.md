@@ -32,6 +32,14 @@ The committed complete inventory retains all 36 Blueprint sections, 27 tables an
 
 No runtime dependencies, finance implementation, CI security settings or release protections were changed. A stale structural test now checks literal `$brief` instead of interpolating an undefined variable, restoring the intended QA-repair boundary assertion.
 
+## Additional cross-module defect closure: actual personalization schema
+
+Blueprint §14 table19/r8 requires per-product typed personalization schemas, validation and rendering mapping. The renderer selected `field_definitions` but did not enforce them against stored approved values. Reproduced negative cases previously accepted undeclared fields, incorrect types, overlong values and missing required fields. `PersonalizationPayloadContract` now validates actual stored definitions and canonical payloads at order submission, human approval and deterministic rendering. Approval flags and caller hashes cannot replace that validation. Schema drift, canonical-byte/hash drift, unsupported constraints, remote/traversal image references and invalid dates/choices/numbers fail closed. Existing `max_length=0` preserves bounded unspecified semantics (hard ceiling 10,000 characters); explicit null and irrelevant constraints are denied.
+
+`Orders::createTypedPersonalization` now compares supplied questions against the actual approved `policy_constraints.etsy_personalization` contract and requires explicit reviewed `field_definitions[].answer_key` mappings. It preserves question identities, emits canonical renderer field values, retains normalized/source and canonical payload hashes in audit evidence and still requires human review. Unknown answers and ambiguous/missing mappings are rejected; declared optional blanks are allowed. Text/dropdown mappings are supported. Provider upload IDs are not sufficient local source evidence: unstaged upload mappings fail closed. No provider downloads or external operations occur. Existing schemas without explicit mappings need a separately reviewed version, rather than inferred field names or silently bypassed validation.
+
+Behavioral proof: `PersonalizationPayloadContractTest` (23 tests); `RenderArtifactCertificationTest::testApprovedPayloadMustStillSatisfyActualStoredSchema`, `testOrderSubmissionCannotPersistValuesOutsideApprovedSchema`, `testHumanReviewCannotApproveSubmissionAfterSchemaBecomesIncompatible` and `testTypedAnswersRequireActualApprovedQuestionsAndExplicitMapping`. This closes the demonstrated local validation defect; it does not certify live uploads, typography or every original clause.
+
 ## Remaining specialized software and acceptance gaps
 
 | Exact source | Current code and missing behavior | Required acceptance test | External authorization/evidence |
@@ -55,7 +63,7 @@ The source-preserving catalog engine matrix now distinguishes **360 local-compos
 
 **GITHUB PERMISSIONS BLOCKER:** current `GET /repos/subvicco12/digiforge/branches/main/protection` still returns HTTP403, `Resource not accessible by integration`, with `X-Accepted-Github-Permissions: administration=read`. Owner action: grant repository Administration READ to the connected fine-grained token/GitHub App, or have an authorized owner inspect and provide the protection requirements. Repository actor admin rights are not the integration permission. No protection bypass or merge is permitted.
 
-**ARTIFACT READ BLOCKER:** earlier exact-head CI upload succeeds but artifact downloads are redirected to Azure Actions storage and return HTTP403. Git push/API exact-SHA verification and artifact-byte comparison are separate checks. The network policy's effective allowlist does not include that storage host; owner/network administrator must inspect the rejected redirected storage request and permit the required artifact-read route if appropriate. Additional GitHub permission alone is not proven to resolve it. Signed URLs are never committed.
+**ARTIFACT READ BLOCKER:** exact-head CI upload succeeds. Earlier redirected Azure artifact reads returned HTTP403; the current milestone download and retry report `Forbidden` from Azure Actions storage without a numerical HTTP status. Remote artifact byte comparison remains unverified. Git push/API exact-SHA verification and artifact-byte comparison are separate checks. The network policy's effective allowlist does not include that storage host; owner/network administrator must inspect the rejected redirected storage request and permit the required artifact-read route if appropriate. Additional GitHub permission alone is not proven to resolve it. Signed URLs are never committed.
 
 The runtime reports current enforced configuration/spec revision 89. That establishes the attached runtime revision, not that it is the latest published environment revision; the original certification limitation remains.
 
@@ -63,12 +71,12 @@ The runtime reports current enforced configuration/spec revision 89. That establ
 
 Fresh local validation passed:
 
-- Complete unit suite: **1,186 tests / 7,428 assertions**, plus legacy tests and configured PHPStan/PHPCS checks.
-- Complete fresh-database WordPress suite: **334 tests / 3,228 assertions**.
+- Complete unit suite: **1,209 tests / 7,473 assertions**, plus legacy tests and configured PHPStan/PHPCS checks.
+- Complete fresh-database WordPress suite: **341 tests / 3,178 assertions** (final run without exporting private browser fixtures; prior fixture-export run: 341 / 3,255).
 - Offline regression suite: **75 tests**.
 - Browser: **228 cases / 76 fixtures / 19 non-finance views / four shops / widths 390, 768 and 1280**, zero failures and zero network requests. Checks include layout, accessible control names/navigation and keyboard/field interaction; no submissions or business operations.
-- **987 PHP files** passed syntax checks. Exact CI secret-pattern and external-HTTP scans passed. Dependency audit returned zero advisories and zero abandoned packages; Composer manifest validated.
-- New pure repeat/geometry adapters passed additional PHPStan level 5. Independent read-only reviewer ran **14 tests / 31 assertions**, identified a contain-DPI defect, and confirmed its tested correction with no remaining critical/important findings. This local review is separate from mandatory GitHub exact-head audit.
+- **989 PHP files** passed syntax checks. Exact CI secret-pattern and external-HTTP scans passed. Dependency audit returned zero advisories and zero abandoned packages; Composer manifest validated.
+- New pure repeat/geometry/schema adapters passed additional PHPStan level 5. Final schema review independently passed 23 tests / 45 assertions and confirmed optional blank handling with no remaining critical/important findings. Independent read-only reviewer ran **14 tests / 31 assertions**, identified a contain-DPI defect, and confirmed its tested correction with no remaining critical/important findings. This local review is separate from mandatory GitHub exact-head audit.
 
 Exact final commit, packaging digest and audit links are recorded after actual completion in the PR. Do not treat pending publication/audit as success. Local validation covers the complete unit suite and configured static/standards checks, full WordPress database suite, offline regressions, browser fixtures, syntax/security/dependency checks and exact-head packaging. CI has its own PHP 8.3 exact-head Engineering & Safety Audit; local PHP is 8.4. Existing WordPress deprecations and intentional database fault-injection messages are not hidden or represented as a pristine production log.
 
