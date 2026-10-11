@@ -7,7 +7,7 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
  private function saveTemplate(array $input):array|WP_Error {
   $shop='preflight-fixture-'.get_current_user_id();
   $policy=(new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','template_cap'=>['limit'=>8,'duration_seconds'=>604800,'anchor_utc'=>'2026-01-05 00:00:00']]);
-  self::assertFalse(is_wp_error($policy));$input['shop_key']=$shop;
+  self::assertFalse(is_wp_error($policy));$input['shop_key']=$shop;$input=digiforge_test_printify_template($input);self::assertFalse(is_wp_error($input));
   return (new DigiForge\POD\ProductionTemplateRepository())->save($input);
  }
  public function testValidatedTemplateRouteIsRequiredAndDryRunNeverAuthorizesExecution():void{
