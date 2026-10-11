@@ -56,6 +56,19 @@ final class ProductionTemplateRepository
         return $data+['id'=>(int)$wpdb->insert_id,'idempotent'=>false];
     }
 
+    /** Reuse the current persisted supplier boundary for draft family compilation; performs no writes. */
+    public function assertCurrentCatalogSnapshot(array $template): ?WP_Error
+    {
+        $template=ProductionTemplateContract::normalize($template);
+        $check=$this->assertCatalogSnapshot($template);if($check instanceof WP_Error)return $check;
+        if($template['supplier']!=='printify')return new WP_Error('digiforge_template_supplier_required','Printify family drafts require exact Printify evidence.');
+        $environment=$template['print_areas'][0]['_catalog_bindings'][0]['environment']??'';$rows=[];global $wpdb;
+        foreach($template['variant_ids']as $id){$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.\DigiForge\Database\Tables::pod_catalog().' WHERE provider=%s AND environment=%s AND provider_product_key=%s AND provider_variant_key=%s','printify',$environment,(string)$template['provider_blueprint_id'],$template['provider_id'].':'.$id),ARRAY_A);if($wpdb->last_error!==''||!is_array($row))return new WP_Error('digiforge_template_catalog_unavailable','Current exact variant bytes are required.');$rows[]=$row;}
+        $geometry=$template['print_areas'];foreach($geometry as &$area)unset($area['_catalog_bindings']);unset($area);$input=$template;foreach(['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas','fingerprint']as $key)unset($input[$key]);
+        try{$rebuilt=ProductionTemplateContract::fromPrintifyVariants($rows,$geometry,$input);}catch(\Throwable){return new WP_Error('digiforge_template_catalog_stale','Current variant bytes do not reproduce the approved supplier geometry.');}
+        return hash_equals($template['fingerprint'],$rebuilt['fingerprint'])?null:new WP_Error('digiforge_template_catalog_stale','Current supplier provenance differs from the stored template.');
+    }
+
     /** Non-draft geometry must still equal an exact locally persisted Printify variant snapshot. */
     private function assertCatalogSnapshot(array $template): ?WP_Error
     {
