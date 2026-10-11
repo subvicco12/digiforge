@@ -52,9 +52,9 @@ def build():
         if row[LOCATOR] == 'word/document.xml/p89':
             # Record bounded follow-on evidence without changing the aggregate engine status.
             evidence = result[-1]
-            evidence['bounded_proof'] += ' FACE_REPEAT now also has tested operator-selected offline GrabCut segmentation and metadata-free PNG/JPEG normalization; semantic/artistic and supplier certification are not inferred.'
-            evidence['related_implementation_references'] += '; includes/POD/OfflineCutoutPipeline.php:6; includes/POD/CustomerCutoutRepository.php:11; docs/engineering/face-cutout-automation.md:1'
-            evidence['exact_test_references'] += '; tests/offline/test_face_segmentation.py:36; tests/unit/OfflineCutoutPipelineTest.php:1; tests/wordpress/RenderArtifactCertificationTest.php:301::testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat'
+            evidence['bounded_proof'] += ' FACE_REPEAT now also has tested operator-selected offline GrabCut segmentation and metadata-free PNG/JPEG normalization; semantic/artistic and supplier certification are not inferred. Experimental SAM Small + closed-form soft-alpha matting also has bounded isolated inference, retained originals, mandatory review and canonical FACE_REPEAT acceptance; measured reference-alpha accuracy remains missing.'
+            evidence['related_implementation_references'] += '; includes/POD/OfflineCutoutPipeline.php:6; includes/POD/CustomerCutoutRepository.php:11; docs/engineering/face-cutout-automation.md:1; includes/POD/ExperimentalMattingPipeline.php:6; includes/POD/offline/sam_matting.py:1; docs/engineering/sam-small-matting-experimental.md:1'
+            evidence['exact_test_references'] += '; tests/offline/test_face_segmentation.py:36; tests/unit/OfflineCutoutPipelineTest.php:1; tests/wordpress/RenderArtifactCertificationTest.php:301::testOfflineSegmentationUploadIsScopedImmutableReviewGatedAndRendersCanonicalRepeat; tests/unit/ExperimentalMattingPipelineTest.php:1; tests/offline/test_sam_matting_boundary.py:1; tests/wordpress/RenderArtifactCertificationTest.php:316::testExperimentalMattingIsOperatorReviewedScopedAndCanonical'
             evidence['remaining_contract_or_acceptance'] += ' Existing aggregate engine classification is not upgraded by FACE_CUTOUT; PT04/artistic transforms, ground-truth fine-edge quality and supplier certification remain separate.'
     assert sum(len(v['rows']) for v in workbook.values()) == len(workbook_ledger) == 1065
     seen = set()
