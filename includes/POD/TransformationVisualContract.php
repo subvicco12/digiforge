@@ -4,10 +4,11 @@ namespace DigiForge\POD;
 use DigiForge\Orders\Validator;
 use WP_Error;
 
-/** Revision1.1 describes reviews, not approved numeric thresholds or licensed artistic proof. */
+/** Visual contract schema 1.1 under owner-approved policy 1.2; policy approval is not artwork certification. */
 final class TransformationVisualContract
 {
     public const VERSION='1.1';
+    public const POLICY_VERSION='1.2';
     public const MODES=['controlled_painterly_illustration','stylized_poster_art'];
     public const HEADERS=['fixture_id','engine_id','mode','role_positive_negative_edge','contract_version','source_asset_sha256','reference_asset_sha256','source_mime','source_width_px','source_height_px','rights_holder','license_document_id','commercial_derivatives_permitted','ai_processing_permitted','consent_evidence_id','retention_policy_id','supplier_template_version','reviewer','review_utc','rubric_version','review_status','evidence_location','notes'];
     public static function rubric(string $engine,?string $mode=null):array
@@ -19,9 +20,11 @@ final class TransformationVisualContract
             'LINE_ART'=>['defining_contours','recognizable_subject','contrast','no_accidental_gaps','supplier_stroke_width'],
             'VINTAGE_PORTRAIT'=>['recognizable_subject','historical_inspired_coherence','no_deceptive_provenance_or_identity'],
             'AI_TRANSFORM'=>['subject_count','identity_recognizability','approved_composition','no_unauthorized_objects_or_text']};
-        return ['visual_contract_version'=>self::VERSION,'engine_id'=>$engine,'mode'=>$mode,'critical_dimensions'=>$critical,'additional_dimensions'=>$engine==='PET_PORTRAIT'?['crop','background']:[],
+        return ['visual_contract_version'=>self::VERSION,'visual_policy_version'=>self::POLICY_VERSION,'engine_id'=>$engine,'mode'=>$mode,'critical_dimensions'=>$critical,'additional_dimensions'=>$engine==='PET_PORTRAIT'?['crop','background']:[],
             'hard_rejects'=>['unauthorized_subject_change','identifying_marks_or_anatomy_changed','unsafe_or_infringing_additions','unreadable_requested_text','clipped_subject','print_edge_or_bleed_failure','personalization_inconsistent','cross_shop_lineage'],
-            'rating_scale'=>[0,1,2,3],'thresholds_approved'=>false,'owner_designated_reviewer_verified'=>false,'commercial_quality_certified'=>false];
+            'rating_scale'=>[0,1,2,3],'critical_dimension_minimum'=>2,'applicable_dimension_mean_minimum'=>2.5,'hard_rejects_allowed'=>0,
+            'initial_samples_per_mode'=>['positive'=>5,'negative'=>3,'edge'=>2],'required_independent_reviewers'=>2,
+            'thresholds_approved'=>true,'owner_designated_reviewer_verified'=>false,'commercial_quality_certified'=>false];
     }
     public static function parseCsv(string $bytes):array|WP_Error
     {
@@ -67,7 +70,7 @@ final class TransformationVisualContract
             foreach(['source_sha256'=>$job['source']['sha256'],'reference_sha256'=>$job['rights']['reference_asset_sha256']??$job['rights']['result_asset_sha256'],'output_sha256'=>$job['result']['sha256'],'template_sha256'=>$job['request']['template_sha256']] as $f=>$expected)if(($review[$f]??null)!==$expected)throw new \InvalidArgumentException();
             $mockup=$review['print_mockup']??null;if(!is_array($mockup)||!str_starts_with($mockup['storage_reference']??'',\DigiForge\ProductFactory\AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$job['shop_key'].'/'))throw new \InvalidArgumentException();$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;if($verified['width_px']!==$job['result']['width_px']||$verified['height_px']!==$job['result']['height_px'])throw new \InvalidArgumentException();
             $rejected=$review['decision']==='REJECT'||in_array(true,$review['hard_rejects'],true);
-            return $review+['review_sha256'=>hash('sha256',Validator::canonicalJson($review)),'reviewed_by'=>get_current_user_id(),'reviewed_at'=>gmdate('Y-m-d H:i:s'),'visual_acceptance_state'=>$rejected?'REJECTED':'VISUAL_REVIEW_PENDING','thresholds_approved'=>false,'owner_designated_reviewer_verified'=>false,'commercial_quality_certified'=>false,'supplier_certified'=>false];
+            return $review+['review_sha256'=>hash('sha256',Validator::canonicalJson($review)),'visual_policy_version'=>self::POLICY_VERSION,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>gmdate('Y-m-d H:i:s'),'visual_acceptance_state'=>$rejected?'REJECTED':'VISUAL_REVIEW_PENDING','thresholds_approved'=>true,'owner_designated_reviewer_verified'=>false,'commercial_quality_certified'=>false,'supplier_certified'=>false];
         }catch(\InvalidArgumentException|\TypeError){return self::error('review_contract');}
     }
     private static function error(string $code):WP_Error{return new WP_Error('transformation_visual_'.$code,'Visual evidence is missing, inconsistent or outside the approved contract.',['status'=>409,'commercial_quality_certified'=>false,'production_ready'=>false]);}

@@ -96,7 +96,7 @@ final class TransformationWorkflow
     }
     public function visualCertification(string $shop,string $key):array|WP_Error
     {
-        $job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;$blockers=['APPROVED_THRESHOLD_AND_REVIEWER_POLICY_REQUIRED','REPRESENTATIVE_FIXTURE_COUNT_APPROVAL_REQUIRED','SUPPLIER_PRINT_CERTIFICATION_REQUIRED','PROVIDER_PERMISSIONS_AND_SPENDING_CEILINGS_REQUIRED','RELEASE_AUTHORIZATION_REQUIRED'];
+        $job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;$blockers=['OWNER_DESIGNATED_REVIEWERS_AND_TWO_SIGNOFFS_REQUIRED','APPROVED_INITIAL_PER_MODE_FIXTURE_SET_REQUIRED','SUPPLIER_PRINT_CERTIFICATION_REQUIRED','PROVIDER_PERMISSIONS_AND_SPENDING_CEILINGS_REQUIRED','RELEASE_AUTHORIZATION_REQUIRED'];
         if($job['rights']['evidence_kind']!=='OWNER_SUPPLIED'||!isset($job['rights']['visual_fixture']))$blockers[]='LICENSED_FIXTURES_REQUIRED';
         if(!isset($job['visual_review']))$blockers[]='ENGINE_SPECIFIC_VISUAL_REVIEW_REQUIRED';
         if($job['request']['engine_id']==='VINTAGE_PORTRAIT')$blockers[]='FIRST_APPROVED_PRODUCT_AND_ERA_REQUIRED';

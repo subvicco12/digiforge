@@ -88,5 +88,7 @@
   "mode_identifiers": {
     "controlled painterly illustration": "controlled_painterly_illustration",
     "stylized poster art": "stylized_poster_art"
-  }
+  },
+  "status": "HISTORICAL_SOURCE_SUPERSEDED",
+  "superseded_by": "five-engine-visual-policy-v1.2-owner-approved-index.json"
 }
