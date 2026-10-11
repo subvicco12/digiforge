@@ -386,6 +386,7 @@ final class ApprovalAutomation
     /** @param array<string,mixed> $developed @param array<string,mixed> $state @param array<string,mixed> $badPayload */
     private function restartManifest(int $candidateId,string $shop,string $runKey,array $developed,WP_Error $error,string $stateKey,array $state,Orchestrator $orchestrator,array $badPayload=[]):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         $attempt=(int)($state['manifest_repair_attempts']??0);
         $structural=str_starts_with($error->get_error_code(),'digiforge_production_')||str_starts_with($error->get_error_code(),'digiforge_u3_');
         if(!$structural&&!$this->retryable($error))return false;
@@ -416,6 +417,7 @@ final class ApprovalAutomation
 
     private function retryable(WP_Error $error):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         return in_array($error->get_error_code(),[
             'digiforge_launch_ai_transport','digiforge_launch_ai_provider','digiforge_launch_ai_incomplete',
             'digiforge_launch_ai_invalid_json','digiforge_launch_ai_rate_limited','digiforge_create_failed'
@@ -461,16 +463,10 @@ final class ApprovalAutomation
     private function resolveShop(int $candidateId): string
     {
         global $wpdb;
-        $config = $wpdb->get_var($wpdb->prepare(
-            'SELECT s.config FROM ' . Tables::research_candidate_evidence() . ' ce '
-            . 'INNER JOIN ' . Tables::research_evidence() . ' e ON e.id=ce.evidence_id '
-            . 'INNER JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id '
-            . 'INNER JOIN ' . Tables::research_sources() . ' s ON s.id=o.source_id '
-            . 'WHERE ce.candidate_id=%d ORDER BY ce.evidence_id ASC LIMIT 1',
-            $candidateId
-        ));
-        $decoded = is_string($config) ? json_decode($config, true) : null;
-        $shop = is_array($decoded) ? sanitize_key((string) ($decoded['shop'] ?? '')) : '';
+        $config=$wpdb->get_var($wpdb->prepare('SELECT score_inputs FROM '.Tables::research_candidates().' WHERE id=%d',$candidateId));
+        $decoded=is_string($config)?json_decode($config,true):null;
+        $shop=is_array($decoded)?sanitize_key((string)($decoded['shop_key']??'')):'';
+        if($shop==='personalized_pod')$shop='goods';
         return in_array($shop, ['digital', 'goods'], true) ? $shop : '';
     }
 }

@@ -49,7 +49,23 @@ final class ProductionTemplateContract
             $identity=hash('sha256',$position."\0".$method);
             if(isset($identities[$identity])) throw new \InvalidArgumentException('duplicate normalized print_area identity');
             $identities[$identity]=true;
-            $normalizedAreas[]=['position'=>$position,'decoration_method'=>$method,'width_px'=>$width,'height_px'=>$height];
+            $normalized=['position'=>$position,'decoration_method'=>$method,'width_px'=>$width,'height_px'=>$height];
+            $supplemental=$area;
+            foreach(['position','decoration_method','width_px','height_px'] as $field)unset($supplemental[$field]);
+            if($supplemental!==[]){
+                $supplemental=self::geometryEvidence($supplemental);
+                $encoded=wp_json_encode($supplemental);
+                if(!is_string($encoded)||strlen($encoded)>65536)throw new \InvalidArgumentException('supplemental geometry evidence exceeds safe size');
+                $normalized=array_merge($normalized,$supplemental);
+            }
+            $normalizedAreas[]=$normalized;
+        }
+        // Original Blueprint p103 rejects this blueprint for the US route. Missing
+        // route evidence cannot silently assume a permitted region.
+        if($supplier==='printify'&&$blueprint===1509){
+            $regions=[];
+            foreach($normalizedAreas as $area){$region=$area['region']??null;if(!is_string($region)||preg_match('/^[A-Za-z]{2}$/D',$region)!==1)throw new \InvalidArgumentException('Printify blueprint 1509 requires explicit region evidence');$region=strtoupper($region);if($region==='US')throw new \InvalidArgumentException('Printify blueprint 1509 is rejected for the US route');$regions[$region]=true;}
+            if(count($regions)!==1)throw new \InvalidArgumentException('Printify blueprint 1509 region evidence is conflicting');
         }
         usort($normalizedAreas,static fn(array $a,array $b):int=>[$a['position'],$a['decoration_method'],$a['width_px'],$a['height_px']]<=>[$b['position'],$b['decoration_method'],$b['width_px'],$b['height_px']]);
         $canonical=['template_id'=>$templateId,'template_version'=>$version,'supplier'=>$supplier,'provider_blueprint_id'=>$blueprint,'provider_id'=>$provider,'variant_ids'=>$variants,'print_areas'=>$normalizedAreas,'personalization_pipeline'=>$pipeline,'personalization_engine'=>$engine,'template_status'=>$status];
@@ -72,6 +88,29 @@ final class ProductionTemplateContract
     {
         $status=strtoupper(trim((string)($existing['template_status']??'')));
         if(in_array($status,['VALIDATED','RETIRED'],true)) throw new \LogicException('validated or retired production templates are immutable');
+    }
+
+    /** Preserve provider geometry without inventing a provider-specific schema or approval. */
+    private static function geometryEvidence(mixed $value,int $depth=0): mixed
+    {
+        if($depth>8)throw new \InvalidArgumentException('geometry evidence exceeds safe nesting depth');
+        if(is_array($value)){
+            if(count($value)>256)throw new \InvalidArgumentException('geometry evidence exceeds safe collection size');
+            $out=[];
+            foreach($value as $key=>$item){
+                if(is_string($key)&&(strlen($key)>128||preg_match('//u',$key)!==1))throw new \InvalidArgumentException('geometry evidence key is invalid');
+                $out[$key]=self::geometryEvidence($item,$depth+1);
+            }
+            if(!array_is_list($out))ksort($out,SORT_STRING);
+            return $out;
+        }
+        if(is_string($value)){
+            if(strlen($value)>4096||preg_match('//u',$value)!==1)throw new \InvalidArgumentException('geometry evidence string is invalid');
+            return $value;
+        }
+        if(is_float($value)&&!is_finite($value))throw new \InvalidArgumentException('geometry evidence number must be finite');
+        if($value===null||is_bool($value)||is_int($value)||is_float($value))return $value;
+        throw new \InvalidArgumentException('geometry evidence must contain JSON values');
     }
 
     private static function token(mixed $value,string $field): string

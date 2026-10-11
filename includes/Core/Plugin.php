@@ -66,8 +66,11 @@ final class Plugin {
         (new EtsyOperationsController())->register();
         (new ResearchController())->register();
         (new AiController())->register();
+        (new \DigiForge\REST\AiEvidenceController())->register();
+        (new \DigiForge\Portal\AiEvidenceWorkflow())->register();
         (new ProductionController())->register();
         (new PodController())->register();
+        (new \DigiForge\POD\DeterministicRenderWorkflow())->register();
         (new ListingController())->register();
         (new OrderController())->register();
         (new FinanceController())->register();

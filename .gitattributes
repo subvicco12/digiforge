@@ -18,3 +18,6 @@
 /phpstan.neon.dist export-ignore
 /phpunit.xml.dist export-ignore
 /phpunit.wordpress.xml.dist export-ignore
+
+# Preserve the uploaded acceptance-source fixture bytes and recorded SHA-256.
+/tests/wordpress/fixtures/five-engine-licensed-manifest-template.csv -text

@@ -6,14 +6,15 @@ use DigiForge\Database\Tables;
 /** Bounded, read-only operator evidence for fulfillment and finance exceptions. */
 final class OperationalExceptionReadModel {
  /** @return array<string,mixed> */
- public function snapshot(int $limit=50):array {
+ public function snapshot(int $limit=50, ?string $shop=null):array {
   global $wpdb;
   $limit=max(1,min(100,$limit));
+  $scope=$shop===null?'':' AND EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.Tables::fulfillment_intents().'.order_id AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').')';
   $wpdb->last_error='';
-  $fulfillment=$wpdb->get_results($wpdb->prepare("SELECT id,order_id,fulfillment_plan_id,intent_type,state,updated_at FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN') ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
+  $fulfillment=$wpdb->get_results($wpdb->prepare("SELECT id,order_id,fulfillment_plan_id,intent_type,state,updated_at FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope." ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
   $fulfillmentRowsAvailable=is_array($fulfillment)&&empty($wpdb->last_error);
   $wpdb->last_error='';
-  $fulfillmentTotal=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')");
+  $fulfillmentTotal=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope);
   $fulfillmentCountAvailable=$fulfillmentTotal!==null&&empty($wpdb->last_error);
   $wpdb->last_error='';
   $ledger=$wpdb->get_results($wpdb->prepare("SELECT id,source_type,source_id,entry_type,currency,amount,reconciliation_state,updated_at FROM ".Tables::finance_ledger()." WHERE reconciliation_state<>'RECONCILED' ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
