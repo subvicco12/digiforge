@@ -53,3 +53,11 @@ DigiForge remains on plugin version 1.0.103 with core database version v23 and a
 Portal analytics now fails closed when KPI, lifecycle-denominator or analytics-snapshot evidence is unavailable, and persisted analytics snapshots are presented through the bounded hash-verifying finance operations read model. Queue/recovery and integration surfaces remain observational unless separately authorized.
 
 Database-backup recovery certification is deferred by owner instruction and must remain recorded as deferred rather than inferred or fabricated. Production deployment and every external activation remain separate explicit authorization boundaries.
+
+## FACE_REPEAT cutout visual QA follow-on
+
+Experimental SAM Small + PyMatting cutouts now have bounded actual-pixel alpha measurements and deterministic light/dark previews. Authenticated shop/order-scoped QA and fresh immutable operator review bind stored source, mask, styled result and preview hashes; canonical rendering recomputes the same evidence. Existing approvals remain preserved and require a separate versioned QA review. Critical empty/opaque/clipped masks fail closed; approved manual alpha fallback uses the same gates.
+
+The fixture/reference inventory verifies source/license hashes, fully decoded reference geometry and structured claimed review evidence without promoting claims to authorized review. Human and cat source fixtures exist; dog/multi-subject sources, all reviewed mattes, designated reviewer authority, customer consent and supplier certification remain missing. Actual prior human cold/warm predictions reproduce 20,535 visible and 4,728 soft-alpha pixels with zero canvas boundary contacts. No measured semantic accuracy, artistic threshold approval or commercial certification is asserted. All fifteen commercial engine fixture statuses remain MISSING, and original 1,771 source-row categories remain unchanged. See `docs/engineering/face-cutout-visual-qa.md` and its report for precise scope and reproduction.
+
+Overall final-product acceptance remains INCOMPLETE. STOP ALL ON; external lock ON; automation OFF. Finance #1147 and earlier branches are untouched. No merge, deployment, live calls/spending or catalog promotion.

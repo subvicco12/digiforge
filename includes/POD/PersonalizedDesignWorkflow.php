@@ -10,7 +10,7 @@ final class PersonalizedDesignWorkflow
 {
  public function register():void {
   add_action('rest_api_init',function():void {
-   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review','/pod/customer-artwork/segment'=>'segmentUpload']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>(in_array($method,['upload','segmentUpload'],true)?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
+   foreach(['/pod/design-family/draft'=>'draft','/pod/customer-artwork'=>'ingest','/pod/customer-artwork/upload'=>'upload','/pod/customer-artwork/review'=>'review','/pod/customer-artwork/segment'=>'segmentUpload','/pod/customer-artwork/qa'=>'qa']as $route=>$method)register_rest_route('digiforge/v1',$route,['methods'=>'POST','permission_callback'=>static fn():bool=>current_user_can('manage_digiforge_pod'),'callback'=>function(\WP_REST_Request $request)use($method):\WP_REST_Response|WP_Error {if(strlen($request->get_body())>(in_array($method,['upload','segmentUpload'],true)?8388608:32768))return self::error('bounded_request_required');$input=$request->get_json_params();if(!is_array($input))return self::error('object_required');$result=$this->$method($input);return $result instanceof WP_Error?$result:new \WP_REST_Response($result);}]);
   });
  }
  public function draft(array $input):array|WP_Error {
@@ -26,6 +26,12 @@ final class PersonalizedDesignWorkflow
   if(!is_string($input['key']??null)||!is_int($input['order_id']??null)||!is_array($input['rights']??null)||!is_string($input['style']??null)||!is_array($input['options']??null))return self::error('typed_input_required');
   $source=$this->path($input['source_reference']??null);if($source instanceof WP_Error)return $source;$mask=null;if(($input['mask_reference']??null)!==null){$mask=$this->path($input['mask_reference']);if($mask instanceof WP_Error)return $mask;}
   return (new CustomerCutoutRepository())->ingest($input['shop_key'],$input['key'],$input['order_id'],$source,$mask,$input['rights'],$input['style'],$input['options']);
+ }
+ public function qa(array $input):array|WP_Error {
+  $scope=$this->scope($input,['shop_key','key']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['key']??null))return self::error('typed_input_required');
+  $repo=new CustomerCutoutRepository();$qa=$repo->visualQa($input['shop_key'],$input['key']);if($qa instanceof WP_Error)return $qa;$previews=$repo->visualPreviews($input['shop_key'],$input['key']);if($previews instanceof WP_Error)return $previews;
+  foreach($qa['preview_sha256']??[]as $background=>$hash)if(!hash_equals($hash,hash('sha256',$previews[$background])))return self::error('preview_evidence_conflict');
+  return ['visual_qa'=>$qa,'previews_base64'=>array_map('base64_encode',$previews),'commercial_certified'=>false,'supplier_certified'=>false];
  }
  public function review(array $input):array|WP_Error {
   $scope=$this->scope($input,['shop_key','key','review']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['key']??null)||!is_array($input['review']??null))return self::error('typed_input_required');return (new CustomerCutoutRepository())->approve($input['shop_key'],$input['key'],$input['review']);

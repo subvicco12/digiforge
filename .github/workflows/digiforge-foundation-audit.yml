@@ -87,7 +87,7 @@ jobs:
         run: composer test
 
       - name: Experimental matting boundary static analysis
-        run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php
+        run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php includes/POD/CutoutVisualQa.php
 
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
