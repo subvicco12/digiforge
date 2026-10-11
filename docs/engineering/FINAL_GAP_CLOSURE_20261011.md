@@ -40,6 +40,12 @@ Blueprint §14 table19/r8 requires per-product typed personalization schemas, va
 
 Behavioral proof: `PersonalizationPayloadContractTest` (23 tests); `RenderArtifactCertificationTest::testApprovedPayloadMustStillSatisfyActualStoredSchema`, `testOrderSubmissionCannotPersistValuesOutsideApprovedSchema`, `testHumanReviewCannotApproveSubmissionAfterSchemaBecomesIncompatible` and `testTypedAnswersRequireActualApprovedQuestionsAndExplicitMapping`. This closes the demonstrated local validation defect; it does not certify live uploads, typography or every original clause.
 
+## Additional deterministic review-package gate
+
+Blueprint §13 p99/p100, §14 table19/r8 and §32 p233 require actual approved personalization/render parity. A legacy raster receipt can establish stored-byte parity without reproducing personalized content. A new negative behavioral test demonstrated that a `DETERMINISTIC` review package previously accepted such a receipt. `ProductionAuthorizationRepository` now requires `deterministic_personalization_verified` at both package creation and human approval, after actual artifact readback. Legacy pending packages remain unchanged on denial. This tightens the local review boundary and never grants external execution.
+
+`RenderArtifactCertificationTest::testDeterministicPackageRequiresActualPersonalizationReproduction` proves denial at both boundaries; `testReproducedPersonalizationCanReachLocalReviewPackageOnly` proves approved stored schema/payload/recipe→actual SVG→human-reviewed render→local pending/approved package, with execution flags zero. The old `FinalConvergenceScenarioTest` parity-only fixture now correctly asserts denial instead of treating generic pixels as deterministic personalized output. The wider all-module lifecycle remains an independent incomplete acceptance item.
+
 ## Remaining specialized software and acceptance gaps
 
 | Exact source | Current code and missing behavior | Required acceptance test | External authorization/evidence |
@@ -72,12 +78,14 @@ The runtime reports current enforced configuration/spec revision 89. That establ
 Fresh local validation passed:
 
 - Complete unit suite: **1,209 tests / 7,473 assertions**, plus legacy tests and configured PHPStan/PHPCS checks.
-- Complete fresh-database WordPress suite: **341 tests / 3,178 assertions** (final run without exporting private browser fixtures; prior fixture-export run: 341 / 3,255).
+- Complete fresh-database WordPress suite: **343 tests / 3,272 assertions** (fresh database with private browser-fixture export).
 - Offline regression suite: **75 tests**.
 - Browser: **228 cases / 76 fixtures / 19 non-finance views / four shops / widths 390, 768 and 1280**, zero failures and zero network requests. Checks include layout, accessible control names/navigation and keyboard/field interaction; no submissions or business operations.
 - **989 PHP files** passed syntax checks. Exact CI secret-pattern and external-HTTP scans passed. Dependency audit returned zero advisories and zero abandoned packages; Composer manifest validated.
 - New pure repeat/geometry/schema adapters passed additional PHPStan level 5. Final schema review independently passed 23 tests / 45 assertions and confirmed optional blank handling with no remaining critical/important findings. Independent read-only reviewer ran **14 tests / 31 assertions**, identified a contain-DPI defect, and confirmed its tested correction with no remaining critical/important findings. This local review is separate from mandatory GitHub exact-head audit.
 
-Exact final commit, packaging digest and audit links are recorded after actual completion in the PR. Do not treat pending publication/audit as success. Local validation covers the complete unit suite and configured static/standards checks, full WordPress database suite, offline regressions, browser fixtures, syntax/security/dependency checks and exact-head packaging. CI has its own PHP 8.3 exact-head Engineering & Safety Audit; local PHP is 8.4. Existing WordPress deprecations and intentional database fault-injection messages are not hidden or represented as a pristine production log.
+Published predecessor milestones were independently verified on GitHub: `78494d47fada58dff9201f7206e4f8491e781bfa` passed exact-head Engineering & Safety Audit [38107836280](https://github.com/subvicco12/digiforge/actions/runs/38107836280); `1c3246c6370394b0d2a1529b4fae82d471fb49b3` passed exact-head audit [38108719771](https://github.com/subvicco12/digiforge/actions/runs/38108719771). Their success does not certify a later changed head.
+
+Exact final commit, packaging digest and audit links are recorded after actual completion in [PR #1161](https://github.com/subvicco12/digiforge/pull/1161). Do not treat pending publication/audit as success. Local validation covers the complete unit suite and configured static/standards checks, full WordPress database suite, offline regressions, browser fixtures, syntax/security/dependency checks and exact-head packaging. CI has its own PHP 8.3 exact-head Engineering & Safety Audit; local PHP is 8.4. Existing WordPress deprecations and intentional database fault-injection messages are not hidden or represented as a pristine production log.
 
 STOP ALL remains ON, external safety lock ON, automation OFF. No merge, deployment, catalog promotion, provider activation or external Etsy/POD operation follows from passing local tests or CI. Final-product acceptance remains INCOMPLETE until the missing software and original-source acceptance evidence above are closed.

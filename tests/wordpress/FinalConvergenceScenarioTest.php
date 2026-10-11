@@ -17,8 +17,9 @@ final class FinalConvergenceScenarioTest extends WP_UnitTestCase {
   $artifact=tempnam(sys_get_temp_dir(),'df-render-');file_put_contents($artifact,DigiForge\POD\RasterArtworkCodec::encode(1,1,"\xff\xff\xff\xff"));
   try{$render=(new DigiForge\POD\RenderEvidenceRepository())->createFromArtifacts(['order_id'=>$order,'provider_mapping_id'=>$mapping,'template_key'=>'final-template','template_version'=>'1','template_sha256'=>$template['fingerprint'],'personalization_evidence_hash'=>$ph,'render_mode'=>'DETERMINISTIC','output_sha256'=>hash('sha256','preview'),'buyer_preview_sha256'=>hash('sha256','preview')],$artifact,$artifact);}finally{unlink($artifact);}self::assertFalse(is_wp_error($render));
   $render=(new DigiForge\POD\RenderEvidenceRepository())->approve((int)$render['id']);self::assertSame('APPROVED',$render['review_status']);self::assertSame('0',(string)$render['external_execution_performed']);
-  $package=(new DigiForge\POD\ProductionAuthorizationRepository())->create($order,(int)$render['id']);self::assertFalse(is_wp_error($package));self::assertSame('REVIEW_REQUIRED',$package['state']);self::assertSame('0',(string)$package['external_execution_authorized']);
-  $package=(new DigiForge\POD\ProductionAuthorizationRepository())->approveForReview((int)$package['id']);self::assertSame('APPROVED_PACKAGE',$package['state']);self::assertSame('0',(string)$package['external_execution_authorized']);self::assertSame('0',(string)$package['external_execution_performed']);
+  $package=(new DigiForge\POD\ProductionAuthorizationRepository())->create($order,(int)$render['id']);self::assertWPError($package);self::assertSame('authorization_personalization_unverified',$package->get_error_code());self::assertFalse($package->get_error_data()['external_execution_authorized']);
+  // This legacy parity fixture cannot reach APPROVED_PACKAGE; actual reproduced success is tested separately.
+
  }
  public function testScopedCapabilityRequiresGlobalShopAndWorkflow():void {
   DigiForge\Core\Settings::protectProduction();
