@@ -192,6 +192,13 @@ final class Repository {
         if(!is_array($candidate)||$this->owner($candidate)===''||$this->owner($candidate)!==$this->shop($shop))return $this->error('research_scope_mismatch','Candidate is not assigned to this shop.');
         return true;
     }
+    /** Reuse the governed research lineage predicate for read-only portal evidence. */
+    public function portalScopeFilter(string $table, string $shop): ?string {
+        $map=[Tables::research_sources()=>'sources',Tables::research_observations()=>'observations',Tables::research_evidence()=>'evidence',Tables::research_reviews()=>'reviews'];
+        if(!isset($map[$table]))return null;
+        $scope=$this->shop($shop);
+        return $scope===''?'1=0':$this->scopeFilter($map[$table],$table,$scope);
+    }
     private function scopeFilter(string $entity,string $alias,string $shop):string {
         global $wpdb;
         $json=static fn(string $column):string=>$wpdb->prepare('CASE WHEN JSON_VALID('.$column.') THEN JSON_UNQUOTE(JSON_EXTRACT('.$column.',%s)) ELSE NULL END=%s','$.shop_key',$shop);

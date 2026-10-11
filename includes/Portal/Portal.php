@@ -455,14 +455,16 @@ final class Portal
 
     private function listingOperations():void
     {
+        $selectedShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selectedShop===ShopOperationsReadModel::ALL?null:$selectedShop;
         $webhook=EtsyWebhookReadiness::inspect();
-        $attachmentEvidenceState=null;$attachments=(new EtsyDigitalAttachmentReadModel())->recent(50,$attachmentEvidenceState);
+        $attachmentEvidenceState=null;$attachments=(new EtsyDigitalAttachmentReadModel())->recent(50,$attachmentEvidenceState,$shop);
         global $wpdb;
+        $scope=$shop===null?'':$wpdb->prepare(' AND BINARY l.shop_reference=BINARY %s',$shop);
         $wpdb->last_error='';
-        $pending=$wpdb->get_results("SELECT r.id AS review_id,r.listing_id,r.readiness,r.readiness_hash,r.created_at,l.product_version_id,l.title,l.state FROM ".Tables::listing_readiness_reviews()." r INNER JOIN ".Tables::listings()." l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id ASC LIMIT 50",ARRAY_A);
+        $pending=$wpdb->get_results("SELECT r.id AS review_id,r.listing_id,r.readiness,r.readiness_hash,r.created_at,l.product_version_id,l.title,l.state FROM ".Tables::listing_readiness_reviews()." r INNER JOIN ".Tables::listings()." l ON l.id=r.listing_id WHERE r.decision='PENDING'".$scope." ORDER BY r.id ASC LIMIT 50",ARRAY_A);
         $pendingAvailable=is_array($pending)&&empty($wpdb->last_error);
         echo '<section class="df-panel" id="df-listing-gate3"><div class="df-panel-head"><div><h2>Listing / publish decisions (Gate 3)</h2><p>Human decision over persisted listing-readiness evidence. A decision changes only the internal listing/review lifecycle; it does not publish to Etsy.</p></div><span class="df-status">HUMAN CONTROLLED</span></div>';
-        if(!$pendingAvailable){echo '<div class="df-notice df-notice-error">Gate 3 review evidence is unavailable. No decision is permitted.</div>';}elseif($pending===[]){echo '<div class="df-empty">No listing Gate 3 reviews currently require a decision.</div>';}else{foreach($pending as $row){$raw=(string)$row['readiness'];$e=json_decode($raw,true);$checks=is_array($e)?(array)($e['checks']??[]):[];$canonical=is_array($e)?wp_json_encode($e):false;$hashValid=is_string($canonical)&&hash_equals((string)$row['readiness_hash'],hash('sha256',$canonical));$prereqs=!empty($checks['seo_present'])&&!empty($checks['approved_media_bound'])&&!empty($checks['pod_binding_valid']);$evidenceValid=$hashValid&&$prereqs&&(string)$row['state']==='REVIEW_REQUIRED';echo '<article class="df-candidate"><div class="df-candidate-head"><div><span class="df-kicker">Review #'.esc_html((string)$row['review_id']).' · Listing #'.esc_html((string)$row['listing_id']).' · Product Version #'.esc_html((string)$row['product_version_id']).'</span><h3>'.esc_html((string)$row['title']).'</h3><span class="df-status">PENDING</span></div></div><div class="df-signal-grid"><div><span>Listing state</span><b>'.esc_html((string)$row['state']).'</b></div><div><span>SEO</span><b>'.(!empty($checks['seo_present'])?'PASS':'BLOCKED').'</b></div><div><span>Approved media</span><b>'.(!empty($checks['approved_media_bound'])?'PASS':'BLOCKED').'</b></div><div><span>POD binding</span><b>'.(!empty($checks['pod_binding_valid'])?'PASS':'BLOCKED').'</b></div><div><span>Evidence hash</span><b><code>'.esc_html(substr((string)$row['readiness_hash'],0,16)).'…</code></b></div></div><form class="df-review-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::LISTING_REVIEW_ACTION).'"><input type="hidden" name="review_id" value="'.esc_attr((string)$row['review_id']).'">';wp_nonce_field(self::LISTING_REVIEW_ACTION);if($evidenceValid){echo '<div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve Listing</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div>';}else{echo '<div class="df-notice df-notice-error">Persisted Gate 3 evidence is invalid, inconsistent, or blocked. Decision controls are withheld.</div>';}echo '</form><p class="df-muted">Approve/Reject records the human Gate 3 decision only. No Etsy publish, upload, POD submission, order execution, money movement or tax action occurs here.</p></article>';}}echo '</section>';
+        if(!$pendingAvailable){echo '<div class="df-notice df-notice-error">Gate 3 review evidence is unavailable. No decision is permitted.</div>';}elseif($pending===[]){echo '<div class="df-empty">No listing Gate 3 reviews currently require a decision.</div>';}else{foreach($pending as $row){$raw=(string)$row['readiness'];$e=json_decode($raw,true);$checks=is_array($e)?(array)($e['checks']??[]):[];$snapshot=$e;if(is_array($snapshot))unset($snapshot['hash']);$canonical=is_array($snapshot)?\DigiForge\Listings\Validator::canonicalJson($snapshot):false;$hashValid=is_string($canonical)&&hash_equals((string)$row['readiness_hash'],hash('sha256',$canonical));$prereqs=!empty($checks['seo_present'])&&!empty($checks['approved_media_bound'])&&!empty($checks['pod_binding_valid']);$current=(new \DigiForge\Listings\Repository())->readiness((int)$row['listing_id']);$currentChecks=is_array($current)?(array)($current['checks']??[]):[];$currentEvidence=is_array($current)?(string)($current['hash']??''):'';$evidenceValid=$hashValid&&$prereqs&&!empty($currentChecks['product_approved'])&&!empty($currentChecks['shop_scope_present'])&&$currentEvidence!==''&&hash_equals((string)$row['readiness_hash'],$currentEvidence)&&(string)$row['state']==='REVIEW_REQUIRED';echo '<article class="df-candidate"><div class="df-candidate-head"><div><span class="df-kicker">Review #'.esc_html((string)$row['review_id']).' · Listing #'.esc_html((string)$row['listing_id']).' · Product Version #'.esc_html((string)$row['product_version_id']).'</span><h3>'.esc_html((string)$row['title']).'</h3><span class="df-status">PENDING</span></div></div><div class="df-signal-grid"><div><span>Listing state</span><b>'.esc_html((string)$row['state']).'</b></div><div><span>SEO</span><b>'.(!empty($checks['seo_present'])?'PASS':'BLOCKED').'</b></div><div><span>Approved media</span><b>'.(!empty($checks['approved_media_bound'])?'PASS':'BLOCKED').'</b></div><div><span>POD binding</span><b>'.(!empty($checks['pod_binding_valid'])?'PASS':'BLOCKED').'</b></div><div><span>Evidence hash</span><b><code>'.esc_html(substr((string)$row['readiness_hash'],0,16)).'…</code></b></div></div><form class="df-review-form" method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::LISTING_REVIEW_ACTION).'"><input type="hidden" name="review_id" value="'.esc_attr((string)$row['review_id']).'">';wp_nonce_field(self::LISTING_REVIEW_ACTION);if($evidenceValid){echo '<div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED">Approve Listing</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div>';}else{echo '<div class="df-notice df-notice-error">Persisted Gate 3 evidence is invalid, inconsistent, or blocked. Decision controls are withheld.</div>';}echo '</form><p class="df-muted">Approve/Reject records the human Gate 3 decision only. No Etsy publish, upload, POD submission, order execution, money movement or tax action occurs here.</p></article>';}}echo '</section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Etsy webhook configuration</h2><p>Server-side configuration evidence only. No subscription or provider connectivity check is performed here.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Configuration</span><b>'.esc_html((string)$webhook['state']).'</b></div><div><span>Signing secret configured</span><b>'.(!empty($webhook['signing_secret_configured'])?'YES':'NO').'</b></div><div><span>Order intake</span><b>LOCAL ONLY</b></div><div><span>Fulfillment authority</span><b>NO</b></div></div><p class="df-muted">Configure the Etsy-issued signing secret on the server. Do not enter secrets in the portal. This status does not verify Etsy subscription delivery or authorize order automation.</p></section>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Confirmed digital file identity evidence</h2><p>Local operation ledger evidence for accepted Etsy uploads. This does not verify the current provider listing or repeat the upload.</p></div><span class="df-status">READ ONLY</span></div>';
         if($attachmentEvidenceState==='UNAVAILABLE'){echo '<div class="df-empty">Digital file upload evidence is unavailable. No absence of confirmed uploads is asserted.</div>';}elseif($attachments===[]){echo '<div class="df-empty">No confirmed digital file upload evidence in the recent window.</div>';}else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Operation</th><th>Shop</th><th>Etsy listing</th><th>Listing file</th><th>Identity evidence</th><th>Updated</th><th>Authority</th></tr></thead><tbody>';foreach($attachments as $file){echo '<tr><td>#'.esc_html((string)$file['operation_id']).'</td><td>'.esc_html((string)$file['shop_reference']).'</td><td>'.esc_html((string)$file['listing_id']).'</td><td>'.esc_html((string)$file['listing_file_id']).'</td><td>'.esc_html((string)$file['evidence_state']).'</td><td>'.esc_html((string)$file['updated_at']).'</td><td>NO UPLOAD / NO PUBLISH</td></tr>';}echo '</tbody></table></div>';}echo '<p class="df-muted">Up to 50 recent confirmed operations are shown. Missing or conflicting persisted identity is REVIEW_REQUIRED. Recorded success does not prove live Etsy file availability and never grants a retry, upload or publish action.</p></section>';
@@ -473,8 +475,9 @@ final class Portal
 
     private function orderOperations():void
     {
-        $ordersQueryState=null;$rows=(new OrderOperationsReadModel())->recent(50,$ordersQueryState);$orderReconciliation=new OrderReconciliationReadModel();$exceptions=(new OperationalExceptionReadModel())->snapshot(50);$fulfillmentExceptions=(array)$exceptions['fulfillment'];
-        $humanGates=(new HumanGateOperationsReadModel())->snapshot(50);
+        $selectedShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selectedShop===ShopOperationsReadModel::ALL?null:$selectedShop;
+        $ordersQueryState=null;$rows=(new OrderOperationsReadModel())->recent(50,$ordersQueryState,$shop);$orderReconciliation=new OrderReconciliationReadModel();$exceptions=(new OperationalExceptionReadModel())->snapshot(50,$shop);$fulfillmentExceptions=(array)$exceptions['fulfillment'];
+        $humanGates=(new HumanGateOperationsReadModel())->snapshot(50,$shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Personalization & ownership review queue</h2><p>Explicit human gates before downstream POD readiness. This queue is read only and grants no marketplace or provider authority.</p></div><span class="df-status">HUMAN GATES</span></div>';
         if(($humanGates['query_state']['aggregate']??'UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more human-gate evidence sources are unavailable. No empty queue or approval is inferred.</div>';
         if(($humanGates['query_state']['personalization']??'UNAVAILABLE')==='AVAILABLE'){echo '<h3>Personalization reviews</h3>';if($humanGates['personalization']===[])echo '<div class="df-empty">No pending personalization reviews in the bounded window.</div>';else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Submission</th><th>Order / line</th><th>Schema</th><th>Payload evidence</th><th>Status</th><th>Authority</th></tr></thead><tbody>';foreach($humanGates['personalization'] as $g)echo '<tr><td>#'.esc_html((string)$g['id']).'</td><td>#'.esc_html((string)($g['order_id']??0)).' / #'.esc_html((string)$g['order_line_item_id']).'</td><td>#'.esc_html((string)$g['personalization_schema_id']).'</td><td><code>'.esc_html(substr((string)$g['payload_hash'],0,12)).'…</code></td><td>'.esc_html((string)$g['review_status']).'</td><td><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::PERSONALIZATION_REVIEW_ACTION).'"><input type="hidden" name="submission_id" value="'.esc_attr((string)$g['id']).'">';wp_nonce_field(self::PERSONALIZATION_REVIEW_ACTION);echo '<button class="df-button df-button-compact" name="decision" value="APPROVED" type="submit">Approve evidence</button> <button class="df-button df-button-compact" name="decision" value="REJECTED" type="submit">Reject</button></form><small>External authority: NO</small></td></tr>';echo '</tbody></table></div>';}}
@@ -955,7 +958,7 @@ final class Portal
 
     private function panelTable(string $label, string $table): void
     {
-        $count=$this->count($table);
+        $count=$this->count($table,$this->evidenceScopeFilter($table));
         echo '<section class="df-panel"><div class="df-panel-head"><h2>' . esc_html($label) . '</h2><span>'
             . esc_html($count===null?'UNAVAILABLE':(string)$count.' records') . '</span></div>';
         $this->table($table);
@@ -966,7 +969,9 @@ final class Portal
     {
         global $wpdb;
         $wpdb->last_error='';
-        $rows = $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC LIMIT 50", ARRAY_A);
+        $scope=$this->evidenceScopeFilter($table);
+        $where=$scope===''?'':' WHERE '.$scope;
+        $rows = $wpdb->get_results("SELECT * FROM {$table}{$where} ORDER BY id DESC LIMIT 50", ARRAY_A);
         if(!is_array($rows)||$wpdb->last_error!==''){
             echo '<div class="df-notice df-notice-error">Evidence unavailable. Source records could not be read; an empty queue or completed review is not inferred.</div>';
             return;
@@ -982,7 +987,7 @@ final class Portal
         $focused = $focusId > 0 && isset($focusTables[$focusType]) && $focusTables[$focusType] === $table;
         if ($focused) {
             $wpdb->last_error='';
-            $record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId), ARRAY_A);
+            $record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d".($scope===''?'':' AND '.$scope), $focusId), ARRAY_A);
             if($wpdb->last_error!=='')$record=null;
             if (is_array($record) && !in_array($focusId, array_map('intval', array_column(is_array($rows) ? $rows : [], 'id')), true)) {
                 $rows = array_merge([$record], is_array($rows) ? $rows : []);
@@ -1008,6 +1013,27 @@ final class Portal
             echo '</tr>';
         }
         echo '</tbody></table></div>';
+    }
+
+    /** Selected-shop evidence uses stored lineage, including focused records and counts. */
+    private function evidenceScopeFilter(string $table): string
+    {
+        global $wpdb;
+        $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
+        if($shop===ShopOperationsReadModel::ALL)return '';
+        $research=(new ResearchRepository())->portalScopeFilter($table,$shop);
+        if($research!==null)return $research;
+        if($table===Tables::listings())return $wpdb->prepare('BINARY shop_reference=BINARY %s',$shop);
+        if(in_array($table,[Tables::listing_seo(),Tables::listing_media(),Tables::listing_pod_bindings(),Tables::etsy_draft_packages(),Tables::etsy_intents(),Tables::listing_readiness_reviews()],true))return $wpdb->prepare('EXISTS (SELECT 1 FROM '.Tables::listings().' l WHERE l.id='.$table.'.listing_id AND BINARY l.shop_reference=BINARY %s)',$shop);
+        $owner=$wpdb->prepare('BINARY o.shop_reference=BINARY %s',$shop);
+        if($table===Tables::orders())return $wpdb->prepare('BINARY shop_reference=BINARY %s',$shop);
+        if(in_array($table,[Tables::order_line_items(),Tables::fulfillment_plans(),Tables::fulfillment_intents(),Tables::fulfillment_readiness_reviews()],true)){
+            return 'EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.$table.'.order_id AND '.$owner.')';
+        }
+        if($table===Tables::personalization_submissions()){
+            return 'EXISTS (SELECT 1 FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::orders().' o ON o.id=li.order_id WHERE li.id='.$table.'.order_line_item_id AND '.$owner.')';
+        }
+        return '';
     }
 
     /** @return array<string,string> */
@@ -1138,11 +1164,12 @@ final class Portal
         return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 
-    private function count(string $table): ?int
+    private function count(string $table, string $scope = ''): ?int
     {
         global $wpdb;
         $wpdb->last_error = '';
-        $value = $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        $where=$scope===''?'':' WHERE '.$scope;
+        $value = $wpdb->get_var("SELECT COUNT(*) FROM {$table}{$where}");
         return $wpdb->last_error !== '' || !is_numeric($value) ? null : (int) $value;
     }
 

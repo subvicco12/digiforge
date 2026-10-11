@@ -44,11 +44,15 @@ class NonfinanceClosureTests(unittest.TestCase):
                         self.assertEqual(entry['original_values'][5], entry['migration_disposition'])
     def test_broad_associations_never_become_complete_acceptance(self):
         verified = [r for r in self.rows if r['status'] == 'VERIFIED_LOCAL_BOUNDARY']
-        self.assertEqual({'word/document.xml/table14/r7/c1/p1','word/document.xml/table14/r7/c2/p1'}, {r['source_locator'] for r in verified})
+        self.assertEqual({'word/document.xml/table14/r7/c1/p1','word/document.xml/table14/r7/c2/p1','word/document.xml/p233','word/document.xml/p234','word/document.xml/p229','word/document.xml/p236'}, {r['source_locator'] for r in verified})
         self.assertEqual('INCOMPLETE', self.inventory['full_product_acceptance'])
         self.assertFalse(self.inventory['source_document_authorization'])
         self.assertEqual(4, self.inventory['counts']['FINANCE_DEPENDENCY'])
-        self.assertEqual(428, self.inventory['counts']['IMPLEMENTED_NOT_FULLY_VERIFIED'])
+        self.assertEqual(424, self.inventory['counts']['IMPLEMENTED_NOT_FULLY_VERIFIED'])
+        for locator, method in [('word/document.xml/p233', 'testDigitalDesignReleaseToListingPreservesReviewedShopAndSandbox'), ('word/document.xml/p234', 'testListingAndReceivedOrderCannotCrossShopOwnership'), ('word/document.xml/p229', 'testDigitalDesignReleaseToListingPreservesReviewedShopAndSandbox'), ('word/document.xml/p236', 'testQueueDiagnosticFailureCannotClaimAvailableRecovery')]:
+            row = next(r for r in verified if r['source_locator'] == locator)
+            self.assertIn(method, row['exact_test_references'])
+            self.assertNotEqual('No requirement-specific full acceptance established by associated references.', row['bounded_proof'])
         for row in self.rows:
             self.assertNotIn(row['status'], ('PASS','COMPLETE'))
             closure.validate_references(row['related_implementation_references'])
