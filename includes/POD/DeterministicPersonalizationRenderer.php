@@ -14,7 +14,7 @@ final class DeterministicPersonalizationRenderer
         $template=$this->storedTemplate($key,$version);if($template instanceof WP_Error)return $template;
         $owned=(new TemplateCycleRepository())->assertOwner('personalized_pod',$template['fingerprint']);if($owned instanceof WP_Error)return $owned;
         $normalized=$this->normalizeRecipe($template,$recipe);if($normalized instanceof WP_Error)return $normalized;
-        $proof=['template_sha256'=>$template['fingerprint'],'recipe'=>$normalized,'recipe_sha256'=>hash('sha256',Validator::canonicalJson($normalized)),'renderer_version'=>'local-svg-v1','external_execution_authorized'=>false];
+        $proof=['template_sha256'=>$template['fingerprint'],'recipe'=>$normalized,'recipe_sha256'=>hash('sha256',Validator::canonicalJson($normalized)),'renderer_version'=>'local-artwork-v2','external_execution_authorized'=>false];
         $option='digiforge_render_recipe_'.$template['fingerprint'];$old=$this->read($option);if($old instanceof WP_Error)return $old;if($old!==null){$previous=$old;unset($previous['approved_by'],$previous['approved_at']);return $previous===$proof?$old+['idempotent_replay'=>true]:self::error('recipe_conflict','Approved recipe is immutable; use a new template version.');}
         global $wpdb;$saved=$proof+['approved_by'=>get_current_user_id(),'approved_at'=>current_time('mysql',true)];$wpdb->last_error='';$wpdb->insert($wpdb->options,['option_name'=>$option,'option_value'=>wp_json_encode($saved),'autoload'=>'no']);$confirmed=$this->read($option);return $confirmed===$saved?$confirmed:self::error('recipe_uncertain','Recipe persistence could not be confirmed.');
     }
@@ -34,19 +34,20 @@ final class DeterministicPersonalizationRenderer
         foreach($panel['slots']as $slot){$value=$payload[$slot['field']]??null;if(!is_string($value)||$value===''||preg_match('//u',$value)!==1||preg_match('/[\x00-\x1F\x7F]/',$value))return self::error('field_invalid','Approved text or protected image reference is missing or invalid.');
             if($slot['type']==='text'){
                 if(strlen($value)>$slot['max_characters']||strlen($value)*$slot['font_size']>$width-$slot['x'])return self::error('text_overflow','Text exceeds the approved conservative layout bound.');
-                $svg.='<text x="'.$slot['x'].'" y="'.$slot['y'].'" font-family="monospace" font-size="'.$slot['font_size'].'" fill="'.$slot['color'].'">'.htmlspecialchars($value,ENT_XML1|ENT_QUOTES,'UTF-8').'</text>' ."\n";
+                $font=$recipe['bitmap_font'];$scale=max(1,intdiv($slot['font_size'],$font['height']));$characters=preg_split('//u',$value,-1,PREG_SPLIT_NO_EMPTY);if(count($characters)*($font['width']+1)*$scale>$width-$slot['x'])return self::error('text_overflow','Actual font advance exceeds approved panel.');try{$svg.=BitmapFontAdapter::rectangles($font,$value,$slot['x'],$slot['y']-$slot['font_size'],$scale,$slot['color']);}catch(\InvalidArgumentException $e){return self::error('font_unavailable',$e->getMessage());}
             }else{
                 $path=\DigiForge\ProductFactory\AssetStorage::absolutePath($value);if($path===null)return self::error('image_unavailable','Approved protected local image artifact is unavailable.');$image=(new RenderArtifactVerifier())->readArtifact($path);if($image instanceof WP_Error)return $image;if(!in_array($image['mime'],['image/png','image/jpeg'],true))return self::error('image_invalid','Only bounded local PNG/JPEG photos are supported.');$bytes=@file_get_contents($path);if(!is_string($bytes)||!hash_equals($image['sha256'],hash('sha256',$bytes)))return self::error('image_uncertain','Approved photo changed during rendering.');
                 $svg.='<image x="'.$slot['x'].'" y="'.$slot['y'].'" width="'.$slot['width'].'" height="'.$slot['height'].'" preserveAspectRatio="xMidYMid meet" href="data:'.$image['mime'].';base64,'.base64_encode($bytes).'"/>' ."\n";
             }
         }
         $svg.="</svg>\n";if(strlen($svg)>16777216)return self::error('size_invalid','Rendered output exceeds safe size.');
-        return ['svg'=>$svg,'sha256'=>hash('sha256',$svg),'recipe_sha256'=>$proof['recipe_sha256'],'renderer_version'=>'local-svg-v1','position'=>$position,'width_px'=>$width,'height_px'=>$height,'external_execution_authorized'=>false];
+        $dpi=null;foreach($template['print_areas']as $area)if($area['position']===$position&&is_int($area['dpi']??null)&&$area['dpi']>=72&&$area['dpi']<=1200)$dpi=$area['dpi'];
+        return ['dpi'=>$dpi,'svg'=>$svg,'sha256'=>hash('sha256',$svg),'recipe_sha256'=>$proof['recipe_sha256'],'renderer_version'=>'local-artwork-v2','position'=>$position,'width_px'=>$width,'height_px'=>$height,'external_execution_authorized'=>false];
     }
     /** Safe inspection only. Certification additionally recomputes the exact approved output. */
     public static function inspectSvg(string $bytes):array|WP_Error
     {
-        if(strlen($bytes)>16777216||preg_match('/<!|<\?/',$bytes))return self::error('svg_invalid','SVG declarations and entities are unsupported.');
+        if(strlen($bytes)>16777216||substr_count($bytes,'<')>32770||preg_match('/<!|<\?/',$bytes))return self::error('svg_invalid','SVG declarations and entities are unsupported.');
         $doc=new \DOMDocument();$previous=libxml_use_internal_errors(true);try{$ok=$doc->loadXML($bytes,LIBXML_NONET);}finally{libxml_clear_errors();libxml_use_internal_errors($previous);}if(!$ok||$doc->doctype!==null||$doc->documentElement===null)return self::error('svg_invalid','Safe SVG XML required.');$root=$doc->documentElement;
         if($root->nodeName!=='svg'||$root->namespaceURI!=='http://www.w3.org/2000/svg')return self::error('svg_invalid','SVG namespace required.');
         $width=$root->getAttribute('width');$height=$root->getAttribute('height');if(!ctype_digit($width)||!ctype_digit($height)||(int)$width<1||(int)$height<1||(int)$width>10000||(int)$height>10000||$root->getAttribute('viewBox')!=='0 0 '.$width.' '.$height)return self::error('svg_invalid','Bounded exact SVG geometry required.');
@@ -57,16 +58,17 @@ final class DeterministicPersonalizationRenderer
     private function normalizeRecipe(array $template,array $recipe):array|WP_Error
     {
         if($template['personalization_pipeline']!=='DIGIFORGE_RENDER'||($recipe['engine']??null)!==$template['personalization_engine']||!in_array($recipe['engine'],['NAME_MONOGRAM','PHOTO_TEXT','SINGLE_PHOTO','PHOTO_COLLAGE','MULTI_PHOTO'],true))return self::error('engine_unsupported','Explicit supported deterministic template engine required.');
-        if(array_diff(array_keys($recipe),['engine','background','slots','panels'])!==[]||!preg_match('/^#[a-f0-9]{6}$/D',(string)($recipe['background']??'')))return self::error('recipe_invalid','Exact safe recipe fields required.');
+        if(array_diff(array_keys($recipe),['engine','background','slots','panels','bitmap_font'])!==[]||!preg_match('/^#[a-f0-9]{6}$/D',(string)($recipe['background']??'')))return self::error('recipe_invalid','Exact safe recipe fields required.');
+        $font=null;if(isset($recipe['bitmap_font'])){try{$font=BitmapFontAdapter::normalize($recipe['bitmap_font']);}catch(\Throwable){return self::error('font_invalid','Actual bounded versioned glyph data required.');}}
         $panels=$recipe['panels']??null;if($panels===null){if(count($template['print_areas'])!==1)return self::error('panel_required','Complete panel recipes required.');$panels=[$template['print_areas'][0]['position']=>['slots'=>$recipe['slots']??null]];}
         if(!is_array($panels)||count($panels)!==count($template['print_areas']))return self::error('panel_invalid','Recipe must cover every template panel exactly.');$normalized=[];
         foreach($template['print_areas']as $area){$position=$area['position'];$panel=$panels[$position]??null;$slots=is_array($panel)?($panel['slots']??null):null;if(!is_array($slots)||$slots===[]||count($slots)>32||array_diff(array_keys($panel),['slots','width_px','height_px'])!==[])return self::error('recipe_invalid','Bounded panel slots required.');$width=$area['width_px'];$height=$area['height_px'];if($width>10000||$height>10000)return self::error('geometry_unsupported','Local renderer geometry exceeds safe bound.');$out=[];
             foreach($slots as $slot){if(!is_array($slot)||!in_array($slot['type']??null,['text','image'],true)||!is_string($slot['field']??null)||!preg_match('/^[a-z][a-z0-9_]{0,63}$/D',$slot['field']))return self::error('slot_invalid','Explicit text/image fields required.');foreach(['x','y']as $n)if(!is_int($slot[$n]??null)||$slot[$n]<0||$slot[$n]>($n==='x'?$width:$height))return self::error('slot_invalid','Integer slot geometry required.');
-                if($slot['type']==='text'){if(array_diff(array_keys($slot),['type','field','x','y','font_size','color','max_characters'])!==[]||!is_int($slot['font_size']??null)||$slot['font_size']<1||$slot['font_size']>512||!is_int($slot['max_characters']??null)||$slot['max_characters']<1||$slot['max_characters']>1024||!preg_match('/^#[a-f0-9]{6}$/D',(string)($slot['color']??''))||$slot['y']<$slot['font_size']||$slot['y']+$slot['font_size']>$height)return self::error('slot_invalid','Bounded text layout required.');}
+                if($slot['type']==='text'){if($font===null)return self::error('font_required','Text certification requires actual approved versioned glyph data; host fonts cannot certify rendering.');if(array_diff(array_keys($slot),['type','field','x','y','font_size','color','max_characters'])!==[]||!is_int($slot['font_size']??null)||$slot['font_size']<1||$slot['font_size']>512||!is_int($slot['max_characters']??null)||$slot['max_characters']<1||$slot['max_characters']>1024||!preg_match('/^#[a-f0-9]{6}$/D',(string)($slot['color']??''))||$slot['y']<$slot['font_size']||$slot['y']+$slot['font_size']>$height)return self::error('slot_invalid','Bounded text layout required.');}
                 else{if(array_diff(array_keys($slot),['type','field','x','y','width','height'])!==[]||!is_int($slot['width']??null)||!is_int($slot['height']??null)||$slot['width']<1||$slot['height']<1||$slot['x']+$slot['width']>$width||$slot['y']+$slot['height']>$height)return self::error('slot_invalid','Bounded image placement required.');}
                 $out[]=$slot;
             }$normalized[$position]=['width_px'=>$width,'height_px'=>$height,'slots'=>$out];
-        }ksort($normalized);return ['engine'=>$recipe['engine'],'background'=>$recipe['background'],'panels'=>$normalized];
+        }ksort($normalized);return ['engine'=>$recipe['engine'],'background'=>$recipe['background'],'panels'=>$normalized]+($font===null?[]:['bitmap_font'=>$font]);
     }
     private function storedTemplate(string $key,int $version):array|WP_Error
     {

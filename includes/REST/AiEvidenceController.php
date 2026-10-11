@@ -13,6 +13,7 @@ final class AiEvidenceController
         add_action('rest_api_init',function():void{
             register_rest_route('digiforge/v1','/ai/evidence/(?P<operation>quotes|tariffs|charges|attributions)',['methods'=>'POST','permission_callback'=>[$this,'canReview'],'callback'=>[$this,'import']]);
             register_rest_route('digiforge/v1','/ai/evidence/usage/(?P<id>\d+)',['methods'=>'GET','permission_callback'=>[$this,'canReview'],'callback'=>[$this,'snapshot']]);
+            register_rest_route('digiforge/v1','/ai/commercial-kpis',['methods'=>'GET','permission_callback'=>[$this,'canReview'],'callback'=>[$this,'commercial']]);
         });
     }
     public function canReview():bool{return current_user_can('manage_digiforge_ai')&&get_current_user_id()>0;}
@@ -25,5 +26,12 @@ final class AiEvidenceController
     {
         if(!$this->canReview())return new WP_Error('ai_review_forbidden','AI evidence reviewer required.',['status'=>403]);$shop=$request['shop_key'];if(!is_string($shop)||!in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true))return new WP_Error('ai_review_shop_required','Exact concrete shop required.',['status'=>400]);
         $result=(new ProviderEvidenceRepository())->snapshot((int)$request['id'],$shop);return $result instanceof WP_Error?$result:new WP_REST_Response($result);
+    }
+    public function commercial(WP_REST_Request $request):WP_REST_Response|WP_Error
+    {
+        if(!$this->canReview())return new WP_Error('ai_review_forbidden','AI evidence reviewer required.',['status'=>403]);
+        foreach(['shop_key','start_utc','end_exclusive_utc','currency']as $field)if(!is_string($request[$field])||$request[$field]==='')return new WP_Error('ai_kpi_scope_required','Exact shop, UTC period and currency required.',['status'=>400]);
+        if(!in_array($request['shop_key'],['digital','personalized_pod','standard_pod','jewelry'],true))return new WP_Error('ai_kpi_scope_required','One canonical shop required.',['status'=>400]);
+        $result=(new \DigiForge\AI\CommercialCostKpiReadModel())->snapshot($request['shop_key'],$request['start_utc'],$request['end_exclusive_utc'],$request['currency']);return new WP_REST_Response($result,($result['query_state']==='AVAILABLE'?200:503));
     }
 }
