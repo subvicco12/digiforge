@@ -35,7 +35,14 @@ final class DeterministicRenderWorkflow
     }
     public function preview(int $renderId,string $position):array|WP_Error
     {
-        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required','Authorized POD preview reviewer required.',403);
+        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required','Authorized POD preview reviewer required.',403);return $this->verifiedPreview($renderId,$position);
+    }
+    public function customerPreview(int $renderId,string $position,string $session):array|WP_Error
+    {
+        $a=(new CustomerEditorRepository())->access($session,current_user_can('manage_digiforge_pod'));if($a instanceof WP_Error)return $a;global $wpdb;$wpdb->last_error='';$order=$wpdb->get_var($wpdb->prepare('SELECT order_id FROM '.Tables::pod_render_evidence().' WHERE id=%d',$renderId));if($wpdb->last_error!==''||(int)$order!==$a['order_id'])return self::error('customer_scope','Current owned order required.',403);return $this->verifiedPreview($renderId,$position);
+    }
+    private function verifiedPreview(int $renderId,string $position):array|WP_Error
+    {
         global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$renderId),ARRAY_A);if($wpdb->last_error!==''||!is_array($row))return self::error('preview_unavailable','Exact render evidence unavailable.');$v=new RenderArtifactVerifier();$receipt=$v->assertCertified($row);if($receipt instanceof WP_Error)return $receipt;
         if(isset($receipt['buyer_previews'])){$panels=array_keys($receipt['buyer_previews']);}else{$template=$v->certifiedTemplate($row);if($template instanceof WP_Error)return $template;$panels=array_column($template['print_areas'],'position');}
         sort($panels,SORT_STRING);if($position==='')$position=$panels[0]??'';if(isset($receipt['buyer_previews'])){$artifact=$receipt['buyer_previews'][$position]??null;}else{$artifact=count($panels)===1&&$panels[0]===$position?$receipt['buyer_preview']:null;}
