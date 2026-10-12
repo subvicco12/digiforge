@@ -9,7 +9,7 @@ use DigiForge\Integrations\Repository;
 use DigiForge\Security\Logger;
 use WP_Error;
 
-/** Append-only local grants/receipts. This class never enables any capability or catalog route. */
+/** Append-only grants, separate catalog-GET approvals and receipts; never changes global safety switches. */
 final class PrintifyCatalogReadRepository {
  public function __construct(private ?PrintifyCatalogClient $client=null) {}
  public static function owner():bool {return get_current_user_id()>0&&current_user_can('manage_options')&&current_user_can('manage_digiforge_connections')&&current_user_can('manage_digiforge_pod');}
@@ -26,27 +26,71 @@ final class PrintifyCatalogReadRepository {
   if(!self::owner())return self::error('owner_required',403);
   return $this->locked($sha,function()use($sha){$g=$this->grant($sha,false);if($g instanceof WP_Error)return $g;return $this->transaction(function()use($sha){$r=self::seal(['grant_sha256'=>$sha,'revoked_by'=>get_current_user_id(),'revoked_at'=>gmdate('c')]);$saved=$this->put('df_catalog_read_revoked_'.$sha,$r,'catalog_read_revoked');return $saved instanceof WP_Error?$saved:true;});});
  }
+ /** Local-only, separately authenticated owner approval for exactly one immutable grant. */
+ public function approveSafetyException(string $sha,array $input,string $key):array|WP_Error {
+  if(!self::owner())return self::error('owner_required',403);
+  try{self::requestKey($key);}catch(\Throwable){return self::error('request_key',400);}
+  return $this->locked($sha,function()use($sha,$input,$key){
+   $g=$this->grant($sha);if($g instanceof WP_Error)return $g;$posture=$this->protectedPosture();if($posture instanceof WP_Error)return $posture;
+   if(wp_get_environment_type()!=='production')return self::error('main_site_required',409);
+   try{$approval=PrintifyCatalogGetSafetyExceptionContract::normalize($input,$g['grant'],time());}catch(\Throwable){return self::error('invalid_safety_exception',400);}
+   $existing=$this->load('df_catalog_get_exception_'.$sha);if($existing!==null)return self::error('exception_immutable_or_unavailable',409);$anchors=$this->exceptionAnchors('catalog_get_exception_approved',$sha);if($anchors instanceof WP_Error)return $anchors;if($anchors!==[])return self::error('exception_evidence_missing',503);
+   return $this->transaction(function()use($sha,$approval,$g,$key){
+    $name='df_catalog_get_exception_approval_'.hash('sha256',get_current_user_id().'|'.$key);if($this->load($name)!==null)return self::error('exception_approval_replay',409);
+    $r=self::seal(['schema'=>1,'capability'=>PrintifyCatalogReadContract::CAPABILITY,'method'=>'GET','grant_sha256'=>$sha,'grant_binding_sha256'=>hash('sha256',self::json($g['binding'])),'site_sha256'=>self::site(),'approval'=>$approval,'approved_by'=>get_current_user_id(),'approved_at'=>gmdate('c'),'approval_request_sha256'=>hash('sha256',$key),'mutation_authorized'=>false]);
+    $saved=$this->put($name,['grant_sha256'=>$sha,'exception_sha256'=>$r['sha256']]);if($saved instanceof WP_Error)return $saved;return $this->put('df_catalog_get_exception_'.$sha,$r,'catalog_get_exception_approved');
+   });
+  });
+ }
+ public function revokeSafetyException(string $sha):true|WP_Error {
+  if(!self::owner())return self::error('owner_required',403);
+  return $this->locked($sha,function()use($sha){$g=$this->grant($sha,false);if($g instanceof WP_Error)return $g;$r=$this->load('df_catalog_get_exception_'.$sha);if($r instanceof WP_Error)return $r;if($r===null||!self::sealed($r)||!$this->audited('catalog_get_exception_approved',$r['sha256']))return self::error('exception_evidence',409);
+   return $this->transaction(function()use($sha,$r){$revocation=self::seal(['grant_sha256'=>$sha,'exception_sha256'=>$r['sha256'],'revoked_by'=>get_current_user_id(),'revoked_at'=>gmdate('c')]);$saved=$this->put('df_catalog_get_exception_revoked_'.$sha,$revocation,'catalog_get_exception_revoked');return $saved instanceof WP_Error?$saved:true;});
+  });
+ }
+ /** Read-only admission applies only inside this catalog GET pipeline, never Settings or mutation clients. */
+ private function readPermission(string $sha,array $grant):array|WP_Error {
+  $r=$this->load('df_catalog_get_exception_'.$sha);if($r instanceof WP_Error)return $r;
+  $anchors=$this->exceptionAnchors('catalog_get_exception_approved',$sha);if($anchors instanceof WP_Error)return $anchors;
+  $revoked=$this->load('df_catalog_get_exception_revoked_'.$sha);if($revoked!==null)return self::error('exception_revoked_or_unavailable',409);
+  $revocationAnchors=$this->exceptionAnchors('catalog_get_exception_revoked',$sha);if($revocationAnchors instanceof WP_Error)return $revocationAnchors;if($revocationAnchors!==[])return self::error('exception_revocation_evidence_missing',503);
+  if($r===null){if($anchors!==[])return self::error('exception_evidence_missing',503);return Settings::safety_locked()?self::error('safety_locked',409):['mode'=>'ORDINARY_AUTHORIZATION','safety_exception_sha256'=>null];}
+  if(!self::sealed($r)||($r['grant_sha256']??null)!==$sha||($r['capability']??null)!==PrintifyCatalogReadContract::CAPABILITY||($r['method']??null)!=='GET'||($r['site_sha256']??null)!==self::site()||count($anchors)!==1||($anchors[0]['sha256']??null)!==$r['sha256']||!$this->audited('catalog_get_exception_approved',$r['sha256'])||($r['grant_binding_sha256']??null)!==hash('sha256',self::json($grant['binding'])))return self::error('exception_evidence',503);
+  if(!user_can($r['approved_by'],'manage_options')||!user_can($r['approved_by'],'manage_digiforge_connections')||!user_can($r['approved_by'],'manage_digiforge_pod'))return self::error('exception_owner_revoked',409);
+  try{PrintifyCatalogGetSafetyExceptionContract::normalize($r['approval'],$grant['grant'],time());}catch(\Throwable){return self::error('exception_expired_or_invalid',409);}
+  $posture=$this->protectedPosture();if($posture instanceof WP_Error)return $posture;
+  if(wp_get_environment_type()!=='production'||!self::mainSite())return self::error('main_site_required',409);
+  return ['mode'=>'CATALOG_GET_SAFETY_EXCEPTION','safety_exception_sha256'=>$r['sha256']];
+ }
+ private function exceptionAnchors(string $event,string $sha):array|WP_Error {
+  global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND context LIKE %s LIMIT 2',$event,'catalog_read','%'.$wpdb->esc_like('"grant_sha256":"'.$sha.'"').'%'));if($wpdb->last_error!==''||!is_array($rows))return self::error('exception_audit_unavailable',503);$out=[];foreach($rows as $row){$r=json_decode($row,true);if(!is_array($r)||($r['grant_sha256']??null)!==$sha)return self::error('exception_audit_invalid',503);$out[]=$r;}return $out;
+ }
+ /** No permissive defaults: missing/corrupt/unavailable settings cannot admit the exception. */
+ private function protectedPosture():true|WP_Error {
+  global $wpdb;$expected=['activation_authorized'=>false,'automation_armed'=>false,'stop_all'=>true];$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT setting_key,setting_value,setting_type FROM '.Tables::settings().' WHERE setting_key IN (%s,%s,%s)',...array_keys($expected)),ARRAY_A);if($wpdb->last_error!==''||!is_array($rows)||count($rows)!==3)return self::error('exception_safety_evidence_unavailable',503);
+  $seen=[];foreach($rows as $r){$key=$r['setting_key'];if(!array_key_exists($key,$expected)||isset($seen[$key])||$r['setting_type']!=='boolean'||json_decode($r['setting_value'],true)!==$expected[$key])return self::error('exception_safety_posture_changed',409);$seen[$key]=true;}return true;
+ }
  public function read(string $sha,int $index,string $key):array|WP_Error {
   if(!self::reader())return self::error('account_scope',403);
   try{self::requestKey($key);}catch(\Throwable){return self::error('request_key',400);}
   return $this->locked($sha,function()use($sha,$index,$key){
    $record=$this->grant($sha);if($record instanceof WP_Error)return $record;$g=$record['grant'];if($g['account_id']!==get_current_user_id())return self::error('account_scope',403);
    if(!isset($g['requests'][$index])||$index<0)return self::error('request_scope',400);
-   // Existing STOP ALL / automation / external activation interlocks always win.
-   if(Settings::safety_locked())return self::error('safety_locked',409);
+   // A separate grant-bound catalog-GET approval never changes global lock semantics.
+   $permission=$this->readPermission($sha,$record);if($permission instanceof WP_Error)return $permission;
    if(wp_get_environment_type()!=='production')return self::error('main_site_required',409);
    $requestSha=hash('sha256',$key);$receiptName='df_catalog_read_request_'.$sha.'_'.$requestSha;
-   $reservation=$this->transaction(function()use($sha,$receiptName,$index,$g){
+   $reservation=$this->transaction(function()use($sha,$receiptName,$index,$g,$permission){
     if($this->load($receiptName)!==null)return self::error('request_replay',409);$attempts=$this->attempts($sha);if($attempts instanceof WP_Error)return $attempts;if(count($attempts)>=$g['max_requests'])return self::error('quota_exhausted',409);if(in_array(substr($receiptName,-64),$attempts,true))return self::error('request_replay',409);
-    return $this->put($receiptName,self::seal(['grant_sha256'=>$sha,'request_sha256'=>substr($receiptName,-64),'request_index'=>$index,'reserved_at'=>gmdate('c')]),'catalog_read_reserved');
+    return $this->put($receiptName,self::seal(['grant_sha256'=>$sha,'request_sha256'=>substr($receiptName,-64),'request_index'=>$index,'safety_exception_sha256'=>$permission['safety_exception_sha256'],'reserved_at'=>gmdate('c')]),'catalog_read_reserved');
    });if($reservation instanceof WP_Error)return $reservation;
    // Recheck all authoritative boundaries immediately before decrypting. Failures consume the attempt.
-   $current=$this->grant($sha);if($current instanceof WP_Error)return $current;if(Settings::safety_locked())return self::error('safety_locked',409);
+   $current=$this->grant($sha);if($current instanceof WP_Error)return $current;$currentPermission=$this->readPermission($sha,$current);if($currentPermission instanceof WP_Error)return $currentPermission;if($currentPermission!==$permission)return self::error('safety_permission_changed',409);
    $token=$this->credential($g['integration_id']);if($token instanceof WP_Error)return $token;
    try{$result=($this->client??new PrintifyCatalogClient())->scopedRead($token,$g['requests'][$index]);}catch(\Throwable){$result=self::error('transport',502);}finally{$token='';}
    if($result instanceof WP_Error){if(!Logger::write('catalog_read_failed',['grant_sha256'=>$sha,'request_sha256'=>$requestSha,'code'=>$result->get_error_code()],'catalog_read',$sha))return self::error('audit_unavailable',503);return $result;}
-   if(strtotime($g['expires_at'])<=time()||Settings::safety_locked())return self::error('approval_or_safety_changed',409);
-   $e=self::seal(['schema'=>1,'state'=>'DRAFT_UNVERIFIED','capability'=>PrintifyCatalogReadContract::CAPABILITY,'grant_sha256'=>$sha,'request_sha256'=>$requestSha,'request'=>$g['requests'][$index],'account_id'=>$g['account_id'],'scope'=>$record['binding']['scope'],'integration_id'=>$g['integration_id'],'environment'=>$record['binding']['environment'],'site_sha256'=>self::site(),'supplier_certified'=>false,'mutation_authorized'=>false]+$result);
+   $current=$this->grant($sha);if($current instanceof WP_Error)return $current;$currentPermission=$this->readPermission($sha,$current);if($currentPermission instanceof WP_Error)return $currentPermission;if($currentPermission!==$permission||!self::reader())return self::error('approval_or_safety_changed',409);
+   $e=self::seal(['schema'=>1,'state'=>'DRAFT_UNVERIFIED','capability'=>PrintifyCatalogReadContract::CAPABILITY,'grant_sha256'=>$sha,'request_sha256'=>$requestSha,'request'=>$g['requests'][$index],'account_id'=>$g['account_id'],'scope'=>$record['binding']['scope'],'integration_id'=>$g['integration_id'],'environment'=>$record['binding']['environment'],'site_sha256'=>self::site(),'supplier_certified'=>false,'mutation_authorized'=>false,'safety_exception_sha256'=>$permission['safety_exception_sha256'],'read_admission_mode'=>$permission['mode']]+$result);
    $stored=$this->transaction(fn()=>$this->put('df_catalog_read_evidence_'.$sha.'_'.$requestSha,$e,'catalog_read_evidence'));return $stored instanceof WP_Error?$stored:self::publicEvidence($e);
   });
  }

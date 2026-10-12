@@ -1,5 +1,7 @@
 # Expiring Printify catalog read authorization
 
+This document preserves PR #1171 foundation behavior. The dependent [separately approved catalog-GET safety exception](printify-catalog-get-safety-exception.md) supersedes only the blanket catalog-read denial for a separately approved, current grant under the exact protected posture. Grants without that exception still fail closed; global/mutation semantics remain unchanged.
+
 Base: current main `844107ab9baf7e1303cd47708e9eab3bc700b348`. This independent main-based branch does not modify finance #1147 or PRs #1161–#1170. It adds no live calls, deployment, credential configuration, shop activation or safety transition.
 
 ## Safety boundary and actual readiness
