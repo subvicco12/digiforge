@@ -26,7 +26,12 @@ final class RecoveryDrillEvidence
             && $databaseIdentifier !== ''
             && $packageIdentifier !== ''
             && hash_equals($databaseIdentifier, (string) $record['database_backup_identifier'])
-            && hash_equals($packageIdentifier, (string) $record['plugin_package_identifier']);
+            && hash_equals($packageIdentifier, (string) $record['plugin_package_identifier'])
+            && ($backup['database_backup_retrievable'] ?? false) === true
+            && ($backup['plugin_package_retrievable'] ?? false) === true
+            && ($backup['checksum_verified'] ?? false) === true
+            && ($backup['plugin_package_identity_recorded'] ?? false) === true
+            && self::identityMatches($record, $backup);
         $fresh = $complete && self::fresh((string) $record['performed_at']);
         $verified = $complete
             && self::truthy($record, 'restore_verified')
@@ -72,10 +77,39 @@ final class RecoveryDrillEvidence
         if (($artifacts['database_backup_retrievable'] ?? false) !== true) return false;
         if (($artifacts['plugin_package_retrievable'] ?? false) !== true) return false;
         if (($artifacts['checksum_verified'] ?? false) !== true) return false;
+        if (($artifacts['plugin_package_identity_recorded'] ?? false) !== true) return false;
+
+        if (array_key_exists('artifact_identity_hash', $record)
+            && (! is_string($record['artifact_identity_hash'])
+                || ! hash_equals(self::artifactIdentityHash($artifacts), $record['artifact_identity_hash']))) return false;
+
+        $normalized['plugin_package_sha256'] = $artifacts['plugin_package']['sha256'];
+        $normalized['plugin_package_source_commit'] = $artifacts['plugin_package']['source_commit'];
+        $normalized['artifact_identity_hash'] = self::artifactIdentityHash($artifacts);
 
         $normalized['recorded_at'] = gmdate('c');
         $normalized['evidence_hash'] = hash('sha256', wp_json_encode($normalized, JSON_UNESCAPED_SLASHES));
         return update_option('digiforge_recovery_drill_evidence', $normalized, false);
+    }
+
+    /** @param array<string,mixed> $artifacts */
+    private static function artifactIdentityHash(array $artifacts): string
+    {
+        return hash('sha256', (string) wp_json_encode([
+            'database_backup' => $artifacts['database_backup'] ?? [],
+            'plugin_package' => $artifacts['plugin_package'] ?? [],
+        ], JSON_UNESCAPED_SLASHES));
+    }
+
+    /** @param array<string,mixed> $record @param array<string,mixed> $artifacts */
+    private static function identityMatches(array $record, array $artifacts): bool
+    {
+        foreach (['plugin_package_sha256','plugin_package_source_commit','artifact_identity_hash'] as $key) {
+            if (! isset($record[$key]) || ! is_string($record[$key])) return false;
+        }
+        return hash_equals((string) ($artifacts['plugin_package']['sha256'] ?? ''), $record['plugin_package_sha256'])
+            && hash_equals((string) ($artifacts['plugin_package']['source_commit'] ?? ''), $record['plugin_package_source_commit'])
+            && hash_equals(self::artifactIdentityHash($artifacts), $record['artifact_identity_hash']);
     }
 
     /** @param array<string,mixed> $record @param list<string> $keys */

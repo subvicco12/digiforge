@@ -65,6 +65,27 @@ final class PrintifyCatalogClient
         return $this->get($token, $base . '/' . $method . '.json');
     }
 
+    /** Single bounded request for an already-authorized explicit catalog scope. */
+    public function scopedRead(string $token, array $request): array|WP_Error
+    {
+        $path = PrintifyCatalogReadContract::endpoint($request);
+        if ($token === '') return new WP_Error('catalog_read_credentials', 'Configured credential is required.', ['status'=>409]);
+        $args = ['method'=>'GET', 'timeout'=>10, 'redirection'=>0, 'limit_response_size'=>1048577,
+            'reject_unsafe_urls'=>true, 'sslverify'=>true, 'headers'=>[
+                'Authorization'=>'Bearer '.$token, 'Accept'=>'application/json', 'User-Agent'=>'DigiForge/CatalogRead'
+            ]];
+        try { $response = ($this->transport)('https://api.printify.com'.$path, $args); }
+        catch (\Throwable) { return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]); }
+        if (is_wp_error($response)) return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]);
+        $status = (int) wp_remote_retrieve_response_code($response);
+        if ($status !== 200) return new WP_Error('catalog_read_http', 'Catalog GET did not return HTTP 200; no automatic retry.', ['status'=>502]);
+        $body = (string) wp_remote_retrieve_body($response);
+        if (strlen($body)>1048576 || str_contains($body,$token)) return new WP_Error('catalog_read_response', 'Catalog response exceeded bounds or contained protected material.', ['status'=>502]);
+        try { $data=json_decode($body,true,32,JSON_THROW_ON_ERROR); if(!is_array($data)||PrintifyCatalogReadContract::containsProtectedMaterial($data,$token))throw new \InvalidArgumentException(); $selected=PrintifyCatalogReadContract::select($data,$request); }
+        catch (\Throwable) { return new WP_Error('catalog_read_response', 'Catalog response was invalid or the requested variant was unavailable.', ['status'=>502]); }
+        return ['endpoint_path'=>$path, 'observed_at'=>gmdate('c'), 'response_sha256'=>hash('sha256',$body), 'response_body'=>$body, 'data'=>$selected];
+    }
+
     private function id(int $id): int
     {
         if ($id < 1) throw new \InvalidArgumentException('Printify catalog identifiers must be positive integers.');
@@ -85,11 +106,12 @@ final class PrintifyCatalogClient
         if ($token === '') return new WP_Error('digiforge_printify_credentials', 'Printify credential is required.', ['status'=>409]);
         if (!$this->approvedEndpoint($url)) return new WP_Error('digiforge_printify_endpoint', 'Printify endpoint is outside the approved catalog boundary.', ['status'=>400]);
 
-        $args = ['timeout'=>20,'redirection'=>0,'reject_unsafe_urls'=>true,'sslverify'=>true,'headers'=>[
+        $args = ['timeout'=>20,'limit_response_size'=>1048577,'redirection'=>0,'reject_unsafe_urls'=>true,'sslverify'=>true,'headers'=>[
             'Authorization'=>'Bearer '.$token,'Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyCatalogSync'
         ]];
         for ($attempt=1; $attempt<=self::MAX_ATTEMPTS; $attempt++) {
-            $response=($this->transport)($url,$args);
+            try { $response=($this->transport)($url,$args); }
+            catch (\Throwable) { return new WP_Error('digiforge_printify_transport','Printify catalog transport failed.',['status'=>502]); }
             if (is_wp_error($response)) return new WP_Error('digiforge_printify_transport','Printify catalog transport failed.',['status'=>502]);
             $status=(int)wp_remote_retrieve_response_code($response);
             if ($status===429) {
@@ -101,8 +123,10 @@ final class PrintifyCatalogClient
             }
             if ($status<200 || $status>=300) return new WP_Error('digiforge_printify_http','Printify catalog request failed.',['status'=>$status ?: 502]);
             $body=(string)wp_remote_retrieve_body($response);
-            try { $decoded=json_decode($body,true,512,JSON_THROW_ON_ERROR); }
+            if(strlen($body)>1048576||str_contains($body,$token))return new WP_Error('digiforge_printify_response','Printify catalog response exceeded limits or contained protected material.',['status'=>502]);
+            try { $decoded=json_decode($body,true,32,JSON_THROW_ON_ERROR); }
             catch (\JsonException) { return new WP_Error('digiforge_printify_json','Printify returned invalid JSON.',['status'=>502]); }
+            if(is_array($decoded)&&PrintifyCatalogReadContract::containsProtectedMaterial($decoded,$token))return new WP_Error('digiforge_printify_response','Printify catalog response contained protected material.',['status'=>502]);
             if (!is_array($decoded)) return new WP_Error('digiforge_printify_shape','Printify returned an unsupported response shape.',['status'=>502]);
             return ['data'=>$decoded,'source_evidence'=>[
                 'schema'=>'printify-catalog-response-v1',

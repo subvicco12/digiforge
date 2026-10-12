@@ -21,10 +21,10 @@ final class RecoveryEvidence
             'database_backup_retrievable' => self::backupVerified($backup),
             'database_backup_verification_fresh' => self::backupVerificationFresh($backup),
             'database_backup_identity_recorded' => self::complete($backup, ['identifier','captured_at','location']),
-            'plugin_package_available' => self::complete($package, ['identifier','version','source_commit','sha256','location']),
-            'plugin_package_retrievable' => self::truthy($package, 'retrievable'),
-            'plugin_package_identity_recorded' => self::complete($package, ['identifier','version','source_commit','sha256','location']),
-            'checksum_verified' => self::truthy($package, 'checksum_verified'),
+            'plugin_package_available' => self::packageIdentityValid($package),
+            'plugin_package_retrievable' => self::packageIdentityValid($package) && self::truthy($package, 'retrievable'),
+            'plugin_package_identity_recorded' => self::packageIdentityValid($package),
+            'checksum_verified' => self::packageIdentityValid($package) && self::truthy($package, 'checksum_verified'),
         ];
     }
 
@@ -150,6 +150,16 @@ final class RecoveryEvidence
         if (trim($value) === '') return false;
         $parsed = strtotime($value);
         return $parsed !== false;
+    }
+
+    /** @param array<string,mixed> $record */
+    private static function packageIdentityValid(array $record): bool
+    {
+        foreach (['identifier','version','source_commit','sha256','location'] as $key) {
+            if (! isset($record[$key]) || ! is_string($record[$key]) || trim($record[$key]) === '') return false;
+        }
+        return preg_match('/^[a-f0-9]{40}$/', $record['source_commit']) === 1
+            && preg_match('/^[a-f0-9]{64}$/', $record['sha256']) === 1;
     }
 
     /** @param array<string,mixed> $record */

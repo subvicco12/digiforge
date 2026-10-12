@@ -60,6 +60,7 @@ final class Plugin {
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
         (new IntegrationsController())->register();
+        (new \DigiForge\REST\PrintifyCatalogReadController())->register();
         (new EtsyControlledExecutionController())->register();
         (new EtsyPublishExecutionController())->register();
         (new EtsyWebhookController())->register();

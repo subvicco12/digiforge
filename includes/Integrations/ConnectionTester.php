@@ -19,6 +19,7 @@ final class ConnectionTester {
     public function test(int $integrationId): array|\WP_Error {
         $repository = new Repository();
         $integration = $repository->find($integrationId);
+        if (is_wp_error($integration)) { return $integration; }
         if (! $integration) {
             return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]);
         }
@@ -34,13 +35,25 @@ final class ConnectionTester {
     private function testPrintify(int $integrationId): array|\WP_Error {
         if (! Settings::is_enabled('printify')) { return new \WP_Error('printify_scoped_authorization_required', __('Scoped Printify authorization is required before connection-test network access.', 'digiforge'), ['status' => 409]); }
         $token = $this->firstCredential($integrationId, ['personal_access_token', 'access_token']);
+        if (is_wp_error($token) && $token->get_error_code() !== 'credential_not_found') { return $token; }
         if (is_wp_error($token)) { return new \WP_Error('printify_credential_missing', __('Store a Printify personal access token before testing the connection.', 'digiforge'), ['status' => 409]); }
-        $response = $this->get(self::PRINTIFY_SHOPS_URL, ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json']);
-        unset($token);
+        try {
+            $response = $this->get(self::PRINTIFY_SHOPS_URL, ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json']);
+            if (!is_wp_error($response)) {
+                $body = (string) wp_remote_retrieve_body($response);
+                $data = json_decode($body, true);
+                if (str_contains($body, $token) || (is_array($data) && \DigiForge\POD\PrintifyCatalogReadContract::containsProtectedMaterial($data, $token))) {
+                    if (!$this->record($integrationId, false, ['reason' => 'protected_response'], false)) return $this->evidenceError($integrationId);
+                    return new \WP_Error('printify_protected_response', __('Printify returned protected material; the response was discarded.', 'digiforge'), ['status' => 502]);
+                }
+            }
+        } catch (\Throwable) {
+            $response = new \WP_Error('printify_transport_error', 'Printify transport failed.');
+        } finally { unset($token); }
         $checked = $this->checkHttp('printify', $integrationId, $response); if (is_wp_error($checked)) { return $checked; }
-        $decoded = json_decode((string) wp_remote_retrieve_body($response), true); if (! is_array($decoded)) { return $this->invalidResponse('printify', $integrationId); }
+        $decoded = json_decode((string) wp_remote_retrieve_body($response), true); if (! is_array($decoded) || !array_is_list($decoded)) { return $this->invalidResponse('printify', $integrationId); }
         $shops = [];
-        foreach (array_slice($decoded, 0, 50) as $shop) { if (! is_array($shop)) { continue; } $shops[] = ['id' => absint($shop['id'] ?? 0), 'title' => sanitize_text_field((string) ($shop['title'] ?? '')), 'sales_channel' => sanitize_text_field((string) ($shop['sales_channel'] ?? ''))]; }
+        foreach (array_slice($decoded, 0, 50) as $shop) { if (! is_array($shop) || !is_int($shop['id'] ?? null) || $shop['id'] < 1 || !is_string($shop['title'] ?? null) || !is_string($shop['sales_channel'] ?? null)) { return $this->invalidResponse('printify', $integrationId); } $shops[] = ['id' => absint($shop['id'] ?? 0), 'title' => sanitize_text_field((string) ($shop['title'] ?? '')), 'sales_channel' => sanitize_text_field((string) ($shop['sales_channel'] ?? ''))]; }
         $details = ['http_status' => 200, 'shop_count' => count($shops), 'shops' => $shops];
         if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'printify', 'shop_count' => count($shops)], 'integration', (string) $integrationId);
@@ -192,7 +205,7 @@ final class ConnectionTester {
         return $details;
     }
     private function invalidResponse(string $provider, int $integrationId): \WP_Error { $this->record($integrationId, false, ['reason' => 'invalid_json'], false); return new \WP_Error($provider . '_invalid_response', sprintf(__('%s returned an unreadable response.', 'digiforge'), ucfirst($provider)), ['status' => 502]); }
-    private function firstCredential(int $integrationId, array $names): string|\WP_Error { foreach ($names as $name) { $value = $this->credential($integrationId, (string) $name); if (! is_wp_error($value) && $value !== '') { return $value; } } return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
+    private function firstCredential(int $integrationId, array $names): string|\WP_Error { foreach ($names as $name) { $value = $this->credential($integrationId, (string) $name); if (is_wp_error($value) && $value->get_error_code() !== 'credential_not_found') { return $value; } if (! is_wp_error($value) && $value !== '') { return $value; } } return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); }
     private function credential(int $integrationId, string $name): string|\WP_Error { global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT ciphertext FROM ' . Tables::integration_secrets() . ' WHERE integration_id = %d AND secret_name = %s LIMIT 1', $integrationId, sanitize_key($name)), ARRAY_A); if(!empty($wpdb->last_error)){return new \WP_Error('credential_evidence_unavailable',__('Credential evidence could not be read.','digiforge'),['status'=>503]);} if (! is_array($row) || empty($row['ciphertext'])) { return new \WP_Error('credential_not_found', __('Credential not found.', 'digiforge'), ['status' => 404]); } try { return CredentialVault::decrypt((string) $row['ciphertext'], Repository::secretContext($integrationId, $name)); } catch (\Throwable $e) { return new \WP_Error('credential_decryption_failed', __('Stored credential could not be decrypted.', 'digiforge'), ['status' => 500]); } }
     private function evidenceError(int $integrationId): \WP_Error {
         Logger::audit('integration_connection_test_evidence_failed', ['integration_id'=>$integrationId], 'integration', (string)$integrationId);
@@ -205,7 +218,9 @@ final class ConnectionTester {
         $wpdb->last_error='';
         $row=$wpdb->get_row($wpdb->prepare('SELECT config,status FROM '.Tables::integrations().' WHERE id = %d',$integrationId),ARRAY_A);
         if(!empty($wpdb->last_error)||!is_array($row)) return false;
-        $version=$success?CredentialEvidenceVersion::fromMetadata((new Repository())->secretMetadata($integrationId)):null;
+        $metadata=$success?(new Repository())->secretMetadata($integrationId):[];
+        if(is_wp_error($metadata)) return false;
+        $version=$success?CredentialEvidenceVersion::fromMetadata($metadata):null;
         if ($success && $version===null) return false;
         $config=json_decode((string)($row['config']??'{}'),true);
         if (!is_array($config)) $config=[];

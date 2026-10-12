@@ -54,6 +54,9 @@ jobs:
       - name: Install quality tools
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Audit installed Composer dependency advisories
+        run: composer audit --no-interaction
+
       - name: PHP syntax checks
         shell: bash
         run: |

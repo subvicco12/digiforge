@@ -20,8 +20,14 @@ class PartialRequirementLinksTest(unittest.TestCase):
         self.assertEqual(86,sum('; ' in r['derived_requirement_ids'] for r in links))
     def test_bidirectional_distinct_links_and_real_behavioral_references(self):
         spec=importlib.util.spec_from_file_location('closure',ROOT/'bin/build-nonfinance-closure-matrix.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-        requirements=rows('distinct-nonfinance-acceptance.tsv');byid={r['derived_requirement_id']:r for r in requirements};self.assertEqual(45,len(byid))
-        for row in rows('partial-record-requirement-links.tsv'):
+        requirements=rows('distinct-nonfinance-acceptance.tsv');byid={r['derived_requirement_id']:r for r in requirements}
+        self.assertEqual(len(requirements),len(byid))
+        links=rows('partial-record-requirement-links.tsv');bylocator={r['source_locator']:r for r in links}
+        partial_ids={identity for row in links for identity in row['derived_requirement_ids'].split('; ') if identity}
+        self.assertEqual(45,len(partial_ids))
+        self.assertTrue(partial_ids<=set(byid))
+        blueprint_locators={r['Derived locator (not original requirement ID)'] for r in rows('blueprint-acceptance.tsv')}
+        for row in links:
             for identity in filter(None,row['derived_requirement_ids'].split('; ')):
                 self.assertIn(identity,byid);self.assertIn(row['source_locator'],byid[identity]['source_locators'].split('; '))
         for identity,row in byid.items():
@@ -29,8 +35,15 @@ class PartialRequirementLinksTest(unittest.TestCase):
             if row['local_classification']=='VERIFIED_LOCAL_SOFTWARE':
                 self.assertTrue('::test' in row['behavioral_evidence'] or row['behavioral_evidence'].startswith('tests/browser/portal-layout.cjs:'))
             for locator in row['source_locators'].split('; '):
-                match=next(r for r in rows('partial-record-requirement-links.tsv') if r['source_locator']==locator)
-                self.assertIn(identity,match['derived_requirement_ids'].split('; '))
+                self.assertIn(locator,blueprint_locators)
+                # The original 424-row ledger describes partial source anchors;
+                # added section-25/32 and distinct QA obligations also reference
+                # context/verified/deferred anchors outside that ledger. Retain
+                # the original bidirectional invariant within its actual scope.
+                if identity in partial_ids and locator in bylocator:
+                    self.assertIn(identity,bylocator[locator]['derived_requirement_ids'].split('; '))
+        self.assertEqual({'NF-digital-qa-coverage','NF-backup-restore-certification','NF-release-installed-artifact'},set(byid)-partial_ids)
+        self.assertEqual('UNVERIFIED',byid['NF-digital-qa-coverage']['candidate_status'])
         self.assertEqual(42,sum(r['local_classification']=='VERIFIED_LOCAL_SOFTWARE' for r in requirements))
         self.assertTrue(all(r['unresolved_classification'] for r in requirements if r['local_classification']!='VERIFIED_LOCAL_SOFTWARE'))
     def test_category_arithmetic_retains_the_six_previously_omitted_records(self):

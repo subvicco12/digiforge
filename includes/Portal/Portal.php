@@ -999,6 +999,7 @@ final class Portal
             return;
         }
         $columns = array_slice(array_keys($rows[0]), 0, 8);
+        if ($table === Tables::digital_download_checks()) $columns[] = 'qa_evidence';
         echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr>';
         foreach ($columns as $column) {
             echo '<th>' . esc_html(ucwords(str_replace('_', ' ', (string) $column))) . '</th>';
@@ -1008,11 +1009,47 @@ final class Portal
             $anchor = $focused && (int) ($row['id'] ?? 0) === $focusId ? ' id="df-evidence-' . esc_attr($focusType . '-' . $focusId) . '"' : '';
             echo '<tr' . $anchor . '>';
             foreach ($columns as $column) {
-                echo '<td>' . esc_html($this->cell((string) $column, $row[$column] ?? '')) . '</td>';
+                $value = $column === 'qa_evidence'
+                    ? $this->digitalQaEvidenceSummary($row['details'] ?? null)
+                    : $this->cell((string) $column, $row[$column] ?? '');
+                echo '<td>' . esc_html($value) . '</td>';
             }
             echo '</tr>';
         }
         echo '</tbody></table></div>';
+    }
+
+    /** Blueprint p77/table23/r6/c3: bounded recorded QA proof, never arbitrary details or readiness. */
+    private function digitalQaEvidenceSummary(mixed $value): string
+    {
+        $unverified = 'UNVERIFIED: structured QA/provenance evidence is missing or unsupported.';
+        if (!is_string($value) || strlen($value) > 65536) return $unverified;
+        $details = json_decode($value, true, 12);
+        if (!is_array($details)) return $unverified;
+        $format = $details['format'] ?? null;
+        $hash = $details['checksum_sha256'] ?? null;
+        $bytes = $details['byte_size'] ?? null;
+        $checks = $details['checks'] ?? null;
+        if (!is_string($format) || !in_array($format, ['pdf','svg','html','json','csv','txt','zip','png'], true)
+            || !is_string($hash) || preg_match('/^[a-f0-9]{64}$/D', $hash) !== 1
+            || !is_int($bytes) || $bytes < 1 || !is_array($checks) || !array_is_list($checks)
+            || count($checks) < 1 || count($checks) > 24) return $unverified;
+        $allowed = ['file_exists','file_nonempty','checksum_match','filename_safe','extension_match',
+            'format_integrity','credential_leak_scan','pdf_page_count','pdf_media_box',
+            'pdf_duplicate_page_scan','pdf_link_qr_map_scan','png_dimensions','svg_dimensions',
+            'svg_active_content_scan','html_active_content_scan','zip_safe_members',
+            'zip_unique_members','zip_member_inventory'];
+        $summary = [];
+        $seen = [];
+        foreach ($checks as $check) {
+            if (!is_array($check) || !is_string($check['name'] ?? null)
+                || !in_array($check['name'], $allowed, true) || !is_bool($check['passed'] ?? null)
+                || isset($seen[$check['name']])) return $unverified;
+            $seen[$check['name']] = true;
+            $summary[] = $check['name'].': '.($check['passed'] ? 'PASS' : 'FAIL');
+        }
+        return 'Recorded '.strtoupper($format).' QA; SHA-256 '.$hash.'; '.$bytes.' bytes; '
+            .implode('; ', $summary).'. Readiness not inferred.';
     }
 
     /** Selected-shop evidence uses stored lineage, including focused records and counts. */

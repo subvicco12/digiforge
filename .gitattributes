@@ -27,3 +27,5 @@
 
 # Preserve the pilot attachment's exact member hashes, including CSV CRLF bytes.
 /docs/engineering/visual-certification-pilot-v1/** -text whitespace=cr-at-eol
+
+phpunit.wordpress.catalog.xml.dist export-ignore
