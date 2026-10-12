@@ -58,6 +58,27 @@ final class PrintifyCatalogClient
         return $this->get($token, $base . '/' . $method . '.json');
     }
 
+    /** Single bounded request for an already-authorized explicit catalog scope. */
+    public function scopedRead(string $token, array $request): array|WP_Error
+    {
+        $path = PrintifyCatalogReadContract::endpoint($request);
+        if ($token === '') return new WP_Error('catalog_read_credentials', 'Configured credential is required.', ['status'=>409]);
+        $args = ['method'=>'GET', 'timeout'=>10, 'redirection'=>0, 'limit_response_size'=>1048577,
+            'reject_unsafe_urls'=>true, 'sslverify'=>true, 'headers'=>[
+                'Authorization'=>'Bearer '.$token, 'Accept'=>'application/json', 'User-Agent'=>'DigiForge/CatalogRead'
+            ]];
+        try { $response = ($this->transport)('https://api.printify.com'.$path, $args); }
+        catch (\Throwable) { return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]); }
+        if (is_wp_error($response)) return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]);
+        $status = (int) wp_remote_retrieve_response_code($response);
+        if ($status !== 200) return new WP_Error('catalog_read_http', 'Catalog GET did not return HTTP 200; no automatic retry.', ['status'=>502]);
+        $body = (string) wp_remote_retrieve_body($response);
+        if (strlen($body)>1048576 || str_contains($body,$token)) return new WP_Error('catalog_read_response', 'Catalog response exceeded bounds or contained protected material.', ['status'=>502]);
+        try { $data=json_decode($body,true,32,JSON_THROW_ON_ERROR); if(!is_array($data)||PrintifyCatalogReadContract::containsProtectedMaterial($data,$token))throw new \InvalidArgumentException(); $selected=PrintifyCatalogReadContract::select($data,$request); }
+        catch (\Throwable) { return new WP_Error('catalog_read_response', 'Catalog response was invalid or the requested variant was unavailable.', ['status'=>502]); }
+        return ['endpoint_path'=>$path, 'observed_at'=>gmdate('c'), 'response_sha256'=>hash('sha256',$body), 'response_body'=>$body, 'data'=>$selected];
+    }
+
     private function id(int $id): int
     {
         if ($id < 1) throw new \InvalidArgumentException('Printify catalog identifiers must be positive integers.');
