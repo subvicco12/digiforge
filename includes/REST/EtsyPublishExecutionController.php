@@ -47,6 +47,7 @@ final class EtsyPublishExecutionController
         if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Approved listing evidence could not be read.',503);
         if(!is_array($listing)||($listing['state']??'')!=='APPROVED'||(int)($listing['approved_by']??0)<1)return self::error('listing','Explicitly approved listing is required.',409);
         $hash=strtolower(trim((string)($package['readiness_hash']??'')));if(!preg_match('/^[a-f0-9]{64}$/',$hash))return self::error('evidence','Approved readiness hash is required.',409);
+        $draftQa=(new \DigiForge\Listings\DraftQaReviewRepository())->verify($intentId,$packageId,(string)$shopId);if($draftQa instanceof WP_Error)return $draftQa;
         $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
         $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);if($identity instanceof WP_Error)return $identity;
         $ops=new EtsyOperationRepository();$parent=$ops->confirmedCreateForScope($intentId,$packageId,(string)$shopId);if($parent instanceof WP_Error)return $parent;if(!is_array($parent))return self::error('parent','Confirmed CREATE_DRAFT evidence is required.',409);

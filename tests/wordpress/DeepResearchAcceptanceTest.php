@@ -65,19 +65,28 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
 
     public function testProtectedDeepResearchCannotReserveOrCallAProvider(): void
     {
+        global $wpdb;$before=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::shop_ai_usage()." WHERE stage='shortlist'");
         $selected=$this->selected();$calls=0;
         $filter=static function()use(&$calls){$calls++;return new WP_Error('offline_forbidden','No provider execution.');};
         add_filter('pre_http_request',$filter);
         try{$result=(new DigiForge\Launch\ExecutionEngine())->research(['shop'=>'digital','phase'=>'deep_research','selected_candidate_id'=>(int)$selected['candidate']['id']],'locked-deep-'.wp_generate_uuid4());}
         finally{remove_filter('pre_http_request',$filter);}
         self::assertWPError($result);self::assertSame(0,$calls);
-        global $wpdb;self::assertSame('0',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::shop_ai_usage()." WHERE stage='shortlist'"));
+        global $wpdb;self::assertSame($before,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::shop_ai_usage()." WHERE stage='shortlist'"));
         self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
         self::assertTrue(DigiForge\Core\Settings::safety_locked());
     }
     public function testDeepAnalysisUsesIndependentShortlistQuotaAndPersistsProviderEvidence(): void
     {
+        $isolated=[];$scope=null;try {
         $selected=$this->selected();
+        // Custom plugin tables survive WordPress core test installation. Keep
+        // this positive monetary fixture independent of unreconciled old runs.
+        global $wpdb;$tables=DigiForge\Database\Tables::class;
+        $nextId=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0)+1000 FROM '.$tables::shop_ai_usage());
+        foreach([$tables::shop_ai_usage(),$tables::shop_ai_policies()]as $base){$isolated[$base]=$base.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$isolated[$base].' LIKE '.$base));}
+        self::assertNotFalse($wpdb->query('ALTER TABLE '.$isolated[$tables::shop_ai_usage()].' AUTO_INCREMENT = '.$nextId));
+        $scope=static fn(string $sql):string=>str_replace(array_keys($isolated),array_values($isolated),$sql);add_filter('query',$scope,1);
         DigiForge\Core\Settings::set('research',true);
         DigiForge\Core\Settings::set('ai',true);
         self::assertTrue(DigiForge\Core\Settings::activateResearch());
@@ -85,7 +94,7 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
         $governance=new DigiForge\AI\ShopAiGovernanceRepository();
         self::assertNotWPError($governance->savePolicy(['shop_key'=>'digital','currency'=>'USD','stages'=>['research'=>['limit'=>500],'shortlist'=>['limit'=>500]]]));
         $existing=$governance->evaluate('digital');self::assertNotWPError($existing);$deepBefore=(int)$existing['stages']['shortlist']['used'];
-        self::assertNotWPError($governance->savePolicy(['shop_key'=>'digital','currency'=>'USD','stages'=>['research'=>['limit'=>(int)$existing['stages']['research']['used']+1],'shortlist'=>['limit'=>$deepBefore+1]]]));
+        self::assertNotWPError($governance->savePolicy(['shop_key'=>'digital','currency'=>'USD','stages'=>['research'=>['limit'=>(int)$existing['stages']['research']['used']+1],'shortlist'=>['limit'=>$deepBefore+1,'monthly_budget'=>'1']]]));
         self::assertNotWPError($governance->reserveGeneration('digital','research','used-trend-'.wp_generate_uuid4()));
         global $wpdb;$tables=DigiForge\Database\Tables::class;$now=current_time('mysql',true);
         $wpdb->update($tables::integrations(),['enabled'=>0],['provider'=>'ai']);
@@ -95,7 +104,9 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
         $payload=['title'=>'Deep analyzed concept '.wp_generate_uuid4(),'summary'=>'Synthetic selected-candidate analysis, not commercial certification.','signals'=>['demand'=>80,'competition_gap'=>60,'margin'=>50,'trend'=>40,'evidence_quality'=>70],
             'analysis'=>['demand_evidence'=>'Synthetic demand evidence','competition_saturation'=>'Synthetic competition evidence','provider_feasibility'=>'Supplier route remains unverified','confidence_uncertainty'=>'Synthetic fixture only'],
             'observations'=>[['title'=>'Synthetic follow-up','body'=>'Offline evidence only','evidence'=>'No authentic provider claim','source_url'=>'https://example.invalid/deep-fixture']]];
-        $body=['id'=>'resp_'.str_replace('-','',wp_generate_uuid4()),'status'=>'completed','model'=>'fixture-model','output_text'=>wp_json_encode($payload),'usage'=>['input_tokens'=>20,'output_tokens'=>10,'total_tokens'=>30]];
+        $engine=new DigiForge\Launch\ExecutionEngine();$brief=$engine->deepResearchBrief((int)$selected['candidate']['id'],'digital');self::assertIsString($brief);$contract=DigiForge\Launch\OpenAIClient::generationContract($brief,4000,false,true);
+        $quote=['provider'=>'openai','quote_id'=>'deep-reviewed-'.wp_generate_uuid4(),'model'=>$contract['model'],'request_sha256'=>$contract['request_sha256'],'currency'=>'USD','maximum_charge'=>'0.1','inclusive_all_charges'=>true,'valid_from'=>gmdate('Y-m-d\TH:i:s\Z',time()-60),'valid_until'=>gmdate('Y-m-d\TH:i:s\Z',time()+600)];self::assertNotWPError((new DigiForge\AI\MonetaryReservationRepository())->reviewQuote('digital',(string)wp_json_encode($quote),'CONFIRM_PROVIDER_QUOTE'));
+        $body=['id'=>'resp_'.str_replace('-','',wp_generate_uuid4()),'status'=>'completed','model'=>$contract['model'],'output_text'=>wp_json_encode($payload),'usage'=>['input_tokens'=>20,'output_tokens'=>10,'total_tokens'=>30]];
         $calls=0;$captured='';
         $filter=static function($pre,array $args)use(&$calls,&$captured,$body){$calls++;$captured=(string)$args['body'];return ['headers'=>[],'response'=>['code'=>200],'body'=>wp_json_encode($body),'cookies'=>[]];};
         add_filter('pre_http_request',$filter,10,2);
@@ -109,7 +120,7 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
             self::assertSame(30,$result['ai']['usage']['total_tokens']);
             $usageId=(int)$wpdb->get_var('SELECT id FROM '.$tables::shop_ai_usage()." WHERE shop_key='digital' AND stage='shortlist' ORDER BY id DESC LIMIT 1");
             $receipt=(new DigiForge\AI\ProviderEvidenceRepository())->snapshot($usageId,'digital');
-            self::assertSame('fixture-model',$receipt['metering']['model']);
+            self::assertSame($contract['model'],$receipt['metering']['model']);
             self::assertSame('research',$receipt['metering']['workflow']);
             self::assertSame('shortlist',$receipt['metering']['task']);
             self::assertSame(30,$receipt['metering']['usage']['total_tokens']);
@@ -119,6 +130,7 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
             self::assertWPError($engine->research($input,'deep-denied-'.wp_generate_uuid4()));
             self::assertSame(1,$calls,'Independent deep-analysis cap must deny a second actual provider attempt.');
         }finally{remove_filter('pre_http_request',$filter,10);DigiForge\Core\Settings::protectProduction();}
+        }finally{DigiForge\Core\Settings::protectProduction();if($scope!==null)remove_filter('query',$scope,1);foreach($isolated as $table)$wpdb->query('DROP TEMPORARY TABLE IF EXISTS '.$table);}
     }
 
 }

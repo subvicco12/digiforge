@@ -48,6 +48,7 @@ final class GovernedGeneration
     {
         if(!Settings::is_enabled('ai')||!Settings::is_enabled($research?'research':'product_development'))return new WP_Error('ai_generation_safety_locked','Scoped AI authorization and released STOP ALL are required before generation.');
         $projection=$this->governance->evaluate(sanitize_key($shop),'production',$runContext);if($projection instanceof WP_Error)return $projection;
+        if(!ShopAiPlan::requiresMonetaryEvidence($projection,sanitize_key($stage)))return new WP_Error('ai_generation_budget_missing','A configured reviewed monetary ceiling and exact provider quote are required before billable generation.');
         $stagePolicy=(array)($projection['stages'][sanitize_key($stage)]??[]);
         if(!array_key_exists('task_binding',$stagePolicy))return ['state'=>'BLOCKED_BINDING_REQUIRED','adaptive_routing_performed'=>false];
         if(!is_array($stagePolicy['task_binding']))return new WP_Error('ai_task_binding_invalid','Configured task binding is invalid.');

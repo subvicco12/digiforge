@@ -28,9 +28,14 @@ final class OpenAIClient
 
     public function research(string $brief, ?string $model = null): array|\WP_Error { return $this->request($brief, true, 4000, $model); }
 
-    /** Exactly one minimal provider request; no web search, persistence, retry, or downstream workflow. */
+    /** Legacy inference probe is disabled until a reviewed monetary scope contract exists. */
     public function controlledConnectivityTest(): array|\WP_Error
     {
+        // This legacy API has no approved shop/stage attribution or reviewed
+        // monetary request contract. Keep its historical one-request envelope
+        // unreachable until an owner-approved scoped probe contract exists.
+        return new \WP_Error('digiforge_controlled_ai_monetary_scope_required',__('Controlled inference is blocked: approved shop and run/stage attribution, a monetary ceiling and an exact reviewed provider quote are required. Connection read diagnostics remain separate.','digiforge'),['status'=>409,'provider_execution_performed'=>false,'retry_permitted'=>false]);
+
         $connector=$this->connector(); if(is_wp_error($connector)){Logger::audit('controlled_ai_test_failed',['reason'=>'connector_unavailable'],'system','controlled_ai_test');return $connector;}
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey)){Logger::audit('controlled_ai_test_failed',['reason'=>'credential_unavailable'],'system','controlled_ai_test');return $apiKey;}
         $body=['model'=>self::DEFAULT_MODEL,'input'=>'Return exactly this JSON object: {"digiforge_controlled_test":"PASS"}','max_output_tokens'=>100,'text'=>['format'=>['type'=>'json_object']]];

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . "/PortalActionAcceptanceFixture.php";
 final class RenderArtifactCertificationTest extends WP_UnitTestCase {
  protected function setUp():void {
   parent::setUp();DigiForge\Core\Activator::activate();global $wpdb;$t=DigiForge\Database\Tables::class;
@@ -228,10 +229,7 @@ final class RenderArtifactCertificationTest extends WP_UnitTestCase {
   self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
  }
  private function portalAction(string $constant,array $body):void {
-  $portal=new DigiForge\Portal\Portal();$portal->register();$action=(new ReflectionClass($portal))->getConstant($constant);$post=$_POST;$request=$_REQUEST;$redirect='';$calls=0;
-  $capture=static function(string $url)use(&$redirect):never{$redirect=$url;throw new RuntimeException('local-portal-return');};$http=static function($pre)use(&$calls){$calls++;return new WP_Error('offline_portal','External requests forbidden.');};add_filter('wp_redirect',$capture);add_filter('pre_http_request',$http);
-  try{$_POST=$_REQUEST=$body+['_wpnonce'=>wp_create_nonce($action)];try{do_action('admin_post_'.$action);self::fail('Registered portal action must return.');}catch(RuntimeException $e){self::assertSame('local-portal-return',$e->getMessage());}}finally{remove_filter('wp_redirect',$capture);remove_filter('pre_http_request',$http);$_POST=$post;$_REQUEST=$request;}
-  parse_str((string)parse_url($redirect,PHP_URL_QUERY),$query);self::assertSame('0',(string)($query['df_error']??''),$query['df_message']??'Portal error');self::assertSame(0,$calls);
+  PortalActionAcceptanceFixture::invoke($constant,$body);
  }
  public static function visualFormats():array{return [['svg'],['png'],['pdf']];}
  /** @dataProvider visualFormats */
