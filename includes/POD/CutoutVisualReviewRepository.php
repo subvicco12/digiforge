@@ -13,6 +13,7 @@ final class CutoutVisualReviewRepository
  public const VERSION='independent-cutout-review-v1';
  public static function lockName(string $shop,int $order):string {return 'df-vreview-'.substr(hash('sha256',$shop.'|'.$order),0,48);}
  public function intake(array $input):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');
   try{
    self::exact($input,['shop_key','case_key','cutout_key','source_sha256','subject_type','reference_base64','reference_sha256','reference_kind','rights','supersedes']);self::token($input['case_key']);self::token($input['cutout_key']);self::hash($input['source_sha256']);self::hash($input['reference_sha256']);
    if(!in_array($input['subject_type'],['dog','cat','human','multi_subject'],true)||!in_array($input['reference_kind'],['OWNER_SUPPLIED','SYNTHETIC_TEST_ONLY'],true)||!is_array($input['rights'])||($input['supersedes']!==null&&!is_string($input['supersedes'])))throw new \InvalidArgumentException('Typed evidence required.');
@@ -36,6 +37,7 @@ final class CutoutVisualReviewRepository
   }catch(\Throwable){return self::error('invalid_evidence');}
  }
  public function assign(string $shop,string $key,string $expected,int $reviewer):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');
   $case=$this->read($shop,$key);if($case instanceof WP_Error)return $case;
   return $this->locked($shop,$case['order_id'],function()use($shop,$key,$expected,$reviewer):array|WP_Error{
    $case=$this->read($shop,$key);if($case instanceof WP_Error)return $case;if($case['sha256']!==$expected||$case['created_by']!==get_current_user_id()||in_array($reviewer,[$case['created_by'],$case['ingested_by']],true)||$reviewer<1||!user_can($reviewer,'manage_digiforge_pod'))return self::error('independent_reviewer_required');
@@ -43,6 +45,7 @@ final class CutoutVisualReviewRepository
   });
  }
  public function decide(string $shop,string $key,string $assignmentHash,string $outcome,array $flags,array $annotations):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');
   $case=$this->read($shop,$key);if($case instanceof WP_Error)return $case;
   return $this->locked($shop,$case['order_id'],function()use($shop,$key,$assignmentHash,$outcome,$flags,$annotations):array|WP_Error{
    $case=$this->read($shop,$key);if($case instanceof WP_Error)return $case;$assignment=$this->assignment($case);if($assignment instanceof WP_Error)return $assignment;
@@ -56,6 +59,10 @@ final class CutoutVisualReviewRepository
   });
  }
  public function read(string $shop,string $key):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');
+  return $this->readVerified($shop,$key);
+ }
+ private function readVerified(string $shop,string $key):array|WP_Error {
   try{self::token($key);$case=$this->load($this->key($shop,$key));if($case instanceof WP_Error)return $case;if($case===null||!self::sealed($case)||($case['version']??null)!==self::VERSION||($case['shop_key']??null)!==$shop||($case['case_key']??null)!==$key)return self::error('case_required');
    $cutout=(new CustomerCutoutRepository())->read($shop,$case['cutout_key']);if($cutout instanceof WP_Error)return $cutout;$source=$cutout['segmentation']['original_source']??$cutout['source'];if($case['cutout_sha256']!==$cutout['sha256']||$case['order_id']!==$cutout['order_id']||Validator::canonicalJson($source)!==Validator::canonicalJson($case['source'])||$case['ingested_by']!==$this->ingestionActor($cutout))return self::error('stale_source');
    foreach(['source','reference']as $field){$verified=(new RenderArtifactStore())->verify($case[$field]);if($verified instanceof WP_Error)return $verified;if(!str_contains($verified['storage_reference'],'/shop-'.$shop.'/'))return self::error('shop_conflict');}
@@ -71,7 +78,7 @@ final class CutoutVisualReviewRepository
    $images=['original'=>$this->bytes($case['source']),'mask'=>$this->bytes($cutout['mask']),'reference'=>$this->bytes($case['reference']),'final_cutout'=>$this->bytes($cutout['result'])]+CutoutVisualQa::previews($this->bytes($cutout['result']));$assignmentRaw=$this->load('df_vr_assignment_'.$case['sha256']);if($assignmentRaw instanceof WP_Error)return $assignmentRaw;$assignment=$assignmentRaw===null?null:$this->assignment($case);if($assignment instanceof WP_Error)return $assignment;$decisionRaw=$this->load('df_vr_decision_'.$case['sha256']);if($decisionRaw instanceof WP_Error)return $decisionRaw;$decision=$decisionRaw===null?null:$this->decision($case);if($decision instanceof WP_Error)return $decision;return ['case'=>$case,'qa'=>$case['qa'],'assignment'=>$assignment instanceof WP_Error?null:$assignment,'decision'=>$decision instanceof WP_Error?null:$decision,'previews_base64'=>array_map('base64_encode',$images),'product_preview'=>$productPreview,'product_preview_state'=>$productPreview===null?'REQUIRES_APPROVED_CANONICAL_RENDER':'VERIFIED_CANONICAL_LOCAL_PREVIEW','commercial_certified'=>false,'supplier_certified'=>false];}catch(\Throwable){return self::error('preview_unavailable');}
  }
  public function assertApproved(array $cutout):array|WP_Error {
-  $head=$this->load($this->headKey($cutout['shop_key'],$cutout['ingestion_key']));if($head instanceof WP_Error)return $head;if($head===null)return self::error('independent_review_required');$case=$this->read($cutout['shop_key'],$head['case_key']);if($case instanceof WP_Error)return $case;if($case['sha256']!==$head['sha256']||$case['cutout_sha256']!==$cutout['sha256'])return self::error('stale_case');$decision=$this->decision($case);if($decision instanceof WP_Error)return $decision;
+  $head=$this->load($this->headKey($cutout['shop_key'],$cutout['ingestion_key']));if($head instanceof WP_Error)return $head;if($head===null)return self::error('independent_review_required');$case=$this->readVerified($cutout['shop_key'],$head['case_key']);if($case instanceof WP_Error)return $case;if($case['sha256']!==$head['sha256']||$case['cutout_sha256']!==$cutout['sha256'])return self::error('stale_case');$decision=$this->decision($case);if($decision instanceof WP_Error)return $decision;
   return $decision['outcome']==='APPROVE'&&$decision['qa_sha256']===$case['qa']['sha256']&&!in_array(true,$decision['flags'],true)&&$decision['annotations']===[]&&$case['qa']['reference']['critical_defects']===[]?$decision:self::error('independent_approval_required');
  }
  private function assignment(array $case):array|WP_Error {

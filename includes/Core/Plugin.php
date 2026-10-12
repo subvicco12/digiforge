@@ -72,6 +72,7 @@ final class Plugin {
         (new PodController())->register();
         (new \DigiForge\POD\DeterministicRenderWorkflow())->register();
         (new \DigiForge\POD\PersonalizedDesignWorkflow())->register();
+        (new \DigiForge\POD\CustomerEditorWorkflow())->register();
         (new ListingController())->register();
         (new OrderController())->register();
         (new FinanceController())->register();

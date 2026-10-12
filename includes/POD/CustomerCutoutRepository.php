@@ -17,7 +17,7 @@ final class CustomerCutoutRepository
 
     public function segment(string $shop,string $key,int $orderId,string $sourcePath,array $rights,string $style,array $options,array $selection):array|WP_Error
     {
-        $scope=$this->scope($shop,$orderId);if($scope instanceof WP_Error)return $scope;
+        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');$scope=$this->scope($shop,$orderId);if($scope instanceof WP_Error)return $scope;
         if(!preg_match('/^[A-Za-z0-9_-]{1,80}$/D',$key)||!in_array($style,CutoutStyleAdapter::STYLES,true)||!in_array($rights['segmentation_method']??null,[OfflineCutoutPipeline::METHOD,ExperimentalMattingPipeline::METHOD],true))return self::error('segmentation_inputs_required');
         $checked=$this->rights($rights);if($checked instanceof WP_Error)return $checked;
         if(str_contains($sourcePath,'://')||str_contains($sourcePath,"\0")||is_link($sourcePath)||!is_file($sourcePath))return self::error('local_source_required');
@@ -30,7 +30,7 @@ final class CustomerCutoutRepository
 
     private function ingestInternal(string $shop,string $key,int $orderId,string $sourcePath,?string $maskPath,array $rights,string $style,array $options,?array $segmentation):array|WP_Error
     {
-        $scope=$this->scope($shop,$orderId);if($scope instanceof WP_Error)return $scope;
+        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');$scope=$this->scope($shop,$orderId);if($scope instanceof WP_Error)return $scope;
         if(!preg_match('/^[A-Za-z0-9_-]{1,80}$/D',$key))return self::error('key_invalid');
         $photo=$style==='SOURCE_PHOTO';if(($photo&&($maskPath!==null||$options!==[]||($rights['segmentation_method']??null)!=='original_bytes'))||(!$photo&&($maskPath===null||($rights['segmentation_method']??null)!==($segmentation===null?'manual_reviewed_alpha':(($segmentation['experimental']??false)?ExperimentalMattingPipeline::METHOD:OfflineCutoutPipeline::METHOD)))))return self::error('source_mode_conflict');
         $checked=$this->rights($rights);if($checked instanceof WP_Error)return $checked;
@@ -53,7 +53,7 @@ final class CustomerCutoutRepository
 
     public function approve(string $shop,string $key,array $review):array|WP_Error
     {
-        $record=$this->read($shop,$key);if($record instanceof WP_Error)return $record;
+        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');$record=$this->read($shop,$key);if($record instanceof WP_Error)return $record;
         $flags=$this->reviewFlags($record);if(($record['segmentation']['selection_boundary_contact']??false)===true)return self::error('selection_clipped','Selected region clips the segmented subject; revise selection or use reviewed alpha fallback.');
         if(count($review)!==count($flags)||array_diff(array_keys($review),$flags))return self::error('review_required');foreach($review as $flag)if($flag!==false)return self::error('manual_review_failed');
         $qa=$this->qa($record);if($qa instanceof WP_Error)return $qa;
@@ -89,7 +89,7 @@ final class CustomerCutoutRepository
 
     public function read(string $shop,string $key):array|WP_Error
     {
-        if($shop!=='personalized_pod'||!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');
+        if($shop!=='personalized_pod'||get_current_user_id()<1)return self::error('reviewer_required');
         $record=$this->option($this->key($shop,$key));if($record instanceof WP_Error)return $record;if(!is_array($record))return self::error('not_found');
         if(!is_string($record['sha256']??null)||!preg_match('/^[a-f0-9]{64}$/D',$record['sha256'])||($record['version']??null)!==CutoutStyleAdapter::VERSION||($record['ingestion_key']??null)!==$key||!is_int($record['order_id']??null)||!is_array($record['rights']??null)||!is_array($record['options']??null)||!is_array($record['source']??null)||!is_array($record['result']??null)||!in_array($record['style']??null,array_merge(CutoutStyleAdapter::STYLES,['SOURCE_PHOTO']),true)||($record['style']!=='SOURCE_PHOTO'&&!is_array($record['mask']??null))||($record['state']??null)!=='REVIEW_REQUIRED'||($record['commercial_certified']??null)!==false||($record['supplier_certified']??null)!==false||($record['external_execution_authorized']??null)!==false)return self::error('store_corrupt');
         $scope=$this->scope($shop,(int)($record['order_id']??0));if($scope instanceof WP_Error)return $scope;
@@ -124,7 +124,7 @@ final class CustomerCutoutRepository
     }
     private function scope(string $shop,int $orderId):true|WP_Error
     {
-        if($orderId<1||$shop!=='personalized_pod'||!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');global $wpdb;$predicate=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');$wpdb->last_error='';$order=$wpdb->get_row($wpdb->prepare('SELECT id FROM '.Tables::orders().' o WHERE id=%d AND '.$predicate,$orderId),ARRAY_A);return $wpdb->last_error===''&&is_array($order)?true:self::error('order_scope_required');
+        if($orderId<1||$shop!=='personalized_pod'||get_current_user_id()<1||(!current_user_can('manage_digiforge_pod')&&!CustomerEditorRepository::canReadOrder($shop,$orderId)))return self::error('reviewer_required');global $wpdb;$predicate=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');$wpdb->last_error='';$order=$wpdb->get_row($wpdb->prepare('SELECT id FROM '.Tables::orders().' o WHERE id=%d AND '.$predicate,$orderId),ARRAY_A);return $wpdb->last_error===''&&is_array($order)?true:self::error('order_scope_required');
     }
     private function rights(array $rights):true|WP_Error
     {
