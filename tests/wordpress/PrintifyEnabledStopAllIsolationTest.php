@@ -72,7 +72,7 @@ final class PrintifyEnabledStopAllIsolationTest extends WP_UnitTestCase {
                 self::assertWPError($denied);
                 self::assertSame('digiforge_printify_interlock_locked', $denied->get_error_code());
             }
-            $preflight = (new DigiForge\\Launch\\PrintifyActivationPreflight())->report();
+            $preflight = (new DigiForge\Launch\PrintifyActivationPreflight())->report();
             self::assertSame('BLOCKED', $preflight['status']);
             self::assertFalse($preflight['checks']['stop_all_released']);
             self::assertFalse($preflight['checks']['activation_authorized']);
