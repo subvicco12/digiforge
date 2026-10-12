@@ -19,7 +19,7 @@ class PartialRequirementLinksTest(unittest.TestCase):
         self.assertEqual(163,sum(r['source_role']=='SOURCE_CONTEXT_OR_PLANNING' for r in links))
         self.assertEqual(86,sum('; ' in r['derived_requirement_ids'] for r in links))
     def test_bidirectional_distinct_links_and_real_behavioral_references(self):
-        spec=importlib.util.spec_from_file_location('closure',ROOT/'bin/build-nonfinance-closure-matrix.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        spec=importlib.util.spec_from_file_location('final_matrix',ROOT/'bin/check-final-acceptance-matrix.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         requirements=rows('distinct-nonfinance-acceptance.tsv');byid={r['derived_requirement_id']:r for r in requirements}
         self.assertEqual(len(requirements),len(byid))
         links=rows('partial-record-requirement-links.tsv');bylocator={r['source_locator']:r for r in links}
@@ -31,7 +31,9 @@ class PartialRequirementLinksTest(unittest.TestCase):
             for identity in filter(None,row['derived_requirement_ids'].split('; ')):
                 self.assertIn(identity,byid);self.assertIn(row['source_locator'],byid[identity]['source_locators'].split('; '))
         for identity,row in byid.items():
-            module.validate_references(row['implementation']);module.validate_references(row['behavioral_evidence'])
+            for column in ('implementation','behavioral_evidence'):
+                for ref in filter(None,row[column].split('; ')):
+                    self.assertTrue(module.reference_exists(ROOT,ref),ref)
             if row['local_classification']=='VERIFIED_LOCAL_SOFTWARE':
                 self.assertTrue('::test' in row['behavioral_evidence'] or row['behavioral_evidence'].startswith('tests/browser/portal-layout.cjs:'))
             for locator in row['source_locators'].split('; '):
@@ -42,9 +44,13 @@ class PartialRequirementLinksTest(unittest.TestCase):
                 # the original bidirectional invariant within its actual scope.
                 if identity in partial_ids and locator in bylocator:
                     self.assertIn(identity,bylocator[locator]['derived_requirement_ids'].split('; '))
-        self.assertEqual({'NF-digital-qa-coverage','NF-backup-restore-certification','NF-release-installed-artifact'},set(byid)-partial_ids)
-        self.assertEqual('UNVERIFIED',byid['NF-digital-qa-coverage']['candidate_status'])
-        self.assertEqual(42,sum(r['local_classification']=='VERIFIED_LOCAL_SOFTWARE' for r in requirements))
+        self.assertEqual({'NF-digital-qa-coverage','NF-backup-restore-certification','NF-release-installed-artifact',
+                          'NF-release-package-identity','NF-schema-migration-preservation',
+                          'NF-recovery-receipt-integrity','NF-global-readiness-behavior',
+                          'NF-personalization-engine-coverage'},set(byid)-partial_ids)
+        self.assertEqual('IMPLEMENTED',byid['NF-digital-qa-coverage']['candidate_status'])
+        self.assertIn('EXTERNAL',byid['NF-digital-qa-coverage']['remaining_statuses'])
+        self.assertEqual(48,sum(r['local_classification']=='VERIFIED_LOCAL_SOFTWARE' for r in requirements))
         self.assertTrue(all(r['unresolved_classification'] for r in requirements if r['local_classification']!='VERIFIED_LOCAL_SOFTWARE'))
     def test_category_arithmetic_retains_the_six_previously_omitted_records(self):
         original=rows('nonfinance-closure-matrix.tsv');self.assertEqual(1771,len(original))

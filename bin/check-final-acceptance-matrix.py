@@ -49,7 +49,7 @@ def reference_exists(root, ref, revision=None):
     # is the main comparison; candidate references must also have valid lines.
     if not revision and not 1 <= int(number) <= len(data.splitlines()):
         return False
-    return not method or bool(re.search(r'function\s+' + re.escape(method) + r'\s*\(', data))
+    return not method or bool(re.search(r'(?:function|def)\s+' + re.escape(method) + r'\s*\(', data))
 
 
 def validate(rows, anchors, root=ROOT):
@@ -83,7 +83,7 @@ def report(rows, anchors, links, source_records, root=ROOT, main=MAIN):
     coverage = {locator for row in rows for locator in row['source_locators'].split('; ')}
     main_available = revision_available(root, main)
     main_paths = sum(all(reference_exists(root, ref, main) for ref in row['implementation'].split('; ')) for row in local) if main_available else None
-    main_proofs = sum(all(reference_exists(root, ref, main) for ref in row['behavioral_evidence'].split('; ')) for row in local) if main_available else None
+    main_proofs = sum(bool(row['behavioral_evidence']) and all(reference_exists(root, ref, main) for ref in row['behavioral_evidence'].split('; ')) for row in local) if main_available else None
     return {
         'matrix_rows': len(rows), 'source_inventory_records': source_records,
         'blueprint_anchors': len(anchors), 'matrix_referenced_blueprint_anchors': len(coverage),

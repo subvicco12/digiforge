@@ -123,8 +123,8 @@ final class RecoveryDrillEvidence
 
     private static function fresh(string $value): bool
     {
-        $time = strtotime($value);
-        if ($time === false || $time > time() + 300) return false;
+        $time = RecoveryEvidence::absoluteTimestamp($value);
+        if ($time === null || $time > time() + 300) return false;
         return (time() - $time) <= self::MAX_AGE_SECONDS;
     }
 

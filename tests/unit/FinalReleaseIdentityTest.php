@@ -103,4 +103,41 @@ final class FinalReleaseIdentityTest extends TestCase
             $GLOBALS['digiforge_test_options']['digiforge_recovery_plugin_package_evidence'][$field] = $original;
         }
     }
+
+    public function testRelativeAndAmbiguousBackupEvidenceCannotRemainFresh(): void
+    {
+        foreach (['now', 'today', gmdate('Y-m-d H:i:s'), '2026-02-30T12:00:00+00:00'] as $timestamp) {
+            $GLOBALS['digiforge_test_options']['digiforge_recovery_database_backup_evidence']['verified_at'] = $timestamp;
+            self::assertFalse(RecoveryEvidence::snapshot()['database_backup_retrievable'], $timestamp);
+            self::assertFalse(RecoveryEvidence::storeDatabaseBackup([
+                'identifier' => 'invalid-backup', 'captured_at' => $timestamp, 'location' => 'backup.sql',
+                'verified_at' => $timestamp, 'verified_by' => 'reviewer', 'verification_method' => 'checksum',
+                'retrievable' => true,
+            ]), $timestamp);
+        }
+    }
+
+    public function testDrillFreshnessRequiresAbsoluteTimezoneAwareTimestamp(): void
+    {
+        foreach (['now', gmdate('Y-m-d H:i:s'), '2026-02-30T12:00:00+00:00'] as $timestamp) {
+            $record = $this->drill();
+            $record['performed_at'] = $timestamp;
+            self::assertFalse(RecoveryDrillEvidence::store($record), $timestamp);
+        }
+        foreach ([gmdate('c'), gmdate('Y-m-d\TH:i:s\Z'), (new DateTimeImmutable())->setTimezone(new DateTimeZone('+05:30'))->format('c')] as $timestamp) {
+            $record = $this->drill();
+            $record['performed_at'] = $timestamp;
+            self::assertTrue(RecoveryDrillEvidence::store($record), $timestamp);
+            self::assertTrue(RecoveryDrillEvidence::snapshot()['passed']);
+            $GLOBALS['digiforge_test_options']['digiforge_recovery_drill_evidence']['performed_at'] = 'now';
+            self::assertFalse(RecoveryDrillEvidence::snapshot()['passed']);
+        }
+    }
+
+    public function testInvalidTimezoneOffsetsCannotBecomeAbsoluteEvidence(): void
+    {
+        foreach (['+24:00', '-24:00', '+99:00', '+00:60'] as $offset) {
+            self::assertNull(RecoveryEvidence::absoluteTimestamp('2026-10-12T12:00:00'.$offset));
+        }
+    }
 }

@@ -62,13 +62,32 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
             self.assertTrue(matrix.reference_exists(root, candidate_ref))
             self.assertFalse(matrix.reference_exists(root, candidate_ref, baseline))
 
-    def test_distinct_unverified_qa_obligation_is_not_silently_counted_complete(self):
+    def test_bounded_qa_implementation_does_not_certify_original_spec_or_semantic_truth(self):
         row = next(row for row in self.rows if row['derived_requirement_id'] == 'NF-digital-qa-coverage')
-        self.assertEqual('UNVERIFIED', row['candidate_status'])
+        self.assertEqual('IMPLEMENTED', row['candidate_status'])
+        self.assertIn('EXTERNAL', row['remaining_statuses'])
+        self.assertIn('testEverySupportedLocalFormatPersistsActualQaProofWithoutSemanticAuthority', row['behavioral_evidence'])
+        self.assertIn('testSemanticApprovalGateRequiresEveryNamedCheckRatherThanSevenArbitraryRows', row['behavioral_evidence'])
         report = matrix.report(self.rows, self.anchors, [], 1771)
-        self.assertLess(report['bounded_candidate_implemented'], report['bounded_local_denominator'])
+        self.assertIsNone(report['mandatory_original_spec_completion_percent'])
+        self.assertEqual('INCOMPLETE', report['full_product_acceptance'])
         linked = {locator for row in self.rows for locator in row['source_locators'].split('; ')}
         self.assertTrue({f'word/document.xml/p{number}' for number in range(226, 242)} <= linked)
+
+    def test_unknown_obligation_without_proof_does_not_break_or_inflate_main_reference_report(self):
+        rows = copy.deepcopy(self.rows)
+        rows[0]['candidate_status'] = 'UNVERIFIED'
+        rows[0]['behavioral_evidence'] = ''
+        report = matrix.report(rows, self.anchors, [], 1771)
+        self.assertLess(report['bounded_candidate_implemented'], report['bounded_local_denominator'])
+        if report['main_git_evidence_status'] == 'AVAILABLE':
+            self.assertLess(report['main_local_behavioral_references_present'], report['bounded_local_denominator'])
+
+    def test_python_behavioral_identity_is_validated_and_invented_method_rejected(self):
+        self.assertTrue(matrix.reference_exists(ROOT,
+            'tests/offline/test_final_release_identity.py:13::test_dirty_version_pins_cannot_mislabel_committed_archive'))
+        self.assertFalse(matrix.reference_exists(ROOT,
+            'tests/offline/test_final_release_identity.py:13::testInventedReleasePass'))
 
     def test_missing_pinned_main_object_is_unavailable_not_absent_implementation(self):
         unavailable = '0000000000000000000000000000000000000000'
