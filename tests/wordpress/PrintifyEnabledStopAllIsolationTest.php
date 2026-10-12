@@ -59,6 +59,7 @@ final class PrintifyEnabledStopAllIsolationTest extends WP_UnitTestCase {
             $tester = new DigiForge\Integrations\ConnectionTester();
             $test = $tester->test($id);
             self::assertWPError($test);
+            self::assertSame('printify_scoped_authorization_required', $test->get_error_code());
 
             foreach (['PROVIDER_ORDER_SUBMIT', 'PROVIDER_PRODUCTION_AUTHORIZE'] as $action) {
                 $permit = [
@@ -71,6 +72,13 @@ final class PrintifyEnabledStopAllIsolationTest extends WP_UnitTestCase {
                 self::assertWPError($denied);
                 self::assertSame('digiforge_printify_interlock_locked', $denied->get_error_code());
             }
+            $preflight = (new DigiForge\\Launch\\PrintifyActivationPreflight())->report();
+            self::assertSame('BLOCKED', $preflight['status']);
+            self::assertFalse($preflight['checks']['stop_all_released']);
+            self::assertFalse($preflight['checks']['activation_authorized']);
+            self::assertFalse($preflight['checks']['automation_armed']);
+            self::assertFalse($preflight['network_requests_performed']);
+            self::assertFalse($preflight['external_actions_performed']);
             self::assertSame(0, $networkCalls);
         } finally {
             remove_filter('pre_http_request', $blockNetwork, 10);
