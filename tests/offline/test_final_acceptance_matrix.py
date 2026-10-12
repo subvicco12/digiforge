@@ -2,6 +2,8 @@
 import copy
 import importlib.util
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,9 +42,25 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
             matrix.validate(rows, self.anchors)
 
     def test_main_does_not_inherit_unmerged_candidate_evidence(self):
-        ref = self.rows[0]['implementation']
-        self.assertTrue(matrix.reference_exists(ROOT, ref))
-        self.assertFalse(matrix.reference_exists(ROOT, ref, matrix.MAIN))
+        # Model the boundary with real Git objects instead of depending on
+        # whether hosted CI fetched the historical pinned-main commit.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True, capture_output=True)
+            evidence = root / 'Evidence.php'
+            evidence.write_text('<?php\nfunction testBaseline() {}\n')
+            subprocess.run(['git', 'add', 'Evidence.php'], cwd=root, check=True, capture_output=True)
+            subprocess.run(['git', '-c', 'user.name=Acceptance Fixture',
+                            '-c', 'user.email=fixture@example.invalid',
+                            '-c', 'core.hooksPath=/dev/null', 'commit', '--no-gpg-sign',
+                            '-qm', 'Baseline evidence'], cwd=root, check=True, capture_output=True)
+            baseline = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+            evidence.write_text('<?php\nfunction testBaseline() {}\nfunction testCandidateOnly() {}\n')
+            baseline_ref = 'Evidence.php:2::testBaseline'
+            candidate_ref = 'Evidence.php:3::testCandidateOnly'
+            self.assertTrue(matrix.reference_exists(root, baseline_ref, baseline))
+            self.assertTrue(matrix.reference_exists(root, candidate_ref))
+            self.assertFalse(matrix.reference_exists(root, candidate_ref, baseline))
 
     def test_distinct_unverified_qa_obligation_is_not_silently_counted_complete(self):
         row = next(row for row in self.rows if row['derived_requirement_id'] == 'NF-digital-qa-coverage')
