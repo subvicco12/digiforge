@@ -16,7 +16,7 @@ use WP_Error;
  */
 final class ListingFactory
 {
-    public function prepare(int $productVersionId, string $idempotencyKey): array|WP_Error
+    public function prepare(int $productVersionId, string $idempotencyKey, ?array $runContext = null): array|WP_Error
     {
         if ($productVersionId < 1) {
             return $this->error('listing_factory_product_version', 'Valid product version is required.');
@@ -77,6 +77,9 @@ final class ListingFactory
         if($shop!=='digital')return $this->error('listing_factory_capability','This factory only prepares digital delivery; physical-shop products require their reviewed POD listing workflow.',409);
         $wpdb->last_error='';$environments=$wpdb->get_col($wpdb->prepare('SELECT DISTINCT s.environment FROM '.Tables::research_candidate_evidence().' ce INNER JOIN '.Tables::research_evidence().' e ON e.id=ce.evidence_id INNER JOIN '.Tables::research_observations().' o ON o.id=e.observation_id INNER JOIN '.Tables::research_sources().' s ON s.id=o.source_id WHERE ce.candidate_id=%d',(int)$owners[0]['id']));
         if($wpdb->last_error!==''||!is_array($environments)||count($environments)!==1||!in_array($environments[0],['sandbox','production'],true))return $this->error('listing_factory_environment','Exact unambiguous research environment evidence is required.',409);
+
+        $quota=(new ListingPreparationQuotaRepository())->reserve($shop,(string)$environments[0],$version,$bundle,$idempotencyKey,$runContext);
+        if(is_wp_error($quota))return $quota;
 
         $repo = new Repository();
         $listing = $repo->createListing([
@@ -175,6 +178,7 @@ final class ListingFactory
             'media' => $media,
             'readiness' => $readiness,
             'listing_readiness_review' => $gate3Review,
+            'local_quantity_reservation' => $quota,
             'workflow_status' => 'LISTING_REVIEW_REQUIRED',
             'listing_approval_required' => true,
             'draft_package_created' => false,

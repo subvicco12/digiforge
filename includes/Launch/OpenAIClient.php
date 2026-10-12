@@ -15,18 +15,18 @@ final class OpenAIClient
     private const DEFAULT_MODEL = 'gpt-5.6-luna';
 
     /** Fingerprint the exact text-only request; does not expose prompt or contact the provider. */
-    public static function generationContract(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false):array
+    public static function generationContract(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false,?string $model=null):array
     {
-        return ['provider'=>'openai','model'=>self::DEFAULT_MODEL,'request_sha256'=>hash('sha256',(string)wp_json_encode(self::generationBody($brief,$maxOutputTokens,$background,$webSearch))),'output_token_limit'=>max(1000,min(16000,$maxOutputTokens)),'web_search_call_limit'=>$webSearch?1:0];
+        return ['provider'=>'openai','model'=>$model??self::DEFAULT_MODEL,'request_sha256'=>hash('sha256',(string)wp_json_encode(self::generationBody($brief,$maxOutputTokens,$background,$webSearch,$model))),'output_token_limit'=>max(1000,min(16000,$maxOutputTokens)),'web_search_call_limit'=>$webSearch?1:0];
     }
-    private static function generationBody(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false):array
+    private static function generationBody(string $brief,int $maxOutputTokens,bool $background=false,bool $webSearch=false,?string $model=null):array
     {
-        $body=['model'=>self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']]];
+        $body=['model'=>$model??self::DEFAULT_MODEL,'input'=>$brief,'max_output_tokens'=>max(1000,min(16000,$maxOutputTokens)),'text'=>['format'=>['type'=>'json_object']]];
         if($webSearch){$body['tools']=[['type'=>'web_search']];$body['max_tool_calls']=1;}
         if($background)$body+=['background'=>true,'store'=>true];return $body;
     }
 
-    public function research(string $brief): array|\WP_Error { return $this->request($brief, true, 4000); }
+    public function research(string $brief, ?string $model = null): array|\WP_Error { return $this->request($brief, true, 4000, $model); }
 
     /** Exactly one minimal provider request; no web search, persistence, retry, or downstream workflow. */
     public function controlledConnectivityTest(): array|\WP_Error
@@ -42,21 +42,21 @@ final class OpenAIClient
         Logger::audit($passed?'controlled_ai_test_passed':'controlled_ai_test_failed',['response_id'=>$responseId,'http_status'=>$status,'downstream_actions_performed'=>false,'automatic_retry_performed'=>false],'system','controlled_ai_test');
         return $passed?['status'=>'PASS','response_id'=>$responseId,'model'=>sanitize_text_field((string)($decoded['model']??self::DEFAULT_MODEL)),'downstream_actions_performed'=>false,'automatic_retry_performed'=>false]:new \WP_Error('digiforge_controlled_ai_contract',__('AI provider responded but did not satisfy the controlled-test contract. No retry was attempted.','digiforge'),['status'=>502]);
     }
-    public function develop(string $brief): array|\WP_Error
+    public function develop(string $brief, ?string $model = null): array|\WP_Error
     {
         // Product Factory manifests contain complete customer + marketing assets and
         // therefore need the full structured-output allowance. Keep ordinary product
         // development prompts at the smaller budget.
         $productionManifest = str_contains($brief, 'production-ready DigiForge asset manifest');
-        return $this->request($brief, false, $productionManifest ? 16000 : 8000);
+        return $this->request($brief, false, $productionManifest ? 16000 : 8000, $model);
     }
 
     /** Start a long structured generation without holding a PHP worker open. */
-    public function startBackgroundDevelop(string $brief, int $maxOutputTokens = 16000): array|\WP_Error
+    public function startBackgroundDevelop(string $brief, int $maxOutputTokens = 16000, ?string $model = null): array|\WP_Error
     {
         $connector=$this->connector(); if(is_wp_error($connector))return $connector;
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
-        $body=self::generationBody($brief,$maxOutputTokens,true);
+        $body=self::generationBody($brief,$maxOutputTokens,true,false,$model);
         $response=wp_remote_post(self::RESPONSES_URL,['timeout'=>30,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'headers'=>['Authorization'=>'Bearer '.$apiKey,'Content-Type'=>'application/json'],'body'=>wp_json_encode($body)]); unset($apiKey);
         if(is_wp_error($response))return new \WP_Error('digiforge_launch_ai_transport',__('AI background request failed.','digiforge'),['status'=>502]);
         $status=(int)wp_remote_retrieve_response_code($response);$decoded=json_decode((string)wp_remote_retrieve_body($response),true);
@@ -93,11 +93,11 @@ final class OpenAIClient
         return is_wp_error($evidence)?$evidence:$completed+['ai_usage_id'=>(int)$evidence['usage_id'],'ai_cost_state'=>$evidence['cost_state']];
     }
 
-    private function request(string $brief, bool $webSearch, int $maxOutputTokens): array|\WP_Error
+    private function request(string $brief, bool $webSearch, int $maxOutputTokens, ?string $model = null): array|\WP_Error
     {
         $connector=$this->connector(); if(is_wp_error($connector))return $connector;
         $apiKey=$this->secret((int)$connector['id'],'api_key'); if(is_wp_error($apiKey))return $apiKey;
-        $body=self::generationBody($brief,$maxOutputTokens,false,$webSearch);
+        $body=self::generationBody($brief,$maxOutputTokens,false,$webSearch,$model);
         $response=wp_remote_post(self::RESPONSES_URL,[
             'timeout' => 90,
             'redirection' => 0,

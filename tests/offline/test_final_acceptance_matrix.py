@@ -18,6 +18,9 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
         cls.rows = matrix.read_rows(matrix.SOURCE / 'distinct-nonfinance-acceptance.tsv')
         cls.anchors = {row['Derived locator (not original requirement ID)']
                        for row in matrix.read_rows(matrix.SOURCE / 'blueprint-acceptance.tsv')}
+        cls.originals = matrix.read_rows(matrix.SOURCE / 'nonfinance-closure-matrix.tsv')
+        cls.anchors |= {r['source_locator'] for r in cls.originals}
+        cls.trace = matrix.read_rows(matrix.SOURCE / 'full-source-requirement-trace.tsv')
 
     def test_source_record_count_cannot_become_requirement_denominator(self):
         report = matrix.report(self.rows, self.anchors, [], 1771)
@@ -26,6 +29,77 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
         self.assertEqual('UNVERIFIED', report['mandatory_original_spec_status'])
         self.assertEqual('INCOMPLETE', report['full_product_acceptance'])
         self.assertLess(report['matrix_referenced_blueprint_anchors'], len(self.anchors))
+
+    def test_complete_source_census_has_finite_atomic_nonfinance_denominator(self):
+        report = matrix.report(self.rows, self.anchors, [], 1771,
+                               trace=self.trace, originals=self.originals)
+        mandatory = [r for r in self.rows if r['census_role'] == 'ATOMIC' and r['kind'] == 'SOFTWARE_MANDATORY']
+        self.assertEqual(1771, report['source_census_records'])
+        self.assertEqual(len(mandatory), report['mandatory_original_spec_denominator'])
+        self.assertLess(report['mandatory_original_spec_denominator'], 1771)
+        self.assertEqual(round(100 * sum(r['candidate_status'] == 'IMPLEMENTED' for r in mandatory) / len(mandatory), 2),
+                         report['mandatory_original_spec_completion_percent'])
+        self.assertEqual(53, sum(r['legacy_preserved'] == 'yes' for r in self.rows))
+
+    def test_omitted_multiple_or_changed_source_classification_rejected(self):
+        for trace, expected in [(self.trace[:-1], 'Omitted'), (self.trace + [self.trace[0]], 'Multiple')]:
+            with self.assertRaisesRegex(ValueError, expected):
+                matrix.validate_census(self.rows, trace, self.originals)
+        trace = copy.deepcopy(self.trace)
+        trace[0]['source_sha256'] = ''
+        with self.assertRaisesRegex(ValueError, 'SHA mismatch'):
+            matrix.validate_census(self.rows, trace, self.originals)
+        trace[0]['source_sha256'] = self.trace[0]['source_sha256']
+        trace[0]['original_text_or_row_json'] += ' fabricated'
+        with self.assertRaisesRegex(ValueError, 'SHA mismatch'):
+            matrix.validate_census(self.rows, trace, self.originals)
+
+    def test_mandatory_source_requires_bidirectional_known_requirement_link(self):
+        trace = copy.deepcopy(self.trace)
+        item = next(r for r in trace if r['classification'] == 'MANDATORY')
+        item['requirement_ids'] = ''
+        with self.assertRaisesRegex(ValueError, 'without requirement links'):
+            matrix.validate_census(self.rows, trace, self.originals)
+        item['requirement_ids'] = 'invented-requirement'
+        with self.assertRaisesRegex(ValueError, 'Unknown requirement link'):
+            matrix.validate_census(self.rows, trace, self.originals)
+
+    def test_file_only_structural_reference_cannot_be_behavioral_verified(self):
+        rows = copy.deepcopy(self.rows)
+        row = next(r for r in rows if r['candidate_status'] == 'IMPLEMENTED')
+        row['behavioral_evidence'] = row['behavioral_evidence'].split('; ')[0].split('::')[0]
+        with self.assertRaisesRegex(ValueError, 'unnamed behavioral'):
+            matrix.validate(rows, self.anchors)
+
+    def test_external_finance_future_and_aggregate_rows_cannot_inflate_software_percentage(self):
+        report = matrix.report(self.rows, self.anchors, [], 1771, trace=self.trace, originals=self.originals)
+        rows = copy.deepcopy(self.rows)
+        for row in rows:
+            if row['census_role'] != 'ATOMIC' or row['kind'] != 'SOFTWARE_MANDATORY':
+                row['candidate_status'] = 'UNVERIFIED'
+        changed = matrix.report(rows, self.anchors, [], 1771, trace=self.trace, originals=self.originals)
+        self.assertEqual(report['mandatory_original_spec_denominator'], changed['mandatory_original_spec_denominator'])
+        self.assertEqual(report['mandatory_original_spec_completion_percent'], changed['mandatory_original_spec_completion_percent'])
+
+    def test_verified_atomic_status_cannot_hide_structural_evidence_kind(self):
+        rows = copy.deepcopy(self.rows)
+        row = next(r for r in rows if r['census_role'] == 'ATOMIC' and r['candidate_status'] == 'IMPLEMENTED')
+        row['evidence_kind'] = 'STRUCTURAL_OR_MISSING'
+        with self.assertRaisesRegex(ValueError, 'evidence kind'):
+            matrix.validate(rows, self.anchors)
+
+    def test_semantic_duplicate_cannot_point_to_itself_aggregate_or_different_kind(self):
+        for target in ['SELF', 'AGGREGATE', 'DIFFERENT_KIND']:
+            rows = copy.deepcopy(self.rows)
+            row = next(r for r in rows if r['census_role'] == 'SEMANTIC_DUPLICATE')
+            if target == 'SELF':
+                row['canonical_requirement_id'] = row['derived_requirement_id']
+            elif target == 'AGGREGATE':
+                row['canonical_requirement_id'] = next(r['derived_requirement_id'] for r in rows if r['census_role'] == 'AGGREGATE')
+            else:
+                row['canonical_requirement_id'] = next(r['derived_requirement_id'] for r in rows if r['census_role'] == 'ATOMIC' and r['kind'] != row['kind'])
+            with self.assertRaisesRegex(ValueError, '(duplicate|Duplicate)'):
+                matrix.validate_census(rows, self.trace, self.originals)
 
     def test_unknown_source_locator_and_duplicate_identity_rejected(self):
         rows = copy.deepcopy(self.rows)

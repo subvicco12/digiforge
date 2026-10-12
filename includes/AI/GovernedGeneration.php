@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace DigiForge\AI;
 
 use DigiForge\Launch\OpenAIClient;
+use DigiForge\Core\Settings;
 use WP_Error;
 
 /**
@@ -24,19 +25,33 @@ final class GovernedGeneration
     /** @return array<string,mixed>|WP_Error */
     public function develop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null, ?array $costContext = null): array|WP_Error
     {
-        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->develop($prompt), OpenAIClient::generationContract($prompt,str_contains($prompt,'production-ready DigiForge asset manifest')?16000:8000)+($costContext??[]));
+        $route=$this->authorizeRoute($shop,$stage,$runContext,false);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->develop($prompt,$route['provider_model']??null), OpenAIClient::generationContract($prompt,str_contains($prompt,'production-ready DigiForge asset manifest')?16000:8000,false,false,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
     }
 
     /** @return array<string,mixed>|WP_Error */
-    public function research(string $shop, string $prompt, string $attemptKey, ?array $runContext = null, ?array $costContext = null): array|WP_Error
+    public function research(string $shop, string $prompt, string $attemptKey, ?array $runContext = null, ?array $costContext = null, string $stage = 'research'): array|WP_Error
     {
-        return $this->execute($shop, 'research', $attemptKey, $runContext, fn(): array|WP_Error => $this->client->research($prompt), OpenAIClient::generationContract($prompt,4000,false,true)+($costContext??[]));
+        if (! in_array($stage, ['research', 'shortlist'], true)) return new WP_Error('ai_generation_context_invalid', 'Research requires a trend or selected deep-analysis stage.');
+        $route=$this->authorizeRoute($shop,$stage,$runContext,true);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->research($prompt,$route['provider_model']??null), OpenAIClient::generationContract($prompt,4000,false,true,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
     }
 
     /** @return array<string,mixed>|WP_Error */
     public function startBackgroundDevelop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null, int $maxOutputTokens = 8000, ?array $costContext = null): array|WP_Error
     {
-        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->startBackgroundDevelop($prompt, $maxOutputTokens), OpenAIClient::generationContract($prompt,$maxOutputTokens,true)+($costContext??[]));
+        $route=$this->authorizeRoute($shop,$stage,$runContext,false);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->startBackgroundDevelop($prompt, $maxOutputTokens,$route['provider_model']??null), OpenAIClient::generationContract($prompt,$maxOutputTokens,true,false,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
+    }
+
+    private function authorizeRoute(string $shop,string $stage,?array $runContext,bool $research):array|WP_Error
+    {
+        if(!Settings::is_enabled('ai')||!Settings::is_enabled($research?'research':'product_development'))return new WP_Error('ai_generation_safety_locked','Scoped AI authorization and released STOP ALL are required before generation.');
+        $projection=$this->governance->evaluate(sanitize_key($shop),'production',$runContext);if($projection instanceof WP_Error)return $projection;
+        $stagePolicy=(array)($projection['stages'][sanitize_key($stage)]??[]);
+        if(!array_key_exists('task_binding',$stagePolicy))return ['state'=>'BLOCKED_BINDING_REQUIRED','adaptive_routing_performed'=>false];
+        if(!is_array($stagePolicy['task_binding']))return new WP_Error('ai_task_binding_invalid','Configured task binding is invalid.');
+        return StageTaskBinding::load($stagePolicy['task_binding']);
     }
 
     /** @param callable():array|WP_Error $provider @return array<string,mixed>|WP_Error */
@@ -53,7 +68,7 @@ final class GovernedGeneration
         if ($projection instanceof WP_Error) return $projection;
         $unitCost = max(0.0, (float)($projection['stages'][$stage]['estimated_unit_cost'] ?? 0));
         $budgets = (array)($projection['budgets'] ?? []);
-        $monetary=max(array_map('floatval',$budgets?:[0]))>0;
+        $monetary=ShopAiPlan::requiresMonetaryEvidence($projection,$stage);
         $contract=null;
         if($monetary){
             if($requestContract===null)return new WP_Error('ai_generation_cost_accounting_unavailable','An exact request and reviewed provider ceiling are required.');
@@ -90,6 +105,6 @@ final class GovernedGeneration
             $evidence->add_data(array_replace((array)$evidence->get_error_data(), ['provider_execution_performed'=>true, 'retry_permitted'=>false]));
             return $evidence;
         }
-        return $response + ['ai_usage_id'=>(int)$usage['id'], 'ai_cost_state'=>$evidence['cost_state']];
+        return $response + ['routing_decision'=>$requestContract['routing_decision']??['state'=>'BLOCKED_BINDING_REQUIRED','adaptive_routing_performed'=>false], 'ai_usage_id'=>(int)$usage['id'], 'ai_cost_state'=>$evidence['cost_state']];
     }
 }

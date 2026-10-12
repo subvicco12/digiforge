@@ -26,7 +26,8 @@ class PartialRequirementLinksTest(unittest.TestCase):
         partial_ids={identity for row in links for identity in row['derived_requirement_ids'].split('; ') if identity}
         self.assertEqual(45,len(partial_ids))
         self.assertTrue(partial_ids<=set(byid))
-        blueprint_locators={r['Derived locator (not original requirement ID)'] for r in rows('blueprint-acceptance.tsv')}
+        source_locators={r['source_locator'] for r in rows('nonfinance-closure-matrix.tsv')}
+        full_trace={r['source_locator']:r for r in rows('full-source-requirement-trace.tsv')}
         for row in links:
             for identity in filter(None,row['derived_requirement_ids'].split('; ')):
                 self.assertIn(identity,byid);self.assertIn(row['source_locator'],byid[identity]['source_locators'].split('; '))
@@ -37,21 +38,19 @@ class PartialRequirementLinksTest(unittest.TestCase):
             if row['local_classification']=='VERIFIED_LOCAL_SOFTWARE':
                 self.assertTrue('::test' in row['behavioral_evidence'] or row['behavioral_evidence'].startswith('tests/browser/portal-layout.cjs:'))
             for locator in row['source_locators'].split('; '):
-                self.assertIn(locator,blueprint_locators)
-                # The original 424-row ledger describes partial source anchors;
-                # added section-25/32 and distinct QA obligations also reference
-                # context/verified/deferred anchors outside that ledger. Retain
-                # the original bidirectional invariant within its actual scope.
-                if identity in partial_ids and locator in bylocator:
-                    self.assertIn(identity,bylocator[locator]['derived_requirement_ids'].split('; '))
+                self.assertIn(locator,source_locators)
+                # The historical partial ledger retains its original45 selected
+                # IDs. Full census associations belong to the supplemental trace.
+                if row['census_role'] != 'LEGACY_BOUNDARY':
+                    self.assertIn(identity,full_trace[locator]['requirement_ids'].split('; '))
         self.assertEqual({'NF-digital-qa-coverage','NF-backup-restore-certification','NF-release-installed-artifact',
                           'NF-release-package-identity','NF-schema-migration-preservation',
                           'NF-recovery-receipt-integrity','NF-global-readiness-behavior',
-                          'NF-personalization-engine-coverage'},set(byid)-partial_ids)
+                          'NF-personalization-engine-coverage'},{i for i,r in byid.items() if r['legacy_preserved']=='yes'}-partial_ids)
         self.assertEqual('IMPLEMENTED',byid['NF-digital-qa-coverage']['candidate_status'])
         self.assertIn('EXTERNAL',byid['NF-digital-qa-coverage']['remaining_statuses'])
-        self.assertEqual(48,sum(r['local_classification']=='VERIFIED_LOCAL_SOFTWARE' for r in requirements))
-        self.assertTrue(all(r['unresolved_classification'] for r in requirements if r['local_classification']!='VERIFIED_LOCAL_SOFTWARE'))
+        self.assertEqual(48,sum(r['local_classification']=='VERIFIED_LOCAL_SOFTWARE' for r in requirements if r['legacy_preserved']=='yes'))
+        self.assertTrue(all(r['unresolved_classification'] for r in requirements if r['legacy_preserved']=='yes' and r['local_classification']!='VERIFIED_LOCAL_SOFTWARE'))
     def test_category_arithmetic_retains_the_six_previously_omitted_records(self):
         original=rows('nonfinance-closure-matrix.tsv');self.assertEqual(1771,len(original))
         verified=sum(r['status']=='VERIFIED_LOCAL_BOUNDARY' for r in original)

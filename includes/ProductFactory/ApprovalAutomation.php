@@ -236,6 +236,10 @@ final class ApprovalAutomation
 
     public function run(int $candidateId, string $shop, string $runKey = ''): void
     {
+        if (! Settings::is_enabled('ai') || ! Settings::is_enabled('product_development')) {
+            Logger::audit('u3_product_build_blocked', ['reason'=>'dispatcher_not_effective','external_actions'=>false], 'research_candidate', (string)$candidateId);
+            return;
+        }
         $shop = sanitize_key($shop);
         if (! in_array($shop, ['digital', 'goods'], true)) {
             Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
@@ -263,7 +267,7 @@ final class ApprovalAutomation
         $stateKey=$this->stateKey($runKey);
         $state=get_option($stateKey,[]);$state=is_array($state)?$state:[];
         $createdAt=(int)($state['created_at']??time());
-        if((time()-$createdAt)>self::MAX_RECOVERY_SECONDS){
+        if($this->recoveryWindowExpired($createdAt,time())){
             $this->terminalError($candidateId,$shop,$runKey,new WP_Error('digiforge_u3_runtime_expired','Product Factory run exceeded the safe recovery window.'),$stateKey,$state);return;
         }
         $state['created_at']=$createdAt;$state['stage']=$stage;$state['updated_at']=time();update_option($stateKey,$state,false);
@@ -363,6 +367,11 @@ final class ApprovalAutomation
 
         delete_option($stateKey);$this->clearActive($candidateId,$shop,$runKey);
         Logger::audit('u3_product_build_completed',['shop'=>$shop,'run_key'=>$runKey,'product_version_id'=>(int)($result['product_version']['id']??0),'workflow_status'=>(string)($result['workflow_status']??''),'product_approval_required'=>(bool)($result['product_approval_required']??false),'external_actions'=>false],'research_candidate',(string)$candidateId);
+    }
+
+    private function recoveryWindowExpired(int $createdAt,int $now):bool
+    {
+        return ($now-$createdAt)>self::MAX_RECOVERY_SECONDS;
     }
 
     /** @return array{run_id:string,started_at:string} */

@@ -83,9 +83,10 @@ final class MonetaryReservationRepository
         foreach(['maximum_billable_input_tokens','output_token_limit','web_search_call_limit']as $field)if(isset($quote[$field]))$identity[$field]=$quote[$field];
         $key='hold_'.hash('sha256',$shop.'|'.$attemptKey);$old=$this->read($key);if($old instanceof WP_Error)return $old;
         if($old!==null){$previous=$old;unset($previous['occurred_at']);return $previous===$identity?$old+['idempotent_replay'=>true]:self::error('reservation_conflict','Reservation replay cannot change request, quote or attribution.');}
-        $exposure=$this->exposure($shop,$projection['currency'],$runId);if($exposure instanceof WP_Error)return $exposure;
+        $parentBudget=false;foreach((array)($projection['budgets']??[])as $limit)if((float)$limit>0)$parentBudget=true;$exposure=$parentBudget?$this->exposure($shop,$projection['currency'],$runId):['run'=>0,'day'=>0,'month'=>0];if($exposure instanceof WP_Error)return $exposure;
         $amount=self::micros($quote['maximum_charge']);
         foreach(['run','day','month']as $period){$limit=$projection['budgets'][$period]??0;$decimal=is_string($limit)?$limit:sprintf('%.6F',(float)$limit);$budget=self::micros($decimal);if($budget instanceof WP_Error)return $budget;if($budget>0&&($exposure[$period]+$amount>$budget))return self::error('budget_ceiling','Outstanding authoritative holds and recorded charges exceed the '.$period.' budget.');}
+        if(($projection['stages'][$stage]['monthly_budget']??null)!==null){$workflowBudget=self::micros($projection['stages'][$stage]['monthly_budget']);if($workflowBudget instanceof WP_Error)return $workflowBudget;$workflowExposure=$this->exposure($shop,$projection['currency'],$runId,$stage);if($workflowExposure instanceof WP_Error)return $workflowExposure;if($workflowExposure['month']+$amount>$workflowBudget)return self::error('workflow_budget_ceiling','Outstanding authoritative holds and recorded charges exceed this workflow monthly budget.');}
         return $this->put($key,$identity+['occurred_at'=>current_time('mysql',true)]);
     }
     public function link(array $usage,array $hold):array|WP_Error
@@ -95,9 +96,9 @@ final class MonetaryReservationRepository
     public function reservation(int $usageId):array|WP_Error|null{$value=$this->read('usage_'.$usageId);return $value instanceof WP_Error||$value===null?$value:$value['reservation'];}
 
     /** Unknown old outcomes are not zero; pending holds carry across UTC period rollover. */
-    public function exposure(string $shop,string $currency,string $runId=''):array|WP_Error
+    public function exposure(string $shop,string $currency,string $runId='',?string $stage=null):array|WP_Error
     {
-        global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s',$shop),ARRAY_A);if($wpdb->last_error!==''||!is_array($rows))return self::error('unavailable','AI cost projections unavailable.',503);
+        global $wpdb;$wpdb->last_error='';$sql=$stage===null?$wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s',$shop):$wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND stage=%s',$shop,$stage);$rows=$wpdb->get_results($sql,ARRAY_A);if($wpdb->last_error!==''||!is_array($rows))return self::error('unavailable','AI cost projections unavailable.',503);
         $costs=['run'=>0,'day'=>0,'month'=>0];$linked=[];
         foreach($rows as $usage){$cost=self::micros((string)$usage['actual_cost']);if($cost instanceof WP_Error)return $cost;
             if($usage['currency']!==$currency&&($cost>0||str_starts_with((string)$usage['idempotency_key'],'generation-')))return self::error('currency_conflict','Currency changes require explicit reconciliation; conversion is forbidden.');
@@ -110,7 +111,7 @@ final class MonetaryReservationRepository
             $settled=$state['cost_state']==='REVIEWED_PROVIDER_CHARGE';$this->add($costs,$settled?$cost:$ceiling,$usage,$runId,!$settled);
         }
         $wpdb->last_error='';$raw=$wpdb->get_col($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s',$wpdb->esc_like('digiforge_ai_money_hold_').'%'));if($wpdb->last_error!==''||!is_array($raw))return self::error('unavailable','Reservation holds unavailable.',503);
-        foreach($raw as $json){$hold=json_decode((string)$json,true);if(!is_array($hold))return self::error('corrupt','Reservation hold is corrupt.',503);if($hold['shop_key']!==$shop||isset($linked[$hold['attempt_key']]))continue;if($hold['currency']!==$currency)return self::error('currency_conflict','Pending hold currency requires reconciliation.');$amount=self::micros($hold['maximum_charge']);if($amount instanceof WP_Error)return $amount;$this->add($costs,$amount,$hold,$runId,true);}
+        foreach($raw as $json){$hold=json_decode((string)$json,true);if(!is_array($hold))return self::error('corrupt','Reservation hold is corrupt.',503);if($hold['shop_key']!==$shop||isset($linked[$hold['attempt_key']]))continue;if($stage!==null){if(!is_string($hold['stage']??null))return self::error('corrupt','Reservation hold lacks its workflow identity.',503);if($hold['stage']!==$stage)continue;}if($hold['currency']!==$currency)return self::error('currency_conflict','Pending hold currency requires reconciliation.');$amount=self::micros($hold['maximum_charge']);if($amount instanceof WP_Error)return $amount;$this->add($costs,$amount,$hold,$runId,true);}
         return $costs;
     }
     private function add(array &$costs,int $amount,array $row,string $runId,bool $pending):void

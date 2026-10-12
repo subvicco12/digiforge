@@ -3,7 +3,7 @@ declare(strict_types=1);
 /** Blueprint p232/p234/p236: local evidence failures and exact order identity, no external execution. */
 final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
  protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
- public static function operatorActions():array {return array_map(static fn(string $m):array=>[$m],['review','develop','saveAiSecret','saveAiPolicy','listingReview','podPackageReview','podRenderReview','master500Acceptance','recoveryPlan','recoveryAccept','personalizationReview','ownershipReview']);}
+ public static function operatorActions():array {return array_map(static fn(string $m):array=>[$m],['review','develop','saveAiSecret','saveAiPolicy','listingReview','podPackageReview','podRenderReview','master500Acceptance','recoveryPlan','recoveryAccept','personalizationReview','ownershipReview','saveNotificationPreferences','requestReplacementReview','decideReplacementReview']);}
  /** @dataProvider operatorActions */
  public function testOperatorHandlersRejectUnauthorizedOrInvalidNonceBeforeWrites(string $method):void {
   global $wpdb;$mutations=[];$query=static function(string $sql)use(&$mutations):string{if(preg_match('/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i',$sql)&&str_contains($sql,'digiforge_'))$mutations[]=$sql;return $sql;};

@@ -10,11 +10,14 @@ final class OperationalExceptionReadModel {
   global $wpdb;
   $limit=max(1,min(100,$limit));
   $scope=$shop===null?'':' AND EXISTS (SELECT 1 FROM '.Tables::orders().' o WHERE o.id='.Tables::fulfillment_intents().'.order_id AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').')';
+  // Explicit supersession closes local failed/blocked work, never an unknown
+  // provider outcome. Preserve every historical row and unmatched ancestry.
+  $current=" AND (state NOT IN ('BLOCKED','FAILED') OR NOT EXISTS (SELECT 1 FROM ".Tables::fulfillment_plans()." p WHERE p.id=".Tables::fulfillment_intents().".fulfillment_plan_id AND p.order_id=".Tables::fulfillment_intents().".order_id AND BINARY p.environment=BINARY ".Tables::fulfillment_intents().".environment AND p.state='SUPERSEDED'))";
   $wpdb->last_error='';
-  $fulfillment=$wpdb->get_results($wpdb->prepare("SELECT id,order_id,fulfillment_plan_id,intent_type,state,updated_at FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope." ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
+  $fulfillment=$wpdb->get_results($wpdb->prepare("SELECT id,order_id,fulfillment_plan_id,intent_type,state,updated_at FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope.$current." ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
   $fulfillmentRowsAvailable=is_array($fulfillment)&&empty($wpdb->last_error);
   $wpdb->last_error='';
-  $fulfillmentTotal=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope);
+  $fulfillmentTotal=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::fulfillment_intents()." WHERE state IN ('BLOCKED','FAILED','HUMAN_REVIEW','UNKNOWN')".$scope.$current);
   $fulfillmentCountAvailable=$fulfillmentTotal!==null&&empty($wpdb->last_error);
   $wpdb->last_error='';
   $ledger=$wpdb->get_results($wpdb->prepare("SELECT id,source_type,source_id,entry_type,currency,amount,reconciliation_state,updated_at FROM ".Tables::finance_ledger()." WHERE reconciliation_state<>'RECONCILED' ORDER BY id DESC LIMIT %d",$limit),ARRAY_A);
