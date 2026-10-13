@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/TemporaryUsageIdentity.php';
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/DeepResearchAcceptanceTest.php';
 use DigiForge\Core\Settings;
@@ -41,7 +42,7 @@ final class PortalResearchRunAcceptanceTest extends WP_UnitTestCase
     private function releasedPolicy(string $shop='digital'):void
     {
         // Existing DeepResearchAcceptanceTest isolation and explicit local activation contract.
-        global $wpdb;$isolated=[];$next=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0)+1000 FROM '.Tables::shop_ai_usage());foreach([Tables::shop_ai_usage(),Tables::shop_ai_policies()]as $table){$isolated[$table]=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$isolated[$table].' LIKE '.$table));}self::assertNotFalse($wpdb->query('ALTER TABLE '.$isolated[Tables::shop_ai_usage()].' AUTO_INCREMENT = '.$next));$this->scope=static fn(string $sql):string=>str_replace(array_keys($isolated),array_values($isolated),$sql);add_filter('query',$this->scope,1);Settings::set('research',true);Settings::set('ai',true);self::assertTrue(Settings::activateResearch());self::assertTrue(Settings::activateAi());self::assertNotFalse($wpdb->query('START TRANSACTION'));self::assertNotWPError((new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','stages'=>['research'=>['limit'=>2,'monthly_budget'=>'1'],'shortlist'=>['limit'=>2,'monthly_budget'=>'1']]]));
+        global $wpdb;$isolated=[];$next=TemporaryUsageIdentity::next($this);foreach([Tables::shop_ai_usage(),Tables::shop_ai_policies()]as $table){$isolated[$table]=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$isolated[$table].' LIKE '.$table));}self::assertNotFalse($wpdb->query('ALTER TABLE '.$isolated[Tables::shop_ai_usage()].' AUTO_INCREMENT = '.$next));$this->scope=static fn(string $sql):string=>str_replace(array_keys($isolated),array_values($isolated),$sql);add_filter('query',$this->scope,1);Settings::set('research',true);Settings::set('ai',true);self::assertTrue(Settings::activateResearch());self::assertTrue(Settings::activateAi());self::assertNotFalse($wpdb->query('START TRANSACTION'));self::assertNotWPError((new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','stages'=>['research'=>['limit'=>2,'monthly_budget'=>'1'],'shortlist'=>['limit'=>2,'monthly_budget'=>'1']]]));
     }
     private function form(string $html,string $action):array
     {

@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/TemporaryUsageIdentity.php';
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/CommercialCostKpiTest.php';
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 final class OperatorOverviewAcceptanceTest extends WP_UnitTestCase {
  private ?Closure $isolatedScope=null;private array $isolatedTables=[];
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);global $wpdb;$next=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0)+1000 FROM '.Tables::shop_ai_usage());foreach([Tables::shop_ai_usage(),Tables::shop_ai_policies()]as $table){$temporary=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporary.' LIKE '.$table));$this->isolatedTables[$table]=$temporary;}self::assertNotFalse($wpdb->query('ALTER TABLE '.$this->isolatedTables[Tables::shop_ai_usage()].' AUTO_INCREMENT = '.$next));$tables=$this->isolatedTables;$this->isolatedScope=static fn(string $sql):string=>str_replace(array_keys($tables),array_values($tables),$sql);add_filter('query',$this->isolatedScope,1);}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);global $wpdb;$next=TemporaryUsageIdentity::next($this);foreach([Tables::shop_ai_usage(),Tables::shop_ai_policies()]as $table){$temporary=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporary.' LIKE '.$table));$this->isolatedTables[$table]=$temporary;}self::assertNotFalse($wpdb->query('ALTER TABLE '.$this->isolatedTables[Tables::shop_ai_usage()].' AUTO_INCREMENT = '.$next));$tables=$this->isolatedTables;$this->isolatedScope=static fn(string $sql):string=>str_replace(array_keys($tables),array_values($tables),$sql);add_filter('query',$this->isolatedScope,1);}
  protected function tearDown():void {if($this->isolatedScope!==null)remove_filter('query',$this->isolatedScope,1);global $wpdb;foreach($this->isolatedTables as $table)$wpdb->query('DROP TEMPORARY TABLE IF EXISTS '.$table);parent::tearDown();}
  private function render(string $view,array $extra=[]):string {$before=$_GET;try{$_GET=['df_view'=>$view,'df_shop'=>'digital']+$extra;return (new DigiForge\Portal\Portal())->render();}finally{$_GET=$before;}}
  private function alert(string $state):array {
@@ -36,6 +37,11 @@ final class OperatorOverviewAcceptanceTest extends WP_UnitTestCase {
  public function testUnavailableScopeOrMissingUsageNeverQueriesOrCertifiesZero():void {
   $emptyScope=static fn(string $sql):string=>str_replace("WHERE shop_key='standard_pod'","WHERE shop_key='standard_pod' AND 1=0",$sql);add_filter('query',$emptyScope);try{$empty=DigiForge\Portal\DashboardCostPanel::snapshot('standard_pod');}finally{remove_filter('query',$emptyScope);}self::assertSame('UNAVAILABLE',$empty['query_state']);self::assertNull($empty['totals']);
   $this->commercialFixture();$reads=0;$filter=static function(string $sql)use(&$reads):string{if(str_contains($sql,'FROM '.Tables::shop_ai_usage()))++$reads;return $sql;};add_filter('query',$filter);try{foreach(['all','unknown']as $shop)self::assertSame('UNAVAILABLE',DigiForge\Portal\DashboardCostPanel::snapshot($shop)['query_state']);self::assertSame(0,$reads);ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge']);self::assertSame('UNAVAILABLE',DigiForge\Portal\DashboardCostPanel::snapshot('digital')['query_state']);self::assertSame(0,$reads);}finally{remove_filter('query',$filter);}
+ }
+
+ public function testRetainedImmutableMeteringCannotBeReusedAfterTemporaryUsageRowsDisappear():void {
+  $fixture=$this->commercialFixture();$id=(int)$fixture['usage']['id'];global $wpdb;$name='digiforge_ai_evidence_completion_'.$id;$before=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name));self::assertIsString($before);
+  remove_filter('query',$this->isolatedScope,1);try{$oldNext=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0)+1000 FROM '.Tables::shop_ai_usage());self::assertLessThanOrEqual($id,$oldNext);self::assertGreaterThan($id,TemporaryUsageIdentity::next($this));self::assertSame($before,$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name)));}finally{add_filter('query',$this->isolatedScope,1);}
  }
 
 }

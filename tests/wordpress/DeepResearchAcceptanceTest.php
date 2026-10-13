@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/TemporaryUsageIdentity.php';
 
 final class DeepResearchAcceptanceTest extends WP_UnitTestCase
 {
@@ -83,7 +84,7 @@ final class DeepResearchAcceptanceTest extends WP_UnitTestCase
         // Custom plugin tables survive WordPress core test installation. Keep
         // this positive monetary fixture independent of unreconciled old runs.
         global $wpdb;$tables=DigiForge\Database\Tables::class;
-        $nextId=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0)+1000 FROM '.$tables::shop_ai_usage());
+        $nextId=TemporaryUsageIdentity::next($this);
         foreach([$tables::shop_ai_usage(),$tables::shop_ai_policies()]as $base){$isolated[$base]=$base.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$isolated[$base].' LIKE '.$base));}
         self::assertNotFalse($wpdb->query('ALTER TABLE '.$isolated[$tables::shop_ai_usage()].' AUTO_INCREMENT = '.$nextId));
         $scope=static fn(string $sql):string=>str_replace(array_keys($isolated),array_values($isolated),$sql);add_filter('query',$scope,1);
