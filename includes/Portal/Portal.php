@@ -514,6 +514,8 @@ final class Portal
     private function auditReconciliationOperations():void
     {
         $selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selected===ShopOperationsReadModel::ALL?null:$selected;
+        HistoricalFailurePanel::render($shop??'all');
+        echo '<p><a class="df-button" href="'.esc_url($this->url('automation')).'">Inspect queue failure history (read only)</a></p>';
         $fulfillmentPlanFocus=isset($_GET['df_fulfillment_plan'])?absint(wp_unslash($_GET['df_fulfillment_plan'])):0;$orderFocus=isset($_GET['df_order'])?absint(wp_unslash($_GET['df_order'])):0;
         $auditIdentityState=null;$auditIdentity=(new AuditCorrelationReadModel())->recent('', '',50,$auditIdentityState);
         if($shop!==null){global $wpdb;$wpdb->last_error='';$auditIdentity=$wpdb->get_results('SELECT id,event_type,actor_id,object_type,object_id,created_at FROM '.Tables::audit_log().' WHERE '.$this->evidenceScopeFilter(Tables::audit_log()).' ORDER BY id DESC LIMIT 50',ARRAY_A);$auditIdentityState=is_array($auditIdentity)&&empty($wpdb->last_error)?'AVAILABLE':'UNAVAILABLE';if($auditIdentityState!=='AVAILABLE')$auditIdentity=[];}
@@ -718,6 +720,7 @@ final class Portal
         $v2Ingestion=(new MasterCatalogV2IngestionReadModel())->snapshot();
         $ops=(new ShopOperationsReadModel())->snapshot('personalized_pod');$catalog=(array)($ops['catalog']??[]);
         $selectedPodShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all');$podScope=$selectedPodShop==='all'?'personalized_pod':$selectedPodShop;
+        ProductionTemplatePanel::render($podScope);
         $phase1=(new PersonalizedPodOperationsReadModel())->snapshot(50,$podScope);$phaseCounts=(array)($phase1['counts']??[]);
         $renders=(new RenderEvidenceOperationsReadModel())->snapshot(50,$podScope);$renderCounts=(array)($renders['counts']??[]);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Buyer-specific artwork & mockup review</h2><p>Certified render evidence binds the approved personalization, provider mapping and production template. Human visual review is required before an authorization package can be created.</p></div><span class="df-status">HUMAN GATE</span></div>';
