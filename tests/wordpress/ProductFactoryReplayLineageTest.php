@@ -13,6 +13,20 @@ final class ProductFactoryReplayLineageTest extends WP_UnitTestCase {
   $opp=$this->repo->create('opportunity',['title'=>'Immutable'],'opp-'.wp_generate_uuid4());$family=$this->repo->create('product_family',['name'=>'Family','opportunity_id'=>$opp['id']],'family-'.wp_generate_uuid4());$product=$this->repo->create('product',['name'=>'Product','product_family_id'=>$family['id']],'product-'.wp_generate_uuid4());$key='version-'.wp_generate_uuid4();$input=['product_id'=>$product['id'],'version_label'=>'v1','notes'=>'Original specification'];
   $saved=$this->repo->create('product_version',$input,$key);self::assertFalse(is_wp_error($saved));$replay=$this->repo->create('product_version',$input,$key);self::assertSame($saved['id'],$replay['id']);self::assertTrue($replay['idempotent_replay']);
   $input['notes']='Changed specification';$changed=$this->repo->create('product_version',$input,$key);self::assertTrue(is_wp_error($changed));self::assertSame('digiforge_idempotency_conflict',$changed->get_error_code());self::assertSame('Original specification',$this->repo->find('product_version',$saved['id'])['notes']);
+  // Source p72: material changes receive a separate immutable version under the same canonical lineage.
+  foreach(['REVIEW','APPROVED','RELEASED'] as $state)self::assertNotWPError($this->repo->transition('product_version',(int)$saved['id'],$state));
+  $released=$this->repo->find('product_version',(int)$saved['id']);self::assertNotWPError($released);
+  $input['version_label']='v2';$next=$this->repo->create('product_version',$input,'version-v2-'.wp_generate_uuid4());self::assertNotWPError($next);
+  self::assertNotSame($saved['id'],$next['id']);
+  $persisted=$this->repo->find('product_version',(int)$next['id']);self::assertNotWPError($persisted);self::assertSame($next,$persisted);
+  self::assertSame('v2',$persisted['version_label']);self::assertSame('Changed specification',$persisted['notes']);self::assertSame('DRAFT',$persisted['state']);
+  self::assertSame($released,$this->repo->find('product_version',(int)$saved['id']));self::assertSame('Original specification',$released['notes']);self::assertSame('RELEASED',$released['state']);
+  foreach([$released,$persisted] as $version){
+   self::assertSame($product['id'],$version['product_id']);
+   $canonical=$this->repo->find('product',(int)$version['product_id']);self::assertNotWPError($canonical);self::assertSame($family['id'],$canonical['product_family_id']);
+   $ancestor=$this->repo->find('product_family',(int)$canonical['product_family_id']);self::assertNotWPError($ancestor);self::assertSame($opp['id'],$ancestor['opportunity_id']);
+   $opportunity=$this->repo->find('opportunity',(int)$ancestor['opportunity_id']);self::assertNotWPError($opportunity);self::assertSame($opp['id'],$opportunity['id']);
+  }
  }
  public function testReplayCannotOmitRequiredParentAndSanitizedEquivalentIsAccepted():void {
   $opp=$this->repo->create('opportunity',['title'=>'Equivalent'],'opp-'.wp_generate_uuid4());$key='family-'.wp_generate_uuid4();$saved=$this->repo->create('product_family',['name'=>'Family','description'=>'same','opportunity_id'=>$opp['id']],$key);

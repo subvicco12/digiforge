@@ -22,6 +22,38 @@ final class QueueOperatorJourneyAcceptanceTest extends WP_UnitTestCase
         } finally { $_GET = $prior; }
     }
 
+    public function testGlobalDashboardShowsStoredQueueHealthAndReadOnlyDrilldown(): void
+    {
+        global $wpdb;
+        $before=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::jobs()." WHERE state='DEAD_LETTER'");
+        $id=(new DigiForge\Queue\JobRepository())->enqueue('dashboard_queue_fixture',[],'dashboard_'.wp_generate_uuid4());
+        self::assertIsInt($id);
+        self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::jobs(),['state'=>'DEAD_LETTER'],['id'=>$id]));
+        $stored=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.DigiForge\Database\Tables::jobs().' WHERE id=%d',$id),ARRAY_A);
+        $html=$this->render('dashboard');
+        self::assertStringContainsString('Global queue health',$html);
+        self::assertStringContainsString('<span>Dead letters</span><b>'.($before+1).'</b>',$html);
+        self::assertStringContainsString('<span>Queue state</span><b>ATTENTION REQUIRED</b>',$html);
+        self::assertStringContainsString('df_view=automation',$html);
+        self::assertStringContainsString('Global evidence across all four shops',$html);
+        self::assertSame($stored,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.DigiForge\Database\Tables::jobs().' WHERE id=%d',$id),ARRAY_A));
+        self::assertTrue(DigiForge\Core\Settings::safety_locked());
+        self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
+    }
+
+    public function testGlobalDashboardQueueReadFailureCannotAppearAsZeroOrHealthy(): void
+    {
+        global $wpdb;$table=DigiForge\Database\Tables::jobs();
+        $fail=static fn(string $sql):string=>str_contains($sql,'FROM '.$table)?str_replace($table,$table.'_missing_dashboard',$sql):$sql;
+        $prior=$wpdb->suppress_errors(true);add_filter('query',$fail);
+        try {$html=$this->render('dashboard');}
+        finally {remove_filter('query',$fail);$wpdb->suppress_errors($prior);}
+        self::assertStringContainsString('Global queue health',$html);
+        self::assertStringContainsString('<span>Queue state</span><b>UNAVAILABLE</b>',$html);
+        self::assertStringContainsString('<span>Dead letters</span><b>UNAVAILABLE</b>',$html);
+        self::assertStringNotContainsString('<span>Dead letters</span><b>0</b>',$html);
+    }
+
     public function testPersistedDeadLetterDrilldownShowsAttemptsAndNoRetryAuthority(): void
     {
         global $wpdb;

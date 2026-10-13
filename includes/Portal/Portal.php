@@ -765,6 +765,22 @@ final class Portal
             . '<div><span>Gate 3</span><b>Listing / Publish Approval</b></div>'
             . '</div><p class="df-muted">External Etsy/POD/order/tax execution remains controlled by the existing fail-closed switches.</p></section>';
         $this->systemSummary();
+        $this->globalQueueHealth();
+    }
+
+    /** Blueprint table22/r2: global read-only queue evidence, never a retry permit. */
+    private function globalQueueHealth(): void
+    {
+        $queue=(array)((new \DigiForge\Observability\HealthMonitor())->snapshot()['queue']??[]);
+        $recovery=(array)($queue['recovery']??[]);
+        $available=!empty($queue['query_ok'])&&!empty($recovery['query_ok']);
+        $attention=(int)($recovery['attention_total']??0);
+        $expired=(int)($queue['expired_leases']??0);
+        $state=!$available?'UNAVAILABLE':(($attention>0||$expired>0)?'ATTENTION REQUIRED':'NO CURRENT ATTENTION');
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Global queue health</h2><p>Global evidence across all four shops. Read-only visibility requires explicit assignments for every shop.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid">';
+        $metrics=['Queue state'=>$state,'Attention records'=>$available?(string)$attention:'UNAVAILABLE','Expired leases'=>$available?(string)$expired:'UNAVAILABLE','Dead letters'=>$available?(string)($queue['dead_letters']??0):'UNAVAILABLE'];
+        foreach($metrics as $label=>$value)echo '<div><span>'.esc_html($label).'</span><b>'.esc_html($value).'</b></div>';
+        echo '</div><a class="df-button" href="'.esc_url($this->url('automation')).'">Inspect queue evidence</a><p class="df-muted">Retry, replay, recovery execution and external authority remain NO.</p></section>';
     }
 
     private function attention(): void

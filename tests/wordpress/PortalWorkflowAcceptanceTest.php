@@ -15,6 +15,8 @@ final class PortalWorkflowAcceptanceTest extends WP_UnitTestCase {
   $html=$this->render('integrations');self::assertStringNotContainsString('name="api_key"',$html);self::assertStringContainsString('<h1>Dashboard</h1>',$html);
  }
  public function testAllNonFinanceViewsAndFourShopsRenderWithoutChangingSafetyOrBusinessState():void {
+  // Initialize WordPress's own nonce salts before the read-only business observer.
+  wp_create_nonce('df_portal_fixture_bootstrap');
   wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);$portal=new DigiForge\Portal\Portal();$nav=(new ReflectionClass($portal))->getConstant('NAV');unset($nav['finance'],$nav['analytics']);$before=$this->controls();$mutations=[];$external=[];
   $observationTable=DigiForge\Database\Tables::pod_provenance_integrity_evidence();
   $query=static function(string $sql)use(&$mutations,$observationTable):string{

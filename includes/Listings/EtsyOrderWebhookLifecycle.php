@@ -30,11 +30,12 @@ final class EtsyOrderWebhookLifecycle
         if($type==='ORDER.PAID'){
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
             if($existing instanceof WP_Error)return $existing;
+            if($existing!==null&&(string)$existing['state']==='RECEIVED')return new WP_Error('digiforge_etsy_order_webhook_incomplete_order','Existing paid order intake is incomplete; reconcile persisted evidence before processing another paid event.',['status'=>409,'reconciliation_required'=>true,'external_execution_performed'=>false]);
             if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$existing['id']),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
             $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
             $prepared=[];$reviewRequired=$items===[];
             foreach(array_slice($items,0,100) as $index=>$item){
-                if(!is_array($item))continue;
+                if(!is_array($item)){$reviewRequired=true;continue;}
                 $etsyListingId=$this->reference($item,['listing_id','listingId']);
                 $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
                 if($resolved instanceof WP_Error)return $resolved;
@@ -73,6 +74,7 @@ final class EtsyOrderWebhookLifecycle
             $state=(string)$existing['state'];
             if(in_array($state,['RECEIVED','VALIDATED','REVIEW_REQUIRED','ON_HOLD'],true)){
                 $result=$this->orders->transition('order',(int)$existing['id'],'REJECTED');
+                if($result instanceof WP_Error)return $result;
             } elseif($state==='APPROVED'){
                 $result=$this->orders->transition('order',(int)$existing['id'],'ON_HOLD');
                 if($result instanceof WP_Error)return $result;
