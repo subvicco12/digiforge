@@ -23,6 +23,13 @@ final class ConnectionTester {
         if (! $integration) {
             return new \WP_Error('integration_not_found', __('Integration not found.', 'digiforge'), ['status' => 404]);
         }
+        $provider=(string)($integration['provider']??'');
+        if(in_array($provider,['etsy','ai','gelato'],true)&&Settings::safety_locked()){
+            if(!Logger::write('integration_connection_test_denied',['provider'=>$provider,'reason'=>'safety_locked','external_execution_performed'=>false],'integration',(string)$integrationId)){
+                return new \WP_Error('integration_connection_test_audit_unavailable',__('Connection test denial could not be durably recorded.', 'digiforge'),['status'=>503,'external_execution_performed'=>false]);
+            }
+            return new \WP_Error('integration_connection_test_safety_locked',__('Connection testing is blocked by the global safety controls.', 'digiforge'),['status'=>409,'external_execution_performed'=>false]);
+        }
         return match ((string) ($integration['provider'] ?? '')) {
             'printify' => $this->testPrintify($integrationId),
             'etsy' => $this->testEtsy($integrationId),
