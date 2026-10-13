@@ -28,6 +28,8 @@ final class EtsyOrderWebhookLifecycle
         if($orderRef===''||$shopRef==='')return self::error('identity','Etsy webhook must contain bounded order and shop identities.');
 
         if($type==='ORDER.PAID'){
+            // Never turn a supplied invalid identity or currency-bearing amount into assumed USD.
+            foreach(array_merge([$payload],array_filter((array)($payload['line_items']??[]),'is_array'))as $money){if(array_key_exists('currency',$money)&&(!is_string($money['currency'])||!preg_match('/^[A-Z]{3}$/D',strtoupper(trim($money['currency'])))))return self::error('currency','Exact valid currency identity is required.');if(!array_key_exists('currency',$money)){foreach(['subtotal','shipping','tax','total','price']as $amount)if((array_key_exists($amount,$money)||array_key_exists($amount.'_amount',$money))&&(float)$this->amount($money,$amount)!==0.0)return self::error('currency','Nonzero original amounts require explicit currency identity.');}}
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
             if($existing instanceof WP_Error)return $existing;
             if($existing!==null&&(string)$existing['state']==='RECEIVED')return new WP_Error('digiforge_etsy_order_webhook_incomplete_order','Existing paid order intake is incomplete; reconcile persisted evidence before processing another paid event.',['status'=>409,'reconciliation_required'=>true,'external_execution_performed'=>false]);
