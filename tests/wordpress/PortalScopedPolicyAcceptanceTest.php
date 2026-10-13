@@ -19,4 +19,7 @@ final class PortalScopedPolicyAcceptanceTest extends WP_UnitTestCase {
  public function testReadFailureIsUnavailableInsteadOfZeroPolicies():void {
   $table=Tables::scoped_capability_policies();$filter=static fn(string $sql):string=>str_contains($sql,'FROM '.$table)?'SELECT * FROM no_such_scoped_policy_acceptance':$sql;add_filter('query',$filter);try{self::assertStringContainsString('Scoped policy evidence unavailable',$this->render('digital'));}finally{remove_filter('query',$filter);}
  }
+ public function testGlobalPolicyHistoryExcludesUnassignedLegacyShopsBeforeItsWindow():void {
+  $repo=new ScopedCapabilityPolicyRepository();$own=$repo->append('digital','global_owned_'.wp_rand(),'research',false);$unknown=$repo->append('unassigned_shop','unknown_private_'.wp_rand(),'research',false);self::assertNotWPError($own);self::assertNotWPError($unknown);$html=$this->render('all');self::assertStringContainsString($own['workflow_key'],$html);self::assertStringNotContainsString($unknown['workflow_key'],$html);$state=null;$rows=$repo->recent('','',1,$state);self::assertSame('AVAILABLE',$state);self::assertCount(1,$rows);self::assertSame($own['policy_hash'],$rows[0]['policy_hash']);
+ }
 }
