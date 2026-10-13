@@ -36,6 +36,7 @@ final class EtsyOrderWebhookLifecycle
             $prepared=[];$reviewRequired=$items===[];
             foreach(array_slice($items,0,100) as $index=>$item){
                 if(!is_array($item)){$reviewRequired=true;continue;}
+                if(array_key_exists('personalization',$item)&&!is_array($item['personalization']))$reviewRequired=true;
                 $etsyListingId=$this->reference($item,['listing_id','listingId']);
                 $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
                 if($resolved instanceof WP_Error)return $resolved;
@@ -91,6 +92,12 @@ final class EtsyOrderWebhookLifecycle
     private function reference(array $p,array $keys): string {foreach($keys as $k){$v=$p[$k]??'';if(is_scalar($v)){$v=trim((string)$v);if($v!==''&&strlen($v)<=191)return sanitize_text_field($v);}}return '';}
     private function amount(array $p,string $key): float { $v=$p[$key.'_amount']??($p[$key]??0); return is_numeric($v)?max(0,min(999999999.99,(float)$v)):0.0; }
     private function currency(array $p): string { $v=strtoupper(trim((string)($p['currency']??'USD')));return preg_match('/^[A-Z]{3}$/',$v)?$v:'USD';}
-    private function personalized(array $p): bool {return !empty($p['personalization_required'])||!empty($p['personalization']);}
+    private function personalized(array $p): bool {
+        if(!empty($p['personalization_required'])||!empty($p['personalization']))return true;
+        foreach(is_array($p['line_items']??null)?$p['line_items']:[] as $item){
+            if(is_array($item)&&array_key_exists('personalization',$item)&&(!is_array($item['personalization'])||$item['personalization']!==[]))return true;
+        }
+        return false;
+    }
     private static function error(string $c,string $m): WP_Error{return new WP_Error('digiforge_etsy_order_webhook_'.$c,$m,['status'=>409]);}
 }
