@@ -106,6 +106,58 @@ final class EtsyWebhookPersistenceAcceptanceTest extends WP_UnitTestCase
         unset($replay['idempotent_replay']);self::assertSame($before,$replay);
     }
 
+    /** @dataProvider raceWinnerCases */
+    public function testInsertRaceWinnerRequiresExactImmutableIdentity(string $mode): void
+    {
+        $signed=$this->signed(['event_type'=>'order.paid','order_id'=>'712011','shop_id'=>'712002','line_items'=>[]]);
+        $verified=DigiForge\Listings\EtsyWebhookVerifier::verify($signed[1],$signed[2],$signed[3],$signed[4]);self::assertNotWPError($verified);
+        global $wpdb;$original=$wpdb;$table=Tables::webhook_evidence();
+        $racing=new class(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST) extends wpdb {
+            public string $target='';public string $event='';public string $mode='';public bool $fired=false;public int $lookups=0;public array $winner=[];
+            public function query($query){
+                $lookup=str_starts_with(ltrim($query),'SELECT')&&str_contains($query,$this->target)&&str_contains($query,"'".$this->event."'");
+                if($lookup){++$this->lookups;if($this->fired&&$this->mode==='read fault')$query=str_replace($this->target,$this->target.'_synthetic_missing',$query);}
+                return parent::query($query);
+            }
+            public function insert($table,$data,$format=null){
+                if($table===$this->target&&!$this->fired){
+                    if($this->lookups!==1)throw new RuntimeException('Expected one real empty lookup before competing insert.');
+                    $this->fired=true;
+                    if($this->mode!=='missing'){
+                        if($this->mode==='body conflict')$data['body_sha256']=hash('sha256','different synthetic signed body');
+                        if($this->mode==='shop conflict')$data['shop_reference']='712012';
+                        if(parent::insert($table,$data,$format)!==1)throw new RuntimeException('Unable to persist webhook race winner.');
+                        $this->winner=$data+['id'=>(string)$this->insert_id];
+                    }
+                    return false;
+                }
+                return parent::insert($table,$data,$format);
+            }
+        };
+        $racing->set_prefix($original->prefix);$racing->target=$table;$racing->event=$signed[0];$racing->mode=$mode;$racing->suppress_errors(true);$wpdb=$racing;
+        try{
+            $result=(new DigiForge\Listings\WebhookEvidenceRepository())->recordVerified($verified,$signed[1],$signed[2]);
+            self::assertTrue($racing->fired);self::assertSame(2,$racing->lookups);
+            if($mode==='matching'){
+                self::assertNotWPError($result);self::assertTrue($result['idempotent_replay']);self::assertSame($racing->winner['id'],$result['id']);
+                self::assertSame(hash('sha256',$signed[1]),$result['body_sha256']);self::assertSame('712002',$result['shop_reference']);self::assertSame('etsy',$result['provider']);self::assertSame('order.paid',$result['event_type']);
+            }else{
+                self::assertWPError($result);self::assertSame($mode==='missing'?'webhook_evidence_failed':($mode==='read fault'?'webhook_evidence_unavailable':'webhook_evidence_conflict'),$result->get_error_code());
+                if(str_ends_with($mode,'conflict'))self::assertSame(409,$result->get_error_data()['status']);
+            }
+            $stored=$original->get_row($original->prepare('SELECT * FROM '.$table.' WHERE provider=%s AND event_id=%s','etsy',$signed[0]),ARRAY_A);
+            if($mode==='missing')self::assertNull($stored);
+            else{self::assertIsArray($stored);self::assertSame($racing->winner['body_sha256'],$stored['body_sha256']);self::assertSame($racing->winner['shop_reference'],$stored['shop_reference']);self::assertSame('VERIFIED',$stored['processing_status']);}
+        }finally{
+            $racing->delete($table,['provider'=>'etsy','event_id'=>$signed[0]]);$wpdb=$original;$racing->close();
+        }
+    }
+
+    public function raceWinnerCases(): array
+    {
+        return ['matching'=>['matching'],'changed body'=>['body conflict'],'changed shop'=>['shop conflict'],'missing winner'=>['missing'],'unreadable winner'=>['read fault']];
+    }
+
     public function testRepeatedFailedLedgerWriteRequiresExactDurableFailedEvidence(): void
     {
         $signed=$this->signed(['event_type'=>'order.paid','order_id'=>'712007','shop_id'=>'712002','line_items'=>[]]);
