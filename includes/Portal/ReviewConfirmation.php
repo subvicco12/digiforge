@@ -10,6 +10,7 @@ use WP_Error;
 final class ReviewConfirmation {
  public static function definition(string $action):?array {
   return match($action){
+   'digiforge_u3_product_review'=>['product_versions','product_version_id','Product version review','manage_digiforge_products','product',['APPROVED','REJECTED']],
    'digiforge_portal_review_research'=>['research_candidates','candidate_id','Research candidate','manage_digiforge_research','research',['APPROVED','REJECTED']],
    'digiforge_portal_develop_candidate'=>['research_candidates','candidate_id','Product development candidate','manage_digiforge_products','research',[]],
    'digiforge_portal_listing_review'=>['listing_readiness_reviews','review_id','Listing readiness review','manage_digiforge_listings','listing',['APPROVED','REJECTED']],
@@ -35,10 +36,16 @@ final class ReviewConfirmation {
   $definition=self::definition($action);if($definition===null||$id<1)return self::error('target','An exact supported review target is required.');
   if(get_current_user_id()<1||!current_user_can($definition[3]))return self::error('access','Authenticated review capability is required.');
   if($definition[5]!==[]&&!in_array($params['decision']??'', $definition[5],true))return self::error('decision','Choose the exact local review decision.');
-  global $wpdb;$table=$definition[0]==='etsy_operations'?$wpdb->prefix.'digiforge_etsy_operations':Tables::{$definition[0]}();$row=self::row($table,$id);if($row instanceof WP_Error)return $row;
+  global $wpdb;$table=$definition[0]==='etsy_operations'?$wpdb->prefix.'digiforge_etsy_operations':Tables::{$definition[0]}();$authorizedShop=self::authorizedTargetShop($definition,$table,$id);if($authorizedShop instanceof WP_Error)return $authorizedShop;$row=self::row($table,$id);if($row instanceof WP_Error)return $row;
   $evidence=['target'=>$row];$order=null;$shop='';$environment=(string)($row['environment']??'');$summary=[];
   try{
    switch($definition[4]){
+    case 'product':
+     $product=self::requiredRow(Tables::products(),(int)$row['product_id']);$family=self::requiredRow(Tables::product_families(),(int)$product['product_family_id']);$evidence['product']=$product;$evidence['family']=$family;$evidence['opportunity']=self::requiredRow(Tables::opportunities(),(int)$family['opportunity_id']);$shop=$authorizedShop;$environment='local product review';
+     $plans=self::rows('SELECT * FROM '.Tables::production_plans().' WHERE product_version_id='.$id.' ORDER BY id DESC LIMIT 1');if($plans===[])return self::error('unavailable','Current production review plan is unavailable.');$plan=$plans[0];$bundles=self::rows('SELECT * FROM '.Tables::release_bundles().' WHERE production_plan_id='.(int)$plan['id'].' ORDER BY id DESC LIMIT 1');if($bundles===[])return self::error('unavailable','Current product review bundle is unavailable.');$bundle=$bundles[0];if($plan['state']!=='REVIEW_REQUIRED'||$bundle['state']!=='REVIEW_REQUIRED')return self::error('stale','Product plan and release bundle are no longer awaiting review.');$evidence['plan']=$plan;$evidence['bundle']=$bundle;
+     $evidence['plan_qa']=self::rows("SELECT * FROM ".Tables::production_qa()." WHERE target_type='plan' AND target_id=".(int)$plan['id'].' ORDER BY id LIMIT 201');$links=self::rows('SELECT * FROM '.Tables::production_plan_assets().' WHERE production_plan_id='.(int)$plan['id'].' AND is_required=1 ORDER BY sequence_no,asset_spec_id LIMIT 201');$evidence['required_assets']=[];$bound=count($links)+count($evidence['plan_qa']);
+     foreach($links as $link){$spec=self::requiredRow(Tables::asset_specs(),(int)$link['asset_spec_id']);$revisions=self::rows('SELECT * FROM '.Tables::asset_revisions().' WHERE asset_spec_id='.(int)$spec['id'].' ORDER BY id DESC LIMIT 1');$revision=$revisions[0]??null;$qa=$revision===null?[]:self::rows("SELECT * FROM ".Tables::production_qa()." WHERE target_type='revision' AND target_id=".(int)$revision['id'].' ORDER BY id LIMIT 201');$bound+=count($qa)+count($revisions)+1;if($bound>200)return self::error('unavailable','Current product review dependencies exceed the bounded confirmation view.');$evidence['required_assets'][]=['link'=>$link,'spec'=>$spec,'latest_revision'=>$revision,'revision_qa'=>$qa];}
+     $summary=['Product version #'.$id.' / '.$row['version_label'],(string)$product['name'],'Latest production plan #'.$plan['id'].' / '.$plan['state'],'Latest release bundle #'.$bundle['id'].' / '.$bundle['state'],count($links).' required asset bindings',count($evidence['plan_qa']).' recorded plan QA rows','Recorded bundle checksum '.(string)$bundle['checksum_sha256']];foreach($evidence['required_assets']as $asset)$summary[]='Asset #'.$asset['spec']['id'].' latest revision '.($asset['latest_revision']['id']??'MISSING').' / recorded checksum '.($asset['latest_revision']['checksum_sha256']??'MISSING');break;
     case 'draft_qa':
      $context=(new \DigiForge\Listings\DraftQaReviewRepository())->inspect($id);if($context instanceof WP_Error)return $context;
      $checks=$params['checks']??null;if(!is_array($checks)||count($checks)!==7||array_diff(array_keys($checks),['title','description','seo','media','pricing','policy','personalization'])!==[])return self::error('decision','Exactly seven explicit human QA assertions are required.');foreach($checks as $status)if(!is_string($status)||!in_array($status,['PASS','WAIVED','FAIL'],true))return self::error('decision','Choose PASS, WAIVED or FAIL for every human QA assertion.');
@@ -67,6 +74,7 @@ final class ReviewConfirmation {
    }
    if($order!==null){$evidence['order']=$order;$evidence['lines']=self::rows('SELECT * FROM '.Tables::order_line_items().' WHERE order_id='.(int)$order['id'].' ORDER BY id LIMIT 201');$shop=self::orderShop($order);$environment=(string)$order['environment'];$summary[]=count($evidence['lines']).' stored order lines';}
   }catch(\RuntimeException $error){return self::error('unavailable',$error->getMessage());}
+  if($shop!==$authorizedShop)return self::error('scope','Current target shop attribution changed.');
   if(!in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true))return self::error('scope','Stored canonical shop attribution is unavailable.');
   if($selectedShop!==null&&$selectedShop!=='all'&&$selectedShop!==$shop)return self::error('scope','Review target does not belong to this selected shop.');
   $nonce=$proof['confirmation_nonce']??str_replace('-','',wp_generate_uuid4());$issued=$proof['issued_at']??time();
@@ -96,6 +104,29 @@ final class ReviewConfirmation {
    $wpdb->last_error='';$stored=$wpdb->get_var($wpdb->prepare('SELECT context FROM '.$table.' WHERE event_type=%s AND object_type=%s AND object_id=%s ORDER BY id DESC LIMIT 1','portal_review_confirmation_accepted','local_review_confirmation',$receipt['acknowledgement_hash']));if(!empty($wpdb->last_error)||!is_string($stored)||json_decode($stored,true)!==$receipt)return self::error('audit_unavailable','Confirmation acknowledgement could not be verified. No review decision was performed.');
    return $receipt;
   }finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));if(!empty($wpdb->last_error)||(string)$released!=='1')return self::error('uncertain','Confirmation lock release is uncertain. No review decision was performed.');}
+ }
+ public static function authorizeTarget(string $action,int $id):string|WP_Error {
+  $definition=self::definition($action);if($definition===null||$id<1)return self::error('access','Supported review target required.');global $wpdb;
+  $table=$definition[0]==='etsy_operations'?$wpdb->prefix.'digiforge_etsy_operations':Tables::{$definition[0]}();return self::authorizedTargetShop($definition,$table,$id);
+ }
+ private static function authorizedTargetShop(array $definition,string $table,int $id):string|WP_Error {
+  $allowed=\DigiForge\Security\ShopAccess::allowedShops($definition[3]);if($allowed instanceof WP_Error)return $allowed;global $wpdb;$matches=[];
+  foreach($allowed as $shop){
+   $scope=match($definition[4]){
+    'product'=>str_replace(Tables::product_versions().'.','t.',ProductEvidenceScope::forTable(Tables::product_versions(),$shop)??'1=0'),
+    'research'=>$wpdb->prepare("JSON_VALID(t.score_inputs) AND JSON_UNQUOTE(JSON_EXTRACT(t.score_inputs,'$.shop_key'))=%s",$shop),
+    'listing'=>"EXISTS (SELECT 1 FROM ".Tables::listings()." l WHERE l.id=t.listing_id AND ".$wpdb->prepare('BINARY l.shop_reference=BINARY %s',$shop).")",
+    'draft_qa'=>"EXISTS (SELECT 1 FROM ".Tables::etsy_draft_packages()." p INNER JOIN ".Tables::listings()." l ON l.id=p.listing_id WHERE p.id=t.draft_package_id AND ".$wpdb->prepare('BINARY l.shop_reference=BINARY %s',$shop).")",
+    'personalization'=>"EXISTS (SELECT 1 FROM ".Tables::order_line_items()." li INNER JOIN ".Tables::orders()." o ON o.id=li.order_id WHERE li.id=t.order_line_item_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
+    'render','package'=>"EXISTS (SELECT 1 FROM ".Tables::orders()." o WHERE o.id=t.order_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
+    'order'=>\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'t'),
+    'case'=>"t.object_type='order' AND EXISTS (SELECT 1 FROM ".Tables::orders()." o WHERE BINARY CAST(o.id AS CHAR)=BINARY t.object_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
+    'ownership'=>"EXISTS (SELECT 1 FROM ".Tables::pod_mappings()." WHERE id=t.provider_mapping_id AND ".ProductEvidenceScope::forTable(Tables::pod_mappings(),$shop).")",
+    'catalog'=>$shop==='personalized_pod'?'1=1':'1=0',default=>'1=0',
+   };
+   $wpdb->last_error='';$found=$wpdb->get_var($wpdb->prepare('SELECT t.id FROM '.$table.' t WHERE t.id=%d AND ('.$scope.') LIMIT 1',$id));if(!empty($wpdb->last_error))return self::error('access','Shop authorization evidence is unavailable.');if($found!==null)$matches[]=$shop;
+  }
+  return count($matches)===1?$matches[0]:self::error('access','No explicit shop assignment permits this target.');
  }
  private static function proof(array $body):array {return ['confirmation_nonce'=>$body['df_confirmation_nonce']??null,'issued_at'=>self::positiveId($body['df_confirmation_issued_at']??null)];}
  private static function row(string $table,int $id):array|WP_Error {global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d LIMIT 1',$id),ARRAY_A);return !empty($wpdb->last_error)||!is_array($row)?self::error('unavailable','Current review source evidence is unavailable.'):$row;}

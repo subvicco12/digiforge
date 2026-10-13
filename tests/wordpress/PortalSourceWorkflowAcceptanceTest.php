@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 use DigiForge\Database\Tables;
 
@@ -7,7 +8,7 @@ use DigiForge\Database\Tables;
 final class PortalSourceWorkflowAcceptanceTest extends WP_UnitTestCase {
  private int $httpCalls=0;
  private mixed $httpGuard;
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));$this->httpGuard=function(){++$this->httpCalls;return new WP_Error('offline_portal_source','HTTP forbidden.');};add_filter('pre_http_request',$this->httpGuard,10,3);}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);$this->httpGuard=function(){++$this->httpCalls;return new WP_Error('offline_portal_source','HTTP forbidden.');};add_filter('pre_http_request',$this->httpGuard,10,3);}
  protected function tearDown():void {remove_filter('pre_http_request',$this->httpGuard,10);self::assertSame(0,$this->httpCalls);self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));parent::tearDown();}
  private function render(string $view,string $shop,array $focus=[]):string {$before=$_GET;try{$_GET=['df_view'=>$view,'df_shop'=>$shop]+$focus;return (new DigiForge\Portal\Portal())->render();}finally{$_GET=$before;}}
  private function candidate(string $shop,string $marker):array {
@@ -35,6 +36,8 @@ final class PortalSourceWorkflowAcceptanceTest extends WP_UnitTestCase {
  public function testDigitalFilesVersionsPreviewsAndProductionAssetRecordsRenderExactStoredScope():void {
   $own=$this->product($this->candidate('digital','portal-digital-'.wp_rand()));$other=$this->product($this->candidate('jewelry','portal-other-'.wp_rand()));$repo=new DigiForge\DigitalFactory\Repository();$rows=[];
   foreach([$own,$other]as $flow){$digital=$repo->create('digital_product',['product_id'=>$flow['product']['id'],'product_version_id'=>$flow['version']['id'],'name'=>$flow['marker'].' digital','category'=>'offline']);self::assertNotWPError($digital);$file=$repo->create('digital_file',['digital_product_id'=>$digital['id'],'product_version_id'=>$flow['version']['id'],'name'=>$flow['marker'].' file','file_type'=>'txt']);self::assertNotWPError($file);$version=$repo->create('digital_file_version',['digital_file_id'=>$file['id'],'version_label'=>$flow['marker'].'-file-v1']);self::assertNotWPError($version);$preview=$repo->create('digital_preview',['digital_product_id'=>$digital['id'],'digital_file_id'=>$file['id'],'name'=>$flow['marker'].' preview']);self::assertNotWPError($preview);$rows[$flow['shop']]=compact('digital','file','version','preview');}
+  // Missing recorded QA must be shown on an actual check row, not inferred from product state.
+  $missing=$repo->create('digital_download_check',['digital_product_id'=>$rows['digital']['digital']['id'],'target_type'=>'file_version','target_id'=>$rows['digital']['version']['id'],'check_type'=>'custom_deterministic_qa','validation_result'=>'FAIL','review_status'=>'UNREVIEWED','details'=>[]]);self::assertNotWPError($missing);
   $html=$this->render('digital','digital');foreach([$rows['digital']['digital']['name'],$rows['digital']['file']['name'],$rows['digital']['version']['version_label'],$rows['digital']['preview']['name']]as $value)self::assertStringContainsString(esc_html($value),$html);self::assertStringNotContainsString($other['marker'],$html);self::assertStringContainsString('UNVERIFIED',$html);self::assertStringContainsString('df_view=approvals',$html);
   $production=new DigiForge\Production\Repository();$spec=$production->createSpec(['product_version_id'=>$own['version']['id'],'digital_product_id'=>$rows['digital']['digital']['id'],'asset_key'=>'portal-asset-'.wp_rand(),'asset_type'=>'print','purpose'=>$own['marker'].' design','format'=>'png','width_px'=>800,'height_px'=>1000,'dpi'=>300]);self::assertNotWPError($spec);$plan=$production->createPlan(['product_version_id'=>$own['version']['id'],'plan_key'=>'portal-plan-'.wp_rand(),'version_label'=>$own['marker'].'-plan-v1','channel'=>'digital','production_type'=>'deterministic']);self::assertNotWPError($plan);self::assertTrue($production->linkAsset((int)$plan['id'],(int)$spec['id']));$html=$this->render('production','digital');foreach([$spec['asset_key'],$spec['purpose'],$plan['plan_key'],$plan['version_label']]as $value)self::assertStringContainsString(esc_html($value),$html);self::assertStringNotContainsString($other['marker'],$html);
  }

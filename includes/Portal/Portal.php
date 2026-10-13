@@ -66,6 +66,8 @@ final class Portal
     private const DRAFT_QA_REVIEW_ACTION = 'digiforge_portal_draft_qa_review';
     private const DRAFT_QA_PREVIEW_ACTION = 'digiforge_portal_draft_qa_preview';
     private ?array $draftQaPreview = null;
+    private array $authorizedShops = [];
+    private bool $allShopsAuthorized = false;
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -130,6 +132,13 @@ final class Portal
             $view = 'dashboard';
         }
 
+        $access=\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
+        if(is_wp_error($access))return $this->notice('Shop authorization evidence is unavailable.',true);
+        $this->authorizedShops=$access;$this->allShopsAuthorized=count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
+        $requested=$_GET['df_shop']??'all';
+        if(!is_string($requested)||!array_key_exists($requested,ShopOperationsReadModel::shops())||($requested==='all'&&!$this->allShopsAuthorized)||($requested!=='all'&&!in_array($requested,$access,true)))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
+        // These views contain global or fixed-shop aggregates; partial grants cannot read them.
+        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
         ?>
         <div class="df-portal-shell">
@@ -192,6 +201,7 @@ final class Portal
     {
         $this->guard('manage_digiforge_listings');check_admin_referer(self::DRAFT_QA_PREVIEW_ACTION);$body=wp_unslash($_POST);$id=$body['create_operation_id']??null;
         if(!(is_int($id)&&$id>0)&&!(is_string($id)&&preg_match('/^[1-9][0-9]*$/D',$id)===1))$this->redirect('listings','Exact confirmed draft target required.',true);
+        $access=ReviewConfirmation::authorizeTarget(self::DRAFT_QA_REVIEW_ACTION,(int)$id);if(is_wp_error($access))$this->redirect('listings','Explicit shop assignment required for this draft target.',true);
         $context=(new \DigiForge\Listings\DraftQaReviewRepository())->inspect((int)$id);if(is_wp_error($context))$this->redirect('listings',$context->get_error_message(),true);
         $params=['checks'=>$body['checks']??null,'objective_evidence_hash'=>$context['objective_evidence_hash'],'intent_id'=>$context['intent_id'],'draft_package_id'=>$context['draft_package_id']];
         $confirmation=ReviewConfirmation::inspect(self::DRAFT_QA_REVIEW_ACTION,(int)$id,is_string($body['shop_key']??null)?$body['shop_key']:'',$params);if(is_wp_error($confirmation))$this->redirect('listings',$confirmation->get_error_message(),true);
@@ -297,6 +307,7 @@ final class Portal
     {
         $this->guard('manage_digiforge');
         check_admin_referer(self::RECOVERY_PLAN_ACTION);
+        $this->requireAllShopAccess('manage_digiforge', 'attention');
         $target = isset($_POST['target_site_url']) ? esc_url_raw(wp_unslash($_POST['target_site_url'])) : '';
         $operationKey = isset($_POST['operation_key']) ? sanitize_text_field(wp_unslash($_POST['operation_key'])) : '';
         $backupIdentityOperationKey = isset($_POST['backup_identity_operation_key']) ? sanitize_text_field(wp_unslash($_POST['backup_identity_operation_key'])) : '';
@@ -325,6 +336,7 @@ final class Portal
     {
         $this->guard('manage_digiforge');
         check_admin_referer(self::RECOVERY_ACCEPT_ACTION);
+        $this->requireAllShopAccess('manage_digiforge', 'attention');
         $operationKey = isset($_POST['operation_key']) ? sanitize_text_field(wp_unslash($_POST['operation_key'])) : '';
         $evidenceHash = isset($_POST['verification_evidence_hash']) ? strtolower(sanitize_text_field(wp_unslash($_POST['verification_evidence_hash']))) : '';
         $user = wp_get_current_user();
@@ -363,6 +375,7 @@ final class Portal
         if ($shop === '' || $shop === ShopOperationsReadModel::ALL) {
             $this->redirect('ai_budget', 'Choose one concrete shop before saving an AI policy.', true);
         }
+        $access=\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_ai');if(is_wp_error($access))$this->redirect('ai_budget','Explicit shop assignment required.',true);
         $number = static function (string $key): float {
             $raw = isset($_POST[$key]) ? sanitize_text_field(wp_unslash($_POST[$key])) : '0';
             return is_numeric($raw) ? max(0, (float) $raw) : 0.0;
@@ -416,6 +429,7 @@ final class Portal
     {
         $this->guard('manage_digiforge_connections');
         check_admin_referer(self::SAVE_AI_SECRET_ACTION);
+        $this->requireAllShopAccess('manage_digiforge_connections', 'integrations');
         $integrationId = isset($_POST['integration_id']) ? absint($_POST['integration_id']) : 0;
         $value = isset($_POST['credential_value']) ? trim((string) wp_unslash($_POST['credential_value'])) : '';
         $returnUrl = isset($_POST['return_url']) ? wp_validate_redirect(esc_url_raw(wp_unslash($_POST['return_url'])), $this->baseUrl()) : $this->baseUrl();
@@ -454,6 +468,12 @@ final class Portal
         }
         $productId = (int) ($result['product']['id'] ?? 0);
         $this->redirect('products', sprintf('Candidate #%d developed into product #%d.', $id, $productId));
+    }
+
+    private function requireAllShopAccess(string $cap,string $view):void
+    {
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops($cap);
+        if(is_wp_error($allowed)||count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],is_array($allowed)?$allowed:[]))!==4)$this->redirect($view,'Explicit assignments for all four shops are required for this global operation.',true);
     }
 
     private function view(string $view): void
@@ -574,7 +594,6 @@ final class Portal
 
     private function aiBudgetOperations():void
     {
-        $attentionSummary=(new AttentionReadModel())->summary();$attentionUnavailable=($attentionSummary['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE';
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$data=(new OperationalDepthReadModel())->aiBudget($shop);$cost=(array)$data['cost'];$policies=(array)$data['policies'];if(($data['policies_query_state']??'UNAVAILABLE')!=='AVAILABLE'||($cost['query_state']??'UNAVAILABLE')!=='AVAILABLE'){echo '<section class="df-panel"><h2>AI & Budget</h2><div class="df-notice df-notice-error">AI policy or cost evidence unavailable. Database read failed; counts and spend cannot be verified.</div><p>External execution authority: NO</p></section>';return;}$hierarchy=(new HierarchicalPolicyReadModel())->snapshot($shop);$scenarios=(new HierarchicalPolicyReadModel())->scenarios($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>AI & Budget</h2><p>Recorded amounts may exclude pending provider charges; zero is not verified zero spend. Shop-scoped policy identities, quantities and estimated/actual spend. Policy evidence never grants execution authority. Global disable always wins; a narrower shop/workflow scope cannot override a disabled parent.</p></div><span class="df-status">READ ONLY</span></div><div class="df-signal-grid"><div><span>Shop scope</span><b>'.esc_html(ShopOperationsReadModel::shops()[$shop]).'</b></div><div><span>Active policy records</span><b>'.esc_html((string)count($policies)).'</b></div><div><span>Attributed quantity</span><b>'.esc_html((string)($cost['quantity']??0)).'</b></div><div><span>Estimated spend</span><b>'.esc_html(number_format((float)($cost['estimated_cost']??0),4)).'</b></div><div><span>Recorded actual spend</span><b>'.esc_html(number_format((float)($cost['actual_cost']??0),4)).'</b></div><div><span>External execution authority</span><b>NO</b></div></div>';
         if($policies!==[]){echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Shop</th><th>Environment</th><th>Currency</th><th>State</th><th>Policy identity</th><th>Updated</th></tr></thead><tbody>';foreach($policies as $row){echo '<tr><td>'.esc_html((string)$row['shop_key']).'</td><td>'.esc_html((string)$row['environment']).'</td><td>'.esc_html((string)$row['currency']).'</td><td>'.esc_html((string)$row['state']).'</td><td><code>'.esc_html(substr((string)$row['policy_hash'],0,12)).'…</code></td><td>'.esc_html((string)$row['updated_at']).'</td></tr>';}echo '</tbody></table></div>';}else{echo '<div class="df-empty">No AI policy exists for this shop scope.</div>';}if(($scenarios['query_state']??'PARTIAL_UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more AI planning scenarios could not verify authoritative shop policy/usage evidence. No permissive planning result is inferred.</div>';echo '<p class="df-muted">Planning scenarios evaluated: '.esc_html((string)count((array)$scenarios['scenarios'])).' · unavailable: '.esc_html((string)($scenarios['unavailable_scenarios']??0)).'. Quantities 1 / 5 / 10 are evaluated for each governed stage against the current shop policy and budget ceilings. Scenarios are preflight evidence only; they do not run AI or authorize external execution.</p>';
@@ -685,7 +704,7 @@ final class Portal
 
     private function topbar(string $view): void
     {
-        $readiness = (new Readiness())->report();
+        $readiness = $this->allShopsAuthorized?(new Readiness())->report():['status'=>'SHOP SCOPE'];
         $stopAll = Settings::get('stop_all', true) === true;
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         ?>
@@ -695,7 +714,7 @@ final class Portal
                 <h1><?php echo esc_html(self::NAV[$view]['label']); ?></h1>
             </div>
             <div class="df-topbar-status">
-                <form method="get" class="df-shop-selector"><input type="hidden" name="df_view" value="<?php echo esc_attr($view); ?>"><label>Shop <select name="df_shop" onchange="this.form.submit()"><?php foreach(ShopOperationsReadModel::shops() as $key=>$label): ?><option value="<?php echo esc_attr($key); ?>" <?php selected($shop,$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></form>
+                <form method="get" class="df-shop-selector"><input type="hidden" name="df_view" value="<?php echo esc_attr($view); ?>"><label>Shop <select name="df_shop" onchange="this.form.submit()"><?php foreach(ShopOperationsReadModel::shops() as $key=>$label): if(($key==='all'&&!$this->allShopsAuthorized)||($key!=='all'&&!in_array($key,$this->authorizedShops,true)))continue; ?><option value="<?php echo esc_attr($key); ?>" <?php selected($shop,$key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></form>
                 <span class="df-pill <?php echo $stopAll ? 'df-pill-danger' : 'df-pill-ok'; ?>">
                     STOP ALL: <?php echo $stopAll ? 'ON' : 'OFF'; ?>
                 </span>
@@ -963,7 +982,7 @@ final class Portal
         if(is_wp_error($result))$this->redirect($view,$result->get_error_message(),true);
     }
 
-    private function confirmationFields(string $action,int $id,?array $parameterSets=null):void
+    public function confirmationFields(string $action,int $id,?array $parameterSets=null):void
     {
         $definition=ReviewConfirmation::definition($action);if($definition===null)return;
         $selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
@@ -1086,6 +1105,7 @@ final class Portal
 
     private function panelTable(string $label, string $table): void
     {
+        if(!$this->allShopsAuthorized&&$this->evidenceScopeFilter($table)===''){echo '<section class="df-panel"><h2>'.esc_html($label).'</h2><p>Global evidence requires assignments for all four shops.</p></section>';return;}
         $count=$this->count($table,$this->evidenceScopeFilter($table));
         echo '<section class="df-panel"><div class="df-panel-head"><h2>' . esc_html($label) . '</h2><span>'
             . esc_html($count===null?'UNAVAILABLE':(string)$count.' records') . '</span></div>';

@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 final class FourShopDataIsolationTest extends WP_UnitTestCase {
- protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate(); }
+ protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate(); ShopAccessFixture::reset(); }
  public function testOperationalProjectionDoesNotLeakShopPolicyOrUsageAcrossFourShops():void {
-  global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$shops=['digital','personalized_pod','standard_pod','jewelry'];$fixtures=[];$key='isolation-'.wp_rand();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+  global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$shops=['digital','personalized_pod','standard_pod','jewelry'];$fixtures=[];$key='isolation-'.wp_rand();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
   foreach($shops as $i=>$shop){
    $policy=(new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','marker'=>$key.'-'.$shop,'stages'=>['research'=>['limit'=>$i+1]]],'production');self::assertNotWPError($policy);
    $workflow=$key.'-'.$shop;self::assertSame(1,$wpdb->insert($t::shop_ai_usage(),['shop_key'=>$shop,'workflow'=>$workflow,'run_id'=>$key.'-'.$shop,'run_started_at'=>$now,'stage'=>'research','model_key'=>$key,'quantity'=>$i+1,'estimated_cost'=>'0.100000','actual_cost'=>'0.090000','currency'=>'USD','occurred_at'=>$now]));

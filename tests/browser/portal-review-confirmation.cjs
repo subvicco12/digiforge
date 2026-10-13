@@ -5,7 +5,7 @@ const path = require('path');
 
 (async () => {
   const directory = process.argv[2];
-  const fixtures = ['confirmation-research.html', 'confirmation-order.html', 'confirmation-draft-qa.html'];
+  const fixtures = ['confirmation-research.html', 'confirmation-order.html', 'confirmation-draft-qa.html', 'confirmation-product.html'];
   for (const file of fixtures) if (!directory || !fs.existsSync(path.join(directory, file))) throw new Error(`Missing actual confirmation fixture: ${file}`);
   const browser = await chromium.launch({ executablePath: process.env.DF_BROWSER_EXECUTABLE || '/usr/bin/chromium', headless: true, args: process.env.DF_BROWSER_NO_SANDBOX === '1' ? ['--no-sandbox'] : [] });
   const results = [], failures = [];
@@ -29,14 +29,14 @@ const path = require('path');
       const raw = fs.readFileSync(path.join(directory, file), 'utf8');
       const html = raw.includes('<body>') ? raw.split('<body>')[1].split('</body>')[0] : raw;
       await page.setContent(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}${css}</style></head><body>${html}</body></html>`);
-      const fieldset = page.locator('fieldset.df-confirmation').first();
+      const fieldset = page.locator(file === 'confirmation-product.html' ? 'fieldset.df-confirmation[aria-describedby^=df-confirm-digiforge_u3_product_review-]' : 'fieldset.df-confirmation').first();
       if (!await fieldset.count()) { failures.push(`${file}/${width}: actual confirmation fieldset missing`); await page.close(); continue; }
       const checkbox = fieldset.locator('input[type=checkbox][name=df_confirm_review]');
       const form = fieldset.locator('xpath=ancestor::form[1]');
       const metadata = await fieldset.evaluate(node => ({ legend: node.querySelector('legend')?.textContent.trim(), effectId: node.getAttribute('aria-describedby'), labelled: !!node.querySelector('input[type=checkbox]')?.labels.length, labelHeight: node.querySelector('label')?.getBoundingClientRect().height, summaryHasTarget: /#\d+/.test(node.textContent), evidenceHash: /Current evidence SHA-256\s+[a-f0-9]{64}/.test(node.textContent), scopeVisible: /Shop: (digital|personalized_pod|standard_pod|jewelry)/.test(node.textContent) }));
       if (!metadata.legend || !metadata.labelled || !metadata.effectId || !metadata.summaryHasTarget || !metadata.evidenceHash || !metadata.scopeVisible) failures.push(`${file}/${width}: accessible exact target/evidence/scope summary missing`);
       if (metadata.labelHeight < 44) failures.push(`${file}/${width}: confirmation label target below 44px`);
-      const submit = form.locator('button[type=submit],button:not([type])').first();
+      const submit = form.locator('button[type=submit]:not([disabled]),button:not([type]):not([disabled])').first();
       await checkbox.uncheck();
       await submit.click();
       if (formPosts !== 0) failures.push(`${file}/${width}: unchecked confirmation allowed submit`);

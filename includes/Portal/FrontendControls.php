@@ -36,6 +36,8 @@ final class FrontendControls
         if ($tag !== 'digiforge_admin_portal' || ! is_user_logged_in() || ! current_user_can('manage_digiforge_automation')) { return $output; }
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if ($view !== 'system') { return $output; }
+        if(!str_contains($output,'class="df-portal-shell"')||!preg_match('~<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>~',$output))return $output;
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_automation');if(is_wp_error($allowed)||count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$allowed))!==4)return $output;
         $replaced = preg_replace('~<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>.*?</section>~s', $this->render(), $output, 1);
         return is_string($replaced) ? $replaced : $output;
     }

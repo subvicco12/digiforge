@@ -1,10 +1,13 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 final class CommercialCostKpiTest extends WP_UnitTestCase
 {
-    protected function setUp():void{parent::setUp();DigiForge\Core\Activator::activate();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+    protected function setUp():void{parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
     private function fixture(bool $settle=true,string $amount='0.120000'):array
     {
+        // This existing positive stored-evidence fixture explicitly authorizes its current digital reviewer.
+        ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], ['manage_digiforge_ai']);
         global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);
         $gov=new DigiForge\AI\ShopAiGovernanceRepository();self::assertNotWPError($gov->savePolicy(['shop_key'=>'digital','currency'=>'USD','stages'=>['develop'=>['limit'=>20]]]));
         $usage=$gov->reserveGeneration('digital','develop',wp_generate_uuid4());self::assertNotWPError($usage);
@@ -62,7 +65,7 @@ final class CommercialCostKpiTest extends WP_UnitTestCase
     }
     public function testPortalShowsReviewedCohortWithoutFinanceRatiosOrExternalActions():void
     {
-        $this->fixture();$id=self::factory()->user->create(['role'=>'subscriber']);$user=new WP_User($id);$user->add_cap('manage_digiforge');$user->add_cap('manage_digiforge_ai');wp_set_current_user($id);$_GET['df_view']='ai_budget';$_GET['df_shop']='digital';try{$html=(new DigiForge\Portal\Portal())->render();}finally{unset($_GET['df_view'],$_GET['df_shop']);}
+        $id=self::factory()->user->create(['role'=>'subscriber']);$user=new WP_User($id);$user->add_cap('manage_digiforge');$user->add_cap('manage_digiforge_ai');wp_set_current_user($id);ShopAccessFixture::authorizeActor($id, ['digital'], ['manage_digiforge', 'manage_digiforge_ai']);$this->fixture();$_GET['df_view']='ai_budget';$_GET['df_shop']='digital';try{$html=(new DigiForge\Portal\Portal())->render();}finally{unset($_GET['df_view'],$_GET['df_shop']);}
         self::assertStringContainsString('Reviewed commercial AI cost',$html);self::assertStringContainsString('0.120000',$html);self::assertStringContainsString('FINANCE_DEFERRED',$html);self::assertStringContainsString('Distinct verified paid orders',$html);
         $directory=getenv('DF_PORTAL_FIXTURE_DIR');if(is_string($directory)&&$directory!=='')self::assertSame(strlen($html),file_put_contents($directory.'/portal-ai_budget--digital.html',$html));
     }
@@ -71,7 +74,9 @@ final class CommercialCostKpiTest extends WP_UnitTestCase
         (new DigiForge\REST\AiEvidenceController())->register();do_action('rest_api_init');
         wp_set_current_user(0);$request=new WP_REST_Request('GET','/digiforge/v1/ai/commercial-kpis');self::assertSame(401,rest_get_server()->dispatch($request)->get_status());
         wp_set_current_user(self::factory()->user->create(['role'=>'subscriber']));self::assertSame(403,rest_get_server()->dispatch($request)->get_status());
-        wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));self::assertSame(400,rest_get_server()->dispatch($request)->get_status());
+        wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+        // Legitimate scoped actor reaches the original missing-shop validator; denied actors above remain unassigned.
+        ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], ['manage_digiforge_ai']);self::assertSame(400,rest_get_server()->dispatch($request)->get_status());
         $this->fixture();$request->set_query_params(['shop_key'=>'digital','start_utc'=>gmdate('Y-m-01 00:00:00'),'end_exclusive_utc'=>gmdate('Y-m-01 00:00:00',strtotime('first day of next month UTC')),'currency'=>'USD']);$r=rest_get_server()->dispatch($request);self::assertSame(200,$r->get_status());self::assertSame('0.120000',$r->get_data()['metrics']['sale']['cost_per_outcome']);self::assertFalse($r->get_data()['external_execution_authorized']);
     }
     public function testResearchCostCanUseReviewedOpportunityBeforeAnyProductExists():void

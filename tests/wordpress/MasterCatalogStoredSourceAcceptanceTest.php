@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 require_once __DIR__.'/../support/MasterCatalogStoredEvidenceFixture.php';
 use DigiForge\Database\Tables;
@@ -12,7 +13,7 @@ use DigiForge\POD\PersonalizedCatalogReference;
 /** Original §13 migration and §32 local catalog acceptance; no promotion or external calls. */
 final class MasterCatalogStoredSourceAcceptanceTest extends WP_UnitTestCase {
  protected function setUp():void {
-  parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+  parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
   MasterCatalogStoredEvidenceFixture::resetCatalogEvidence();
  }
  private function persist():array {

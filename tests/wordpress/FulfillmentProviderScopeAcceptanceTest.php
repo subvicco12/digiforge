@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 use DigiForge\Database\Tables;
 final class FulfillmentProviderScopeAcceptanceTest extends WP_UnitTestCase {
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);}
  private function plan(string $shop):array {
   $order=(new DigiForge\Orders\Repository())->createOrder(['shop_reference'=>$shop,'channel'=>'etsy','environment'=>'sandbox']);self::assertNotWPError($order);global $wpdb;$now=current_time('mysql',true);$hash=hash('sha256',wp_generate_uuid4());self::assertSame(1,$wpdb->insert(Tables::fulfillment_plans(),['order_id'=>$order['id'],'plan_version'=>'fixture','provider'=>'printify','canonical_payload'=>'{}','payload_hash'=>$hash,'readiness'=>'{}','readiness_hash'=>$hash,'state'=>'DRAFT','environment'=>'sandbox','created_at'=>$now,'updated_at'=>$now]));return ['id'=>(int)$wpdb->insert_id,'order_id'=>$order['id']];
  }

@@ -114,6 +114,7 @@ final class Repository
         $invalidSql=$wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li LEFT JOIN ".Tables::listings()." l ON l.id=li.listing_id WHERE li.order_id=%d AND (li.validation_status<>'VALIDATED' OR (li.listing_id>0 AND (l.id IS NULL OR l.product_version_id<>li.product_version_id OR BINARY l.environment<>BINARY %s OR BINARY l.channel<>BINARY %s OR l.shop_reference='' OR NOT ",$orderId,(string)$order['environment'],(string)$order['channel']).$listingShopScope.")))";
         $invalidLines=$this->readinessCount($invalidSql);
         if($lineCount===null||$invalidLines===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
+        if($lineCount===0)return $this->error('order_line_items_missing','Order readiness requires at least one stored line item.',409);
         $personalizationMissing=0;
         if((int)$order['personalization_required']===1){
             $personalizationMissing=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND NOT EXISTS (SELECT 1 FROM ".Tables::personalization_submissions()." ps WHERE ps.order_line_item_id=li.id AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL)",$orderId));

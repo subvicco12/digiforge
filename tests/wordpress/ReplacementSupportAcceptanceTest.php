@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 use DigiForge\Database\Tables;
 use DigiForge\Orders\ReplacementReviewRepository;
 final class ReplacementSupportAcceptanceTest extends WP_UnitTestCase {
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);}
  private function order(string $shop):int {
   $order=(new DigiForge\Orders\Repository())->createOrder(['shop_reference'=>$shop,'channel'=>'etsy','environment'=>'sandbox']);self::assertNotWPError($order);global $wpdb;$now=current_time('mysql',true);self::assertSame(1,$wpdb->update(Tables::orders(),['state'=>'CLOSED','approved_by'=>get_current_user_id(),'approved_at'=>$now],['id'=>$order['id']]));self::assertSame(1,$wpdb->insert(Tables::order_line_items(),['order_id'=>$order['id'],'product_version_id'=>99,'listing_id'=>88,'provider_mapping_id'=>77,'quantity'=>1,'currency'=>'USD','validation_status'=>'VALIDATED','created_at'=>$now,'updated_at'=>$now]));return (int)$order['id'];
  }

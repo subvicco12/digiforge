@@ -12,6 +12,7 @@ use DigiForge\Security\Logger;
 final class U3ApprovalInbox
 {
     private const ACTION = 'digiforge_u3_product_review';
+    private string $selectedShop = 'all';
 
     public function register(): void
     {
@@ -25,12 +26,21 @@ final class U3ApprovalInbox
         if ($tag !== 'digiforge_admin_portal' || ! is_user_logged_in() || ! current_user_can('manage_digiforge_products')) {
             return $output;
         }
+        if(!str_contains($output,'class="df-portal-shell"'))return $output;
+        $shop=$_GET['df_shop']??'all';if(!is_string($shop)||!array_key_exists($shop,ShopOperationsReadModel::shops()))return $output;
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_products');if(is_wp_error($allowed)||($shop==='all'?count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$allowed))!==4:!in_array($shop,$allowed,true)))return $output;
+        $this->selectedShop=$shop;
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if (in_array($view, ['approvals', 'research'], true)) {
             $output = (string) preg_replace('~<form class="df-review-form"[^>]*>\s*<input type="hidden" name="action" value="digiforge_portal_develop_candidate">.*?</form>~s', '<div class="df-muted">Approved — DigiForge Product Factory continues automatically. The next human decision is Product Approval.</div>', $output);
         }
         if ($view !== 'approvals') { return $output; }
-        $panel = $this->renderPanel() . $this->renderOperationalDecisionPanels();
+        $panel = $this->renderPanel();
+        // The downstream aggregate has no exact selected-shop projection yet.
+        if($shop==='all'){
+            $permitted=true;foreach(['manage_digiforge_listings','manage_digiforge_orders','manage_digiforge_pod']as $cap){$grants=\DigiForge\Security\ShopAccess::allowedShops($cap);if(is_wp_error($grants)||count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$grants))!==4)$permitted=false;}
+            if($permitted)$panel.=$this->renderOperationalDecisionPanels();
+        }
         $position = strrpos($output, '</main>');
         return $position === false ? $output . $panel : substr($output, 0, $position) . $panel . substr($output, $position);
     }
@@ -153,6 +163,9 @@ final class U3ApprovalInbox
         $versionId = isset($_POST['product_version_id']) ? absint($_POST['product_version_id']) : 0;
         $decision = isset($_POST['decision']) ? strtoupper(sanitize_key(wp_unslash($_POST['decision']))) : '';
         $notes = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
+        $scope=ReviewConfirmation::authorizeTarget(self::ACTION,$versionId);if(is_wp_error($scope))$this->redirect('Explicit shop assignment required for this product review.',true);
+        $productionAccess=\DigiForge\Security\ShopAccess::authorize($scope,'manage_digiforge_production');if(is_wp_error($productionAccess))$this->redirect('Explicit production review assignment required for this shop.',true);
+        $acknowledgement=ReviewConfirmation::accept(self::ACTION,$versionId,wp_unslash($_POST));if(is_wp_error($acknowledgement))$this->redirect($acknowledgement->get_error_message(),true);
         $result = (new ProductReview())->decide($versionId, $decision, $notes);
         if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
         Logger::audit('portal_u3_product_review_completed', ['product_version_id' => $versionId, 'decision' => $decision], 'product_version', (string) $versionId);
@@ -172,7 +185,7 @@ final class U3ApprovalInbox
                     <div class="df-signal-grid"><div><span>Channel</span><b><?php echo esc_html(strtoupper((string) $row['channel'])); ?></b></div><div><span>QA blockers</span><b><?php echo esc_html((string) $row['qa_failures']); ?></b></div><div><span>Semantic QA</span><b><?php echo esc_html((string) $row['semantic_qa_status']); ?></b></div><div><span>Bundle</span><b><?php echo esc_html((string) ($row['bundle_state'] ?: 'MISSING')); ?></b></div><div><span>Workflow</span><b>PRODUCT_REVIEW_REQUIRED</b></div></div>
                     <?php $this->renderAssets((array) $row['assets']); $this->renderSemanticQa((array) $row['semantic_checks']); ?>
                     <?php if ((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS') : ?><div class="df-notice df-notice-error">QA blockers exist. Approval remains fail-closed until latest-revision deterministic QA and all seven semantic/policy checks pass.</div><?php endif; ?>
-                    <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION); ?>"><input type="hidden" name="product_version_id" value="<?php echo esc_attr((string) $row['product_version_id']); ?>"><?php wp_nonce_field(self::ACTION); ?><textarea name="notes" rows="2" placeholder="Optional product review notes"></textarea><div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS'); ?>>Approve Product</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div></form>
+                    <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION); ?>"><input type="hidden" name="product_version_id" value="<?php echo esc_attr((string) $row['product_version_id']); ?>"><?php wp_nonce_field(self::ACTION); (new Portal())->confirmationFields(self::ACTION,(int)$row['product_version_id']); ?><textarea name="notes" rows="2" placeholder="Optional product review notes"></textarea><div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS'); ?>>Approve Product</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div></form>
                 </article>
             <?php endforeach; endif; ?>
         </section><?php
@@ -212,7 +225,7 @@ final class U3ApprovalInbox
         $count=$wpdb->get_var(
             'SELECT COUNT(*) FROM ' . Tables::production_plans() . ' pp'
             . ' INNER JOIN ' . Tables::product_versions() . ' pv ON pv.id=pp.product_version_id'
-            . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'"
+            . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'".$this->productScope()
         );
         return $count===null || !empty($wpdb->last_error) ? null : (int)$count;
     }
@@ -222,6 +235,7 @@ final class U3ApprovalInbox
     {
         global $wpdb;
         $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.id=(SELECT rb2.id FROM " . Tables::release_bundles() . " rb2 WHERE rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1) WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
+        $sql=str_replace(" ORDER BY pp.id DESC LIMIT 50",$this->productScope()." ORDER BY pp.id DESC LIMIT 50",$sql);
         $wpdb->last_error='';
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
@@ -250,6 +264,13 @@ final class U3ApprovalInbox
         }
         unset($row);
         return $rows;
+    }
+
+    private function productScope():string
+    {
+        if($this->selectedShop==='all')return '';
+        $scope=ProductEvidenceScope::forTable(Tables::production_plans(),$this->selectedShop);
+        return ' AND '.str_replace(Tables::production_plans().'.','pp.', $scope??'1=0');
     }
 
     /** @return ?list<array<string,mixed>> */

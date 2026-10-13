@@ -14,7 +14,7 @@ final class PersonalizedDesignWorkflow
   });
  }
  public function visualEvidence(array $input):array|WP_Error {
-  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');return (new CutoutVisualReviewRepository())->intake($input);
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required');if(($input['shop_key']??null)!=='personalized_pod')return self::error('scope_or_fields_invalid');$access=\DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_pod');if($access instanceof WP_Error)return $access;return (new CutoutVisualReviewRepository())->intake($input);
  }
  public function visualAssignment(array $input):array|WP_Error {
   $scope=$this->scope($input,['shop_key','case_key','case_sha256','reviewer_id']);if($scope instanceof WP_Error)return $scope;if(!is_string($input['case_key']??null)||!is_string($input['case_sha256']??null)||!is_int($input['reviewer_id']??null))return self::error('typed_input_required');return (new CutoutVisualReviewRepository())->assign($input['shop_key'],$input['case_key'],$input['case_sha256'],$input['reviewer_id']);
@@ -67,7 +67,7 @@ final class PersonalizedDesignWorkflow
   if(!is_string($reference)||strlen($reference)>512||!preg_match('~^digiforge/product-factory/[A-Za-z0-9_./-]+$~D',$reference)||array_intersect(explode('/',$reference),['.','..','']))return self::error('protected_upload_required');if(str_contains($reference,'/shop-')&&!str_contains($reference,'/shop-personalized_pod/'))return self::error('shop_conflict');$path=AssetStorage::absolutePath($reference);return $path??self::error('protected_upload_required');
  }
  private function scope(array $input,array $allowed):true|WP_Error {
-  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required','Authorized local artwork reviewer required.',403);if(($input['shop_key']??null)!=='personalized_pod'||array_diff(array_keys($input),$allowed))return self::error('scope_or_fields_invalid');return true;
+  if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('operator_required','Authorized local artwork reviewer required.',403);if(($input['shop_key']??null)!=='personalized_pod'||array_diff(array_keys($input),$allowed))return self::error('scope_or_fields_invalid');return \DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_pod');
  }
  private static function error(string $code,string $message='Exact local design inputs and evidence required.',int $status=409):WP_Error {return new WP_Error('personalized_design_'.$code,$message,['status'=>$status,'external_execution_authorized'=>false,'retry_permitted'=>false]);}
 }

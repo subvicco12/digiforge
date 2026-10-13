@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 /** Local source-specific behavior; identities, signing keys and charges are fixtures, never live certification. */
 final class AcceptanceEvidenceClosureTest extends WP_UnitTestCase {
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));add_action('digiforge_log',[DigiForge\Security\Logger::class,'write'],10,4);}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));add_action('digiforge_log',[DigiForge\Security\Logger::class,'write'],10,4);}
  protected function tearDown():void {remove_action('digiforge_log',[DigiForge\Security\Logger::class,'write'],10);parent::tearDown();}
  public function testResearchRetainsAllOriginalOpportunityEvidenceDimensions():void {
   $r=new DigiForge\Research\Repository();$source=$r->createSource(['shop_key'=>'digital','name'=>'Offline source']);self::assertNotWPError($source);$observation=$r->ingest(['source_id'=>$source['id'],'title'=>'Offline dimensions']);self::assertNotWPError($observation);
@@ -66,6 +67,7 @@ final class AcceptanceEvidenceClosureTest extends WP_UnitTestCase {
   global $wpdb;$calls=0;$http=static function($pre)use(&$calls){$calls++;return new WP_Error('offline_worker','Provider operations forbidden.');};add_filter('pre_http_request',$http);try{(new DigiForge\ProductFactory\ApprovalAutomation())->runStage(1,'digital','offline-safety-'.wp_generate_uuid4(),'develop');}finally{remove_filter('pre_http_request',$http);}self::assertSame(0,$calls);self::assertGreaterThan(0,(int)$wpdb->get_var("SELECT COUNT(*) FROM ".DigiForge\Database\Tables::audit_log()." WHERE event_type='u3_product_build_blocked'"));self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
  }
  public function testPortalPolicySaveAndProtectedWorkflowErrorsPersistExactLocalContext():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod', 'standard_pod', 'jewelry'], ['manage_digiforge', 'manage_digiforge_ai', 'manage_digiforge_pod', 'manage_digiforge_research']);
   global $wpdb;foreach(['digital','personalized_pod','standard_pod','jewelry'] as $shop){$query=PortalActionAcceptanceFixture::invoke('SAVE_AI_POLICY_ACTION',['shop_key'=>$shop,'currency'=>'USD','stage_develop_limit'=>2,'template_cycle_limit'=>8,'template_cycle_seconds'=>604800,'template_cycle_anchor'=>'2026-01-05 00:00:00']);self::assertSame('ai_budget',$query['df_view']);$policy=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.DigiForge\Database\Tables::shop_ai_policies().' WHERE shop_key=%s AND environment=%s',$shop,'production'),ARRAY_A);self::assertNotWPError($policy);self::assertSame($shop,$policy['shop_key']);}
   foreach(['DEVELOP_ACTION','OWNERSHIP_REVIEW_ACTION','RECOVERY_PLAN_ACTION','RECOVERY_ACCEPT_ACTION'] as $constant){$query=PortalActionAcceptanceFixture::invoke($constant,[],true);self::assertNotSame('',$query['df_message']);}
   self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));

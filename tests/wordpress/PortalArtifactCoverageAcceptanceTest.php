@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
@@ -16,7 +17,9 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
         parent::setUp();
         DigiForge\Core\Activator::activate();
         Settings::protectProduction();
+        ShopAccessFixture::reset();
         wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
         add_action('digiforge_log', [DigiForge\Security\Logger::class, 'write'], 10, 4);
         $this->networkFilter = function () {
             ++$this->networkCalls;

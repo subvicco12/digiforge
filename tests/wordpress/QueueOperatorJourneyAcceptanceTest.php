@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 
 /** Persisted local jobs and actual operator HTML; no dispatch or external HTTP. */
 final class QueueOperatorJourneyAcceptanceTest extends WP_UnitTestCase
@@ -9,7 +10,7 @@ final class QueueOperatorJourneyAcceptanceTest extends WP_UnitTestCase
         parent::setUp();
         DigiForge\Core\Activator::activate();
         DigiForge\Core\Settings::protectProduction();
-        wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+        ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
     }
 
     private function render(string $view, int $id = 0): string

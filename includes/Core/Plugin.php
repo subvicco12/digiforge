@@ -55,6 +55,9 @@ final class Plugin {
         if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
         if (! CatalogAcceptanceSchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
+        (new \DigiForge\Security\ShopAccessRestGuard())->register();
+        (new \DigiForge\Security\ShopAccessAdminGuard())->register();
+        (new \DigiForge\REST\ShopAccessController())->register();
         \DigiForge\Operations\RecoveryProviderRegistry::register(new \DigiForge\Operations\HostingerRecoveryProvider());
         (new Controller())->register();
         (new ProductFactoryController())->register();

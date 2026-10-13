@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 use DigiForge\Database\Tables;
 final class PortalStageBudgetAcceptanceTest extends WP_UnitTestCase {
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);}
  private function stored():array {global $wpdb;$row=$wpdb->get_row($wpdb->prepare('SELECT policy FROM '.Tables::shop_ai_policies().' WHERE shop_key=%s AND environment=%s','digital','production'),ARRAY_A);return json_decode((string)$row['policy'],true);}
  public function testNativeEditorPreservesExactZeroAndDecimalAmountsAndAbsence():void {
   PortalActionAcceptanceFixture::invoke('SAVE_AI_POLICY_ACTION',['shop_key'=>'digital','currency'=>'USD','stage_develop_limit'=>'2','stage_develop_monthly_budget'=>'0.00','stage_listing_prepare_monthly_budget'=>'12.340000','stage_render_monthly_budget'=>'']);$policy=$this->stored();self::assertSame('0.00',$policy['stages']['develop']['monthly_budget']);self::assertSame('12.340000',$policy['stages']['listing_prepare']['monthly_budget']);self::assertNull($policy['stages']['render']['monthly_budget']);self::assertArrayNotHasKey('monthly_budget',$policy['stages']['qa']);

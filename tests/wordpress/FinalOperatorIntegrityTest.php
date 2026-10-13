@@ -1,8 +1,9 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 /** Blueprint p232/p234/p236: local evidence failures and exact order identity, no external execution. */
 final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
  public static function operatorActions():array {return array_map(static fn(string $m):array=>[$m],['review','develop','saveAiSecret','saveAiPolicy','listingReview','podPackageReview','podRenderReview','master500Acceptance','recoveryPlan','recoveryAccept','personalizationReview','ownershipReview','saveNotificationPreferences','requestReplacementReview','decideReplacementReview']);}
  /** @dataProvider operatorActions */
  public function testOperatorHandlersRejectUnauthorizedOrInvalidNonceBeforeWrites(string $method):void {
@@ -12,6 +13,7 @@ final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
   self::assertSame([],$mutations);
  }
  public function testNativePortalResearchReviewRecordsEvidenceWithoutExternalAuthority():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], ['manage_digiforge', 'manage_digiforge_research']);
   $repo=new DigiForge\Research\Repository();$candidate=$repo->createCandidate(['shop_key'=>'digital','title'=>'Offline portal review '.wp_generate_uuid4()]);self::assertNotWPError($candidate);
   $portal=new DigiForge\Portal\Portal();$portal->register();add_action('digiforge_log',[DigiForge\Security\Logger::class,'write'],10,4);
   $action=(new ReflectionClass($portal))->getConstant('REVIEW_ACTION');$confirmation=DigiForge\Portal\ReviewConfirmation::inspect($action,(int)$candidate['id'],'digital',['decision'=>'APPROVED']);self::assertNotWPError($confirmation);$post=$_POST;$request=$_REQUEST;$redirect='';$capture=static function(string $url)use(&$redirect):never{$redirect=$url;throw new RuntimeException('operator-redirect');};add_filter('wp_redirect',$capture);
@@ -20,6 +22,7 @@ final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
   self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
  }
  public function testSelectedShopFiltersResearchEvidenceRowsAndCounts():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod'], ['manage_digiforge', 'manage_digiforge_research']);
   $r=new DigiForge\Research\Repository();$marker='Scoped portal '.wp_generate_uuid4();
   foreach(['digital','personalized_pod'] as $shop){
    $source=$r->createSource(['shop_key'=>$shop,'name'=>$marker.' source '.$shop]);self::assertNotWPError($source);
@@ -33,6 +36,7 @@ final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
   }
  }
  public function testSelectedShopFiltersOrdersAndCannotFocusAnotherShopsReview():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod', 'standard_pod', 'jewelry'], ['manage_digiforge', 'manage_digiforge_orders']);
   global $wpdb;$r=new DigiForge\Orders\Repository();$marker='Scoped-order-'.wp_generate_uuid4();$reviews=[];$children=[];$ordersByShop=[];
   foreach(['digital','personalized_pod'] as $shop){$order=$r->createOrder(['shop_reference'=>$shop,'external_order_reference'=>$marker.'-'.$shop,'environment'=>'sandbox']);self::assertNotWPError($order);$ordersByShop[$shop]=(int)$order['id'];$now=current_time('mysql',true);
    self::assertSame(1,$wpdb->insert(DigiForge\Database\Tables::fulfillment_readiness_reviews(),['order_id'=>$order['id'],'readiness'=>'{}','readiness_hash'=>hash('sha256',$marker.$shop),'created_at'=>$now,'updated_at'=>$now]));$reviews[$shop]=(int)$wpdb->insert_id;
@@ -62,18 +66,22 @@ final class FinalOperatorIntegrityTest extends WP_UnitTestCase {
   foreach(['automatic_recovery_permitted','replay_permitted','retry_permitted','external_execution_authorized'] as $key)self::assertFalse($failed[$key]);self::assertTrue($failed['read_only']);
  }
  private function evidencePanel(string $table,array $query):string {
-  $get=$_GET;try{$_GET=$query;ob_start();(new ReflectionMethod(DigiForge\Portal\Portal::class,'panelTable'))->invoke(new DigiForge\Portal\Portal(),'Local evidence',$table);return (string)ob_get_clean();}finally{$_GET=$get;}
+  $get=$_GET;try{$_GET=$query+['df_view'=>'orders'];$portal=new DigiForge\Portal\Portal();$portal->render();$_GET=$query+['df_view'=>'orders'];ob_start();(new ReflectionMethod(DigiForge\Portal\Portal::class,'panelTable'))->invoke($portal,'Local evidence',$table);return (string)ob_get_clean();}finally{$_GET=$get;}
  }
  public function testPortalTableFailureCannotBecomeEmptyEvidence():void {
+  // Explicit four-shop positive read authority reaches the original global empty/unavailable contrast.
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital','personalized_pod','standard_pod','jewelry'], ['manage_digiforge','manage_digiforge_research']);
   global $wpdb;$table=DigiForge\Database\Tables::research_sources();$filter=static fn(string $sql):string=>str_contains($sql,'FROM '.$table)?str_replace($table,'digiforge_missing_operator_source',$sql):$sql;
-  $method=(new ReflectionClass(DigiForge\Portal\Portal::class))->getMethod('panelTable');$method->setAccessible(true);$before=$wpdb->suppress_errors(true);add_filter('query',$filter);
-  try{ob_start();$method->invoke(new DigiForge\Portal\Portal(),'Sources',$table);$html=ob_get_clean();}finally{remove_filter('query',$filter);$wpdb->suppress_errors($before);}
+  $portal=new DigiForge\Portal\Portal();$get=$_GET;$_GET=['df_view'=>'research','df_shop'=>'all'];$portal->render();$_GET=$get;$method=(new ReflectionClass(DigiForge\Portal\Portal::class))->getMethod('panelTable');$method->setAccessible(true);$before=$wpdb->suppress_errors(true);add_filter('query',$filter);
+  try{ob_start();$method->invoke($portal,'Sources',$table);$html=ob_get_clean();}finally{remove_filter('query',$filter);$wpdb->suppress_errors($before);}
   self::assertStringContainsString('UNAVAILABLE',$html);self::assertStringContainsString('Evidence unavailable',$html);self::assertStringNotContainsString('No records found.',$html);
  }
  public function testPortalSuccessfulEmptyTableRemainsDistinguishable():void {
+  // Explicit four-shop positive read authority reaches the original global empty/unavailable contrast.
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital','personalized_pod','standard_pod','jewelry'], ['manage_digiforge','manage_digiforge_research']);
   global $wpdb;$table=DigiForge\Database\Tables::research_sources();
-  $wpdb->query('DELETE FROM '.$table);$method=(new ReflectionClass(DigiForge\Portal\Portal::class))->getMethod('panelTable');$method->setAccessible(true);
-  ob_start();$method->invoke(new DigiForge\Portal\Portal(),'Sources',$table);$html=ob_get_clean();self::assertStringContainsString('0 records',$html);self::assertStringContainsString('No records found.',$html);self::assertStringNotContainsString('Evidence unavailable',$html);
+  $wpdb->query('DELETE FROM '.$table);$portal=new DigiForge\Portal\Portal();$get=$_GET;$_GET=['df_view'=>'research','df_shop'=>'all'];$portal->render();$_GET=$get;$method=(new ReflectionClass(DigiForge\Portal\Portal::class))->getMethod('panelTable');$method->setAccessible(true);
+  ob_start();$method->invoke($portal,'Sources',$table);$html=ob_get_clean();self::assertStringContainsString('0 records',$html);self::assertStringContainsString('No records found.',$html);self::assertStringNotContainsString('Evidence unavailable',$html);
  }
  public function testOrderLookupUsesExactShopAndExternalIdentity():void {
   $r=new DigiForge\Orders\Repository();$ref='Offline-Exact-'.wp_generate_uuid4();$row=$r->createOrder(['shop_reference'=>'shop-exact','external_order_reference'=>$ref,'environment'=>'production']);self::assertNotWPError($row);
