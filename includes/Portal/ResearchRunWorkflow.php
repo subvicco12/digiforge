@@ -35,11 +35,11 @@ final class ResearchRunWorkflow
         if($enabled&&is_string($id)&&preg_match('/^[a-f0-9-]{36}$/D',$id)){
             $pending=$this->pending($id);
             if(is_array($pending)&&$pending['actor_id']===get_current_user_id()&&($pending['input']['shop']??null)===$shop){
-                $current=$this->evidence($pending['input']);
+                $plan=null;$current=$this->evidence($pending['input'],$plan);
                 if(!is_wp_error($current)&&hash_equals($pending['evidence_hash'],$current)){
                     echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::EXECUTE_ACTION).'"><input type="hidden" name="shop_key" value="'.esc_attr($shop).'"><input type="hidden" name="df_research_run" value="'.esc_attr($id).'"><input type="hidden" name="df_research_signature" value="'.esc_attr($this->signature($pending)).'">';wp_nonce_field(self::EXECUTE_ACTION);
                     echo '<dl>';foreach(['selected_candidate_id'=>'Approved selection','market'=>'Market','focus'=>'Focus','query'=>'Research request'] as $field=>$label)if(isset($pending['input'][$field]))echo '<dt>'.esc_html($label).'</dt><dd>'.esc_html((string)$pending['input'][$field]).'</dd>';echo '</dl>';
-                    echo '<p>Shop: '.esc_html($shop).' · Phase: '.esc_html($pending['input']['phase']).' · Planned generation quantity: 1. Provider quote, task permissions and budget admission are still independently required at execution.</p><p>Current request evidence SHA-256 <code>'.esc_html($current).'</code></p><p><label><input type="checkbox" name="df_confirm_research_run" value="1"> I reviewed this exact request and consent to one governed research attempt. This is not artwork, listing or supplier approval.</label></p><button class="df-button">Confirm research attempt</button></form>';
+                    echo '<p>Shop: '.esc_html($shop).' · Phase: '.esc_html($pending['input']['phase']).' · Planned generation quantity: 1. Maximum reviewed reservation: '.esc_html($plan['quote']['maximum_charge']).' '.esc_html($plan['quote']['currency']).' · Model: '.esc_html($plan['model']).' · Output token bound: '.esc_html((string)$plan['output_token_limit']).' · Search call bound: '.esc_html((string)$plan['web_search_call_limit']).' · Quote source SHA-256 '.esc_html($plan['quote']['source_sha256']).'. This is a maximum reservation bound, not an assumed charge. Current evidence and budget admission are rechecked at execution.</p><p>Current request evidence SHA-256 <code>'.esc_html($current).'</code></p><p><label><input type="checkbox" name="df_confirm_research_run" value="1"> I reviewed this exact request and consent to one governed research attempt. This is not artwork, listing or supplier approval.</label></p><button class="df-button">Confirm research attempt</button></form>';
                 }else echo '<p>Research consent is stale or its evidence is unavailable. Prepare a new request.</p>';
             }
         }
@@ -51,8 +51,8 @@ final class ResearchRunWorkflow
         $shop=$_POST['shop_key']??'';$input=$this->input($_POST);
         if(is_wp_error($input))$this->respond(is_string($shop)?$shop:'',$input->get_error_message(),true);
         $admit=$this->access($input['shop']);if(is_wp_error($admit))$this->respond($input['shop'],$admit->get_error_message(),true);
-        $evidence=$this->evidence($input);if(is_wp_error($evidence))$this->respond($input['shop'],$evidence->get_error_message(),true);
-        $id=wp_generate_uuid4();$issued=time();$pending=['version'=>1,'operation_id'=>$id,'actor_id'=>get_current_user_id(),'issued_at'=>$issued,'expires_at'=>$issued+self::TTL,'input'=>$input,'evidence_hash'=>$evidence];$pending['seal']=$this->signature($pending);
+        $plan=null;$evidence=$this->evidence($input,$plan);if(is_wp_error($evidence))$this->respond($input['shop'],$evidence->get_error_message(),true);
+        $id=wp_generate_uuid4();$issued=time();$pending=['version'=>1,'operation_id'=>$id,'actor_id'=>get_current_user_id(),'issued_at'=>$issued,'expires_at'=>$issued+self::TTL,'input'=>$input,'evidence_hash'=>$evidence,'plan'=>$plan];$pending['seal']=$this->signature($pending);
         $json=wp_json_encode($pending);
         if(!is_string($json)||!Logger::write('portal_manual_research_prepared',['shop'=>$input['shop'],'request_hash'=>$evidence],'research_run',hash('sha256',$id))||!add_option('digiforge_manual_research_pending_'.$id,$json,'',false))$this->respond($input['shop'],'Research consent evidence could not be persisted.',true);
         $this->respond($input['shop'],'Research request prepared; explicit current-evidence confirmation is required.',false,['df_research_run'=>$id]);
@@ -65,7 +65,7 @@ final class ResearchRunWorkflow
         $access=$this->access($shop);if(is_wp_error($access))$this->respond($shop,$access->get_error_message(),true);
         $pending=$this->pending($id);
         if(!is_array($pending)||$pending['actor_id']!==get_current_user_id()||($pending['input']['shop']??null)!==$shop||!hash_equals($this->signature($pending),$signature))$this->respond($shop,'Research consent is expired, invalid or belongs to another actor/shop.',true);
-        $current=$this->evidence($pending['input']);
+        $plan=null;$current=$this->evidence($pending['input'],$plan);
         if(is_wp_error($current)||!hash_equals($pending['evidence_hash'],$current))$this->respond($shop,'Research consent is stale, blocked or its evidence is unavailable.',true);
         if(!Logger::write('portal_manual_research_consent',['shop'=>$shop,'request_hash'=>$current,'single_use'=>true],'research_run',hash('sha256',$id)))$this->respond($shop,'Research consent audit persistence is unavailable.',true);
         $receipt=wp_json_encode(['version'=>1,'actor_id'=>get_current_user_id(),'request_hash'=>$current,'pending_hash'=>hash('sha256',(string)wp_json_encode($pending)),'consumed_at'=>time()]);
@@ -73,7 +73,7 @@ final class ResearchRunWorkflow
         if(!is_string($receipt)||!add_option($name,$receipt,'',false))$this->respond($shop,'Research consent was already consumed or could not be recorded.',true);
         global $wpdb;$wpdb->last_error='';$stored=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));
         if($wpdb->last_error!==''||!is_string($stored)||!hash_equals($receipt,$stored))$this->respond($shop,'Research consent receipt could not be verified; reconciliation is required.',true);
-        $request=new \WP_REST_Request('POST','/digiforge/v1/launch/research');$request->set_header('Content-Type','application/json');$request->set_header('Idempotency-Key','portal-research-'.$id);$request->set_body((string)wp_json_encode($pending['input']));
+        $request=new \WP_REST_Request('POST','/digiforge/v1/launch/research');$request->set_header('Content-Type','application/json');$request->set_header('Idempotency-Key','portal-research-'.$id);$request->set_body((string)wp_json_encode($pending['input']+['consented_quote_sha256'=>hash('sha256',(string)wp_json_encode($pending['plan']['quote']))]));
         $response=rest_do_request($request);
         if(is_wp_error($response))$this->respond($shop,$response->get_error_message(),true);
         $data=$response->get_data();
@@ -97,10 +97,10 @@ final class ResearchRunWorkflow
         else foreach(['market'=>512,'focus'=>2048,'query'=>4096]as $field=>$maximum){$value=$body[$field]??null;if(!is_string($value)||trim($value)===''||strlen($value)>$maximum)return new WP_Error('manual_research_input','Trend research requires bounded explicit market, focus and request fields.');$clean=sanitize_text_field($value);if($clean==='')return new WP_Error('manual_research_input','Research text must retain nonempty valid content.');$input[$field]=$clean;}
         return $input;
     }
-    private function evidence(array $input):string|WP_Error
+    private function evidence(array $input,?array &$plan=null):string|WP_Error
     {
         if(!Settings::is_enabled('research')||!Settings::is_enabled('ai'))return new WP_Error('manual_research_locked','STOP ALL / external safety lock or effective Research/AI controls block this request.');
-        $contract=(new ExecutionEngine())->researchPreview($input);if(is_wp_error($contract))return $contract;
+        $contract=(new ExecutionEngine())->researchPlan($input);if(is_wp_error($contract))return $contract;$plan=$contract;
         global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT policy,policy_hash,state FROM ".Tables::shop_ai_policies()." WHERE BINARY shop_key=BINARY %s AND environment='production'",$input['shop']),ARRAY_A);
         if($wpdb->last_error!==''||!is_array($row)||$row['state']!=='ACTIVE'||!hash_equals((string)$row['policy_hash'],hash('sha256',(string)$row['policy'])))return new WP_Error('manual_research_policy','Current reviewed policy evidence is unavailable.');
         try{$policy=json_decode((string)$row['policy'],true,16,JSON_THROW_ON_ERROR);}catch(\Throwable){return new WP_Error('manual_research_policy','Current policy is not valid typed evidence.');}if(!is_array($policy)||($policy['shop_key']??null)!==$input['shop'])return new WP_Error('manual_research_policy','Current policy shop identity is invalid.');
@@ -112,7 +112,7 @@ final class ResearchRunWorkflow
     {
         $raw=get_option('digiforge_manual_research_pending_'.$id,false);if(!is_string($raw)||strlen($raw)>16384)return null;
         try{$value=json_decode($raw,true,16,JSON_THROW_ON_ERROR);}catch(\Throwable){return null;}
-        if(!is_array($value)||($value['version']??null)!==1||($value['operation_id']??null)!==$id||!is_int($value['actor_id']??null)||!is_int($value['issued_at']??null)||!is_int($value['expires_at']??null)||$value['expires_at']-$value['issued_at']!==self::TTL||$value['issued_at']>time()+5||$value['expires_at']<time()||!is_array($value['input']??null)||!is_string($value['evidence_hash']??null)||!preg_match('/^[a-f0-9]{64}$/D',$value['evidence_hash']))return null;
+        if(!is_array($value)||($value['version']??null)!==1||($value['operation_id']??null)!==$id||!is_int($value['actor_id']??null)||!is_int($value['issued_at']??null)||!is_int($value['expires_at']??null)||$value['expires_at']-$value['issued_at']!==self::TTL||$value['issued_at']>time()+5||$value['expires_at']<time()||!is_array($value['plan']['quote']??null)||!is_array($value['input']??null)||!is_string($value['evidence_hash']??null)||!preg_match('/^[a-f0-9]{64}$/D',$value['evidence_hash']))return null;
         if(!is_string($value['seal']??null)||!hash_equals($this->signature($value),$value['seal']))return null;
         return $value;
     }

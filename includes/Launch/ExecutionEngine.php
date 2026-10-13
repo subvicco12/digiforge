@@ -45,7 +45,8 @@ final class ExecutionEngine
         $stage = $phase === 'deep_research' ? 'shortlist' : 'research';
         $generationShop = $phase === 'deep_research' && $shop === 'goods' ? 'personalized_pod' : $shop;
         $selectedContextHash = $selectedId > 0 ? hash('sha256', $brief) : '';
-        $ai = (new GovernedGeneration())->research($generationShop, $brief, $key . '-research', $runContext, null, $stage);
+        $costContext=null;if(array_key_exists('consented_quote_sha256',$input)){if(!is_string($input['consented_quote_sha256'])||!preg_match('/^[a-f0-9]{64}$/D',$input['consented_quote_sha256']))return $this->error('validation','Exact consented reviewed quote hash required.');$costContext=['consented_quote_sha256'=>$input['consented_quote_sha256']];}
+        $ai = (new GovernedGeneration())->research($generationShop, $brief, $key . '-research', $runContext, $costContext, $stage);
         if (is_wp_error($ai)) {
             return $ai;
         }
@@ -167,6 +168,14 @@ final class ExecutionEngine
         $brief=$phase==='deep_research'?$this->deepResearchBrief((int)($input['selected_candidate_id']??0),$shop):$this->researchPrompt((string)($input['market']??''),$shop,(string)($input['focus']??''),(string)($input['query']??''));
         if(is_wp_error($brief))return $brief;$contract=OpenAIClient::generationContract($brief,4000,false,true);
         return ['model'=>$contract['model'],'request_sha256'=>$contract['request_sha256'],'selected_context_sha256'=>hash('sha256',$brief),'stage'=>$phase==='deep_research'?'shortlist':'research'];
+    }
+
+    /** Exact governed read-only cost/quantity plan for the same prompt and route used at execution. */
+    public function researchPlan(array $input):array|\WP_Error
+    {
+        $contract=$this->researchPreview($input);if(is_wp_error($contract))return $contract;
+        $brief=$input['phase']==='deep_research'?$this->deepResearchBrief((int)($input['selected_candidate_id']??0),$input['shop']):$this->researchPrompt((string)($input['market']??''),$input['shop'],(string)($input['focus']??''),(string)($input['query']??''));if(is_wp_error($brief))return $brief;
+        return (new GovernedGeneration())->researchPlan($input['shop'],$brief,$contract['stage'],$input['run_context']??null);
     }
 
     /** Build bounded deep-analysis input only from a reviewed, owned stored selection. */

@@ -8,6 +8,8 @@ use WP_Error;
 /** Bounded local text/photo SVG renderer. No AI, network, provider placement or production authority. */
 final class DeterministicPersonalizationRenderer
 {
+    /** Exact engines accepted by the deterministic recipe validator; not artistic certification. */
+    public static function supportedEngines():array {return ['NAME_MONOGRAM','PHOTO_TEXT','SINGLE_PHOTO','PHOTO_COLLAGE','MULTI_PHOTO','FACE_REPEAT','PET_FACE_REPEAT','AOP_PATTERN','HANDWRITING','CHILD_ART','MEMORIAL'];}
     public function approveRecipe(string $key,int $version,array $recipe):array|WP_Error
     {
         if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required','Authorized POD recipe reviewer required.');
@@ -72,7 +74,7 @@ final class DeterministicPersonalizationRenderer
     }
     private function normalizeRecipe(array $template,array $recipe):array|WP_Error
     {
-        if($template['personalization_pipeline']!=='DIGIFORGE_RENDER'||($recipe['engine']??null)!==$template['personalization_engine']||!in_array($recipe['engine'],['NAME_MONOGRAM','PHOTO_TEXT','SINGLE_PHOTO','PHOTO_COLLAGE','MULTI_PHOTO','FACE_REPEAT','PET_FACE_REPEAT','AOP_PATTERN','HANDWRITING','CHILD_ART','MEMORIAL'],true))return self::error('engine_unsupported','Explicit supported deterministic template engine required.');
+        if($template['personalization_pipeline']!=='DIGIFORGE_RENDER'||($recipe['engine']??null)!==$template['personalization_engine']||!in_array($recipe['engine'],self::supportedEngines(),true))return self::error('engine_unsupported','Explicit supported deterministic template engine required.');
         if(array_diff(array_keys($recipe),['engine','background','slots','panels','bitmap_font','design_family'])!==[]||!preg_match('/^#[a-f0-9]{6}$/D',(string)($recipe['background']??'')))return self::error('recipe_invalid','Exact safe recipe fields required.');
         if(isset($recipe['design_family'])){try{$family=$recipe['design_family'];if(!is_array($family)||Validator::canonicalJson($family)!==Validator::canonicalJson(DesignFamilyLibrary::provenance((string)($family['id']??''))))return self::error('family_conflict','Versioned source artwork provenance changed.');$spec=DesignFamilyLibrary::inventory()[$family['id']];if(!in_array($recipe['engine'],$spec['compatible_engines']??[$spec['engine']],true))return self::error('family_conflict','Family engine differs.');}catch(\Throwable){return self::error('family_invalid','Exact versioned design family required.');}}
         $font=null;if(isset($recipe['bitmap_font'])){try{$font=BitmapFontAdapter::normalize($recipe['bitmap_font']);}catch(\Throwable){return self::error('font_invalid','Actual bounded versioned glyph data required.');}}

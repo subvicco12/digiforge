@@ -38,6 +38,7 @@ final class ShopAccessAdminGuard
         if (\DigiForge\Portal\ReviewConfirmation::definition($action)!==null || in_array($action,[
             'digiforge_portal_save_ai_secret','digiforge_portal_save_ai_policy',
             'digiforge_portal_prepare_research_run','digiforge_portal_execute_research_run',
+            'digiforge_portal_publish_review',
             'digiforge_portal_recovery_plan','digiforge_portal_recovery_accept',
             'digiforge_portal_notification_preferences','digiforge_portal_draft_qa_preview',
             'digiforge_ai_evidence_review','digiforge_local_render_prepare',

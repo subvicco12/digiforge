@@ -44,6 +44,20 @@ final class GovernedGeneration
         return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->startBackgroundDevelop($prompt, $maxOutputTokens,$route['provider_model']??null), OpenAIClient::generationContract($prompt,$maxOutputTokens,true,false,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
     }
 
+    /** Read-only exact research request and reviewed maximum; does not reserve or contact a provider. */
+    public function researchPlan(string $shop,string $prompt,string $stage,?array $runContext):array|WP_Error
+    {
+        if(!in_array($stage,['research','shortlist'],true))return new WP_Error('ai_generation_context_invalid','Research stage required.');
+        $route=$this->authorizeRoute($shop,$stage,$runContext,true);if($route instanceof WP_Error)return $route;
+        $contract=OpenAIClient::generationContract($prompt,4000,false,true,$route['provider_model']??null);
+        $quote=(new MonetaryReservationRepository())->findQuote($shop,$contract,false);if($quote instanceof WP_Error)return $quote;
+        $bound=$quote['quote_preview']??null;if(!is_array($bound))return new WP_Error('ai_quote_preview_unavailable','Reviewed bound unavailable.');
+        $projection=$this->governance->evaluate($shop,'production',$runContext);if($projection instanceof WP_Error)return $projection;
+        $admission=ShopAiPlan::preflight($projection,$stage,1,(float)$bound['maximum_charge']);
+        if($projection['currency']!==$bound['currency']||!$admission['execution_allowed'])return new WP_Error('ai_quote_preview_blocked','Current quote/currency or quantity/budget admission is blocked.');
+        return ['request_sha256'=>$contract['request_sha256'],'model'=>$contract['model'],'stage'=>$stage,'quantity'=>1,'output_token_limit'=>$contract['output_token_limit'],'web_search_call_limit'=>$contract['web_search_call_limit'],'quote'=>$bound,'planning_only'=>true,'actual_charge_assumed'=>false,'external_execution_authorized'=>false];
+    }
+
     private function authorizeRoute(string $shop,string $stage,?array $runContext,bool $research):array|WP_Error
     {
         if(!Settings::is_enabled('ai')||!Settings::is_enabled($research?'research':'product_development'))return new WP_Error('ai_generation_safety_locked','Scoped AI authorization and released STOP ALL are required before generation.');

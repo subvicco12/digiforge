@@ -94,10 +94,14 @@ final class Portal
         'settings' => ['label' => 'Settings', 'cap' => 'manage_digiforge'],
     ];
 
+    private const PUBLISH_REVIEW_ACTION = 'digiforge_portal_publish_review';
+    public function recordPublishReview(): never {(new PublishReviewWorkflow())->submit();}
+
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
         (new ResearchRunWorkflow())->register();
+        add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
@@ -555,6 +559,7 @@ final class Portal
     {
         $selectedShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selectedShop===ShopOperationsReadModel::ALL?null:$selectedShop;
         $this->draftQaReviewForms($shop);
+        (new PublishReviewWorkflow())->render($shop,$this->url('listings'));
         $webhook=EtsyWebhookReadiness::inspect();
         $attachmentEvidenceState=null;$attachments=(new EtsyDigitalAttachmentReadModel())->recent(50,$attachmentEvidenceState,$shop);
         global $wpdb;
@@ -710,6 +715,7 @@ final class Portal
             foreach($policyHistory as $policy)echo '<tr><td>'.esc_html((string)$policy['shop_key']).'</td><td>'.esc_html((string)$policy['workflow_key']).'</td><td>'.esc_html((string)$policy['capability']).'</td><td>'.((int)$policy['enabled']===1?'YES':'NO').'</td><td>'.esc_html((string)$policy['policy_version']).'</td><td>'.esc_html((string)$policy['policy_hash']).'</td><td>'.esc_html((string)$policy['created_at']).'</td></tr>';
             echo '</tbody></table></div><p class="df-muted">Bounded, integrity-checked policy content only. Recording time is stored metadata outside the original content hash. STOP ALL and parent restrictions remain authoritative; policy history cannot authorize execution.</p>';
         }
+        PolicyEvidencePanel::render($policyShop);
         $showSuccess=(new NotificationPreferences())->current();
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Your portal notifications</h2></div><form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::NOTIFICATION_PREFERENCES_ACTION).'">';wp_nonce_field(self::NOTIFICATION_PREFERENCES_ACTION);echo '<label><input type="checkbox" name="show_success_notifications" value="1"'.($showSuccess?' checked':'').'> Show routine success notifications</label><p class="df-muted">This preference applies to your operator account. Errors, STOP ALL, blockers and evidence warnings always remain visible.</p><button class="df-button" type="submit">Save notification preference</button></form></section>';
     }

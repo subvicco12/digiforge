@@ -323,6 +323,14 @@ final class EtsyOperationRepository
     }
 
     /** @return array<string,mixed>|WP_Error|null */
+    /** Any non-failed attempt blocks fresh-key publication across packages/intents. */
+    public function publishAttemptForResource(string $shopReference,string $listingId):array|WP_Error|null
+    {
+        if(!ctype_digit($shopReference)||!ctype_digit($listingId)||(int)$shopReference<1||(int)$listingId<1)return $this->error('publish_scope','Numeric seller/listing scope required.',400);
+        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$wpdb->prefix.'digiforge_etsy_operations WHERE BINARY shop_reference=BINARY %s AND BINARY resource_reference=BINARY %s AND operation_type=%s AND state<>%s ORDER BY id DESC LIMIT 1',$shopReference,$listingId,'PUBLISH_LISTING',EtsyOperationLifecycle::CONFIRMED_FAILURE),ARRAY_A);
+        if($wpdb->last_error!=='')return $this->error('evidence_unavailable','Publish attempt evidence unavailable; reconcile before any retry.',503);return is_array($row)?$row:null;
+    }
+
     public function confirmedPublishForScope(int $intentId,int $packageId,string $shopReference,string $listingId): array|WP_Error|null
     {
         if($intentId<1||$packageId<1||trim($shopReference)===''||!ctype_digit($listingId))return null;
