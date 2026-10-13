@@ -54,6 +54,7 @@ final class Plugin {
         if (! V6OperationalSchema::migrateIfNeeded()) { return; }
         if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
         if (! CatalogAcceptanceSchema::migrateIfNeeded()) { return; }
+        if (! \DigiForge\Database\EtsyOrderEventSchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
         (new \DigiForge\Security\ShopAccessRestGuard())->register();
         (new \DigiForge\Security\ShopAccessAdminGuard())->register();

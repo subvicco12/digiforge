@@ -60,6 +60,11 @@ def validate(rows, anchors, root=ROOT):
         if not identity or identity in seen:
             raise ValueError('Duplicate or empty derived requirement ID: ' + identity)
         seen.add(identity)
+        if (row.get('census_role') == 'ATOMIC' and row.get('kind') == 'SOFTWARE_MANDATORY'
+                and row['candidate_status'] != 'IMPLEMENTED'):
+            if (row.get('action_classification') not in {'SOFTWARE', 'UNVERIFIED', 'EXTERNAL', 'OWNER APPROVAL'}
+                    or not row.get('next_action', '').strip()):
+                raise ValueError('Unresolved action classification or next step missing: ' + identity)
         for column in ('candidate_status', 'main_status'):
             if row[column] not in STATUSES:
                 raise ValueError('Invalid ' + column + ': ' + identity)
@@ -163,6 +168,7 @@ def report(rows, anchors, links, source_records, root=ROOT, main=MAIN, trace=Non
                       atomic_kind_counts=dict(Counter(r['kind'] for r in rows if r['census_role'] == 'ATOMIC')),
                       mandatory_original_spec_denominator=len(atomic), mandatory_original_spec_verified=verified,
                       mandatory_original_spec_unverified=len(gaps), mandatory_unverified_ids=gaps,
+                      mandatory_action_classifications=dict(Counter(r['action_classification'] for r in atomic if r['candidate_status'] != 'IMPLEMENTED')),
                       mandatory_gap_groups=dict(Counter('PORTAL_CAPABILITY' if i.startswith('BP-portal-') else 'CORE_BLUEPRINT' if i.startswith('DERIVED-BP-') else 'OTHER_OPERATOR_LIFECYCLE' for i in gaps)),
                       mandatory_original_spec_completion_percent=round(100 * verified / len(atomic), 2) if atomic else None,
                       mandatory_original_spec_status='CLASSIFIED_NONFINANCE_SOFTWARE_CENSUS',

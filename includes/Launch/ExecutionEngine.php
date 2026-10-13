@@ -23,9 +23,10 @@ final class ExecutionEngine
 
         $market = sanitize_text_field((string) ($input['market'] ?? 'United States and Europe'));
         $shop = sanitize_key((string) ($input['shop'] ?? 'goods'));
-        if (! in_array($shop, ['digital', 'goods'], true) && !(($input['phase']??'')==='deep_research' && $shop==='personalized_pod')) {
-            return $this->error('validation', 'shop must be digital or goods; deep_research also accepts personalized_pod.');
+        if (! in_array($shop, array_merge(['goods'], \DigiForge\Security\ShopAccessPolicy::canonicalShops()), true)) {
+            return $this->error('validation', 'A supported canonical shop or existing goods compatibility scope is required.');
         }
+        if (($input['phase']??'trend_scan')==='trend_scan' && !in_array($shop,['digital','goods'],true) && (!is_string($input['focus']??null)||trim($input['focus'])==='')) return $this->error('validation','Canonical POD and jewelry trend research requires an explicit focus.');
         $focus = sanitize_text_field((string) ($input['focus'] ?? ($shop === 'goods' ? 'personalized print-on-demand products' : 'digital download products')));
         $query = sanitize_text_field((string) ($input['query'] ?? 'Find a commercially attractive Etsy product opportunity'));
 
@@ -156,6 +157,16 @@ final class ExecutionEngine
             'ai' => ['model' => $ai['model'] ?? '', 'response_id' => $ai['response_id'] ?? '', 'usage' => $ai['usage'] ?? []],
             'next_action' => 'Review and APPROVE the candidate before product development.',
         ];
+    }
+
+    /** Same non-secret request contract as execution; never performs provider or credential access. */
+    public function researchPreview(array $input):array|\WP_Error
+    {
+        $shop=(string)($input['shop']??'');$phase=(string)($input['phase']??'');
+        if(!in_array($shop,\DigiForge\Security\ShopAccessPolicy::canonicalShops(),true)||!in_array($phase,['trend_scan','deep_research'],true))return $this->error('validation','A canonical research request is required.');
+        $brief=$phase==='deep_research'?$this->deepResearchBrief((int)($input['selected_candidate_id']??0),$shop):$this->researchPrompt((string)($input['market']??''),$shop,(string)($input['focus']??''),(string)($input['query']??''));
+        if(is_wp_error($brief))return $brief;$contract=OpenAIClient::generationContract($brief,4000,false,true);
+        return ['model'=>$contract['model'],'request_sha256'=>$contract['request_sha256'],'selected_context_sha256'=>hash('sha256',$brief),'stage'=>$phase==='deep_research'?'shortlist':'research'];
     }
 
     /** Build bounded deep-analysis input only from a reviewed, owned stored selection. */

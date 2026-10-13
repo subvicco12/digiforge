@@ -22,6 +22,16 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
         cls.anchors |= {r['source_locator'] for r in cls.originals}
         cls.trace = matrix.read_rows(matrix.SOURCE / 'full-source-requirement-trace.tsv')
 
+    def test_unresolved_mandatory_rows_require_action_class_and_concrete_next_step(self):
+        row = next(r for r in self.rows if r['census_role'] == 'ATOMIC'
+                   and r['kind'] == 'SOFTWARE_MANDATORY' and r['candidate_status'] != 'IMPLEMENTED')
+        for field, value in [('action_classification', ''), ('action_classification', 'VERIFIED'), ('next_action', '')]:
+            rows = copy.deepcopy(self.rows)
+            target = next(r for r in rows if r['derived_requirement_id'] == row['derived_requirement_id'])
+            target[field] = value
+            with self.assertRaisesRegex(ValueError, 'Unresolved action classification'):
+                matrix.validate(rows, self.anchors)
+
     def test_source_record_count_cannot_become_requirement_denominator(self):
         report = matrix.report(self.rows, self.anchors, [], 1771)
         self.assertIsNone(report['mandatory_original_spec_denominator'])
@@ -40,6 +50,8 @@ class FinalAcceptanceMatrixTest(unittest.TestCase):
         self.assertEqual(round(100 * sum(r['candidate_status'] == 'IMPLEMENTED' for r in mandatory) / len(mandatory), 2),
                          report['mandatory_original_spec_completion_percent'])
         self.assertEqual(53, sum(r['legacy_preserved'] == 'yes' for r in self.rows))
+        self.assertEqual(len(mandatory) - report['mandatory_original_spec_verified'],
+                         sum(report['mandatory_action_classifications'].values()))
 
     def test_omitted_multiple_or_changed_source_classification_rejected(self):
         for trace, expected in [(self.trace[:-1], 'Omitted'), (self.trace + [self.trace[0]], 'Multiple')]:
