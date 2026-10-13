@@ -6,6 +6,7 @@ use WP_Error;
 /** Append-only versioned shop/workflow policy evidence. Saving policy is not execution authorization. */
 final class ScopedCapabilityPolicyRepository {
  public function append(string $shop,string $workflow,string $capability,bool $enabled):array|WP_Error {
+  $access=\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge');if($access instanceof WP_Error)return $access;
   global $wpdb;$shop=sanitize_key($shop);$workflow=sanitize_key($workflow);$capability=sanitize_key($capability);if($shop===''||$workflow===''||$capability==='')return new WP_Error('invalid_scoped_policy','Shop, workflow and capability are required.');
   $state=null;$prev=$this->latest($shop,$workflow,$capability,$state);if($state!=='AVAILABLE')return new WP_Error('scoped_policy_predecessor_unavailable','Scoped policy predecessor evidence is unavailable.');$version=is_array($prev)?((int)$prev['policy_version']+1):1;$previous=is_array($prev)?(string)$prev['policy_hash']:'';
   $canonical=wp_json_encode(['shop_key'=>$shop,'workflow_key'=>$workflow,'capability'=>$capability,'enabled'=>$enabled,'policy_version'=>$version,'previous_policy_hash'=>$previous]);$hash=hash('sha256',(string)$canonical);$now=current_time('mysql',true);
