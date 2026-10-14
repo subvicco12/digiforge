@@ -7,11 +7,14 @@ namespace DigiForge\Portal;
 use DigiForge\Database\Tables;
 use DigiForge\ProductFactory\ProductReview;
 use DigiForge\Security\Logger;
+use DigiForge\Security\ShopAccessPolicy;
+use DigiForge\Listings\EtsyStoredShopScope;
 
 /** Adds Gate 2 Product Approval to the existing single DigiForge Approval Inbox. */
 final class U3ApprovalInbox
 {
     private const ACTION = 'digiforge_u3_product_review';
+    private string $selectedShop = 'all';
 
     public function register(): void
     {
@@ -25,12 +28,22 @@ final class U3ApprovalInbox
         if ($tag !== 'digiforge_admin_portal' || ! is_user_logged_in() || ! current_user_can('manage_digiforge_products')) {
             return $output;
         }
+        if(!str_contains($output,'class="df-portal-shell"'))return $output;
+        $shop=$_GET['df_shop']??'all';if(!is_string($shop)||!array_key_exists($shop,ShopOperationsReadModel::shops()))return $output;
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_products');if(is_wp_error($allowed)||($shop==='all'?count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$allowed))!==4:!in_array($shop,$allowed,true)))return $output;
+        $this->selectedShop=$shop;
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if (in_array($view, ['approvals', 'research'], true)) {
             $output = (string) preg_replace('~<form class="df-review-form"[^>]*>\s*<input type="hidden" name="action" value="digiforge_portal_develop_candidate">.*?</form>~s', '<div class="df-muted">Approved — DigiForge Product Factory continues automatically. The next human decision is Product Approval.</div>', $output);
         }
         if ($view !== 'approvals') { return $output; }
-        $panel = $this->renderPanel() . $this->renderOperationalDecisionPanels();
+        $panel = $this->renderPanel();
+        $permitted=true;foreach(['manage_digiforge_listings','manage_digiforge_orders','manage_digiforge_pod']as $cap){
+            if(!current_user_can($cap)){$permitted=false;break;}
+            $grants=\DigiForge\Security\ShopAccess::allowedShops($cap);
+            if(is_wp_error($grants)||($shop==='all'?count(array_intersect(ShopAccessPolicy::canonicalShops(),$grants))!==4:!in_array($shop,$grants,true))){$permitted=false;break;}
+        }
+        if($permitted)$panel.=$this->renderOperationalDecisionPanels();
         $position = strrpos($output, '</main>');
         return $position === false ? $output . $panel : substr($output, 0, $position) . $panel . substr($output, $position);
     }
@@ -38,27 +51,32 @@ final class U3ApprovalInbox
     private function renderOperationalDecisionPanels(): string
     {
         global $wpdb;
+        $scope=$this->selectedShop==='all'?null:$this->selectedShop;
+        $listingScope=$this->scopePredicate('listing',$scope);
+        $personalizationScope=$this->scopePredicate('personalization',$scope);
+        $podScope=$this->scopePredicate('pod',$scope);
+        $fulfillmentScope=$this->scopePredicate('fulfillment',$scope);
         $wpdb->last_error='';
         $listingReviews = $wpdb->get_results(
-            "SELECT r.id,r.listing_id,r.decision,r.created_at,l.id AS subject_id,l.title,l.environment,l.updated_at AS subject_updated_at FROM " . Tables::listing_readiness_reviews() . " r LEFT JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.listing_id,r.decision,r.created_at,l.id AS subject_id,l.title,l.environment,l.updated_at AS subject_updated_at FROM " . Tables::listing_readiness_reviews() . " r LEFT JOIN " . Tables::listings() . " l ON l.id=r.listing_id WHERE r.decision='PENDING' AND $listingScope ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $listingReviews=null;
         $wpdb->last_error='';
         $personalization = $wpdb->get_results(
-            "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at,li.id AS subject_id,li.environment AS line_environment,li.product_version_id AS line_product_version_id,s.id AS schema_subject_id,s.product_version_id AS schema_product_version_id,s.state AS schema_state FROM " . Tables::personalization_submissions() . " p LEFT JOIN " . Tables::order_line_items() . " li ON li.id=p.order_line_item_id LEFT JOIN " . Tables::personalization_schemas() . " s ON s.id=p.personalization_schema_id WHERE p.review_status NOT IN ('APPROVED','REJECTED') ORDER BY p.id DESC LIMIT 50",
+            "SELECT p.id,p.order_line_item_id,p.personalization_schema_id,p.review_status,p.environment,p.created_at,li.id AS subject_id,li.environment AS line_environment,li.product_version_id AS line_product_version_id,s.id AS schema_subject_id,s.product_version_id AS schema_product_version_id,s.state AS schema_state FROM " . Tables::personalization_submissions() . " p LEFT JOIN " . Tables::order_line_items() . " li ON li.id=p.order_line_item_id LEFT JOIN " . Tables::personalization_schemas() . " s ON s.id=p.personalization_schema_id WHERE p.review_status NOT IN ('APPROVED','REJECTED') AND $personalizationScope ORDER BY p.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $personalization=null;
         $wpdb->last_error='';
         $podReviews = $wpdb->get_results(
-            "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.id AS subject_id,m.provider,m.environment,m.updated_at AS subject_updated_at FROM " . Tables::pod_readiness_reviews() . " r LEFT JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.provider_mapping_id,r.decision,r.created_at,m.id AS subject_id,m.provider,m.environment,m.updated_at AS subject_updated_at FROM " . Tables::pod_readiness_reviews() . " r LEFT JOIN " . Tables::pod_mappings() . " m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' AND $podScope ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $podReviews=null;
         $wpdb->last_error='';
         $fulfillmentReviews = $wpdb->get_results(
-            "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.id AS subject_id,p.order_id AS subject_order_id,p.provider,p.environment,p.state,p.updated_at AS subject_updated_at FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' ORDER BY r.id DESC LIMIT 50",
+            "SELECT r.id,r.order_id,r.fulfillment_plan_id,r.decision,r.created_at,p.id AS subject_id,p.order_id AS subject_order_id,p.provider,p.environment,p.state,p.updated_at AS subject_updated_at FROM " . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN " . Tables::fulfillment_plans() . " p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' AND $fulfillmentScope ORDER BY r.id DESC LIMIT 50",
             ARRAY_A
         );
         if (!empty($wpdb->last_error)) $fulfillmentReviews=null;
@@ -68,7 +86,7 @@ final class U3ApprovalInbox
             'POD readiness exceptions' => is_array($podReviews) ? $podReviews : null,
             'Fulfillment exceptions' => is_array($fulfillmentReviews) ? $fulfillmentReviews : null,
         ];
-        $pendingTotal=$this->pendingOperationalCount();
+        $pendingTotal=in_array(null,$groups,true)?null:$this->pendingOperationalCount();
         ob_start(); ?>
         <section class="df-panel df-u3-operational-approvals" id="df-approval-downstream">
             <div class="df-panel-head"><div><h2>Consolidated approval gates</h2><p>Operational approval & exception inbox. One read-only convergence view across downstream listing/publish, personalization, POD and fulfillment decisions; it is read-only and cannot activate or execute an external action. Research Gate 1 and Product Gate 2 remain visible above in their governed workflows.</p></div><span class="df-status">NO INFERRED APPROVAL</span></div><div class="df-signal-grid"><div><span>Downstream pending decisions</span><b><?php echo esc_html($pendingTotal===null?'UNKNOWN':(string)$pendingTotal); ?></b></div><div><span>Approval authority in this aggregate</span><b>NO</b></div><div><span>External execution authority</span><b>NO</b></div></div>
@@ -90,7 +108,7 @@ final class U3ApprovalInbox
                     <?php endforeach; ?></tbody></table></div>
                 <?php endif; ?></div>
             <?php endforeach; ?>
-            <div class="df-muted">The count covers all pending downstream decisions; each group displays its most recent 50. Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
+            <div class="df-muted"><?php echo esc_html($this->selectedShop==='all'?'The count covers all pending downstream decisions.':'The count covers pending decisions with uniquely verified ownership in the selected shop before the 50-row preview limit. Missing or conflicting ownership is excluded and requires reconciliation in its dedicated workflow.'); ?> Each group displays its most recent 50. Use the dedicated Listings, POD/Personalization, or Orders/Fulfillment workflow to make the governed decision. No approval is inferred from this aggregation view. Every decision must be made in its dedicated governed workflow; this view grants no publish, production, fulfillment, refund, tax or money-movement authority.</div>
         </section><?php
         return (string) ob_get_clean();
     }
@@ -99,21 +117,49 @@ final class U3ApprovalInbox
     private function pendingOperationalCount(): ?int
     {
         global $wpdb;
+        $shop=$this->selectedShop==='all'?null:$this->selectedShop;
+        $listing=$this->scopePredicate('listing',$shop);
+        $personalization=$this->scopePredicate('personalization',$shop);
+        $pod=$this->scopePredicate('pod',$shop);
+        $fulfillment=$this->scopePredicate('fulfillment',$shop);
         $wpdb->last_error='';
         $count=$wpdb->get_var(
-            'SELECT (SELECT COUNT(*) FROM ' . Tables::listing_readiness_reviews() . " WHERE decision='PENDING')"
-            . ' + (SELECT COUNT(*) FROM ' . Tables::personalization_submissions() . " WHERE review_status NOT IN ('APPROVED','REJECTED'))"
-            . ' + (SELECT COUNT(*) FROM ' . Tables::pod_readiness_reviews() . " WHERE decision='PENDING')"
-            . ' + (SELECT COUNT(*) FROM ' . Tables::fulfillment_readiness_reviews() . " WHERE decision='PENDING')"
+            'SELECT (SELECT COUNT(*) FROM ' . Tables::listing_readiness_reviews() . " r LEFT JOIN ".Tables::listings()." l ON l.id=r.listing_id WHERE r.decision='PENDING' AND $listing)"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::personalization_submissions() . " p LEFT JOIN ".Tables::order_line_items()." li ON li.id=p.order_line_item_id LEFT JOIN ".Tables::personalization_schemas()." s ON s.id=p.personalization_schema_id WHERE p.review_status NOT IN ('APPROVED','REJECTED') AND $personalization)"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::pod_readiness_reviews() . " r LEFT JOIN ".Tables::pod_mappings()." m ON m.id=r.provider_mapping_id WHERE r.decision='PENDING' AND $pod)"
+            . ' + (SELECT COUNT(*) FROM ' . Tables::fulfillment_readiness_reviews() . " r LEFT JOIN ".Tables::fulfillment_plans()." p ON p.id=r.fulfillment_plan_id WHERE r.decision='PENDING' AND $fulfillment)"
         );
         return $count===null || !empty($wpdb->last_error) ? null : (int)$count;
+    }
+
+    /** Only one canonical shop may own a displayed review. Unbound/conflicting rows never enter a selected-shop view. */
+    private function scopePredicate(string $group, ?string $shop): string
+    {
+        if($shop===null)return '1=1';
+        if(!ShopAccessPolicy::validShop($shop))return '1=0';
+        $owner=$this->ownerPredicate($group,$shop);
+        $others=[];
+        foreach(ShopAccessPolicy::canonicalShops() as $other){if($other!==$shop)$others[]=$this->ownerPredicate($group,$other);}
+        return '('.$owner.' AND NOT ('.implode(' OR ',$others).'))';
+    }
+
+    private function ownerPredicate(string $group,string $shop): string
+    {
+        global $wpdb;
+        return match($group){
+            'listing'=>$wpdb->prepare('BINARY l.shop_reference=BINARY %s',$shop),
+            'personalization'=>'EXISTS (SELECT 1 FROM '.Tables::orders().' scope_order WHERE scope_order.id=li.order_id AND '.EtsyStoredShopScope::orderPredicate($shop,'scope_order').') AND p.environment=li.environment AND s.id=p.personalization_schema_id AND s.product_version_id=li.product_version_id',
+            'pod'=>'EXISTS (SELECT 1 FROM '.Tables::pod_mappings().' WHERE '.Tables::pod_mappings().'.id=r.provider_mapping_id AND '.ProductEvidenceScope::forTable(Tables::pod_mappings(),$shop).')',
+            'fulfillment'=>'p.order_id=r.order_id AND EXISTS (SELECT 1 FROM '.Tables::orders().' scope_order WHERE scope_order.id=r.order_id AND '.EtsyStoredShopScope::orderPredicate($shop,'scope_order').')',
+            default=>'1=0',
+        };
     }
 
     private function workflowUrl(string $group): string
     {
         $view = str_contains($group, 'Listing') ? 'listings'
             : (str_contains($group, 'POD') ? 'pod_personalized' : 'orders');
-        return add_query_arg(['df_view' => $view], home_url('/'));
+        return add_query_arg(['df_view' => $view,'df_shop'=>$this->selectedShop], home_url('/'));
     }
 
     private function evidenceUrl(string $group, int $reviewId): string
@@ -153,6 +199,9 @@ final class U3ApprovalInbox
         $versionId = isset($_POST['product_version_id']) ? absint($_POST['product_version_id']) : 0;
         $decision = isset($_POST['decision']) ? strtoupper(sanitize_key(wp_unslash($_POST['decision']))) : '';
         $notes = isset($_POST['notes']) ? sanitize_textarea_field(wp_unslash($_POST['notes'])) : '';
+        $scope=ReviewConfirmation::authorizeTarget(self::ACTION,$versionId);if(is_wp_error($scope))$this->redirect('Explicit shop assignment required for this product review.',true);
+        $productionAccess=\DigiForge\Security\ShopAccess::authorize($scope,'manage_digiforge_production');if(is_wp_error($productionAccess))$this->redirect('Explicit production review assignment required for this shop.',true);
+        $acknowledgement=ReviewConfirmation::accept(self::ACTION,$versionId,wp_unslash($_POST));if(is_wp_error($acknowledgement))$this->redirect($acknowledgement->get_error_message(),true);
         $result = (new ProductReview())->decide($versionId, $decision, $notes);
         if (is_wp_error($result)) { $this->redirect($result->get_error_message(), true); }
         Logger::audit('portal_u3_product_review_completed', ['product_version_id' => $versionId, 'decision' => $decision], 'product_version', (string) $versionId);
@@ -172,7 +221,7 @@ final class U3ApprovalInbox
                     <div class="df-signal-grid"><div><span>Channel</span><b><?php echo esc_html(strtoupper((string) $row['channel'])); ?></b></div><div><span>QA blockers</span><b><?php echo esc_html((string) $row['qa_failures']); ?></b></div><div><span>Semantic QA</span><b><?php echo esc_html((string) $row['semantic_qa_status']); ?></b></div><div><span>Bundle</span><b><?php echo esc_html((string) ($row['bundle_state'] ?: 'MISSING')); ?></b></div><div><span>Workflow</span><b>PRODUCT_REVIEW_REQUIRED</b></div></div>
                     <?php $this->renderAssets((array) $row['assets']); $this->renderSemanticQa((array) $row['semantic_checks']); ?>
                     <?php if ((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS') : ?><div class="df-notice df-notice-error">QA blockers exist. Approval remains fail-closed until latest-revision deterministic QA and all seven semantic/policy checks pass.</div><?php endif; ?>
-                    <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION); ?>"><input type="hidden" name="product_version_id" value="<?php echo esc_attr((string) $row['product_version_id']); ?>"><?php wp_nonce_field(self::ACTION); ?><textarea name="notes" rows="2" placeholder="Optional product review notes"></textarea><div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS'); ?>>Approve Product</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div></form>
+                    <form class="df-review-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION); ?>"><input type="hidden" name="product_version_id" value="<?php echo esc_attr((string) $row['product_version_id']); ?>"><?php wp_nonce_field(self::ACTION); (new Portal())->confirmationFields(self::ACTION,(int)$row['product_version_id']); ?><textarea name="notes" rows="2" placeholder="Optional product review notes"></textarea><div class="df-actions"><button class="df-button df-button-primary" name="decision" value="APPROVED" <?php disabled((int) $row['qa_failures'] > 0 || (string) $row['semantic_qa_status'] !== 'PASS'); ?>>Approve Product</button><button class="df-button df-button-danger" name="decision" value="REJECTED">Reject / Revise</button></div></form>
                 </article>
             <?php endforeach; endif; ?>
         </section><?php
@@ -212,7 +261,7 @@ final class U3ApprovalInbox
         $count=$wpdb->get_var(
             'SELECT COUNT(*) FROM ' . Tables::production_plans() . ' pp'
             . ' INNER JOIN ' . Tables::product_versions() . ' pv ON pv.id=pp.product_version_id'
-            . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'"
+            . ' INNER JOIN ' . Tables::products() . " p ON p.id=pv.product_id WHERE pp.state='REVIEW_REQUIRED'".$this->productScope()
         );
         return $count===null || !empty($wpdb->last_error) ? null : (int)$count;
     }
@@ -222,6 +271,7 @@ final class U3ApprovalInbox
     {
         global $wpdb;
         $sql = "SELECT pp.id AS plan_id,pp.product_version_id,pp.channel,pp.state AS plan_state,pv.version_label,p.id AS product_id,p.name AS product_name,rb.id AS bundle_id,rb.state AS bundle_state FROM " . Tables::production_plans() . " pp INNER JOIN " . Tables::product_versions() . " pv ON pv.id=pp.product_version_id INNER JOIN " . Tables::products() . " p ON p.id=pv.product_id LEFT JOIN " . Tables::release_bundles() . " rb ON rb.id=(SELECT rb2.id FROM " . Tables::release_bundles() . " rb2 WHERE rb2.production_plan_id=pp.id ORDER BY rb2.id DESC LIMIT 1) WHERE pp.state='REVIEW_REQUIRED' ORDER BY pp.id DESC LIMIT 50";
+        $sql=str_replace(" ORDER BY pp.id DESC LIMIT 50",$this->productScope()." ORDER BY pp.id DESC LIMIT 50",$sql);
         $wpdb->last_error='';
         $rows = $wpdb->get_results($sql, ARRAY_A);
         if (! is_array($rows) || !empty($wpdb->last_error)) { return null; }
@@ -250,6 +300,13 @@ final class U3ApprovalInbox
         }
         unset($row);
         return $rows;
+    }
+
+    private function productScope():string
+    {
+        if($this->selectedShop==='all')return '';
+        $scope=ProductEvidenceScope::forTable(Tables::production_plans(),$this->selectedShop);
+        return ' AND '.str_replace(Tables::production_plans().'.','pp.', $scope??'1=0');
     }
 
     /** @return ?list<array<string,mixed>> */

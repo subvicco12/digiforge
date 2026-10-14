@@ -54,20 +54,30 @@ final class Plugin {
         if (! V6OperationalSchema::migrateIfNeeded()) { return; }
         if (! ScopedPolicySchema::migrateIfNeeded()) { return; }
         if (! CatalogAcceptanceSchema::migrateIfNeeded()) { return; }
+        if (! \DigiForge\Database\EtsyOrderEventSchema::migrateIfNeeded()) { return; }
         \DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();
+        (new \DigiForge\Security\ShopAccessRestGuard())->register();
+        (new \DigiForge\Security\ShopAccessAdminGuard())->register();
+        (new \DigiForge\REST\ShopAccessController())->register();
         \DigiForge\Operations\RecoveryProviderRegistry::register(new \DigiForge\Operations\HostingerRecoveryProvider());
         (new Controller())->register();
         (new ProductFactoryController())->register();
         (new DigitalFactoryController())->register();
         (new IntegrationsController())->register();
+        (new \DigiForge\REST\PrintifyCatalogReadController())->register();
         (new EtsyControlledExecutionController())->register();
         (new EtsyPublishExecutionController())->register();
         (new EtsyWebhookController())->register();
         (new EtsyOperationsController())->register();
         (new ResearchController())->register();
         (new AiController())->register();
+        (new \DigiForge\REST\AiEvidenceController())->register();
+        (new \DigiForge\Portal\AiEvidenceWorkflow())->register();
         (new ProductionController())->register();
         (new PodController())->register();
+        (new \DigiForge\POD\DeterministicRenderWorkflow())->register();
+        (new \DigiForge\POD\PersonalizedDesignWorkflow())->register();
+        (new \DigiForge\POD\CustomerEditorWorkflow())->register();
         (new ListingController())->register();
         (new OrderController())->register();
         (new FinanceController())->register();
