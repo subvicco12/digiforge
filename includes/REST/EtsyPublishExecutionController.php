@@ -75,7 +75,7 @@ final class EtsyPublishExecutionController
         $outstanding=$ops->publishAttemptForResource((string)$shopId,$etsyListingId);if($outstanding instanceof WP_Error)return $outstanding;if(is_array($outstanding))return self::error('reconciliation','An existing publish outcome for this seller/listing blocks a new key; reconcile before any retry.',409);
         $actor=get_current_user_id();$approval=$reviewRepo->consume($reviewId,$reviewContext,$key);if($approval instanceof WP_Error)return $approval;
         $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
-        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);if($identity instanceof WP_Error)return $identity;
+        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId,(string)($listing['environment']??''));if($identity instanceof WP_Error)return $identity;
 
         $authorization=ExecutionAuthorization::issue($approval,'ETSY_PUBLISH_LISTING',$actor,str_replace('-','_',wp_generate_uuid4()),300,$fingerprint);if($authorization instanceof WP_Error)return $authorization;
         $operation=$ops->createFromPayload(['shop_reference'=>(string)$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId,'operation_type'=>'PUBLISH_LISTING','resource_reference'=>$etsyListingId,'idempotency_key'=>$key,'authorization_hash'=>(string)$authorization['authorization_hash'],'evidence_hash'=>$hash],$payload);if($operation instanceof WP_Error)return $operation;

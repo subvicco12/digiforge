@@ -131,7 +131,7 @@ final class EtsyOperationRepository
         if (!is_array($listing)) return $this->error('shop_scope_mismatch','Approved listing scope is unavailable.',409);
         $listingShop=(string)($listing['shop_reference']??'');
         if (!hash_equals($listingShop,$shopReference)) {
-            if (!ctype_digit($shopReference) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$shopReference) instanceof WP_Error) {
+            if (!ctype_digit($shopReference) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$shopReference,(string)($listing['environment']??'')) instanceof WP_Error) {
                 return $this->error('shop_scope_mismatch','Operation shop reference must match a verified Etsy identity for the approved listing scope.',409);
             }
         }

@@ -19,7 +19,7 @@ final class PublishReviewRepository {
   if($wpdb->last_error!=='')return self::error('unavailable',503);if(!is_array($scope))return self::error('scope',403);
   $pre=(new EtsyPrepublishPreparation())->prepare($input['intent_id'],$input['draft_package_id']);if(is_wp_error($pre))return $pre;
   $qa=(new DraftQaReviewRepository())->verify($input['intent_id'],$input['draft_package_id'],(string)$input['shop_id']);if(is_wp_error($qa))return $qa;
-  $identity=EtsyVerifiedShopIdentity::resolve($input['integration_id'],(string)$scope['shop_reference'],$input['shop_id']);if(is_wp_error($identity))return $identity;
+  $identity=EtsyVerifiedShopIdentity::resolve($input['integration_id'],(string)$scope['shop_reference'],$input['shop_id'],(string)($scope['environment']??''));if(is_wp_error($identity))return $identity;
   $wpdb->last_error='';$integration=$wpdb->get_row($wpdb->prepare('SELECT provider,environment,status,enabled,config FROM '.Tables::integrations().' WHERE id=%d',$input['integration_id']),ARRAY_A);if($wpdb->last_error!==''||!is_array($integration))return self::error('unavailable',503);if($integration['environment']!==$scope['environment']||(int)$integration['enabled']!==1)return self::error('integration');
   if(($scope['state']??'')!=='APPROVED'||(int)($scope['approved_by']??0)<1||empty($scope['approved_at']))return self::error('approval');
   $parent=(new EtsyOperationRepository())->confirmedCreateForScope($input['intent_id'],$input['draft_package_id'],(string)$input['shop_id']);if(is_wp_error($parent))return $parent;if(!is_array($parent)||!ctype_digit((string)$parent['external_reference'])||(int)$parent['external_reference']<1)return self::error('parent');
