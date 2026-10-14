@@ -49,6 +49,7 @@ final class EtsyVerifiedShopIdentity
             'DigiCraftifyDigital'=>['shop_id'=>67757764,'shop_name'=>'KinetiqMatrixDesigns'],
             'DigiCraftifyGoods'=>['shop_id'=>68031896,'shop_name'=>'DigicraftifyShop'],
         ];
+        $approvedReference=['digital'=>'DigiCraftifyDigital','personalized_pod'=>'DigiCraftifyGoods'][$approvedReference]??$approvedReference;
         $binding=$legacy[$approvedReference]??null;
         return is_array($binding)
             && (int)$binding['shop_id']===$verifiedId
