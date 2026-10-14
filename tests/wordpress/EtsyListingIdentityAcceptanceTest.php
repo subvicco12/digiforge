@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 
 use DigiForge\Database\Tables;
 use DigiForge\Listings\EtsyOrderListingResolver;
@@ -32,7 +33,7 @@ final class EtsyListingIdentityAcceptanceTest extends WP_UnitTestCase
     public function testCanonicalDigitalShopResolvesOnlyThroughMatchingStoredProductionIdentity(): void
     {
         $f=$this->fixture(['listing_shop'=>'digital']);global $wpdb;$now=current_time('mysql',true);
-        self::assertSame(1,$wpdb->insert(Tables::integrations(),['provider'=>'etsy','environment'=>'production','connection_key'=>'identity-map-'.wp_generate_uuid4(),'display_name'=>'Synthetic stored identity mapping','status'=>'CONFIGURED','enabled'=>0,'config'=>wp_json_encode(['_connection_test'=>['ok'=>true,'details'=>['shop_id'=>'812002','shop_name'=>'digital']]]),'created_at'=>$now,'updated_at'=>$now]));$connection=(int)$wpdb->insert_id;
+        self::assertSame(1,$wpdb->insert(Tables::integrations(),['provider'=>'etsy','environment'=>'production','connection_key'=>'identity-map-'.wp_generate_uuid4(),'display_name'=>'Synthetic stored identity mapping','status'=>'CONFIGURED','enabled'=>0,'config'=>SyntheticEtsyIdentity::config('812002','digital'),'created_at'=>$now,'updated_at'=>$now]));$connection=(int)$wpdb->insert_id;SyntheticEtsyIdentity::credential($connection);
         self::assertSame(['listing_id'=>$f['listing'],'product_version_id'=>$f['version']],EtsyOrderListingResolver::resolve('812003','812002'));
         self::assertSame(1,$wpdb->update(Tables::integrations(),['environment'=>'sandbox'],['id'=>$connection]));self::assertNull(EtsyOrderListingResolver::resolve('812003','812002'));
     }

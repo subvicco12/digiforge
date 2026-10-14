@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 /** Local source-specific behavior; identities, signing keys and charges are fixtures, never live certification. */
@@ -58,7 +59,7 @@ final class AcceptanceEvidenceClosureTest extends WP_UnitTestCase {
  }
  public function testCanonicalListingCanBindNumericOrderOnlyThroughSameEnvironmentVerifiedIdentity():void {
   global $wpdb;$t=DigiForge\Database\Tables::class;$l=$this->listing();$orders=new DigiForge\Orders\Repository();$o=$orders->createOrder(['shop_reference'=>'67757764','channel'=>'etsy','environment'=>'production']);self::assertNotWPError($o);$line=['order_id'=>$o['id'],'listing_id'=>$l['id'],'product_version_id'=>$l['product_version_id']];self::assertWPError($orders->addLineItem($line));$now=current_time('mysql',true);
-  self::assertSame(1,$wpdb->insert($t::integrations(),['provider'=>'etsy','connection_key'=>'offline-identity','display_name'=>'Offline verified identity fixture','environment'=>'production','status'=>'CONFIGURED','config'=>wp_json_encode(['_connection_test'=>['ok'=>true,'details'=>['shop_id'=>67757764,'shop_name'=>'KinetiqMatrixDesigns']]]),'created_at'=>$now,'updated_at'=>$now]));$integration=(int)$wpdb->insert_id;
+  self::assertSame(1,$wpdb->insert($t::integrations(),['provider'=>'etsy','connection_key'=>'offline-identity','display_name'=>'Offline verified identity fixture','environment'=>'production','status'=>'CONFIGURED','config'=>SyntheticEtsyIdentity::config('67757764','KinetiqMatrixDesigns'),'created_at'=>$now,'updated_at'=>$now]));$integration=(int)$wpdb->insert_id;SyntheticEtsyIdentity::credential($integration);
   self::assertNotWPError($orders->addLineItem($line));self::assertTrue($orders->readiness((int)$o['id'])['checks']['line_items_valid']);self::assertNotWPError(DigiForge\Listings\EtsyVerifiedShopIdentity::resolve($integration,'digital',67757764));
   $state='';$rows=(new DigiForge\Orders\OperationsReadModel())->recent(50,$state,'digital');self::assertContains((int)$o['id'],array_map('intval',array_column($rows,'id')));$rows=(new DigiForge\Orders\OperationsReadModel())->recent(50,$state,'personalized_pod');self::assertNotContains((int)$o['id'],array_map('intval',array_column($rows,'id')));
   $hash=hash('sha256','offline-attachment-'.$l['id']);self::assertSame(1,$wpdb->insert($t::etsy_draft_packages(),['listing_id'=>$l['id'],'package_version'=>'offline','canonical_payload'=>'{}','payload_hash'=>$hash,'readiness'=>'{}','readiness_hash'=>$hash,'created_at'=>$now]));$package=(int)$wpdb->insert_id;
