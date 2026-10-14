@@ -58,7 +58,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
             self::assertSame(3, substr_count($query, "decision='PENDING'"));
             self::assertStringContainsString("review_status NOT IN ('APPROVED','REJECTED')", $query);
             $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
-            self::assertStringContainsString('each group displays its most recent 50', $source);
+            self::assertStringContainsString('Each group displays its most recent 50', $source);
         } finally { $GLOBALS['wpdb'] = $previous; }
     }
 
@@ -126,7 +126,9 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
     public function testPendingReviewRowsRetainMissingSubjectsAndKeepWorkflowLinkInsideRow(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
-        self::assertSame(3, substr_count($source, ' r LEFT JOIN '));
+        // Three review groups retain their subjects in both the preview and
+        // the separate, unbounded count query.
+        self::assertSame(6, substr_count($source, ' r LEFT JOIN '));
         self::assertStringContainsString('m.id AS subject_id', $source);
         self::assertStringContainsString('l.id AS subject_id', $source);
         self::assertStringContainsString('p.order_id AS subject_order_id', $source);
