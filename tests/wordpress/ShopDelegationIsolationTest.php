@@ -94,12 +94,15 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         };
         self::assertNull($lookup(), 'No stored mapping must not authorize a provider order');
         $base=['provider'=>'etsy','environment'=>'sandbox','connection_key'=>'synthetic-scope-'.wp_generate_uuid4(),'display_name'=>'Synthetic scope','status'=>'CONFIGURED','enabled'=>0,'created_by'=>0,'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)];
-        $config=static function(string $id,string $name,bool $ok): string {
-            return (string)wp_json_encode(['_connection_test'=>['ok'=>$ok,'details'=>['shop_id'=>$id,'shop_name'=>$name]]]);
+        $fingerprint='0123456789abcdef';
+        $credentialVersion=DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata([['secret_name'=>'access_token','fingerprint'=>$fingerprint]]);
+        $config=static function(string $id,string $name,bool $ok) use (&$credentialVersion): string {
+            return (string)wp_json_encode(['_connection_test'=>['ok'=>$ok,'checked_at'=>current_time('mysql',true),'credential_evidence_version'=>$credentialVersion,'details'=>['shop_id'=>$id,'shop_name'=>$name]]]);
         };
         $base['config']=$config('synthetic-provider-987','wrong-shop',true);
         self::assertNotFalse($wpdb->insert($table,$base));
         $integration=(int)$wpdb->insert_id;
+        self::assertNotFalse($wpdb->insert(DigiForge\Database\Tables::integration_secrets(),['integration_id'=>$integration,'secret_name'=>'access_token','ciphertext'=>'synthetic-never-used','fingerprint'=>$fingerprint,'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)]));
         self::assertNull($lookup(), 'Mismatched shop name must deny');
         self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',false)],['id'=>$integration]));
         self::assertNull($lookup(), 'Stale or failed preflight must deny');
@@ -115,11 +118,17 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true)],['id'=>$integration]));
 
         self::assertSame((string)$foreign['id'],(string)$lookup(), 'Only a matching stored successful configured preflight can resolve the synthetic identity');
+        self::assertNotFalse($wpdb->update(DigiForge\Database\Tables::integration_secrets(),['fingerprint'=>'fedcba9876543210','updated_at'=>current_time('mysql',true)],['integration_id'=>$integration,'secret_name'=>'access_token']));
+        self::assertNull($lookup(), 'Credential rotation invalidates the earlier successful provider identity preflight');
+        $credentialVersion=DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata([['secret_name'=>'access_token','fingerprint'=>'fedcba9876543210']]);
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true)],['id'=>$integration]));
+        self::assertSame((string)$foreign['id'],(string)$lookup(), 'A new successful preflight bound to current credential metadata restores identity');
         $duplicate=$base;
         $duplicate['connection_key']='synthetic-conflict-'.wp_generate_uuid4();
         $duplicate['config']=$config('synthetic-provider-987','jewelry',true);
         self::assertNotFalse($wpdb->insert($table,$duplicate));
         $duplicateId=(int)$wpdb->insert_id;
+        self::assertNotFalse($wpdb->insert(DigiForge\Database\Tables::integration_secrets(),['integration_id'=>$duplicateId,'secret_name'=>'access_token','ciphertext'=>'synthetic-never-used','fingerprint'=>'fedcba9876543210','created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)]));
         self::assertNull($lookup(), 'Duplicate configured provider identity must not resolve to either local shop');
         $jewelryPredicate=DigiForge\Listings\EtsyStoredShopScope::orderPredicate('jewelry','scope_order');
         $jewelryLookup=$wpdb->get_var($wpdb->prepare('SELECT scope_order.id FROM '.DigiForge\Database\Tables::orders().' scope_order WHERE scope_order.id=%d AND '.$jewelryPredicate.' LIMIT 1',(int)$foreign['id']));
