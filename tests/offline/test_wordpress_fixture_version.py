@@ -59,7 +59,7 @@ class WordPressFixtureVersionTest(unittest.TestCase):
     def test_explicit_release_uses_its_official_archive(self):
         result, calls = self.run_installer("7.1.3")
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("https://wordpress.org/wordpress-7.1.3.tar.gz", calls[0][1])
+        self.assertIn("https://wordpress.org/wordpress-7.1.3.tar.gz",\n                      [arg for name, args in calls if name == "curl" for arg in args])
 
     def test_mismatched_or_prerelease_core_never_falls_back_to_trunk(self):
         for requested, resolved in (("7.1.2", "7.1.3"), ("latest", "7.2-alpha")):
