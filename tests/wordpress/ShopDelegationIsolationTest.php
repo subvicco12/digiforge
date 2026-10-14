@@ -106,6 +106,14 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true),'status'=>'PAUSED'],['id'=>$integration]));
         self::assertNull($lookup(), 'Paused integration must deny');
         self::assertNotFalse($wpdb->update($table,['status'=>'CONFIGURED'],['id'=>$integration]));
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-rotated','digital',true),'status'=>'CONFIGURED'],['id'=>$integration]));
+        self::assertNull($lookup(), 'Rotated provider identity must not retain the former external shop binding');
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true),'environment'=>'production'],['id'=>$integration]));
+        self::assertNull($lookup(), 'A production integration must not authorize a sandbox order');
+        self::assertNotFalse($wpdb->update($table,['config'=>'{invalid-json','environment'=>'sandbox'],['id'=>$integration]));
+        self::assertNull($lookup(), 'Invalid stored preflight JSON must fail closed');
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true)],['id'=>$integration]));
+
         self::assertSame((string)$foreign['id'],(string)$lookup(), 'Only a matching stored successful configured preflight can resolve the synthetic identity');
         self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
         self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
