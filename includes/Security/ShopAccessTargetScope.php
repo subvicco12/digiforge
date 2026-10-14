@@ -12,6 +12,10 @@ final class ShopAccessTargetScope
     public static function forRequest(\WP_REST_Request $request, array $allowed): string|false|\WP_Error
     {
         $route=$request->get_route();$id=$request->get_param('id');$table=null;
+        if (preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$route,$contract)) {
+            // The registered URL, never a query/body shop claim, establishes this scope.
+            return in_array($contract[1],$allowed,true)?$contract[1]:self::error();
+        }
         // These existing endpoints persist/inspect the exact typed shop passed to their
         // repositories; charges and usage additionally verify their stored parent there.
         if (($request->get_method()==='GET' && ($route==='/digiforge/v1/ai/commercial-kpis'||preg_match('#^/digiforge/v1/ai/evidence/usage/[1-9][0-9]*$#D',$route))) ||

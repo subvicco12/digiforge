@@ -59,6 +59,7 @@ final class Plugin {
         (new \DigiForge\Security\ShopAccessRestGuard())->register();
         (new \DigiForge\Security\ShopAccessAdminGuard())->register();
         (new \DigiForge\REST\ShopAccessController())->register();
+        (new \DigiForge\REST\ReviewedContractsController())->register();
         \DigiForge\Operations\RecoveryProviderRegistry::register(new \DigiForge\Operations\HostingerRecoveryProvider());
         (new Controller())->register();
         (new ProductFactoryController())->register();
