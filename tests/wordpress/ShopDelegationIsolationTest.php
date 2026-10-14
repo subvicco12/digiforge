@@ -115,6 +115,15 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true)],['id'=>$integration]));
 
         self::assertSame((string)$foreign['id'],(string)$lookup(), 'Only a matching stored successful configured preflight can resolve the synthetic identity');
+        $duplicate=$base;
+        $duplicate['connection_key']='synthetic-conflict-'.wp_generate_uuid4();
+        $duplicate['config']=$config('synthetic-provider-987','jewelry',true);
+        self::assertNotFalse($wpdb->insert($table,$duplicate));
+        $duplicateId=(int)$wpdb->insert_id;
+        self::assertNull($lookup(), 'Duplicate configured provider identity must not resolve to either local shop');
+        self::assertNotFalse($wpdb->update($table,['status'=>'PAUSED'],['id'=>$duplicateId]));
+        self::assertSame((string)$foreign['id'],(string)$lookup(), 'Removing conflicting configured evidence restores unique local resolution');
+
         self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
         self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
     }
