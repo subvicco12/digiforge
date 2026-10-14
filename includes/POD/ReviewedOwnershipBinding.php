@@ -19,7 +19,7 @@ final class ReviewedOwnershipBinding
   foreach(['integration_id','provider_mapping_id','production_template_id']as $field)if(!is_int($input[$field])||$input[$field]<1)return self::error('invalid_input',400);
   $access=\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_connections');if(is_wp_error($access))return $access;
   $payload=$this->snapshot($shop,$input);if(is_wp_error($payload))return $payload;
-  return ReviewedLocalEvidence::propose('ownership',$shop,$this->key($shop,$payload),$payload,$effectiveAt,$expiresAt,$requestId,$expectedRevision);
+  $key=$this->key($shop,$payload);$result=ReviewedLocalEvidence::propose('ownership',$shop,$key,$payload,$effectiveAt,$expiresAt,$requestId,$expectedRevision);if(is_array($result))$result['binding_key']=$key;return $result;
  }
  public function decide(string $shop,string $key,int $revision,string $hash,string $decision,string $requestId):array|WP_Error
  {
