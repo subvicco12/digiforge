@@ -47,10 +47,10 @@ final class SelectedShopDownstreamInboxTest extends WP_UnitTestCase
         $before=[];foreach($shops as $shop)$before[$shop]=$this->pendingCount($this->inbox($shop));
         $marker='Inbox '.wp_generate_uuid4();$ids=[];
         foreach($shops as $shop)$ids[$shop]=$this->listing($shop,$marker.' '.$shop);
-        for($i=0;$i<55;$i++)$this->listing('jewelry',$marker.' foreign '.$i);
-        foreach($shops as $shop){$html=$this->inbox($shop);self::assertStringContainsString('Consolidated approval gates',$html);self::assertStringContainsString('Listing #'.$this->listingId($ids[$shop]),$html);self::assertStringContainsString('df_shop='.$shop,$html);foreach($shops as $other)if($other!==$shop)self::assertStringNotContainsString('Listing #'.$this->listingId($ids[$other]),$html);}
+        for($i=0;$i<55;$i++)$latestJewelry=$this->listing('jewelry',$marker.' foreign '.$i);
+        foreach($shops as $shop){$html=$this->inbox($shop);self::assertStringContainsString('Consolidated approval gates',$html);if($shop!=='jewelry')self::assertStringContainsString('>Listing #'.$this->listingId($ids[$shop]).'<',$html);self::assertStringContainsString('df_shop='.$shop,$html);foreach($shops as $other)if($other!==$shop)self::assertStringNotContainsString('>Listing #'.$this->listingId($ids[$other]).'<',$html);}
         self::assertSame($before['digital']+1,$this->pendingCount($this->inbox('digital')));
-        $jewelry=$this->inbox('jewelry');self::assertSame($before['jewelry']+56,$this->pendingCount($jewelry));self::assertStringContainsString('most recent 50',$jewelry);
+        $jewelry=$this->inbox('jewelry');self::assertSame($before['jewelry']+56,$this->pendingCount($jewelry));self::assertStringContainsString('>Listing #'.$this->listingId($latestJewelry).'<',$jewelry);self::assertStringNotContainsString('>Listing #'.$this->listingId($ids['jewelry']).'<',$jewelry);self::assertStringContainsString('most recent 50',$jewelry);
     }
 
     private function listingId(int $reviewId):int
