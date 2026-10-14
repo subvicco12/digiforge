@@ -121,6 +121,10 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->insert($table,$duplicate));
         $duplicateId=(int)$wpdb->insert_id;
         self::assertNull($lookup(), 'Duplicate configured provider identity must not resolve to either local shop');
+        $jewelryPredicate=DigiForge\Listings\EtsyStoredShopScope::orderPredicate('jewelry','scope_order');
+        $jewelryLookup=$wpdb->get_var($wpdb->prepare('SELECT scope_order.id FROM '.DigiForge\Database\Tables::orders().' scope_order WHERE scope_order.id=%d AND '.$jewelryPredicate.' LIMIT 1',(int)$foreign['id']));
+        self::assertNull($jewelryLookup, 'Conflicting provider ID must also deny the other claimed local shop');
+
         self::assertNotFalse($wpdb->update($table,['status'=>'PAUSED'],['id'=>$duplicateId]));
         self::assertSame((string)$foreign['id'],(string)$lookup(), 'Removing conflicting configured evidence restores unique local resolution');
 
