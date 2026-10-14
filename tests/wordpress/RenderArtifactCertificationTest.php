@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__ . "/PortalActionAcceptanceFixture.php";
 final class RenderArtifactCertificationTest extends WP_UnitTestCase {
@@ -71,7 +72,7 @@ final class RenderArtifactCertificationTest extends WP_UnitTestCase {
  public function testExternalEtsyShopRequiresExactVerifiedBusinessIdentity():void {
   $input=$this->fixture();global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$wpdb->update($t::orders(),['shop_reference'=>'68031896'],['id'=>$input['order_id']]);$p=$this->image();$repo=new DigiForge\POD\RenderEvidenceRepository();try{
    self::assertTrue(is_wp_error($repo->createFromArtifacts($input,$p,$p)));
-   $wpdb->insert($t::integrations(),['provider'=>'etsy','environment'=>'sandbox','connection_key'=>'fixture-render-'.wp_generate_uuid4(),'display_name'=>'Offline identity fixture','status'=>'CONFIGURED','enabled'=>0,'config'=>wp_json_encode(['_connection_test'=>['ok'=>true,'details'=>['shop_id'=>68031896,'shop_name'=>'DigicraftifyShop']]]),'created_by'=>get_current_user_id(),'created_at'=>$now,'updated_at'=>$now]);
+   $wpdb->insert($t::integrations(),['provider'=>'etsy','environment'=>'sandbox','connection_key'=>'fixture-render-'.wp_generate_uuid4(),'display_name'=>'Offline identity fixture','status'=>'CONFIGURED','enabled'=>0,'config'=>SyntheticEtsyIdentity::config('68031896','DigicraftifyShop'),'created_by'=>get_current_user_id(),'created_at'=>$now,'updated_at'=>$now]);SyntheticEtsyIdentity::credential((int)$wpdb->insert_id);
    $r=$repo->createFromArtifacts($input,$p,$p);self::assertFalse(is_wp_error($r));self::assertSame('APPROVED',$repo->approve((int)$r['id'])['review_status']);
    $wpdb->update($t::orders(),['shop_reference'=>'67757764'],['id'=>$input['order_id']]);$bad=(new DigiForge\POD\RenderArtifactVerifier())->assertCertified($r);self::assertTrue(is_wp_error($bad));self::assertSame('render_artifact_scope_conflict',$bad->get_error_code());
   }finally{unlink($p);}

@@ -32,6 +32,12 @@ final class EtsyVerifiedShopIdentity
         if(($test['ok']??false)!==true||$verifiedId<1||$verifiedName==='') return self::error('unverified','A successful Etsy identity preflight with shop identity is required.');
         if($verifiedId!==$shopId) return self::error('scope','Verified Etsy shop identity does not match the requested numeric shop scope.');
         if(!self::referenceMatches($listingShopReference,$verifiedName,$verifiedId)) return self::error('scope','Verified Etsy shop identity does not match the approved listing shop scope.');
+        $metadata=(new \DigiForge\Integrations\Repository())->secretMetadata($integrationId);
+        if($metadata instanceof WP_Error)return self::error('evidence_unavailable','Current Etsy credential metadata could not be read.',503);
+        $currentVersion=\DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata($metadata);
+        $observedVersion=$test['credential_evidence_version']??null;
+        if($currentVersion===null||!is_string($observedVersion)||!hash_equals($currentVersion,$observedVersion))
+            return self::error('credential_stale','Etsy identity preflight must match the current named credential evidence.');
         return ['integration_id'=>$integrationId,'shop_id'=>$verifiedId,'shop_name'=>$verifiedName];
     }
     public static function resolveAny(string $listingShopReference,int $shopId,string $environment): array|WP_Error
@@ -49,12 +55,13 @@ final class EtsyVerifiedShopIdentity
             $resolved=self::resolve((int)$id,(string)$shopId,$shopId,$environment);
             if($resolved instanceof WP_Error){
                 if(($resolved->get_error_data()['status']??409)===503)return $resolved;
+                if($resolved->get_error_code()==='digiforge_etsy_verified_shop_credential_stale')return $resolved;
                 continue;
             }
             if(++$claims>1)return self::error('ambiguous','Multiple configured Etsy integrations claim this listing shop identity.');
             if(self::referenceMatches($listingShopReference,$resolved['shop_name'],$resolved['shop_id']))$match=$resolved;
         }
-        return $match??self::error('scope','No verified Etsy integration matches the approved listing shop scope and environment.');
+        return $match??self::error('scope','No verified Etsy integration matches the approved listing shop scope.');
     }
 
     private static function referenceMatches(string $approvedReference,string $verifiedName,int $verifiedId): bool

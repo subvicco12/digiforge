@@ -4,6 +4,7 @@ declare(strict_types=1);
 use DigiForge\Database\Tables;
 use DigiForge\Listings\EtsyOperationRepository;
 use DigiForge\Listings\EtsyVerifiedShopIdentity;
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 
 /** Stored synthetic identity only; no credentials, HTTP, activation or provider certification. */
 final class EtsyIdentityScopeAcceptanceTest extends WP_UnitTestCase
@@ -24,6 +25,11 @@ final class EtsyIdentityScopeAcceptanceTest extends WP_UnitTestCase
             'config'=>['_connection_test'=>['ok'=>true,'details'=>['shop_id'=>$shopId,'shop_name'=>$name]]],
         ]);
         self::assertNotWPError($row);
+        SyntheticEtsyIdentity::credential((int)$row['id']);
+        $metadata=(new DigiForge\Integrations\Repository())->secretMetadata((int)$row['id']);
+        self::assertNotWPError($metadata);
+        $config=$row['config'];$config['_connection_test']['credential_evidence_version']=DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata($metadata);
+        global $wpdb;self::assertSame(1,$wpdb->update(Tables::integrations(),['config'=>wp_json_encode($config)],['id'=>$row['id']]));
         return (int)$row['id'];
     }
 
@@ -124,5 +130,19 @@ final class EtsyIdentityScopeAcceptanceTest extends WP_UnitTestCase
         $array=$this->integration('production',987654321,['not'=>'a name']);
         self::assertWPError(EtsyVerifiedShopIdentity::resolve($array,'SyntheticScopeShop',987654321));
         self::assertWPError(EtsyVerifiedShopIdentity::resolveAny('SyntheticScopeShop',987654321,''));
+    }
+
+    public function testCredentialRotationInvalidatesExplicitAndNumericScopeUntilRetested(): void
+    {
+        $id=$this->integration('production');$integrations=new DigiForge\Integrations\Repository();
+        self::assertNotWPError(EtsyVerifiedShopIdentity::resolveAny('SyntheticScopeShop',987654321,'production'));
+        self::assertTrue($integrations->storeSecret($id,'access_token','offline-rotated-synthetic-credential'));
+        self::assertWPError(EtsyVerifiedShopIdentity::resolve($id,'SyntheticScopeShop',987654321,'production'));
+        self::assertWPError(EtsyVerifiedShopIdentity::resolveAny('SyntheticScopeShop',987654321,'production'));
+        $row=$integrations->find($id);self::assertNotWPError($row);
+        $metadata=$integrations->secretMetadata($id);self::assertNotWPError($metadata);
+        $config=$row['config'];$config['_connection_test']['credential_evidence_version']=DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata($metadata);
+        global $wpdb;self::assertSame(1,$wpdb->update(Tables::integrations(),['config'=>wp_json_encode($config)],['id'=>$id]));
+        self::assertNotWPError(EtsyVerifiedShopIdentity::resolveAny('SyntheticScopeShop',987654321,'production'));
     }
 }

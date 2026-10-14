@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
@@ -68,7 +69,7 @@ final class PortalTrackingAcceptanceTest extends WP_UnitTestCase
         $external='991'.(string)wp_rand(10000000,99999999);$own=$this->order('digital');$unknown=$this->order($external);$knownEvent=$this->event($own);$unknownEvent=$this->event($unknown);self::assertNotWPError($knownEvent['result']);self::assertNotWPError($unknownEvent['result']);
         $model=new DigiForge\Listings\EtsyOrderEventRepository();$global=$model->recent(null,1);self::assertSame('AVAILABLE',$global['query_state']);self::assertCount(1,$global['items']);self::assertSame($knownEvent['id'],$global['items'][0]['event_id']);self::assertStringNotContainsString($unknownEvent['id'],$this->render('all'));
         // Explicit synthetic stored successful connection identity; never authentic provider/owner certification.
-        global $wpdb;$now=current_time('mysql',true);self::assertSame(1,$wpdb->insert(Tables::integrations(),['provider'=>'etsy','environment'=>'production','connection_key'=>'tracking-scope-'.wp_generate_uuid4(),'display_name'=>'Synthetic stored receipt scope','status'=>'CONFIGURED','enabled'=>0,'config'=>wp_json_encode(['_connection_test'=>['ok'=>true,'details'=>['shop_id'=>$external,'shop_name'=>'digital']]]),'created_at'=>$now,'updated_at'=>$now]));
+        global $wpdb;$now=current_time('mysql',true);self::assertSame(1,$wpdb->insert(Tables::integrations(),['provider'=>'etsy','environment'=>'production','connection_key'=>'tracking-scope-'.wp_generate_uuid4(),'display_name'=>'Synthetic stored receipt scope','status'=>'CONFIGURED','enabled'=>0,'config'=>SyntheticEtsyIdentity::config($external,'digital'),'created_at'=>$now,'updated_at'=>$now]));SyntheticEtsyIdentity::credential((int)$wpdb->insert_id);
         $mapped=$model->recent(null,1);self::assertSame('AVAILABLE',$mapped['query_state']);self::assertSame($unknownEvent['id'],$mapped['items'][0]['event_id']);self::assertStringContainsString($unknownEvent['id'],$this->render('digital'));
     }
     /** @dataProvider raceCases */
