@@ -163,7 +163,8 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         }
         self::assertStringContainsString("'df_focus_id' => $" . 'reviewId', $inbox);
         self::assertStringContainsString('if ($reviewId < 1)', $inbox);
-        self::assertStringContainsString("$" . 'wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId)', $portal);
+        self::assertStringContainsString('$record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d"', $portal);
+        self::assertStringContainsString('$scope=$this->evidenceScopeFilter($table);', $portal);
         self::assertStringContainsString('Requested evidence record is unavailable', $portal);
         self::assertStringContainsString('!in_array($focusId, array_map', $portal);
     }

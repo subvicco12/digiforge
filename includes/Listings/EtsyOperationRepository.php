@@ -138,6 +138,46 @@ final class EtsyOperationRepository
         return ['intent'=>$intent,'package'=>$package,'listing'=>$listing];
     }
 
+    /** Durable bounded attempt evidence, written before response outcome normalization. */
+    public function recordExternalAttempt(array $attempt,array $rateLimit=[]): array|WP_Error
+    {
+        $id=(int)($attempt['operation_id']??0);
+        $attemptId=trim((string)($attempt['attempt_id']??''));
+        $at=trim((string)($attempt['attempted_at']??''));
+        $date=preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/D',$at)===1
+            ? \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP',$at) : false;
+        $dateErrors=\DateTimeImmutable::getLastErrors();
+        $validDate=$date!==false&&($dateErrors===false||($dateErrors['warning_count']===0&&$dateErrors['error_count']===0));
+        if($id<1||preg_match('/^[A-Za-z0-9][A-Za-z0-9._:-]{0,190}$/D',$attemptId)!==1||!$validDate
+            ||($attempt['adapter_invoked']??null)!==true||($attempt['external_request_attempted']??null)!==true)
+            return $this->error('attempt_invalid','Valid bounded external attempt identity is required.',409);
+        $operation=$this->find($id);if($operation instanceof WP_Error)return $operation;
+        if(!is_array($operation)||($operation['state']??'')!==EtsyOperationLifecycle::NOT_SENT)
+            return $this->error('attempt_state','External attempt evidence requires the current NOT_SENT operation.',409);
+        $rates=[];
+        foreach(['retry_after_seconds','limit_per_second','remaining_this_second','limit_per_day','remaining_today']as $key)
+            $rates[$key]=isset($rateLimit[$key])&&is_int($rateLimit[$key])&&$rateLimit[$key]>=0?$rateLimit[$key]:null;
+        $rates+=['automatic_retry_permitted'=>false,'retry_scheduled'=>false];
+        $context=['operation_id'=>$id,'attempt_id'=>$attemptId,'attempted_at'=>$at,'request_fingerprint'=>$operation['request_fingerprint'],'rate_limit'=>$rates];
+        global $wpdb;$table=Tables::audit_log();$read=function()use($wpdb,$table,$id):array|WP_Error|null{
+            $wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT context FROM '.$table.' WHERE event_type=%s AND object_type=%s AND object_id=%s ORDER BY id DESC LIMIT 1','etsy_external_attempt_recorded','etsy_operation',(string)$id),ARRAY_A);
+            if(!empty($wpdb->last_error))return $this->error('attempt_evidence_unavailable','Durable external attempt evidence is unavailable; do not retry automatically.',503);
+            if(!is_array($row))return null;$stored=json_decode((string)$row['context'],true);
+            return is_array($stored)?$stored:$this->error('attempt_evidence_invalid','Stored external attempt evidence is invalid.',503);
+        };
+        $prior=$read();if($prior instanceof WP_Error)return $prior;
+        if($prior!==null){
+            if(($prior['operation_id']??0)!==$id||($prior['attempt_id']??'')!==$attemptId||($prior['attempted_at']??'')!==$at||($prior['request_fingerprint']??'')!==$operation['request_fingerprint']||!is_array($prior['rate_limit']??null)||($rateLimit!==[]&&$prior['rate_limit']!==$rates))
+                return $this->error('attempt_conflict','Operation already binds a different immutable external attempt.',409);
+            return $prior+['idempotent_replay'=>true];
+        }
+        if(!Logger::write('etsy_external_attempt_recorded',$context,'etsy_operation',(string)$id))
+            return $this->error('attempt_write_unavailable','External attempt evidence could not be persisted; no outcome or automatic retry is authorized.',503);
+        $stored=$read();if($stored instanceof WP_Error)return $stored;
+        if($stored!==$context)return $this->error('attempt_confirmation_unavailable','External attempt evidence confirmation is unavailable; do not retry automatically.',503);
+        return $stored;
+    }
+
     /** Persist the provider asset identity returned for a confirmed media operation. */
     public function recordExternalAssetReference(int $id,string $reference): array|WP_Error
     {
@@ -283,6 +323,14 @@ final class EtsyOperationRepository
     }
 
     /** @return array<string,mixed>|WP_Error|null */
+    /** Any non-failed attempt blocks fresh-key publication across packages/intents. */
+    public function publishAttemptForResource(string $shopReference,string $listingId):array|WP_Error|null
+    {
+        if(!ctype_digit($shopReference)||!ctype_digit($listingId)||(int)$shopReference<1||(int)$listingId<1)return $this->error('publish_scope','Numeric seller/listing scope required.',400);
+        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$wpdb->prefix.'digiforge_etsy_operations WHERE BINARY shop_reference=BINARY %s AND BINARY resource_reference=BINARY %s AND operation_type=%s AND state<>%s ORDER BY id DESC LIMIT 1',$shopReference,$listingId,'PUBLISH_LISTING',EtsyOperationLifecycle::CONFIRMED_FAILURE),ARRAY_A);
+        if($wpdb->last_error!=='')return $this->error('evidence_unavailable','Publish attempt evidence unavailable; reconcile before any retry.',503);return is_array($row)?$row:null;
+    }
+
     public function confirmedPublishForScope(int $intentId,int $packageId,string $shopReference,string $listingId): array|WP_Error|null
     {
         if($intentId<1||$packageId<1||trim($shopReference)===''||!ctype_digit($listingId))return null;
