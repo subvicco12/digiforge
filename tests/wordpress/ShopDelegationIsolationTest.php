@@ -14,7 +14,8 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         $subject=self::factory()->user->create(['role'=>'administrator']);
         $cap='manage_digiforge_research';
         $other='manage_digiforge_orders';
-        ShopAccessFixture::provision([ShopAccessFixture::authority($delegate,'digital',[$cap],time()+3600,'DELEGATE')]);
+        $authority=ShopAccessFixture::authority($delegate,'digital',[$cap],time()+3600,'DELEGATE');
+        ShopAccessFixture::provision([$authority]);
         $repo=new DigiForge\Security\ShopAccessRepository();
         wp_set_current_user($delegate);
         $initial=$repo->read('digital');
@@ -33,7 +34,7 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertWPError($repo->revoke('digital',$granted['grant_id'],'delegate_without_authority_123',$granted['revision']));
         wp_set_current_user($subject);
         self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital',$cap));
-        ShopAccessFixture::provision([ShopAccessFixture::authority($delegate,'digital',[$cap],time()+3600,'DELEGATE')]);
+        ShopAccessFixture::provision([$authority]);
         self::assertTrue(DigiForge\Security\ShopAccess::authorize('digital',$cap));
         wp_set_current_user($delegate);
         $revoked=$repo->revoke('digital',$granted['grant_id'],'delegate_valid_revoke_123',$granted['revision']);
