@@ -77,4 +77,38 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
         self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
     }
+    /** Stored Etsy preflight is synthetic evidence, never an assertion of provider ownership. */
+    public function testStoredProviderShopMappingsRejectMissingMismatchedAndStalePreflight(): void
+    {
+        DigiForge\\Core\\Activator::activate();
+        DigiForge\\Core\\Settings::protectProduction();
+        global $wpdb;
+        $table=DigiForge\\Database\\Tables::integrations();
+        $orders=new DigiForge\\Orders\\Repository();
+        $foreign=$orders->createOrder(['shop_reference'=>'synthetic-provider-987','channel'=>'etsy','environment'=>'sandbox']);
+        self::assertNotWPError($foreign);
+        $predicate=DigiForge\\Listings\\EtsyStoredShopScope::orderPredicate('digital','scope_order');
+        $lookup=static function() use ($wpdb,$predicate,$foreign): mixed {
+            $table=DigiForge\\Database\\Tables::orders();
+            return $wpdb->get_var($wpdb->prepare('SELECT scope_order.id FROM '.$table.' scope_order WHERE scope_order.id=%d AND '.$predicate.' LIMIT 1',(int)$foreign['id']));
+        };
+        self::assertNull($lookup(), 'No stored mapping must not authorize a provider order');
+        $base=['provider'=>'etsy','environment'=>'sandbox','connection_key'=>'synthetic-scope-'.wp_generate_uuid4(),'display_name'=>'Synthetic scope','status'=>'CONFIGURED','enabled'=>0,'created_by'=>0,'created_at'=>current_time('mysql',true),'updated_at'=>current_time('mysql',true)];
+        $config=static function(string $id,string $name,bool $ok): string {
+            return (string)wp_json_encode(['_connection_test'=>['ok'=>$ok,'details'=>['shop_id'=>$id,'shop_name'=>$name]]]);
+        };
+        $base['config']=$config('synthetic-provider-987','wrong-shop',true);
+        self::assertNotFalse($wpdb->insert($table,$base));
+        $integration=(int)$wpdb->insert_id;
+        self::assertNull($lookup(), 'Mismatched shop name must deny');
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',false)],['id'=>$integration]));
+        self::assertNull($lookup(), 'Stale or failed preflight must deny');
+        self::assertNotFalse($wpdb->update($table,['config'=>$config('synthetic-provider-987','digital',true),'status'=>'PAUSED'],['id'=>$integration]));
+        self::assertNull($lookup(), 'Paused integration must deny');
+        self::assertNotFalse($wpdb->update($table,['status'=>'CONFIGURED'],['id'=>$integration]));
+        self::assertSame((string)$foreign['id'],(string)$lookup(), 'Only a matching stored successful configured preflight can resolve the synthetic identity');
+        self::assertTrue(DigiForge\\Core\\Settings::get('stop_all',true));
+        self::assertFalse(DigiForge\\Core\\Settings::get('automation_armed',false));
+    }
+
 }
