@@ -80,16 +80,16 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
     /** Stored Etsy preflight is synthetic evidence, never an assertion of provider ownership. */
     public function testStoredProviderShopMappingsRejectMissingMismatchedAndStalePreflight(): void
     {
-        DigiForge\\Core\\Activator::activate();
-        DigiForge\\Core\\Settings::protectProduction();
+        DigiForge\Core\Activator::activate();
+        DigiForge\Core\Settings::protectProduction();
         global $wpdb;
-        $table=DigiForge\\Database\\Tables::integrations();
-        $orders=new DigiForge\\Orders\\Repository();
+        $table=DigiForge\Database\Tables::integrations();
+        $orders=new DigiForge\Orders\Repository();
         $foreign=$orders->createOrder(['shop_reference'=>'synthetic-provider-987','channel'=>'etsy','environment'=>'sandbox']);
         self::assertNotWPError($foreign);
-        $predicate=DigiForge\\Listings\\EtsyStoredShopScope::orderPredicate('digital','scope_order');
+        $predicate=DigiForge\Listings\EtsyStoredShopScope::orderPredicate('digital','scope_order');
         $lookup=static function() use ($wpdb,$predicate,$foreign): mixed {
-            $table=DigiForge\\Database\\Tables::orders();
+            $table=DigiForge\Database\Tables::orders();
             return $wpdb->get_var($wpdb->prepare('SELECT scope_order.id FROM '.$table.' scope_order WHERE scope_order.id=%d AND '.$predicate.' LIMIT 1',(int)$foreign['id']));
         };
         self::assertNull($lookup(), 'No stored mapping must not authorize a provider order');
@@ -107,8 +107,8 @@ final class ShopDelegationIsolationTest extends WP_UnitTestCase
         self::assertNull($lookup(), 'Paused integration must deny');
         self::assertNotFalse($wpdb->update($table,['status'=>'CONFIGURED'],['id'=>$integration]));
         self::assertSame((string)$foreign['id'],(string)$lookup(), 'Only a matching stored successful configured preflight can resolve the synthetic identity');
-        self::assertTrue(DigiForge\\Core\\Settings::get('stop_all',true));
-        self::assertFalse(DigiForge\\Core\\Settings::get('automation_armed',false));
+        self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
+        self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
     }
 
 }
