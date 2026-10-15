@@ -36,6 +36,8 @@ final class FrontendControls
         if ($tag !== 'digiforge_admin_portal' || ! is_user_logged_in() || ! current_user_can('manage_digiforge_automation')) { return $output; }
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
         if ($view !== 'system') { return $output; }
+        if(!str_contains($output,'class="df-portal-shell"')||!preg_match('~<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>~',$output))return $output;
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_automation');if(is_wp_error($allowed)||count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$allowed))!==4)return $output;
         $replaced = preg_replace('~<section class="df-panel"><div class="df-panel-head"><h2>Control state</h2></div>.*?</section>~s', $this->render(), $output, 1);
         return is_string($replaced) ? $replaced : $output;
     }
@@ -192,9 +194,10 @@ final class FrontendControls
                 </form>
             <?php endif; ?>
             <?php if (Settings::is_enabled('research') && Settings::is_enabled('ai') && ! Settings::is_enabled('product_development')) : ?>
-                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('Run exactly ONE controlled AI provider request? No web search, Product Development, Etsy, POD, order, finance, GST action, or automatic retry will occur.');">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="<?php echo esc_attr(self::CONTROLLED_AI_TEST); ?>"><?php wp_nonce_field(self::CONTROLLED_AI_TEST); ?>
-                    <button class="df-button df-button-primary" type="submit">Run Controlled AI Test</button>
+                    <button class="df-button df-button-primary" type="submit" disabled aria-describedby="df-controlled-ai-budget-blocker">Run Controlled AI Test</button>
+                    <p id="df-controlled-ai-budget-blocker" class="df-muted">Controlled inference needs approved shop and run/stage attribution, a monetary ceiling and an exact reviewed provider quote. Connection read diagnostics remain separate.</p>
                 </form>
             <?php endif; ?>
             <div class="df-control-grid">

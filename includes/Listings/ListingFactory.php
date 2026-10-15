@@ -16,7 +16,7 @@ use WP_Error;
  */
 final class ListingFactory
 {
-    public function prepare(int $productVersionId, string $idempotencyKey): array|WP_Error
+    public function prepare(int $productVersionId, string $idempotencyKey, ?array $runContext = null): array|WP_Error
     {
         if ($productVersionId < 1) {
             return $this->error('listing_factory_product_version', 'Valid product version is required.');
@@ -70,12 +70,23 @@ final class ListingFactory
             return $this->error('listing_factory_spec', 'Listing title, description, SEO keywords and USD price are required.', 409);
         }
 
+        // Source ownership and environment are evidence, never a historical default shop.
+        $wpdb->last_error='';$owners=$wpdb->get_results($wpdb->prepare('SELECT rc.id,rc.score_inputs FROM '.Tables::product_versions().' pv INNER JOIN '.Tables::products().' p ON p.id=pv.product_id INNER JOIN '.Tables::product_families().' pf ON pf.id=p.product_family_id INNER JOIN '.Tables::research_candidates().' rc ON rc.opportunity_id=pf.opportunity_id WHERE pv.id=%d',$productVersionId),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($owners)||count($owners)!==1)return $this->error('listing_factory_scope','Exact research ownership is required; legacy unassigned products require reconciliation.',409);
+        $inputs=json_decode((string)$owners[0]['score_inputs'],true);$shop=is_array($inputs)?($inputs['shop_key']??null):null;
+        if($shop!=='digital')return $this->error('listing_factory_capability','This factory only prepares digital delivery; physical-shop products require their reviewed POD listing workflow.',409);
+        $wpdb->last_error='';$environments=$wpdb->get_col($wpdb->prepare('SELECT DISTINCT s.environment FROM '.Tables::research_candidate_evidence().' ce INNER JOIN '.Tables::research_evidence().' e ON e.id=ce.evidence_id INNER JOIN '.Tables::research_observations().' o ON o.id=e.observation_id INNER JOIN '.Tables::research_sources().' s ON s.id=o.source_id WHERE ce.candidate_id=%d',(int)$owners[0]['id']));
+        if($wpdb->last_error!==''||!is_array($environments)||count($environments)!==1||!in_array($environments[0],['sandbox','production'],true))return $this->error('listing_factory_environment','Exact unambiguous research environment evidence is required.',409);
+
+        $quota=(new ListingPreparationQuotaRepository())->reserve($shop,(string)$environments[0],$version,$bundle,$idempotencyKey,$runContext);
+        if(is_wp_error($quota))return $quota;
+
         $repo = new Repository();
         $listing = $repo->createListing([
             'product_version_id' => $productVersionId,
             'channel' => 'etsy',
-            'environment' => 'production',
-            'shop_reference' => 'KinetiqMatrixDesigns',
+            'environment' => $environments[0],
+            'shop_reference' => $shop,
             'title' => $title,
             'description' => $description,
             'taxonomy_metadata' => [
@@ -126,6 +137,8 @@ final class ListingFactory
             return $media;
         }
 
+        if((string)$listing['state']==='REVIEW_REQUIRED'){$review=$listing;}
+        else {
         $validated = $repo->transition('listing', $listingId, 'VALIDATED');
         if (is_wp_error($validated)) {
             return $validated;
@@ -133,6 +146,8 @@ final class ListingFactory
         $review = $repo->transition('listing', $listingId, 'REVIEW_REQUIRED');
         if (is_wp_error($review)) {
             return $review;
+        }
+
         }
 
         $readiness = $repo->readiness($listingId);
@@ -163,6 +178,7 @@ final class ListingFactory
             'media' => $media,
             'readiness' => $readiness,
             'listing_readiness_review' => $gate3Review,
+            'local_quantity_reservation' => $quota,
             'workflow_status' => 'LISTING_REVIEW_REQUIRED',
             'listing_approval_required' => true,
             'draft_package_created' => false,
