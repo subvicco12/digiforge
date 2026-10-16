@@ -68,6 +68,9 @@ jobs:
       - name: Legacy and unit tests
         run: composer test
 
+      - name: Printify preview offline smoke tests
+        run: php -d zend.assertions=1 -d assert.exception=1 tests/printify-catalog-preview-smoke.php
+
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
 
