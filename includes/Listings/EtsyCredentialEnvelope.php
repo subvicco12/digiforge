@@ -55,6 +55,18 @@ final class EtsyCredentialEnvelope implements \JsonSerializable
         return $result;
     }
 
+    private function __clone(): void {}
+
+    public function __serialize(): array
+    {
+        throw new \LogicException('Operation-scoped credentials cannot be serialized.');
+    }
+
+    public function __unserialize(array $data): void
+    {
+        throw new \LogicException('Operation-scoped credentials cannot be restored.');
+    }
+
     public function jsonSerialize(): array
     {
         return ['state'=>'ETSY_CREDENTIAL_ENVELOPE','redacted'=>true,'consumed'=>$this->consumed];
