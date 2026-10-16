@@ -75,4 +75,9 @@ final class TinyFishResearchContractTest extends TestCase
   foreach([999,1600,1900] as $now){try{$c->resume($s,$this->scope(),$now);self::fail('Invalid clock accepted');}catch(\InvalidArgumentException){self::assertTrue(true);}}
  }
 
+ public function testResumeCannotMoveBeforeLastCompletedExtraction():void{
+  $c=$this->adapter();$s=$c->step($c->start($this->scope(),1000),'EXTRACT','https://printify.com/app/products/68/generic-brand/mug',1010);
+  $this->expectException(\InvalidArgumentException::class);$c->resume($s,$this->scope(),1009);
+ }
+
 }

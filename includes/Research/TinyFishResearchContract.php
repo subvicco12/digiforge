@@ -28,7 +28,7 @@ final class TinyFishResearchContract
   $mac=$checkpoint['seal']??null;unset($checkpoint['seal']);
   if(!is_string($mac)||!hash_equals(hash_hmac('sha256',self::json($checkpoint),$this->checkpointKey),$mac)||$revoked)throw self::denied();
   $this->scope($expectedScope,$now);
-  if(($checkpoint['schema']??null)!==self::VERSION||($checkpoint['scope_sha256']??null)!==self::digest($expectedScope)||$checkpoint['scope_sha256']!==self::digest($checkpoint['scope'])||$now<$checkpoint['started_at']||$now>=$checkpoint['deadline']||$checkpoint['live_execution_authorized']!==false||$checkpoint['supplier_certified']!==false)throw self::denied();
+  if(($checkpoint['schema']??null)!==self::VERSION||($checkpoint['scope_sha256']??null)!==self::digest($expectedScope)||$checkpoint['scope_sha256']!==self::digest($checkpoint['scope'])||$now<$checkpoint['started_at']||($checkpoint['last_step_at']!==null&&$now<$checkpoint['last_step_at'])||$now>=$checkpoint['deadline']||$checkpoint['live_execution_authorized']!==false||$checkpoint['supplier_certified']!==false)throw self::denied();
   return $this->seal($checkpoint);
  }
  public function step(array $checkpoint,string $operation,string $url,int $now):array
