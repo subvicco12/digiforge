@@ -59,6 +59,16 @@ final class PrintifyCatalogPreview
             ];
         }
 
+        // A lock may be asserted while variants are being read. Recheck before
+        // the second potentially external callback rather than trusting preflight.
+        $shippingAuthorization = PrintifyCatalogReadPolicy::authorize($blueprintId, $providerId);
+        if (is_wp_error($shippingAuthorization)) {
+            return $shippingAuthorization;
+        }
+        if ($shippingAuthorization !== true) {
+            return new WP_Error('digiforge_printify_preview_authorization', 'Catalog preview read not authorized.', ['status' => 403]);
+        }
+
         $shipping = $shippingRead($blueprintId, $providerId);
         if (is_wp_error($shipping)) {
             return $shipping;
