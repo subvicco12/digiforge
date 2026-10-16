@@ -20,21 +20,16 @@ final class PrintifyCatalogPreview
     /**
      * @param callable(int,int):array|WP_Error $variantsRead
      * @param callable(int,int):array|WP_Error $shippingRead
-     * @param null|callable(int,int):bool|WP_Error $authorizeRead Explicit caller-owned preflight; null denies all reads.
      * @return array|WP_Error
      */
-    public static function inspect(int $blueprintId, int $providerId, callable $variantsRead, callable $shippingRead, ?callable $authorizeRead = null): array|WP_Error
+    public static function inspect(int $blueprintId, int $providerId, callable $variantsRead, callable $shippingRead): array|WP_Error
     {
         if ($blueprintId < 1 || $providerId < 1) {
             return new WP_Error('digiforge_printify_preview_identity', 'Positive blueprint and provider IDs required.', ['status' => 400]);
         }
 
-        // Fail closed before either callback can perform network I/O.
-        // An actual caller must bind this to authoritative integration and safety checks.
-        if ($authorizeRead === null) {
-            return new WP_Error('digiforge_printify_preview_authorization', 'Catalog preview authorization is required.', ['status' => 403]);
-        }
-        $authorized = $authorizeRead($blueprintId, $providerId);
+        // Authoritative policy is mandatory; callers cannot substitute a permissive callback.
+        $authorized = PrintifyCatalogReadPolicy::authorize($blueprintId, $providerId);
         if (is_wp_error($authorized)) {
             return $authorized;
         }
