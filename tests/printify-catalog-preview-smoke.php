@@ -61,6 +61,17 @@ namespace {
     verify($ok['variants'][0]['geometry_status'] === 'UNKNOWN' && $ok['shipping_country_rates'] === null, 'Unknown geometry and shipping rates');
     verify(strpos(json_encode($ok, JSON_THROW_ON_ERROR), 'do not expose') === false, 'Raw shipping must not leak');
 
+    $readsBeforeLock = $reads;
+    $lockDuringVariants = static function (int $blueprint, int $provider) use (&$reads): array {
+        ++$reads;
+        Settings::$locked = true;
+        return ['variants' => [['id' => 789]]];
+    };
+    $blockedShipping = PrintifyCatalogPreview::inspect(478, 28, $lockDuringVariants, $shipping);
+    verify($blockedShipping instanceof WP_Error, 'Mid-read safety lock must deny shipping');
+    verify($reads === $readsBeforeLock + 1, 'Shipping callback must not execute after lock');
+    Settings::$locked = false;
+
     $bad = PrintifyCatalogPreview::inspect(478, 28, static fn() => ['variants' => [['id' => '123']]], $shipping);
     verify($bad instanceof WP_Error && $bad->code === 'digiforge_printify_preview_variant', 'Malformed variants must deny');
     $transportError = new WP_Error('offline', 'blocked');
