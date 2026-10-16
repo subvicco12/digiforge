@@ -1,5 +1,7 @@
 # TinyFish Printify research adapter — phase 1 (offline only)
 
+Local persistence/profile/interception hardening is tracked in [the follow-on evidence report](tinyfish-research-hardening.md). Phase-1 limitations below describe that historical boundary; neither phase grants live authority.
+
 Issue: #1186. Authority: Blueprint v6.0 and Master 500 v2; no new execution authority. Researched 2026-10-16 (Asia/Calcutta). Base #1185 `726a7d54acb338a3a07e68c4bcce6836c2c232ac`; main `844107ab9baf7e1303cd47708e9eab3bc700b348`. The separate unpublished identity note and all private evidence remain outside this branch. No Finance implementation, migrations or tests changed.
 
 ## Implemented bounded software
