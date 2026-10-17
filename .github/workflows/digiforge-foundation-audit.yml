@@ -72,6 +72,7 @@ jobs:
         run: |
           php -d zend.assertions=1 -d assert.exception=1 tests/printify-catalog-preview-smoke.php
           php tests/printify-catalog-read-policy-smoke.php
+          php tests/printify-catalog-attempt-authorization-smoke.php
 
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
