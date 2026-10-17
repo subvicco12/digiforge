@@ -62,7 +62,62 @@ final class Repository
 
     public function transition(string $entity,int $id,string $to):array|WP_Error
     {
-        $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};$reviewerId=get_current_user_id();if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');$row=$this->find($table,$id);if(is_wp_error($row))return $row;$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Finance record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Finance lifecycle transition is not permitted.',409);if(in_array($to,['APPROVED','APPROVED_INTENT'],true)&&$reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);$now=$this->now();global $wpdb;$data=['state'=>$to,'updated_at'=>$now];if($entity==='period'&&$to==='APPROVED'){$data['approved_by']=$reviewerId;$data['approved_at']=$now;}$wpdb->last_error='';$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>(string)$row['state']]);if($updated===false||!empty($wpdb->last_error))return $this->error('transition_failed','Finance lifecycle persistence is unavailable.',503);if($updated!==1)return $this->error('transition_conflict','State changed concurrently or update failed.',409);Logger::audit('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id);return $this->find($table,$id)?:[];
+        $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};
+        $reviewerId=get_current_user_id();
+        if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');
+        $row=$this->find($table,$id);
+        if(is_wp_error($row))return $row;
+        $to=strtoupper(sanitize_key($to));
+        if(!is_array($row))return $this->error('not_found','Finance record not found.',404);
+        // Revalidate even an idempotent approval: missing/current source evidence is not authority.
+        if($entity==='period'&&$to==='APPROVED'){
+            if($reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+            $complete=$this->validatePeriodApproval($row);
+            if($complete instanceof WP_Error)return $complete;
+        }
+        if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];
+        if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Finance lifecycle transition is not permitted.',409);
+        if(in_array($to,['APPROVED','APPROVED_INTENT'],true)&&$reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $now=$this->now();global $wpdb;$data=['state'=>$to,'updated_at'=>$now];
+        $where=['id'=>$id,'state'=>(string)$row['state']];
+        if($entity==='period'&&$to==='APPROVED'){
+            $data['approved_by']=$reviewerId;$data['approved_at']=$now;
+            $where['metrics_hash']=$row['metrics_hash'];
+            $where['metrics']=$row['metrics'];
+            foreach(['environment','period_start','period_end','base_currency','calculation_version'] as $field)$where[$field]=$row[$field];
+        }
+        $wpdb->last_error='';$updated=$wpdb->update($table,$data,$where);
+        if($updated===false||!empty($wpdb->last_error))return $this->error('transition_failed','Finance lifecycle persistence is unavailable.',503);
+        if($updated!==1)return $this->error('transition_conflict','State or immutable evidence changed concurrently.',409);
+        Logger::audit('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id);
+        return $this->find($table,$id)?:[];
+    }
+
+    /**
+     * Current helpers prove local coverage only, never authenticated fees/actual charges.
+     * Until an authoritative import contract exists, active periods cannot be approved.
+     * Empty local observations are not provider certification or external execution authority.
+     */
+    private function validatePeriodApproval(array $row):true|WP_Error
+    {
+        $metrics=json_decode((string)($row['metrics']??''),true);
+        $canonical=['environment'=>(string)($row['environment']??''),'period_start'=>(string)($row['period_start']??''),'period_end'=>(string)($row['period_end']??''),'base_currency'=>(string)($row['base_currency']??''),'metrics'=>$metrics,'calculation_version'=>(string)($row['calculation_version']??'')];
+        try{
+            if(!is_array($metrics)||!preg_match('/^[a-f0-9]{64}$/',(string)($row['metrics_hash']??''))||!hash_equals((string)$row['metrics_hash'],Validator::hash($canonical)))return $this->error('period_integrity_invalid','Finance period evidence hash is invalid.',409);
+            if(($metrics['unresolved_reconciliation_count']??null)!==0)return $this->error('reconciliation_required','Finance period has unresolved or unverified reconciliation evidence.',409);
+            $coverage=(new SourceCompletenessReadModel())->snapshot($canonical['environment'],$canonical['period_start'],$canonical['period_end']);
+        }catch(\Throwable){return $this->error('source_evidence_unavailable','Current source completeness could not be verified.',503);}
+        if(($coverage['query_state']['orders']??null)!=='AVAILABLE'||($coverage['query_state']['revenue']??null)!=='AVAILABLE')return $this->error('source_evidence_unavailable','Current source completeness could not be verified.',503);
+        if(($coverage['state']??null)!=='ZERO_ACTIVITY')return $this->error('source_completeness_required','Authenticated payment timing, fees and actual provider charges remain unverified.',409);
+        // ZERO_ACTIVITY in the read model concerns orders/revenue only; manual costs are not empty activity.
+        global $wpdb;$wpdb->last_error='';
+        $ledger=$wpdb->get_results($wpdb->prepare('SELECT id FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s LIMIT 1',$canonical['environment'],$canonical['period_start'],$canonical['period_end']),ARRAY_A);
+        if(!is_array($ledger)||$wpdb->last_error!=='')return $this->error('source_evidence_unavailable','Current ledger coverage could not be verified.',503);
+        if($ledger!==[])return $this->error('source_completeness_required','Nonempty ledger requires authoritative source certification.',409);
+        $required=['gross_revenue','refund_reserves','platform_payment_fees','shipping_cost','provider_cost','advertising_cost','tax_collected','tax_expense','other_income','other_expense','gross_profit','contribution_profit','net_operating_profit','margin_percent','order_count','average_order_value','unresolved_reconciliation_count'];
+        foreach($required as $key)if(!array_key_exists($key,$metrics))return $this->error('period_integrity_invalid','Period metrics are incomplete.',409);
+        foreach($metrics as $value)if((!is_int($value)&&!is_float($value))||!is_finite((float)$value)||(float)$value!==0.0)return $this->error('source_completeness_required','Stored period contradicts empty current source evidence.',409);
+        return true;
     }
 
     public function list(string $entity,int $page=1,int $perPage=20):array
