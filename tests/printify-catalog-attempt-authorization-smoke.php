@@ -48,7 +48,7 @@ foreach(['not JSON','null',str_repeat('x',1048577),'{"value":"synthetic-token"}'
 $throwing = new PrintifyCatalogClient(static function(){throw new RuntimeException('sensitive detail');});
 $result=$throwing->variants('synthetic-token',478,28);
 ensure($result instanceof WP_Error && !str_contains(json_encode($result),'sensitive detail'),'Thrown transport details sanitized');
-foreach ([['kind'=>'shipping','blueprint_id'=>478,'provider_id'=>28],['kind'=>'variants','blueprint_id'=>-1,'provider_id'=>28],['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28,'url'=>'https://evil.invalid'],['kind'=>'variants','blueprint_id'=>'478','provider_id'=>28]] as $request) {
+foreach ([['kind'=>'shipping_method','blueprint_id'=>478,'provider_id'=>28,'method'=>'POST'],['kind'=>'variants','blueprint_id'=>-1,'provider_id'=>28],['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28,'url'=>'https://evil.invalid'],['kind'=>'variants','blueprint_id'=>'478','provider_id'=>28]] as $request) {
  ensure($client->scopedRead('synthetic-token',$request) instanceof WP_Error && $calls===0,'Unsafe explicit scope denied before HTTP');
 }
 $exhausted=0;$sleeps=[];
@@ -61,3 +61,10 @@ foreach ([
  [['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28],['variants'=>[]]],
 ] as [$request,$data]) {ensure(DigiForge\POD\PrintifyCatalogReadContract::select($data,$request)===$data,'Supported envelope retained without fabricated geometry');}
 echo "Printify catalog attempt authorization offline tests passed\n";
+
+// Legacy API/return shape remains unchanged; scoped v2 validation is a separate contract.
+$shippingUrls=[];$legacyShipping=new PrintifyCatalogClient(static function($url,$args)use(&$shippingUrls){$shippingUrls[]=$url;ensure(($args['redirection']??-1)===0,'No legacy redirects');return ['status'=>200,'body'=>'{"data":[]}'];});
+foreach([null,'standard','priority','express','economy']as $method){ensure($legacyShipping->shipping('synthetic-token',478,28,$method)===['data'=>[]],'Legacy shipping return shape preserved');$suffix=$method===null?'.json':'/'.$method.'.json';ensure(end($shippingUrls)==='https://api.printify.com/v2/catalog/blueprints/478/print_providers/28/shipping'.$suffix,'Exact legacy shipping GET path');}
+ensure($legacyShipping->shipping('synthetic-token',478,28,'POST') instanceof WP_Error&&count($shippingUrls)===5,'Unsupported legacy method never dispatches');
+$e=$legacyShipping->variantsWithEvidence('synthetic-token',478,28);ensure(isset($e['data'],$e['source_evidence']['response_sha256'],$e['source_evidence']['observed_at']),'Legacy variant provenance retained');
+echo "Printify legacy shipping compatibility passed\n";

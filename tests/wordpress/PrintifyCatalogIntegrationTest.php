@@ -23,8 +23,8 @@ final class PrintifyCatalogIntegrationTest extends WP_UnitTestCase {
   if($body!==null){if($method==='GET')$r->set_query_params($body);else{$r->set_header('Content-Type','application/json');$r->set_body(wp_json_encode($body));}}
   return rest_do_request($r);
  }
- private function restGrant():string {
-  $this->input['requests']=[['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2]];$this->input['max_requests']=1;
+ private function restGrant(?array $requests=null):string {
+  $this->input['requests']=$requests??[['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2]];$this->input['max_requests']=count($this->input['requests']);
   $r=$this->rest('POST','/grants',$this->input,'rest-grant-'.wp_generate_password(10,false));self::assertSame(200,$r->get_status());return $r->get_data()['sha256'];
  }
  private function restException(string $sha):void {
@@ -89,4 +89,27 @@ final class PrintifyCatalogIntegrationTest extends WP_UnitTestCase {
   try{self::assertSame(403,$this->rest('GET','/'.$sha,['request_index'=>0],'revoked-inflight')->get_status());self::assertSame(1,$calls);}
   finally{remove_filter('pre_http_request',$filter,1);}
  }
+ public function testShippingDiscoveryAndMethodReadsAreSeparatelyScopedDraftEvidence():void {
+  $this->input['requests']=[['kind'=>'shipping','blueprint_id'=>1220,'provider_id'=>105],['kind'=>'shipping_method','blueprint_id'=>1220,'provider_id'=>105,'method'=>'standard']];
+  $methods=file_get_contents(__DIR__.'/../fixtures/printify/shipping-v2-methods.json');$rates=file_get_contents(__DIR__.'/../fixtures/printify/shipping-v2-standard.json');$calls=[];
+  $f=static function($pre,$args,$url)use(&$calls,$methods,$rates){if(!str_starts_with($url,'https://api.printify.com/'))return $pre;$calls[]=$url;self::assertSame('GET',$args['method']);self::assertSame(0,$args['redirection']);self::assertSame(10,$args['timeout']);self::assertSame(1048577,$args['limit_response_size']);$path='https://api.printify.com/v2/catalog/blueprints/1220/print_providers/105/shipping';self::assertContains($url,[$path.'.json',$path.'/standard.json']);return ['response'=>['code'=>200],'headers'=>[],'body'=>$url===$path.'.json'?$methods:$rates];};
+  add_filter('pre_http_request',$f,1,3);
+  try{
+   $sha=$this->restGrant($this->input['requests']);self::assertSame(409,$this->rest('GET','/'.$sha,['request_index'=>0],'shipping-locked')->get_status());self::assertSame([],$calls);$this->restException($sha);
+   self::assertSame(400,$this->rest('GET','/'.$sha,['request_index'=>0,'method'=>'express'],'shipping-scope-override')->get_status());
+   // A discovery grant cannot authorize another path, even with a permissive legacy callback.
+   $client=new DigiForge\POD\PrintifyCatalogClient(null,null,static fn()=>true);
+   $denied=$client->scopedRead('offline-catalog-fixture-credential',['kind'=>'shipping_method','blueprint_id'=>1220,'provider_id'=>105,'method'=>'express'],['grant_sha256'=>$sha,'request_index'=>0,'request_sha256'=>hash('sha256','shipping-read-0')]);self::assertWPError($denied);self::assertSame('catalog_read_request_scope',$denied->get_error_code());self::assertSame([],$calls);
+   foreach([0=>$methods,1=>$rates]as $index=>$body){$r=$this->rest('GET','/'.$sha,['request_index'=>$index],'shipping-read-'.$index);self::assertSame(200,$r->get_status());$e=$r->get_data();self::assertSame('DRAFT_UNVERIFIED',$e['state']);self::assertFalse($e['supplier_certified']);self::assertFalse($e['mutation_authorized']);self::assertSame(hash('sha256',$body),$e['response_sha256']);self::assertSame(json_decode($body,true),$e['data']);self::assertMatchesRegularExpression('/[+-][0-9]{2}:[0-9]{2}$/',$e['observed_at']);self::assertArrayNotHasKey('response_body',$e);self::assertSame(409,$this->rest('GET','/'.$sha,['request_index'=>$index],'shipping-read-'.$index)->get_status());}
+   self::assertCount(2,$calls);self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::is_enabled('printify'));self::assertSame(false,DigiForge\Core\Settings::get('automation_armed'));
+  }finally{remove_filter('pre_http_request',$f,1);}
+ }
+ public function testMalformedShippingDiscoveryAndRatesConsumeIntentWithoutEvidence():void {
+  foreach(['shipping','shipping_method']as $kind){
+   $this->input['requests']=[['kind'=>$kind,'blueprint_id'=>1220,'provider_id'=>105]+($kind==='shipping_method'?['method'=>'standard']:[])];
+   $calls=0;$f=static function($pre,$args,$url)use(&$calls){if(!str_starts_with($url,'https://api.printify.com/'))return $pre;++$calls;return ['response'=>['code'=>200],'headers'=>[],'body'=>'{"profiles":[{"countries":["US"]}]}'];};add_filter('pre_http_request',$f,1,3);
+   try{$sha=$this->restGrant($this->input['requests']);$this->restException($sha);self::assertSame(502,$this->rest('GET','/'.$sha,['request_index'=>0],'malformed-shipping')->get_status());self::assertGreaterThanOrEqual(400,$this->rest('GET','/'.$sha.'/evidence/'.hash('sha256','malformed-shipping'))->get_status());self::assertSame(409,$this->rest('GET','/'.$sha,['request_index'=>0],'malformed-shipping')->get_status());self::assertSame(1,$calls);}finally{remove_filter('pre_http_request',$f,1);}
+  }
+ }
+
 }
