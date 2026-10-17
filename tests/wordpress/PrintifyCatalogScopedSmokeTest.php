@@ -55,7 +55,11 @@ final class PrintifyCatalogScopedSmokeTest extends WP_UnitTestCase {
  public function testDefaultLocksCrossScopeAndExpiryDuringRequestDeny():void {
   $calls=0;$r=new Reads($this->client($calls));$g=$this->grant($r);self::assertWPError($r->preview($g['sha256'],0,'locked-request'));self::assertSame(0,$calls);
   $this->unlocked();$out=(new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls){++$calls;return [];}))->scopedRead('not-the-configured-token',['kind'=>'variants','blueprint_id'=>101,'provider_id'=>999],['grant_sha256'=>$g['sha256'],'request_index'=>0,'request_sha256'=>hash('sha256','locked-request')]);self::assertWPError($out);self::assertSame(0,$calls);
-  $this->input['expires_at']=gmdate('c',time()+1);$client=new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls){++$calls;usleep(1100000);return ['response'=>['code'=>200],'body'=>'{"variants":[{"id":202}]}'];});$r=new Reads($client);$g=$this->grant($r);self::assertWPError($r->preview($g['sha256'],0,'expires-inflight'));self::assertSame(1,$calls);
+  // Leave time for durable setup; expire inside transport, not before admission.
+  $expiresAt=time()+5;$this->input['expires_at']=gmdate('c',$expiresAt);
+  $client=new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls,$expiresAt){++$calls;usleep(max(0,$expiresAt-time())*1000000+100000);return ['response'=>['code'=>200],'body'=>'{"variants":[{"id":202}]}'];});
+  $r=new Reads($client);$g=$this->grant($r);$result=$r->preview($g['sha256'],0,'expires-inflight');
+  self::assertWPError($result);self::assertSame('catalog_read_expired_or_owner_revoked',$result->get_error_code());self::assertSame(1,$calls);
  }
  public function testReservedDispatchCannotReplayOrUseForeignCredential():void {
   $calls=0;$client=$this->client($calls);$r=new Reads($client);$g=$this->grant($r);$this->unlocked();self::assertIsArray($r->preview($g['sha256'],0,'single-dispatch'));
