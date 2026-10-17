@@ -21,11 +21,12 @@ final class PrintifyCatalogReadContract {
  }
  public static function endpoint(array $r):string {
   $kind=$r['kind']??null;$keys=match($kind){'blueprint','providers'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if($k!=='kind')self::positive($v);
-  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
+  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','shipping'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
  }
  /** Validate endpoint-specific envelopes before accepting even draft evidence. */
  public static function select(array $data,array $r):array {
   self::endpoint($r);
+  if($r['kind']==='shipping'){self::shipping($data);return $data;}
   if($r['kind']==='blueprint'){
    self::record($data);if($data['id']!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');return $data;
   }
@@ -33,6 +34,23 @@ final class PrintifyCatalogReadContract {
   $variants=$data['variants']??null;if(!is_array($variants))throw new \InvalidArgumentException('Variant response missing.');
   self::records($variants);if($r['kind']==='variants')return $data;
   $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];
+ }
+ /** Shipping is not a variant envelope; validate a bounded, scalar-safe evidence tree. */
+ private static function shipping(array $data):void {
+  if($data===[]||count($data)>100)throw new \InvalidArgumentException('Shipping response missing or oversized.');
+  self::shippingNode($data,0);
+ }
+ private static function shippingNode(mixed $node,int $depth):void {
+  if($depth>12)throw new \InvalidArgumentException('Shipping nesting exceeds limit.');
+  if(is_array($node)){
+   if(count($node)>1000)throw new \InvalidArgumentException('Shipping collection exceeds limit.');
+   foreach($node as $key=>$value){if(is_string($key)&&(!preg_match('/^[a-zA-Z0-9_-]{1,100}$/D',$key)))throw new \InvalidArgumentException('Unsafe shipping key.');self::shippingNode($value,$depth+1);}
+   return;
+  }
+  if(is_string($node)){if(strlen($node)>2000||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]/',$node))throw new \InvalidArgumentException('Unsafe shipping value.');return;}
+  if(is_int($node)||is_bool($node)||$node===null)return;
+  if(is_float($node)&&is_finite($node))return;
+  throw new \InvalidArgumentException('Unsupported shipping value.');
  }
  private static function records(array $records):void {
   if(!array_is_list($records)||count($records)>1000)throw new \InvalidArgumentException('Bounded catalog list required.');
