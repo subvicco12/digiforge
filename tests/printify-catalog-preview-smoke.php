@@ -61,5 +61,6 @@ namespace {
     verify(PrintifyCatalogPreview::inspect(478, 28, $bypass, $bypass) instanceof WP_Error, 'Permissive supplier callbacks cannot bypass identity admission');
     // Positive projection, malformed variants, rights UNKNOWN, replay and in-flight
     // changes are exercised against real WordPress grants in PrintifyCatalogScopedSmokeTest.
+    require __DIR__ . '/printify-catalog-shipping-contract-smoke.php';
     echo "Printify catalog preview offline smoke passed\n";
 }
