@@ -4,6 +4,8 @@
     <testsuites>
         <testsuite name="DigiForge main-site catalog authorization">
             <file>tests/wordpress/PrintifyCatalogReadTest.php</file>
+            <file>tests/wordpress/PrintifyCatalogIntegrationTest.php</file>
+            <file>tests/wordpress/PrintifyCatalogScopedSmokeTest.php</file>
         </testsuite>
     </testsuites>
 </phpunit>

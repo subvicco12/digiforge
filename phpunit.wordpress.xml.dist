@@ -5,6 +5,8 @@
         <testsuite name="DigiForge WordPress integration">
             <directory suffix="Test.php">tests/wordpress</directory>
             <exclude>tests/wordpress/PrintifyCatalogReadTest.php</exclude>
+            <exclude>tests/wordpress/PrintifyCatalogIntegrationTest.php</exclude>
+            <exclude>tests/wordpress/PrintifyCatalogScopedSmokeTest.php</exclude>
         </testsuite>
     </testsuites>
 </phpunit>

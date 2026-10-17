@@ -93,6 +93,12 @@ jobs:
       - name: Experimental matting boundary static analysis
         run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php includes/POD/CutoutVisualQa.php
 
+      - name: Printify preview offline smoke tests
+        run: |
+          php -d zend.assertions=1 -d assert.exception=1 tests/printify-catalog-preview-smoke.php
+          php tests/printify-catalog-read-policy-smoke.php
+          php tests/printify-catalog-attempt-authorization-smoke.php
+
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
 

@@ -70,3 +70,17 @@ Results retain exact raw response-body SHA-256, endpoint, absolute observation t
 Mandatory Engineering & Safety Audit is unchanged except for adding a real installed Composer dependency-advisory audit after installation (main has no tracked Composer lockfile). Final exact-head CI evidence belongs to the published PR; no self-referential or fabricated PASS is recorded here.
 
 Consolidated local candidate validation: 1,155 unit tests / 7,353 assertions; 207 WordPress tests / 1,972 assertions (eight new scoped-read tests / 132 assertions); 61 offline tests; configured static/standards plus targeted WordPress-aware static analysis; syntax, controlled HTTP/secret/legacy scans and diff checks all passed. Installed Composer audit reported no security vulnerability advisories. Existing main/test-runtime PHP deprecation and dbDelta diagnostics were visible; no checks were disabled. Independent code review's credential, origin and quota findings were corrected and behaviorally tested. No provider request or website configuration was executed.
+
+## Composed shop-assignment boundary
+
+On the combined Blueprint candidate, the existing integration `config.shop_key`
+must identify one exact canonical shop and agree with the owner-reviewed
+`catalog_read_scope`. The immutable grant binding includes that shop. The global
+REST guard resolves the stored grant target and requires current assignments for
+both `manage_digiforge_connections` and `manage_digiforge_pod`; ordinary WordPress
+capabilities, nonce, account ownership and separate catalog exception checks still
+apply. Current assignments are checked before credential decryption, before each
+scoped dispatch and after response. Revocation during a request discards its result.
+Missing/changed canonical binding, including older incomplete grants, fails closed;
+a fresh explicit owner-reviewed grant is required. No assignment, configuration,
+provider ownership or operational approval is inferred or provisioned.

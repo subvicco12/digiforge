@@ -12,6 +12,20 @@ final class ShopAccessTargetScope
     public static function forRequest(\WP_REST_Request $request, array $allowed): string|false|\WP_Error
     {
         $route=$request->get_route();$id=$request->get_param('id');$table=null;
+        if (str_starts_with($route,'/digiforge/v1/printify/catalog-read/')) {
+            $catalog=new \DigiForge\POD\PrintifyCatalogReadRepository();
+            if($route==='/digiforge/v1/printify/catalog-read/grants'&&$request->get_method()==='POST'){
+                try{$body=json_decode($request->get_body(),true,32,JSON_THROW_ON_ERROR);}catch(\Throwable){return self::error(400);}
+                if(!is_array($body))return self::error(400);
+                $shop=$catalog->targetShopForInput($body);
+            }elseif(preg_match('#^/digiforge/v1/printify/catalog-read/([a-f0-9]{64})(?:/(?:revoke|safety-exception(?:/revoke)?|evidence/[a-f0-9]{64}))?$#D',$route,$catalogRoute)){
+                $shop=$catalog->targetShopForGrant($catalogRoute[1]);
+            }else{return self::error();}
+            if($shop instanceof \WP_Error)return $shop;
+            if(!in_array($shop,$allowed,true))return self::error();
+            foreach(['shop','shop_key'] as $field){$claim=$request->get_param($field);if($claim!==null&&$claim!==$shop)return self::error();}
+            return $shop;
+        }
         if (preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$route,$contract)) {
             // The registered URL, never a query/body shop claim, establishes this scope.
             return in_array($contract[1],$allowed,true)?$contract[1]:self::error();
@@ -40,7 +54,7 @@ final class ShopAccessTargetScope
             $predicate=self::predicate($table,$shop);if ($predicate===null) return false;
             $wpdb->last_error='';
             $found=$wpdb->get_var($wpdb->prepare('SELECT '.$table.'.id FROM '.$table.' WHERE '.$table.'.id=%d AND '.$predicate.' LIMIT 1',(int)$id));
-            if ($wpdb->last_error!=='') return self::error(503);
+            if (self::databaseFailed()) return self::error(503);
             if ($found!==null) $matches[]=$shop;
         }
         if (count($matches)!==1) return self::error();
@@ -62,6 +76,11 @@ final class ShopAccessTargetScope
         if ($table===Tables::fulfillment_intents()) return null;
         return ProductEvidenceScope::forTable($table,$shop);
     }
+
+    /** Reads the mutable WPDB error after a query.
+     * @phpstan-impure
+     */
+    private static function databaseFailed():bool {global $wpdb;return $wpdb->last_error!=='';}
 
     private static function error(int $status=403): \WP_Error
     {
