@@ -20,7 +20,7 @@ final class PrintifyCatalogReadContract {
   return $g;
  }
  public static function endpoint(array $r):string {
-  $kind=$r['kind']??null;$keys=match($kind){'blueprint','providers'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if($k!=='kind')self::positive($v);
+  $kind=$r['kind']??null;$keys=match($kind){'blueprint','providers'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping'=>['kind','blueprint_id','provider_id'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if($k!=='kind')self::positive($v);
   $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','shipping'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
  }
  /** Validate endpoint-specific envelopes before accepting even draft evidence. */
