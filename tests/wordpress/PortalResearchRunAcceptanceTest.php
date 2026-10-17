@@ -117,4 +117,26 @@ final class PortalResearchRunAcceptanceTest extends WP_UnitTestCase
 
     public function corruptQuoteCases():array{return [['maximum_charge','0.2'],['valid_until',time()+36000],['authority','UNREVIEWED_CALLER_CLAIM']];}
 
+    public function testConsentExpiresAtExactBoundaryUsingOneValidationClock():void {
+        $workflow=new ResearchRunWorkflow();$id=wp_generate_uuid4();$issued=time();$record=['version'=>1,'operation_id'=>$id,'actor_id'=>get_current_user_id(),'issued_at'=>$issued,'expires_at'=>$issued+300,'input'=>['shop'=>'digital'],'evidence_hash'=>str_repeat('a',64),'plan'=>['quote'=>[]]];
+        $seal=new ReflectionMethod($workflow,'signature');$record['seal']=$seal->invoke($workflow,$record);self::assertTrue(add_option('digiforge_manual_research_pending_'.$id,wp_json_encode($record),'',false));$pending=new ReflectionMethod($workflow,'pending');
+        self::assertSame($record,$pending->invoke($workflow,$id,$issued+299));
+        self::assertNull($pending->invoke($workflow,$id,$issued+300),'Consent expires at the boundary, not one second later.');
+        self::assertNull($pending->invoke($workflow,$id,$issued+301));
+        self::assertNull($pending->invoke($workflow,$id,$issued-6),'A future-issued record cannot be admitted by another clock read.');
+        self::assertSame(0,$this->httpCalls);
+    }
+    public function testConsumedConsentIsNotOfferedForConfirmationAgain():void {
+        $this->releasedPolicy();$selected=$this->selected();$prepared=$this->invoke(ResearchRunWorkflow::PREPARE_ACTION,['shop_key'=>'digital','phase'=>'deep_research','selected_candidate_id'=>(string)$selected['candidate']['id']],false);
+        $before=$this->render('digital',['df_research_run'=>$prepared['df_research_run']]);self::assertStringContainsString('name="df_research_signature"',$before);
+        $receipt='{"synthetic_existing_receipt":true}';$name='digiforge_manual_research_consumed_'.$prepared['df_research_run'];self::assertTrue(add_option($name,$receipt,'',false));$after=$this->render('digital',['df_research_run'=>$prepared['df_research_run']]);self::assertStringNotContainsString('name="df_research_signature"',$after);self::assertStringContainsString('already consumed or its receipt evidence is unavailable',$after);self::assertSame($receipt,get_option($name));self::assertSame(0,$this->httpCalls);
+    }
+    public function testReceiptReadFailureCannotOfferAnotherConfirmation():void {
+        $this->releasedPolicy();$selected=$this->selected();$prepared=$this->invoke(ResearchRunWorkflow::PREPARE_ACTION,['shop_key'=>'digital','phase'=>'deep_research','selected_candidate_id'=>(string)$selected['candidate']['id']],false);
+        global $wpdb;$name='digiforge_manual_research_consumed_'.$prepared['df_research_run'];$prior=$wpdb->suppress_errors(true);$hits=0;
+        $f=static function(string $sql)use($name,&$hits):string {if(str_starts_with($sql,'SELECT option_id FROM ')&&str_contains($sql,$name)){++$hits;return 'SELECT * FROM nonexistent_consent_receipt_fixture';}return $sql;};add_filter('query',$f);
+        try{$html=$this->render('digital',['df_research_run'=>$prepared['df_research_run']]);self::assertSame(1,$hits);self::assertStringNotContainsString('name="df_research_signature"',$html);self::assertStringContainsString('already consumed or its receipt evidence is unavailable',$html);}finally{remove_filter('query',$f);$wpdb->suppress_errors($prior);}
+        self::assertFalse(get_option($name,false));self::assertSame(0,$this->httpCalls);
+    }
+
 }
