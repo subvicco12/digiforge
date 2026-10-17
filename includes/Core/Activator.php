@@ -50,6 +50,7 @@ final class Activator {
         if (! CatalogAcceptanceSchema::migrateIfNeeded()) {
             return;
         }
+        if (! \DigiForge\Database\EtsyOrderEventSchema::migrateIfNeeded()) { return; }
         Settings::ensure_defaults();
         flush_rewrite_rules();
     }
