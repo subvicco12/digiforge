@@ -20,11 +20,13 @@ final class PrintifyCatalogClient
 
     /** @var callable */ private $transport;
     /** @var callable */ private $sleep;
+    /** @var null|callable */ private $attemptAuthorization;
 
-    public function __construct(?callable $transport = null, ?callable $sleep = null)
+    public function __construct(?callable $transport = null, ?callable $sleep = null, ?callable $attemptAuthorization = null)
     {
         $this->transport = $transport ?? static fn(string $url, array $args): array|WP_Error => wp_remote_get($url, $args);
         $this->sleep = $sleep ?? static function (int $microseconds): void { usleep($microseconds); };
+        $this->attemptAuthorization = $attemptAuthorization;
     }
 
     public function blueprints(string $token): array|WP_Error
@@ -74,6 +76,16 @@ final class PrintifyCatalogClient
             'Authorization'=>'Bearer '.$token,'Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyCatalogSync'
         ]];
         for ($attempt=1; $attempt<=self::MAX_ATTEMPTS; $attempt++) {
+            // Optional strict read boundary: fail closed on every attempt, including retries.
+            // Existing callers retain their behavior until explicitly migrated.
+            if ($this->attemptAuthorization !== null) {
+                try { $authorized = ($this->attemptAuthorization)($url, $attempt); }
+                catch (\Throwable) {
+                    return new WP_Error('digiforge_printify_read_authorization', 'Catalog read authorization failed.', ['status'=>409]);
+                }
+                if (is_wp_error($authorized)) return $authorized;
+                if ($authorized !== true) return new WP_Error('digiforge_printify_read_authorization', 'Catalog read authorization denied.', ['status'=>409]);
+            }
             $response=($this->transport)($url,$args);
             if (is_wp_error($response)) return new WP_Error('digiforge_printify_transport','Printify catalog transport failed.',['status'=>502]);
             $status=(int)wp_remote_retrieve_response_code($response);
