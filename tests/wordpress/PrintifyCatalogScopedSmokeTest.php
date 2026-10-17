@@ -62,4 +62,56 @@ final class PrintifyCatalogScopedSmokeTest extends WP_UnitTestCase {
   $scope=['grant_sha256'=>$g['sha256'],'request_index'=>0,'request_sha256'=>hash('sha256','single-dispatch')];$request=$this->input['requests'][0];
   self::assertWPError($client->scopedRead('foreign-secret',$request,$scope));self::assertWPError($client->scopedRead('offline-catalog-fixture-credential',$request,$scope));self::assertSame(1,$calls);
  }
+ private function permitted(Reads $r):array {
+  $g=$this->grant($r);$e=$r->approveSafetyException($g['sha256'],['capability'=>'printify.catalog.read','expires_at'=>gmdate('c',time()+600),'acknowledge_catalog_get_only'=>true,'acknowledge_no_mutations'=>true,'acknowledge_locks_remain_on'=>true],'probe-exception-'.wp_generate_password(12,false));self::assertIsArray($e);self::assertTrue(DigiForge\Core\Settings::safety_locked());return $g;
+ }
+ public function testDeletedGrantRevocationMustRemainDenied():void {
+  $calls=0;$r=new Reads($this->client($calls));$g=$this->permitted($r);self::assertTrue($r->revoke($g['sha256']));self::assertWPError($r->preview($g['sha256'],0,'before-deletion'));
+  global $wpdb;$count=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::audit_log()." WHERE event_type='catalog_read_revoked'");self::assertGreaterThan(0,(int)$count);
+  $wpdb->delete($wpdb->options,['option_name'=>'df_catalog_read_revoked_'.$g['sha256']]);
+  $after=$r->preview($g['sha256'],0,'after-deletion');self::assertSame($count,$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::audit_log()." WHERE event_type='catalog_read_revoked'"));
+  self::assertSame(0,$calls);self::assertTrue(DigiForge\Core\Settings::safety_locked());
+  self::assertWPError($after,'Retained grant revocation audit must deny when its option is lost.');
+ }
+ public function testDeletedDispatchMustNotRedispatchSameReservedRequest():void {
+  $calls=0;$client=$this->client($calls);$r=new Reads($client);$g=$this->permitted($r);self::assertIsArray($r->preview($g['sha256'],0,'probe-dispatch'));
+  $key=hash('sha256','probe-dispatch');global $wpdb;$wpdb->delete($wpdb->options,['option_name'=>'df_catalog_read_dispatch_'.$g['sha256'].'_'.$key]);
+  $after=$client->scopedRead('offline-catalog-fixture-credential',$g['grant']['requests'][0],['grant_sha256'=>$g['sha256'],'request_index'=>0,'request_sha256'=>$key]);
+  self::assertSame(1,$calls);self::assertTrue(DigiForge\Core\Settings::safety_locked());
+  self::assertWPError($after,'Retained dispatch audit must deny a second dispatch after option loss.');
+ }
+ public function testMalformedVariantEnvelopeMustNotBecomeDraftEvidence():void {
+  $client=new DigiForge\POD\PrintifyCatalogClient(static fn()=>['response'=>['code'=>200],'body'=>'{"unrelated":"synthetic unexpected field"}']);$r=new Reads($client);$g=$this->permitted($r);
+  $out=$r->read($g['sha256'],0,'malformed-envelope');self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertWPError($r->evidence($g['sha256'],hash('sha256','malformed-envelope')));
+  self::assertWPError($out,'Variants response must contain a validated variants list.');
+ }
+
+ public function testConcurrentDispatchLockAndRetryDoNotCreateSecondAttempt():void {
+  $calls=0;$client=$this->client($calls);$r=new Reads($client);$g=$this->permitted($r);
+  $connection=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$lock='df-catalog-read-'.substr($g['sha256'],0,45);
+  self::assertSame('1',(string)$connection->get_var($connection->prepare('SELECT GET_LOCK(%s,0)',$lock)));
+  try{self::assertWPError($r->preview($g['sha256'],0,'concurrent-request'));self::assertSame(0,$calls);}finally{$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)',$lock));$connection->close();}
+  self::assertIsArray($r->preview($g['sha256'],0,'concurrent-request'));self::assertWPError($r->preview($g['sha256'],0,'concurrent-request'));self::assertSame(1,$calls);
+ }
+ public function testMissingDispatchAuditOrUnavailableAnchorsFailClosed():void {
+  $calls=0;$client=$this->client($calls);$r=new Reads($client);$g=$this->permitted($r);self::assertIsArray($r->preview($g['sha256'],0,'audit-presence'));
+  $key=hash('sha256','audit-presence');global $wpdb;$wpdb->query($wpdb->prepare('DELETE FROM '.Tables::audit_log().' WHERE event_type=%s AND context LIKE %s','catalog_read_dispatched','%'.$wpdb->esc_like('"request_sha256":"'.$key.'"').'%'));
+  $authority=['grant_sha256'=>$g['sha256'],'request_index'=>0,'request_sha256'=>$key];self::assertWPError($r->authorizeReservedAttempt($authority,$g['grant']['requests'][0],'offline-catalog-fixture-credential',false));
+  self::assertWPError($client->scopedRead('offline-catalog-fixture-credential',$g['grant']['requests'][0],$authority));self::assertSame(1,$calls);
+  $g=$this->permitted($r);$wpdb->suppress_errors(true);$f=static fn(string $sql):string=>str_starts_with($sql,'SELECT context FROM ')&&str_contains($sql,'catalog_read_revoked')?'SELECT * FROM nonexistent_catalog_revocation_probe':$sql;add_filter('query',$f);
+  try{self::assertWPError($r->preview($g['sha256'],0,'anchor-outage'));self::assertSame(1,$calls);}finally{remove_filter('query',$f);$wpdb->suppress_errors(false);}
+ }
+ public function testMalformedEndpointRecordsCannotBeSavedAsEvidence():void {
+  $cases=[
+   [['kind'=>'blueprint','blueprint_id'=>101],'{"id":999}'],
+   [['kind'=>'providers','blueprint_id'=>101],'{"providers":[]}'],
+   [['kind'=>'providers','blueprint_id'=>101],'[{"id":2},{"id":2}]'],
+   [['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2],'{"variants":[{"id":"202"}]}'],
+   [['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2],'{"variants":{"x":{"id":202}}}'],
+   [['kind'=>'variant','blueprint_id'=>101,'provider_id'=>2,'variant_id'=>202],'{"variants":[{"id":202},{"id":202}]}'],
+  ];
+  foreach($cases as $n=>[$request,$body]){$calls=0;$client=new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls,$body){++$calls;return ['response'=>['code'=>200],'body'=>$body];});$r=new Reads($client);$this->input['requests']=[$request];$g=$r->approve($this->input,'envelope-grant-'.$n);self::assertIsArray($g);$e=$r->approveSafetyException($g['sha256'],['capability'=>'printify.catalog.read','expires_at'=>gmdate('c',time()+600),'acknowledge_catalog_get_only'=>true,'acknowledge_no_mutations'=>true,'acknowledge_locks_remain_on'=>true],'envelope-exception-'.$n);self::assertIsArray($e);
+   self::assertWPError($r->read($g['sha256'],0,'envelope-request-'.$n));self::assertWPError($r->evidence($g['sha256'],hash('sha256','envelope-request-'.$n)));self::assertSame(1,$calls);
+  }
+ }
 }

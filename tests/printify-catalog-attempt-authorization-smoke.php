@@ -54,4 +54,10 @@ foreach ([['kind'=>'shipping','blueprint_id'=>478,'provider_id'=>28],['kind'=>'v
 $exhausted=0;$sleeps=[];
 $rate=new PrintifyCatalogClient(static function()use(&$exhausted){++$exhausted;return ['status'=>429,'retry_after'=>'999999999'];},static function($delay)use(&$sleeps){$sleeps[]=$delay;});
 ensure($rate->variants('synthetic-token',478,28) instanceof WP_Error && $exhausted===3 && $sleeps===[60000000,60000000],'Legacy retry count and delay caps preserved');
+
+foreach ([
+ [['kind'=>'blueprint','blueprint_id'=>478],['id'=>478]],
+ [['kind'=>'providers','blueprint_id'=>478],[['id'=>28,'title'=>'synthetic']]],
+ [['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28],['variants'=>[]]],
+] as [$request,$data]) {ensure(DigiForge\POD\PrintifyCatalogReadContract::select($data,$request)===$data,'Supported envelope retained without fabricated geometry');}
 echo "Printify catalog attempt authorization offline tests passed\n";
