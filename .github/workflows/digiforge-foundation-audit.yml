@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     services:
       mariadb:
-        image: public.ecr.aws/docker/library/mariadb:10.11
+        image: docker.io/library/mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: root
           MARIADB_DATABASE: digiforge_tests
@@ -54,6 +54,9 @@ jobs:
       - name: Install quality tools
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Audit installed Composer dependency advisories
+        run: composer audit --no-interaction
+
       - name: PHP syntax checks
         shell: bash
         run: |
@@ -67,6 +70,12 @@ jobs:
 
       - name: Legacy and unit tests
         run: composer test
+
+      - name: Printify preview offline smoke tests
+        run: |
+          php -d zend.assertions=1 -d assert.exception=1 tests/printify-catalog-preview-smoke.php
+          php tests/printify-catalog-read-policy-smoke.php
+          php tests/printify-catalog-attempt-authorization-smoke.php
 
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
