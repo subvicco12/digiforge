@@ -4,9 +4,40 @@ declare(strict_types=1);
 
 final class ConnectionTesterTest extends WP_UnitTestCase
 {
+    private array $fixtureConnectorIds=[];
+    private function beginFixtureTransaction(): void
+    {
+        global $wpdb;$wpdb->last_error='';self::assertNotFalse($wpdb->query('START TRANSACTION'));self::assertSame('',$wpdb->last_error);
+    }
+    private function assertFixtureRowsRolledBack(): void
+    {
+        global $wpdb;self::assertNotFalse($wpdb->query('ROLLBACK'));
+        foreach($this->fixtureConnectorIds as $id){
+            self::assertSame(0,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::integrations().' WHERE id=%d',$id)),'Synthetic connector must disappear after fixture rollback.');
+            self::assertSame(0,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::integration_secrets().' WHERE integration_id=%d',$id)),'Synthetic secrets must disappear after fixture rollback.');
+        }
+    }
+    protected function setUp(): void
+    {
+        parent::setUp();
+        DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
+        // Existing released-path fixtures use synthetic HTTP only; STOP ALL is restored below.
+        self::assertTrue(DigiForge\Core\Settings::set('research', true));
+        self::assertTrue(DigiForge\Core\Settings::activateResearch());
+        $this->beginFixtureTransaction();
+    }
+
+    protected function tearDown(): void
+    {
+        try{$this->assertFixtureRowsRolledBack();}
+        finally{self::assertTrue(DigiForge\Core\Settings::protectProduction());$this->beginFixtureTransaction();parent::tearDown();}
+    }
+
     public function testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         self::assertTrue(DigiForge\Core\Settings::set('research', true));
         self::assertTrue(DigiForge\Core\Settings::set('ai', true));
         self::assertTrue(DigiForge\Core\Settings::set('product_development', true));
@@ -15,18 +46,19 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         self::assertTrue(DigiForge\Core\Settings::activateAi());
         self::assertTrue(DigiForge\Core\Settings::activateProductDevelopment());
         self::assertTrue(DigiForge\Core\Settings::activatePrintify());
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
             'provider' => 'printify',
             'environment' => 'production',
-            'connection_key' => 'test_printify',
+            'connection_key' => 'test_printify_'.wp_generate_uuid4(),
             'display_name' => 'Test Printify',
             'status' => 'DISCONNECTED',
             'enabled' => false,
             'config' => [],
         ]);
         self::assertFalse(is_wp_error($created));
-        $id = (int) $created['id'];
+        $id = (int) $created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id, 'personal_access_token', 'unit-test-printify-token') === true);
 
         $seenAuthorization = '';
@@ -67,24 +99,27 @@ final class ConnectionTesterTest extends WP_UnitTestCase
             $repository->secretMetadata($id)
         ),$updated['config']['_connection_test']['credential_evidence_version']);
         self::assertSame(1, (int) ($updated['config']['_connection_test']['details']['shop_count'] ?? 0));
-        DigiForge\Core\Settings::protectProduction();
+        $this->assertFixtureRowsRolledBack();
+        self::assertTrue(DigiForge\Core\Settings::protectProduction());
+        $this->beginFixtureTransaction();
     }
 
     public function testEtsyAuthenticatedConnectionUsesUsersMeAndRecordsConfigured(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
             'provider' => 'etsy',
             'environment' => 'production',
-            'connection_key' => 'test_etsy',
+            'connection_key' => 'test_etsy_'.wp_generate_uuid4(),
             'display_name' => 'Test Etsy',
             'status' => 'DISCONNECTED',
             'enabled' => false,
             'config' => [],
         ]);
         self::assertFalse(is_wp_error($created));
-        $id = (int) $created['id'];
+        $id = (int) $created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
         self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
         self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
@@ -144,13 +179,14 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testEtsyConnectionFailsClosedWhenShopIdentityIsMissing(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
-            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_missing_shop',
+            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_missing_shop_'.wp_generate_uuid4(),
             'display_name' => 'Test Etsy Missing Shop', 'status' => 'DISCONNECTED', 'enabled' => false, 'config' => [],
         ]);
         self::assertFalse(is_wp_error($created));
-        $id = (int) $created['id'];
+        $id = (int) $created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
         self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
         self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
@@ -175,13 +211,14 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testEtsyConnectionRejectsShopOwnedByDifferentUser(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
-            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_owner_mismatch',
+            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_owner_mismatch_'.wp_generate_uuid4(),
             'display_name' => 'Test Etsy Owner Mismatch', 'status' => 'DISCONNECTED', 'enabled' => false, 'config' => [],
         ]);
         self::assertFalse(is_wp_error($created));
-        $id = (int) $created['id'];
+        $id = (int) $created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
         self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
         self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
@@ -201,13 +238,14 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testEtsyAuthenticationFailureRecordsSanitizedProviderEvidence(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
-            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_safe_error',
+            'provider' => 'etsy', 'environment' => 'production', 'connection_key' => 'test_etsy_safe_error_'.wp_generate_uuid4(),
             'display_name' => 'Test Etsy Safe Error', 'status' => 'DISCONNECTED', 'enabled' => false, 'config' => [],
         ]);
         self::assertFalse(is_wp_error($created));
-        $id = (int) $created['id'];
+        $id = (int) $created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id, 'keystring', 'unit-test-keystring') === true);
         self::assertTrue($repository->storeSecret($id, 'shared_secret', 'unit-test-shared-secret') === true);
         self::assertTrue($repository->storeSecret($id, 'access_token', 'unit-test-access-token') === true);
@@ -230,12 +268,13 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testEtsyMissingIdentityRecordsOnlySanitizedResponseShape(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository = new DigiForge\Integrations\Repository();
         $created = $repository->create([
-            'provider'=>'etsy','environment'=>'production','connection_key'=>'test_etsy_shape',
+            'provider'=>'etsy','environment'=>'production','connection_key'=>'test_etsy_shape_'.wp_generate_uuid4(),
             'display_name'=>'Test Etsy Shape','status'=>'DISCONNECTED','enabled'=>false,'config'=>[],
         ]);
-        self::assertFalse(is_wp_error($created)); $id=(int)$created['id'];
+        self::assertFalse(is_wp_error($created)); $id=(int)$created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id,'keystring','unit-test-keystring')===true);
         self::assertTrue($repository->storeSecret($id,'shared_secret','unit-test-shared-secret')===true);
         self::assertTrue($repository->storeSecret($id,'access_token','unit-test-access-token')===true);
@@ -258,9 +297,10 @@ final class ConnectionTesterTest extends WP_UnitTestCase
     public function testEtsyConnectionResolvesCanonicalShopNameAfterOwnerLookup(): void
     {
         DigiForge\Core\Activator::activate();
+        $this->beginFixtureTransaction();
         $repository=new DigiForge\Integrations\Repository();
-        $created=$repository->create(['provider'=>'etsy','environment'=>'production','connection_key'=>'test_etsy_canonical','display_name'=>'Canonical Etsy','status'=>'DISCONNECTED','enabled'=>false,'config'=>[]]);
-        self::assertFalse(is_wp_error($created)); $id=(int)$created['id'];
+        $created=$repository->create(['provider'=>'etsy','environment'=>'production','connection_key'=>'test_etsy_canonical_'.wp_generate_uuid4(),'display_name'=>'Canonical Etsy','status'=>'DISCONNECTED','enabled'=>false,'config'=>[]]);
+        self::assertFalse(is_wp_error($created)); $id=(int)$created['id'];$this->fixtureConnectorIds[]=$id;
         self::assertTrue($repository->storeSecret($id,'keystring','unit-test-keystring')===true);
         self::assertTrue($repository->storeSecret($id,'shared_secret','unit-test-shared-secret')===true);
         self::assertTrue($repository->storeSecret($id,'access_token','unit-test-access-token')===true);
