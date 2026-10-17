@@ -54,28 +54,12 @@ namespace {
     verify(PrintifyCatalogPreview::inspect(478, 28, $variants, $shipping) instanceof WP_Error && $reads === 0, 'STOP ALL must deny');
     Settings::$values['stop_all'] = false;
 
-    $ok = PrintifyCatalogPreview::inspect(478, 28, $variants, $shipping);
-    verify(is_array($ok) && $reads === 2, 'Authorized offline reads must succeed');
-    verify($ok['persistence'] === 'NONE' && $ok['certification'] === 'NOT_CERTIFIED', 'Preview cannot certify or persist');
-    verify($ok['variants'][0]['variant_id'] === 123 && $ok['variants'][0]['print_area'] === null, 'Variant identity and unknown geometry');
-    verify($ok['variants'][0]['geometry_status'] === 'UNKNOWN' && $ok['shipping_country_rates'] === null, 'Unknown geometry and shipping rates');
-    verify(strpos(json_encode($ok, JSON_THROW_ON_ERROR), 'do not expose') === false, 'Raw shipping must not leak');
-
-    $readsBeforeLock = $reads;
-    $lockDuringVariants = static function (int $blueprint, int $provider) use (&$reads): array {
-        ++$reads;
-        Settings::$locked = true;
-        return ['variants' => [['id' => 789]]];
-    };
-    $blockedShipping = PrintifyCatalogPreview::inspect(478, 28, $lockDuringVariants, $shipping);
-    verify($blockedShipping instanceof WP_Error, 'Mid-read safety lock must deny shipping');
-    verify($reads === $readsBeforeLock + 1, 'Shipping callback must not execute after lock');
-    Settings::$locked = false;
-
-    $bad = PrintifyCatalogPreview::inspect(478, 28, static fn() => ['variants' => [['id' => '123']]], $shipping);
-    verify($bad instanceof WP_Error && $bad->code === 'digiforge_printify_preview_variant', 'Malformed variants must deny');
-    $transportError = new WP_Error('offline', 'blocked');
-    $failed = PrintifyCatalogPreview::inspect(478, 28, static fn() => $transportError, $shipping);
-    verify($failed === $transportError, 'Transport errors must propagate');
+    // Former callback-only success is intentionally denied even with every global flag set.
+    $denied = PrintifyCatalogPreview::inspect(478, 28, $variants, $shipping);
+    verify($denied instanceof WP_Error && $reads === 0, 'Global flags cannot authorize callback-only preview');
+    $bypass = static function (): array { throw new RuntimeException('Callback must not execute'); };
+    verify(PrintifyCatalogPreview::inspect(478, 28, $bypass, $bypass) instanceof WP_Error, 'Permissive supplier callbacks cannot bypass identity admission');
+    // Positive projection, malformed variants, rights UNKNOWN, replay and in-flight
+    // changes are exercised against real WordPress grants in PrintifyCatalogScopedSmokeTest.
     echo "Printify catalog preview offline smoke passed\n";
 }

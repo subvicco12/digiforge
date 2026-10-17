@@ -42,6 +42,6 @@ namespace {
     Settings::$values['printify_activation_authorized'] = false;
     check(PrintifyCatalogReadPolicy::authorize(478, 28) instanceof WP_Error, 'Printify authorization missing must deny');
     Settings::$values['printify_activation_authorized'] = true;
-    check(PrintifyCatalogReadPolicy::authorize(478, 28) === true, 'All independently configured gates should permit offline preflight');
+    check(PrintifyCatalogReadPolicy::authorize(478, 28) instanceof WP_Error, 'Global flags cannot replace scoped owner approval');
     echo "Printify catalog read policy offline tests passed\n";
 }

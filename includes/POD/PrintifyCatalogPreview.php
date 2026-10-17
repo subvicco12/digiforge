@@ -12,44 +12,36 @@ use WP_Error;
  * This is deliberately NOT an HTTP route or an activation path. The caller
  * must separately enforce the existing integration, STOP ALL, external lock,
  * credential-vault and scoped authorization policies before invoking it.
- * No credentials are accepted here; the caller supplies an already authorized
- * read-only catalog client callback.
+ * inspect() is a denied legacy callback path. inspectScoped() uses the existing
+ * grant repository. No catalog/artwork persistence or certification occurs.
  */
 final class PrintifyCatalogPreview
 {
-    /**
-     * @param callable(int,int):array|WP_Error $variantsRead
-     * @param callable(int,int):array|WP_Error $shippingRead
-     * @return array|WP_Error
-     */
-    public static function inspect(int $blueprintId, int $providerId, callable $variantsRead, callable $shippingRead): array|WP_Error
+    /** Deprecated callback-only signature retained as a deny-only compatibility boundary. */
+    public static function inspect(int $blueprintId, int $providerId, callable $variantsRead, callable $shippingRead): WP_Error
     {
-        if ($blueprintId < 1 || $providerId < 1) {
-            return new WP_Error('digiforge_printify_preview_identity', 'Positive blueprint and provider IDs required.', ['status' => 400]);
-        }
+        return PrintifyCatalogReadPolicy::authorize($blueprintId, $providerId);
+    }
 
-        // Authoritative policy is mandatory; callers cannot substitute a permissive callback.
-        $authorized = PrintifyCatalogReadPolicy::authorize($blueprintId, $providerId);
-        if (is_wp_error($authorized)) {
-            return $authorized;
-        }
-        if ($authorized !== true) {
-            return new WP_Error('digiforge_printify_preview_authorization', 'Catalog preview read not authorized.', ['status' => 403]);
-        }
+    /** Only the existing concrete grant repository may source a preview. No supplier callbacks. */
+    public static function inspectScoped(string $grantSha, int $index, string $requestKey, ?PrintifyCatalogClient $client = null): array|WP_Error
+    {
+        $evidence = (new PrintifyCatalogReadRepository($client))->preview($grantSha, $index, $requestKey);
+        if (is_wp_error($evidence)) return $evidence;
+        $request = $evidence['request'];
+        if (($request['kind'] ?? '') !== 'variants') return new WP_Error('digiforge_printify_preview_scope', 'Exact provider variants scope required.', ['status'=>403]);
+        $response = $evidence['data'];
+        if (!isset($response['variants']) || !is_array($response['variants']) || !array_is_list($response['variants']) || count($response['variants']) > 1000) return new WP_Error('digiforge_printify_preview_shape', 'Bounded variant list required.', ['status'=>502]);
+        $blueprintId = $request['blueprint_id']; $providerId = $request['provider_id'];
+        $variants = []; $seen = [];
 
-        $response = $variantsRead($blueprintId, $providerId);
-        if (is_wp_error($response)) {
-            return $response;
-        }
-        if (!is_array($response) || !isset($response['variants']) || !is_array($response['variants'])) {
-            return new WP_Error('digiforge_printify_preview_shape', 'Variant response shape unsupported.', ['status' => 502]);
-        }
-
-        $variants = [];
         foreach ($response['variants'] as $variant) {
             if (!is_array($variant) || !isset($variant['id']) || !is_int($variant['id']) || $variant['id'] < 1) {
                 return new WP_Error('digiforge_printify_preview_variant', 'Invalid variant identity.', ['status' => 502]);
             }
+            if (isset($seen[$variant['id']])) return new WP_Error('digiforge_printify_preview_variant', 'Ambiguous variant identity.', ['status'=>502]);
+            $seen[$variant['id']] = true;
+            if (isset($variant['title']) && (!is_string($variant['title']) || strlen($variant['title']) > 300 || preg_match('/[<>\x00-\x1f]/', $variant['title']))) return new WP_Error('digiforge_printify_preview_variant', 'Unsafe variant label.', ['status'=>502]);
             $variants[] = [
                 'variant_id' => $variant['id'],
                 'title' => is_string($variant['title'] ?? null) ? $variant['title'] : '',
@@ -59,34 +51,20 @@ final class PrintifyCatalogPreview
             ];
         }
 
-        // A lock may be asserted while variants are being read. Recheck before
-        // the second potentially external callback rather than trusting preflight.
-        $shippingAuthorization = PrintifyCatalogReadPolicy::authorize($blueprintId, $providerId);
-        if (is_wp_error($shippingAuthorization)) {
-            return $shippingAuthorization;
-        }
-        if ($shippingAuthorization !== true) {
-            return new WP_Error('digiforge_printify_preview_authorization', 'Catalog preview read not authorized.', ['status' => 403]);
-        }
-
-        $shipping = $shippingRead($blueprintId, $providerId);
-        if (is_wp_error($shipping)) {
-            return $shipping;
-        }
-        if (!is_array($shipping)) {
-            return new WP_Error('digiforge_printify_preview_shipping', 'Shipping response shape unsupported.', ['status' => 502]);
-        }
-
         // Shipping response is intentionally not echoed: provider-specific
         // country/rate mapping must be validated before public presentation.
         return [
             'blueprint_id' => $blueprintId,
             'print_provider_id' => $providerId,
             'variants' => $variants,
-            'shipping_status' => 'RETRIEVED_UNNORMALIZED',
+            'shipping_status' => 'UNKNOWN',
             'shipping_country_rates' => null,
             'persistence' => 'NONE',
             'certification' => 'NOT_CERTIFIED',
+            'state' => 'DRAFT_UNVERIFIED',
+            'mockup_rights' => 'UNKNOWN',
+            'source_sha256' => $evidence['response_sha256'],
+            'observed_at' => $evidence['observed_at'],
         ];
     }
 }
