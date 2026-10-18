@@ -1,16 +1,17 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
+require_once __DIR__.'/Support/ScopedProviderConnectionFixture.php';
 use DigiForge\POD\PrintifyCatalogReadRepository as Reads;
 use DigiForge\Database\Tables;
 final class PrintifyCatalogIntegrationTest extends WP_UnitTestCase {
- private array $input;private int $owner;
+ private array $input;private int $owner;private array $relationship;
  private function setupFixture():void {
   parent::setUp();if(!defined('DIGIFORGE_MAIN_SITE_URL'))define('DIGIFORGE_MAIN_SITE_URL',site_url());DigiForge\Core\Activator::activate();$this->owner=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($this->owner);ShopAccessFixture::reset();ShopAccessFixture::authorizeActor($this->owner,['personalized_pod'],['manage_digiforge_connections','manage_digiforge_pod']);global $wpdb;$now=gmdate('Y-m-d H:i:s');DigiForge\Core\Settings::protectProduction();$suffix=wp_rand(10000,99999);$businessKey='read-business-'.$suffix;$storeKey='read-store-'.$suffix;
   $wpdb->insert(Tables::businesses(),['business_key'=>$businessKey,'display_name'=>'Read fixture','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]);$business=(int)$wpdb->insert_id;
   $wpdb->insert(Tables::stores(),['business_id'=>$business,'store_key'=>$storeKey,'display_name'=>'Read store','channel'=>'etsy','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]);$store=(int)$wpdb->insert_id;
   $wpdb->insert(Tables::product_programs(),['business_id'=>$business,'store_id'=>$store,'program_key'=>'PERSONALIZED_POD','status'=>'ACTIVE','config'=>'{}','created_at'=>$now,'updated_at'=>$now]);
-  $scope=['business_id'=>$businessKey,'store_id'=>$storeKey,'product_program'=>'PERSONALIZED_POD'];$repo=new DigiForge\Integrations\Repository();$integration=$repo->create(['provider'=>'printify','environment'=>'test','connection_key'=>'catalog-fixture-'.$suffix,'status'=>'CONFIGURED','config'=>['shop_key'=>'personalized_pod','catalog_read_scope'=>$scope]]);self::assertIsArray($integration);$id=$integration['id'];self::assertTrue($repo->storeSecret($id,'personal_access_token','offline-catalog-fixture-credential'));self::assertIsArray($repo->setEnabled($id,true));
+  $scope=['business_id'=>$businessKey,'store_id'=>$storeKey,'product_program'=>'PERSONALIZED_POD'];$repo=new DigiForge\Integrations\Repository();$integration=$repo->create(['provider'=>'printify','environment'=>'test','connection_key'=>'catalog-fixture-'.$suffix,'status'=>'CONFIGURED','config'=>['shop_key'=>'personalized_pod','catalog_read_scope'=>$scope]]);self::assertIsArray($integration);$id=$integration['id'];self::assertTrue($repo->storeSecret($id,'personal_access_token','offline-catalog-fixture-credential'));self::assertIsArray($repo->setEnabled($id,true));$this->relationship=ScopedProviderConnectionFixture::approve($id,$this->owner);
   $this->input=['capability'=>'printify.catalog.read','integration_id'=>$id,'account_id'=>$this->owner]+$scope+['expires_at'=>gmdate('c',time()+1800),'max_requests'=>2,'requests'=>[['kind'=>'variant','blueprint_id'=>101,'provider_id'=>2,'variant_id'=>202]]];
  }
  public function setUp():void {
@@ -112,4 +113,17 @@ final class PrintifyCatalogIntegrationTest extends WP_UnitTestCase {
   }
  }
 
+
+ public function testOwnershipRevocationDuringTransportDiscardsEvidence():void {
+  $sha=$this->restGrant();$this->restException($sha);$calls=0;$revoked=false;
+  $filter=function($pre,$args,string $url)use(&$calls,&$revoked){
+   if(!str_starts_with($url,'https://api.printify.com/'))return $pre;
+   ++$calls;$prior=get_current_user_id();wp_set_current_user($this->relationship['reviewer']);$a=$this->relationship['approved'];
+   try{$result=(new DigiForge\POD\ScopedProviderConnection())->decide('personalized_pod',$this->input['integration_id'],'printify.catalog.read',$a['revision'],$a['proposal_hash'],'REVOKED','inflight-revoke-'.wp_generate_uuid4());$revoked=!is_wp_error($result);}finally{wp_set_current_user($prior);}
+   return ['response'=>['code'=>200],'headers'=>[],'body'=>'{"variants":[{"id":202}]}'];
+  };
+  add_filter('pre_http_request',$filter,1,3);
+  try{$response=$this->rest('GET','/'.$sha,['request_index'=>0],'ownership-revoked-inflight');self::assertSame(409,$response->get_status());self::assertTrue($revoked);self::assertSame(1,$calls);self::assertSame('provider_connection_revoked',$response->get_data()['code']);}
+  finally{remove_filter('pre_http_request',$filter,1);}
+ }
 }

@@ -9,6 +9,7 @@ final class BusinessOwnershipReadModel {
   if(!is_user_logged_in()||!current_user_can('manage_digiforge'))return array_replace($base,['query_state'=>'ACCESS_DENIED']);
   if(!isset(ShopOperationsReadModel::shops()[$shop]))return array_replace($base,['query_state'=>'SCOPE_INVALID']);
   foreach($shop===ShopOperationsReadModel::ALL?\DigiForge\Security\ShopAccessPolicy::canonicalShops():[$shop] as $required){if(is_wp_error(\DigiForge\Security\ShopAccess::authorize($required,'manage_digiforge')))return array_replace($base,['query_state'=>'ACCESS_DENIED']);}
+  $base['connections']=[];foreach($shop===ShopOperationsReadModel::ALL?\DigiForge\Security\ShopAccessPolicy::canonicalShops():[$shop]as $selected){$base['connections'][$selected]=(new \DigiForge\POD\ScopedProviderConnection())->forShop($selected);}
   global $wpdb;$limit=max(1,min(100,$limit));$mapping=Tables::pod_mappings();
   $where=$shop===ShopOperationsReadModel::ALL?'':' WHERE pm.id IN (SELECT '.$mapping.'.id FROM '.$mapping.' WHERE '.ProductEvidenceScope::forTable($mapping,$shop).')';
   $scopeCases=[];foreach(\DigiForge\Security\ShopAccessPolicy::canonicalShops() as $canonical){$predicate=ProductEvidenceScope::forTable($mapping,$canonical);$scopeCases[]=$wpdb->prepare('WHEN pm.id IN (SELECT '.$mapping.'.id FROM '.$mapping.' WHERE '.$predicate.') THEN %s',$canonical);}

@@ -652,6 +652,7 @@ final class Portal
 
     private function fulfillmentProviders():void
     {
+        $selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all');$connections=[];foreach($selected==='all'?\DigiForge\Security\ShopAccessPolicy::canonicalShops():[$selected]as $connectionShop)$connections[$connectionShop]=(new \DigiForge\POD\ScopedProviderConnection())->forShop($connectionShop);$this->providerConnectionEvidence($connections);
         $selectedShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selectedShop===ShopOperationsReadModel::ALL?null:$selectedShop;
         $this->shipmentEventReceipts($shop);
         $queryState=null;$plans=(new OperationalDepthReadModel())->fulfillmentProviders(50,$queryState,$shop);$providerStatus=(new ProviderStatusReadModel())->snapshot(25,$shop);
@@ -696,6 +697,15 @@ final class Portal
         elseif($ownership['items']===[])echo '<div class="df-empty">No linked ownership evidence in this selected shop window. This does not certify that a shop or provider is configured.</div>';
         else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable business ownership evidence"><table class="df-table"><thead><tr><th>Business</th><th>Store / channel</th><th>Program</th><th>Product version</th><th>Provider / environment</th><th>Mapping / product / variant</th><th>Evidence</th><th>Inspect</th></tr></thead><tbody>';foreach($ownership['items'] as $row){echo '<tr><td>'.esc_html((string)$row['business_name'].' ['.(string)$row['business_key'].']').'</td><td>'.esc_html((string)$row['store_name'].' ['.(string)$row['store_key'].'] / '.(string)$row['channel']).'</td><td>'.esc_html((string)$row['program_key']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['provider'].' / '.(string)$row['environment']).'</td><td>#'.esc_html((string)$row['provider_mapping_id'].' / '.(string)$row['provider_product_key'].' / '.(string)$row['provider_variant_key'].' @ '.(string)$row['mapping_version']).'</td><td>'.esc_html((string)$row['evidence_state']).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('orders')).'">Review ownership</a> <a class="df-button df-button-compact" href="'.esc_url($this->url('fulfillment')).'">Inspect provider plans</a></td></tr>';}echo '</tbody></table></div>';}
         echo '<p class="df-muted">Ownership is shown only when business, store, program and provider mapping share stored ancestry. Inactive or unreviewed records remain visible as evidence. A provider mapping does not establish a connector or provider-shop binding. This view cannot activate shops, approve production or call providers.</p></section>';
+        $this->providerConnectionEvidence((array)($ownership['connections']??[]));
+
+    }
+
+    private function providerConnectionEvidence(array $evidence):void
+    {
+        echo '<section class="df-panel"><h2>Scoped provider connection evidence</h2><p>Read-only DF-OWN-001 local review status. Verified local binding is not authentic provider ownership, supplier certification or activation authority.</p>';
+        foreach($evidence as $selected=>$connections){echo '<h3>'.esc_html((string)$selected).'</h3><p>'.esc_html((string)$connections['query_state']).'</p>';foreach($connections['items']as $connection){echo '<p>Connection #'.esc_html((string)$connection['integration_id']).': <strong>'.esc_html((string)$connection['status']).'</strong> — external execution: NO</p>';}}
+        echo '</section>';
     }
 
     private function analyticsOperations(): void

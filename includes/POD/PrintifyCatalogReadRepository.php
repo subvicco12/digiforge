@@ -16,14 +16,14 @@ final class PrintifyCatalogReadRepository {
  public static function reader():bool {return get_current_user_id()>0&&current_user_can('manage_digiforge_connections')&&current_user_can('manage_digiforge_pod');}
  /** Minimal target identity for the existing global REST assignment guard; never grants access. */
  public function targetShopForInput(array $input):string|WP_Error {
-  try{PrintifyCatalogReadContract::normalize($input,time());$binding=$this->binding($input);return $binding instanceof WP_Error?$binding:$binding['shop_key'];}
+  try{PrintifyCatalogReadContract::normalize($input,time());$binding=$this->binding($input,false);return $binding instanceof WP_Error?$binding:$binding['shop_key'];}
   catch(\Throwable){return self::error('invalid_grant',400);}
  }
  public function targetShopForGrant(string $sha):string|WP_Error {
   $record=$this->grant($sha,false);if($record instanceof WP_Error)return $record;
-  try{$binding=$this->binding($record['grant']);}catch(\Throwable){return self::error('shop_scope',409);}
+  try{$binding=$this->binding($record['grant'],false);}catch(\Throwable){return self::error('shop_scope',409);}
   if($binding instanceof WP_Error)return $binding;
-  if(self::json($binding)!==self::json($record['binding']))return self::error('integration_or_scope_changed',403);
+  if(self::json($binding)!==self::json(array_diff_key($record['binding'],['ownership_binding_sha256'=>true])))return self::error('integration_or_scope_changed',403);
   return $binding['shop_key'];
  }
  public function approve(array $input,string $key):array|WP_Error {
@@ -154,12 +154,14 @@ final class PrintifyCatalogReadRepository {
    if(!$active)return $r;$revoked=$this->load('df_catalog_read_revoked_'.$sha);if($revoked!==null)return self::error('revoked_or_unavailable',409);$revocationAnchors=$this->exceptionAnchors('catalog_read_revoked',$sha);if($revocationAnchors instanceof WP_Error)return $revocationAnchors;if($revocationAnchors!==[])return self::error('revocation_evidence_missing',503);$owner=$r['approved_by'];if(!user_can($owner,'manage_options')||!user_can($owner,'manage_digiforge_connections')||!user_can($owner,'manage_digiforge_pod')||strtotime($r['grant']['expires_at'])<=time())return self::error('expired_or_owner_revoked',409);$binding=$this->binding($r['grant']);if($binding instanceof WP_Error)return $binding;if(self::json($binding)!==self::json($r['binding']))return self::error('integration_or_scope_changed',409);return $r;
   }catch(\Throwable){return self::error('grant_evidence',503);}
  }
- private function binding(array $g):array|WP_Error {
+ private function binding(array $g,bool $ownership=true):array|WP_Error {
   try{$scope=BusinessScope::resolveConfigured($g);}catch(\Throwable){return self::error('shop_scope',409);}
   $i=(new Repository())->find($g['integration_id']);if($i instanceof WP_Error)return $i;if(!is_array($i)||$i['provider']!=='printify'||$i['status']!=='CONFIGURED'||$i['enabled']!==true)return self::error('integration_scope',409);
   $configured=$i['config']['catalog_read_scope']??null;$wanted=array_intersect_key($g,array_flip(['business_id','store_id','product_program']));if(!is_array($configured)||self::json($configured)!==self::json($wanted))return self::error('integration_shop_binding_required',409);
   $shop=$i['config']['shop_key']??null;if(!is_string($shop)||!\DigiForge\Security\ShopAccessPolicy::validShop($shop))return self::error('canonical_shop_binding_required',409);
-  return ['shop_key'=>$shop,'scope'=>$scope,'environment'=>$i['environment'],'integration_sha256'=>hash('sha256',self::json($i))];
+  if(!$ownership)return ['shop_key'=>$shop,'scope'=>$scope,'environment'=>$i['environment'],'integration_sha256'=>hash('sha256',self::json($i))];
+  $relationship=(new ScopedProviderConnection())->verified($shop,$g['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if($relationship instanceof WP_Error)return ($relationship->get_error_data()['status']??409)===403?self::error('account_scope',403):$relationship;
+  return ['shop_key'=>$shop,'scope'=>$scope,'environment'=>$i['environment'],'integration_sha256'=>hash('sha256',self::json($i)),'ownership_binding_sha256'=>$relationship['binding_hash']];
  }
  /** Both immutable reservation rows and their audit anchors are required; no resettable quota counter. */
  private function attempts(string $sha):array|WP_Error {
