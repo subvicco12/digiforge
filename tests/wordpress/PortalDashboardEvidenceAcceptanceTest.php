@@ -1,0 +1,15 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
+use DigiForge\Database\Tables;
+final class PortalDashboardEvidenceAcceptanceTest extends WP_UnitTestCase {
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);}
+ private function render(string $view):string {$old=$_GET;try{$_GET=['df_view'=>$view,'df_shop'=>'digital'];return (new DigiForge\Portal\Portal())->render();}finally{$_GET=$old;}}
+ public function testGlobalApprovalCountDrillsIntoSelectedPendingEvidenceWithoutMakingADecision():void {
+  global $wpdb;$table=Tables::research_candidates();$before=(int)$wpdb->get_var("SELECT COUNT(*) FROM $table WHERE review_status='PENDING'");$repo=new DigiForge\Research\Repository();$own=$repo->createCandidate(['shop_key'=>'digital','title'=>'dashboard-own-'.wp_rand(),'summary'=>'Synthetic pending opportunity']);$foreign=$repo->createCandidate(['shop_key'=>'jewelry','title'=>'dashboard-foreign-'.wp_rand(),'summary'=>'Synthetic foreign pending opportunity']);self::assertNotWPError($own);self::assertNotWPError($foreign);
+  $html=$this->render('dashboard');$directory=getenv('DF_PORTAL_FIXTURE_DIR');if(is_string($directory)&&$directory!=='')self::assertSame(strlen($html),file_put_contents($directory.'/portal-dashboard--digital.html',$html));self::assertStringContainsString('<span>Pending opportunity approvals</span><strong>'.($before+2).'</strong>',$html);self::assertStringContainsString('Dashboard counts remain authoritative global counts',$html);self::assertStringContainsString($own['title'],$html);self::assertStringNotContainsString($foreign['title'],$html);self::assertStringContainsString('df_view=approvals',$html);$queue=$this->render('approvals');self::assertStringContainsString($own['title'],$queue);self::assertStringNotContainsString($foreign['title'],$queue);foreach([$own,$foreign]as $r)self::assertSame('PENDING',$wpdb->get_var($wpdb->prepare("SELECT review_status FROM $table WHERE id=%d",$r['id'])));self::assertTrue(DigiForge\Core\Settings::safety_locked());
+ }
+ public function testMissingApprovalCountCannotAppearAsZeroOrClear():void {
+  global $wpdb;$table=Tables::research_candidates();$filter=static fn(string $sql):string=>str_contains($sql,'FROM '.$table)?'SELECT * FROM no_such_dashboard_pending_evidence':$sql;$old=$wpdb->suppress_errors(true);add_filter('query',$filter);try{$html=$this->render('dashboard');self::assertStringContainsString('<span>Pending opportunity approvals</span><strong>UNAVAILABLE</strong>',$html);self::assertStringNotContainsString('<span>Pending opportunity approvals</span><strong>0</strong>',$html);}finally{remove_filter('query',$filter);$wpdb->suppress_errors($old);}
+ }
+}

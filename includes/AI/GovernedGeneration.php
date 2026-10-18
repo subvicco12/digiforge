@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace DigiForge\AI;
 
 use DigiForge\Launch\OpenAIClient;
+use DigiForge\Core\Settings;
 use WP_Error;
 
 /**
@@ -22,25 +23,54 @@ final class GovernedGeneration
     }
 
     /** @return array<string,mixed>|WP_Error */
-    public function develop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null): array|WP_Error
+    public function develop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null, ?array $costContext = null): array|WP_Error
     {
-        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->develop($prompt));
+        $route=$this->authorizeRoute($shop,$stage,$runContext,false);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->develop($prompt,$route['provider_model']??null), OpenAIClient::generationContract($prompt,str_contains($prompt,'production-ready DigiForge asset manifest')?16000:8000,false,false,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
     }
 
     /** @return array<string,mixed>|WP_Error */
-    public function research(string $shop, string $prompt, string $attemptKey, ?array $runContext = null): array|WP_Error
+    public function research(string $shop, string $prompt, string $attemptKey, ?array $runContext = null, ?array $costContext = null, string $stage = 'research'): array|WP_Error
     {
-        return $this->execute($shop, 'research', $attemptKey, $runContext, fn(): array|WP_Error => $this->client->research($prompt));
+        if (! in_array($stage, ['research', 'shortlist'], true)) return new WP_Error('ai_generation_context_invalid', 'Research requires a trend or selected deep-analysis stage.');
+        $route=$this->authorizeRoute($shop,$stage,$runContext,true);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->research($prompt,$route['provider_model']??null), OpenAIClient::generationContract($prompt,4000,false,true,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
     }
 
     /** @return array<string,mixed>|WP_Error */
-    public function startBackgroundDevelop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null, int $maxOutputTokens = 8000): array|WP_Error
+    public function startBackgroundDevelop(string $shop, string $stage, string $prompt, string $attemptKey, ?array $runContext = null, int $maxOutputTokens = 8000, ?array $costContext = null): array|WP_Error
     {
-        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->startBackgroundDevelop($prompt, $maxOutputTokens));
+        $route=$this->authorizeRoute($shop,$stage,$runContext,false);if($route instanceof WP_Error)return $route;
+        return $this->execute($shop, $stage, $attemptKey, $runContext, fn(): array|WP_Error => $this->client->startBackgroundDevelop($prompt, $maxOutputTokens,$route['provider_model']??null), OpenAIClient::generationContract($prompt,$maxOutputTokens,true,false,$route['provider_model']??null)+['routing_decision'=>$route]+($costContext??[]));
+    }
+
+    /** Read-only exact research request and reviewed maximum; does not reserve or contact a provider. */
+    public function researchPlan(string $shop,string $prompt,string $stage,?array $runContext):array|WP_Error
+    {
+        if(!in_array($stage,['research','shortlist'],true))return new WP_Error('ai_generation_context_invalid','Research stage required.');
+        $route=$this->authorizeRoute($shop,$stage,$runContext,true);if($route instanceof WP_Error)return $route;
+        $contract=OpenAIClient::generationContract($prompt,4000,false,true,$route['provider_model']??null);
+        $quote=(new MonetaryReservationRepository())->findQuote($shop,$contract,false);if($quote instanceof WP_Error)return $quote;
+        $bound=$quote['quote_preview']??null;if(!is_array($bound))return new WP_Error('ai_quote_preview_unavailable','Reviewed bound unavailable.');
+        $projection=$this->governance->evaluate($shop,'production',$runContext);if($projection instanceof WP_Error)return $projection;
+        $admission=ShopAiPlan::preflight($projection,$stage,1,(float)$bound['maximum_charge']);
+        if($projection['currency']!==$bound['currency']||!$admission['execution_allowed'])return new WP_Error('ai_quote_preview_blocked','Current quote/currency or quantity/budget admission is blocked.');
+        return ['request_sha256'=>$contract['request_sha256'],'model'=>$contract['model'],'stage'=>$stage,'quantity'=>1,'output_token_limit'=>$contract['output_token_limit'],'web_search_call_limit'=>$contract['web_search_call_limit'],'quote'=>$bound,'planning_only'=>true,'actual_charge_assumed'=>false,'external_execution_authorized'=>false];
+    }
+
+    private function authorizeRoute(string $shop,string $stage,?array $runContext,bool $research):array|WP_Error
+    {
+        if(!Settings::is_enabled('ai')||!Settings::is_enabled($research?'research':'product_development'))return new WP_Error('ai_generation_safety_locked','Scoped AI authorization and released STOP ALL are required before generation.');
+        $projection=$this->governance->evaluate(sanitize_key($shop),'production',$runContext);if($projection instanceof WP_Error)return $projection;
+        if(!ShopAiPlan::requiresMonetaryEvidence($projection,sanitize_key($stage)))return new WP_Error('ai_generation_budget_missing','A configured reviewed monetary ceiling and exact provider quote are required before billable generation.');
+        $stagePolicy=(array)($projection['stages'][sanitize_key($stage)]??[]);
+        if(!array_key_exists('task_binding',$stagePolicy))return ['state'=>'BLOCKED_BINDING_REQUIRED','adaptive_routing_performed'=>false];
+        if(!is_array($stagePolicy['task_binding']))return new WP_Error('ai_task_binding_invalid','Configured task binding is invalid.');
+        return StageTaskBinding::load($stagePolicy['task_binding']);
     }
 
     /** @param callable():array|WP_Error $provider @return array<string,mixed>|WP_Error */
-    private function execute(string $shop, string $stage, string $attemptKey, ?array $runContext, callable $provider): array|WP_Error
+    private function execute(string $shop, string $stage, string $attemptKey, ?array $runContext, callable $provider, ?array $requestContract = null): array|WP_Error
     {
         $shop = sanitize_key($shop);
         $stage = sanitize_key($stage);
@@ -53,13 +83,12 @@ final class GovernedGeneration
         if ($projection instanceof WP_Error) return $projection;
         $unitCost = max(0.0, (float)($projection['stages'][$stage]['estimated_unit_cost'] ?? 0));
         $budgets = (array)($projection['budgets'] ?? []);
-        if (max(0.0, (float)($budgets['run'] ?? 0)) > 0
-            || max(0.0, (float)($budgets['day'] ?? 0)) > 0
-            || max(0.0, (float)($budgets['month'] ?? 0)) > 0) {
-            return new WP_Error(
-                'ai_generation_cost_accounting_unavailable',
-                'AI generation is blocked because a monetary budget is active but authoritative actual-cost attribution is unavailable.'
-            );
+        $monetary=ShopAiPlan::requiresMonetaryEvidence($projection,$stage);
+        $contract=null;
+        if($monetary){
+            if($requestContract===null)return new WP_Error('ai_generation_cost_accounting_unavailable','An exact request and reviewed provider ceiling are required.');
+            $contract=(new MonetaryReservationRepository())->findQuote($shop,$requestContract);
+            if($contract instanceof WP_Error)return $contract;
         }
         $preflight = $this->governance->preflight($shop, $stage, 1, $unitCost, 'production', $runContext);
         if ($preflight instanceof WP_Error) return $preflight;
@@ -67,25 +96,30 @@ final class GovernedGeneration
             return new WP_Error('ai_generation_budget_blocked', 'Shop AI policy does not authorize this generation attempt.', ['reasons'=>$preflight['reasons'] ?? []]);
         }
 
-        // Reserve quantity before the provider call so concurrent starts cannot
-        // bypass stage ceilings. This path is allowed only when monetary budgets
-        // are disabled, so zero actual_cost is not used to satisfy a money limit.
-        $usage = $this->governance->recordUsage([
-            'shop_key'=>$shop,
-            'workflow'=>'product_factory',
-            'stage'=>$stage,
-            'model_key'=>'',
-            'quantity'=>1,
-            'estimated_cost'=>$unitCost,
-            'actual_cost'=>0,
-            'currency'=>(string)($projection['currency'] ?? 'USD'),
-            'run_context'=>$runContext,
-        ], 'generation-'.$attemptKey);
+        // The final check and durable reservation share a database lock. No
+        // provider execution occurs while holding it; an uncertain reservation
+        // or release blocks the call and leaves consumed quantities conservative.
+        $usage = $this->governance->reserveGeneration($shop, $stage, $attemptKey, $runContext, $contract, $requestContract??[]);
         if ($usage instanceof WP_Error) return $usage;
         if (! empty($usage['idempotent_replay'])) {
             return new WP_Error('ai_generation_attempt_replayed', 'This AI generation attempt was already reserved; provider execution will not be repeated.');
         }
 
-        return $provider();
+        $response = $provider();
+        if ($response instanceof WP_Error) {
+            $data=(array)$response->get_error_data();$meter=$data['provider_metering']??null;unset($data['provider_metering']);
+            if(is_array($meter)){
+                $receipt=(new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'],$shop,$meter);
+                if($receipt instanceof WP_Error){$receipt->add_data(array_replace((array)$receipt->get_error_data(),['provider_execution_performed'=>true,'ai_usage_id'=>(int)$usage['id'],'retry_permitted'=>false]));return $receipt;}
+                $data+=['ai_cost_state'=>$receipt['cost_state'],'provider_execution_performed'=>true];
+            }else{$data+=['ai_cost_state'=>'UNRECONCILED_PROVIDER_OUTCOME'];}
+            $response->add_data(array_replace($data,['ai_usage_id'=>(int)$usage['id'],'provider_attempt_reserved'=>true,'retry_permitted'=>false]));return $response;
+        }
+        $evidence = (new ProviderEvidenceRepository())->recordOutcome((int)$usage['id'], $shop, $response);
+        if ($evidence instanceof WP_Error) {
+            $evidence->add_data(array_replace((array)$evidence->get_error_data(), ['provider_execution_performed'=>true, 'retry_permitted'=>false]));
+            return $evidence;
+        }
+        return $response + ['routing_decision'=>$requestContract['routing_decision']??['state'=>'BLOCKED_BINDING_REQUIRED','adaptive_routing_performed'=>false], 'ai_usage_id'=>(int)$usage['id'], 'ai_cost_state'=>$evidence['cost_state']];
     }
 }
