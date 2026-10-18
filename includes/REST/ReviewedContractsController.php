@@ -40,9 +40,24 @@ final class ReviewedContractsController
         if($request->get_method()!=='GET'||(string)$request->get_body()!=='')return self::error('typed',400);
         $query=$this->query($request);
         if(is_wp_error($query))return $query;
-        if(!self::exact($query,['criterion','scope'])||!is_string($query['criterion'])||!is_string($query['scope']))return self::error('typed',400);
-        $state=\DigiForge\Portal\ReviewedAcceptanceContract::status($request->get_url_params()['shop'],$query['criterion'],$query['scope']);
-        return is_wp_error($state)?$state:new WP_REST_Response($state,200);
+        $fields=['criterion','scope'];$environment=$query['environment']??null;
+        if(array_key_exists('environment',$query)){
+            $fields[]='environment';
+            if(!is_string($environment)||!in_array($environment,\DigiForge\Portal\ReviewedScopedPolicy::ENVIRONMENTS,true))return self::error('typed',400);
+        }
+        if(!self::exact($query,$fields)||!is_string($query['criterion'])||!is_string($query['scope']))return self::error('typed',400);
+        $shop=$request->get_url_params()['shop'];
+        $state=\DigiForge\Portal\ReviewedAcceptanceContract::status($shop,$query['criterion'],$query['scope']);
+        if(is_wp_error($state))return $state;
+        $resolution=['shop_key'=>$shop,'criterion'=>$query['criterion'],'scope'=>$query['scope'],'environment'=>'UNKNOWN','resolution_state'=>'UNKNOWN','matched_record_count'=>0,'references'=>[],'value_state'=>'UNKNOWN','evidence_state'=>'UNVERIFIED','read_only'=>true,'external_execution_authorized'=>false,'supplier_approved'=>false,'publishing_allowed'=>false,'ai_execution_allowed'=>false];
+        if($environment!==null){
+            $resolution=\DigiForge\Portal\AcceptanceEvidenceResolver::resolve($shop,$query['criterion'],$query['scope'],$environment);
+            if(is_wp_error($resolution))return $resolution;
+            $latest=\DigiForge\Portal\ReviewedAcceptanceContract::status($shop,$query['criterion'],$query['scope']);
+            if(is_wp_error($latest))return $latest;
+            if($latest!==$state)return self::error('stale',409);
+        }
+        return new WP_REST_Response($state+['evidence_resolution'=>$resolution],200);
     }
 
     public function canRead(WP_REST_Request $request): true|WP_Error
