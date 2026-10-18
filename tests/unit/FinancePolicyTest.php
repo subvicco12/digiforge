@@ -38,6 +38,39 @@ final class FinancePolicyTest extends TestCase
         );
     }
 
+    public function testNonFiniteFinancialNumbersAreRejected(): void
+    {
+        foreach ([INF, -INF, NAN] as $invalid) {
+            foreach (['amount', 'positiveRate'] as $method) {
+                try {
+                    Validator::$method($invalid);
+                    self::fail('Non-finite finance value was accepted.');
+                } catch (InvalidArgumentException $expected) {
+                    self::assertNotSame('', $expected->getMessage());
+                }
+            }
+            try {
+                Validator::convert(1.0, $invalid);
+                self::fail('Non-finite FX conversion rate was accepted.');
+            } catch (InvalidArgumentException $expected) {
+                self::assertNotSame('', $expected->getMessage());
+            }
+        }
+    }
+
+    public function testConversionRejectsNonFiniteAmountsAndOverflow(): void
+    {
+        foreach ([[INF, 1.0], [-INF, 1.0], [NAN, 1.0], [PHP_FLOAT_MAX, 2.0]] as [$amount, $rate]) {
+            try {
+                Validator::convert($amount, $rate);
+                self::fail('Non-finite conversion was accepted.');
+            } catch (InvalidArgumentException $expected) {
+                self::assertNotSame('', $expected->getMessage());
+            }
+        }
+        self::assertSame(-7.5, Validator::convert(-5.0, 1.5));
+    }
+
     public function testRecursiveCredentialKeysAreRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
