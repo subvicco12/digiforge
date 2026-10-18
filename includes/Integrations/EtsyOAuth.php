@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DigiForge\Integrations;
 
+use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\Security\Logger;
 
@@ -31,6 +32,7 @@ final class EtsyOAuth
     public function start(): never
     {
         $this->authorize('digiforge_etsy_oauth_start');
+        $this->admitExternalSetup('start');
         $integrationId = absint($_GET['integration_id'] ?? 0);
         $repository = new Repository();
         $integration = $repository->find($integrationId);
@@ -91,6 +93,8 @@ final class EtsyOAuth
         if (! current_user_can('manage_digiforge_connections')) {
             wp_die(esc_html__('You are not allowed to manage DigiForge connections.', 'digiforge'));
         }
+
+        $this->admitExternalSetup('callback');
 
         $error = sanitize_key((string) ($_GET['error'] ?? ''));
         if ($error !== '') {
@@ -265,6 +269,16 @@ final class EtsyOAuth
         })();
         </script>
         <?php
+    }
+
+    /** Existing production interlock also governs manual OAuth provider access. */
+    private function admitExternalSetup(string $phase): void
+    {
+        if (! Settings::safety_locked()) { return; }
+        if (! Logger::write('etsy_oauth_safety_denied', ['phase' => $phase, 'reason' => 'production_safety_locked'], 'integration')) {
+            wp_die(esc_html__('OAuth setup remains locked and denial audit persistence is unavailable.', 'digiforge'), '', ['response' => 503]);
+        }
+        wp_die(esc_html__('Etsy OAuth setup remains locked by production safety controls.', 'digiforge'), '', ['response' => 403]);
     }
 
     private function authorize(string $nonceAction): void

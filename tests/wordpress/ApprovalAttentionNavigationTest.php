@@ -1,21 +1,24 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
 
 final class ApprovalAttentionNavigationTest extends WP_UnitTestCase
 {
     public function testAuthorizedApprovalViewRendersTargetsForAttentionLinks(): void
     {
         DigiForge\Core\Activator::activate();
+        ShopAccessFixture::reset();
         $userId=self::factory()->user->create(['role'=>'administrator']);
         $user=get_user_by('id',$userId);
         $user->add_cap('manage_digiforge_products');
         $user->add_cap('manage_digiforge_research');
         wp_set_current_user($userId);
-        $previous=$_GET['df_view']??null;
-        $_GET['df_view']='approvals';
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
+        $previous=$_GET;
+        $_GET=['df_view'=>'approvals','df_shop'=>'all'];
         try {
             $html=(new DigiForge\Portal\U3ApprovalInbox())->appendPanel(
-                '<main></main>','digiforge_admin_portal',[],[]
+                (new DigiForge\Portal\Portal())->render(),'digiforge_admin_portal',[],[]
             );
             foreach (['df-approval-personalization','df-approval-fulfillment',
                 'df-approval-listing','df-approval-pod','df-approval-product'] as $anchor) {
@@ -28,8 +31,7 @@ final class ApprovalAttentionNavigationTest extends WP_UnitTestCase
             self::assertStringContainsString('df_view=approvals',$url);
             self::assertSame(wp_parse_url(home_url('/'),PHP_URL_HOST),wp_parse_url($url,PHP_URL_HOST));
         } finally {
-            if ($previous===null) unset($_GET['df_view']);
-            else $_GET['df_view']=$previous;
+            $_GET=$previous;
         }
     }
 
