@@ -16,23 +16,23 @@ final class PrintifyCatalogSyncService
     /** @var callable|null */ private $clientFactory;
     public function __construct(?callable $clientFactory=null){$this->clientFactory=$clientFactory;}
 
-    public function syncBlueprint(int $integrationId,int $blueprintId): array|WP_Error
+    public function syncBlueprint(int $integrationId,int $blueprintId,array $scope=[]): array|WP_Error
     {
         if (! Settings::is_enabled('printify')) return new WP_Error('digiforge_printify_locked','Scoped Printify authorization is required before catalog network access.',['status'=>409]);
-        $integration=(new IntegrationRepository())->find($integrationId);if(is_wp_error($integration))return $integration;if(!$integration||($integration['provider']??'')!=='printify')return new WP_Error('digiforge_printify_integration','A Printify integration is required.',['status'=>409]);if(($integration['status']??'')!=='CONFIGURED'||empty($integration['enabled']))return new WP_Error('digiforge_printify_disabled','Printify must be CONFIGURED and explicitly enabled before catalog sync.',['status'=>409]);if($blueprintId<1)return new WP_Error('digiforge_printify_blueprint','A positive blueprint ID is required.',['status'=>400]);$token=$this->credential($integrationId);if(is_wp_error($token))return $token;try{$client=$this->clientFactory?($this->clientFactory)():new PrintifyCatalogClient();if(!$client instanceof PrintifyCatalogClient){unset($token);return new WP_Error('digiforge_printify_client','Printify catalog client is unavailable.',['status'=>500]);}$blueprint=$client->blueprint($token,$blueprintId);if(is_wp_error($blueprint)){unset($token);return $blueprint;}$providers=$client->providers($token,$blueprintId);}catch(\Throwable){return new WP_Error('digiforge_printify_transport','Printify catalog consumer failed.',['status'=>502]);}finally{unset($token);}if(is_wp_error($providers))return $providers;return ['provider'=>'printify','environment'=>(string)$integration['environment'],'blueprint'=>$blueprint,'providers'=>$providers,'observed_at'=>gmdate('c')];
+        $integration=(new IntegrationRepository())->find($integrationId);if(is_wp_error($integration))return $integration;if(!$integration||($integration['provider']??'')!=='printify')return new WP_Error('digiforge_printify_integration','A Printify integration is required.',['status'=>409]);if(($integration['status']??'')!=='CONFIGURED'||empty($integration['enabled']))return new WP_Error('digiforge_printify_disabled','Printify must be CONFIGURED and explicitly enabled before catalog sync.',['status'=>409]);if($blueprintId<1)return new WP_Error('digiforge_printify_blueprint','A positive blueprint ID is required.',['status'=>400]);$token=$this->credential($integrationId,$scope);if(is_wp_error($token))return $token;try{$client=$this->clientFactory?($this->clientFactory)():new PrintifyCatalogClient();if(!$client instanceof PrintifyCatalogClient){unset($token);return new WP_Error('digiforge_printify_client','Printify catalog client is unavailable.',['status'=>500]);}$client->bindConnectionScope($integrationId,$scope);$blueprint=$client->blueprint($token,$blueprintId);if(is_wp_error($blueprint)){unset($token);return $blueprint;}$providers=$client->providers($token,$blueprintId);}catch(\Throwable){return new WP_Error('digiforge_printify_transport','Printify catalog consumer failed.',['status'=>502]);}finally{unset($token);}if(is_wp_error($providers))return $providers;return ['provider'=>'printify','environment'=>(string)$integration['environment'],'blueprint'=>$blueprint,'providers'=>$providers,'observed_at'=>gmdate('c')];
     }
 
     /** Fetch provider variants and persist only normalized shared catalog evidence. */
-    public function syncProviderVariants(int $integrationId,int $blueprintId,int $providerId): array|WP_Error
+    public function syncProviderVariants(int $integrationId,int $blueprintId,int $providerId,array $scope=[]): array|WP_Error
     {
         if(!Settings::is_enabled('printify'))return new WP_Error('digiforge_printify_locked','Scoped Printify authorization is required before catalog network access.',['status'=>409]);
         $integration=(new IntegrationRepository())->find($integrationId);
         if(is_wp_error($integration))return $integration;if(!$integration||($integration['provider']??'')!=='printify'||($integration['status']??'')!=='CONFIGURED'||empty($integration['enabled']))return new WP_Error('digiforge_printify_disabled','An enabled CONFIGURED Printify integration is required.',['status'=>409]);
         if($blueprintId<1||$providerId<1)return new WP_Error('digiforge_printify_identity','Positive blueprint and provider IDs are required.',['status'=>400]);
-        $token=$this->credential($integrationId);if(is_wp_error($token))return $token;
+        $token=$this->credential($integrationId,$scope);if(is_wp_error($token))return $token;
         try{$client=$this->clientFactory?($this->clientFactory)():new PrintifyCatalogClient();
         if(!$client instanceof PrintifyCatalogClient){unset($token);return new WP_Error('digiforge_printify_client','Printify catalog client is unavailable.',['status'=>500]);}
-        $response=$client->variantsWithEvidence($token,$blueprintId,$providerId);
+        $client->bindConnectionScope($integrationId,$scope);$response=$client->variantsWithEvidence($token,$blueprintId,$providerId);
         if(is_wp_error($response)){unset($token);return $response;}
         $shipping=$client->shipping($token,$blueprintId,$providerId);}catch(\Throwable){return new WP_Error('digiforge_printify_transport','Printify catalog consumer failed.',['status'=>502]);}finally{unset($token);}if(is_wp_error($shipping))return $shipping;
         $catalog=$response['data'];$source=(array)$response['source_evidence'];$variants=$catalog['variants']??$catalog;
@@ -60,7 +60,7 @@ final class PrintifyCatalogSyncService
     /** Preserve provider shipping evidence as deterministic read-only catalog metadata. */
     private function shippingEvidence(array $shipping): array
     {
-        $normalize=function(mixed $value) use (&$normalize): mixed {if(!is_array($value))return $value;$out=[];foreach($value as $key=>$item)$out[(string)$key]=$normalize($item);if(!array_is_list($out))ksort($out,SORT_STRING);return $out;};return $normalize($shipping);
+        $normalize=function(mixed $value) use (&$normalize): mixed {if(!is_array($value))return $value;$out=[];foreach($value as $key=>$item)$out[$key]=$normalize($item);if(!array_is_list($out))ksort($out,SORT_STRING);return $out;};return $normalize($shipping);
     }
 
     private function availabilityEvidence(array $variant): string
@@ -68,8 +68,9 @@ final class PrintifyCatalogSyncService
         if(array_key_exists('is_available',$variant))return $variant['is_available']===true?'AVAILABLE':($variant['is_available']===false?'UNAVAILABLE':'UNKNOWN');if(array_key_exists('is_enabled',$variant))return $variant['is_enabled']===true?'AVAILABLE':($variant['is_enabled']===false?'UNAVAILABLE':'UNKNOWN');return 'UNKNOWN';
     }
 
-    private function credential(int $integrationId): string|WP_Error
+    private function credential(int $integrationId,array $scope): string|WP_Error
     {
-        global $wpdb;foreach(['personal_access_token','access_token'] as $name){$wpdb->last_error='';$cipher=$wpdb->get_var($wpdb->prepare('SELECT ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name = %s LIMIT 1',$integrationId,$name));if(!empty($wpdb->last_error))return new WP_Error('digiforge_printify_credential_evidence_unavailable','Printify credential evidence is unavailable.',['status'=>503]);if(!is_string($cipher)||$cipher==='')continue;try{return CredentialVault::decrypt($cipher,IntegrationRepository::secretContext($integrationId,$name));}catch(\Throwable){return new WP_Error('digiforge_printify_credential','Stored Printify credential could not be decrypted.',['status'=>500]);}}return new WP_Error('digiforge_printify_credential','Store a Printify credential before catalog sync.',['status'=>409]);
+        $check=PrintifyConnectionBoundary::runtime($integrationId,'printify.catalog.read',$scope);if(is_wp_error($check))return $check;
+        global $wpdb;foreach(['personal_access_token','access_token'] as $name){$wpdb->last_error='';$cipher=$wpdb->get_var($wpdb->prepare('SELECT ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id = %d AND secret_name = %s LIMIT 1',$integrationId,$name));if(!empty($wpdb->last_error))return new WP_Error('digiforge_printify_credential_evidence_unavailable','Printify credential evidence is unavailable.',['status'=>503]);if(!is_string($cipher)||$cipher==='')continue;try{$value=CredentialVault::decrypt($cipher,IntegrationRepository::secretContext($integrationId,$name));$material=PrintifyConnectionBoundary::material($integrationId,$value,$name);return is_wp_error($material)?$material:$value;}catch(\Throwable){return new WP_Error('digiforge_printify_credential','Stored Printify credential could not be decrypted.',['status'=>500]);}}return new WP_Error('digiforge_printify_credential','Store a Printify credential before catalog sync.',['status'=>409]);
     }
 }

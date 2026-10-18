@@ -13,6 +13,12 @@ use WP_Error;
  */
 final class PrintifyCatalogClient
 {
+    private ?array $connectionScope=null;
+    private int $connectionId=0;
+    public function bindConnectionScope(int $integration,array $scope):void {
+        if($this->connectionScope!==null&&($integration!==$this->connectionId||$scope!==$this->connectionScope))throw new \InvalidArgumentException('Connection rebinding denied');
+        $this->connectionId=$integration;$this->connectionScope=$scope;
+    }
     private const V1 = 'https://api.printify.com/v1/';
     private const V2 = 'https://api.printify.com/v2/';
     private const MAX_ATTEMPTS = 3;
@@ -126,9 +132,11 @@ final class PrintifyCatalogClient
                 if (is_wp_error($authorized)) return $authorized;
                 if ($authorized !== true) return new WP_Error('digiforge_printify_read_authorization', 'Catalog read authorization denied.', ['status'=>409]);
             }
+            if($this->connectionScope!==null){$bound=PrintifyConnectionBoundary::runtime($this->connectionId,'printify.catalog.read',$this->connectionScope);if(is_wp_error($bound))return $bound;}
             try { $response=($this->transport)($url,$args); }
             catch (\Throwable) { return new WP_Error('digiforge_printify_transport','Printify catalog transport failed.',['status'=>502]); }
             if (is_wp_error($response)) return new WP_Error('digiforge_printify_transport','Printify catalog transport failed.',['status'=>502]);
+            if($this->connectionScope!==null){$bound=PrintifyConnectionBoundary::runtime($this->connectionId,'printify.catalog.read',$this->connectionScope);if(is_wp_error($bound))return $bound;}
             $status=(int)wp_remote_retrieve_response_code($response);
             if ($status===429) {
                 if ($attempt===self::MAX_ATTEMPTS) return new WP_Error('digiforge_printify_rate_limit','Printify catalog rate limit retry budget exhausted.',['status'=>429]);

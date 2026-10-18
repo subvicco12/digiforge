@@ -16,7 +16,7 @@ final class ConnectionTester {
     private const GELATO_CATALOGS_URL = 'https://product.gelatoapis.com/v3/catalogs';
     private const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models';
 
-    public function test(int $integrationId): array|\WP_Error {
+    public function test(int $integrationId,array $connectionScope=[]): array|\WP_Error {
         $repository = new Repository();
         $integration = $repository->find($integrationId);
         if (is_wp_error($integration)) { return $integration; }
@@ -31,7 +31,7 @@ final class ConnectionTester {
             return new \WP_Error('integration_connection_test_safety_locked',__('Connection testing is blocked by the global safety controls.', 'digiforge'),['status'=>409,'external_execution_performed'=>false]);
         }
         return match ((string) ($integration['provider'] ?? '')) {
-            'printify' => $this->testPrintify($integrationId),
+            'printify' => $this->testPrintify($integrationId,$connectionScope),
             'etsy' => $this->testEtsy($integrationId),
             'gelato' => $this->testGelato($integrationId),
             'ai' => $this->testAi($integrationId, $integration),
@@ -39,13 +39,17 @@ final class ConnectionTester {
         };
     }
 
-    private function testPrintify(int $integrationId): array|\WP_Error {
+    private function testPrintify(int $integrationId,array $scope): array|\WP_Error {
         if (! Settings::is_enabled('printify')) { return new \WP_Error('printify_scoped_authorization_required', __('Scoped Printify authorization is required before connection-test network access.', 'digiforge'), ['status' => 409]); }
+        $binding=\DigiForge\POD\PrintifyConnectionBoundary::runtime($integrationId,'printify.connection.read',$scope);if(is_wp_error($binding))return $binding;
         $token = $this->firstCredential($integrationId, ['personal_access_token', 'access_token']);
         if (is_wp_error($token) && $token->get_error_code() !== 'credential_not_found') { return $token; }
         if (is_wp_error($token)) { return new \WP_Error('printify_credential_missing', __('Store a Printify personal access token before testing the connection.', 'digiforge'), ['status' => 409]); }
+        $material=\DigiForge\POD\PrintifyConnectionBoundary::material($integrationId,$token);if(is_wp_error($material))return $material;
         try {
+            $binding=\DigiForge\POD\PrintifyConnectionBoundary::runtime($integrationId,'printify.connection.read',$scope);if(is_wp_error($binding))return $binding;
             $response = $this->get(self::PRINTIFY_SHOPS_URL, ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json']);
+            $binding=\DigiForge\POD\PrintifyConnectionBoundary::runtime($integrationId,'printify.connection.read',$scope);if(is_wp_error($binding))return $binding;
             if (!is_wp_error($response)) {
                 $body = (string) wp_remote_retrieve_body($response);
                 $data = json_decode($body, true);
@@ -61,11 +65,12 @@ final class ConnectionTester {
         $decoded = json_decode((string) wp_remote_retrieve_body($response), true); if (! is_array($decoded) || !array_is_list($decoded)) { return $this->invalidResponse('printify', $integrationId); }
         $shops = [];
         foreach (array_slice($decoded, 0, 50) as $shop) { if (! is_array($shop) || !is_int($shop['id'] ?? null) || $shop['id'] < 1 || !is_string($shop['title'] ?? null) || !is_string($shop['sales_channel'] ?? null)) { return $this->invalidResponse('printify', $integrationId); } $shops[] = ['id' => absint($shop['id'] ?? 0), 'title' => sanitize_text_field((string) ($shop['title'] ?? '')), 'sales_channel' => sanitize_text_field((string) ($shop['sales_channel'] ?? ''))]; }
+        if(count($shops)!==1||(string)$shops[0]['id']!==$scope['external_shop_reference'])return new \WP_Error('printify_foreign_shop_response','Unscoped or foreign shop evidence was discarded.',['status'=>409]);
         $details = ['http_status' => 200, 'shop_count' => count($shops), 'shops' => $shops];
         if (!$this->record($integrationId, true, $details, true)) return $this->evidenceError($integrationId);
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'printify', 'shop_count' => count($shops)], 'integration', (string) $integrationId);
-        $names = array_values(array_filter(array_map(static fn(array $shop): string => (string) ($shop['title'] ?? ''), $shops)));
-        return ['ok' => true, 'provider' => 'printify', 'checked_at' => current_time('mysql', true), 'shops' => $shops, 'message' => sprintf(__('Printify connection verified. %d shop(s) returned%s.', 'digiforge'), count($shops), $names ? ': ' . implode(', ', array_slice($names, 0, 5)) : '')];
+        $names = array_values(array_filter(array_map(static fn(array $shop): string => $shop['title'], $shops)));
+        return ['ok' => true, 'provider' => 'printify', 'checked_at' => current_time('mysql', true), 'shops' => $shops, 'provider_identity_verified'=>false,'external_execution_authorized'=>false,'message' => sprintf(__('Scoped Printify response observed; ownership remains uncertified. %d shop(s) returned%s.', 'digiforge'), count($shops), $names ? ': ' . implode(', ', array_slice($names, 0, 5)) : '')];
     }
 
     private function testEtsy(int $integrationId): array|\WP_Error {

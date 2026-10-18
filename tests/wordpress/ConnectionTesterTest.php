@@ -34,7 +34,7 @@ final class ConnectionTesterTest extends WP_UnitTestCase
         finally{self::assertTrue(DigiForge\Core\Settings::protectProduction());$this->beginFixtureTransaction();parent::tearDown();}
     }
 
-    public function testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess(): void
+    public function testLegacyPrintifyConnectionCannotUseCredentialWithoutReviewedScope(): void
     {
         DigiForge\Core\Activator::activate();
         $this->beginFixtureTransaction();
@@ -83,25 +83,10 @@ final class ConnectionTesterTest extends WP_UnitTestCase
             remove_filter('pre_http_request', $filter, 10);
         }
 
-        self::assertFalse(is_wp_error($result));
-        self::assertSame('https://api.printify.com/v1/shops.json', $seenUrl);
-        self::assertSame('Bearer unit-test-printify-token', $seenAuthorization);
-        self::assertTrue((bool) $result['ok']);
-        self::assertCount(1, $result['shops']);
-        self::assertSame(12345, $result['shops'][0]['id']);
+        self::assertWPError($result);self::assertSame('printify_connection_scope_required',$result->get_error_code());
+        self::assertSame('', $seenUrl);self::assertSame('', $seenAuthorization);
+        $updated=$repository->find($id);self::assertIsArray($updated);self::assertSame('DISCONNECTED',$updated['status']);self::assertArrayNotHasKey('_connection_test',$updated['config']);
 
-        $updated = $repository->find($id);
-        self::assertIsArray($updated);
-        self::assertSame('CONFIGURED', $updated['status']);
-        self::assertFalse((bool) $updated['enabled']);
-        self::assertTrue((bool) ($updated['config']['_connection_test']['ok'] ?? false));
-        self::assertSame(DigiForge\Integrations\CredentialEvidenceVersion::fromMetadata(
-            $repository->secretMetadata($id)
-        ),$updated['config']['_connection_test']['credential_evidence_version']);
-        self::assertSame(1, (int) ($updated['config']['_connection_test']['details']['shop_count'] ?? 0));
-        $this->assertFixtureRowsRolledBack();
-        self::assertTrue(DigiForge\Core\Settings::protectProduction());
-        $this->beginFixtureTransaction();
     }
 
     public function testEtsyAuthenticatedConnectionUsesUsersMeAndRecordsConfigured(): void

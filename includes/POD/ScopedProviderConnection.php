@@ -14,6 +14,7 @@ use WP_Error;
 final class ScopedProviderConnection
 {
  private const CAPABILITY='printify.catalog.read';
+ private const CAPABILITIES=[self::CAPABILITY,'printify.connection.read','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'];
  private const FIELDS=['integration_id','capability','source_sha256','evidence_reference','observed_at'];
  public function propose(string $shop,array $input,int $effectiveAt,int $expiresAt,string $requestId,int $revision):array|WP_Error {
   if(count($input)!==count(self::FIELDS)||array_diff(array_keys($input),self::FIELDS))return self::error('invalid_input');
@@ -37,7 +38,7 @@ final class ScopedProviderConnection
  /** Local relationship verification only: NEVER a network grant or supplier certification. */
  public function verified(string $shop,int $integration,string $capability):array|WP_Error {
   $result=$this->status($shop,$integration,$capability);
-  return $result['status']==='VERIFIED_LOCAL_BINDING'?$result:self::error(strtolower($result['status']),$result['status']==='ACCESS_DENIED'?403:409);
+  return $result['status']==='VERIFIED_LOCAL_BINDING'?$result:self::error(strtolower($result['status']),($result['status']==='ACCESS_DENIED'?403:($result['status']==='UNAVAILABLE'?503:409)));
  }
  public function status(string $shop,int $integration,string $capability=self::CAPABILITY):array {
   $base=['status'=>'UNKNOWN','shop_key'=>$shop,'integration_id'=>$integration,'capability'=>$capability,'provider_identity_verified'=>false,'external_execution_authorized'=>false,'read_only'=>true];
@@ -50,7 +51,7 @@ final class ScopedProviderConnection
   $base['binding_hash']=$state['proposal_hash'];$base['review_revision']=$state['revision'];
   if($state['status']==='REVOKED')return array_replace($base,['status'=>'REVOKED']);
   if($state['expires_at']<=time()||$state['effective_at']>time())return array_replace($base,['status'=>'EXPIRED_OR_NOT_EFFECTIVE']);
-  $current=$this->snapshot($shop,$integration,$capability);if(is_wp_error($current))return array_replace($base,['status'=>'DRIFTED']);
+  $current=$this->snapshot($shop,$integration,$capability);if(is_wp_error($current))return array_replace($base,['status'=>($current->get_error_data()['status']??409)===503?'UNAVAILABLE':'DRIFTED']);
   foreach($current as $field=>$value)if(($state['payload'][$field]??null)!==$value)return array_replace($base,['status'=>'DRIFTED']);
   global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.ProviderConnectionSchema::table().' WHERE review_key=%s AND binding_hash=%s LIMIT 2',$key,$state['proposal_hash']),ARRAY_A);
   if(self::databaseFailed()||!is_array($rows)||count($rows)!==1)return array_replace($base,['status'=>'MISSING_OR_AMBIGUOUS_EVIDENCE']);
@@ -75,9 +76,9 @@ final class ScopedProviderConnection
  }
  /** Current explicit configuration and registry ancestry; no credential decryption. */
  private function snapshot(string $shop,int $integration,string $capability):array|WP_Error {
-  if($shop!=='personalized_pod'||$integration<1||$capability!==self::CAPABILITY)return self::error('unsupported_scope');
+  if($shop!=='personalized_pod'||$integration<1||!in_array($capability,self::CAPABILITIES,true))return self::error('unsupported_scope');
   $access=ShopAccess::authorize($shop,'manage_digiforge_connections');if(is_wp_error($access))return $access;
-  $i=(new Repository())->find($integration);if(!is_array($i)||$i['provider']!=='printify'||$i['status']!=='CONFIGURED')return self::error('integration');
+  $i=(new Repository())->find($integration);if(is_wp_error($i))return $i;if(!is_array($i)||$i['provider']!=='printify'||$i['status']!=='CONFIGURED')return self::error('integration');
   $c=$i['config'];if(($c['shop_key']??null)!==$shop||!is_string($c['account_reference']??null)||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,190}$/D',$c['account_reference'])||!is_string($c['shop_id']??null)||!preg_match('/^[1-9][0-9]{0,18}$/D',$c['shop_id'])||!is_array($c['catalog_read_scope']??null)||($c['catalog_read_scope']['product_program']??null)!=='PERSONALIZED_POD'||empty($i['secrets']))return self::error('identity_or_material_missing');
   try{$scope=BusinessScope::resolveConfigured($c['catalog_read_scope']);}catch(\Throwable){return self::error('registry');}
   // Explicit relation identity cannot be inferred from shared material. A duplicate external shop is ambiguous.

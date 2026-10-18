@@ -137,7 +137,8 @@ final class PrintifyCatalogReadRepository {
    // Recheck all authoritative boundaries immediately before decrypting. Failures consume the attempt.
    $current=$this->grant($sha);if($current instanceof WP_Error)return $current;$currentPermission=$this->readPermission($sha,$current);if($currentPermission instanceof WP_Error)return $currentPermission;if($currentPermission!==$permission)return self::error('safety_permission_changed',409);
    $access=$this->assigned($current);if($access instanceof WP_Error)return $access;
-   $token=$this->credential($g['integration_id']);if($token instanceof WP_Error)return $token;
+   $context=PrintifyConnectionBoundary::context($current['binding']['shop_key'],$g['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if(is_wp_error($context))return $context;if($context['binding_hash']!==$current['binding']['ownership_binding_sha256'])return PrintifyConnectionBoundary::error();
+   $token=$this->credential($g['integration_id'],$context);if($token instanceof WP_Error)return $token;
    try{$result=($this->client??new PrintifyCatalogClient())->scopedRead($token,$g['requests'][$index],['grant_sha256'=>$sha,'request_index'=>$index,'request_sha256'=>$requestSha]);}catch(\Throwable){$result=self::error('transport',502);}finally{$token='';}
    if($result instanceof WP_Error){if(!Logger::write('catalog_read_failed',['grant_sha256'=>$sha,'request_sha256'=>$requestSha,'code'=>$result->get_error_code()],'catalog_read',$sha))return self::error('audit_unavailable',503);return $result;}
    $current=$this->grant($sha);if($current instanceof WP_Error)return $current;$currentPermission=$this->readPermission($sha,$current);if($currentPermission instanceof WP_Error)return $currentPermission;if($currentPermission!==$permission||!self::reader())return self::error('approval_or_safety_changed',409);$access=$this->assigned($current);if($access instanceof WP_Error)return $access;
@@ -177,7 +178,8 @@ final class PrintifyCatalogReadRepository {
   if(self::databaseFailed()||!is_array($rows)||count($rows)>1)return self::error('dispatch_audit_unavailable',503);
   $out=[];foreach($rows as $row){$r=json_decode($row,true);if(!is_array($r)||($r['grant_sha256']??null)!==$sha||($r['request_sha256']??null)!==$key||!is_string($r['sha256']??null)||!preg_match('/^[a-f0-9]{64}$/D',$r['sha256']))return self::error('dispatch_audit_invalid',503);$out[]=$r;}return $out;
  }
- private function credential(int $id):string|WP_Error {
+ private function credential(int $id,array $context):string|WP_Error {
+  $check=PrintifyConnectionBoundary::authorize($id,PrintifyCatalogReadContract::CAPABILITY,$context);if(is_wp_error($check))return $check;
   global $wpdb;foreach(['personal_access_token','access_token']as $name){$wpdb->last_error='';$cipher=$wpdb->get_var($wpdb->prepare('SELECT ciphertext FROM '.Tables::integration_secrets().' WHERE integration_id=%d AND secret_name=%s LIMIT 1',$id,$name));if(self::databaseFailed())return self::error('credential_evidence',503);if(is_string($cipher)&&$cipher!==''){try{return CredentialVault::decrypt($cipher,Repository::secretContext($id,$name));}catch(\Throwable){return self::error('credential_unavailable',503);}finally{$cipher='';}}}return self::error('credential_missing',409);
  }
  private function load(string $name):array|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name));if(self::databaseFailed())return self::error('storage_unavailable',503);if($raw===null)return null;if(!is_string($raw)||strlen($raw)>2200000)return self::error('storage_corrupt',503);$r=json_decode($raw,true,40);return is_array($r)?$r:self::error('storage_corrupt',503);}
