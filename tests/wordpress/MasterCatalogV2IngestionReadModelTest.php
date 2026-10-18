@@ -1,19 +1,17 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/../support/MasterCatalogStoredEvidenceFixture.php';
 final class MasterCatalogV2IngestionReadModelTest extends WP_UnitTestCase
 {
- public function setUp():void{parent::setUp();DigiForge\Core\Activator::activate();}
+ public function setUp():void{parent::setUp();DigiForge\Core\Activator::activate();MasterCatalogStoredEvidenceFixture::resetCatalogEvidence();}
  private function insertParent():int{
-  global $wpdb;$versions=DigiForge\Database\Tables::catalog_versions();
-  $wpdb->insert($versions,['catalog_key'=>DigiForge\POD\PersonalizedCatalogReference::CATALOG_KEY,'version_label'=>'v1-readiness-'.wp_rand(1000,9999),'source_sha256'=>DigiForge\POD\PersonalizedCatalogReference::SOURCE_SHA256,'source_state'=>'IMMUTABLE_REFERENCE','parent_version_id'=>0,'migration_metadata'=>wp_json_encode([]),'row_count'=>500,'fingerprint'=>hash('sha256','valid-parent-'.wp_rand()),'production_authority'=>0,'created_by'=>0,'created_at'=>current_time('mysql',true)]);
-  self::assertSame(1,$wpdb->rows_affected);return (int)$wpdb->insert_id;
+  $parent=MasterCatalogStoredEvidenceFixture::persistParent();self::assertNotWPError($parent);return (int)$parent['id'];
  }
  private function insertV2(int $parentId,array $override=[]):int{
-  global $wpdb;$versions=DigiForge\Database\Tables::catalog_versions();$fingerprint=hash('sha256','v2-'.wp_rand());
-  $meta=['source_state'=>'MIGRATION_CANDIDATE','parent_catalog_key'=>DigiForge\POD\PersonalizedCatalogReference::CATALOG_KEY,'parent_version_id'=>$parentId,'source_file'=>DigiForge\POD\MasterCatalogV2Reference::SOURCE_FILE,'source_sha256'=>DigiForge\POD\MasterCatalogV2Reference::SOURCE_SHA256,'fingerprint'=>$fingerprint,'production_authority'=>false,'promotion_authorized'=>false];
-  $row=['catalog_key'=>DigiForge\POD\MasterCatalogV2Reference::CATALOG_KEY,'version_label'=>'v2-readiness-'.wp_rand(1000,9999),'source_sha256'=>DigiForge\POD\MasterCatalogV2Reference::SOURCE_SHA256,'source_state'=>'MIGRATION_CANDIDATE','parent_version_id'=>$parentId,'migration_metadata'=>wp_json_encode($meta),'row_count'=>500,'fingerprint'=>$fingerprint,'production_authority'=>0,'created_by'=>0,'created_at'=>current_time('mysql',true)];
-  $wpdb->insert($versions,array_merge($row,$override));self::assertSame(1,$wpdb->rows_affected);return (int)$wpdb->insert_id;
+  global $wpdb;$v2=MasterCatalogStoredEvidenceFixture::persistV2();self::assertNotWPError($v2);self::assertSame($parentId,(int)$v2['parent_version_id']);$id=(int)$v2['id'];
+  if($override!==[])self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::catalog_versions(),$override,['id'=>$id]));return $id;
  }
+
  public function testReadinessFailsClosedWithoutExactParentAndBecomesReadyWithValidParent():void{
   global $wpdb;$versions=DigiForge\Database\Tables::catalog_versions();
   $wpdb->query($wpdb->prepare('DELETE FROM '.$versions.' WHERE catalog_key IN (%s,%s)',DigiForge\POD\PersonalizedCatalogReference::CATALOG_KEY,DigiForge\POD\MasterCatalogV2Reference::CATALOG_KEY));
