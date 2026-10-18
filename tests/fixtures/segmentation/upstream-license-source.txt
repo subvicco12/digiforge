@@ -1,0 +1,45 @@
+Source: https://raw.githubusercontent.com/scikit-image/scikit-image/v0.19.3/skimage/data/_fetchers.py
+
+def astronaut():
+    """Color image of the astronaut Eileen Collins.
+
+    Photograph of Eileen Collins, an American astronaut. She was selected
+    as an astronaut in 1992 and first piloted the space shuttle STS-63 in
+    1995. She retired in 2006 after spending a total of 38 days, 8 hours
+    and 10 minutes in outer space.
+
+    This image was downloaded from the NASA Great Images database
+    <https://flic.kr/p/r9qvLn>`__.
+
+    No known copyright restrictions, released into the public domain.
+
+    Returns
+    -------
+    astronaut : (512, 512, 3) uint8 ndarray
+        Astronaut image.
+    """
+
+    return _load("data/astronaut.png")
+
+
+
+def chelsea():
+    """Chelsea the cat.
+
+    An example with texture, prominent edges in horizontal and diagonal
+    directions, as well as features of differing scales.
+
+    Notes
+    -----
+    No copyright restrictions.  CC0 by the photographer (Stefan van der Walt).
+
+    Returns
+    -------
+    chelsea : (300, 451, 3) uint8 ndarray
+        Chelsea image.
+    """
+    return _load("data/chelsea.png")
+
+
+# Define an alias for chelsea that is more descriptive.
+cat = chelsea
