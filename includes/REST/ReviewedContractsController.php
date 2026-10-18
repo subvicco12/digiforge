@@ -16,6 +16,7 @@ final class ReviewedContractsController
     public function register(): void
     {
         add_action('rest_api_init', function(): void {
+            register_rest_route('digiforge/v1','/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/acceptance',['methods'=>'GET','permission_callback'=>[$this,'canReadAcceptance'],'callback'=>[$this,'readAcceptance']]);
             $route='/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/(?P<kind>policy|ownership)';
             register_rest_route('digiforge/v1',$route,[
                 ['methods'=>'GET','permission_callback'=>[$this,'canRead'],'callback'=>[$this,'read']],
@@ -23,6 +24,25 @@ final class ReviewedContractsController
             ]);
             register_rest_route('digiforge/v1',$route.'/decision',['methods'=>'POST','permission_callback'=>[$this,'canDecide'],'callback'=>[$this,'decide']]);
         });
+    }
+
+    public function canReadAcceptance(WP_REST_Request $request): true|WP_Error
+    {
+        if(get_current_user_id()<1)return self::error('authentication',401);
+        $shop=$request->get_url_params()['shop']??null;
+        if(!is_string($shop)||!in_array($shop,['digital','personalized_pod'],true))return self::error('scope',403);
+        return ShopAccess::authorize($shop,'manage_digiforge');
+    }
+
+    public function readAcceptance(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $access=$this->canReadAcceptance($request);if(is_wp_error($access))return $access;
+        if($request->get_method()!=='GET'||(string)$request->get_body()!=='')return self::error('typed',400);
+        $query=$this->query($request);
+        if(is_wp_error($query))return $query;
+        if(!self::exact($query,['criterion','scope'])||!is_string($query['criterion'])||!is_string($query['scope']))return self::error('typed',400);
+        $state=\DigiForge\Portal\ReviewedAcceptanceContract::status($request->get_url_params()['shop'],$query['criterion'],$query['scope']);
+        return is_wp_error($state)?$state:new WP_REST_Response($state,200);
     }
 
     public function canRead(WP_REST_Request $request): true|WP_Error

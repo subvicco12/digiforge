@@ -10,6 +10,26 @@ use WP_Error;
 final class ReviewedAcceptanceContract
 {
  private const CRITERIA=['BP-seam-panel-render','BP-ai-value-routing','BP-template-qa-spelling','BP-portal-7-supplier-readiness','BP-portal-17-conversion','BP-portal-17-supplier-performance','BP-portal-17-product-performance','BP-portal-17-shop-performance','BP-portal-17-defect-quality','BP-quality-feedback'];
+ /** Safe metadata only; referenced records and measurements remain unverified. */
+ public static function criteria():array {return self::CRITERIA;}
+ public static function status(string $shop,string $criterion,string $scope):array|WP_Error {
+  $key=self::key($shop,$criterion,$scope);if(is_wp_error($key))return $key;
+  $state=ReviewedLocalEvidence::read('policy',$shop,$key);if(is_wp_error($state))return $state;
+  $view=['shop_key'=>$shop,'criterion'=>$criterion,'scope'=>$scope,'status'=>'MISSING','review_status'=>'UNKNOWN','review_revision'=>null,'effective_at'=>null,'expires_at'=>null,'revoked'=>false,'evidence_references'=>[],'value_state'=>'UNKNOWN','evidence_state'=>'UNVERIFIED','read_only'=>true,'external_execution_authorized'=>false,'supplier_approved'=>false,'publishing_allowed'=>false,'ai_execution_allowed'=>false];
+  if($state===null)return $view;
+  if(self::validate($shop,$state['payload'])!==$key){$view['status']='INVALID_EVIDENCE';return $view;}
+  $view['review_status']=$state['status'];$view['status']=$state['status'];$view['review_revision']=$state['revision'];$view['effective_at']=$state['effective_at'];$view['expires_at']=$state['expires_at'];$view['revoked']=$state['status']==='REVOKED';
+  $refs=[];$collect=static function(array $node)use(&$collect,&$refs):void {
+   if(isset($node['shop_key'],$node['reference'],$node['sha256'])){$refs[$node['reference']]=$node;return;}
+   foreach($node as $child)if(is_array($child))$collect($child);
+  };$collect($state['payload']['definition']);$view['evidence_references']=array_values($refs);
+  if($state['status']==='APPROVED'){
+   if($state['expires_at']<=time())$view['status']='EXPIRED';
+   elseif($state['effective_at']>time())$view['status']='NOT_EFFECTIVE';
+   else{$current=ReviewedLocalEvidence::approved('policy',$shop,$key);$view['status']=!is_wp_error($current)&&$current===$state?'CURRENT_REVIEW':'REVIEW_STALE';}
+  }
+  return $view;
+ }
  public static function propose(string $shop,array $input,int $effectiveAt,int $expiresAt,string $requestId,int $revision):array|WP_Error {
   $key=self::validate($shop,$input);if(is_wp_error($key))return $key;
   return self::withKey(ReviewedLocalEvidence::propose('policy',$shop,$key,$input,$effectiveAt,$expiresAt,$requestId,$revision),$key);

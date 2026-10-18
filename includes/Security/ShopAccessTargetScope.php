@@ -26,6 +26,9 @@ final class ShopAccessTargetScope
             foreach(['shop','shop_key'] as $field){$claim=$request->get_param($field);if($claim!==null&&$claim!==$shop)return self::error();}
             return $shop;
         }
+        if ($request->get_method()==='GET' && preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod)/acceptance$#D',$route,$acceptance)) {
+            return in_array($acceptance[1],$allowed,true)?$acceptance[1]:self::error();
+        }
         if (preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$route,$contract)) {
             // The registered URL, never a query/body shop claim, establishes this scope.
             return in_array($contract[1],$allowed,true)?$contract[1]:self::error();

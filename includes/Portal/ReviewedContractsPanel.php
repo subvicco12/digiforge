@@ -35,6 +35,15 @@ final class ReviewedContractsPanel
             echo '<button class="df-button" type="submit">Propose local version</button></fieldset></form>';
             echo '<form data-contract-read="'.esc_attr($kind).'" class="df-review-form"><label for="'.esc_attr($id.'-key').'">Exact contract key</label><input id="'.esc_attr($id.'-key').'" name="key" required maxlength="240"><button class="df-button" type="submit">Load current evidence</button></form><div data-contract-result="'.esc_attr($kind).'" role="status" aria-live="polite"></div><div data-contract-decisions="'.esc_attr($kind).'"></div></details>';
         }
+        if(in_array($shop,['digital','personalized_pod'],true)) {
+            wp_enqueue_script('digiforge-acceptance-status',DIGIFORGE_URL.'assets/acceptance-contract-status.js',[],DIGIFORGE_VERSION.'.'.substr(hash_file('sha256',DIGIFORGE_PATH.'assets/acceptance-contract-status.js'),0,12),true);
+            echo '<details data-acceptance-status><summary>Reviewed acceptance status (read only)</summary><p>UNKNOWN measurements and UNVERIFIED evidence remain blocked. A reviewed engineering contract is not supplier certification, product approval or production authority.</p><form><label for="df-acceptance-criterion">Criterion</label><select id="df-acceptance-criterion" name="criterion">';
+            foreach(ReviewedAcceptanceContract::criteria() as $criterion) {
+                if($shop==='digital' && in_array($criterion,['BP-seam-panel-render','BP-template-qa-spelling'],true))continue;
+                echo '<option value="'.esc_attr($criterion).'">'.esc_html($criterion).'</option>';
+            }
+            echo '</select><label for="df-acceptance-scope">Exact reviewed scope</label><input id="df-acceptance-scope" name="scope" required maxlength="96" pattern="[A-Za-z0-9_:.-]+"><button type="submit">Refresh read-only status</button></form><pre role="status" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>';
+        }
         echo '<noscript><p>JavaScript is required for this local REST editor; existing server authorization applies to every request.</p></noscript></section>';
     }
     private static function select(string $id,string $name,string $label,array $values): void
