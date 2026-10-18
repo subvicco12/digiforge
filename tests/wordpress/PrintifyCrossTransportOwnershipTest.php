@@ -104,6 +104,9 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
   $out=$this->simulated(function()use($id,$scope,$http){add_filter('pre_http_request',$http,1);try{return (new DigiForge\Integrations\ConnectionTester())->test($id,$scope);}finally{remove_filter('pre_http_request',$http,1);}});self::assertWPError($out);self::assertSame('printify_foreign_shop_response',$out->get_error_code());$i=(new DigiForge\Integrations\Repository())->find($id);self::assertArrayNotHasKey('_connection_test',$i['config']);
  }
 
+ public function testCredentialLeakInSecondaryErrorHistoryIsDiscarded():void {
+  [$id,$scope]=$this->fixture();$out=$this->simulated(fn()=>(new DigiForge\POD\PrintifyScopedCredentialRetriever())->consume($id,static function($secret){$error=new WP_Error('safe','Safe failure',['safe'=>true]);$error->add('secondary','Another failure',['credential'=>$secret]);$error->add_data(['safe'=>true],'secondary');return $error;},$scope));self::assertWPError($out);self::assertSame('printify_credential_protected_result',$out->get_error_code());
+ }
  public function testExpiredConsumedAuthorizationCannotDispatch():void {
   [$permit,$payload]=$this->request();global $wpdb;$old=$permit['authorization_hash'];$permit['authorization']['issued_at']=time()-301;$permit['authorization']['expires_at']=time()-1;$canonical=$permit['authorization'];ksort($canonical);$permit['authorization_hash']=hash('sha256',wp_json_encode($canonical));
   foreach([Tables::pod_execution_nonces(),Tables::pod_authorization_bindings()]as $table)self::assertSame(1,$wpdb->update($table,['authorization_hash'=>$permit['authorization_hash']],['authorization_hash'=>$old]));$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});$out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertWPError($out);self::assertSame('digiforge_execution_expired',$out->get_error_code());self::assertSame(0,$calls);
