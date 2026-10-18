@@ -20,7 +20,7 @@ No new schema/migration or startup DDL. Existing reviewed capability records may
 
 ## Local evidence
 
-All transports mocked; persisted safety controls remain ON/ON/OFF. Focused WordPress: **80 tests, 1,669 assertions PASS**. Production catalog profile: **39 tests, 618 assertions PASS**. Affected unit tests: **132 tests, 491 assertions PASS**. Fault-injection audit-write error output is expected and asserted. Coverage includes both mutation actions, all identity fields, deleted receipt replay, concurrent lock contention, missing nonce, expired consumed authorization, audit failure rollback, credential drift/leakage (including secondary WP_Error history), in-flight revocation, per-page/per-retry revocation, role loss and foreign shop responses. Existing tests explicitly review synthetic scopes; UUID fixture names avoid confirmed duplicate-integration collisions.
+All transports mocked; persisted safety controls remain ON/ON/OFF. Focused WordPress: **81 tests, 1,691 assertions PASS**. Production catalog profile: **39 tests, 618 assertions PASS**. Affected unit tests: **132 tests, 491 assertions PASS**. Fault-injection audit-write error output is expected and asserted. Coverage includes both mutation actions, all identity fields, deleted receipt replay, concurrent lock contention, missing nonce, expired consumed authorization, audit failure rollback, credential drift/leakage (including secondary WP_Error history), in-flight revocation, per-page/per-retry revocation, role loss and foreign shop responses. Existing tests explicitly review synthetic scopes; UUID fixture names avoid confirmed duplicate-integration collisions.
 
 Additional WordPress-aware static validation (13 affected classes, level 5), configured repository static analysis, coding standards and source acceptance-matrix validation PASS. The local PHPStan sandbox cannot open a worker socket, so it was run serially with --debug and a 1 GiB analysis memory limit. Hosted exact-head audit is required before review readiness. Existing browser evidence is inherited, not freshly executed for this backend-only change.
 
@@ -30,4 +30,8 @@ No criterion promotion: 246/268 implemented candidates and 22 UNVERIFIED remain 
 
 Final review reproduced a secondary-error-history credential leak (one failing synthetic regression before correction). Redaction now examines every error code and all retained data, not only primary/latest data. Final focused rerun and exact-head audit cover the corrected candidate.
 
-One repeated local run hit a pre-existing fixed-key preflight fixture persisted by earlier transaction tests; the final 80-test run used a fresh isolated prefix and passed without test/production assertion changes.
+One repeated local run hit a pre-existing fixed-key preflight fixture persisted by earlier transaction tests; the fresh 80-test run used a fresh isolated prefix and passed without test/production assertion changes.
+
+A second negative regression reproduced credential lookup from a reviewed but explicitly disabled connector. Shared runtime checks now separately require current CONFIGURED/enabled state after exact binding validation, including the mutation interlock; catalog GET exceptions retain their existing separate path. Local ownership review is not connector enablement.
+
+Final connector-state correction: focused WordPress 81/1,691 PASS, catalog profile 39/618 PASS, affected units 132/491 PASS, additional static PASS. After wiring the mutation interlock to the same runtime guard, the complete new boundary class was rerun: 31 tests/672 assertions PASS.

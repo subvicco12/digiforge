@@ -37,7 +37,9 @@ final class PrintifyConnectionBoundary
  }
  public static function runtime(int $integration,string $capability,array $context,?string $externalShop=null):true|WP_Error {
   if(!\DigiForge\Core\Settings::is_enabled('printify')||(in_array($capability,['PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'],true)&&!\DigiForge\Core\Settings::is_enabled('order_automation')))return new WP_Error('printify_connection_runtime_locked','Existing Printify runtime interlocks remain locked.',['status'=>409]);
-  return self::authorize($integration,$capability,$context,$externalShop);
+  $binding=self::authorize($integration,$capability,$context,$externalShop);if(is_wp_error($binding))return $binding;
+  $record=(new \DigiForge\Integrations\Repository())->find($integration);if(is_wp_error($record))return $record;
+  return is_array($record)&&($record['status']??null)==='CONFIGURED'&&($record['enabled']??null)===true?true:self::error();
  }
  public static function error():WP_Error {return new WP_Error('printify_connection_scope_required','Current exact independently reviewed connection scope is required.',['status'=>409,'external_execution_authorized'=>false]);}
 }

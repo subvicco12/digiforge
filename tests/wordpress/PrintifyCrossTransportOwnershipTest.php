@@ -104,6 +104,10 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
   $out=$this->simulated(function()use($id,$scope,$http){add_filter('pre_http_request',$http,1);try{return (new DigiForge\Integrations\ConnectionTester())->test($id,$scope);}finally{remove_filter('pre_http_request',$http,1);}});self::assertWPError($out);self::assertSame('printify_foreign_shop_response',$out->get_error_code());$i=(new DigiForge\Integrations\Repository())->find($id);self::assertArrayNotHasKey('_connection_test',$i['config']);
  }
 
+ public function testReviewedDisabledConnectorCannotReadCredentialsOrCallProvider():void {
+  [$id,$scope,$review]=$this->fixture('printify.connection.read');$actor=get_current_user_id();self::assertNotWPError((new DigiForge\Integrations\Repository())->setEnabled($id,false));ScopedProviderConnectionFixture::approve($id,$actor,null,'printify.connection.read');$scope=Boundary::context('personalized_pod',$id,'printify.connection.read');self::assertNotWPError($scope);$reads=0;$calls=0;$query=static function(string $q)use(&$reads):string{if(str_contains($q,'SELECT ciphertext'))++$reads;return $q;};$http=static function()use(&$calls){++$calls;return new WP_Error('mock','Mock only');};add_filter('query',$query);add_filter('pre_http_request',$http,1);
+  try{self::assertWPError($this->simulated(fn()=>(new DigiForge\Integrations\ConnectionTester())->test($id,$scope)));}finally{remove_filter('query',$query);remove_filter('pre_http_request',$http,1);}self::assertSame(0,$reads);self::assertSame(0,$calls);
+ }
  public function testCredentialLeakInSecondaryErrorHistoryIsDiscarded():void {
   [$id,$scope]=$this->fixture();$out=$this->simulated(fn()=>(new DigiForge\POD\PrintifyScopedCredentialRetriever())->consume($id,static function($secret){$error=new WP_Error('safe','Safe failure',['safe'=>true]);$error->add('secondary','Another failure',['credential'=>$secret]);$error->add_data(['safe'=>true],'secondary');return $error;},$scope));self::assertWPError($out);self::assertSame('printify_credential_protected_result',$out->get_error_code());
  }
