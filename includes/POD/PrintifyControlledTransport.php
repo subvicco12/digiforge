@@ -13,13 +13,13 @@ final class PrintifyControlledTransport{
   // Recheck immediately before credential retrieval/network.
   $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
   $claimed=PrintifyDispatchClaim::claim($permit,$request);if(is_wp_error($claimed))return $claimed;
-  $sender=$this->sender;
-  return (new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit){
+  $sender=$this->sender;$attempted=false;
+  $out=(new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit,&$attempted){
    $args=['method'=>'POST','headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json;charset=utf-8','Accept'=>'application/json'],'timeout'=>20,'redirection'=>0,'sslverify'=>true];
    if($request['body']!==[])$args['body']=wp_json_encode($request['body']);
    $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
-   $response=$sender('https://api.printify.com/v1'.$request['endpoint'],$args);$token='';
-   if(is_wp_error($response)){$response->add_data(['network_request_attempted'=>true,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']]);return $response;}
+   $attempted=true;try{$response=$sender('https://api.printify.com/v1'.$request['endpoint'],$args);}catch(\Throwable){$token='';return self::unknown($permit,$request,'transport_exception');}$token='';
+   if(is_wp_error($response))return self::unknown($permit,$request,'transport_error');
    $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return new WP_Error('printify_connection_dispatch_unknown','Ownership changed after dispatch; reconciliation is required.',['status'=>409,'network_request_attempted'=>true,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']]);
    $status=(int)wp_remote_retrieve_response_code($response);
    if($status>=200&&$status<300){
@@ -31,5 +31,12 @@ final class PrintifyControlledTransport{
    if(in_array($status,[400,401,403,404,422],true))return ['status'=>'FAILED','action'=>$permit['action'],'authorization_hash'=>$permit['authorization_hash'],'evidence_hash'=>$permit['evidence_hash'],'failure_category'=>'PROVIDER_REJECTED','failure_code'=>'http_'.$status];
    return ['status'=>'UNKNOWN','action'=>$permit['action'],'authorization_hash'=>$permit['authorization_hash'],'evidence_hash'=>$permit['evidence_hash'],'failure_category'=>'AMBIGUOUS_HTTP','failure_code'=>'http_'.$status,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']];
   },is_array($request['connection_scope'])?$request['connection_scope']:[]);
+  // A post-dispatch credential/redaction/revocation error cannot erase pinned recovery identity.
+  if(is_wp_error($out)&&$attempted&&($out->get_error_data()['network_request_attempted']??false)!==true)return self::unknown($permit,$request,'post_dispatch_evidence_changed');
+  return $out;
+ }
+ /** Retain only pinned recovery evidence; provider error text may contain protected material. */
+ private static function unknown(array $permit,array $request,string $code):array{
+  return ['status'=>'UNKNOWN','action'=>$permit['action'],'authorization_hash'=>$permit['authorization_hash'],'evidence_hash'=>$permit['evidence_hash'],'failure_category'=>'AMBIGUOUS_TRANSPORT','failure_code'=>$code,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity'],'retry_permitted'=>false,'reconciliation_required'=>true];
  }
 }
