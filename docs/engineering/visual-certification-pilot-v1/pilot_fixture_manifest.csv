@@ -1,0 +1,13 @@
+case_id,subject_type,pose_or_condition,background,critical_features,source_image_path,source_sha256,source_url_or_owner,license_or_permission_id,consent_id_if_applicable,reference_matte_path,reference_matte_sha256,reference_reviewer_id,reference_review_date,operator_id,qa_decision,reviewer_1_id,reviewer_1_decision,reviewer_2_id,reviewer_2_decision,supplier_template_evidence_id,evidence_status
+DOG-01,dog,front-facing,clean background,ears and fur,,,,,,,,,,,,,,,,,MISSING
+DOG-02,dog,three-quarter,complex outdoor,ear tips and fur,,,,,,,,,,,,,,,,,MISSING
+DOG-03,dog,long-haired,similar-color background,fine fur and halos,,,,,,,,,,,,,,,,,MISSING
+CAT-01,cat,front-facing,clean background,whiskers and ears,,,,,,,,,,,,,,,,,MISSING
+CAT-02,cat,three-quarter,busy interior,whiskers and boundary,,,,,,,,,,,,,,,,,MISSING
+CAT-03,cat,long-haired,complex background,fine fur and holes,,,,,,,,,,,,,,,,,MISSING
+HUM-01,human,short hair,plain background,head outline,,,,,,,,,,,,,,,,,MISSING
+HUM-02,human,curly hair,busy background,hair strands and holes,,,,,,,,,,,,,,,,,MISSING
+HUM-03,human,long hair,backlit,transparency and halos,,,,,,,,,,,,,,,,,MISSING
+MULTI-01,dog+dog,two subjects,mixed background,selected-subject isolation,,,,,,,,,,,,,,,,,MISSING
+MULTI-02,human+human,two subjects,mixed background,selected-subject isolation,,,,,,,,,,,,,,,,,MISSING
+MULTI-03,human+pet,two subjects,busy background,hair fur and isolation,,,,,,,,,,,,,,,,,MISSING

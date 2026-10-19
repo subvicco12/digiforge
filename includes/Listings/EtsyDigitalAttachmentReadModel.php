@@ -6,15 +6,17 @@ namespace DigiForge\Listings;
 /** Bounded local evidence of accepted Etsy digital file uploads. No provider request. */
 final class EtsyDigitalAttachmentReadModel
 {
-    public function recent(int $limit = 50, ?string &$evidenceState = null): array
+    public function recent(int $limit = 50, ?string &$evidenceState = null, ?string $shop = null): array
     {
         global $wpdb;
         $limit = max(1, min(100, $limit));
         $table = $wpdb->prefix . 'digiforge_etsy_operations';
+        $environment='(SELECT l.environment FROM '.\DigiForge\Database\Tables::etsy_draft_packages().' pkg INNER JOIN '.\DigiForge\Database\Tables::listings().' l ON l.id=pkg.listing_id WHERE pkg.id='.$table.'.draft_package_id LIMIT 1)';
+        $scope=$shop===null?'':' AND '.EtsyStoredShopScope::matches($wpdb->prepare('%s',$shop),$table.'.shop_reference',$environment);
         $evidenceState = 'UNAVAILABLE';
         $wpdb->last_error = '';
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT id,shop_reference,intent_id,draft_package_id,operation_type,resource_reference,state,external_reference,external_asset_reference,request_fingerprint,evidence_hash,updated_at FROM {$table} WHERE operation_type='UPLOAD_FILE' AND state='CONFIRMED_SUCCESS' ORDER BY id DESC LIMIT %d",
+            "SELECT id,shop_reference,intent_id,draft_package_id,operation_type,resource_reference,state,external_reference,external_asset_reference,request_fingerprint,evidence_hash,updated_at FROM {$table} WHERE operation_type='UPLOAD_FILE' AND state='CONFIRMED_SUCCESS'".$scope." ORDER BY id DESC LIMIT %d",
             $limit
         ), ARRAY_A);
         if (!empty($wpdb->last_error) || !is_array($rows)) {
