@@ -8,15 +8,16 @@
         "shop_key": "personalized_pod",
         "family_id": "FC01",
         "version": 2,
-        "spec_sha256": "19cdf8ba9755e91a8417591f74e4e0fff27e168506f491cc44510f623fd9cdb0",
+        "spec_sha256": "8d067fecfd8dee0ecc30ffb7ba7f0d27743092bf4ebc3eb517b13d484c0c39c2",
         "family_name": "Mira & Léon",
         "established": "2011"
     },
     "identity": {
+        "concept_revision": 2,
         "family_id": "FC01",
         "version": 2,
         "shop_key": "personalized_pod",
-        "spec_sha256": "19cdf8ba9755e91a8417591f74e4e0fff27e168506f491cc44510f623fd9cdb0",
+        "spec_sha256": "8d067fecfd8dee0ecc30ffb7ba7f0d27743092bf4ebc3eb517b13d484c0c39c2",
         "font_sha256": "04fa859f350adcab39b44f182d061a940b4050adc402ca6aa84a3e8c02749b6e",
         "ornament_svg_sha256": "4953c8f0a08eb4ea8b40c7e43272045a81efde9d371a7e6153adda13a6042a1d",
         "ornament_png_sha256": "c8419eb7199f59fca98994e18eec82064d64628f2122a6fe489bae350b4dbba6",
@@ -30,8 +31,8 @@
             "sources/20_Personalized_Template_Previews/preview_manifest.csv": "27079830eac098c248bbc7602d85f1c5ffcf2c2eb72a86205bf0f44bcc48f259"
         }
     },
-    "review_overlay_sha256": "67d3f7a4141e6e83035bfe0083e0bbf979ab06986a1a49a8fc4a9724e2641a78",
-    "renderer_sha256": "82a362bd97b5a89664b1fc1637643cb16b92cb7a35ca526ad15bd944ae82264d",
+    "review_overlay_sha256": "be29905d100a649b9cd1547214e7184c17a5b404fb55c9bb1ffa4e1644b82748",
+    "renderer_sha256": "01d4fcbf0ef92a342b7cbe96edd72c78f3eba54217e61793ea9f540198ad66d2",
     "text_runs": {
         "header": "OUR FAMILY",
         "family_name": "Mira & Léon",
@@ -42,9 +43,9 @@
     "rights_certified": false,
     "production_authorized": false,
     "artifacts": {
-        "sample-preview.svg": "f24427f171a1076b82020c13eee037a96ec1174a3dce6a69c52c9c7b5a08e87f",
-        "sample-final.svg": "f24427f171a1076b82020c13eee037a96ec1174a3dce6a69c52c9c7b5a08e87f",
-        "sample-preview.png": "f2373bb365d9ca98117ab1934731dddb0afe9a322604256d51857df4176b74f2",
-        "sample-final.png": "f2373bb365d9ca98117ab1934731dddb0afe9a322604256d51857df4176b74f2"
+        "sample-preview.svg": "1e04b53a1f01c7dbb05446379391d6eb4bd99592bd284eff8cfdd1ca921aca92",
+        "sample-final.svg": "1e04b53a1f01c7dbb05446379391d6eb4bd99592bd284eff8cfdd1ca921aca92",
+        "sample-preview.png": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f",
+        "sample-final.png": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f"
     }
 }

@@ -4,8 +4,8 @@
   "shop_key": "personalized_pod",
   "state": "OFFLINE_CONCEPT_REVIEW_REQUIRED",
   "canvas": {
-    "width": 1000,
-    "height": 1000
+    "width": 900,
+    "height": 700
   },
   "proposed_review_locale": "en-US",
   "font_sha256": "04fa859f350adcab39b44f182d061a940b4050adc402ca6aa84a3e8c02749b6e",
@@ -23,33 +23,34 @@
   },
   "regions": {
     "header": {
-      "x": 60,
-      "y": 80,
+      "x": 10,
+      "y": 60,
       "width": 880,
-      "height": 60
+      "height": 70
     },
     "ornament": {
-      "x": 360,
-      "y": 210,
-      "width": 280,
-      "height": 220
+      "x": 340,
+      "y": 180,
+      "width": 220,
+      "height": 160
     },
     "family_name": {
-      "x": 60,
-      "y": 530,
+      "x": 10,
+      "y": 390,
       "width": 880,
       "height": 80
     },
     "established": {
-      "x": 60,
-      "y": 670,
+      "x": 10,
+      "y": 510,
       "width": 880,
       "height": 60
     }
   },
   "scales": {
-    "header": 4,
+    "header": 5,
     "family_name": 3,
     "established": 2
-  }
+  },
+  "concept_revision": 2
 }
