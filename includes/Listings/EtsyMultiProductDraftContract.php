@@ -77,9 +77,11 @@ final class EtsyMultiProductDraftContract
             if (!is_array($product['draft'])) {
                 throw new \InvalidArgumentException('Explicit Etsy draft fields are required');
             }
-            self::keys($product['draft'], ['quantity', 'title', 'description', 'price', 'who_made', 'when_made', 'taxonomy_id']);
+            self::keys($product['draft'], ['quantity', 'title', 'description', 'price', 'who_made', 'when_made', 'taxonomy_id', 'shipping_profile_id', 'readiness_state_id']);
             self::positive($product['draft']['quantity']);
             self::positive($product['draft']['taxonomy_id']);
+            self::positive($product['draft']['shipping_profile_id']);
+            self::positive($product['draft']['readiness_state_id']);
             foreach (['title', 'description', 'who_made', 'when_made'] as $key) {
                 if (!is_string($product['draft'][$key]) || trim($product['draft'][$key]) === '' || strlen($product['draft'][$key]) > 10000 || preg_match('//u', $product['draft'][$key]) !== 1) {
                     throw new \InvalidArgumentException('Explicit bounded draft text is required');
@@ -88,7 +90,7 @@ final class EtsyMultiProductDraftContract
             if ((!is_int($product['draft']['price']) && !is_float($product['draft']['price'])) || !is_finite((float) $product['draft']['price']) || $product['draft']['price'] <= 0) {
                 throw new \InvalidArgumentException('An explicit positive draft price is required');
             }
-            $operation = EtsyDraftListingOperations::create($design['etsy_shop_id'], $product['draft'] + $questions);
+            $operation = EtsyDraftListingOperations::create($design['etsy_shop_id'], $product['draft']);
             if (!is_array($operation)) {
                 throw new \InvalidArgumentException('Draft operation could not be planned');
             }
@@ -96,6 +98,17 @@ final class EtsyMultiProductDraftContract
             $material['template'] = $template;
             $material['design'] = $design;
             $material['draft_operation'] = $operation;
+            // Etsy requires a listing ID before its dedicated personalization POST.
+            // This dependent plan is never a ready-to-dispatch provider operation.
+            $material['personalization_plan'] = [
+                'state' => 'WAITING_FOR_DRAFT_LISTING_ID',
+                'operation' => 'UPDATE_PERSONALIZATION',
+                'method' => 'POST',
+                'endpoint_template' => '/application/shops/' . $design['etsy_shop_id'] . '/listings/{listing_id}/personalization',
+                'payload' => ['personalization_questions' => $questions['personalization_questions']],
+                'network_request_permitted' => false,
+                'external_execution_performed' => false,
+            ];
             $material['field_behavior'] = [
                 'length_unit' => 'code_points', 'normalization' => 'NONE', 'automatic_case_change' => false,
                 'overflow' => 'REJECT', 'established_prefix' => 'ESTABLISHED ', 'blank_established' => 'OMIT_ENTIRE_LINE',

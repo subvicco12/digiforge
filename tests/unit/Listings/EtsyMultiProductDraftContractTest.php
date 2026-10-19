@@ -27,6 +27,14 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         self::assertSame(0, $result['draft_packages_created']);
         self::assertArrayNotHasKey('variations', $result);
         self::assertSame('CREATE_DRAFT', $result['listings'][0]['draft_operation']['operation']);
+        self::assertSame(321, $result['listings'][0]['draft_operation']['payload']['shipping_profile_id']);
+        self::assertSame(654, $result['listings'][0]['draft_operation']['payload']['readiness_state_id']);
+        self::assertArrayNotHasKey('personalization_questions', $result['listings'][0]['draft_operation']['payload']);
+        self::assertSame('WAITING_FOR_DRAFT_LISTING_ID', $result['listings'][0]['personalization_plan']['state']);
+        self::assertSame('UPDATE_PERSONALIZATION', $result['listings'][0]['personalization_plan']['operation']);
+        self::assertSame('/application/shops/123/listings/{listing_id}/personalization', $result['listings'][0]['personalization_plan']['endpoint_template']);
+        self::assertCount(2, $result['listings'][0]['personalization_plan']['payload']['personalization_questions']);
+        self::assertFalse($result['listings'][0]['personalization_plan']['network_request_permitted']);
         self::assertFalse($result['listings'][0]['draft_operation']['network_request_permitted']);
         self::assertSame('/application/shops/123/listings', $result['listings'][0]['draft_operation']['endpoint']);
         self::assertSame('code_points', $result['listings'][0]['field_behavior']['length_unit']);
@@ -70,6 +78,11 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         $cases['duplicate sku'] = [[$base, $p]];
         $cases['duplicate product'] = [[$base, $base]];
         $cases['empty products'] = [[]];
+        foreach (['shipping_profile_id', 'readiness_state_id'] as $key) {
+            $p = $base;
+            $p['draft'][$key] = 0;
+            $cases['invalid physical listing ' . $key] = [[$p]];
+        }
         foreach (['template_sha256'=>str_repeat('f', 64), 'variant_id'=>999, 'placement'=>'back', 'shop_key'=>'digital'] as $key=>$value) {
             $p = $base;
             $p['download_template'][$key] = $value;
@@ -148,7 +161,7 @@ final class EtsyMultiProductDraftContractTest extends TestCase
                 'personalization_pipeline'=>'DIGIFORGE_RENDER', 'personalization_engine'=>'NAME_MONOGRAM', 'template_status'=>'DRAFT',
             ],
             'variant_id'=>10 + $id, 'placement'=>'front', 'download_template'=>$ref,
-            'draft'=>['quantity'=>1, 'title'=>'Synthetic product ' . $id, 'description'=>'Offline fixture', 'price'=>10, 'who_made'=>'i_did', 'when_made'=>'made_to_order', 'taxonomy_id'=>123],
+            'draft'=>['quantity'=>1, 'title'=>'Synthetic product ' . $id, 'description'=>'Offline fixture', 'price'=>10, 'who_made'=>'i_did', 'when_made'=>'made_to_order', 'taxonomy_id'=>123, 'shipping_profile_id'=>321, 'readiness_state_id'=>654],
             'mockup'=>$ref, 'mockup_rights'=>$ref,
             'personalization'=>[
                 ['field'=>'family_name', 'question'=>['question_type'=>'text_input', 'question_text'=>'Family name', 'required'=>true, 'max_allowed_characters'=>48]],
