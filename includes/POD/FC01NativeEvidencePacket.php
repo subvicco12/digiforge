@@ -81,7 +81,7 @@ final class FC01NativeEvidencePacket
     foreach(['preview','final']as $role){$id=$d[$role.'_source_id'];self::require(is_string($id)&&in_array($id,$refs,true)&&isset($sources[$id])&&$sources[$id]['kind']==='RENDER_CAPTURE'&&$sources[$id]['sha256']===$d[$role.'_sha256']);RasterArtworkCodec::decode($bytes[$id]);}break;
   }
  }
- private static function time(mixed $value):int {self::require(is_string($value)&&strlen($value)<=40&&preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/D',$value)===1);$date=new \DateTimeImmutable($value);$errors=\DateTimeImmutable::getLastErrors();self::require($errors===false||($errors['warning_count']===0&&$errors['error_count']===0));return $date->getTimestamp();}
+ private static function time(mixed $value):int {self::require(is_string($value)&&strlen($value)<=40&&preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/D',$value)===1);$date=new \DateTimeImmutable($value);$errors=\DateTimeImmutable::getLastErrors();self::require($errors===false||($errors['warning_count']===0&&$errors['error_count']===0));return $date->getTimestamp();}
  private static function token(mixed $v):bool{return is_string($v)&&preg_match('/^[A-Za-z0-9_-]{1,100}$/D',$v)===1;}
  private static function digest(mixed $v):bool{return is_string($v)&&preg_match('/^[a-f0-9]{64}$/D',$v)===1;}
  private static function keys(array $a,array $fields):bool{$keys=array_keys($a);sort($keys);sort($fields);return $keys===$fields;}
