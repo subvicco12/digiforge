@@ -1,0 +1,50 @@
+{
+    "fictional_sample_only": true,
+    "owner_direction": "FC01 v2 Option A Clear Center; offline engineering only",
+    "proposed_review_locale": "en-US",
+    "locale_approved": false,
+    "production_template_binding": "UNKNOWN",
+    "input": {
+        "shop_key": "personalized_pod",
+        "family_id": "FC01",
+        "version": 2,
+        "spec_sha256": "19cdf8ba9755e91a8417591f74e4e0fff27e168506f491cc44510f623fd9cdb0",
+        "family_name": "Mira & Léon",
+        "established": "2011"
+    },
+    "identity": {
+        "family_id": "FC01",
+        "version": 2,
+        "shop_key": "personalized_pod",
+        "spec_sha256": "19cdf8ba9755e91a8417591f74e4e0fff27e168506f491cc44510f623fd9cdb0",
+        "font_sha256": "04fa859f350adcab39b44f182d061a940b4050adc402ca6aa84a3e8c02749b6e",
+        "ornament_svg_sha256": "4953c8f0a08eb4ea8b40c7e43272045a81efde9d371a7e6153adda13a6042a1d",
+        "ornament_png_sha256": "c8419eb7199f59fca98994e18eec82064d64628f2122a6fe489bae350b4dbba6",
+        "parent_sources": {
+            "families.json": "bce4622db1315844e471b41c44f21e6af84b2d43707cac31451ccf3de749e17c",
+            "registry.json": "67d6609ccb4f7b3b4fcc69894c80e6592a90e0e1b4a2b5c7360c0c32fc563a9e",
+            "sources/20_Personalized_Template_Previews/FC01_preview.svg": "a35a9ec7502c30b7a886bb1cc4c007d553034037956ab0161b0cfea38a791ca4",
+            "sources/20_Personalized_Template_Previews/FC01_preview.png": "a5bd15dbf228a668f6c65e54021504c8c8ce7de3778ed4ee5199aa3464b6419b",
+            "sources/POD_Reusable_Vector_Components/family_leaf_border.svg": "41eec011037228f7c86970e03ee7b86e4ef0dc03a549a7b5e00d7143dec37bfa",
+            "components/family_leaf_border.png": "ab1ee370d5a885d0910e266cb631c43c556997f149227ed278c757d13764620e",
+            "sources/20_Personalized_Template_Previews/preview_manifest.csv": "27079830eac098c248bbc7602d85f1c5ffcf2c2eb72a86205bf0f44bcc48f259"
+        }
+    },
+    "review_overlay_sha256": "67d3f7a4141e6e83035bfe0083e0bbf979ab06986a1a49a8fc4a9724e2641a78",
+    "renderer_sha256": "82a362bd97b5a89664b1fc1637643cb16b92cb7a35ca526ad15bd944ae82264d",
+    "text_runs": {
+        "header": "OUR FAMILY",
+        "family_name": "Mira & Léon",
+        "established": "ESTABLISHED 2011"
+    },
+    "acceptance_state": "UNVERIFIED",
+    "linguistic_review_state": "MISSING",
+    "rights_certified": false,
+    "production_authorized": false,
+    "artifacts": {
+        "sample-preview.svg": "f24427f171a1076b82020c13eee037a96ec1174a3dce6a69c52c9c7b5a08e87f",
+        "sample-final.svg": "f24427f171a1076b82020c13eee037a96ec1174a3dce6a69c52c9c7b5a08e87f",
+        "sample-preview.png": "f2373bb365d9ca98117ab1934731dddb0afe9a322604256d51857df4176b74f2",
+        "sample-final.png": "f2373bb365d9ca98117ab1934731dddb0afe9a322604256d51857df4176b74f2"
+    }
+}
