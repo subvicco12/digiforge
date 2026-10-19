@@ -21,4 +21,14 @@ final class EtsyDraftPreparation
         if(!is_array($payload))return new WP_Error('digiforge_etsy_payload','Etsy intent payload is invalid.',['status'=>409]);
         return ['state'=>'ETSY_DRAFT_PREPARED','etsy_intent_id'=>$intentId,'listing_id'=>$listingId,'intent_type'=>(string)$intent['intent_type'],'environment'=>(string)$intent['environment'],'payload'=>$payload,'readiness_hash'=>(string)$readiness['hash'],'etsy_api_invoked'=>false,'external_execution_performed'=>false];
     }
+    /** Approved-intent inspection for prepublish; never changes the BLOCKED draft preparation contract. */
+    public function inspectApproved(int $intentId):array|WP_Error
+    {
+        if($intentId<1)return new WP_Error('digiforge_etsy_intent','Valid Etsy intent ID is required.',['status'=>400]);
+        global $wpdb;$wpdb->last_error='';$intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
+        if($wpdb->last_error!=='')return new WP_Error('digiforge_etsy_intent_evidence_unavailable','Approved intent evidence unavailable.',['status'=>503]);
+        if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT')return new WP_Error('digiforge_etsy_intent_state','Approved intent required for prepublish.',['status'=>409]);
+        $readiness=(new Repository())->readiness((int)$intent['listing_id']);if(is_wp_error($readiness))return $readiness;if(empty($readiness['ready']))return new WP_Error('digiforge_listing_not_ready','Current readiness required.',['status'=>409]);
+        return ['listing_id'=>(int)$intent['listing_id'],'draft_package_id'=>(int)$intent['draft_package_id'],'intent_evidence_hash'=>hash('sha256',Validator::canonicalJson($intent)),'external_execution_performed'=>false];
+    }
 }
