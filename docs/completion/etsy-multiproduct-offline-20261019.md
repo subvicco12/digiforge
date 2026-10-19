@@ -30,3 +30,9 @@ Missing required draft/reference structure rejects the entire batch before retur
 Authentic provider/shop ownership; exact variant/placement/geometry; licensed mockup and downloadable-template evidence; native font/layer behavior; reviewed artwork and linguistic evidence; installed-site acceptance and production authorization remain separate blockers. Obtain an existing-product evidence packet read-only, then resolve it through existing authoritative boundaries. Do not execute these plans directly.
 
 Safety unchanged: STOP ALL ON, external lock ON, automation OFF, release hold; no Finance changes, live credentials/provider calls, production/staging writes, listing publication, merge or deployment. Production impact: none.
+
+## Coordinator-composed acceptance
+
+Added one WordPress journey test after lane B implementation: 1 test / 51 assertions PASS. It reuses the retained FC01 renderer, native packet fixture, signed review store and scoped connection fixture. Actual deterministic synthetic PNGs are bound into the packet, then one design is composed into two independent version/variant/template-bound Etsy draft-operation plans. Retry order is stable; both questions retain the required/optional 48-character metadata. Local packet completeness still grants no rights, native compatibility or execution. Existing runtime boundaries deny catalog/order/production dispatch with locks ON; revocation invalidates the packet/context. A pure candidate can still be inspected after revocation but remains non-executable. No HTTP attempt occurs. Template sizes, IDs, taxonomy and prices are synthetic inputs, not supplier facts or approved products.
+
+Lane A's disjoint timestamp correction is a separate sibling PR based on #1208. Both changes require their own exact-head audits. The coordinator will also verify offline composition without modifying either source branch or silently merging them.
