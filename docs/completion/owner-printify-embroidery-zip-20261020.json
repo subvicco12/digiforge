@@ -1,0 +1,289 @@
+{
+  "zip_sha256": "1e474c5c4c652f36ca02d061ee5331c93deec349ce1fb4d442a51ccf49c316a6",
+  "zip_bytes": 353969,
+  "members": [
+    {
+      "path": "Embroidery info.png",
+      "bytes": 52129,
+      "sha256": "9a157cd0fe32daceb108912c5844c3ce39f97f4d01923576972a4ea69fa89a07",
+      "metadata": false,
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          71.9836,
+          71.9836
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "INFORMATION_IMAGE"
+    },
+    {
+      "path": "__MACOSX/._Embroidery info.png",
+      "bytes": 312,
+      "sha256": "ace49768e460b5c5af557c30cedc6b51187b96338e2c126e56831b6fcb5191f2",
+      "metadata": true
+    },
+    {
+      "path": "Template info.png",
+      "bytes": 26370,
+      "sha256": "086189a393a5fbc38f9ac3fc602b6d463dc71ed00af1906a29a5760992344b95",
+      "metadata": false,
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          71.9836,
+          71.9836
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "INFORMATION_IMAGE"
+    },
+    {
+      "path": "__MACOSX/._Template info.png",
+      "bytes": 312,
+      "sha256": "ace49768e460b5c5af557c30cedc6b51187b96338e2c126e56831b6fcb5191f2",
+      "metadata": true
+    },
+    {
+      "path": "Templates/Right_Sleeve_Embroidery_Template.png",
+      "bytes": 62314,
+      "sha256": "fde58f100ec8b5bf07bf3693aa50d532495ac1985366170f6a7f01d7f7b1f5b3",
+      "metadata": false,
+      "width": 600,
+      "height": 900,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          299.9994,
+          299.9994
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "iTXt",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "EMBROIDERY_SOURCE_GUIDE"
+    },
+    {
+      "path": "__MACOSX/Templates/._Right_Sleeve_Embroidery_Template.png",
+      "bytes": 120,
+      "sha256": "9433f8db0c408ee1db330d771accbf1de9cc68fcb08e6ecbaf626ac872324f9c",
+      "metadata": true
+    },
+    {
+      "path": "Templates/.DS_Store",
+      "bytes": 6148,
+      "sha256": "3deb9e26cda0dd6a91fe6e555b7475fde1c06707fda80ec2a202caeed2f07d71",
+      "metadata": true
+    },
+    {
+      "path": "__MACOSX/Templates/._.DS_Store",
+      "bytes": 120,
+      "sha256": "2f380f4a3d05a8d90c2106f50da75064e9ce57a598599dc5404f8f69a0223aa9",
+      "metadata": true
+    },
+    {
+      "path": "Templates/Left_Sleeve_Embroidery_Template.png",
+      "bytes": 61278,
+      "sha256": "1ba40153df2037439fa3ce3a3e74cc50a38823ef7907aa392c1b5e929a4e99de",
+      "metadata": false,
+      "width": 600,
+      "height": 900,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          299.9994,
+          299.9994
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "iTXt",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "EMBROIDERY_SOURCE_GUIDE"
+    },
+    {
+      "path": "__MACOSX/Templates/._Left_Sleeve_Embroidery_Template.png",
+      "bytes": 120,
+      "sha256": "9433f8db0c408ee1db330d771accbf1de9cc68fcb08e6ecbaf626ac872324f9c",
+      "metadata": true
+    },
+    {
+      "path": "Templates/Center_Chest_Embroidery_Template.png",
+      "bytes": 60660,
+      "sha256": "998c49458a773ce79f8521340ca67b0c663335838d0c9811d71898e07d85f26b",
+      "metadata": false,
+      "width": 1200,
+      "height": 1200,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          299.9994,
+          299.9994
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "iTXt",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "EMBROIDERY_SOURCE_GUIDE"
+    },
+    {
+      "path": "__MACOSX/Templates/._Center_Chest_Embroidery_Template.png",
+      "bytes": 120,
+      "sha256": "9433f8db0c408ee1db330d771accbf1de9cc68fcb08e6ecbaf626ac872324f9c",
+      "metadata": true
+    },
+    {
+      "path": "Templates/Left_Chest_Embroidery_Template.png",
+      "bytes": 58765,
+      "sha256": "ac03547fafb7eb0932791654f3c3e9860ce74c0bf1e0d9853ae0a24e305df6ff",
+      "metadata": false,
+      "width": 1200,
+      "height": 1200,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          299.9994,
+          299.9994
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "iTXt",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "EMBROIDERY_SOURCE_GUIDE"
+    },
+    {
+      "path": "__MACOSX/Templates/._Left_Chest_Embroidery_Template.png",
+      "bytes": 120,
+      "sha256": "9433f8db0c408ee1db330d771accbf1de9cc68fcb08e6ecbaf626ac872324f9c",
+      "metadata": true
+    },
+    {
+      "path": "Templates/Large_Embroidery_Template.png",
+      "bytes": 86684,
+      "sha256": "6bae8d0407a949ac28f25ffa7833ae8e5f66b0f4708688267f7dccf5cb8dde33",
+      "metadata": false,
+      "width": 3000,
+      "height": 1800,
+      "mode": "RGBA",
+      "png_info": {
+        "dpi": [
+          299.9994,
+          299.9994
+        ]
+      },
+      "png_chunks": [
+        "IHDR",
+        "pHYs",
+        "iTXt",
+        "IDAT",
+        "IEND"
+      ],
+      "bounded_independent_decode": "PASS",
+      "supplier_binding": "UNKNOWN",
+      "role": "EMBROIDERY_SOURCE_GUIDE"
+    },
+    {
+      "path": "__MACOSX/Templates/._Large_Embroidery_Template.png",
+      "bytes": 120,
+      "sha256": "9433f8db0c408ee1db330d771accbf1de9cc68fcb08e6ecbaf626ac872324f9c",
+      "metadata": true
+    }
+  ],
+  "original_filename": "69721e8e710d4f37a20a8cc2.zip",
+  "provenance": "OWNER_CONFIRMED_PRODUCT_CREATOR_DOWNLOAD_BELLA_CANVAS_3001",
+  "supplier_identity_verified": false,
+  "provider_id": null,
+  "blueprint_id": null,
+  "variant_ids": null,
+  "provider_template_version": null,
+  "provider_placement_ids": null,
+  "reported_front_print_area": {
+    "width_px": 3951,
+    "height_px": 4800,
+    "classification": "OWNER_REPORTED_SCREENSHOT_DIMENSIONS_NOT_INDEPENDENTLY_OBSERVED"
+  },
+  "commercial_rights": "UNKNOWN",
+  "supplier_compatibility": "UNVERIFIED",
+  "production_authorized": false,
+  "local_codec_results": [
+    {
+      "path": "Embroidery info.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "PNG ancillary or critical feature unsupported."
+    },
+    {
+      "path": "Template info.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "PNG ancillary or critical feature unsupported."
+    },
+    {
+      "path": "Templates/Center_Chest_Embroidery_Template.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "Raster geometry exceeds the bounded local capability."
+    },
+    {
+      "path": "Templates/Large_Embroidery_Template.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "Raster geometry exceeds the bounded local capability."
+    },
+    {
+      "path": "Templates/Left_Chest_Embroidery_Template.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "Raster geometry exceeds the bounded local capability."
+    },
+    {
+      "path": "Templates/Left_Sleeve_Embroidery_Template.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "PNG ancillary or critical feature unsupported."
+    },
+    {
+      "path": "Templates/Right_Sleeve_Embroidery_Template.png",
+      "state": "LOCAL_CODEC_REJECTED",
+      "reason": "PNG ancillary or critical feature unsupported."
+    }
+  ],
+  "source_download_time": "UNKNOWN",
+  "original_screenshot_available": false,
+  "archive_manifest_origin": "GENERATED_OFFLINE_NOT_SUPPLIER_MANIFEST"
+}

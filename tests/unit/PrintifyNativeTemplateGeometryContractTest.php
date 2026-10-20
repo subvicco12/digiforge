@@ -66,4 +66,41 @@ final class PrintifyNativeTemplateGeometryContractTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         ProductionTemplateContract::fromPrintifyCatalog($this->catalogVariant(),$geometry,$this->template());
     }
+
+    public static function malformedDimensions(): array { return array_merge(array_map(static fn($v)=>['width_px',$v],[1800.5,'1800garbage','1800.0','1.8e3']),array_map(static fn($v)=>['height_px',$v],[1800.5,'1800garbage','1800.0','1.8e3'])); }
+    /** @dataProvider malformedDimensions */
+    public function testMalformedCallerDimensionsCannotBeSilentlyCastIntoAValidBinding(string $field,mixed $value): void {
+        $geometry=$this->geometry();$geometry[0][$field]=$value;
+        $this->expectException(InvalidArgumentException::class);
+        ProductionTemplateContract::fromPrintifyCatalog($this->catalogVariant(),$geometry,$this->template());
+    }
+    public function testLegacyIntegerStringsStillBindWithoutChangingDimensions(): void {
+        $geometry=$this->geometry();$geometry[0]['width_px']='1800';$geometry[0]['height_px']='1800';
+        self::assertSame(1800,ProductionTemplateContract::fromPrintifyCatalog($this->catalogVariant(),$geometry,$this->template())['print_areas'][0]['width_px']);
+    }
+    private function embroideryCatalog(): array {
+        // Synthetic API identities/placements, NOT an authentic binding for the owner ZIP.
+        $row=$this->catalogVariant();$payload=$row['attributes'];$evidence=$payload['_digiforge_source_evidence'];unset($payload['_digiforge_source_evidence']);$payload['placeholders']=[];
+        foreach([[600,900],[600,900],[1200,1200],[1200,1200],[3000,1800]] as $i=>[$width,$height])$payload['placeholders'][]=['position'=>'fixture_slot_'.$i,'decoration_method'=>'embroidery','width'=>$width,'height'=>$height];
+        $evidence['variant_sha256']=hash('sha256',wp_json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));$row['attributes']=$payload+['_digiforge_source_evidence'=>$evidence];return $row;
+    }
+    private function embroideryGeometry(): array {
+        return array_map(static fn(array $p):array=>['position'=>$p['position'],'decoration_method'=>$p['decoration_method'],'width_px'=>$p['width'],'height_px'=>$p['height'],'region'=>'US'],$this->embroideryCatalog()['attributes']['placeholders']);
+    }
+    public function testMatchingFivePlacementFixturePreservesEveryPlacementWithoutSupplierCertification(): void {
+        $out=ProductionTemplateContract::fromPrintifyCatalog($this->embroideryCatalog(),$this->embroideryGeometry(),$this->template());
+        self::assertCount(5,$out['print_areas']);self::assertSame(['embroidery'],array_values(array_unique(array_column($out['print_areas'],'decoration_method'))));self::assertArrayNotHasKey('supplier_certified',$out);
+    }
+    public function testEmbroideryCannotBecomePrintEvenWhenPixelDimensionsMatch(): void {
+        $g=$this->embroideryGeometry();$g[0]['decoration_method']='dtg';$this->expectException(InvalidArgumentException::class);
+        ProductionTemplateContract::fromPrintifyCatalog($this->embroideryCatalog(),$g,$this->template());
+    }
+    public function testReportedFrontPrintDimensionsCannotReplaceEmbroideryCanvas(): void {
+        $g=$this->embroideryGeometry();$g[0]['width_px']=3951;$g[0]['height_px']=4800;$this->expectException(InvalidArgumentException::class);
+        ProductionTemplateContract::fromPrintifyCatalog($this->embroideryCatalog(),$g,$this->template());
+    }
+    public function testDuplicatePlacementDoesNotHideAnUnboundPlacement(): void {
+        $g=$this->embroideryGeometry();$g[4]=$g[0];$this->expectException(InvalidArgumentException::class);
+        ProductionTemplateContract::fromPrintifyCatalog($this->embroideryCatalog(),$g,$this->template());
+    }
 }
