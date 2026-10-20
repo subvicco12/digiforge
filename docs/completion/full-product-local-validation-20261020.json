@@ -1,0 +1,125 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 64,
+  "requests": 194,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    1280
+  ],
+  "business_tables_unchanged": 44,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "base_sha": "c69f96a71a2ca207dd772db551453e8768c72074",
+  "focused_unit": {
+    "tests": 176,
+    "assertions": 706
+  },
+  "native_core_catalog_engines": {
+    "tests": 90,
+    "assertions": 1559
+  },
+  "native_finance_integrity": {
+    "tests": 20,
+    "assertions": 140
+  },
+  "mocked_status_browser_checks": 108,
+  "installed_site_verified": false,
+  "provider_certification": false,
+  "acceptance_promotions": 0,
+  "offline_regressions": {
+    "tests": 134,
+    "status": "PASS",
+    "runtime": "Pinned cutout dependencies and PHP executable configured; no live provider requests"
+  },
+  "batch2": {
+    "baseline_pr": 1220,
+    "baseline_sha": "4c253f6f61d5b67d973d62d02ccafb55b5a5fd7b",
+    "baseline_audit": 4754,
+    "full_unit": {
+      "tests": 1549,
+      "assertions": 8706,
+      "failures": 0,
+      "skipped": 1,
+      "skip_reason": "Existing optional SAM owner weights/runtime absent"
+    },
+    "final_affected_unit": {
+      "tests": 108,
+      "assertions": 397,
+      "failures": 0
+    },
+    "native_integrated": {
+      "tests": 58,
+      "assertions": 448,
+      "failures": 0
+    },
+    "native_fault_fixtures": "Temporary real MariaDB Finance tables isolate records; mutation preconditions asserted. No live migration.",
+    "authenticated_local_browser": {
+      "status": "PASS",
+      "chromium_version": "154.0.8037.57",
+      "node_version": "v24.19.0",
+      "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+      "checks": 102,
+      "requests": 218,
+      "blocked_requests": 0,
+      "widths": [
+        390,
+        1280
+      ],
+      "business_tables_unchanged": 44,
+      "stop_all": true,
+      "external_locked": true,
+      "automation_armed": false,
+      "external_requests": 0,
+      "business_row_mutations": 0,
+      "fixture_bootstrap_ddl_statements": 0,
+      "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
+    },
+    "supplementary_static": {
+      "level": 5,
+      "status": "PASS",
+      "scope": "All Finance + changed AI denominator/artifact/three-group planner/panel/shared query-state observer; actual WordPress symbols, no suppressions"
+    },
+    "decimal_oracle_cross_checks": {
+      "conversion_cases": 200,
+      "percentage_cases": 400,
+      "status": "PASS",
+      "oracle": "Python Decimal ROUND_HALF_UP"
+    },
+    "three_group_plan": {
+      "source_fixture_sha256": "b3d389f2defdecc30d00e115920dd16019509d08661668d11d074417e67854b1",
+      "plan_sha256": "3198050e5685f7e177d124b3fd805e7b38860416668ee3dfaef7b60ee1d6d681",
+      "home_local_combinations": 9,
+      "apparel_combinations": null,
+      "accessories_combinations": null,
+      "state": "BLOCKED_REVIEW_PLAN",
+      "provider_current_state_verified": false,
+      "external_execution_performed": false
+    },
+    "nonfinance_implemented_candidates": 246,
+    "nonfinance_denominator": 268,
+    "nonfinance_unverified": 22,
+    "finance_dependent_criteria": 23,
+    "master500": {
+      "identities": 500,
+      "local_recipe_boundaries": 360,
+      "artistic_execution_blocked_stored_import_boundaries": 140,
+      "certified_or_promoted": 0
+    },
+    "acceptance_promotions": 0,
+    "authentic_financial_source_certification": false,
+    "installed_site_verified": false,
+    "new_schema_migrations": 0,
+    "finance_import_scope": "Normalized internal DECLARATION-v1 / existing approved Personalized POD ownership tuples only; no raw provider parser or Digital POD dependency",
+    "release_recommendation": "NO_GO_RELEASE_HOLD",
+    "final_commit_audit_binding": "Exact SHA, hosted audit and package identity recorded on final draft PR and issue1209; no self-referential commit hash embedded."
+  }
+}
