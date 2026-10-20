@@ -1,0 +1,144 @@
+{
+  "filename": "DigiForge_Visual_Acceptance_Policy_v1_2_Owner_Approved_2026-10-11(1) (1).docx",
+  "sha256": "557f5d681fd3f9d1bf984dca36ce69fc263751e26786f17ab4f95b798315d94c",
+  "source_text": {
+    "word/document.xml": {
+      "paragraph_count": 44,
+      "paragraphs": {
+        "p1": "DigiForge | Visual Acceptance Policy v1.2",
+        "p2": "OWNER APPROVED • 11 October 2026 • Approval recorded from owner’s explicit ChatGPT instruction",
+        "p3": "Source: DigiForge Visual Acceptance Contracts v1.1. Artistic directions and v1.2 numerical thresholds, review procedures, sample sizes and recertification gates have been explicitly approved by the owner. External evidence and certifications remain outstanding.",
+        "p4": "1. Universal review and release gates",
+        "p5": "2. Engine-specific critical review",
+        "p6": "PET_PORTRAIT",
+        "p7": "Approved direction: Single pet, painterly, recognizable",
+        "p8": "Critical dimensions: Species, pet count, coat pattern, eye/ear shapes, unique markings, anatomical plausibility, cropping. Reject extra pets or invented accessories.",
+        "p9": "Positive fixtures: 5 diverse licensed pet identities; include dark fur, partially occluded ears and distinctive markings.",
+        "p10": "WATERCOLOR",
+        "p11": "Approved direction: Soft botanical watercolor",
+        "p12": "Critical dimensions: Botanical identity, petal/leaf structure, controlled soft pigment, palette fidelity, legible detail, background compliance, no muddy artifacts.",
+        "p13": "Positive fixtures: 5 licensed botanical references; include pale-on-pale, fine leaves and overlapping flowers.",
+        "p14": "LINE_ART",
+        "p15": "Approved direction: Minimal monochrome contour art",
+        "p16": "Critical dimensions: Recognizable defining contours, continuous intentional line work, strong contrast, no lost facial/subject features, supplier-specific minimum printable stroke width.",
+        "p17": "Positive fixtures: 5 varied subject silhouettes; include fine hair/fur, dense contours and thin-line boundaries.",
+        "p18": "VINTAGE_PORTRAIT",
+        "p19": "Approved direction: Classic vintage painted portrait",
+        "p20": "Critical dimensions: Subject recognizability, consistent approved era, plausible period styling, respectful rendering across skin tones, no fabricated historical attribution or provenance.",
+        "p21": "Positive fixtures: 5 licensed sources for the future approved era/product; certification and catalog activation remain disabled until era and first product are approved.",
+        "p22": "AI_TRANSFORM: PAINTERLY",
+        "p23": "Approved direction: Controlled painterly illustration",
+        "p24": "Critical dimensions: Subject count, identity where applicable, pose/composition fidelity, no unauthorized additions or text, approved painterly treatment.",
+        "p25": "Positive fixtures: 5 licensed input/reference pairs for this named mode; provider/model/prompt revision must be approved.",
+        "p26": "AI_TRANSFORM: POSTER",
+        "p27": "Approved direction: Stylized poster art",
+        "p28": "Critical dimensions: Subject count and recognizable key features, intended composition, typography correctness if requested, no hallucinated wording, print contrast.",
+        "p29": "Positive fixtures: 5 licensed input/reference pairs for this named mode; provider/model/prompt revision must be approved.",
+        "p30": "3. Fixture quantities and reviewer procedure",
+        "p31": "There are 6 initially named modes across 5 engines because AI_TRANSFORM has two modes. At the proposed minimum, collect 30 positive licensed source/reference pairs, 18 negative cases and 12 edge cases (60 case records total). The existing 15-row CSV is a pipeline template, not a sufficient commercial-certification set. Fixtures can be reused across modes only if each mode has its own approved expected output, rights and review evidence.",
+        "p32": "Review sequence: (1) validate rights/consent and exact contract revision; (2) run objective file and print-template checks; (3) compare source, approved reference, actual output and full-size print mockup; (4) score each critical and applicable aesthetic dimension; (5) record hard rejects; (6) two independent signoffs; (7) preserve immutable evidence. Any failure => REVIEW_REJECTED or PENDING, never VISUAL_ACCEPTED.",
+        "p33": "4. Open owner and external inputs",
+        "p34": "Rights-cleared source files and approved expected outputs, with commercial derivative/AI-processing rights and consent where applicable.",
+        "p35": "Named reviewers and signed rubrics remain to be provided. The numerical policy itself is owner-approved.",
+        "p36": "Named provider/model/prompt revisions and permitted processing/retention terms; exact per-job, shop/day and engine/month budgets and retries.",
+        "p37": "Supplier/product-specific templates, DPI/bleed/safe-zone/stroke/color requirements and physical or authorized proof where required.",
+        "p38": "Vintage era, first approved product and catalog activation decision; default remains disabled.",
+        "p39": "Buyer-photo privacy, retention and deletion policy; live execution and supplier certification remain separately gated.",
+        "p40": "5. Owner decision",
+        "p41": "DECISION: APPROVE v1.2 POLICY AS PROPOSED",
+        "p42": "Owner confirmation: Explicit approval provided in ChatGPT conversation on 11 October 2026. No handwritten or cryptographic signature is represented.",
+        "p43": "Approval covers numeric thresholds, review procedure and proposed sample sizes only. It does not represent licensing, actual fixture provision, artistic certification, supplier certification, provider permission, live-spending authority, deployment or release approval.",
+        "p44": "Governance: Finance PR #1147 untouched; STOP ALL ON; external safety lock ON; automation OFF; no merge, deployment, catalog promotion or external Etsy/POD execution."
+      },
+      "tables": [
+        [
+          [
+            "Gate",
+            "Proposed acceptance rule"
+          ],
+          [
+            "Scoring",
+            "0 unusable; 1 major defect; 2 acceptable with no material defect; 3 excellent. Score only applicable dimensions."
+          ],
+          [
+            "Pass threshold",
+            "Every critical dimension >=2/3 AND arithmetic mean of all applicable dimensions >=2.5/3; zero hard rejects. An average never overrides a critical failure."
+          ],
+          [
+            "Hard rejects",
+            "Identity/species/subject count drift; invented or missing defining marks; extra objects or unauthorized text; illegible requested text; clipped subject; unsafe/infringing additions; print bleed/safe-zone failure; inconsistent approved personalization; cross-shop lineage; absent rights/consent."
+          ],
+          [
+            "Print readiness",
+            "100% of measurable checks pass against exact approved supplier/product/template revision (DPI, dimensions, bleed, safe zones, alpha/color profile, stroke limits). No universal numeric DPI or stroke width is assumed."
+          ],
+          [
+            "Initial certification sample",
+            "Per enabled engine/mode: 5 licensed positive source/reference pairs, 3 negative cases, 2 edge cases (10 cases). Negative cases must be correctly rejected; edge cases must be correctly accepted or rejected with recorded reason."
+          ],
+          [
+            "Reviewers",
+            "Two independent owner-designated reviewers for initial certification; one may be owner. Both must pass all positives and agree on expected negative/edge dispositions. Disagreements => pending until resolved and re-reviewed."
+          ],
+          [
+            "Ongoing sampling",
+            "Before enabling live operations, separately approve operational sampling. Proposed minimum: first 10 outputs of each newly certified engine/mode reviewed individually; thereafter >=10% of outputs, minimum 5 per 100, plus all flagged/high-risk cases. No unattended auto-release while STOP ALL is on."
+          ],
+          [
+            "Evidence",
+            "Store engine/mode/contract and template revisions, source/reference/output SHA-256, licensing and consent, review scores, reviewer identities, UTC times, rejection reasons and immutable audit trail."
+          ],
+          [
+            "Change control",
+            "Model, prompt, style, engine version, supplier template or review-rubric changes invalidate affected certification and require targeted recertification."
+          ],
+          [
+            "Fail-closed",
+            "Missing fixture, rights, reviewer signoff, provider/model approval, cost ceiling, supplier proof or safety authorization => cannot certify or execute live work."
+          ]
+        ]
+      ]
+    }
+  },
+  "authority": "OWNER_APPROVED_VISUAL_ACCEPTANCE_POLICY",
+  "policy_version": "1.2",
+  "approved_on": "2026-10-11",
+  "approval_basis": "User instruction in this conversation identifies the attached policy as owner-approved; the document records explicit ChatGPT confirmation and states no handwritten or cryptographic signature is represented.",
+  "approved_scope": {
+    "rating_scale": {
+      "0": "unusable",
+      "1": "major defect",
+      "2": "acceptable with no material defect",
+      "3": "excellent"
+    },
+    "critical_dimension_minimum": 2,
+    "applicable_dimension_mean_minimum": 2.5,
+    "hard_rejects_allowed": 0,
+    "initial_samples_per_mode": {
+      "positive": 5,
+      "negative": 3,
+      "edge": 2
+    },
+    "mode_count": 6,
+    "case_count_total": 60,
+    "independent_reviewers": 2,
+    "recertification_gates": "model, prompt, style, engine version, supplier template, or rubric change invalidates affected certification"
+  },
+  "not_approved_or_not_established": [
+    "licensed fixture assets or rights",
+    "named reviewer identities or reviewer signoff evidence",
+    "operational sampling approval",
+    "supplier/product specifications or supplier certification",
+    "provider/model permission or processing terms",
+    "monetary ceilings or live-spending authority",
+    "artistic or commercial certification",
+    "deployment/release authorization"
+  ],
+  "visual_contract_schema_version": "1.1",
+  "fixture_manifest": {
+    "path": "tests/wordpress/fixtures/five-engine-licensed-manifest-template.csv",
+    "fixture_rows": 15,
+    "all_review_status": "MISSING",
+    "sha256": "fb29e0690e4b7f55ebb8fbe61eca58658e86855721ede852e996df96a01e44b0"
+  }
+}
