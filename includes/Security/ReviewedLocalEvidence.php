@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Security;
 
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
 use DigiForge\Listings\Validator;
 use WP_Error;
 
@@ -12,8 +13,9 @@ final class ReviewedLocalEvidence
     private const OBJECT = 'reviewed_local_evidence';
     private const LIMIT = 500;
 
-    public static function propose(string $kind, string $shop, string $key, array $payload, int $effectiveAt, int $expiresAt, string $requestId, int $expectedRevision): array|WP_Error
+    public static function propose(string $kind, string $shop, string $key, array $payload, int $effectiveAt, int $expiresAt, string $requestId, int $expectedRevision, ?callable $condition = null): array|WP_Error
     {
+        if ($kind==='finance_allocation' && $condition===null) return self::error('context_required',400);
         if ($effectiveAt < 1 || $expiresAt <= $effectiveAt || $expiresAt <= time() || !self::safePayload($payload)) {
             return self::error('invalid_proposal', 400);
         }
@@ -21,11 +23,12 @@ final class ReviewedLocalEvidence
             return ['payload'=>$payload, 'effective_at'=>$effectiveAt, 'expires_at'=>$expiresAt,
                 'author_id'=>get_current_user_id(), 'reviewer_id'=>0, 'status'=>'PENDING',
                 'version'=>($state['version'] ?? 0)+1];
-        }, 'proposed');
+        }, 'proposed', $condition);
     }
 
-    public static function decide(string $kind, string $shop, string $key, int $expectedRevision, string $proposalHash, string $decision, string $requestId): array|WP_Error
+    public static function decide(string $kind, string $shop, string $key, int $expectedRevision, string $proposalHash, string $decision, string $requestId, ?callable $condition = null): array|WP_Error
     {
+        if ($kind==='finance_allocation' && $condition===null) return self::error('context_required',400);
         if (!in_array($decision, ['APPROVED','REJECTED','REVOKED'], true) || preg_match('/^[a-f0-9]{64}$/D', $proposalHash)!==1) {
             return self::error('invalid_decision',400);
         }
@@ -37,12 +40,16 @@ final class ReviewedLocalEvidence
             if ($decision==='APPROVED') {
                 $authority=ShopAccess::authorize($shop,self::authorCap($kind),$state['author_id']);
                 if (is_wp_error($authority)) { return $authority; }
+                if ($kind==='finance_allocation') {
+                    $authority=ShopAccess::authorize($shop,'manage_digiforge',$state['author_id']);
+                    if (is_wp_error($authority)) return $authority;
+                }
                 if ($state['expires_at']<=time()) { return self::error('expired',409); }
             }
             $state['status']=$decision;
             $state['reviewer_id']=get_current_user_id();
             return $state;
-        },strtolower($decision));
+        },strtolower($decision),$condition);
     }
 
     public static function read(string $kind,string $shop,string $key): array|WP_Error|null
@@ -51,6 +58,10 @@ final class ReviewedLocalEvidence
         if (is_wp_error($valid)) { return $valid; }
         $access=ShopAccess::authorize($shop,'manage_digiforge');
         if (is_wp_error($access)) { return $access; }
+        if ($kind==='finance_allocation') {
+            $access=ShopAccess::authorize($shop,'manage_digiforge_finance');
+            if (is_wp_error($access)) return $access;
+        }
         $events=self::events($valid,false);
         if (is_wp_error($events)) { return $events; }
         return $events===[] ? null : $events[count($events)-1]['state'];
@@ -67,15 +78,26 @@ final class ReviewedLocalEvidence
             $access=ShopAccess::authorize($shop,$cap,$actor);
             if (is_wp_error($access)) { return $access; }
         }
+        if ($kind==='finance_allocation') {
+            foreach ([$state['author_id'],$state['reviewer_id']] as $actor) {
+                $access=ShopAccess::authorize($shop,'manage_digiforge',$actor);
+                if (is_wp_error($access)) return $access;
+            }
+            $access=ShopAccess::authorize($shop,'manage_digiforge_finance',$state['reviewer_id']);
+            if (is_wp_error($access)) return $access;
+        }
         return $state;
     }
 
-    private static function mutate(string $kind,string $shop,string $key,int $revision,string $requestId,callable $change,string $action): array|WP_Error
+    private static function mutate(string $kind,string $shop,string $key,int $revision,string $requestId,callable $change,string $action,?callable $condition=null): array|WP_Error
     {
         $stream=self::identity($kind,$shop,$key);
         if (is_wp_error($stream)) { return $stream; }
         if ($revision<0 || preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$requestId)!==1) { return self::error('invalid_request',400); }
-        foreach (['manage_digiforge',$action==='proposed'?self::authorCap($kind):'manage_digiforge_settings'] as $cap) {
+        $caps=['manage_digiforge',$action==='proposed'?self::authorCap($kind):'manage_digiforge_settings'];
+        if ($kind==='finance_allocation') $caps[]='manage_digiforge_finance';
+        $caps=array_values(array_unique($caps));
+        foreach ($caps as $cap) {
             $access=ShopAccess::authorize($shop,$cap);
             if (is_wp_error($access)) { return $access; }
         }
@@ -84,12 +106,12 @@ final class ReviewedLocalEvidence
         // Both state and its durable audit must commit together; unsupported engines fail closed.
         foreach ([$wpdb->options,Tables::audit_log()] as $table) {
             $engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));
-            if (!is_string($engine) || strtoupper($engine)!=='INNODB' || $wpdb->last_error!=='') { return self::error('transaction_unavailable',503); }
+            if (!is_string($engine) || strtoupper($engine)!=='INNODB' || QueryEvidence::failed()) { return self::error('transaction_unavailable',503); }
         }
         // Never implicitly commit a caller transaction. Nested work remains under
         // the caller's commit/rollback; unsupported transaction introspection denies.
         $active=$wpdb->get_var('SELECT @@session.in_transaction');
-        if ($wpdb->last_error!=='' || !in_array((string)$active,['0','1'],true)) { return self::error('transaction_unavailable',503); }
+        if (QueryEvidence::failed() || !in_array((string)$active,['0','1'],true)) { return self::error('transaction_unavailable',503); }
         $nested=(string)$active==='1';
         $savepoint='df_review_'.bin2hex(random_bytes(8));
         $rollback=$nested?'ROLLBACK TO SAVEPOINT '.$savepoint:'ROLLBACK';
@@ -105,10 +127,10 @@ final class ReviewedLocalEvidence
             // Serialize admission with the existing shop grant/revocation ledger.
             $aclKey='digiforge_shop_access_state_'.$shop;
             $acl=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s FOR UPDATE",$aclKey));
-            if(!is_string($acl)||$wpdb->last_error!=='') { throw new \RuntimeException('assignment_lock'); }
+            if(!is_string($acl)||QueryEvidence::failed()) { throw new \RuntimeException('assignment_lock'); }
             $snapshot=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$aclKey));
-            if($wpdb->last_error!==''||$acl!==$snapshot) { return $abort(self::error('assignment_snapshot_stale',409)); }
-            foreach(['manage_digiforge',$action==='proposed'?self::authorCap($kind):'manage_digiforge_settings'] as $cap) {
+            if(QueryEvidence::failed()||$acl!==$snapshot) { return $abort(self::error('assignment_snapshot_stale',409)); }
+            foreach($caps as $cap) {
                 $access=ShopAccess::authorize($shop,$cap);
                 if(is_wp_error($access)) { return $abort($access); }
             }
@@ -121,6 +143,13 @@ final class ReviewedLocalEvidence
             foreach ($events as $event) { if (hash_equals($event['request_id'],$requestId)) { return $abort(self::error('replay',409)); } }
             $state=$change($prior);
             if (is_wp_error($state)) { return $abort($state); }
+            // Additional context can only deny after all existing authority/state
+            // checks. Finance callers must revalidate their frozen local proposal;
+            // this never grants financial-period or external-operation authority.
+            if ($condition!==null) {
+                $context=$condition();
+                if ($context!==true) return $abort($context instanceof WP_Error?$context:self::error('context_changed',409));
+            }
             $state['revision']=$revision+1;
             $state['proposal_hash']=hash('sha256',self::json([$kind,$shop,$key,$state['version'],$state['author_id'],$state['payload'],$state['effective_at'],$state['expires_at']]));
             $state['external_execution_authorized']=false;
@@ -146,9 +175,9 @@ final class ReviewedLocalEvidence
         global $wpdb;
         $wpdb->last_error='';
         $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s".($lock?' FOR UPDATE':''),'digiforge_local_review_'.$stream));
-        if ($wpdb->last_error!=='') { return self::error('read_unavailable',503); }
+        if (QueryEvidence::failed()) { return self::error('read_unavailable',503); }
         $rows=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,CASE WHEN OCTET_LENGTH(context)<=65536 THEN context ELSE NULL END AS context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s ORDER BY id ASC LIMIT 501',self::OBJECT,$stream),ARRAY_A);
-        if ($wpdb->last_error!=='' || !is_array($rows)) { return self::error('read_unavailable',503); }
+        if (QueryEvidence::failed() || !is_array($rows)) { return self::error('read_unavailable',503); }
         if ($raw===null) { return $rows===[]?[]:self::error('history_mismatch',409); }
         if (!is_string($raw) || strlen($raw)>1048576) { return self::error('history_mismatch',409); }
         $events=json_decode($raw,true);
@@ -170,7 +199,7 @@ final class ReviewedLocalEvidence
 
     private static function identity(string $kind,string $shop,string $key): string|WP_Error
     {
-        if (!in_array($kind,['ownership','policy'],true) || !ShopAccessPolicy::validShop($shop) || preg_match('/^[A-Za-z0-9_:.-]{1,240}$/D',$key)!==1) { return self::error('invalid_identity',400); }
+        if (!in_array($kind,['ownership','policy','finance_allocation'],true) || !ShopAccessPolicy::validShop($shop) || preg_match('/^[A-Za-z0-9_:.-]{1,240}$/D',$key)!==1) { return self::error('invalid_identity',400); }
         return hash('sha256',self::json([$kind,$shop,$key]));
     }
     private static function safePayload(array $payload,int $depth=0): bool
@@ -184,7 +213,7 @@ final class ReviewedLocalEvidence
         }
         return strlen(self::json($payload))<=32768;
     }
-    private static function authorCap(string $kind): string { return $kind==='ownership'?'manage_digiforge_connections':'manage_digiforge_settings'; }
+    private static function authorCap(string $kind): string { return match($kind){'ownership'=>'manage_digiforge_connections','finance_allocation'=>'manage_digiforge_finance',default=>'manage_digiforge_settings'}; }
     private static function json(array $value): string { return Validator::canonicalJson($value); }
     private static function error(string $code,int $status): WP_Error { return new WP_Error('digiforge_local_review_'.$code,'Current independently reviewed local evidence is required.',['status'=>$status,'external_execution_authorized'=>false]); }
 }

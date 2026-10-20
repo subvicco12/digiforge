@@ -7,7 +7,7 @@ if(str_starts_with($path,'/df-assets/')){$relative=substr($path,11);if(str_start
 $allocationPreview=$path==='/'&&($_GET['df_view']??null)==='finance'
  &&in_array($_GET['df_shop']??null,['digital','personalized_pod'],true)
  &&($_POST['shop_key']??null)===($_GET['df_shop']??null)
- &&($_POST['action']??null)==='digiforge_finance_allocation_preview';
+ &&in_array($_POST['action']??null,['digiforge_finance_allocation_preview','digiforge_finance_allocation_review','digiforge_finance_allocation_profitability'],true);
 if($_SERVER['REQUEST_METHOD']==='POST'&&!in_array($path,['/wp-login.php','/wp-admin/admin-post.php'],true)&&!$allocationPreview){http_response_code(405);exit;}
 if($path==='/wp-admin/admin-post.php'&&!in_array($_POST['action']??'',['digiforge_portal_prepare_research_run','digiforge_portal_execute_research_run'],true)){http_response_code(403);exit;}
 if(in_array($path,['/','/index.php','/wp-login.php','/wp-admin/admin-post.php'],true)){require $dir.'/core'.($path==='/'?'/index.php':$path);return;}

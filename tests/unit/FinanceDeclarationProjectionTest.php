@@ -6,6 +6,7 @@ use DigiForge\Tests\FinanceDeclarationFixtures;
 use PHPUnit\Framework\TestCase;
 require_once __DIR__.'/FinanceDeclarationFixtures.php';
 require_once dirname(__DIR__,2).'/includes/Finance/ExactDecimal.php';
+require_once dirname(__DIR__,2).'/includes/Finance/ProvisionalProfitMetrics.php';
 require_once dirname(__DIR__,2).'/includes/Finance/DeclarationContract.php';
 require_once dirname(__DIR__,2).'/includes/Finance/DeclarationMatcher.php';
 require_once dirname(__DIR__,2).'/includes/Finance/DeclarationReadModel.php';
