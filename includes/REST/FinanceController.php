@@ -45,7 +45,15 @@ final class FinanceController
         });
     }
 
-    public function canManage(): bool { return current_user_can('manage_digiforge_finance'); }
+    public function canManage(): bool
+    {
+        if (!current_user_can('manage_digiforge_finance')) return false;
+        // These collections and mutations are global; a query shop cannot scope them.
+        foreach (\DigiForge\Security\ShopAccessPolicy::canonicalShops() as $shop) {
+            if (\DigiForge\Security\ShopAccess::authorize($shop, 'manage_digiforge_finance') !== true) return false;
+        }
+        return true;
+    }
 
     public function list(\WP_REST_Request $request): \WP_REST_Response
     {
