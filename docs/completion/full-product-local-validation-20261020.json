@@ -629,5 +629,57 @@
     "safety": "STOP_ALL_ON; EXTERNAL_LOCK_ON; AUTOMATION_OFF; RELEASE_HOLD",
     "installed_site_verified": false,
     "release_recommendation": "NO_GO"
+  },
+  "batch10": {
+    "baseline_pr": 1227,
+    "baseline_sha": "433a017a4f3e94794909776cc71aa59988b4857f",
+    "baseline_audit": 4762,
+    "scope": "Strict pure offline Etsy native source parsing, not financial import or authority",
+    "source": {
+      "url": "https://www.etsy.com/openapi/generated/oas/3.0.0.json",
+      "http_status": 200,
+      "retrieval": "Connected public-document tool, rawHtml, maxAge=0; no worker policy/proxy changes or authenticated provider API calls",
+      "api_version": "3.0.0",
+      "openapi_version": "3.0.2",
+      "utf8_snapshot_bytes": 865861,
+      "full_snapshot_sha256": "9f0fe8cf1352a444b6069ec04699809bcde41227cf16764e76a98d13e7eb7797",
+      "exact_extracted_schemas": 8,
+      "contract_asset_sha256": "82e24b1123b1c3d3853d2f2734fa59d30a9595a36a46be6994306311f24ee91c",
+      "payments_tutorial_http_status": 200
+    },
+    "focused_unit": {
+      "tests": 166,
+      "assertions": 354,
+      "new_parser_cases": 59,
+      "status": "PASS"
+    },
+    "supplementary_phpstan": {
+      "level": 5,
+      "status": "PASS",
+      "real_wordpress_symbols_scanned": true,
+      "suppressions_added": 0,
+      "initial_incomplete_invocation": "A direct scan without WordPress symbols reported existing wp_json_encode unavailable. Corrected by scanning actual installed WordPress; no stub or source suppression."
+    },
+    "source_schema_component_comparison": "PASS",
+    "protected_376_classifications": "UNCHANGED",
+    "schema_version": 23,
+    "migrations_added": 0,
+    "raw_native_import_endpoint_added": false,
+    "declaration_or_accounting_mapping_added": false,
+    "native_replay": "Content-addressed observations only; no durable native import/persistence claim",
+    "live_authenticated_provider_calls": 0,
+    "real_financial_imports": 0,
+    "financial_approvals": 0,
+    "acceptance_promotions": 0,
+    "nonfinance_candidates": 246,
+    "nonfinance_unverified": 22,
+    "finance_dependent_incomplete": 23,
+    "focused_matrix": {
+      "tests": 16,
+      "status": "PASS"
+    },
+    "release_recommendation": "NO_GO_RELEASE_HOLD",
+    "final_head_hosted_audit_receipt": "Dedicated draft PR and issue1209 receipt after publication",
+    "credential_gate_correction": "Before publication, the unchanged history gate matched the public source-specification digest constant named OPENAPI_SHA256 as generic-api-key. Redacted finding metadata pointed to parser line10; value is the public pinned source hash, not a credential. Renamed SOURCE_SPEC_SHA256 and amended only the unpublished owned candidate; no ignore, allowlist, scanner or CI changes."
   }
 }
