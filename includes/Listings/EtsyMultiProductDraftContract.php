@@ -128,8 +128,34 @@ final class EtsyMultiProductDraftContract
         return [
             'schema' => 'etsy-multi-product-draft-v1', 'design' => $design, 'listings' => $listings,
             'manifest_sha256' => hash('sha256', self::json([$design, $listings])),
+            // Separate plans do not establish independently editable provider listings.
+            // Detect byte-identical declared mockups, but never infer independence
+            // from different assets, variants, prices or missing provider records.
+            'provider_listing_dependencies' => self::dependencies($listings),
             'state' => 'REVIEW_REQUIRED', 'draft_packages_created' => 0, 'external_execution_performed' => false,
             'network_request_permitted' => false, 'publish_permitted' => false, 'acceptance' => 'UNVERIFIED',
+        ];
+    }
+
+    private static function dependencies(array $listings): array
+    {
+        $shared = [];
+        foreach ($listings as $listing) {
+            foreach ($listings as $other) {
+                if ($listing['product_version_id'] !== $other['product_version_id']
+                    && ($listing['mockup']['reference'] === $other['mockup']['reference']
+                        || $listing['mockup']['sha256'] === $other['mockup']['sha256'])) {
+                    $shared[] = $listing['product_version_id'];
+                    break;
+                }
+            }
+        }
+        return [
+            'state' => 'UNKNOWN',
+            'independent_edits_permitted' => false,
+            'shared_mockup_product_versions' => $shared,
+            'variant_dependencies' => 'UNKNOWN',
+            'pricing_dependencies' => 'UNKNOWN',
         ];
     }
 
