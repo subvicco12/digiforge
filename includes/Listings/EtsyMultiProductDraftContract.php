@@ -122,6 +122,8 @@ final class EtsyMultiProductDraftContract
             $material['ownership'] = 'UNKNOWN';
             $material['rights'] = 'UNKNOWN';
             $material['native_compatibility'] = 'UNKNOWN';
+            // A desired question mapping is not proof of enabled provider fields.
+            $material['buyer_personalization'] = 'UNKNOWN';
             $listings[] = $material;
         }
         usort($listings, static fn(array $a, array $b): int => $a['product_version_id'] <=> $b['product_version_id']);
@@ -156,6 +158,7 @@ final class EtsyMultiProductDraftContract
             'shared_mockup_product_versions' => $shared,
             'variant_dependencies' => 'UNKNOWN',
             'pricing_dependencies' => 'UNKNOWN',
+            'shipping_dependencies' => 'UNKNOWN',
         ];
     }
 
