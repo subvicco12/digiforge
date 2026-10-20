@@ -13,6 +13,7 @@ use WP_Error;
 final class NativeEvidenceStore
 {
     private static bool $writing=false;
+    public const MAX_SCOPE_RECORDS=500;
 
     public function append(array $document,array $scope,string $supersedes=''):array|WP_Error
     {
@@ -28,25 +29,30 @@ final class NativeEvidenceStore
             $probe=CredentialVault::encryptExisting('native-evidence-key-probe','finance-native:key-probe');
             if(CredentialVault::decryptExisting($probe,'finance-native:key-probe')!=='native-evidence-key-probe')throw new \RuntimeException();
         }catch(\Throwable){return NativeEvidenceAccess::error();}
-        return $this->transaction($scopeHash,function()use($document,$scope,$access,$observation,$supersedes,$scopeHash,$hash):array{
+        return $this->transaction($scopeHash,$scope,$access,function()use($document,$scope,$access,$observation,$supersedes,$scopeHash,$hash):array{
             global $wpdb;
             if(NativeEvidenceAccess::validate($scope)!==$access)throw new \RuntimeException();
             $existing=$this->row($hash,$scopeHash);
             if($existing!==null)return $this->decode($existing,$scope);
             // An audit without its original row is missing history, never a fresh retry.
             if($this->audits($hash)!==[])throw new \RuntimeException();
+            $this->assertNoOrphanHistory();
+            $wpdb->last_error='';$history=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Schema::records().' WHERE scope_hash=%s ORDER BY id DESC LIMIT 1',$scopeHash),ARRAY_A);
+            if(QueryEvidence::failed())throw new \RuntimeException();
+            if(is_array($history))$this->decode($history,$scope,false);
             $state=$observation['source_identity_hashes']===[]?'OBSERVATION_ONLY':'STORED_UNVERIFIED';
             $claims=[];
             foreach($observation['source_identity_keys']as$key){
                 $claim=self::claimHash($scopeHash,$key);$owner=$this->claim($claim);$claims[$claim]=$owner;
                 if($owner!==null){
-                    $row=$this->row($owner,$scopeHash);if($row===null)throw new \RuntimeException();
-                    $this->decode($row,$scope);$state='QUARANTINED';
+                    $row=$this->row($owner,$scopeHash);if($row===null||Validator::canonicalJson($this->payload($row)['scope'])!==Validator::canonicalJson($scope))throw new \RuntimeException();
+                    // The complete existing history was authenticated above.
+                    $state='QUARANTINED';
                 }
             }
             if($supersedes!==''){
                 $parent=$this->row($supersedes,$scopeHash);if($parent===null||$claims===[])throw new \RuntimeException();
-                $this->decode($parent,$scope);$p=$this->payload($parent);
+                $p=$this->payload($parent);
                 $parentStage=EtsyNativeObservationStage::preview([$p['document']],self::context($scope),self::context($scope),time());
                 if($p['document']['native_schema']!==$document['native_schema']||$parentStage['identity_hashes']===[]
                     ||array_keys($parentStage['identity_hashes'])!==array_keys($observation['source_identity_hashes']))throw new \RuntimeException();
@@ -72,40 +78,60 @@ final class NativeEvidenceStore
     {
         $access=NativeEvidenceAccess::validate($scope);
         if($access instanceof WP_Error||!Schema::ready()||preg_match('/^[a-f0-9]{64}$/D',$hash)!==1)return NativeEvidenceAccess::error();
-        try{
+        if(self::$writing)return NativeEvidenceAccess::error();
+        return $this->transaction(self::scopeHash($scope),$scope,$access,function()use($hash,$scope):array{
             $row=$this->row($hash,self::scopeHash($scope));if($row===null)throw new \RuntimeException();
-            $result=$this->decode($row,$scope);
-            if(NativeEvidenceAccess::validate($scope)!==$access)throw new \RuntimeException();return $result;
-        }catch(\Throwable){return NativeEvidenceAccess::error();}
+            return $this->decode($row,$scope);
+        });
     }
-    private function decode(array $row,array $scope):array
+    private function decode(array $row,array $scope,bool $requireCurrentScope=true):array
     {
-        $packet=$this->payload($row);
-        if(($packet['version']??null)!==1||Validator::canonicalJson($packet['scope']??[])!==Validator::canonicalJson($scope)||!is_array($packet['document']??null)||!is_string($packet['supersedes']??null)
-            ||!in_array($packet['state']??null,['STORED_UNVERIFIED','OBSERVATION_ONLY','QUARANTINED','UNREVIEWED_CORRECTION'],true))throw new \RuntimeException();
-        $doc=$packet['document'];$context=self::context($scope);$stage=EtsyNativeObservationStage::preview([$doc],$context,$context,time());
-        if(self::scopeHash($scope)!==$row['scope_hash']||self::recordHash($doc,$row['scope_hash'],$packet['supersedes'])!==$row['record_hash']
-            ||($packet['record_hash']??null)!==$row['record_hash']||hash('sha256',$doc['raw'])!==$row['source_hash'])throw new \RuntimeException();
-        $audits=$this->audits($row['record_hash']);
-        if(count($audits)!==1||$audits[0]['context']!==wp_json_encode(['record_hash'=>$row['record_hash'],'ciphertext_sha256'=>hash('sha256',$row['ciphertext'])]))throw new \RuntimeException();
-        foreach($stage['documents'][0]['observation']['source_identity_keys']as$key){
-            $owner=$this->claim(self::claimHash($row['scope_hash'],$key));if($owner===null)throw new \RuntimeException();
-            $original=$this->row($owner,$row['scope_hash']);if($original===null)throw new \RuntimeException();
-            // Authenticate the claim's immutable original without recursive chain traversal.
-            $p=$this->payload($original);if(Validator::canonicalJson($p['scope']??[])!==Validator::canonicalJson($scope)||self::recordHash($p['document'],$row['scope_hash'],$p['supersedes'])!==$owner
-                ||hash('sha256',$p['document']['raw'])!==$original['source_hash'])throw new \RuntimeException();
-            $originalStage=EtsyNativeObservationStage::preview([$p['document']],$context,$context,time());
-            if(!in_array($key,$originalStage['documents'][0]['observation']['source_identity_keys'],true))throw new \RuntimeException();
-            $proof=$this->audits($owner);if(count($proof)!==1||$proof[0]['context']!==wp_json_encode(['record_hash'=>$owner,'ciphertext_sha256'=>hash('sha256',$original['ciphertext'])]))throw new \RuntimeException();
+        // Reconstruct immutable first claims and complete correction ancestry from
+        // authenticated originals, rather than trusting the mutable claim index.
+        $this->assertNoOrphanHistory();
+        global $wpdb;$scopeHash=self::scopeHash($scope);$wpdb->last_error='';
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Schema::records().' WHERE scope_hash=%s ORDER BY id ASC LIMIT %d FOR UPDATE',$scopeHash,self::MAX_SCOPE_RECORDS+1),ARRAY_A);
+        if(QueryEvidence::failed()||!is_array($rows)||count($rows)>self::MAX_SCOPE_RECORDS)throw new \RuntimeException();
+        $seen=[];$expectedClaims=[];$selected=null;
+        foreach($rows as$original){
+            $packet=$this->payload($original);$storedScope=$packet['scope']??null;
+            if(($packet['version']??null)!==1||!is_array($storedScope)||self::scopeHash($storedScope)!==$scopeHash
+                ||!is_array($packet['document']??null)||!is_string($packet['supersedes']??null))throw new \RuntimeException();
+            $doc=$packet['document'];$context=self::context($storedScope);$stage=EtsyNativeObservationStage::preview([$doc],$context,$context,time());
+            $hash=$original['record_hash'];$parent=$packet['supersedes'];
+            if($original['scope_hash']!==$scopeHash||self::recordHash($doc,$scopeHash,$parent)!==$hash
+                ||($packet['record_hash']??null)!==$hash||hash('sha256',$doc['raw'])!==$original['source_hash'])throw new \RuntimeException();
+            $proof=$this->audits($hash);
+            if(count($proof)!==1||(int)$proof[0]['actor_id']!==($packet['created_by']??null)||$proof[0]['context']!==wp_json_encode(['record_hash'=>$hash,'ciphertext_sha256'=>hash('sha256',$original['ciphertext'])]))throw new \RuntimeException();
+            $identities=$stage['documents'][0]['observation']['source_identity_keys'];
+            $state=$identities===[]?'OBSERVATION_ONLY':'STORED_UNVERIFIED';
+            foreach($identities as$key)if(isset($expectedClaims[self::claimHash($scopeHash,$key)]))$state='QUARANTINED';
+            if($parent!==''){
+                $ancestor=$seen[$parent]??null;
+                if($ancestor===null||$identities===[]||$ancestor['identities']!==$identities||$ancestor['schema']!==$doc['native_schema']
+                    ||Validator::canonicalJson($ancestor['scope'])!==Validator::canonicalJson($storedScope))throw new \RuntimeException();
+                $state='UNREVIEWED_CORRECTION';
+            }
+            if(($packet['state']??null)!==$state)throw new \RuntimeException();
+            foreach($identities as$key){$claim=self::claimHash($scopeHash,$key);if(!isset($expectedClaims[$claim]))$expectedClaims[$claim]=$hash;}
+            $seen[$hash]=['identities'=>$identities,'schema'=>$doc['native_schema'],'scope'=>$storedScope];
+            if($hash===$row['record_hash'])$selected=$packet;
         }
-        if($packet['supersedes']!==''){
-            $parent=$this->row($packet['supersedes'],$row['scope_hash']);
-            if($parent===null||(int)$parent['id']>=(int)$row['id'])throw new \RuntimeException();
-            $p=$this->payload($parent);if(Validator::canonicalJson($p['scope']??[])!==Validator::canonicalJson($scope)||self::recordHash($p['document'],$row['scope_hash'],$p['supersedes'])!==$packet['supersedes'])throw new \RuntimeException();
-        }
-        return ['record_hash'=>$row['record_hash'],'raw_source_sha256'=>$row['source_hash'],'state'=>$packet['state'],'supersedes'=>$packet['supersedes'],
+        foreach($expectedClaims as$claim=>$owner)if($this->claim($claim)!==$owner)throw new \RuntimeException();
+        if($selected===null||($requireCurrentScope&&Validator::canonicalJson($selected['scope'])!==Validator::canonicalJson($scope)))throw new \RuntimeException();
+        return ['record_hash'=>$row['record_hash'],'raw_source_sha256'=>$row['source_hash'],'state'=>$selected['state'],'supersedes'=>$selected['supersedes'],
             'authenticity'=>'UNKNOWN','ownership'=>'LOCAL_REVIEW_ONLY','settlement'=>'UNKNOWN','accounting_import_authorized'=>false,
             'transaction_recognition_authorized'=>false,'period_approval_authorized'=>false,'external_execution_authorized'=>false];
+    }
+    private function assertNoOrphanHistory():void
+    {
+        global $wpdb;$records=Schema::records();$audit=Tables::audit_log();$claims=Schema::claims();$wpdb->last_error='';
+        // All-four Finance authority is already mandatory. Return only existence,
+        // never another scope's identity or raw content, for missing global history.
+        $orphan=$wpdb->get_var($wpdb->prepare("SELECT a.id FROM {$audit} a LEFT JOIN {$records} r ON r.record_hash=a.object_id WHERE a.object_type=%s AND r.id IS NULL LIMIT 1 FOR UPDATE",'finance_native_evidence'));
+        if(QueryEvidence::failed()||$orphan!==null)throw new \RuntimeException();
+        $orphan=$wpdb->get_var("SELECT c.claim_hash FROM {$claims} c LEFT JOIN {$records} r ON r.record_hash=c.record_hash WHERE r.id IS NULL LIMIT 1 FOR UPDATE");
+        if(QueryEvidence::failed()||$orphan!==null)throw new \RuntimeException();
     }
     private function payload(array $row):array
     {
@@ -114,17 +140,17 @@ final class NativeEvidenceStore
     }
     private function row(string $hash,string $scopeHash):?array
     {
-        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Schema::records().' WHERE record_hash=%s AND scope_hash=%s',$hash,$scopeHash),ARRAY_A);
+        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Schema::records().' WHERE record_hash=%s AND scope_hash=%s FOR UPDATE',$hash,$scopeHash),ARRAY_A);
         if(QueryEvidence::failed())throw new \RuntimeException();return is_array($row)?$row:null;
     }
     private function claim(string $hash):?string
     {
-        global $wpdb;$wpdb->last_error='';$value=$wpdb->get_var($wpdb->prepare('SELECT record_hash FROM '.Schema::claims().' WHERE claim_hash=%s',$hash));
+        global $wpdb;$wpdb->last_error='';$value=$wpdb->get_var($wpdb->prepare('SELECT record_hash FROM '.Schema::claims().' WHERE claim_hash=%s FOR UPDATE',$hash));
         if(QueryEvidence::failed())throw new \RuntimeException();return is_string($value)?$value:null;
     }
     private function audits(string $hash):array
     {
-        global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s AND event_type=%s LIMIT 2','finance_native_evidence',$hash,'finance_native_evidence_appended'),ARRAY_A);
+        global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT actor_id,context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s AND event_type=%s LIMIT 2 FOR UPDATE','finance_native_evidence',$hash,'finance_native_evidence_appended'),ARRAY_A);
         if(QueryEvidence::failed()||!is_array($rows))throw new \RuntimeException();return $rows;
     }
     private static function context(array $scope):array{return array_intersect_key($scope,array_flip(['shop_key','environment','business_id','store_id','external_shop_id','external_account_id','integration_id','source_contract_sha256']));}
@@ -132,7 +158,7 @@ final class NativeEvidenceStore
     private static function recordHash(array $document,string $scopeHash,string $parent):string{return Validator::hash(['scope'=>$scopeHash,'schema'=>$document['native_schema'],'source_sha256'=>hash('sha256',$document['raw']),'supersedes'=>$parent]);}
     private static function claimHash(string $scopeHash,string $identity):string{return hash('sha256',$scopeHash.':'.$identity);}
 
-    private function transaction(string $scopeHash,callable $work):array|WP_Error
+    private function transaction(string $scopeHash,array $scope,array $access,callable $work):array|WP_Error
     {
         global $wpdb;$lock='df-native:'.substr(hash('sha256',DB_NAME.':'.$wpdb->prefix.':'.$scopeHash),0,50);$locked=false;$started=false;$active=false;
         $old=$wpdb->suppress_errors(true);self::$writing=true;
@@ -141,7 +167,9 @@ final class NativeEvidenceStore
             $wpdb->last_error='';$inTransaction=$wpdb->get_var('SELECT @@session.in_transaction');if(QueryEvidence::failed()||!in_array((string)$inTransaction,['0','1'],true))throw new \RuntimeException();
             $active=(string)$inTransaction==='1';
             if($wpdb->query($active?'SAVEPOINT df_native_evidence':'START TRANSACTION')===false)throw new \RuntimeException();$started=true;
-            $result=$work();if($wpdb->query($active?'RELEASE SAVEPOINT df_native_evidence':'COMMIT')===false)throw new \RuntimeException();$started=false;return $result;
+            if(NativeEvidenceAccess::lockCurrent($scope)!==$access)throw new \RuntimeException();
+            $result=$work();if(NativeEvidenceAccess::validate($scope)!==$access)throw new \RuntimeException();
+            if($wpdb->query($active?'RELEASE SAVEPOINT df_native_evidence':'COMMIT')===false)throw new \RuntimeException();$started=false;return $result;
         }catch(\Throwable){
             if($started){$wpdb->query($active?'ROLLBACK TO SAVEPOINT df_native_evidence':'ROLLBACK');if($active)$wpdb->query('RELEASE SAVEPOINT df_native_evidence');}
             return NativeEvidenceAccess::error();

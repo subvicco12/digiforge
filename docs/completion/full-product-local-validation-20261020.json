@@ -776,5 +776,47 @@
     "supplementary_phpstan_level5": "PASS_NO_SUPPRESSIONS",
     "matrix_protected_rows": 376,
     "prospective_gitleaks": "PASS_8.30.1"
+  },
+  "batch14_native_custody_hardening": {
+    "baseline_pr": 1231,
+    "baseline_sha": "f656ead15090859bce0b3558d68ffea5fee20010",
+    "baseline_audit": 4766,
+    "review": "Independent read-only source review plus root synthetic reproductions",
+    "initial_reproduction": {
+      "tests": 20,
+      "failures": 6
+    },
+    "additional_reproduction": {
+      "tests": 23,
+      "failures": 2
+    },
+    "audit_creator_reproduction": {
+      "tests": 26,
+      "failures": 1
+    },
+    "focused_unit": {
+      "tests": 111,
+      "assertions": 220,
+      "result": "PASS"
+    },
+    "wordpress_compatibility": {
+      "tests": 52,
+      "assertions": 944,
+      "result": "PASS"
+    },
+    "native_wordpress": {
+      "tests": 26,
+      "assertions": 533,
+      "result": "PASS"
+    },
+    "supplementary_phpstan_level5": "PASS_NO_SUPPRESSIONS",
+    "schema_changes": false,
+    "encryption_format_changes": false,
+    "finance_criteria_promoted": 0,
+    "nonfinance_criteria_promoted": 0,
+    "retention_or_deletion_authorized": false,
+    "max_scope_records": 500,
+    "hosted_audit": "REQUIRED_ON_PUBLISHED_FINAL_HEAD_SEE_PR_AND_ISSUE_RECEIPT",
+    "evidence": "docs/completion/native-finance-security-review-20261021.md"
   }
 }

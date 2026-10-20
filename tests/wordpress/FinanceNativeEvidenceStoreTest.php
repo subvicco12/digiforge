@@ -23,6 +23,9 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
         $f['binding']=(new ReflectionMethod(FinanceDigitalBindingTest::class,'approve'))->invoke($existing,$f);
         remove_filter('query',[$this,'_create_temporary_tables']);
         try{self::assertTrue(NativeFinanceEvidenceSchema::installOffline());}finally{add_filter('query',[$this,'_create_temporary_tables']);}
+        // Dispose only orphan fault-injection artifacts from earlier cases in
+        // this isolated synthetic database. This is not an application cleanup API.
+        global $wpdb;$wpdb->query('DELETE a FROM '.DigiForge\Database\Tables::audit_log().' a LEFT JOIN '.NativeFinanceEvidenceSchema::records()." r ON r.record_hash=a.object_id WHERE a.object_type='finance_native_evidence' AND r.id IS NULL");
         $i=$f['input'];
         $f['context']=['shop_key'=>'digital','environment'=>'test','business_id'=>$i['business_id'],'store_id'=>$i['store_id'],
             'external_shop_id'=>67757764,'external_account_id'=>123456,'integration_id'=>$i['integration_id'],'source_contract_sha256'=>EtsyFinancialSourceParser::CONTRACT_SHA256];
@@ -141,6 +144,110 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
             add_filter('query',$observe);try{self::assertTrue(NativeFinanceEvidenceSchema::installOffline());}finally{remove_filter('query',$observe);}
             self::assertSame([],$ddl);self::assertSame('0',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$records));
         }finally{$wpdb->suppress_errors($old);add_filter('query',[$this,'_create_temporary_tables']);add_filter('query',[$this,'_drop_temporary_tables']);}
+    }
+
+    /** @dataProvider finalReadCases */
+    public function testAllAppendPathsRecheckAuthorityAfterEvidenceReads(bool $replay):void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();global $wpdb;
+        if($replay)self::assertNotWPError($store->append($f['document'],$f['scope']));
+        $reads=0;$once=false;$before=$wpdb->get_var('SELECT COUNT(*) FROM '.NativeFinanceEvidenceSchema::records());
+        $hook=static function(string $sql)use(&$reads,&$once,$replay,$f,$wpdb):string{
+            if(str_starts_with($sql,'SELECT * FROM '.NativeFinanceEvidenceSchema::records().' WHERE record_hash=')&&++$reads===($replay?1:2)){
+                $once=true;$wpdb->update(DigiForge\Database\Tables::integrations(),['config'=>'{}'],['id'=>$f['context']['integration_id']]);
+            }return $sql;
+        };
+        add_filter('query',$hook);try{$out=$store->append($f['document'],$f['scope']);}finally{remove_filter('query',$hook);}
+        self::assertTrue($once);self::assertWPError($out);self::assertSame($before,$wpdb->get_var('SELECT COUNT(*) FROM '.NativeFinanceEvidenceSchema::records()));
+    }
+    public static function finalReadCases():array{return [[true],[false]];}
+    /** @dataProvider intermediateEvidenceCases */
+    public function testCompleteCorrectionAncestryMustRemainIntact(string $missing):void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);
+        $b=$store->append($this->document($f,'correction-b'),$f['scope'],$a['record_hash']);self::assertNotWPError($b);
+        $c=$store->append($this->document($f,'correction-c'),$f['scope'],$b['record_hash']);self::assertNotWPError($c);
+        $doc=$this->document($f,'correction-d');$d=$store->append($doc,$f['scope'],$c['record_hash']);self::assertNotWPError($d);global $wpdb;
+        if($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$b['record_hash']]);
+        elseif($missing==='row')$wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$b['record_hash']]);
+        else $wpdb->update(NativeFinanceEvidenceSchema::records(),['source_hash'=>str_repeat('0',64)],['record_hash'=>$b['record_hash']]);
+        self::assertWPError($store->receipt($d['record_hash'],$f['scope']));self::assertWPError($store->append($doc,$f['scope'],$c['record_hash']));
+        self::assertWPError($store->append($this->document($f,'correction-e'),$f['scope'],$d['record_hash']));
+    }
+    public static function intermediateEvidenceCases():array{return [['audit'],['row'],['source_hash']];}
+    public function testIdentityClaimCannotBeReboundToQuarantinedRecord():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);
+        $b=$store->append($this->document($f,'conflicting'),$f['scope']);self::assertNotWPError($b);self::assertSame('QUARANTINED',$b['state']);global $wpdb;
+        self::assertSame(1,$wpdb->update(NativeFinanceEvidenceSchema::claims(),['record_hash'=>$b['record_hash']],['record_hash'=>$a['record_hash']]));
+        self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->receipt($b['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
+    }
+    public function testIndependentCommittedBindingDriftIsNotHiddenByTransactionSnapshot():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();global $wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$once=false;$changed=null;
+        $hook=static function(string $sql)use(&$once,&$changed,$f,$other):string{
+            if(!$once&&str_starts_with($sql,'INSERT INTO `'.NativeFinanceEvidenceSchema::records().'`')){$once=true;$changed=$other->update(DigiForge\Database\Tables::integrations(),['config'=>'{}'],['id'=>$f['context']['integration_id']]);}return $sql;
+        };
+        // Bound any lock wait on this independent synthetic writer.
+        $other->query('SET SESSION innodb_lock_wait_timeout=1');$old=$other->suppress_errors(true);
+        add_filter('query',$hook);try{$out=$store->append($f['document'],$f['scope']);}finally{remove_filter('query',$hook);$other->suppress_errors($old);$other->close();}
+        self::assertTrue($once);
+        // A serialized writer may deny its competing update; a committed change must deny admission.
+        if($changed===1)self::assertWPError($out);else{self::assertFalse($changed);self::assertNotWPError($out);}
+    }
+
+    public function testOrphanAuditBlocksChangedBytesAfterOriginalAndClaimDisappear():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
+        $wpdb->delete(NativeFinanceEvidenceSchema::claims(),['record_hash'=>$a['record_hash']]);$wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$a['record_hash']]);
+        self::assertWPError($store->append($this->document($f,'replacement-after-loss'),$f['scope']));
+    }
+    public function testStaleOuterSnapshotCannotHideOtherIntegrationIdentityFields():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();global $wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);
+        self::assertNotFalse($wpdb->query('START TRANSACTION'));
+        try{
+            $wpdb->get_var('SELECT id FROM '.DigiForge\Database\Tables::integrations().' LIMIT 1');
+            self::assertSame(1,$other->update(DigiForge\Database\Tables::integrations(),['display_name'=>'Changed synthetic identity'],['id'=>$f['context']['integration_id']]));
+            self::assertWPError($store->append($f['document'],$f['scope']));
+        }finally{$wpdb->query('ROLLBACK');$other->close();}
+    }
+    public function testMissingClaimCannotAdmitChangedBytesAsANewTransaction():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
+        $wpdb->delete(NativeFinanceEvidenceSchema::claims(),['record_hash'=>$a['record_hash']]);
+        self::assertWPError($store->append($this->document($f,'changed-after-claim-loss'),$f['scope']));
+    }
+
+    public function testExplicitRefreshedBindingSupportsNewIdentityWithoutRebindingHistory():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);
+        $i=$f['input'];$i['source_sha256']=str_repeat('b',64);$service=new DigitalSourceBinding();
+        $pending=$service->propose($i,time()-5,time()+3600,wp_generate_uuid4(),$f['binding']['revision']);self::assertNotWPError($pending);
+        wp_set_current_user($f['actors']['reviewer']);$approved=$service->decide($i['business_id'],$i['store_id'],'test',$pending['revision'],$pending['proposal_hash'],'APPROVED',wp_generate_uuid4());self::assertNotWPError($approved);
+        wp_set_current_user($f['actors']['author']);$scope=array_replace($f['scope'],['binding_hash'=>$approved['proposal_hash'],'binding_revision'=>$approved['revision']]);
+        $next=$this->document($f,'new-reviewed-identity');$next['raw']=str_replace('"payment_id":11','"payment_id":12',$next['raw']);$next['capture']['source_sha256']=hash('sha256',$next['raw']);
+        $b=$store->append($next,$scope);self::assertNotWPError($b);self::assertSame($b,$store->receipt($b['record_hash'],$scope));
+        self::assertWPError($store->receipt($a['record_hash'],$scope));self::assertWPError($store->append($f['document'],$scope));
+        self::assertWPError($store->append($this->document($f,'no-automatic-rebinding'),$scope));
+    }
+    public function testScopeHistoryResourceBoundDeniesWithoutWriting():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
+        $before=$wpdb->get_var('SELECT COUNT(*) FROM '.NativeFinanceEvidenceSchema::records());
+        $hook=static function(string $sql):string{
+            return str_starts_with($sql,'SELECT * FROM '.NativeFinanceEvidenceSchema::records().' WHERE scope_hash=')&&str_contains($sql,'ORDER BY id ASC')
+                ?'WITH RECURSIVE synthetic_native_bound(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM synthetic_native_bound WHERE n<501) SELECT n AS id FROM synthetic_native_bound':$sql;
+        };
+        add_filter('query',$hook);try{self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($this->document($f,'bounded'),$f['scope']));}finally{remove_filter('query',$hook);}
+        self::assertSame($before,$wpdb->get_var('SELECT COUNT(*) FROM '.NativeFinanceEvidenceSchema::records()));
+    }
+
+    public function testAuditCreatorMustMatchEncryptedOriginalProvenance():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
+        self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::audit_log(),['actor_id'=>$f['actors']['reviewer']],['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']]));
+        self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
     }
 
 }
