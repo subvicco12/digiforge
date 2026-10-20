@@ -287,3 +287,71 @@ For POD, the packet must distinguish actual production/shipping invoice charges 
 | INSTALLED-SITE / RELEASE | Installed workflows/restore, branch protections and SHA-bound artifact evidence, production authority | Separate authorization and owner exports where access is unavailable; no repeated known access attempts |
 
 Non-Finance remains246/268 implementation candidates with22UNVERIFIED;23 Finance-dependent criteria remain separately incomplete. Every catalog concept remains NOT_CERTIFIED_OR_PROMOTED. Local-validation JSON and final PR/issue1209 receipt bind actual test/security/package and hosted audit results to the candidate SHA. **NO-GO; STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.**
+
+## Batch 8 — source-contract evidence and individual acceptance readiness
+
+Verified baseline: draft #1226 at `6b7b719d62b028cfb8adb69afac1925e54ceea49`, exact-head audit #4761 PASS (run39439541207). Main remains `844107ab9baf7e1303cd47708e9eab3bc700b348`; the existing integration ancestry already contains #1220–#1226. Source branches remain unchanged. Issue1209 still contained only the39 existing comments, ending with the Batch7 receipt, when checked. Current managed revision1457 was observed restricted/enforced without provider credentials or documentation-domain grants. No blocked destination was fetched through an alternate route.
+
+This is a governed-evidence update only: no runtime, tests, schema, migrations, portal actions, authorization, provider transport or safety flags change. Independent source-only review found no new reproduced runtime defect and no newly sufficient licensed artistic execution. The existing246 candidates,22UNVERIFIED and23 separate Finance-dependent criteria are not promoted. Existing runtime test evidence remains relevant because runtime/test bytes are unchanged; final candidate CI is recorded on its draft PR/issue1209 receipt. No local full-suite rerun is needed for these documentation-only changes.
+
+### Official AI costs schema: available aggregate contract, not a billing transaction
+
+Official public source was retrieved through allowed GitHub access, not from a live provider account: `openai/openai-python` commit `0e5794dc48b8f8d51f6047f8a0b1814eb1e65850` (2026-10-20T04:34:28Z; GitHub reports its code signature verified). This establishes publisher-code provenance, not the ownership, authenticity or finality of any DigiForge financial record. The three generated SDK files provide bounded, version-pinned source-contract evidence:
+
+| Official source at that commit | SHA-256 of retrieved bytes | Verified scope |
+|---|---|---|
+| [usage_costs_response.py](https://github.com/openai/openai-python/blob/0e5794dc48b8f8d51f6047f8a0b1814eb1e65850/src/openai/types/admin/organization/usage_costs_response.py) | `5933dcc20e7958bc3aa0462317960e17c711f048f7da4ec3f513d1ceaed7e5f3` | Page/bucket/result wire types; costs are expressly aggregated |
+| [usage_costs_params.py](https://github.com/openai/openai-python/blob/0e5794dc48b8f8d51f6047f8a0b1814eb1e65850/src/openai/types/admin/organization/usage_costs_params.py) | `0f405a725a1f14fb601675a2ca475f0e2a292380482d0fa9792beec5eb353d5b` | Inclusive query start, exclusive end,1d buckets, pagination/filter/grouping contract |
+| [usage.py](https://github.com/openai/openai-python/blob/0e5794dc48b8f8d51f6047f8a0b1814eb1e65850/src/openai/resources/admin/organization/usage.py) | `2f226f29cb7dcf766fc00c3ce171c67ea6d8ab810b70cb92e956c60239f04b3a` | GET relative path `/organization/costs`; declares `admin_api_key_auth`. No request/key/session was created |
+
+Verified fields and limits: response `object=page`, `data[]`, `has_more`, optional `next_page`; bucket `object=bucket`, integer `start_time`/`end_time`, `results[]`; cost result `object=organization.costs.result`, optional `amount`, optional `amount.currency` (lowercase ISO-4217) and optional numeric `amount.value` (SDK float), plus optional grouping fields such as `project_id`, `line_item`, `api_key_id`, `user_id`, `api_source`, quantity and unit. The generated results union also admits usage result types; a generic result is not automatically a monetary record. Request bucket count is1..180, default7; supported width1d; request end is exclusive. Unsupported grouping combinations may return400.
+
+This corrects the earlier blanket impression that no official AI costs schema is accessible. **Aggregate wire schema: PARTIALLY VERIFIED; authoritative transaction import: BLOCKED.** The source has no invoice/transaction/response identity, original per-charge occurrence, DigiForge shop/environment, settled/reversed/finality state, immutable snapshot identifier or exact decimal precision guarantee. Bucket boundaries cannot become charge occurrence timestamps; grouping names cannot become invoice-line identities; pagination cannot prove a stable complete snapshot. The local reviewed six-place AI envelope is not this SDK schema. No default currency, six-place guarantee, rounding, ownership or actual charge is inferred.
+
+A parser claiming authoritative Finance declarations or existing per-response settlement from these buckets would invent missing semantics. No always-blocked aggregate wrapper or fabricated invoice importer is added. A separate aggregate-cost feature would require a reviewed account/project-to-shop/environment relation, grouping/completeness/snapshot policy, exact numeric preservation and any downstream allocation rules; it must remain distinct from actual invoice settlement. Existing current import behavior remains fail-closed for unsupported payloads.
+
+The public Printify GitHub organization repository listing exposed11 repositories but no versioned billing contract; this bounded discovery is not a claim that no such documentation exists elsewhere. Prior Etsy official-schema access restrictions remain unresolved. Third-party search examples were not accepted as authoritative schemas. No new raw Etsy/Printify/Gelato/advertising parser is justified by the available evidence.
+
+### All22 unresolved non-Finance criteria — implementation versus acceptance
+
+The source-only review resolved all109 cited implementation/test references for these rows. Existence and inspection are not new test execution or authentic acceptance. Five current pointers are improved in place: distinct-provider-shop enforcement now cites `ScopedProviderConnection`/`PrintifyConnectionBoundary` and actual shared-material/deferred-shop tests; the four Digital semantic rows now cite `ProductReview::planQaPassed`, not only a summary projection. IDs, source locators, scopes and statuses remain unchanged.
+
+| Exact criterion | Local software / evidence | Remaining criterion status and minimum input |
+|---|---|---|
+| BP-seam-panel-render | IMPLEMENTED exact panel/bleed declarations, reviewed alignment and artifact parity | BLOCKED: exact supplier geometry, licensed actual artifacts and independent alignment review |
+| BP-ai-value-routing | IMPLEMENTED deterministic-first/original fallback; AI remains REVIEW_REQUIRED | BLOCKED: resolved measured-benefit rule/permission and authentic findings; no threshold invented |
+| BP-template-qa-spelling | IMPLEMENTED exact template/text/locale hashes, code-point/glyph/overflow gates | BLOCKED: licensed fonts, actual native glyph/render behavior and independent linguistic approval; en-US remains proposed |
+| BP-printify-shop-scope | IMPLEMENTED scoped independent binding and cross-transport revocation checks | BLOCKED: authentic current environment/account/shop/integration ownership and installed-site proof |
+| BP-distinct-provider-shops | IMPLEMENTED foreign/deferred/shared-material denial | BLOCKED / OWNER DEFERRED: distinct approved external Shop3 mapping when onboarding is separately authorized; no implicit authority |
+| BP-etsy-shop-identity | IMPLEMENTED OAuth/PKCE and exact verified-shop identity machinery | BLOCKED: authentic current application/OAuth/shop evidence; no token renewal or activation |
+| BP-portal-4-provider-connections | IMPLEMENTED scoped read-only status, durable relation and guarded boundaries | BLOCKED: authentic provider ownership and installed connection workflow |
+| BP-portal-7-mockups | IMPLEMENTED stored byte/panel/derivative rights validation | BLOCKED: licensed customer-display assets and exact reviewed variant/UV/seam geometry |
+| BP-portal-7-supplier-readiness | IMPLEMENTED UNKNOWN/BLOCKED/REVIEW_REQUIRED; declarations cannot manufacture READY | BLOCKED: authentic product/provider/variant/geometry/rights/fulfillment facts and review |
+| BP-portal-11-production-authorization | IMPLEMENTED scope/expiry/revocation/replay and independent lock enforcement | BLOCKED: authentic separately granted production authority and supplier/provider evidence; no activation |
+| BP-portal-17-conversion | IMPLEMENTED deduplicated attributable orders / eligible visits and matching cohort | BLOCKED: authentic eligible visit/order population and completeness |
+| BP-portal-17-defect-quality | IMPLEMENTED confirmed distinct defective units / eligible fulfilled units | BLOCKED: authentic fulfilled population and independently reviewed defects; unknown is not zero |
+| BP-portal-17-supplier-performance | IMPLEMENTED separate attributed timeliness/defect/exception metrics | BLOCKED: exact eligibility semantics and authentic observations; no weighted score |
+| BP-portal-17-product-performance | IMPLEMENTED version-pinned order/conversion/fulfillment/quality cohorts | BLOCKED: authentic scoped versioned facts and completeness; no inferred profit |
+| BP-portal-17-shop-performance | IMPLEMENTED explicit selected-shop aggregation and foreign denial | BLOCKED: authentic scoped observations and installed-site acceptance |
+| BP-live-portal-normal-work | IMPLEMENTED bounded local listing/review/reconciliation/policy/connection leaves | BLOCKED composite: authenticated installed-site normal work with authentic ownership, licensed assets and authority; local browser proof is separate |
+| BP-secret-no-chat | IMPLEMENTED containment/redaction and namespace-bound opaque retrieval | BLOCKED process obligation: code cannot certify all current/future human disclosure; no credential collection requested |
+| BP-quality-feedback | IMPLEMENTED independently reviewed pseudonymous facts and hash-linked corrections | BLOCKED: authentic linked order/product/supplier findings plus privacy/retention authority |
+| BP-digital-semantic-content | IMPLEMENTED exact named semantic approval gates | BLOCKED: authentic content judgment and authorized review |
+| BP-digital-semantic-visual | IMPLEMENTED named visual/consistency gates and technical artifact summaries | BLOCKED: authentic artistic/visual judgment and review |
+| BP-digital-semantic-ip | IMPLEMENTED named IP gate; arbitrary/duplicate/missing checks reject | BLOCKED: authentic IP/rights evidence and authorized review |
+| BP-digital-semantic-policy | IMPLEMENTED named prohibited-content/policy gate | BLOCKED: authentic policy assessment and authorized review |
+
+No full criterion can honestly be promoted using additional synthetic fixtures alone. No independently specified MISSING runtime behavior was reproduced in these22 bounded inspections; unknown AI benefit/supplier eligibility policies remain contract dependencies. All23 Finance-dependent criteria retain their Batch7 source-to-executable-prerequisite reconciliation. All500 catalog identities,360 bounded recipes/140 blocked artistic executions and unchanged six-product/three-group plans retain their prior status. Home9 remains local arithmetic; apparel option conflicts and accessory option/stock dependencies remain UNKNOWN. Two-shop local readiness is not four-shop Blueprint or installed-site certification.
+
+### Consolidated readiness and minimum owner action
+
+| Readiness layer | Current result | Smallest next action |
+|---|---|---|
+| Local software candidate | Existing runtime/test tree unchanged from audited #1226; no new reproduced defect | Retain passing runtime evidence and validate this governed evidence update; do not create speculative code |
+| Financial source contract support | Official AI aggregate schema pinned; actual transaction adapters MISSING / source-contract BLOCKED | Privately supply one official Etsy payment/fee schema/export definition or actual POD invoice schema plus a small redacted original record bundle with exact units/currency, identities, occurrence, corrections/finality and account/shop/environment mapping |
+| AI financial certification | Aggregate schema does not provide per-charge identity, finality or account-to-shop authority | Existing original invoice/charge records and billed organization/project context, approved grouping/attribution relation and precision policy; no new admin key or provider call is requested |
+| Allocation / outcome rules | Explicit reviewed amounts/inverses implemented; generic pooling/historical rebinding and broader outcome joins remain contract-dependent | Exact reviewed ownership/weighting/remainder/history, threshold/freshness and event/window/denominator rules where needed; existing policy directions are not requested again |
+| Commercial/artwork/supplier acceptance | All concepts unpromoted; native/supplier/rights/linguistic/artistic facts unresolved | Exact authenticated identity/variant/SKU/geometry/shipping/native behavior, licensed assets and independent receipts |
+| Installed-site / release / activation | NOT VERIFIED; release HOLD | Separate installed-site/restore/release authorization and current protection/artifact exports where access is unavailable; no production operation is implied |
+
+**NO-GO. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.** No actual financial imports/approvals, credentials, live providers, production/staging writes, product changes, orders, publishing, activation, merges or deployment.

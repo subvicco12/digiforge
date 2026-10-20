@@ -570,5 +570,64 @@
     "release_recommendation": "NO_GO_RELEASE_HOLD",
     "safety": "STOP_ALL_ON; EXTERNAL_LOCK_ON; AUTOMATION_OFF; RELEASE_HOLD",
     "hosted_exact_head_receipt": "Final draft PR and issue1209 receipt; baseline audit not reused for changed code."
+  },
+  "batch8": {
+    "baseline_pr": 1226,
+    "baseline_sha": "6b7b719d62b028cfb8adb69afac1925e54ceea49",
+    "baseline_audit": 4761,
+    "baseline_audit_run": 39439541207,
+    "main_sha": "844107ab9baf7e1303cd47708e9eab3bc700b348",
+    "scope": "GOVERNED_EVIDENCE_ONLY; runtime/test/schema/migration bytes unchanged",
+    "source_contract": {
+      "publisher": "openai/openai-python",
+      "commit": "0e5794dc48b8f8d51f6047f8a0b1814eb1e65850",
+      "sha256": {
+        "usage_costs_response.py": "5933dcc20e7958bc3aa0462317960e17c711f048f7da4ec3f513d1ceaed7e5f3",
+        "usage_costs_params.py": "0f405a725a1f14fb601675a2ca475f0e2a292380482d0fa9792beec5eb353d5b",
+        "usage.py": "2f226f29cb7dcf766fc00c3ce171c67ea6d8ab810b70cb92e956c60239f04b3a"
+      },
+      "aggregate_wire_schema": "PARTIALLY_VERIFIED",
+      "authoritative_transaction_import": "BLOCKED",
+      "live_api_calls": 0,
+      "limits": "Aggregate buckets do not establish invoice/transaction/response identity, occurrence, ownership, precision, immutable snapshot or settlement/finality."
+    },
+    "traceability": {
+      "changed_rows": [
+        "BP-distinct-provider-shops",
+        "BP-digital-semantic-content",
+        "BP-digital-semantic-visual",
+        "BP-digital-semantic-ip",
+        "BP-digital-semantic-policy"
+      ],
+      "protected_ids_sources_scopes_statuses_unchanged": true,
+      "individually_reconciled_unverified": 22,
+      "existing_implementation_test_references_reviewed": 109,
+      "reference_existence_is_test_execution": false
+    },
+    "acceptance": {
+      "nonfinance_implemented_candidates": 246,
+      "nonfinance_mandatory": 268,
+      "nonfinance_unverified": 22,
+      "finance_dependent": 23,
+      "finance_status": "INCOMPLETE",
+      "promotions": 0
+    },
+    "master500": {
+      "identities": 500,
+      "bounded_recipes": 360,
+      "artistic_execution_blocked": 140,
+      "certified_or_promoted": 0
+    },
+    "new_runtime_defects_reproduced": 0,
+    "focused_matrix_validation": {
+      "status": "PASS",
+      "tests": 16,
+      "failures": 0
+    },
+    "full_local_runtime_suites": "Not repeated: runtime and test bytes unchanged; baseline #4761 retained. Final candidate hosted audit receipt on draft PR/issue1209.",
+    "source_hashes_and_22_criterion_set": "PASS",
+    "safety": "STOP_ALL_ON; EXTERNAL_LOCK_ON; AUTOMATION_OFF; RELEASE_HOLD",
+    "installed_site_verified": false,
+    "release_recommendation": "NO_GO"
   }
 }
