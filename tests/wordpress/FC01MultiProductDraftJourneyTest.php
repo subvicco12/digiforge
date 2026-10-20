@@ -33,5 +33,23 @@ final class FC01MultiProductDraftJourneyTest extends WP_UnitTestCase {
    self::assertFalse(Drafts::build($design,$products)['network_request_permitted']);self::assertSame(0,$calls);self::assertTrue(DigiForge\Core\Settings::get('stop_all'));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::is_enabled('order_automation'));
   }finally{remove_filter('pre_http_request',$deny,PHP_INT_MAX);}
  }
+ /** @dataProvider inventoryCombinationCases */
+ public function testOfflineInventoryRejectsExcessCombinationsWithoutDispatch(int $count, bool $allowed): void {
+  $products = [];
+  for ($i = 0; $i < $count; $i++) $products[] = ['sku' => 'SYNTHETIC-COMBINATION-' . $i];
+  $result = DigiForge\Listings\EtsyDraftListingOperations::inventory(123, $products);
+  if (!$allowed) {
+   self::assertWPError($result);
+   self::assertSame('digiforge_etsy_draft_operation_inventory', $result->get_error_code());
+   return;
+  }
+  self::assertNotWPError($result);
+  self::assertCount($count, $result['payload']['products']);
+  self::assertSame($result, DigiForge\Listings\EtsyDraftListingOperations::inventory(123, $products));
+  self::assertFalse($result['network_request_permitted']);
+  self::assertFalse($result['publish_permitted']);
+  self::assertFalse($result['external_execution_performed']);
+ }
+ public static function inventoryCombinationCases(): array { return [[399, true], [400, true], [401, false], [496, false]]; }
  public static function establishedCases():array {return [['2011','ESTABLISHED 2011',true],[null,null,true],['',null,true],["\u{3000}",null,true],[' 2011 ','ESTABLISHED  2011 ',true],['2011','ESTABLISHED 2011',false]];}
 }

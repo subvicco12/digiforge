@@ -67,6 +67,15 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         self::assertFalse($result['provider_listing_dependencies']['independent_edits_permitted']);
     }
 
+    public function testUnresolvedDependenciesIncludeShippingAndNeverCertifyActivePersonalization(): void
+    {
+        $result = EtsyMultiProductDraftContract::build(self::design(), [self::product()]);
+        self::assertSame('UNKNOWN', $result['listings'][0]['buyer_personalization']);
+        self::assertSame('UNKNOWN', $result['provider_listing_dependencies']['shipping_dependencies']);
+        self::assertFalse($result['provider_listing_dependencies']['independent_edits_permitted']);
+        self::assertFalse($result['network_request_permitted']);
+    }
+
     public function testRetriesAreDeterministicAndProductOrderIndependent(): void
     {
         $a = EtsyMultiProductDraftContract::build(self::design(), [self::product(), self::product(2)]);
@@ -89,7 +98,7 @@ final class EtsyMultiProductDraftContractTest extends TestCase
     {
         $base = self::product();
         $cases = [];
-        foreach (['shop_key'=>'digital', 'variant_id'=>999, 'placement'=>'unknown', 'sku'=>'', 'product_version_id'=>0, 'native_verified'=>true] as $key=>$value) {
+        foreach (['shop_key'=>'digital', 'variant_id'=>999, 'placement'=>'unknown', 'sku'=>'', 'product_version_id'=>0, 'native_verified'=>true, 'personalization_enabled'=>false] as $key=>$value) {
             $p = $base;
             $p[$key] = $value;
             $cases[$key] = [[$p]];
