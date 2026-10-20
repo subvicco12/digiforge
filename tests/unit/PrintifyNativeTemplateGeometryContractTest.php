@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use DigiForge\POD\ProductionTemplateContract;
 use PHPUnit\Framework\TestCase;
+require_once dirname(__DIR__,2).'/includes/Database/QueryEvidence.php';
 
 require_once dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php';
 
@@ -102,5 +103,24 @@ final class PrintifyNativeTemplateGeometryContractTest extends TestCase
     public function testDuplicatePlacementDoesNotHideAnUnboundPlacement(): void {
         $g=$this->embroideryGeometry();$g[4]=$g[0];$this->expectException(InvalidArgumentException::class);
         ProductionTemplateContract::fromPrintifyCatalog($this->embroideryCatalog(),$g,$this->template());
+    }
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testArtifactRevalidationRejectsCurrentTransportDriftWithoutChangingVariantBytes():void {
+        if(!class_exists('WP_Error'))eval('class WP_Error { public function __construct(private string $code,public string $message="",public mixed $data=null){} public function get_error_code():string{return $this->code;} }');
+        require_once dirname(__DIR__,2).'/includes/POD/RenderArtifactVerifier.php';
+        $row=$this->catalogVariant();$template=ProductionTemplateContract::fromPrintifyCatalog($row,$this->geometry(),$this->template('VALIDATED'));
+        $read=new ReflectionMethod(DigiForge\POD\RenderArtifactVerifier::class,'assertCurrentPrintifyVariants');$read->setAccessible(true);$verifier=new DigiForge\POD\RenderArtifactVerifier();
+        global $wpdb;$previous=$wpdb??null;
+        try{
+            $wpdb=new class {public string $prefix='wp_';public string $last_error='';public array $row=[];public function prepare(string $sql,mixed ...$args):string{return $sql;}public function get_row(string $sql,mixed $mode):array{return $this->row;}};
+            if(!defined('ARRAY_A'))define('ARRAY_A','ARRAY_A');
+            $wpdb->row=$row;$wpdb->row['attributes']=wp_json_encode($row['attributes']);self::assertNull($read->invoke($verifier,$template,'production'));
+            foreach(['response_sha256'=>str_repeat('b',64),'endpoint_path'=>'/v1/catalog/blueprints/999/print_providers/2/variants.json']as $field=>$value){
+                foreach([$value,null]as $replacement){$changed=$row;if($replacement===null)unset($changed['attributes']['_digiforge_source_evidence'][$field]);else $changed['attributes']['_digiforge_source_evidence'][$field]=$replacement;$wpdb->row=$changed;$wpdb->row['attributes']=wp_json_encode($changed['attributes']);$result=$read->invoke($verifier,$template,'production');self::assertInstanceOf(WP_Error::class,$result,'Frozen source provenance drift: '.$field);self::assertSame('render_artifact_catalog_stale',$result->get_error_code());}
+            }
+        }finally{$wpdb=$previous;}
     }
 }

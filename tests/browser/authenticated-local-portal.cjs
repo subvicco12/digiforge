@@ -37,10 +37,20 @@ function run(php,file,env){const r=spawnSync(php,[file],{env,encoding:'utf8',tim
    assert(!(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2)));checks++;
    for(const shop of ['personalized_pod','standard_pod','jewelry','all']){await p.goto(base+'/?df_view=products&df_shop='+shop);assert.match(await p.locator('body').innerText(),/explicit assignment is required/);assert(!/SYNTHETIC_PRIVATE_/.test(await p.locator('body').innerText()));checks+=2;}
    await p.goto(base+'/?df_view=research&df_shop=digital');assert(!(await p.locator('input[name=df_research_signature]').count()));checks++;
+   await p.goto(base+'/?df_view=finance&df_shop=digital');assert.equal(await p.locator('[data-finance-declarations]').count(),0);assert.match(await p.locator('body').innerText(),/requires assignments for all four shops|explicit assignment is required|not authorized/);checks+=2;
    await c.close();
   }
   for(const who of ['personalized_pod','unassigned','viewer']){const c=await context(390),p=await login(c,actors[who]);await p.goto(base+'/?df_view=products&df_shop='+who);const body=await p.locator('body').innerText();if(who==='personalized_pod'){assert.match(body,/SYNTHETIC_PRIVATE_personalized_pod/);assert(!body.includes('SYNTHETIC_PRIVATE_digital'));}else assert.match(body,/explicit assignment is required|not authorized/);checks++;await c.close();}
   const c=await context(1280),p=await login(c,actors.reviewer);
+  for(const width of [390,1280]){
+   await p.setViewportSize({width,height:900});await p.goto(base+'/?df_view=finance&df_shop=digital');const panel=p.locator('[data-finance-declarations]');await panel.getByRole('heading',{name:'Provisional finance declarations',exact:true}).waitFor();checks++;
+   const evidence=await panel.innerText();assert.match(evidence,/NO_DECLARATIONS/);assert.match(evidence,/Shop: digital/);assert.match(evidence,/Environment: test/);checks+=3;
+   for(const phrase of ['Authenticity: UNKNOWN','Source completeness: UNKNOWN','External execution authority: NO','Money movement authority: NO','Tax filing authority: NO','Period approval authority: NO']){assert(evidence.includes(phrase));checks++;}
+   const environment=panel.getByRole('combobox',{name:'Declaration environment (read only)'});assert.equal(await environment.inputValue(),'test');await environment.focus();assert(await environment.evaluate(n=>n===document.activeElement));await p.keyboard.press('Tab');assert(!(await environment.evaluate(n=>n===document.activeElement)));checks+=3;
+   assert(!(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2)));checks++;
+   await p.goto(base+'/?df_view=finance&df_shop=digital&df_finance_environment=invalid');const unavailable=await p.locator('[data-finance-declarations]').innerText();assert.match(unavailable,/UNAVAILABLE/);assert.match(unavailable,/this declaration report was not queried/);assert(!unavailable.includes('0.0000'));checks+=3;
+  }
+  await p.setViewportSize({width:1280,height:900});
   for(const [kind,consent]of Object.entries(consents)){
    if(kind==='receipt_failure')fs.writeFileSync(path.join(dir,'receipt-failure.marker'),'SYNTHETIC FAULT');
    await p.goto(base+'/?df_view=research&df_shop=digital&df_research_run='+consent.id);assert(!(await p.locator('input[name=df_research_signature]').count()));assert.match(await p.locator('body').innerText(),/STOP ALL/);checks+=2;
