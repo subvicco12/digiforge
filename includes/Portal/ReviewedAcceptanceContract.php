@@ -47,14 +47,25 @@ final class ReviewedAcceptanceContract
   return $state+['contract_key'=>$key,'value_state'=>'UNKNOWN','evidence_state'=>'UNVERIFIED','external_execution_authorized'=>false,'supplier_approved'=>false,'publishing_allowed'=>false,'ai_execution_allowed'=>false];
  }
  /** Exact reviewed text/locale parity only; this does not perform or certify linguistic QA. */
- public static function matchesText(string $shop,string $scope,string $text,string $locale):true|WP_Error {
+ public static function matchesText(string $shop,string $scope,string $text,string $locale,?string $templateSha256=null):true|WP_Error {
   $state=self::current($shop,'BP-template-qa-spelling',$scope);if(is_wp_error($state))return $state;
-  $d=$state['payload']['definition'];
+  $d=$state['payload']['definition'];if($state['payload']['version']===2){if(ApprovedAcceptancePolicy::evaluate($shop,'BP-template-qa-spelling',$d)['state']!=='MATCHED_REVIEWED_DECLARATION'||$templateSha256===null||$templateSha256!==($d['observations']['template_sha256']??null))return self::error();$d=$d['observations']??[];}
+  if(!isset($d['locale'],$d['text_sha256'])||!is_string($d['text_sha256']))return self::error();
   return strlen($text)<=65536&&preg_match('//u',$text)===1&&$locale===$d['locale']&&hash_equals($d['text_sha256'],hash('sha256',$text))?true:self::error();
  }
+ /** Read-only policy evaluation; signed declaration matching never certifies underlying facts. */
+ public static function evaluate(string $shop,string $criterion,string $scope,?string $environment=null):array|WP_Error {
+  $key=self::key($shop,$criterion,$scope);if(is_wp_error($key))return $key;
+  $state=self::current($shop,$criterion,$scope);if(is_wp_error($state)||$state['payload']['version']!==2||($environment!==null&&$state['payload']['definition']['environment']!==$environment))return ApprovedAcceptancePolicy::unknown();
+  $out=ApprovedAcceptancePolicy::evaluate($shop,$criterion,$state['payload']['definition']);
+  // Re-read authorization and the independent review after evaluation; never cache a positive snapshot.
+  if(self::current($shop,$criterion,$scope)!==$state)return ApprovedAcceptancePolicy::unknown();
+  return $out+['criterion'=>$criterion,'shop_key'=>$shop,'scope'=>$scope,'environment'=>$state['payload']['definition']['environment'],'review_revision'=>$state['revision'],'review_sha256'=>$state['proposal_hash']];
+ }
  private static function validate(string $shop,array $input):string|WP_Error {
-  if(!self::keys($input,['version','criterion','scope','workflow','definition'])||($input['version']??null)!==1||!is_string($input['criterion'])||!is_string($input['scope'])||!self::identifier($input['workflow'])||!is_array($input['definition']))return self::error();
+  if(!self::keys($input,['version','criterion','scope','workflow','definition'])||!in_array($input['version']??null,[1,2],true)||!is_string($input['criterion'])||!is_string($input['scope'])||!self::identifier($input['workflow'])||!is_array($input['definition']))return self::error();
   $key=self::key($shop,$input['criterion'],$input['scope']);if(is_wp_error($key))return $key;$d=$input['definition'];
+  if($input['version']===2)return ApprovedAcceptancePolicy::valid($shop,$input['criterion'],$d)?$key:self::error();
   switch($input['criterion']){
    case 'BP-seam-panel-render':
     if(!self::keys($d,['fixture_refs','geometry_ref','checks'])||!self::refs($shop,$d['fixture_refs'])||!self::ref($shop,$d['geometry_ref'])||!is_array($d['checks'])||!array_is_list($d['checks'])||count($d['checks'])!==3)return self::error();

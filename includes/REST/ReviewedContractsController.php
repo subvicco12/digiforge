@@ -57,7 +57,15 @@ final class ReviewedContractsController
             if(is_wp_error($latest))return $latest;
             if($latest!==$state)return self::error('stale',409);
         }
-        return new WP_REST_Response($state+['evidence_resolution'=>$resolution],200);
+        $evaluation=\DigiForge\Portal\ApprovedAcceptancePolicy::unknown();
+        if($environment!==null){
+            $evaluation=\DigiForge\Portal\ReviewedAcceptanceContract::evaluate($shop,$query['criterion'],$query['scope'],$environment);
+            if(is_wp_error($evaluation))return $evaluation;
+            $latest=\DigiForge\Portal\ReviewedAcceptanceContract::status($shop,$query['criterion'],$query['scope']);
+            if(is_wp_error($latest))return $latest;
+            if($latest!==$state)return self::error('stale',409);
+        }
+        return new WP_REST_Response($state+['evidence_resolution'=>$resolution,'policy_evaluation'=>$evaluation],200);
     }
 
     public function canRead(WP_REST_Request $request): true|WP_Error
