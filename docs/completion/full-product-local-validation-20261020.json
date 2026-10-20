@@ -742,5 +742,39 @@
       "affected_packaging_case_rerun": "PASS_EXPLICIT_RELEASE_ENV_FORWARDED",
       "runtime_php_source_changes": 0
     }
+  },
+  "batch13_encrypted_native_custody": {
+    "baseline_pr": 1230,
+    "baseline_sha": "5d1897b28bb561bbe6147a75a889361f9a755c04",
+    "evidence": "docs/completion/encrypted-native-finance-evidence-20261021.md",
+    "new_encryption_unit": {
+      "tests": 9,
+      "assertions": 27,
+      "result": "PASS"
+    },
+    "focused_unit": {
+      "tests": 111,
+      "assertions": 220,
+      "result": "PASS"
+    },
+    "new_wordpress": {
+      "tests": 13,
+      "assertions": 277,
+      "result": "PASS"
+    },
+    "hosted_audit": "REQUIRED_ON_PUBLISHED_FINAL_HEAD_SEE_PR_AND_ISSUE_RECEIPT",
+    "production_schema_registration": false,
+    "real_imports": false,
+    "finance_criteria_promoted": 0,
+    "nonfinance_criteria_promoted": 0,
+    "retention_or_deletion_authorized": false,
+    "wordpress_compatibility": {
+      "tests": 39,
+      "assertions": 688,
+      "result": "PASS"
+    },
+    "supplementary_phpstan_level5": "PASS_NO_SUPPRESSIONS",
+    "matrix_protected_rows": 376,
+    "prospective_gitleaks": "PASS_8.30.1"
   }
 }
