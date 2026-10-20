@@ -14,41 +14,37 @@ final class DeclarationReadModel
         try{$scope=self::scope($shop,$environment,$start,$end,$baseCurrency);}catch(\InvalidArgumentException){return self::blocked([], 'SCOPE_INVALID', 'Explicit canonical report scope is required.');}
         $limit=max(1,min(200,$limit));global $wpdb;
         $wpdb->last_error='';
-        // Namespace OR payload marker keeps corrupted/unclassifiable declarations visible to integrity checks.
-        // A valid foreign shop can be skipped only after typed source validation, never by parsing damaged JSON in SQL.
-        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s AND (idempotency_key LIKE %s OR metadata LIKE %s) ORDER BY id DESC LIMIT %d',
-            $scope['environment'],$scope['period_start'],$scope['period_end'],$wpdb->esc_like('finance_decl:').'%','%"finance_declaration":%',$limit+1),ARRAY_A);
+        // Match allocation preview's conservative environment bound: a forward reversal
+        // must not disappear because it occurred outside the requested accounting period.
+        // Namespace OR payload marker also keeps damaged declaration evidence visible.
+        $sql=$wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE environment=%s AND (idempotency_key LIKE %s OR metadata LIKE %s) ORDER BY id ASC LIMIT 201',
+            $scope['environment'],$wpdb->esc_like('finance_decl:').'%','%"finance_declaration":%');
+        $rows=$wpdb->get_results($sql,ARRAY_A);
         if(DatabaseEvidence::failed()||!is_array($rows))return self::blocked($scope,'SOURCE_UNAVAILABLE','Declaration ledger evidence could not be read.','UNAVAILABLE');
-        $truncated=count($rows)>$limit;$entries=[];$repo=new Repository();$histories=[];
-        foreach(array_slice($rows,0,$limit)as$row){
+        if(count($rows)>200){$report=self::blocked($scope,'TRUNCATED','Complete bounded environment declaration evidence is required.');$report['truncated']=true;return $report;}
+        $entries=[];$seeds=[];$periodCount=0;$repo=new Repository();
+        foreach($rows as$row){
             $evidence=$repo->declarationEvidence($row);
             if($evidence instanceof WP_Error)return self::blocked($scope,'SOURCE_REFERENCE_INVALID','Current declaration source, ownership or FX links could not be verified.');
-            if($shop!=='all'&&$evidence['declaration']['scope']['shop_key']!==$shop)continue;
-            $key=DeclarationContract::identityKey($evidence['declaration']);
-            if(isset($histories[$key]))continue;
-            $histories[$key]=true;$history=$repo->declarationHistory($evidence['declaration']);
-            if($history instanceof WP_Error)return self::blocked($scope,'HISTORY_UNAVAILABLE','Complete bounded transaction revision evidence could not be read.');
-            if($history===[])return self::blocked($scope,'HISTORY_MISSING','Persisted declaration history is missing.');
-            foreach($history as$entry)$entries[$entry['ledger_id']]=$entry;
-            if(count($entries)>200){$truncated=true;break;}
-        }
-        // Reversals can occur in a different period from their original; resolve exact bounded histories before filtering totals.
-        $resolved=[];$changed=true;
-        while($changed&&!$truncated){
-            $changed=false;$known=[];foreach($entries as$entry)$known[$entry['declaration']['declaration_hash']]=true;
-            foreach($entries as$entry){$d=$entry['declaration'];$target=$d['reversal_of_hash'];
-                if($target===''||isset($known[$target])||isset($resolved[$target]))continue;
-                $resolved[$target]=true;$original=$repo->declarationByHash($target,$environment);
-                if($original instanceof WP_Error||!DeclarationMatcher::isReversal($d,$original['declaration']))return self::blocked($scope,'REVERSAL_REFERENCE_INVALID','Exact compatible original reversal evidence is unavailable.');
-                $history=$repo->declarationHistory($original['declaration']);
-                if($history instanceof WP_Error||$history===[])return self::blocked($scope,'HISTORY_UNAVAILABLE','Complete bounded original transaction history is unavailable.');
-                foreach($history as$related)$entries[$related['ledger_id']]=$related;
-                $changed=true;
-                if(count($entries)>200){$truncated=true;break;}
+            $entries[]=$evidence;$d=$evidence['declaration'];$date=substr($d['occurred_at'],0,10);
+            if($date>=$scope['period_start']&&$date<=$scope['period_end']){
+                ++$periodCount;
+                if($shop==='all'||$d['scope']['shop_key']===$shop)$seeds[]=$evidence;
             }
         }
-        ksort($entries,SORT_NUMERIC);
-        return self::project(array_values($entries),$scope,$truncated);
+        $related=self::related($entries,$seeds);$historyCounts=[];
+        foreach($related as$entry){
+            $identity=DeclarationContract::identityKey($entry['declaration']);
+            $historyCounts[$identity]=($historyCounts[$identity]??0)+1;
+            // Retain Repository::declarationHistory's existing fifty-row review window.
+            if($historyCounts[$identity]>50)return self::blocked($scope,'HISTORY_UNAVAILABLE','Complete bounded transaction revision evidence could not be read.');
+        }
+        $report=self::project($related,$scope,$periodCount>$limit);
+        // Detect observed additions/removals/revisions during source/reference validation.
+        $wpdb->last_error='';$again=$wpdb->get_results($sql,ARRAY_A);
+        if(DatabaseEvidence::failed()||!is_array($again))return self::blocked($scope,'SOURCE_UNAVAILABLE','Declaration ledger evidence could not be reread.','UNAVAILABLE');
+        if(Validator::hash($rows)!==Validator::hash($again))return self::blocked($scope,'SOURCE_CHANGED','Declaration evidence changed during reporting.');
+        return $report;
     }
 
     /** Pure projection over reference-validated entries. Useful for offline review; never grants authority. */
@@ -56,16 +52,17 @@ final class DeclarationReadModel
     {
         try{$scope=self::scope($scope['shop_key'],$scope['environment'],$scope['period_start'],$scope['period_end'],$scope['base_currency']);}
         catch(\InvalidArgumentException|\TypeError){return self::blocked([], 'SCOPE_INVALID','Explicit canonical report scope is required.');}
-        $normalized=[];$identities=[];
+        $normalized=[];$seeds=[];
         foreach($entries as$entry){
             try{$d=DeclarationContract::fromStored($entry['declaration']);}
             catch(\InvalidArgumentException|\TypeError){return self::blocked($scope,'CONTRACT_INVALID','Typed immutable declaration evidence could not be verified.');}
             if($d['environment']!==$scope['environment'])continue;
             $entry['declaration']=$d;$normalized[]=$entry;
-            if($scope['shop_key']==='all'||$d['scope']['shop_key']===$scope['shop_key'])$identities[DeclarationContract::identityKey($d)]=true;
+            if($scope['shop_key']==='all'||$d['scope']['shop_key']===$scope['shop_key'])$seeds[]=$entry;
         }
-        // Keep complete related histories until matching; filtering individual revisions first can resurrect superseded facts.
-        $entries=array_values(array_filter($normalized,static fn(array$entry):bool=>isset($identities[DeclarationContract::identityKey($entry['declaration'])])));
+        // Keep connected revision/reversal histories until matching; mask foreign shop
+        // rows only after they have had a chance to invalidate conflicting evidence.
+        $entries=self::related($normalized,$seeds);
         if(count($entries)>200){$truncated=true;$entries=array_slice($entries,0,200);}
         $matching=DeclarationMatcher::match($entries,$scope['period_end']);
         $active=array_values(array_filter($matching['active'],static fn(array$entry):bool=>($scope['shop_key']==='all'||$entry['declaration']['scope']['shop_key']===$scope['shop_key'])&&substr($entry['declaration']['occurred_at'],0,10)>=$scope['period_start']&&substr($entry['declaration']['occurred_at'],0,10)<=$scope['period_end']));
@@ -118,6 +115,25 @@ final class DeclarationReadModel
     {
         return ProvisionalProfitMetrics::fromAmounts(array_map(static fn(array $entry): array =>
             ['category'=>$entry['declaration']['category'],'base_amount'=>$entry['declaration']['base_amount']],$entries));
+    }
+
+    /** Same connected identity/reversal traversal as allocation preview, before period arithmetic. */
+    private static function related(array $entries,array $seeds):array
+    {
+        $identities=[];$hashes=[];$selected=[];$changed=true;
+        foreach($seeds as$entry){$d=$entry['declaration'];$identities[DeclarationContract::identityKey($d)]=true;$hashes[$d['declaration_hash']]=true;}
+        while($changed){
+            $changed=false;
+            foreach($entries as$i=>$entry){
+                $d=$entry['declaration'];$identity=DeclarationContract::identityKey($d);$reverse=$d['reversal_of_hash'];
+                if(isset($selected[$i]))continue;
+                if(!isset($identities[$identity])&&!isset($hashes[$d['declaration_hash']])&&($reverse===''||!isset($hashes[$reverse])))continue;
+                $selected[$i]=$entry;$identities[$identity]=true;$hashes[$d['declaration_hash']]=true;
+                if($reverse!=='')$hashes[$reverse]=true;
+                $changed=true;
+            }
+        }
+        ksort($selected,SORT_NUMERIC);return array_values($selected);
     }
 
     private static function scope(string $shop,string $environment,string $start,string $end,string $base):array

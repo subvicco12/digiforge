@@ -362,5 +362,110 @@
       "full_offline_tests": 134,
       "final_exact_head_audit_required": true
     }
+  },
+  "batch6": {
+    "baseline_pr": 1224,
+    "baseline_sha": "f2f84f153dc9dfbd00e1f2fa7d2929a6d9ae85a6",
+    "baseline_audit": 4759,
+    "main_sha": "844107ab9baf7e1303cd47708e9eab3bc700b348",
+    "defect": "Period-filtered declaration discovery omitted conflicting forward reversals outside the requested period; final source reread absent.",
+    "reproduction": {
+      "tests": 9,
+      "failures_before_fix": 8,
+      "storage_only_doubles": true,
+      "native_repository_regressions": true
+    },
+    "final_focused_finance_unit": {
+      "tests": 127,
+      "assertions": 357,
+      "failures": 0
+    },
+    "full_composer_before_final_compatibility_guard": {
+      "status": "PASS",
+      "unit_tests": 1647,
+      "unit_assertions": 8974,
+      "existing_skips": 1,
+      "note": "Subsequent fifty-history compatibility guard and its new test passed affected final tests; final hosted audit validates final exact head."
+    },
+    "native_finance_integrated": {
+      "tests": 146,
+      "assertions": 3001,
+      "failures": 0
+    },
+    "artwork_draft_focused": {
+      "tests": 124,
+      "assertions": 311,
+      "failures": 0
+    },
+    "source_inventory_tests": {
+      "tests": 4,
+      "status": "PASS"
+    },
+    "offline": {
+      "tests": 134,
+      "status": "PASS"
+    },
+    "matrix_validator": {
+      "tests": 16,
+      "status": "PASS"
+    },
+    "supplementary_phpstan": {
+      "level": 5,
+      "status": "PASS",
+      "scope": "All Finance and existing changed consumers/renderer; actual WordPress symbols; no ignores or rules weakened."
+    },
+    "bounded_reporting": {
+      "max_environment_declarations": 200,
+      "max_connected_identity_history": 50,
+      "caller_period_limit": true,
+      "source_final_reread": true,
+      "foreign_connected_conflicts_block": true,
+      "valid_cross_period_amounts_preserved": true
+    },
+    "schema_version": 23,
+    "new_migrations": 0,
+    "production_writes": 0,
+    "live_provider_calls": 0,
+    "nonfinance": {
+      "mandatory": 268,
+      "implemented_candidates": 246,
+      "unverified": 22,
+      "acceptance_promotions": 0
+    },
+    "finance_dependent": {
+      "criteria": 23,
+      "status": "INCOMPLETE"
+    },
+    "master500": {
+      "identities": 500,
+      "bounded_recipes": 360,
+      "artistic_execution_blocked": 140,
+      "certified_or_promoted": 0
+    },
+    "external_inputs": "Authoritative financial schemas/redacted source records with exact units, occurrence, billed account/shop/environment, revision/finality and precision rules; reviewed pooled-allocation/historical-rebinding contracts; exact supplier/native/rights and independent reviews; installed-site/restore/release evidence.",
+    "release_recommendation": "NO_GO_RELEASE_HOLD",
+    "safety": "STOP_ALL_ON; EXTERNAL_LOCK_ON; AUTOMATION_OFF; RELEASE_HOLD",
+    "exact_head_hosted_evidence": "Final draft PR and issue1209 receipt, independently matched to pushed SHA; no baseline audit reused for changed code.",
+    "authenticated_local_browser": {
+      "status": "PASS",
+      "chromium_version": "154.0.8037.57",
+      "node_version": "v24.19.0",
+      "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+      "checks": 194,
+      "requests": 414,
+      "blocked_requests": 0,
+      "widths": [
+        390,
+        1280
+      ],
+      "business_tables_unchanged": 47,
+      "stop_all": true,
+      "external_locked": true,
+      "automation_armed": false,
+      "external_requests": 0,
+      "business_row_mutations": 0,
+      "fixture_bootstrap_ddl_statements": 0,
+      "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
+    }
   }
 }

@@ -253,4 +253,67 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
         self::assertIsArray($repo->importDeclaration(array_replace($input,['revision'=>2,'previous_revision_hash'=>$original['declaration_hash'],'amount'=>'12.0000','base_amount'=>'12.0000'])));
         self::assertSame('BLOCKED',$model->snapshot('personalized_pod','test','2026-11-01','2026-11-30','USD')['state']);
     }
+    public function testForwardCrossPeriodReversalKeepsPeriodAmountsButDuplicateInverseBlocksTheOriginalPeriod():void
+    {
+        $input=$this->fixture();$repo=new Repository();$first=$repo->importDeclaration($input);self::assertIsArray($first);
+        $original=json_decode($first['metadata'],true)['finance_declaration'];
+        $inverse=array_replace($input,['external_transaction_id'=>'forward-november-inverse','reversal_of_hash'=>$original['declaration_hash'],
+            'amount'=>'-10.0000','base_amount'=>'-10.0000','occurred_at'=>'2026-11-10T12:00:00Z','observed_at'=>'2026-11-10T12:01:00Z']);
+        self::assertIsArray($repo->importDeclaration($inverse));$model=new DigiForge\Finance\DeclarationReadModel();
+        $october=$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+        self::assertSame('PROVISIONAL',$october['state']);self::assertSame('REVERSED',$october['matching']['state']);
+        self::assertSame('10.0000',$october['totals']['gross_revenue']);self::assertCount(1,$october['gst_review']['rows']);
+        self::assertSame($original['declaration_hash'],$october['gst_review']['rows'][0]['declaration_hash']);
+        $november=$model->snapshot('personalized_pod','test','2026-11-01','2026-11-30','USD');
+        self::assertSame('-10.0000',$november['totals']['gross_revenue']);self::assertCount(1,$november['gst_review']['rows']);
+        self::assertIsArray($repo->importDeclaration(array_replace($inverse,['external_transaction_id'=>'second-forward-inverse'])));
+        $blocked=$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+        self::assertSame('BLOCKED',$blocked['state']);self::assertSame('CONFLICT',$blocked['matching']['state']);
+        self::assertNull($blocked['totals']);self::assertSame([],$blocked['gst_review']['rows']);
+    }
+    public function testForwardCrossPeriodInverseCannotHideItsSupersededOriginalConflict():void
+    {
+        $input=$this->fixture();$repo=new Repository();$first=$repo->importDeclaration($input);self::assertIsArray($first);
+        $original=json_decode($first['metadata'],true)['finance_declaration'];
+        self::assertIsArray($repo->importDeclaration(array_replace($input,['external_transaction_id'=>'forward-revision-inverse',
+            'reversal_of_hash'=>$original['declaration_hash'],'amount'=>'-10.0000','base_amount'=>'-10.0000',
+            'occurred_at'=>'2026-11-10T12:00:00Z','observed_at'=>'2026-11-10T12:01:00Z'])));
+        self::assertIsArray($repo->importDeclaration(array_replace($input,['revision'=>2,'previous_revision_hash'=>$original['declaration_hash'],
+            'amount'=>'12.0000','base_amount'=>'12.0000'])));
+        $report=(new DigiForge\Finance\DeclarationReadModel())->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+        self::assertSame('BLOCKED',$report['state']);self::assertSame('CONFLICT',$report['matching']['state']);self::assertNull($report['totals']);
+    }
+    /** @dataProvider reportSourceRaceCases */
+    public function testReportFinalSourceReadRejectsConcurrentAdditionDeletionAndReadFailure(string $change):void
+    {
+        $input=$this->fixture();$repo=new Repository();$first=$repo->importDeclaration($input);self::assertIsArray($first);
+        $original=json_decode($first['metadata'],true)['finance_declaration'];
+        $inverse=array_replace($input,['external_transaction_id'=>'racing-forward-inverse','reversal_of_hash'=>$original['declaration_hash'],
+            'amount'=>'-10.0000','base_amount'=>'-10.0000','occurred_at'=>'2026-11-10T12:00:00Z','observed_at'=>'2026-11-10T12:01:00Z']);
+        global $wpdb;$reads=0;$mutated=false;
+        $filter=static function(string $sql) use ($change,$inverse,$first,$repo,$wpdb,&$reads,&$mutated):string {
+            if (str_starts_with($sql,'SELECT * FROM '.Tables::finance_ledger().' WHERE environment=')&&++$reads===2) {
+                $mutated=true;
+                if ($change==='addition') self::assertIsArray($repo->importDeclaration($inverse));
+                elseif ($change==='deletion') self::assertSame(1,$wpdb->delete(Tables::finance_ledger(),['id'=>$first['id']]));
+                else return 'SELECT * FROM missing_finance_final_graph_fixture';
+            }
+            return $sql;
+        };
+        $previous=$wpdb->suppress_errors(true);add_filter('query',$filter);
+        try {
+            $report=(new DigiForge\Finance\DeclarationReadModel())->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+            self::assertTrue($mutated);self::assertSame('BLOCKED',$report['state']);self::assertNull($report['totals']);
+            self::assertSame([],$report['gst_review']['rows']);if($change==='failure')self::assertSame('UNAVAILABLE',$report['query_state']);
+        } finally {remove_filter('query',$filter);$wpdb->suppress_errors($previous);}
+    }
+    public static function reportSourceRaceCases():array {return [['addition'],['deletion'],['failure']];}
+    public function testOffPeriodEnvironmentOverflowBlocksASeeminglySmallReport():void
+    {
+        $input=$this->fixture();$repo=new Repository();$first=$repo->importDeclaration($input);self::assertIsArray($first);
+        for($i=0;$i<200;++$i)self::assertIsArray($repo->importDeclaration(array_replace($input,['external_transaction_id'=>'off-period-overflow-'.$i,
+            'occurred_at'=>'2026-11-10T12:00:00Z','observed_at'=>'2026-11-10T12:01:00Z'])));
+        $report=(new DigiForge\Finance\DeclarationReadModel())->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+        self::assertSame('BLOCKED',$report['state']);self::assertTrue($report['truncated']);self::assertNull($report['totals']);
+    }
 }
