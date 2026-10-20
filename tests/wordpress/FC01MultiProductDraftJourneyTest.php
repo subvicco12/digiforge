@@ -1,0 +1,55 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/Support/ReviewedLocalFixture.php';
+require_once __DIR__.'/Support/ReviewedOwnershipFixture.php';
+require_once __DIR__.'/Support/ScopedProviderConnectionFixture.php';
+use DigiForge\POD\FC01OfflineConcept as Concept;
+use DigiForge\POD\FC01NativeEvidencePacket as Packet;
+use DigiForge\POD\PrintifyConnectionBoundary as Boundary;
+use DigiForge\Listings\EtsyMultiProductDraftContract as Drafts;
+use DigiForge\Security\ReviewedLocalEvidence as Review;
+final class FC01MultiProductDraftJourneyTest extends WP_UnitTestCase {
+ /** @dataProvider establishedCases */
+ public function testSyntheticRenderAndReviewedPacketComposeSeparateDraftsWithoutExecutionAuthority(?string $established,?string $expectedLine,bool $fontKnown):void {
+  DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();if(!defined('DIGIFORGE_MAIN_SITE_URL'))define('DIGIFORGE_MAIN_SITE_URL',site_url());$actors=ReviewedLocalFixture::actors('personalized_pod');$old=ReviewedOwnershipFixture::create($this);$integration=$old['integration_id'];self::assertTrue((new DigiForge\Integrations\Repository())->storeSecret($integration,'personal_access_token','synthetic-only-composed-journey'));$binding=ScopedProviderConnectionFixture::approve($integration,$actors['author']);$context=Boundary::context('personalized_pod',$integration,'printify.catalog.read');self::assertNotWPError($context);
+  $identity=Concept::identity();$input=['shop_key'=>'personalized_pod','family_id'=>'FC01','version'=>2,'spec_sha256'=>$identity['spec_sha256'],'family_name'=>'Mira & Léon'];if($established!==null)$input['established']=$established;$render=Concept::render($input);self::assertNotWPError($render);self::assertSame($render,Concept::render($input));self::assertSame('Mira & Léon',$render['text_runs']['family_name']);if($expectedLine===null)self::assertArrayNotHasKey('established',$render['text_runs']);else self::assertSame($expectedLine,$render['text_runs']['established']);
+  $packet=json_decode(file_get_contents(__DIR__.'/fixtures/fc01-native-evidence-synthetic.json'),true);$packet['connection']=$context;$packet['concept_spec_sha256']=$identity['spec_sha256'];$packet['sections']['N08']['findings']['input_sha256']=$render['input_sha256'];foreach($packet['sources']as &$source){$source['observed_at']=gmdate('c',time()-60);$source['expires_at']=gmdate('c',time()+600);if(in_array($source['id'],['preview','final'],true))$source['sha256']=$render['png_sha256'];}unset($source);$bytes=['synthetic-source'=>'synthetic offline evidence only','preview'=>$render['png'],'final'=>$render['png']];
+  foreach(['preview','final']as $role)$packet['sections']['N08']['findings'][$role.'_sha256']=$render['png_sha256'];if(!$fontKnown)$packet['sections']['N01']=null;self::assertSame(0,Packet::inspect($packet,$bytes)['matched_section_count']);
+  $reviewIdentity=Packet::reviewIdentity($packet);$proposal=Review::propose('policy','personalized_pod',$reviewIdentity['key'],$reviewIdentity['payload'],time()-1,time()+600,wp_generate_uuid4(),0);self::assertNotWPError($proposal);self::assertSame(0,Packet::inspect($packet,$bytes)['matched_section_count']);self::assertWPError(Review::decide('policy','personalized_pod',$reviewIdentity['key'],$proposal['revision'],$proposal['proposal_hash'],'APPROVED',wp_generate_uuid4()));wp_set_current_user($actors['reviewer']);self::assertNotWPError(Review::decide('policy','personalized_pod',$reviewIdentity['key'],$proposal['revision'],$proposal['proposal_hash'],'APPROVED',wp_generate_uuid4()));wp_set_current_user($actors['author']);$view=Packet::inspect($packet,$bytes);self::assertSame($fontKnown?8:7,$view['matched_section_count']);self::assertSame('UNKNOWN',$view['native_compatibility']);self::assertSame('UNVERIFIED',$view['acceptance_state']);self::assertFalse($view['rights_certified']);self::assertFalse($view['linguistic_approved']);if(!$fontKnown)self::assertSame('UNKNOWN',$view['sections']['N01']['state']);$foreign=$context;$foreign['shop_key']='digital';self::assertWPError(Boundary::authorize($integration,'printify.catalog.read',$foreign));
+  $design=['shop_key'=>'personalized_pod','family_id'=>'FC01','version'=>2,'spec_sha256'=>$identity['spec_sha256'],'etsy_shop_id'=>123,'environment'=>'test'];$products=[];
+  foreach([1,2]as $id){
+   $template=['template_id'=>'synthetic-journey-'.$id,'template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>$id,'provider_id'=>7,'variant_ids'=>[100+$id],'print_areas'=>[['position'=>'front','decoration_method'=>'print','width_px'=>900,'height_px'=>700]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM','template_status'=>'DRAFT'];$normalized=DigiForge\POD\ProductionTemplateContract::normalize($template);
+   $ref=['shop_key'=>'personalized_pod','reference'=>'digiforge/product-factory/synthetic/shop-personalized_pod/item-'.$id.'.json','sha256'=>hash('sha256','synthetic metadata '.$id)];
+   $products[]=['shop_key'=>'personalized_pod','product_id'=>$id,'product_version_id'=>$id,'product_version_sha256'=>hash('sha256','synthetic immutable version '.$id),'sku'=>'FC01-SYNTHETIC-'.$id,'template'=>$template,'variant_id'=>100+$id,'placement'=>'front','download_template'=>$ref+['template_sha256'=>$normalized['fingerprint'],'variant_id'=>100+$id,'placement'=>'front'],'mockup'=>$ref,'mockup_rights'=>$ref,'personalization'=>[['field'=>'family_name','question'=>['question_type'=>'text_input','question_text'=>'Family name','required'=>true,'max_allowed_characters'=>48]],['field'=>'established','question'=>['question_type'=>'text_input','question_text'=>'Established','required'=>false,'max_allowed_characters'=>48]]],'draft'=>['quantity'=>1,'title'=>'Synthetic FC01 product '.$id,'description'=>'Offline review only','price'=>10,'who_made'=>'i_did','when_made'=>'made_to_order','taxonomy_id'=>123,'shipping_profile_id'=>321,'readiness_state_id'=>654]];
+  }
+  $calls=0;$deny=static function()use(&$calls){$calls++;throw new RuntimeException('Offline-only journey attempted HTTP');};add_filter('pre_http_request',$deny,PHP_INT_MAX);
+  try{
+   $manifest=Drafts::build($design,$products);self::assertCount(2,$manifest['listings']);self::assertSame($manifest,Drafts::build($design,array_reverse($products)));self::assertFalse($manifest['network_request_permitted']);self::assertFalse($manifest['publish_permitted']);self::assertSame(0,$manifest['draft_packages_created']);
+   foreach($manifest['listings']as $listing){self::assertSame($identity['spec_sha256'],$listing['design']['spec_sha256']);self::assertSame('CREATE_DRAFT',$listing['draft_operation']['operation']);self::assertFalse($listing['draft_operation']['network_request_permitted']);self::assertSame('UNKNOWN',$listing['rights']);self::assertSame('UNKNOWN',$listing['ownership']);self::assertSame(321,$listing['draft_operation']['payload']['shipping_profile_id']);self::assertSame(654,$listing['draft_operation']['payload']['readiness_state_id']);self::assertArrayNotHasKey('personalization_questions',$listing['draft_operation']['payload']);self::assertSame('WAITING_FOR_DRAFT_LISTING_ID',$listing['personalization_plan']['state']);self::assertFalse($listing['personalization_plan']['network_request_permitted']);self::assertSame(48,$listing['personalization_plan']['payload']['personalization_questions'][0]['max_allowed_characters']);self::assertFalse($listing['personalization_plan']['payload']['personalization_questions'][1]['required']);self::assertCount(2,$listing['personalization_plan']['payload']['personalization_questions']);foreach(['is_personalizable','personalization_is_required','personalization_char_count_max','personalization_instructions']as $legacy)self::assertArrayNotHasKey($legacy,$listing['draft_operation']['payload']);}
+   $unsupported=$products;$unsupported[0]['draft']['personalization_instructions']='unsupported legacy input';try{Drafts::build($design,$unsupported);self::fail('Unsupported draft input was accepted');}catch(InvalidArgumentException){self::assertTrue(true);}
+   self::assertWPError(Boundary::runtime($integration,'printify.catalog.read',$context));self::assertWPError(Boundary::runtime($integration,'PROVIDER_ORDER_SUBMIT',$context));self::assertWPError(Boundary::runtime($integration,'PROVIDER_PRODUCTION_AUTHORIZE',$context));
+   wp_set_current_user($binding['reviewer']);$approved=$binding['approved'];self::assertNotWPError((new DigiForge\POD\ScopedProviderConnection())->decide('personalized_pod',$integration,'printify.catalog.read',$approved['revision'],$approved['proposal_hash'],'REVOKED',wp_generate_uuid4()));wp_set_current_user($actors['author']);self::assertSame(0,Packet::inspect($packet,$bytes)['matched_section_count']);self::assertWPError(Boundary::authorize($integration,'printify.catalog.read',$context));
+   // A pure candidate remains non-executable after revocation; it cannot borrow packet review authority.
+   self::assertFalse(Drafts::build($design,$products)['network_request_permitted']);self::assertSame(0,$calls);self::assertTrue(DigiForge\Core\Settings::get('stop_all'));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::is_enabled('order_automation'));
+  }finally{remove_filter('pre_http_request',$deny,PHP_INT_MAX);}
+ }
+ /** @dataProvider inventoryCombinationCases */
+ public function testOfflineInventoryRejectsExcessCombinationsWithoutDispatch(int $count, bool $allowed): void {
+  $products = [];
+  for ($i = 0; $i < $count; $i++) $products[] = ['sku' => 'SYNTHETIC-COMBINATION-' . $i];
+  $result = DigiForge\Listings\EtsyDraftListingOperations::inventory(123, $products);
+  if (!$allowed) {
+   self::assertWPError($result);
+   self::assertSame('digiforge_etsy_draft_operation_inventory', $result->get_error_code());
+   return;
+  }
+  self::assertNotWPError($result);
+  self::assertCount($count, $result['payload']['products']);
+  self::assertSame($result, DigiForge\Listings\EtsyDraftListingOperations::inventory(123, $products));
+  self::assertFalse($result['network_request_permitted']);
+  self::assertFalse($result['publish_permitted']);
+  self::assertFalse($result['external_execution_performed']);
+ }
+ public static function inventoryCombinationCases(): array { return [[399, true], [400, true], [401, false], [496, false]]; }
+ public static function establishedCases():array {return [['2011','ESTABLISHED 2011',true],[null,null,true],['',null,true],["\u{3000}",null,true],[' 2011 ','ESTABLISHED  2011 ',true],['2011','ESTABLISHED 2011',false]];}
+}
