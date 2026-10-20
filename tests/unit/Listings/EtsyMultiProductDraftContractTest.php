@@ -40,6 +40,33 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         self::assertSame('code_points', $result['listings'][0]['field_behavior']['length_unit']);
     }
 
+    public function testSeparatePlansNeverAssertIndependentProviderListings(): void
+    {
+        $a = self::product();
+        $b = self::product(2);
+        $b['mockup'] = $a['mockup'];
+        $result = EtsyMultiProductDraftContract::build(self::design(), [$a, $b]);
+        self::assertSame('UNKNOWN', $result['provider_listing_dependencies']['state']);
+        self::assertFalse($result['provider_listing_dependencies']['independent_edits_permitted']);
+        self::assertSame([1, 2], $result['provider_listing_dependencies']['shared_mockup_product_versions']);
+        self::assertSame('UNKNOWN', $result['provider_listing_dependencies']['variant_dependencies']);
+        self::assertSame('UNKNOWN', $result['provider_listing_dependencies']['pricing_dependencies']);
+        self::assertFalse($result['network_request_permitted']);
+        self::assertSame($result, EtsyMultiProductDraftContract::build(self::design(), [$b, $a]));
+    }
+
+    public function testDifferentMockupsDoNotProveIndependentVariantsOrPricing(): void
+    {
+        $a = self::product();
+        $b = self::product(2);
+        $b['mockup']['reference'] = 'digiforge/product-factory/synthetic/shop-personalized_pod/other.png';
+        $b['mockup']['sha256'] = str_repeat('f', 64);
+        $result = EtsyMultiProductDraftContract::build(self::design(), [$a, $b]);
+        self::assertSame([], $result['provider_listing_dependencies']['shared_mockup_product_versions']);
+        self::assertSame('UNKNOWN', $result['provider_listing_dependencies']['state']);
+        self::assertFalse($result['provider_listing_dependencies']['independent_edits_permitted']);
+    }
+
     public function testRetriesAreDeterministicAndProductOrderIndependent(): void
     {
         $a = EtsyMultiProductDraftContract::build(self::design(), [self::product(), self::product(2)]);
@@ -70,6 +97,11 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         $p = $base;
         $p['download_template']['reference'] = '../secret';
         $cases['unsafe download'] = [[$p]];
+        foreach (['provider_id' => 'Printify Choice', 'provider_blueprint_id' => null] as $key => $value) {
+            $p = $base;
+            $p['template'][$key] = $value;
+            $cases['unresolved observed identity ' . $key] = [[$p]];
+        }
         $p = $base;
         unset($p['mockup_rights']);
         $cases['missing rights reference'] = [[$p]];
