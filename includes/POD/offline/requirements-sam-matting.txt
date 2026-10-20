@@ -15,7 +15,7 @@ numba==0.68.0
 numpy==2.2.6
 omegaconf==2.3.1
 packaging==26.3
-pillow==12.3.0
+pillow==13.0.0
 portalocker==4.4.0
 PyMatting==1.1.16
 PyYAML==6.0.3

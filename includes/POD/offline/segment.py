@@ -95,7 +95,7 @@ def normalize_photo(payload):
     import warnings
     import PIL
     from PIL import Image, ImageOps
-    if PIL.__version__ != '12.3.0' or set(payload) != {'kind','image_base64'} or payload['kind'] != 'normalize_photo':
+    if PIL.__version__ != '13.0.0' or set(payload) != {'kind','image_base64'} or payload['kind'] != 'normalize_photo':
         raise ValueError('Exact offline normalization contract required')
     encoded=payload['image_base64']
     if not isinstance(encoded,str) or len(encoded)>6000000:
@@ -117,7 +117,7 @@ def normalize_photo(payload):
             image.load()
             pixels=ImageOps.exif_transpose(image).convert('RGBA')
             rgba=pixels.tobytes()
-            return dict(normalizer_version='pillow-12.3.0/exif-transpose-v1',input_sha256=hashlib.sha256(raw).hexdigest(),input_bytes=len(raw),input_format=image.format,orientation_applied=orientation,width_px=pixels.width,height_px=pixels.height,normalized_pixel_sha256=hashlib.sha256(rgba).hexdigest(),metadata_stripped=True,rgba=base64.b64encode(rgba).decode())
+            return dict(normalizer_version='pillow-13.0.0/exif-transpose-v1',input_sha256=hashlib.sha256(raw).hexdigest(),input_bytes=len(raw),input_format=image.format,orientation_applied=orientation,width_px=pixels.width,height_px=pixels.height,normalized_pixel_sha256=hashlib.sha256(rgba).hexdigest(),metadata_stripped=True,rgba=base64.b64encode(rgba).decode())
 
 
 def main():

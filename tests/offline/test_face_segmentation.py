@@ -78,6 +78,7 @@ class OfflineFaceSegmentationTest(unittest.TestCase):
         result=subprocess.run([sys.executable,str(WORKER)],input=json.dumps(payload),capture_output=True,text=True,timeout=20)
         self.assertEqual(0,result.returncode,result.stderr)
         output=json.loads(result.stdout)
+        self.assertEqual('pillow-13.0.0/exif-transpose-v1',output['normalizer_version'])
         self.assertEqual((16,24),(output['width_px'],output['height_px']))
         self.assertEqual(6,output['orientation_applied'])
         self.assertTrue(output['metadata_stripped'])
@@ -111,6 +112,19 @@ class OfflineFaceSegmentationTest(unittest.TestCase):
         result=subprocess.run([sys.executable,str(WORKER)],input=json.dumps(payload),capture_output=True,text=True,timeout=20)
         self.assertNotEqual(0,result.returncode)
         self.assertEqual('',result.stdout)
+
+    def test_fresh_normalization_rejects_retired_pillow_runtime(self):
+        import importlib.util
+        import PIL
+        from PIL import Image, ImageOps  # Load the actual compiled runtime before simulating a retired version.
+        from unittest.mock import patch
+        self.assertEqual('13.0.0', PIL.__version__)
+        spec=importlib.util.spec_from_file_location('synthetic_normalizer_security_check',WORKER)
+        worker=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(worker)
+        with patch.object(PIL,'__version__','12.3.0'):
+            with self.assertRaisesRegex(ValueError,'Exact offline normalization contract required'):
+                worker.normalize_photo(dict(kind='normalize_photo',image_base64='unused'))
 
 if __name__ == '__main__':
     unittest.main()

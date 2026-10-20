@@ -817,6 +817,24 @@
     "retention_or_deletion_authorized": false,
     "max_scope_records": 500,
     "hosted_audit": "REQUIRED_ON_PUBLISHED_FINAL_HEAD_SEE_PR_AND_ISSUE_RECEIPT",
-    "evidence": "docs/completion/native-finance-security-review-20261021.md"
+    "evidence": "docs/completion/native-finance-security-review-20261021.md",
+    "hosted_dependency_gate_repair": {
+      "initial_audit": 4767,
+      "initial_sha": "5e81720ba8817854dd56d1bc4dd44575cb91591e",
+      "initial_result": "FAIL_EIGHT_PUBLISHED_PILLOW_12_3_0_ADVISORIES_BEFORE_APPLICATION_TESTS",
+      "fixed_runtime": "Pillow 13.0.0",
+      "unchanged_advisory_checks": "PASS_BOTH_OFFLINE_REQUIREMENT_SETS",
+      "offline_full_attempt": {
+        "tests": 135,
+        "passed": 134,
+        "test_setup_errors": 1
+      },
+      "affected_module_after_test_setup_correction": {
+        "tests": 7,
+        "result": "PASS"
+      },
+      "historical_fixture_conversion_provenance": "UNCHANGED",
+      "security_exceptions_added": 0
+    }
   }
 }
