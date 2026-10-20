@@ -13,8 +13,24 @@ final class DeclarationReferences
 {
     public function validate(array $declaration): array|WP_Error
     {
+        $references=$declaration['scope']['shop_key']==='digital'
+            ?(new DigitalDeclarationReferences())->validate($declaration):$this->pod($declaration);
+        if($references instanceof WP_Error)return $references;
+        $fx=$this->fx($declaration);if($fx instanceof WP_Error)return $fx;
+        // FX lookup is another storage boundary: do not return a binding revoked or
+        // reassigned while that evidence was being checked. This is a local snapshot,
+        // never an external-operation or financial-approval authorization.
+        $current=$declaration['scope']['shop_key']==='digital'
+            ?(new DigitalDeclarationReferences())->validate($declaration):$this->pod($declaration);
+        if($current instanceof WP_Error)return $current;
+        if($current!==$references)return self::error('scope_changed','Finance ownership changed during source validation.');
+        return $references+['fx_snapshot_hash'=>$fx];
+    }
+
+    private function pod(array $declaration): array|WP_Error
+    {
         $scope=$declaration['scope']; $environment=$declaration['environment'];
-        if($scope['shop_key']!=='personalized_pod')return self::error('scope_unsupported','Only the existing Personalized POD ownership contract supports declaration import; generic Digital and deferred-shop bindings are unavailable.');
+        if($scope['shop_key']!=='personalized_pod')return self::error('scope_unsupported','Deferred shops have no supported financial ownership contract.');
         $business=$this->row(Tables::businesses(),$scope['business_id']); if($business instanceof WP_Error)return $business;
         $store=$this->row(Tables::stores(),$scope['store_id']); if($store instanceof WP_Error)return $store;
         if((int)$store['business_id']!==$scope['business_id'])return self::error('scope_conflict','Store does not belong to the declared business.');
@@ -53,7 +69,13 @@ final class DeclarationReferences
             if(DatabaseEvidence::failed()||!is_array($lines))return self::error('scope_unavailable','Order line scope could not be read.',503);
             if($lines===[])return self::error('scope_conflict','Order has no matching declared product/variant/listing line.');
         }
-        $fxHash='';
+        return ['ownership_id'=>(int)$ownership['id'],'product_id'=>(int)$version['product_id']];
+    }
+
+    /** Same source-linked FX validation for Digital and Personalized POD declarations. */
+    private function fx(array $declaration): string|WP_Error
+    {
+        $environment=$declaration['environment'];$fxHash='';
         if($declaration['fx_snapshot_id']>0){
             $fx=$this->row(Tables::fx_snapshots(),$declaration['fx_snapshot_id']);if($fx instanceof WP_Error)return $fx;
             try{
@@ -76,7 +98,7 @@ final class DeclarationReferences
                 $fxHash=(string)$fx['canonical_hash'];
             }catch(\InvalidArgumentException|\JsonException){return self::error('fx_conflict','FX source, pair, time, hash or converted amount is invalid.');}
         }
-        return ['fx_snapshot_hash'=>$fxHash,'ownership_id'=>(int)$ownership['id'],'product_id'=>(int)$version['product_id']];
+        return $fxHash;
     }
 
     private function row(string $table,int $id): array|WP_Error

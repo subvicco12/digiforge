@@ -680,6 +680,7 @@ final class Portal
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$kpi=(new CostKpiReadModel())->snapshot($shop);$costUnavailable=($kpi['query_state']??'UNAVAILABLE')!=='AVAILABLE';$denominators=(new LifecycleDenominatorReadModel())->snapshot();$exceptions=(new OperationalExceptionReadModel())->snapshot(50);$ledgerExceptions=(array)$exceptions['finance_ledger'];$taxExceptions=(array)$exceptions['tax'];
         echo '<p class="df-muted">Global finance panels require current finance assignments for all four shops. The declaration report uses the selected shop and its explicit evidence filters.</p>';
         FinanceDeclarationPanel::render($shop,'finance',wp_unslash($_GET),$this->baseUrl());
+        FinanceImportPreviewWorkflow::render($shop);
         $financeOps=(new FinanceOperationsReadModel())->snapshot(25);$periods=(array)$financeOps['periods'];
         if(($denominators['query_state']??'UNAVAILABLE')!=='AVAILABLE')echo '<div role="status" class="df-notice df-notice-error">Lifecycle denominator evidence unavailable for one or more sources. Missing counts remain UNKNOWN.</div>';
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Profitability periods</h2><p>Deterministic local ledger rollups for revenue, costs, profit and margin. Metrics are displayed only when their persisted hash verifies.</p></div><span class="df-status">READ ONLY</span></div>';

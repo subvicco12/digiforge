@@ -31,6 +31,10 @@ final class Repository
         }
         $sourceType=$declaration['scope']['order_id']>0?'order':'manual';$sourceId=$declaration['scope']['order_id'];
         $metadata=['finance_declaration'=>$declaration,'fx_snapshot_hash'=>$references['fx_snapshot_hash'],'ownership_id'=>$references['ownership_id'],'product_id'=>$references['product_id']];
+        if($declaration['scope']['shop_key']==='digital'){
+            $metadata['ownership_hash']=$references['ownership_hash'];
+            $metadata['ownership_revision']=$references['ownership_revision'];
+        }
         $entryType=DeclarationContract::CATEGORIES[$declaration['category']];
         $canonical=['environment'=>$declaration['environment'],'source_type'=>$sourceType,'source_id'=>$sourceId,'entry_type'=>$entryType,
             'currency'=>$declaration['currency'],'amount'=>Validator::amount($declaration['amount']),'base_currency'=>$declaration['base_currency'],
@@ -54,6 +58,8 @@ final class Repository
                 ||$row['entry_type']!==DeclarationContract::CATEGORIES[$declaration['category']]||$row['effective_date']!==substr($declaration['occurred_at'],0,10)
                 ||$row['source_type']!==($declaration['scope']['order_id']>0?'order':'manual')||(int)$row['source_id']!==$declaration['scope']['order_id'])throw new \InvalidArgumentException('Stored declaration differs from ledger.');
             $references=(new DeclarationReferences())->validate($declaration);if($references instanceof WP_Error)return $references;
+            if($declaration['scope']['shop_key']==='digital'&&(($metadata['ownership_hash']??null)!==$references['ownership_hash']
+                ||($metadata['ownership_revision']??null)!==$references['ownership_revision']))throw new \InvalidArgumentException('Exact reviewed Digital ownership revision changed.');
             if(($metadata['fx_snapshot_hash']??null)!==$references['fx_snapshot_hash']||($metadata['ownership_id']??null)!==$references['ownership_id']||($metadata['product_id']??null)!==$references['product_id']
                 ||($row['idempotency_key']??null)!==DeclarationContract::identityKey($declaration).$declaration['revision'])throw new \InvalidArgumentException('Stored source links changed.');
             return ['ledger_id'=>(int)$row['id'],'declaration'=>$declaration,'product_id'=>$references['product_id']];
