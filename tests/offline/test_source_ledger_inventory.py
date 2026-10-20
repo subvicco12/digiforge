@@ -56,4 +56,15 @@ class SourceLedgerInventoryTests(unittest.TestCase):
             self.assertEqual(source[4], trace['Original engine'])
             self.assertEqual(source[9], trace['Original recommended stage'])
             self.assertEqual('NOT_CERTIFIED_OR_PROMOTED', trace['Catalog acceptance'])
-        self.assertTrue(any(r['Software boundary'] == 'MISSING_SOFTWARE_ADAPTER' for r in matrix))
+        # Stored-result intake/review now exists, but cannot certify artistic execution.
+        blocked = [r for r in matrix if r['Software boundary'] ==
+                   'LOCAL_IMPORT_REVIEW_BOUNDARY_IMPLEMENTED_ARTISTIC_EXECUTION_BLOCKED']
+        self.assertEqual(140, len(blocked))
+        self.assertEqual({'PET_PORTRAIT': 79, 'WATERCOLOR': 38, 'LINE_ART': 12, 'AI_TRANSFORM': 11},
+                         {engine: sum(r['Original engine'] == engine for r in blocked)
+                          for engine in ('PET_PORTRAIT', 'WATERCOLOR', 'LINE_ART', 'AI_TRANSFORM')})
+        for trace in blocked:
+            self.assertIn('TransformationProviderAdapter.php', trace['Exact implementation reference'])
+            self.assertIn('FiveEngineArchitectureTest.php', trace['Exact test references'])
+            self.assertIn('artistic execution', trace['Acceptance boundary'])
+            self.assertEqual('NOT_CERTIFIED_OR_PROMOTED', trace['Catalog acceptance'])

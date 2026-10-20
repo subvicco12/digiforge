@@ -34,5 +34,10 @@
   "mocked_status_browser_checks": 108,
   "installed_site_verified": false,
   "provider_certification": false,
-  "acceptance_promotions": 0
+  "acceptance_promotions": 0,
+  "offline_regressions": {
+    "tests": 134,
+    "status": "PASS",
+    "runtime": "Pinned cutout dependencies and PHP executable configured; no live provider requests"
+  }
 }
