@@ -1,0 +1,21 @@
+concept_id,collection,concept,primary_svg,status,printify_geometry
+NM01,Names & Monograms,Botanical Initial,botanical_sprig.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+NM02,Names & Monograms,Modern Name Stack,geometric_name_frame.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+NM03,Names & Monograms,Classic Monogram Wreath,laurel_wreath.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+NM04,Names & Monograms,Retro Name Badge,retro_badge.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+FC01,Family & Couples,Our Family Established,family_leaf_border.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+FC02,Family & Couples,Coordinates of Us,coordinate_pin.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+FC03,Family & Couples,Two Names One Date,couple_rings.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+FC04,Family & Couples,Family Name Constellation,constellation_stars.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+PT01,Pet Personalization,Paw & Name,paw_mark.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+PT02,Pet Personalization,Pet Silhouette Badge,pet_silhouette.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+PT03,Pet Personalization,Pet Photo Frame,photo_frame.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+PT04,Pet Personalization,Painterly Pet Keepsake,photo_frame.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+MR01,Memorial,Forever in Our Hearts,memorial_flourish.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+MR02,Memorial,Pet Rainbow Remembrance,rainbow_arc.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+MR03,Memorial,In Loving Memory Photo,photo_frame.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+MR04,Memorial,Handwriting Keepsake,handwriting_underline.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+OC01,Occasions,Birthday Milestone,celebration_confetti.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+OC02,Occasions,New Baby Welcome,baby_moon.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+OC03,Occasions,Graduation Crest,graduation_crest.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED
+OC04,Occasions,Holiday Family Ornament,ornament_frame.svg,CANDIDATE_NOT_APPROVED,NOT_VERIFIED

@@ -1,0 +1,331 @@
+{
+  "approval": "DRAFT_ONLY",
+  "archives": [
+    {
+      "filename": "DigiForge_20_Design_QA_Handoff_v1.zip",
+      "files": {
+        "QA_REPORT.md": "9021beee9fbeb70bceb8f8fbd467e974b6d3fc872733d89c0b589ef35c90b4c5",
+        "technical_qa_20_designs.csv": "cb5a508c665f71e277522dfcf7766ee019acacaa68b0bca54937c310be6f00aa"
+      },
+      "sha256": "48c7bc92b03f10aff695279349a2874de8677e72bdb05c870fc60cb39779a794"
+    },
+    {
+      "filename": "DigiForge_FACE_REPEAT_Cutout_Styling_v1.zip",
+      "files": {
+        "CS01_clean_cutout.svg": "b927c01fdcc389df5955acaf536026c0ec68261bd6627585d83d63c9fc99209d",
+        "CS02_white_sticker.svg": "40442563415a964e52ce715e38d408dd1460e043436d0394be52fe151f295060",
+        "CS03_color_sticker.svg": "8d811e2e532080c659ca3f6b194a5d3b0214a7d2e5c2c510b135f8fbf905ce8a",
+        "CS04_soft_shadow.svg": "32acd36d964a81c622289a32a1e02eaa577b00c289c80e81ee95832905a340f1",
+        "CS05_circle_frame.svg": "e564a6b5f9097d344d771011a1eea5c27080a76c2031463d9f0a3100303e8c9a",
+        "CS06_mono_cutout.svg": "315cd66a9bab4c2f37fbf4b7b9db2ed8635e34b5cddf87ab318f9120ea2a5dd0",
+        "README.md": "7be85505e4fb11a1bb8f1fa145b421325cad51256df883c0b75d36bbb0f28e92",
+        "SHA256SUMS.csv": "f987f3366420642a03d8974fce6334a898c153d6f068bd97131be32f6c84d724",
+        "integration_mapping.csv": "36f2c463f32f24cdef336fdf583b9091c44a94d009c0d79f1f3841a0f8156856",
+        "style_specs.csv": "f027ff075bf04cdc7fd56c112da864d5613e0dea8a45d9a76dd0a5d28fcd25d2"
+      },
+      "sha256": "fd6ce058108a757db4ccdb988a8926f75bac5a45540148f828065ffcd9a8f0ae"
+    },
+    {
+      "filename": "DigiForge_FACE_REPEAT_Design_Family_v1.zip",
+      "files": {
+        "FR01_scattered_pet_faces.svg": "e80147a297cf5f0fe0e0d8cbb2d80cb4437549f43deceb19f4c690d5d9b70090",
+        "FR02_diagonal_dog-face_repeat.svg": "b8f3672cc5765bb40a500e201eab53727ef2277897eef4676b60332f7e0122f9",
+        "FR03_pet_faces_and_hearts.svg": "70e1b98192ecdc98b1baf60b53cb20eb6204530549be60722a621fae96787184",
+        "FR04_human_face_celebration.svg": "25a2101cb0ea5887608ec234de8ec58cab580ed9d8bc204ea189be396516c620",
+        "FR05_couple_alternating_faces.svg": "9a09a38ac58dff2a3f65d986ee4cfc19392963c613af282dbe425578a6835149",
+        "FR06_minimal_monochrome_face_repeat.svg": "ab1c46bc831c71e7b7288193e8e900625c1f90773da4cbb1b058ff0ccc9bbec5",
+        "FR07_pet_faces_with_name_ribbons.svg": "08581a95e39e3dfa233f71c1f5afca2133c5efc269fafd762e1363e7927e839a",
+        "FR08_multi-pet_family_repeat.svg": "40276e423daf70cdd8d41d90efcb8b6c4bed43efe22b4d5f7d18ea8756d8012a",
+        "README.md": "124ce567c9e4de227342d406cd9a950d808307bddbfae5668b566c697503a647",
+        "SHA256SUMS.csv": "89057e563fe8bc58d6d6a2ff4d7422ac0ea007a8cefdd0097093e17b4808c790",
+        "concept_mapping.csv": "2a984214eb029d49df02053e4fe30f8d43caaa7c22ca1807507b332e211956ae"
+      },
+      "sha256": "49bce576779dd665642bfc08e8416e02cd31b8a9ace5049428ac4a9a7b73f543"
+    },
+    {
+      "filename": "DigiForge_POD_Reusable_Vector_Components_v1.zip",
+      "files": {
+        "README.md": "1c70ec5b4668c3e0de9ea10a3aa1df0129f3fd6ff7738acab491ea26c273f214",
+        "SHA256SUMS.csv": "0fe01ff933fd5a20db4bdc985498da3e471bf5b7f38b5cea55393dfcb36e0cb0",
+        "baby_moon.svg": "a1377bdcecd936b97137c8a67221d7d96ca406acff66b9519c77517dafa98014",
+        "botanical_sprig.svg": "15a655e8eb7f20cb3c6323c6c013240b8ce2cf055b3b1721665ac3feb0d66c33",
+        "celebration_confetti.svg": "5412ec7a09dfa431fbcd4cf4fbec3d223fc3d298b6b023dadd01e35075362a80",
+        "concept_mapping.csv": "6365623209c81cd9c04a5173d3d00edadbef95667401ee6e8311a03eda3e9e6b",
+        "constellation_stars.svg": "d1091ee464d7362b1e22c06d049eb67cd4e92538ff90a9b5cdc5e394921347e9",
+        "coordinate_pin.svg": "df98b89b2b786f2c1500481ff91e19e0dfb930c5dce32ebfcaf7e79203dd3ac1",
+        "couple_rings.svg": "e766d0852f373d6a241baf41cdd8c9f58c636c7030869193a6ca3038ff125ca9",
+        "family_leaf_border.svg": "41eec011037228f7c86970e03ee7b86e4ef0dc03a549a7b5e00d7143dec37bfa",
+        "geometric_name_frame.svg": "64cb972f9b98030bd1104764df90fc40ac1836e4ef45f141065d18590d058b92",
+        "graduation_crest.svg": "c1152c9721c261ab8b9b466576bdf55dfb7e387b3b88f1f289c5ee3030c17b83",
+        "handwriting_underline.svg": "27a7adfbeec9c7925f2f6b1bcb5e157c4f44dfa4b95f7afa81c94366fe33c4c9",
+        "laurel_wreath.svg": "58016460af3d74420b1db08c7fbea33145591191c871c6d845e4142ca7f8e7ff",
+        "memorial_flourish.svg": "7a2e98cee13ede33957ada2350f478df812060c92db7e39623f7f976f91fb510",
+        "ornament_frame.svg": "395e6cb6be889fa395fdf390dc93421df782b095c94e516d12257c8eed6c99e8",
+        "paw_mark.svg": "2007bef4a67baa4aba63dc346347ccc7c737dff77a9977a760befdd036afba42",
+        "pet_silhouette.svg": "3c5199495c3b233a06e3e079b0e6c18ceaeab76935d875eae587abcade3b839e",
+        "photo_frame.svg": "1d2531668b63220b78e13c7e53a5cf94420cb388efe0105890d7a59d7e93b123",
+        "rainbow_arc.svg": "7d340deedc21660caea598023b11f83046f9a6974c6882b24b525c14ab1199d1",
+        "retro_badge.svg": "8fe4d29e55e52e84ac07f102473754e549094c7ebf0eea7b2dd4ee394b9bb67d"
+      },
+      "sha256": "854a25a60602805c6d1f9d2d54fcb4b983f6df8c8001bfddd6b7fd43c5cc29eb"
+    },
+    {
+      "filename": "DigiForge_20_Personalized_Template_Previews_v1.zip",
+      "files": {
+        "ALL_20_OVERVIEW.png": "30e1b5e0c2353328c7b07ce692422cbae248ade6ba77bf7397afc4595aef66da",
+        "FC01_preview.png": "a5bd15dbf228a668f6c65e54021504c8c8ce7de3778ed4ee5199aa3464b6419b",
+        "FC01_preview.svg": "a35a9ec7502c30b7a886bb1cc4c007d553034037956ab0161b0cfea38a791ca4",
+        "FC02_preview.png": "1b893fe4c5216263e0eb2c7e28ac41cc9dad48fb5d6da2fa8e797508ea13c65a",
+        "FC02_preview.svg": "7ed08c2837955d9f6f6d91ae82d9e97cd57dc61a7225e2798f514904b5c14d7d",
+        "FC03_preview.png": "830549292bc4edfb2bcef41d6417d5f1d46b52560851e4a9b4b61a2db6d41ab4",
+        "FC03_preview.svg": "d6a9d70e70eece4539348eb60c3dc5f79df8f0b5c8ea3ef8eead07ffbb0950f2",
+        "FC04_preview.png": "cfcc510c40c1d6de79863416ccc8654893d185bb3338379732d1e62ece294697",
+        "FC04_preview.svg": "db9cb0e6c7eaf7eca9c79dff1b1a02a46e2b365c091216ede7c340984bb313d5",
+        "MR01_preview.png": "4263c69a03a2ff6cd06bc25356906b081b6116fe847a2e532a43518ecb63b8ae",
+        "MR01_preview.svg": "af70964394b3ffdb9181bf6ff6d51ab51ece5d3378f850497a1823c62cab0545",
+        "MR02_preview.png": "ba0bdafe415beb09336d37d3056395fdfa48aa4267be88cc2425819f60ff9f91",
+        "MR02_preview.svg": "5276003a2f1a7f4d45de38d00518d21fe1087e6f450eac2b0af5a89c9d778b49",
+        "MR03_preview.png": "7f50902bcb1bf8df3d29b8f3082cb77b0514cad3bd2280a67eba933e19c4462d",
+        "MR03_preview.svg": "8ed0d03d7dd516afcd8dc3f27f1a6e33bda87fda01c4ede83642374ac8ea6b3e",
+        "MR04_preview.png": "13a7cb1fe2825b74a4060f4edb009f1dd6c3ab36a3223e17aa85c322b2809604",
+        "MR04_preview.svg": "95240bb9d81d3f451d86e4ae4d5526a802d2d0a14f46f675eeb9fb722a16ca7e",
+        "NM01_preview.png": "bdb37b97fe2ed06b8048d409faf12054ee3262a0064b2c551841f94585a6c26d",
+        "NM01_preview.svg": "ca0e559014dbf0c33b980815246e66f5d532fab90d0d6cf754eba6982f296223",
+        "NM02_preview.png": "35baa63ed463dc63f52fe58fee80d4a99800aa23d04d7a3f8913a67d59e94257",
+        "NM02_preview.svg": "f2fbdd85a79fca7f62fd9fae956d60a6ebe54570255ecad89c07a2f09a8741d2",
+        "NM03_preview.png": "a34851b92e2280d34d8fe74870045af874417a0bc3a2880143dd7e20d6a45a29",
+        "NM03_preview.svg": "892540c168c7b1c532195a2ab6bc73c7f364640fe90eddbc7e355d7a988212d3",
+        "NM04_preview.png": "764e81163295706369e41fed4886cde0c63cd7d77127a9b7ef962e0c36648634",
+        "NM04_preview.svg": "5f41464d46e8b1f321699b0d6210597a302811093a5addc3c441456b0e705743",
+        "OC01_preview.png": "97b09516f760e8323edf44fbcf5fb6e9770ee51aea82db84f820f6f9bb0d8f32",
+        "OC01_preview.svg": "b5bfae971c7b8e66acac3696dc2d3633879fc2c45ca91ff0c48d1309ed4caf85",
+        "OC02_preview.png": "3a050386c56729accb5820e46c0ffa5c1f1d67c5e499d925c0b5a73f467e9cbe",
+        "OC02_preview.svg": "b211ef2c302b9c2e27e4a5c9bbf5b16ffd912b52baeeaf004e48c5256dfe2499",
+        "OC03_preview.png": "4d91bc206c67f447bb263ba46477ce4f82221f215e8888682eafb482da634c35",
+        "OC03_preview.svg": "2f599a97de2499ecfe37f2e4d86b43f19ed6e1c51de6d4f4c4d8b3b780181a36",
+        "OC04_preview.png": "7d71e74b582632f95ae010f93bff1a9f6320a766402a725b2b5814bf0020ffea",
+        "OC04_preview.svg": "2d32bd33e014ea0e6cdef938e9224dfccf66c7c1d56dbc3e61d1a16312ef3386",
+        "PT01_preview.png": "dba1e74072d538ecfb1e4a879f333b0fb1de28eab5ac1d4a4d4d9b4b089b65de",
+        "PT01_preview.svg": "8975dd49d7ffbc889a45e5e69d0eaa75d04bb17d6c005f4c7099dec93dbf01c5",
+        "PT02_preview.png": "bb708d4042f55b4c3016368dd4d9afa9eb720e4fd8673199b663a5e9dee0c552",
+        "PT02_preview.svg": "aa1a4ea034f8364fe783e68b828fe97a2931e661adc9f22e8abde78f321b068d",
+        "PT03_preview.png": "e8c0179420a44007895fcee50dea53d1b8fe6fcfa56147a341d0a0b3190242d5",
+        "PT03_preview.svg": "a59d5b23e0c18dcd121d5d1919d99b008e009cb78740a5a8c465d526df59e277",
+        "PT04_preview.png": "fbdf1a6fdc5b57b20dfd17c845eec51ffa7081c4d8395c6164a3aa6f35902522",
+        "PT04_preview.svg": "58748213fc2d6dd9d2a9109d504c2280a8c484b49fa40fd4978afc3c3db24818",
+        "README.md": "ef6a7adf9381fb2961cbebf7d64afc60e24fe6f0ca31353f7da22b35225e8280",
+        "preview_manifest.csv": "27079830eac098c248bbc7602d85f1c5ffcf2c2eb72a86205bf0f44bcc48f259"
+      },
+      "sha256": "bd23d3fddd19e7d45f5a9540bfcb905ef8fa4bae53466b11c197eb898e249891"
+    }
+  ],
+  "commercial_certified": false,
+  "components": {
+    "baby_moon": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/baby_moon.png",
+      "raster_sha256": "c937ab34ff81a22d450f0b829a665dd286c8154767fd9c580f348f479bdafb22",
+      "source": "sources/POD_Reusable_Vector_Components/baby_moon.svg",
+      "source_sha256": "a1377bdcecd936b97137c8a67221d7d96ca406acff66b9519c77517dafa98014",
+      "width_px": 1000
+    },
+    "botanical_sprig": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/botanical_sprig.png",
+      "raster_sha256": "241f56f19b31809c0508f7db78bfbf184307513150d4da223b58ae1301f97c95",
+      "source": "sources/POD_Reusable_Vector_Components/botanical_sprig.svg",
+      "source_sha256": "15a655e8eb7f20cb3c6323c6c013240b8ce2cf055b3b1721665ac3feb0d66c33",
+      "width_px": 1000
+    },
+    "celebration_confetti": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/celebration_confetti.png",
+      "raster_sha256": "d59270daea2ae65cecb4b3e880771d1fe144569d24b02e9d46beae17af5f634b",
+      "source": "sources/POD_Reusable_Vector_Components/celebration_confetti.svg",
+      "source_sha256": "5412ec7a09dfa431fbcd4cf4fbec3d223fc3d298b6b023dadd01e35075362a80",
+      "width_px": 1000
+    },
+    "constellation_stars": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/constellation_stars.png",
+      "raster_sha256": "b7b503d5765785ab96f1e4a4c0e59134bcf807f394c4e89cd236b35bf336effb",
+      "source": "sources/POD_Reusable_Vector_Components/constellation_stars.svg",
+      "source_sha256": "d1091ee464d7362b1e22c06d049eb67cd4e92538ff90a9b5cdc5e394921347e9",
+      "width_px": 1000
+    },
+    "coordinate_pin": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/coordinate_pin.png",
+      "raster_sha256": "437dd5c7883cece323c1b2b835bf0fb2c97da383b8b8733c78b4304a3fe29e57",
+      "source": "sources/POD_Reusable_Vector_Components/coordinate_pin.svg",
+      "source_sha256": "df98b89b2b786f2c1500481ff91e19e0dfb930c5dce32ebfcaf7e79203dd3ac1",
+      "width_px": 1000
+    },
+    "couple_rings": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/couple_rings.png",
+      "raster_sha256": "de7f55cc92be3df6cf6fe2a7257f6c4715b00c14c939106b78a563dfbdf31e11",
+      "source": "sources/POD_Reusable_Vector_Components/couple_rings.svg",
+      "source_sha256": "e766d0852f373d6a241baf41cdd8c9f58c636c7030869193a6ca3038ff125ca9",
+      "width_px": 1000
+    },
+    "family_leaf_border": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/family_leaf_border.png",
+      "raster_sha256": "ab1ee370d5a885d0910e266cb631c43c556997f149227ed278c757d13764620e",
+      "source": "sources/POD_Reusable_Vector_Components/family_leaf_border.svg",
+      "source_sha256": "41eec011037228f7c86970e03ee7b86e4ef0dc03a549a7b5e00d7143dec37bfa",
+      "width_px": 1000
+    },
+    "geometric_name_frame": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/geometric_name_frame.png",
+      "raster_sha256": "a176c414f669e68a5b9865267b34dc69e2b20b2e8ad9742001d8294732db0728",
+      "source": "sources/POD_Reusable_Vector_Components/geometric_name_frame.svg",
+      "source_sha256": "64cb972f9b98030bd1104764df90fc40ac1836e4ef45f141065d18590d058b92",
+      "width_px": 1000
+    },
+    "graduation_crest": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/graduation_crest.png",
+      "raster_sha256": "98c4cedfaf207770b56773ba3574339e5fcaacbd069ff8bd1b7f6d62ed40ec4d",
+      "source": "sources/POD_Reusable_Vector_Components/graduation_crest.svg",
+      "source_sha256": "c1152c9721c261ab8b9b466576bdf55dfb7e387b3b88f1f289c5ee3030c17b83",
+      "width_px": 1000
+    },
+    "handwriting_underline": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/handwriting_underline.png",
+      "raster_sha256": "8b66f96d3da2ba8a2587b8ba0161a92d401cfae0fe2fba5a49c7b15fcda2c5ae",
+      "source": "sources/POD_Reusable_Vector_Components/handwriting_underline.svg",
+      "source_sha256": "27a7adfbeec9c7925f2f6b1bcb5e157c4f44dfa4b95f7afa81c94366fe33c4c9",
+      "width_px": 1000
+    },
+    "laurel_wreath": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/laurel_wreath.png",
+      "raster_sha256": "ca6bcaac7b22c7b98ca44d51c273b6dc41b57ff232af8c5e7e979bb0cb80fc0a",
+      "source": "sources/POD_Reusable_Vector_Components/laurel_wreath.svg",
+      "source_sha256": "58016460af3d74420b1db08c7fbea33145591191c871c6d845e4142ca7f8e7ff",
+      "width_px": 1000
+    },
+    "memorial_flourish": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/memorial_flourish.png",
+      "raster_sha256": "8041210f1a4e769a08dff475a3faaaab1b6bb66fe1d9cf03b98f198f86acacb7",
+      "source": "sources/POD_Reusable_Vector_Components/memorial_flourish.svg",
+      "source_sha256": "7a2e98cee13ede33957ada2350f478df812060c92db7e39623f7f976f91fb510",
+      "width_px": 1000
+    },
+    "ornament_frame": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/ornament_frame.png",
+      "raster_sha256": "e093b8f301a7c1c4539bca014e99fbe285e4e127bf6773b21fc70aa16fec673c",
+      "source": "sources/POD_Reusable_Vector_Components/ornament_frame.svg",
+      "source_sha256": "395e6cb6be889fa395fdf390dc93421df782b095c94e516d12257c8eed6c99e8",
+      "width_px": 1000
+    },
+    "paw_mark": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/paw_mark.png",
+      "raster_sha256": "1ec578f3c811bf6c450ace136ce8f88317cb132b05bb568148eb8d779e1314f5",
+      "source": "sources/POD_Reusable_Vector_Components/paw_mark.svg",
+      "source_sha256": "2007bef4a67baa4aba63dc346347ccc7c737dff77a9977a760befdd036afba42",
+      "width_px": 1000
+    },
+    "pet_silhouette": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/pet_silhouette.png",
+      "raster_sha256": "4dbf29e6184e58ce10bd7ebc416c0c0d4896af479dcf1cc5e774bea3523fbbde",
+      "source": "sources/POD_Reusable_Vector_Components/pet_silhouette.svg",
+      "source_sha256": "3c5199495c3b233a06e3e079b0e6c18ceaeab76935d875eae587abcade3b839e",
+      "width_px": 1000
+    },
+    "photo_frame": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/photo_frame.png",
+      "raster_sha256": "24ddcdbac371fa608a1e091f945b4a03154272af86f6494e9aba0eb1708dce3e",
+      "source": "sources/POD_Reusable_Vector_Components/photo_frame.svg",
+      "source_sha256": "1d2531668b63220b78e13c7e53a5cf94420cb388efe0105890d7a59d7e93b123",
+      "width_px": 1000
+    },
+    "rainbow_arc": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/rainbow_arc.png",
+      "raster_sha256": "81c7af280ba0ee00459a47c0ce6649385941f9f1f7fe37089acefd74078e611d",
+      "source": "sources/POD_Reusable_Vector_Components/rainbow_arc.svg",
+      "source_sha256": "7d340deedc21660caea598023b11f83046f9a6974c6882b24b525c14ab1199d1",
+      "width_px": 1000
+    },
+    "retro_badge": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/RGBA8-no-metadata-v1",
+      "height_px": 1000,
+      "raster": "components/retro_badge.png",
+      "raster_sha256": "7e310d4f221f3ade4a141a84c319aa7c9cf8d80a95011080c4fb8f20b862d31a",
+      "source": "sources/POD_Reusable_Vector_Components/retro_badge.svg",
+      "source_sha256": "8fe4d29e55e52e84ac07f102473754e549094c7ebf0eea7b2dd4ee394b9bb67d",
+      "width_px": 1000
+    }
+  },
+  "decorations": {
+    "fr03_decoration": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/top-level-path-without-placeholders-v1",
+      "conversion_input_sha256": "863ce106584f63b6b5b7622072304ab5de782de7f8abdb282d34a825601b57d7",
+      "height_px": 560,
+      "raster": "components/fr03_decoration.png",
+      "raster_sha256": "133ba9ff15851e19b0dbd85d3fc9f06d4e3671b4ad79855467a92eb3653d5b41",
+      "source": "sources/FACE_REPEAT_Design_Family/FR03_pet_faces_and_hearts.svg",
+      "source_sha256": "70e1b98192ecdc98b1baf60b53cb20eb6204530549be60722a621fae96787184",
+      "width_px": 560
+    },
+    "fr07_decoration": {
+      "approval": "CANDIDATE_NOT_APPROVED",
+      "conversion": "CairoSVG-2.8.2/top-level-rect-without-placeholders-v1",
+      "conversion_input_sha256": "90633e43942050c1d6d2ea75bdff20e1c46d484ccbe2e111e05f996882909f40",
+      "height_px": 560,
+      "raster": "components/fr07_decoration.png",
+      "raster_sha256": "91d1fae257e9ae12c46e211fbdeec1c8922365fd86a4bb72406ad4dfa033ac6e",
+      "source": "sources/FACE_REPEAT_Design_Family/FR07_pet_faces_with_name_ribbons.svg",
+      "source_sha256": "08581a95e39e3dfa233f71c1f5afca2133c5efc269fafd762e1363e7927e839a",
+      "width_px": 560
+    }
+  },
+  "supplier_certified": false,
+  "version": 1
+}
