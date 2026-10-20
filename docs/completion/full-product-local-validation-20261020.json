@@ -351,6 +351,16 @@
     "installed_site_verified": false,
     "authentic_provider_evidence_verified": false,
     "release_decision": "NO-GO",
-    "hosted_exact_head_receipt": "See Batch5 draft PR and issue1209 after publication; baseline audit not reused for changed code"
+    "hosted_exact_head_receipt": "See Batch5 draft PR and issue1209 after publication; baseline audit not reused for changed code",
+    "initial_hosted_audit": {
+      "number": 4758,
+      "run_id": 39428684827,
+      "sha": "f85b4bdc6301d6e67e3a9f12f959eedab65141f1",
+      "conclusion": "FAILURE",
+      "root_cause": "New implemented artwork evidence used file-only rather than named test-method references. Matrix validator unchanged; corrected actual method names and line numbers. No runtime/test implementation changes.",
+      "focused_matrix_tests": 16,
+      "full_offline_tests": 134,
+      "final_exact_head_audit_required": true
+    }
   }
 }
