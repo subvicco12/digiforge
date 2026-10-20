@@ -122,6 +122,16 @@ final class EtsyMultiProductDraftContractTest extends TestCase
                 self::assertTrue(true);
             }
         }
+        foreach ([['family_id', 'OTHER'], ['version', 99]] as [$key, $value]) {
+            $design = self::design();
+            $design[$key] = $value;
+            try {
+                EtsyMultiProductDraftContract::build($design, [self::product()]);
+                self::fail('Non-FC01-v2 design accepted with FC01 questions');
+            } catch (\InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
     }
 
     public function testScopeAndExactDraftTextRemainBoundWithoutGrantingAuthority(): void

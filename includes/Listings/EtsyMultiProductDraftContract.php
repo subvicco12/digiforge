@@ -25,6 +25,9 @@ final class EtsyMultiProductDraftContract
         }
         self::token($design['family_id']);
         self::positive($design['version']);
+        if ($design['family_id'] !== 'FC01' || $design['version'] !== 2) {
+            throw new \InvalidArgumentException('Only the FC01 v2 question contract is supported');
+        }
         self::positive($design['etsy_shop_id']);
         self::sha($design['spec_sha256']);
         if (!array_is_list($products) || count($products) < 1 || count($products) > 50) {
