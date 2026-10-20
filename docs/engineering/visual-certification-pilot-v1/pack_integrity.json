@@ -1,0 +1,13 @@
+{
+  "pack": "DigiForge FACE_REPEAT Visual Certification Pilot v1.0",
+  "case_count": 12,
+  "evidence_status": "ALL MISSING",
+  "files": {
+    "README_START_HERE.md": "f54e479d20f29a8bf77d2b375fdd0c3df436921e6c3563d3275143e225111e71",
+    "codex_handoff.md": "9e75ff89348bed7e2b2d76b8e4cd6d05f34e14a1daf4edc7f6e19a637a80ad7a",
+    "pilot_fixture_manifest.csv": "b947965a24b1fb4c9ee53b0e2ef7f053d53adebc04de641eab8dad77923cf8ef",
+    "qa_acceptance_criteria.md": "e8d5ce1bb02705cb6ae0de95c2cd82204df22fcd2e96d157a13749c573290a52",
+    "reference_matte_instructions.md": "64a3d8dcb7d9f476167d8d35a0340d463669dd16605db11b3c250b7f2b09fb8d",
+    "reviewer_checklist.md": "38e00e41282730959befecc5391cddfb09415d9035309ba0eeef15cc52cd9736"
+  }
+}
