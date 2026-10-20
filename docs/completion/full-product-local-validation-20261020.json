@@ -681,5 +681,45 @@
     "release_recommendation": "NO_GO_RELEASE_HOLD",
     "final_head_hosted_audit_receipt": "Dedicated draft PR and issue1209 receipt after publication",
     "credential_gate_correction": "Before publication, the unchanged history gate matched the public source-specification digest constant named OPENAPI_SHA256 as generic-api-key. Redacted finding metadata pointed to parser line10; value is the public pinned source hash, not a credential. Renamed SOURCE_SPEC_SHA256 and amended only the unpublished owned candidate; no ignore, allowlist, scanner or CI changes."
+  },
+  "batch11_native_source_staging": {
+    "baseline_pr": 1228,
+    "baseline_head": "937ed06d25b23f68ff526994cab3c44d08e3c62e",
+    "baseline_audit": 4763,
+    "staging_unit": {
+      "tests": 27,
+      "assertions": 77,
+      "result": "PASS"
+    },
+    "focused_finance_unit": {
+      "tests": 134,
+      "assertions": 289,
+      "result": "PASS"
+    },
+    "wordpress_workflow": {
+      "tests": 5,
+      "assertions": 32,
+      "result": "PASS",
+      "database_writes_during_staging": 0,
+      "http_attempts_during_staging": 0
+    },
+    "changed_code_phpstan_level5": "PASS_WITH_WORDPRESS_SYMBOLS_NO_SUPPRESSIONS",
+    "durable_native_replay": "NOT_IMPLEMENTED_UNAPPROVED_NATIVE_STORAGE_CONTRACT",
+    "account_binding": "EXACT_CONTEXT_ASSERTIONS_NOT_PROVIDER_OWNERSHIP",
+    "authentic_financial_acceptance": "UNKNOWN_BLOCKED",
+    "finance_atomic_criteria_incomplete": 23,
+    "nonfinance_implemented_candidates": 246,
+    "nonfinance_denominator": 268,
+    "nonfinance_unverified": 22,
+    "protected_matrix_classifications_changed": 0,
+    "hosted_audit": "REQUIRED_ON_PUBLISHED_FINAL_HEAD_SEE_PR_AND_ISSUE_RECEIPT",
+    "new_browser_or_installed_site_evidence": false,
+    "evidence": "docs/completion/etsy-native-source-staging-20261020.md",
+    "repository_scanner_acceptance": {
+      "tests": 6,
+      "result": "PASS",
+      "gitleaks_version": "8.30.1",
+      "archive_sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    }
   }
 }

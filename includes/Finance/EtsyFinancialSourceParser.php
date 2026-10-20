@@ -29,10 +29,12 @@ final class EtsyFinancialSourceParser
             $native=self::validate($decoded,['$ref'=>'#/components/schemas/'.$nativeSchema],$schemas,$selectedScope,strtotime($capture['observed_at']),$identities);
             Validator::structured($native);
             $canonical=Validator::hash($native);
+            $identityHashes=$identities;ksort($identityHashes,SORT_STRING);
             $identities=array_keys($identities);sort($identities,SORT_STRING);
             return ['schema'=>'digiforge-etsy-native-observation-v1','native_schema'=>$nativeSchema,'native'=>$native,
                 'scope'=>$selectedScope,'capture'=>$capture,'raw_source_sha256'=>hash('sha256',$raw),'canonical_source_sha256'=>$canonical,
                 'source_contract_sha256'=>self::CONTRACT_SHA256,'openapi_sha256'=>self::SOURCE_SPEC_SHA256,'source_identity_keys'=>$identities,
+                'source_identity_hashes'=>$identityHashes,
                 'observation_key'=>Validator::hash(['schema'=>$nativeSchema,'scope'=>$selectedScope,'content'=>$canonical]),
                 'evidence_class'=>'SCHEMA_VALIDATED_UNVERIFIED_SOURCE','authenticity'=>'UNKNOWN','ownership_verified'=>false,
                 'settlement'=>'UNKNOWN','source_completeness'=>'UNKNOWN','finance_declarations'=>[],
