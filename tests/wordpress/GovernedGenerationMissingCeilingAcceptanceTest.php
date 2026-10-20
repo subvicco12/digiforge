@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 /** Synthetic effective-switch reads never change protected stored settings; all HTTP is intercepted. */
 final class GovernedGenerationMissingCeilingAcceptanceTest extends WP_UnitTestCase {
  private string $shop;private int $calls=0;private $http;private $settings;
@@ -21,6 +22,7 @@ final class GovernedGenerationMissingCeilingAcceptanceTest extends WP_UnitTestCa
   self::assertWPError($result);self::assertSame('ai_money_workflow_budget_ceiling',$result->get_error_code());self::assertSame(0,$this->calls);$this->assertProtectedAndUnused();
  }
  public function testActualControlledProbeActionCannotBypassMissingReviewedMonetaryScope():void {
+  ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),DigiForge\Security\ShopAccessPolicy::canonicalShops(),['manage_digiforge_automation']);
   $action='digiforge_frontend_controlled_ai_test';$body=['action'=>$action,'_wpnonce'=>wp_create_nonce($action)];$post=$_POST;$request=$_REQUEST;$redirect='';$capture=static function($url)use(&$redirect):never{$redirect=$url;throw new RuntimeException('offline-controlled-probe-redirect');};$switches=static function($sql){if(str_contains($sql,'SELECT setting_value, setting_type FROM '.DigiForge\Database\Tables::settings()))return str_contains($sql,"'stop_all'")||str_contains($sql,"'product_development'")?"SELECT 'false' AS setting_value, 'boolean' AS setting_type":"SELECT 'true' AS setting_value, 'boolean' AS setting_type";return $sql;};add_filter('query',$switches);add_filter('wp_redirect',$capture);
   try{$_POST=$_REQUEST=$body;try{(new DigiForge\Portal\FrontendControls())->controlledAiTest();self::fail('Controlled probe must return to the operator.');}catch(RuntimeException $e){self::assertSame('offline-controlled-probe-redirect',$e->getMessage());}}finally{$_POST=$post;$_REQUEST=$request;remove_filter('query',$switches);remove_filter('wp_redirect',$capture);}
   self::assertSame(0,$this->calls);parse_str((string)parse_url($redirect,PHP_URL_QUERY),$query);self::assertSame('1',$query['df_error']);self::assertStringContainsString('monetary',$query['df_message']);self::assertStringContainsString('quote',$query['df_message']);$this->assertProtectedAndUnused();

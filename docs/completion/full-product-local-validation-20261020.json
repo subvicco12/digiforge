@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 64,
+  "requests": 194,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    1280
+  ],
+  "business_tables_unchanged": 44,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "base_sha": "c69f96a71a2ca207dd772db551453e8768c72074",
+  "focused_unit": {
+    "tests": 176,
+    "assertions": 706
+  },
+  "native_core_catalog_engines": {
+    "tests": 90,
+    "assertions": 1559
+  },
+  "native_finance_integrity": {
+    "tests": 20,
+    "assertions": 140
+  },
+  "mocked_status_browser_checks": 108,
+  "installed_site_verified": false,
+  "provider_certification": false,
+  "acceptance_promotions": 0
+}

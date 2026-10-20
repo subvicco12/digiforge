@@ -63,6 +63,17 @@ final class EtsyMultiProductDraftContract
             if ($template['supplier'] !== 'printify' || !in_array($product['variant_id'], $template['variant_ids'], true)) {
                 throw new \InvalidArgumentException('Exact supplier variant must match template');
             }
+            foreach ($template['print_areas'] as $area) {
+                $bindings = $area['_catalog_bindings'] ?? [];
+                if (!is_array($bindings)) {
+                    throw new \InvalidArgumentException('Declared template catalog bindings must be structured');
+                }
+                foreach ($bindings as $binding) {
+                    if (!is_array($binding) || ($binding['environment'] ?? null) !== $design['environment']) {
+                        throw new \InvalidArgumentException('Declared template catalog environment must match draft scope');
+                    }
+                }
+            }
             $areas = array_values(array_filter($template['print_areas'], static fn(array $area): bool => $area['position'] === $product['placement']));
             if (count($areas) !== 1) {
                 throw new \InvalidArgumentException('An unambiguous template placement is required');

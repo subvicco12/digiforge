@@ -13,6 +13,15 @@ final class MasterCatalogV2MigrationContractTest extends TestCase {
  public function testRejectsDuplicateSourceIdentity():void{$m=$this->rows('master');$m[499][1]='DG-001';$this->expectException(InvalidArgumentException::class);MasterCatalogV2MigrationContract::normalize(MasterCatalogV2MigrationContract::MASTER_REQUIRED,$m,MasterCatalogV2MigrationContract::MIGRATION_REQUIRED,$this->rows('migration'));}
  public function testRejectsCrossSheetLineageMismatch():void{$x=$this->rows('migration');$x[0][7]='DG2-002';$this->expectException(InvalidArgumentException::class);MasterCatalogV2MigrationContract::normalize(MasterCatalogV2MigrationContract::MASTER_REQUIRED,$this->rows('master'),MasterCatalogV2MigrationContract::MIGRATION_REQUIRED,$x);}
  public function testRejectsIncompleteCatalog():void{$m=$this->rows('master');array_pop($m);$this->expectException(InvalidArgumentException::class);MasterCatalogV2MigrationContract::normalize(MasterCatalogV2MigrationContract::MASTER_REQUIRED,$m,MasterCatalogV2MigrationContract::MIGRATION_REQUIRED,$this->rows('migration'));}
+ /** @dataProvider outOfRangeIdentities */
+ public function testFiveHundredRowsCannotReplaceAGovernedIdentity(string $field,string $id):void {
+  [$master,$migration]=self::mixedRows();
+  if($field==='master')$master[499][0]=$id;
+  else $migration[499][0]=$id;
+  $this->expectException(InvalidArgumentException::class);
+  MasterCatalogV2MigrationContract::normalize(MasterCatalogV2MigrationContract::MASTER_REQUIRED,$master,MasterCatalogV2MigrationContract::MIGRATION_REQUIRED,$migration);
+ }
+ public static function outOfRangeIdentities():array {return [['master','DG2-000'],['master','DG2-501'],['migration','DG-000'],['migration','DG-501']];}
  public static function mixedRows():array {
   return MasterCatalogCandidateFixture::rows();
  }

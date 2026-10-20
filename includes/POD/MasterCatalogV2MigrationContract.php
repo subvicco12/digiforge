@@ -16,10 +16,10 @@ final class MasterCatalogV2MigrationContract {
   $masters=[];$byV2=[];$sourceSeen=[];
   foreach($masterRows as $i=>$row){
    $item=self::row(self::MASTER_REQUIRED,$row,'Master 500 v2',($i+2));
-   if(!preg_match('/^DG2-[0-9]{3}$/',$item['V2 ID']))throw new \InvalidArgumentException('Master 500 v2 ID is invalid');
+   if(!self::identity($item['V2 ID'],'DG2-'))throw new \InvalidArgumentException('Master 500 v2 ID is invalid');
    if(!in_array($item['Origin'],['V1 retained','V2 addition','V2 new family'],true))throw new \InvalidArgumentException('Master 500 v2 origin is invalid');
    $retained=$item['Origin']==='V1 retained';
-   if(($retained&&!preg_match('/^DG-[0-9]{3}$/',$item['Source DG ID']))||(!$retained&&$item['Source DG ID']!==''))throw new \InvalidArgumentException('Master 500 v2 origin/source lineage is invalid');
+   if(($retained&&!self::identity($item['Source DG ID'],'DG-'))||(!$retained&&$item['Source DG ID']!==''))throw new \InvalidArgumentException('Master 500 v2 origin/source lineage is invalid');
    if(!in_array($item['Supplier Gate'],['PRINTIFY_PRIMARY','ROUTE_BY_BASE_PRODUCT','PROVIDER_RESEARCH_REQUIRED'],true))throw new \InvalidArgumentException('Master 500 v2 supplier gate is invalid');
    if(!in_array($item['Recommended Stage'],['Re-score','Provider + demand research','Deep research'],true))throw new \InvalidArgumentException('Master 500 v2 recommended stage is invalid');
    foreach(['Family','Concept','Engine','Physical Product','Supplier Gate','Template State','Origin','Recommended Stage'] as $f)if($item[$f]==='')throw new \InvalidArgumentException($f.' is required');
@@ -29,7 +29,7 @@ final class MasterCatalogV2MigrationContract {
   $migrations=[];$migrationSource=[];$successor=[];$kept=[];
   foreach($migrationRows as $i=>$row){
    $item=self::row(self::MIGRATION_REQUIRED,$row,'Master 500 v2 migration',($i+2));
-   if(!preg_match('/^DG-[0-9]{3}$/',$item['Source DG ID']))throw new \InvalidArgumentException('Master 500 v2 migration identity is invalid');
+   if(!self::identity($item['Source DG ID'],'DG-'))throw new \InvalidArgumentException('Master 500 v2 migration identity is invalid');
    if(isset($migrationSource[$item['Source DG ID']]))throw new \InvalidArgumentException('Master 500 v2 migration identities must be one-to-one');
    if(!in_array($item['Disposition'],['KEEP','MERGE','DOWNGRADE'],true))throw new \InvalidArgumentException('Master 500 v2 migration disposition is invalid');
    foreach(['Wave','V1 Family','V1 Concept','Engine'] as $f)if($item[$f]==='')throw new \InvalidArgumentException($f.' is required');
@@ -43,6 +43,10 @@ final class MasterCatalogV2MigrationContract {
   if(array_diff_key($sourceSeen,$kept)!==[]||array_diff_key($kept,$sourceSeen)!==[])throw new \InvalidArgumentException('Master 500 v2 migration lineage is incomplete');
   $json=json_encode([$catalogKey,$masters,$migrations],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
   return ['catalog_key'=>$catalogKey,'row_count'=>500,'rows'=>$masters,'migration'=>$migrations,'fingerprint'=>hash('sha256',(string)$json),'production_authority'=>false,'promotion_authorized'=>false];
+ }
+ private static function identity(string $id,string $prefix):bool {
+  // The governed sheets contain exactly 001..500; row count alone cannot prove coverage.
+  return preg_match('/^'.preg_quote($prefix,'/').'[0-9]{3}$/D',$id)===1&&(int)substr($id,strlen($prefix))>=1&&(int)substr($id,strlen($prefix))<=MasterCatalogV2Reference::ROW_COUNT;
  }
  private static function row(array $headers,mixed $row,string $label,int $line):array {
   if(!is_array($row)||!array_is_list($row)||count($row)!==count($headers))throw new \InvalidArgumentException($label.' row shape is invalid at '.$line);

@@ -114,6 +114,29 @@ final class Validator
         return hash('sha256', self::canonicalJson($value));
     }
 
+    /** Full SHA-256 source identity, encoded within the existing 64-character version field. */
+    public static function periodSourceVersion(array $source): string
+    {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+        $digest = hash('sha256', self::canonicalJson($source), true);
+        $encoded = '';
+        $buffer = 0;
+        $bits = 0;
+        foreach (str_split($digest) as $byte) {
+            $buffer = ($buffer << 8) | ord($byte);
+            $bits += 8;
+            while ($bits >= 5) {
+                $bits -= 5;
+                $encoded .= $alphabet[($buffer >> $bits) & 31];
+            }
+            $buffer &= (1 << $bits) - 1;
+        }
+        if ($bits > 0) {
+            $encoded .= $alphabet[($buffer << (5 - $bits)) & 31];
+        }
+        return 'v2.' . $encoded;
+    }
+
     public static function convert(float $amount, float $rate): float
     {
         if (! is_finite($rate) || $rate <= 0) {

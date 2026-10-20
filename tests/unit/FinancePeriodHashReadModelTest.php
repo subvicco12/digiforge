@@ -7,6 +7,36 @@ use PHPUnit\Framework\TestCase;
 
 final class FinancePeriodHashReadModelTest extends TestCase
 {
+    public function testUnencodableStoredMetricsInvalidateOnlyTheirOwnRows(): void
+    {
+        require_once dirname(__DIR__, 2) . '/includes/Finance/OperationsReadModel.php';
+        if (! defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
+        global $wpdb;
+        $original = $wpdb ?? null;
+        try {
+            $wpdb = new class {
+                public string $prefix = 'wp_';
+                public string $last_error = '';
+                public function prepare(string $sql, mixed ...$args): string { return $sql; }
+                public function get_results(string $sql, mixed $mode): array
+                {
+                    return [
+                        ['id' => 1, 'metrics' => '{"gross_revenue":1e999}', 'metrics_hash' => str_repeat('a', 64)],
+                        ['id' => 2, 'metrics' => '{"gross_revenue":0}', 'metrics_hash' => Validator::hash(['gross_revenue' => 0])],
+                    ];
+                }
+            };
+            $result = (new OperationsReadModel())->snapshot();
+            self::assertSame(['periods' => 'AVAILABLE', 'analytics' => 'AVAILABLE'], $result['query_state']);
+            self::assertFalse($result['periods'][0]['metrics_valid']);
+            self::assertFalse($result['analytics'][0]['metrics_valid']);
+            self::assertSame([], $result['analytics'][0]['metrics']);
+            self::assertTrue($result['analytics'][1]['metrics_valid']);
+        } finally {
+            $wpdb = $original;
+        }
+    }
+
     public function testDatabaseReadFailureIsUnavailableNotAnEmptyHistory(): void
     {
         if (! defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');

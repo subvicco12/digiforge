@@ -15,8 +15,10 @@ final class OperationsReadModel
   $analytics=$wpdb->get_results($wpdb->prepare('SELECT id,environment,dimension_type,dimension_id,period_start,period_end,metrics,metrics_hash,freshness_metadata,calculation_version,created_at FROM '.Tables::analytics_snapshots().' ORDER BY id DESC LIMIT %d',$limit),ARRAY_A);
   $analyticsOk=is_array($analytics)&&empty($wpdb->last_error);
   $validHash=static function(string $storedHash,array $canonical):bool{
-   return preg_match('/^[a-f0-9]{64}$/',$storedHash)===1
-    && hash_equals($storedHash,Validator::hash($canonical));
+   try{
+    return preg_match('/^[a-f0-9]{64}$/',$storedHash)===1
+     && hash_equals($storedHash,Validator::hash($canonical));
+   }catch(\InvalidArgumentException){return false;}
   };
   $normalizePeriod=static function(array $row)use($validHash):array{
    $metrics=json_decode((string)($row['metrics']??''),true);

@@ -38,6 +38,28 @@ final class PortalShopAccessAcceptanceTest extends WP_UnitTestCase {
  public function testMissingAssignmentDeniesPolicySaveBeforeReadingOrReplacingPolicy():void {
   $queries=[];$table=DigiForge\Database\Tables::shop_ai_policies();$capture=static function(string $sql)use(&$queries,$table):string{if(str_contains($sql,$table))$queries[]=$sql;return $sql;};add_filter('query',$capture);try{PortalActionAcceptanceFixture::invoke('SAVE_AI_POLICY_ACTION',['shop_key'=>'digital','currency'=>'USD','stage_develop_monthly_budget'=>'1.00'],true,false);}finally{remove_filter('query',$capture);}self::assertSame([],$queries);
  }
+ /** @dataProvider globalControlAssignments */
+ public function testDirectGlobalControlPostRequiresAllCurrentShopAssignments(string $scope,string $expected,string $handler='update'):void {
+  $shops=DigiForge\Security\ShopAccessPolicy::canonicalShops();$cap='manage_digiforge_automation';
+  if($scope!=='missing'){
+   $owner=ShopAccessFixture::authorizeActor(get_current_user_id(),$scope==='partial'?['digital']:$shops,[$cap]);
+   if($scope==='revoked'){
+    $actor=get_current_user_id();$repository=new DigiForge\Security\ShopAccessRepository();$state=$repository->read('jewelry');self::assertNotWPError($state);
+    foreach($state['grants'] as $id=>$grant)if($grant['actor_id']===$actor){wp_set_current_user($owner);self::assertNotWPError($repository->revoke('jewelry',$id,wp_generate_uuid4(),$state['revision']));wp_set_current_user($actor);break;}
+   }
+  }
+  $action=$handler==='protect'?'digiforge_frontend_protect_production':'digiforge_frontend_update_control';$post=$_POST;$request=$_REQUEST;
+  $die=static fn()=>static function():never{throw new RuntimeException('global-control-denied');};
+  $redirect=static function():never{throw new RuntimeException('global-control-return');};
+  add_filter('wp_die_handler',$die);add_filter('wp_redirect',$redirect);
+  try{
+   $_POST=$_REQUEST=['_wpnonce'=>wp_create_nonce($action),'control_key'=>'research','enabled'=>'0'];
+   try{(new DigiForge\Portal\FrontendControls())->{$handler}();self::fail('Global control must deny or return.');}
+   catch(RuntimeException $error){self::assertSame($expected,$error->getMessage());}
+  }finally{$_POST=$post;$_REQUEST=$request;remove_filter('wp_die_handler',$die);remove_filter('wp_redirect',$redirect);}
+  self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
+ }
+ public static function globalControlAssignments():array {return ['missing'=>['missing','global-control-denied'],'partial'=>['partial','global-control-denied'],'revoked'=>['revoked','global-control-denied'],'current'=>['current','global-control-return'],'protection current'=>['current','global-control-return','protect'],'protection revoked'=>['revoked','global-control-denied','protect']];}
  public function testActualShortcodeDeniedOutputCannotAppendGlobalApprovalOrControlReads():void {
   (new DigiForge\Portal\Portal())->register();(new DigiForge\Portal\U3ApprovalInbox())->register();(new DigiForge\Portal\FrontendControls())->register();
   $queries=[];$capture=static function(string $sql)use(&$queries):string{if(preg_match('/^\s*SELECT\b/i',$sql)&&str_contains($sql,'digiforge_')&&!str_contains($sql,'option_name')&&!self::isAclLifecycleProofQuery($sql))$queries[]=$sql;return $sql;};$get=$_GET;add_filter('query',$capture);

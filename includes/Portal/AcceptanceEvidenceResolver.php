@@ -26,6 +26,7 @@ final class AcceptanceEvidenceResolver
         $out=['shop_key'=>$shop,'criterion'=>$criterion,'scope'=>$scope,'environment'=>$environment,'resolution_state'=>'UNKNOWN','value_state'=>'UNKNOWN','evidence_state'=>'UNVERIFIED','matched_record_count'=>0,'references'=>[],'read_only'=>true,'external_execution_authorized'=>false,'supplier_approved'=>false,'publishing_allowed'=>false,'ai_execution_allowed'=>false];
         $contract=ReviewedAcceptanceContract::current($shop,$criterion,$scope);
         if(is_wp_error($contract))return $out;
+        if($contract['payload']['version']===2&&$contract['payload']['definition']['environment']!==$environment)return $out;
         $refs=[];
         $collect=static function(array $node)use(&$collect,&$refs):void {
             if(isset($node['shop_key'],$node['reference'],$node['sha256'])) {

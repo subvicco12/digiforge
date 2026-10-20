@@ -1,0 +1,105 @@
+# Full-product integration execution ledger
+
+## Authority, baseline and acceptance boundary
+
+Owner continuation now includes Finance **draft engineering, offline tests and schema design only**. Earlier Finance exclusions in historical reports are superseded for engineering, not for provider authenticity or operational authority. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD. No merge, deployment, actual financial approval/submission, production/staging write, credential use or provider operation is performed.
+
+Main re-fetched: `844107ab9baf7e1303cd47708e9eab3bc700b348`. Draft #1219: `c69f96a71a2ca207dd772db551453e8768c72074`, exact-head audit #4752 PASS. Finance #1147 remains open at `175fc7238584d5b3c9c10dacac1ab2850d23f982`, last updated 2026-10-10. Its later validated Finance integration is already carried through #1193/#1194; do not independently merge the old divergent branch. The new candidate starts at #1219 and leaves all source PR branches untouched.
+
+The single source-linked matrix remains `docs/engineering/original-source/distinct-nonfinance-acceptance.tsv`. It has 376 classified rows, including 314 atomic records: 268 mandatory non-Finance, 23 Finance-dependent, 19 external-certification and four future/optional. Its 268 denominator does **not** become a full-product percentage merely because Finance engineering is now authorized. Current result remains **246 implemented candidates / 268 (91.79% candidate coverage), 22 UNVERIFIED**. This is not verified-on-main or production acceptance. The source inventory still contains 1,771 records, not 1,771 distinct requirements. Finance acceptance remains incomplete; no overall-product completion percentage is defensible.
+
+Original sources reused with their full inventories: Blueprint 36 sections / 27 tables / 706 nonempty anchors (SHA256 `fe88023f6067151b562ecf1d867dda41b0555bceac1685566a206adba6b76125`); Master500 six-sheet inventory and original workbook SHA256 `56639c9122985ac17b46685bb8b91e5d29f387f16fff715b3488e9b4c2380f6d`. Guidance snapshots under the existing acceptance workspace are proposed historical documents, not guidance assumed merged on main. Current explicit owner scope controls this batch.
+
+## Coordinated implementation and reproduced defects
+
+| Lane | Demonstrated defect / bounded correction | Evidence boundary |
+|---|---|---|
+| Finance | Missing immutable replay fields, numeric identity coercion and corrupted/nonfinite metrics were accepted or crashed reporting; reject incomplete/conflicting replay and invalidate malformed rows safely | Synthetic canonical evidence, not actual provider statements |
+| Finance | Late source activity and forged/missing reviewer metadata could close a period; closure now rechecks evidence/completeness and existing approval identity | Active periods still blocked without authentic fees/actual charges |
+| Finance | Tampered ledger values bypassed canonical hashes; validate persisted canonical ledger material before aggregation | Valid hash is integrity, not financial authenticity |
+| Finance | Same-currency base amount could differ; validated FX precision was lost during database serialization | No inferred FX rate, jurisdiction or actual charge |
+| Finance | Late evidence could not be recalculated without a unique-period collision; source-bound immutable revisions now support deterministic retries and race-safe replay | Preserve historical rows, explicit key conflicts and all approval restrictions |
+| Core/portal | V2 contract environment could differ from the requested resolved-policy environment | Return UNKNOWN without purpose/certification authority |
+| Core/portal | Direct global-control POSTs bypassed the existing all-four current-assignment boundary enforced by the UI | Require existing canonical assignments, capability and nonce; no new privilege or safety exception |
+| Operations/portal | Failed permit/preflight source reads became zero attention | Preserve null / UNAVAILABLE or PARTIAL_UNAVAILABLE; real empty reads remain zero |
+| Catalog | Fixed 500-row imports accepted replacement IDs000/501 | Enforce exact historical001..500 namespaces; no approved catalog promotion |
+| Draft listings | Explicit catalog-bound template environment could differ from the draft design | Reject conflicting bindings; missing draft evidence remains UNKNOWN |
+
+Exclusive file ownership separated Finance, core/portal and POD/listings; root owns integration, ledger and hosted audit. No shared CI, schema migration or installer change is needed. One stale history-loss regression fault selected an unrelated signed stream; it now targets the exact current policy stream and verifies deletion/raw absence before retaining the original UNKNOWN assertion. Production review-integrity checks were not bypassed.
+
+## Complete Master500 reconciliation
+
+All 500 `DG2-001..DG2-500` rows and all 500 `DG-001..DG-500` historical migration rows remain represented. V2 composition:428 retained /30 additions /42 new-family. Migration:428 KEEP /37 MERGE /35 DOWNGRADE. Six-sheet physical-row reconciliation remains1,065 rows:1,038 source-preserved/local-validation and27 planning-only, never activation. No source decisions, IDs, classifications, formulas or original source columns are changed.
+
+`catalog-engine-reconciliation.tsv` retains each concept's source fields and code/test references. Corrected140 stale “missing adapter” labels:79 PET_PORTRAIT,38 WATERCOLOR,12 LINE_ART,11 AI_TRANSFORM now accurately identify an implemented **stored-result import/review boundary**, while artistic execution remains absent/blocked. Five-engine tests import identical synthetic stored bytes; they do not prove artistic generation. Provider execution refuses live calls; deterministic rendering rejects these unsupported transformation modes. Portal/production integration, multi-panel and orientation/profile paths remain missing where required, dependent on executable model/style and exact product contracts. Licensed pairs, approved provider/model permissions, monetary ceilings and supplier evidence remain absent. VINTAGE has zero original catalog rows; no products invented. All500 remain **NOT_CERTIFIED_OR_PROMOTED**.
+
+Supplier-gate counts remain415 PRINTIFY_PRIMARY /43 ROUTE_BY_BASE_PRODUCT /42 PROVIDER_RESEARCH_REQUIRED; template states415 TEMPLATE_RESEARCH /43 CONFIGURATION_ONLY /42 PRODUCT_SELECTION. The other360 concepts have bounded local recipe support, which is not supplier/template/commercial acceptance.
+
+## Finance source-to-implementation assessment (23 atomic source IDs)
+
+`VERIFIED` below means only the explicitly named local prohibition/behavior; every authentic financial outcome and installed-site claim remains UNKNOWN or BLOCKED. Existing core modules: `includes/Finance/Repository.php`, `Validator.php`, `OperationsReadModel.php`, `SourceCompletenessReadModel.php`, `OrderCostEvidence.php`; portal is `includes/Portal/Portal.php`. Focused behavioral evidence is in FinancePolicyTest, FinancePeriodHashReadModelTest, FinancePeriodApprovalIntegrityTest, FinanceSourceCompletenessReadModelTest, FinanceAuthorityDbEvidenceContractTest and FinanceTaxReviewDbEvidenceContractTest.
+
+| Exact source criterion | Local implementation / status | Missing software or prerequisite |
+|---|---|---|
+| DERIVED-BP-ai-no-finance-authority | VERIFIED local inert intents and authority=false; Finance Lifecycle / FinancePolicyTest | Installed/operational evidence separate |
+| DERIVED-BP-ai-commercial-kpis | PARTIAL attributable AI cohorts; AI CommercialCostKpiReadModel | MISSING reconciled finance denominator/ratio joins, aligned currency/period/source contract |
+| BP-template-cost | PARTIAL versioned estimated POD cost snapshot | MISSING authentic invoice/actual-charge import/linkage; no estimate-to-actual promotion |
+| BP-template-shipping | PARTIAL estimates / scoped shipping evidence contracts | MISSING authoritative destination/variant/route actual-charge linkage |
+| BP-template-margin | UNKNOWN actual template economics | MISSING derived economics, sale/cost/FX allocation and reviewed threshold policy |
+| BP-portal-6-profitability | PARTIAL environment-period read-only projection | MISSING computed scoped product/order/variant/shop/business profitability |
+| BP-portal-16-ledger | VERIFIED bounded immutable local ledger/read-failure behavior | MISSING authenticated source importer/matching; authenticity UNKNOWN |
+| BP-portal-16-profitability | PARTIAL local period rollup | Same scoped computation/import prerequisites as portal6 |
+| BP-portal-16-tax-readiness | VERIFIED bounded tax classification/review preparation | Professional/jurisdiction validation and authentic transaction evidence required; no statutory formula invented |
+| BP-portal-16-unresolved-reconciliation | VERIFIED bounded missing/duplicate/orphan/late-evidence denial | MISSING authoritative matching/reconciliation transition |
+| BP-portal-16-no-automatic-filing | VERIFIED local inert intents / no filing authority | Any future live filing needs separate explicit authorization |
+| BP-portal-17-revenue | PARTIAL immutable local gross-revenue rollup | MISSING computed scoped analytics; caller-authored snapshot metrics are not evidence |
+| BP-portal-17-margin | PARTIAL local period margin | MISSING source-grounded scoped margin and actual-cost allocation |
+| BP-finance-148 | PARTIAL canonical entries/rollups for revenue/refunds/fees/COGS/shipping/ads/tax/adjustments | MISSING authentic Etsy/POD/AI import, corrections/finality, FX linkage, allocation and scoped reporting |
+| BP-finance-149 | VERIFIED local evidence/preparation-only tax boundary | No filing, money movement or irreversible authority granted |
+| BP-finance-170 | PARTIAL ledger→FX/tax→period/review components | MISSING end-to-end source matching/finality/FX and scoped profitability gates |
+| BP-process-80-8 | PARTIAL estimated cost/shipping readiness | MISSING actual economics gate / approved margin and freshness inputs |
+| BP-process-80-19 | UNKNOWN source-grounded finance/support/quality aggregation | MISSING defined event/outcome attribution and actual records |
+| BP-process-164-9 | PARTIAL named digital profitability review | MISSING actual-economics-backed gate / commercial threshold contract |
+| BP-process-166-21 | UNKNOWN finance/support/quality analytics | MISSING source-grounded event/outcome aggregation |
+| BP-process-168-14 | UNKNOWN finance/supplier-quality feedback | MISSING supplier outcome/attribution definition and actual evidence |
+| BP-digital-semantic-commercial | PARTIAL named recorded human QA | Owner commercial judgment and actual-economics evidence not inferred |
+| NF-template-commercial-economics | PARTIAL identity/geometry drift revalidation | MISSING actual economics revalidation on provider switch and evidence/policy contract |
+
+Actual imports, reconciliation, source-linked FX and scoped profitability are **missing engineering**, not merely absent records. Their financial semantics require authoritative schemas, ownership/source proof, correction/reversal/finality handling and allocation decisions; this batch does not invent them. GST readiness is evidence/preparation-only. No live fee/payment/provider charge or tax submission occurred.
+
+## Non-Finance remaining acceptance (22 unchanged)
+
+| Criteria | Classification / smallest missing evidence |
+|---|---|
+| BP-seam-panel-render | EXTERNAL EVIDENCE REQUIRED: exact versioned supplier panel/safe/bleed/seam geometry and independent rendered review |
+| BP-ai-value-routing | OWNER / EXTERNAL: real provenance-linked benefit findings; policy direction is approved, actual value is not fabricated |
+| BP-template-qa-spelling | OWNER / EXTERNAL: licensed typography, exact text/locale and independent linguistic render review; en-US remains proposed |
+| BP-printify-shop-scope; BP-etsy-shop-identity; BP-portal-4-provider-connections | EXTERNAL: authentic current exact account/shop/integration bindings and authorization; dashboard observations alone are not API certification |
+| BP-distinct-provider-shops | OWNER: deferred shops3/4 remain inactive/unassigned; distinct future mappings not inferred |
+| BP-portal-7-mockups; BP-portal-7-supplier-readiness | EXTERNAL: licensed exact assets, geometry, variant/stock/shipping and supplier qualification |
+| BP-portal-11-production-authorization | OWNER APPROVAL REQUIRED: actual bounded production authority absent; no execution requested |
+| BP-portal-17-conversion; BP-portal-17-defect-quality; BP-portal-17-supplier-performance; BP-portal-17-product-performance; BP-portal-17-shop-performance | EXTERNAL: complete reviewed period/cohort/source populations, attribution/version consistency and denominators; missing data is UNKNOWN |
+| BP-live-portal-normal-work | INSTALLED-SITE BLOCKED: no authenticated installed-site QA performed; local browser evidence is separate |
+| BP-secret-no-chat | UNKNOWN / OWNER: retrospective credential exposure/rotation evidence cannot be inferred from clean code/history scans |
+| BP-quality-feedback | EXTERNAL: independently reviewed attributed real feedback/correction records and privacy evidence |
+| BP-digital-semantic-content; BP-digital-semantic-visual; BP-digital-semantic-ip; BP-digital-semantic-policy | OWNER / EXTERNAL: genuine product-specific semantic, visual, rights and policy review; named synthetic QA receipts are not actual approvals |
+
+The current ten non-Finance policy directions remain approved; duplicate policy approval is not requested. Local software contracts are not owner/provider evidence. Remaining items are individually retained in the authoritative source TSV.
+
+## Printify/Etsy plan and release constraints
+
+Exact three-group plan evidence is linked in issue1209 comments6286265925 /6287001558 /6287062599 and local reconciled artifact SHA256 `d1b5308254742ebe2fb00ab791bba819943f730bf8057d39ea747e34ac7caa96`. Home9 combinations are local UI-derived arithmetic; apparel remains UNKNOWN (conflicting sweatshirt8/9 size counts; incomplete color union); accessories remain UNKNOWN (colorless sticker/tote shared-option and stock behavior). All groups remain BLOCKED/non-executable. The original496-combination listing remains unchanged. No automatic splitting/removal, shared price/shipping/mockup propagation or token renewal occurs. Printify Choice remains dynamic; mockup URLs never become fixed provider/blueprint IDs. Embroidery guides do not certify the observed front-print3951×4800/300DPI area.
+
+Safe listing migration/rollback remains planning only: capture current exact identities, saved revision and linked dependencies; define reviewed proposed memberships/options/primary/category/stock/pricing/shipping; validate complete inventory<=400 and exact ownership/rights/geometry; retain original state for a separately authorized rollback. Missing selections block compilation; no real save, split or rollback operation is performed.
+
+## Validation and next actions
+
+Local verification:176 focused unit tests /706 assertions;90 native core/catalog/engine tests /1,559 assertions plus20 native Finance integrity tests /140 assertions. Authenticated loopback browser64 checks at390/1280px passed with44 business tables unchanged, zero external requests, zero business-row mutations and zero bootstrap DDL; mocked read-only status browser108 checks at390/768/1280 passed. Expected fault-injection diagnostics are not provider calls. These results are not installed-site certification.
+
+Finance revision compatibility: new calculation_version values are `v2.` plus a full256-bit source hash encoded as52 lowercase base32 characters (55 characters total, fitting the existing64-character field). The snapshot includes exact environment/period/base currency, ordered ledger identities/hashes and reconciliation state. Legacy `v2` rows remain readable and unchanged; an old explicit idempotency key cannot be rebound to a new revision. No schema migration is added. Authoritative matching/import/FX linkage and scoped economics remain missing, not silently replaced by this local revision.
+
+Final exact-head audit/test results are recorded on the candidate PR and issue1209 after publication, bound to the commit SHA; no stale base audit is claimed for changed code. Native WordPress, unit, browser, static/security/dependency and package gates are required. Existing optional SAM skips remain explicit. Production impact NONE; no installed-site acceptance, migration execution, restoration of a real backup or deployment is claimed.
+
+Dependency order: review this consolidated candidate against main, preserving #1194→#1195→#1196→#1197→#1198→#1199→#1200→#1201→#1202→#1203→#1204→#1205→#1206→#1207→#1208→integrated1210/1211→#1212→#1213→#1214→#1215→#1216→#1217→#1218→#1219 behavior. Some source changes were patch-integrated rather than literal merge ancestry. Do not blindly merge68 open PRs or independently merge divergent Finance1147/Printify1189. No merge is authorized.
+
+Critical next inputs: authoritative redacted Etsy payment/fee/refund and actual POD charge records/schema with immutable source IDs/timestamps/currency/corrections; reviewed source matching, FX linkage and order-line/shop/product/variant allocation rules; then implement remaining import/reconciliation/scoped profitability as one governed Finance package. Separately collect selected supplier/variant/geometry/rights/native-personalization evidence, independent linguistic/artistic reviews and authorized installed-site/package/backup verification. Deployment/activation/financial operations still require separate authorization. **NO-GO / RELEASE HOLD.**

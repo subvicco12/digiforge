@@ -149,6 +149,10 @@ final class FrontendControls
     {
         if (! is_user_logged_in() || ! current_user_can('manage_digiforge_automation')) { wp_die(esc_html__('You are not authorized to manage DigiForge automation.', 'digiforge')); }
         check_admin_referer($action);
+        $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_automation');
+        if(is_wp_error($allowed)||array_diff(\DigiForge\Security\ShopAccessPolicy::canonicalShops(),$allowed)!==[]){
+            wp_die(esc_html__('Current explicit assignments for all four shops are required to manage global DigiForge controls.', 'digiforge'),'', ['response'=>403]);
+        }
     }
 
     private function render(): string

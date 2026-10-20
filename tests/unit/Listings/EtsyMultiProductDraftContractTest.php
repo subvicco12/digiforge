@@ -87,6 +87,45 @@ final class EtsyMultiProductDraftContractTest extends TestCase
         self::assertNotSame($a['listings'][0]['draft_key'], $b['listings'][0]['draft_key']);
     }
 
+    /** @dataProvider conflictingTemplateEnvironments */
+    public function testDeclaredCatalogEnvironmentCannotCrossDraftScope(string $designEnvironment, string $catalogEnvironment, string $status): void
+    {
+        $design = self::design();
+        $design['environment'] = $designEnvironment;
+        $this->expectException(\InvalidArgumentException::class);
+        EtsyMultiProductDraftContract::build($design, [self::boundProduct($catalogEnvironment, $status)]);
+    }
+
+    public static function conflictingTemplateEnvironments(): array
+    {
+        return [['test', 'production', 'DRAFT'], ['production', 'test', 'DRAFT'], ['sandbox', 'production', 'VALIDATED'], ['production', 'sandbox', 'VALIDATED']];
+    }
+
+    public function testMatchingCatalogEnvironmentRetainsUnverifiedOfflinePlan(): void
+    {
+        $result = EtsyMultiProductDraftContract::build(self::design(), [self::boundProduct('test', 'VALIDATED')]);
+        self::assertSame('test', $result['listings'][0]['template']['print_areas'][0]['_catalog_bindings'][0]['environment']);
+        self::assertSame('UNKNOWN', $result['listings'][0]['supplier_certification']);
+        self::assertSame('UNVERIFIED', $result['acceptance']);
+        self::assertFalse($result['network_request_permitted']);
+    }
+
+    private static function boundProduct(string $environment, string $status): array
+    {
+        $product = self::product();
+        $product['template']['template_status'] = $status;
+        $product['template']['print_areas'][0] += ['region'=>'US', '_catalog_bindings'=>[[
+            'schema'=>'printify-placeholder-binding-v1', 'provider'=>'printify', 'environment'=>$environment,
+            'blueprint_id'=>1, 'provider_id'=>7, 'variant_id'=>11,
+            'endpoint_path'=>'/v1/catalog/blueprints/1/print_providers/7/variants.json',
+            'response_sha256'=>str_repeat('d', 64), 'source_revision'=>'synthetic-only',
+            'observed_at'=>'2026-10-20T00:00:00Z', 'variant_sha256'=>str_repeat('e', 64),
+            'placeholder_sha256'=>hash('sha256', json_encode(['position'=>'front', 'decoration_method'=>'print', 'width'=>100, 'height'=>100], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+        ]]];
+        $product['download_template']['template_sha256'] = \DigiForge\POD\ProductionTemplateContract::normalize($product['template'])['fingerprint'];
+        return $product;
+    }
+
     /** @dataProvider invalidProducts */
     public function testInvalidOrForeignEvidenceCannotBecomeDraftCandidates(array $products): void
     {
