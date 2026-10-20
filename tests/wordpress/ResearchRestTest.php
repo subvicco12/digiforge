@@ -67,6 +67,7 @@ final class ResearchRestTest extends WP_UnitTestCase
         if ($idempotencyKey !== '') {
             $request->set_header('Idempotency-Key', $idempotencyKey);
         }
+        $body['shop_key']='digital';
         $request->set_body((string) wp_json_encode($body));
         return $request;
     }
