@@ -158,7 +158,7 @@ final class ApprovedAcceptancePolicy
             self::exact($r,array_merge(['kind','id','shop_key','product_id','product_version','supplier_id','occurred_at','source_reference'],$extra));
             self::id($r['id']);self::scopedRecord($r,$shop,$d,$refs);
             $key=$r['kind'].':'.$r['id'];
-            if (isset($seen[$key])&&$seen[$key]!=$r) throw new \InvalidArgumentException();$seen[$key]=$r;
+            if (isset($seen[$key])&&\DigiForge\Listings\Validator::canonicalJson($seen[$key])!==\DigiForge\Listings\Validator::canonicalJson($r)) throw new \InvalidArgumentException();$seen[$key]=$r;
             if ($r['kind']==='VISIT') $visits[$r['id']]=$r;
             if ($r['kind']==='ORDER'&&$r['visit_id']!==null) self::id($r['visit_id']);
             if ($r['kind']==='UNIT') {
@@ -187,13 +187,16 @@ final class ApprovedAcceptancePolicy
         $metric=static fn(bool $known,int|float $value):array=>['state'=>$known?'LOCAL_CALCULATED':'UNKNOWN','value'=>$known?$value:null];
         $rate=static fn(bool $known,int $n,int $den):array=>['state'=>$known&&$den>0?'LOCAL_CALCULATED':'UNKNOWN','value'=>$known&&$den>0?(float)$n/$den*100.0:null,'numerator'=>$known?$n:null,'denominator'=>$known?$den:null];
         $onTime=count(array_filter($units,static fn(array $r):bool=>$r['on_time']===true));$exceptions=count(array_filter($units,static fn(array $r):bool=>$r['exception']===true));
-        return ['state'=>'LOCAL_CALCULATED','value_state'=>'LOCAL_CALCULATED','metrics'=>[
+        $onTimeKnown=$coverage['units']&&count(array_filter($units,static fn(array $r):bool=>$r['on_time']===null))===0;
+        $exceptionsKnown=$coverage['units']&&count(array_filter($units,static fn(array $r):bool=>$r['exception']===null))===0;
+        $state=$coverage['orders']||$coverage['units']?'LOCAL_CALCULATED':'UNKNOWN';
+        return ['state'=>$state,'value_state'=>$state,'metrics'=>[
             'orders'=>$metric($coverage['orders'],count($orders)),
             'fulfilled_units'=>$metric($coverage['units'],count($units)),
             'conversion_percent'=>$rate($coverage['visits']&&$coverage['orders'],$attributed,count($visits)),
             'defect_percent'=>$rate($coverage['units']&&$defectsComplete,$defects,count($units)),
-            'timeliness'=>['on_time_units'=>$coverage['units']?$onTime:null,'eligible_units'=>$coverage['units']?count($units):null,'state'=>$coverage['units']&&count(array_filter($units,static fn(array $r):bool=>$r['on_time']===null))===0?'LOCAL_COUNTS':'UNKNOWN'],
-            'exceptions'=>['exception_units'=>$coverage['units']?$exceptions:null,'eligible_units'=>$coverage['units']?count($units):null,'state'=>$coverage['units']&&count(array_filter($units,static fn(array $r):bool=>$r['exception']===null))===0?'LOCAL_COUNTS':'UNKNOWN'],
+            'timeliness'=>['on_time_units'=>$onTimeKnown?$onTime:null,'eligible_units'=>$coverage['units']?count($units):null,'state'=>$onTimeKnown?'LOCAL_COUNTS':'UNKNOWN'],
+            'exceptions'=>['exception_units'=>$exceptionsKnown?$exceptions:null,'eligible_units'=>$coverage['units']?count($units):null,'state'=>$exceptionsKnown?'LOCAL_COUNTS':'UNKNOWN'],
         ]];
     }
     private static function feedback(string $shop,array $d,array $refs): void
