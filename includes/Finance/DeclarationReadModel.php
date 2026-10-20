@@ -44,6 +44,13 @@ final class DeclarationReadModel
         $wpdb->last_error='';$again=$wpdb->get_results($sql,ARRAY_A);
         if(DatabaseEvidence::failed()||!is_array($again))return self::blocked($scope,'SOURCE_UNAVAILABLE','Declaration ledger evidence could not be reread.','UNAVAILABLE');
         if(Validator::hash($rows)!==Validator::hash($again))return self::blocked($scope,'SOURCE_CHANGED','Declaration evidence changed during reporting.');
+        // Stable ledger bytes do not prove that ownership, source lineage or FX
+        // remained valid while the report was assembled. Reuse the authoritative
+        // stored-evidence validation after the final source read as well.
+        foreach($again as$i=>$row){
+            $current=$repo->declarationEvidence($row);
+            if($current instanceof WP_Error||$current!==$entries[$i])return self::blocked($scope,'SOURCE_REFERENCE_INVALID','Current declaration source, ownership or FX links could not be verified.');
+        }
         return $report;
     }
 

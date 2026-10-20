@@ -136,6 +136,35 @@ final class FinanceDigitalBindingTest extends WP_UnitTestCase
         wp_set_current_user($f['actors']['reviewer']);self::assertNotWPError((new DigitalSourceBinding())->decide($i['business_id'],$i['store_id'],'test',$a['revision'],$a['proposal_hash'],'REVOKED',wp_generate_uuid4()));wp_set_current_user($f['actors']['author']);
         $this->expectException(InvalidArgumentException::class);$build();
     }
+    public function testReportRejectsDigitalReviewRevokedDuringFinalLedgerRead():void
+    {
+        $f=$this->fixture();$approved=$this->approve($f);$i=$f['input'];global $wpdb;
+        $table=Tables::finance_ledger();$temporary=$table.'_digital_report_'.substr(str_replace('-','',wp_generate_uuid4()),0,8);
+        self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporary.' LIKE '.$table));
+        $isolate=static fn(string$sql):string=>str_replace($table,$temporary,$sql);add_filter('query',$isolate,99);
+        try{
+            $input=DigiForge\Tests\FinanceDeclarationFixtures::input(['provider'=>'etsy','scope'=>['shop_key'=>'digital','business_id'=>$i['business_id'],'store_id'=>$i['store_id'],
+                'product_version_id'=>$f['product_version_id'],'provider_mapping_id'=>0,'variant_ref'=>'','order_id'=>0,'listing_id'=>0]]);
+            $repo=new DigiForge\Finance\Repository();$row=$repo->importDeclaration($input);self::assertIsArray($row);
+            $model=new DigiForge\Finance\DeclarationReadModel();
+            self::assertSame('PROVISIONAL',$model->snapshot('digital','test','2026-10-01','2026-10-31','USD')['state']);
+            $reads=0;$revoked=false;
+            $change=static function(string$sql)use($f,$approved,$i,&$reads,&$revoked):string{
+                if(str_starts_with($sql,'SELECT * FROM '.Tables::finance_ledger().' WHERE environment=')&&++$reads===2){
+                    wp_set_current_user($f['actors']['reviewer']);
+                    $result=(new DigitalSourceBinding())->decide($i['business_id'],$i['store_id'],'test',$approved['revision'],$approved['proposal_hash'],'REVOKED',wp_generate_uuid4());
+                    self::assertIsArray($result);self::assertSame('REVOKED',$result['status']);$revoked=true;
+                    wp_set_current_user($f['actors']['author']);
+                }
+                return $sql;
+            };
+            add_filter('query',$change);
+            try{$report=$model->snapshot('digital','test','2026-10-01','2026-10-31','USD');}finally{remove_filter('query',$change);}
+            self::assertTrue($revoked);self::assertSame(2,$reads);self::assertWPError($repo->declarationEvidence($row));
+            self::assertSame($row,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE id=%d',$row['id']),ARRAY_A));
+            self::assertSame('BLOCKED',$report['state']);self::assertNull($report['totals']);self::assertSame([],$report['gst_review']['rows']);
+        }finally{remove_filter('query',$isolate,99);$wpdb->query('DROP TEMPORARY TABLE IF EXISTS '.$temporary);}
+    }
     public function testStoreDriftDuringFxLookupInvalidatesDigitalDeclarationReferences():void
     {
         $f=$this->fixture();$this->approve($f);$i=$f['input'];global$wpdb;

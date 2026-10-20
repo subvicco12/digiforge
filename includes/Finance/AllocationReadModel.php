@@ -55,6 +55,13 @@ final class AllocationReadModel
             $again=$this->read($sql);if ($again instanceof WP_Error) return $again;
             if (Validator::hash($rows) !== Validator::hash($again)) return self::error('source_changed',409);
             AllocationProposal::assertCurrentTargets($packet['source'],$packet['lines'],new AllocationStoredTargetReferences());
+            // Target lineage alone cannot revalidate source FX or a historical
+            // declaration's exact ownership pins. Stable rows still need their
+            // existing reference contract checked after the final source read.
+            foreach ($again as $i => $row) {
+                $current=$repo->declarationEvidence($row);
+                if ($current instanceof WP_Error || $current !== $entries[$i]) return self::error('source_unavailable',503);
+            }
             $authorization=ShopAccess::authorize($scope['shop_key'],'manage_digiforge_finance');
             return $authorization instanceof WP_Error ? self::denied($authorization) : $packet;
         } catch (\InvalidArgumentException|\TypeError|\JsonException) {

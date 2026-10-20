@@ -467,5 +467,108 @@
       "fixture_bootstrap_ddl_statements": 0,
       "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
     }
+  },
+  "batch7": {
+    "baseline_pr": 1225,
+    "baseline_sha": "1026faf86480c02eb6554e766985747b5be6a32f",
+    "baseline_audit": 4760,
+    "main_sha": "844107ab9baf7e1303cd47708e9eab3bc700b348",
+    "source_chain_1220_through_1225_already_in_ancestry": true,
+    "runtime_files": [
+      "includes/Finance/DeclarationReadModel.php",
+      "includes/Finance/AllocationReadModel.php"
+    ],
+    "reproduced_native_before_fix": {
+      "report_cases": 6,
+      "report_failures": 6,
+      "allocation_cases": 1,
+      "allocation_failures": 1
+    },
+    "final_focused_unit": {
+      "tests": 127,
+      "assertions": 357,
+      "failures": 0
+    },
+    "full_composer": {
+      "status": "PASS",
+      "unit_tests": 1648,
+      "assertions": 8976,
+      "existing_skips": 1,
+      "legacy": "PASS",
+      "configured_phpstan": "PASS",
+      "configured_phpcs": "PASS",
+      "local_warning": "Existing unwritable PHPUnit result cache; hosted exact-head supplies PHP8.3 evidence."
+    },
+    "native_finance_integrated": {
+      "tests": 154,
+      "assertions": 3142,
+      "failures": 0
+    },
+    "new_native_cases": 8,
+    "offline": {
+      "tests": 134,
+      "status": "PASS"
+    },
+    "supplementary_all_finance_phpstan": {
+      "level": 5,
+      "status": "PASS",
+      "suppressions_added": 0
+    },
+    "authenticated_local_browser": {
+      "status": "PASS",
+      "chromium_version": "154.0.8037.57",
+      "node_version": "v24.19.0",
+      "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+      "checks": 194,
+      "requests": 414,
+      "blocked_requests": 0,
+      "widths": [
+        390,
+        1280
+      ],
+      "business_tables_unchanged": 47,
+      "stop_all": true,
+      "external_locked": true,
+      "automation_armed": false,
+      "external_requests": 0,
+      "business_row_mutations": 0,
+      "fixture_bootstrap_ddl_statements": 0,
+      "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
+    },
+    "current_dependency_revalidation": "Existing Repository::declarationEvidence reused after final source reads/target sweep. Current observed changes deny; no transactional/serializable/as-of or provider-finality guarantee.",
+    "bounds": {
+      "environment_declarations": 200,
+      "per_identity_history": 50,
+      "unchanged": true
+    },
+    "matrix_current_dependency_descriptions_corrected": 20,
+    "matrix_finance_evidence_rows_extended": 6,
+    "acceptance": {
+      "nonfinance_implemented_candidates": 246,
+      "nonfinance_mandatory": 268,
+      "nonfinance_unverified": 22,
+      "finance_dependent": 23,
+      "finance_status": "INCOMPLETE",
+      "promotions": 0
+    },
+    "master500": {
+      "identities": 500,
+      "bounded_recipes": 360,
+      "artistic_execution_blocked": 140,
+      "certified_or_promoted": 0
+    },
+    "raw_provider_parsers": "MISSING, blocked by unavailable authoritative source schemas/records and ownership/occurrence/precision/finality contracts. Internal declarations and reviewed AI envelopes are not native billing schemas.",
+    "digital_non_etsy_financial_sources": "BLOCKED pending approved billed-account/environment/shop relation; Etsy-only Digital relation preserved without POD dependency.",
+    "pooling_historical_rebinding": "MISSING contract-dependent software; no reviewed weighting/rounding/history rules supplied. Explicit reviewed amounts and exact inverses already implemented.",
+    "source_research": "No new owner/source evidence; managed1426 restricted/enforced excludes provider doc domains. Existing blocked attempts not repeated or bypassed.",
+    "schema_version": 23,
+    "migrations_added": 0,
+    "live_provider_calls": 0,
+    "real_imports": 0,
+    "production_writes": 0,
+    "installed_site_verified": false,
+    "release_recommendation": "NO_GO_RELEASE_HOLD",
+    "safety": "STOP_ALL_ON; EXTERNAL_LOCK_ON; AUTOMATION_OFF; RELEASE_HOLD",
+    "hosted_exact_head_receipt": "Final draft PR and issue1209 receipt; baseline audit not reused for changed code."
   }
 }

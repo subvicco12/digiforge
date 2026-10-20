@@ -169,6 +169,47 @@ final class FinanceAllocationStoredTargetReferencesTest extends WP_UnitTestCase
         self::assertTrue($mutated);
     }
 
+    public function testPreviewRechecksExactFxAfterItsFinalSourceHistoryRead(): void
+    {
+        $fixture=$this->fixture();global $wpdb;
+        $fxTable=Tables::fx_snapshots();$temporaryFx=$fxTable.'_allocation_'.substr(str_replace('-','',wp_generate_uuid4()),0,8);
+        self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporaryFx.' LIKE '.$fxTable));
+        $isolateFx=static fn(string $sql):string=>str_replace($fxTable,$temporaryFx,$sql);add_filter('query',$isolateFx,98);
+        try{
+        self::assertSame(1,$wpdb->update(Tables::orders(),['currency'=>'EUR'],['id'=>$fixture['target']['order_id']]));
+        self::assertSame(1,$wpdb->update(Tables::order_line_items(),['currency'=>'EUR'],['id'=>$fixture['target']['order_line_item_id']]));
+        $fixture['target']['currency']='EUR';
+        ShopAccessFixture::reset();
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_finance']);
+        $repo=new DigiForge\Finance\Repository();
+        $fx=$repo->createFx(['environment'=>'test','base_currency'=>'EUR','quote_currency'=>'USD',
+            'rate'=>'1.2500000000','as_of_at'=>'2026-10-09 12:00:00',
+            'source_metadata'=>['kind'=>'DECLARATION','document_ref'=>'offline/allocation-fx','document_hash'=>str_repeat('b',64)]]);
+        self::assertIsArray($fx);
+        $input=$fixture['source'];unset($input['declaration_hash'],$input['accounting_convention'],$input['authenticity']);
+        $input=array_replace($input,['currency'=>'EUR','base_amount'=>'12.5000','fx_snapshot_id'=>(int)$fx['id']]);
+        $source=DeclarationContract::normalize($input);$row=$repo->importDeclaration($input);self::assertIsArray($row);
+        $scope=array_intersect_key($fixture['target'],array_flip(['shop_key','business_id','store_id','environment']));
+        $lines=[['target'=>$fixture['target'],'amount'=>'10.0000','base_amount'=>'12.5000']];
+        $reader=new AllocationReadModel();
+        $packet=$reader->preview($source['declaration_hash'],$scope,$lines);self::assertIsArray($packet);
+        self::assertSame('12.5000',$packet['allocated_base_amount']);
+        $reads=0;$mutated=false;
+        $filter=static function(string $sql) use ($fx,$wpdb,&$reads,&$mutated): string {
+            if (str_starts_with($sql,'SELECT * FROM '.Tables::finance_ledger().' WHERE environment=') && ++$reads === 2) {
+                $mutated=$wpdb->update(Tables::fx_snapshots(),['rate'=>'2.0000000000'],['id'=>$fx['id']]) === 1;
+            }
+            return $sql;
+        };
+        add_filter('query',$filter);
+        try {$result=$reader->preview($source['declaration_hash'],$scope,$lines);}
+        finally {remove_filter('query',$filter);}
+        self::assertTrue($mutated);self::assertSame(2,$reads);
+        self::assertWPError($repo->declarationEvidence($row));
+        self::assertWPError($result);
+        }finally{remove_filter('query',$isolateFx,98);$wpdb->query('DROP TEMPORARY TABLE IF EXISTS '.$temporaryFx);}
+    }
+
     public function testCurrentStoredExactLineResolvesWithoutAnyBusinessWrite(): void
     {
         $fixture=$this->fixture();global $wpdb;

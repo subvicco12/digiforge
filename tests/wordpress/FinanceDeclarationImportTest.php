@@ -316,4 +316,40 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
         $report=(new DigiForge\Finance\DeclarationReadModel())->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
         self::assertSame('BLOCKED',$report['state']);self::assertTrue($report['truncated']);self::assertNull($report['totals']);
     }
+    /** @dataProvider finalReferenceChanges */
+    public function testFinalLedgerReadCannotHideChangedOwnershipOrFxReferences(string $change):void
+    {
+        $input=$this->fixture();$repo=new Repository();global $wpdb;
+        if(str_starts_with($change,'fx_')){
+            $fx=$repo->createFx(['environment'=>'test','base_currency'=>'EUR','quote_currency'=>'USD','rate'=>'1.2345678901','as_of_at'=>'2026-10-09 12:00:00',
+                'source_metadata'=>['kind'=>'DECLARATION','document_ref'=>'synthetic/final-reference-fx','document_hash'=>str_repeat('b',64)]]);
+            self::assertIsArray($fx);$input=array_replace($input,['currency'=>'EUR','base_amount'=>'12.3457','fx_snapshot_id'=>(int)$fx['id']]);
+        }
+        $row=$repo->importDeclaration($input);self::assertIsArray($row);
+        $model=new DigiForge\Finance\DeclarationReadModel();
+        self::assertSame('PROVISIONAL',$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD')['state']);
+        $owner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE provider_mapping_id=%d',$input['scope']['provider_mapping_id']),ARRAY_A);
+        self::assertIsArray($owner);$reads=0;$changed=false;
+        $filter=static function(string $sql)use($change,$input,$owner,$wpdb,&$reads,&$changed):string{
+            if(str_starts_with($sql,'SELECT * FROM '.Tables::finance_ledger().' WHERE environment=')&&++$reads===2){
+                if($change==='revoked')self::assertSame(1,$wpdb->update(Tables::pod_business_mappings(),['state'=>'REVOKED'],['id'=>$owner['id']]));
+                elseif($change==='deleted')self::assertSame(1,$wpdb->delete(Tables::pod_business_mappings(),['id'=>$owner['id']]));
+                elseif($change==='reassigned')self::assertSame(1,$wpdb->update(Tables::pod_business_mappings(),['store_id'=>(int)$owner['store_id']+999],['id'=>$owner['id']]));
+                elseif($change==='fx_deleted')self::assertSame(1,$wpdb->delete(Tables::fx_snapshots(),['id'=>$input['fx_snapshot_id']]));
+                elseif($change==='fx_changed')self::assertSame(1,$wpdb->update(Tables::fx_snapshots(),['rate'=>'1.1000000000'],['id'=>$input['fx_snapshot_id']]));
+                $changed=true;
+            }
+            if($changed&&$change==='reference_read_failure'&&str_starts_with($sql,'SELECT * FROM '.Tables::product_versions().' WHERE id='))return 'SELECT * FROM missing_final_reference_fixture';
+            return $sql;
+        };
+        $previous=$wpdb->suppress_errors(true);add_filter('query',$filter);
+        try{$report=$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');}
+        finally{remove_filter('query',$filter);$wpdb->suppress_errors($previous);}
+        self::assertTrue($changed,'The dependency change must occur after the initial reference validation.');
+        self::assertSame($row,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE id=%d',$row['id']),ARRAY_A));
+        self::assertSame('BLOCKED',$report['state']);self::assertNull($report['totals']);self::assertSame([],$report['gst_review']['rows']);
+        foreach(['money_movement_authorized','period_approval_authorized','external_execution_authorized']as$key)self::assertFalse($report[$key]);
+    }
+    public static function finalReferenceChanges():array
+    {return [['revoked'],['deleted'],['reassigned'],['fx_deleted'],['fx_changed'],['reference_read_failure']];}
 }
