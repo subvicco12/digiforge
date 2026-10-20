@@ -19,23 +19,41 @@ final class AllocationProfitabilityReadModel
         try {
             $references=self::references($references);$scope=self::scope($scope,$references[0]['source_hash']);
             $ownership=array_intersect_key($scope,array_flip(['shop_key','business_id','store_id','environment']));
-            $service=new AllocationReview();$current=[];$amounts=[];$buckets=[];$provenance=[];$lineCount=0;
-            foreach ($references as $reference) {
-                $review=$service->current($reference['source_hash'],$ownership);
-                if ($review instanceof WP_Error) return self::error('review_unavailable');
+            $service=new AllocationReview();$current=[];$historicalVia=[];$amounts=[];$buckets=[];$provenance=[];$lineCount=0;
+            // Resolve included current inverses first; an original alone never gets historical fallback.
+            $originals=[];
+            foreach ($references as $i=>$reference) {
+                $review=$service->current($reference['source_hash'],$ownership);$current[$i]=$review;
+                if (!($review instanceof WP_Error) && is_array($review['original_review_reference']??null)) {
+                    $pin=$review['original_review_reference'];
+                    if (isset($originals[$pin['source_hash']])) return self::error('source_conflict');
+                    $originals[$pin['source_hash']]=['reference'=>$pin,'reversal_hash'=>$reference['source_hash']];
+                }
+            }
+            foreach ($references as $i=>$reference) {
+                $review=$current[$i];
+                if ($review instanceof WP_Error) {
+                    $original=$originals[$reference['source_hash']]??null;
+                    if ($original===null || Validator::canonicalJson($original['reference'])!==Validator::canonicalJson($reference)) return self::error('review_unavailable');
+                    $review=$service->reviewedOriginal($original['reversal_hash'],$ownership);
+                    if ($review instanceof WP_Error || $review['local_review_status']!=='HISTORICAL_REVIEWED_LOCAL_ALLOCATION') return self::error('review_unavailable');
+                    $historicalVia[$i]=$original['reversal_hash'];
+                }
                 foreach (['revision','state_hash','proposal_hash'] as $field) {
                     if (($review['review'][$field]??null)!==$reference[$field]) return self::error('review_changed');
                 }
                 $packet=$review['allocation_packet'];$source=DeclarationContract::fromStored($packet['source']);
                 if ($source['declaration_hash']!==$reference['source_hash'] || $source['environment']!==$scope['environment']
-                    || $source['base_currency']!==$scope['base_currency'] || $source['reversal_of_hash']!==''
-                    || $packet['reversal_of_proposal_hash']!=='' || $packet['lines']===[]) return self::error('source_conflict');
+                    || $source['base_currency']!==$scope['base_currency'] || $packet['lines']===[]) return self::error('source_conflict');
+                if ($source['reversal_of_hash']!=='') {
+                    if (($review['original_review_reference']['source_hash']??null)!==$source['reversal_of_hash'] || $packet['reversal_of_proposal_hash']==='') return self::error('source_conflict');
+                } elseif ($packet['reversal_of_proposal_hash']!=='') return self::error('source_conflict');
                 foreach (['shop_key','business_id','store_id'] as $field) {
                     if ($source['scope'][$field]!==$scope[$field]) return self::error('scope_conflict');
                 }
                 $date=substr($source['occurred_at'],0,10);
                 if ($date<$scope['period_start'] || $date>$scope['period_end']) return self::error('period_conflict');
-                $current[]=$review;
+                $current[$i]=$review;
                 foreach ($packet['lines'] as $line) {
                     if (++$lineCount>200) return self::error('limit_exceeded');
                     $target=$line['target'];$dimensions=self::dimensions($target,$scope);
@@ -47,6 +65,11 @@ final class AllocationProfitabilityReadModel
                         'occurred_at'=>$source['occurred_at'],'category'=>$source['category'],
                         'currency'=>$source['currency'],'amount'=>$line['amount'],
                         'base_currency'=>$source['base_currency'],'base_amount'=>$line['base_amount']];
+                    if (isset($historicalVia[$i])) {
+                        $proof['local_review_status']='HISTORICAL_REVIEWED_LOCAL_ALLOCATION';
+                        $proof['historical_via_reversal_source_hash']=$historicalVia[$i];
+                    }
+                    if (isset($review['original_review_reference'])) $proof['original_review_reference']=$review['original_review_reference'];
                     $provenance[]=$proof;
                     foreach ($dimensions as $dimension=>$id) {
                         if ($id===null) continue; // Digital sources have no POD variant; no variant is invented.
@@ -72,7 +95,7 @@ final class AllocationProfitabilityReadModel
                 }
             }
             foreach ($references as $i=>$reference) {
-                $again=$service->current($reference['source_hash'],$ownership);
+                $again=isset($historicalVia[$i]) ? $service->reviewedOriginal($historicalVia[$i],$ownership) : $service->current($reference['source_hash'],$ownership);
                 if ($again instanceof WP_Error || Validator::canonicalJson($again)!==Validator::canonicalJson($current[$i])) return self::error('changed');
             }
             return ['schema'=>'finance-reviewed-allocation-profitability-v1','calculation_version'=>'declared-profit-v2-exact-1',

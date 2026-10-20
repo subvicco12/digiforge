@@ -280,5 +280,77 @@
     "full_period_coverage_verified": false,
     "release_decision": "NO-GO",
     "hosted_exact_head_receipt": "See dedicated Batch4 draft PR and issue1209 after publication; old audit is not evidence for changed code."
+  },
+  "batch5": {
+    "baseline_pr": 1223,
+    "baseline_sha": "7448f7de5b804a9fb76a4315d88cd22fd40f52cb",
+    "baseline_audit": 4757,
+    "full_unit": {
+      "tests": 1638,
+      "assertions": 8934,
+      "failures": 0,
+      "skipped": 1,
+      "skip_reason": "Existing optional SAM runtime/owner weights"
+    },
+    "native_integrated": {
+      "tests": 170,
+      "assertions": 3317,
+      "failures": 0
+    },
+    "affected_renderer_native": {
+      "tests": 1,
+      "assertions": 19,
+      "failures": 0
+    },
+    "authenticated_local_browser": {
+      "status": "PASS",
+      "chromium_version": "154.0.8037.57",
+      "node_version": "v24.19.0",
+      "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+      "checks": 194,
+      "requests": 414,
+      "blocked_requests": 0,
+      "widths": [
+        390,
+        1280
+      ],
+      "business_tables_unchanged": 47,
+      "stop_all": true,
+      "external_locked": true,
+      "automation_armed": false,
+      "external_requests": 0,
+      "business_row_mutations": 0,
+      "fixture_bootstrap_ddl_statements": 0,
+      "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
+    },
+    "offline_regressions": {
+      "tests": 134,
+      "failures": 0,
+      "runtime": "Existing pinned Python with correct PHP path"
+    },
+    "supplementary_phpstan": "PASS: level5 allFinance + changedportal + renderer, no ignores; existing QueryEvidence reads mutable post-query errors",
+    "catalog_smoke": "PASS: preview/shipping/read policy/attempt authorization/legacy compatibility",
+    "composer_advisories": "Actual audit PASS, no vulnerability advisories observed",
+    "source_schema_result": "BLOCKED: no verified raw schema/account occurrence attribution available; no duplicate AI declaration assertion class added",
+    "persistent_reversals": "IMPLEMENTED: v2 exact retained independently reviewed original pins; ordinary current remains stale; current inverse required for historical evidence and paired subset profitability",
+    "pooled_crossproduct_allocation": "UNSUPPORTED without explicit reviewed source/rule contract",
+    "schema_changes": false,
+    "schema_version": 23,
+    "artwork_source_substitution": "Reproduced valid PNG byte substitution under unchanged approved content address; digest check now rejects before new rendering, named legacy references preserved",
+    "non_finance_implemented_candidates": 246,
+    "non_finance_mandatory": 268,
+    "non_finance_unverified": 22,
+    "finance_dependent_atomic": 23,
+    "acceptance_promotions": 0,
+    "master500": {
+      "concepts": 500,
+      "bounded_recipes": 360,
+      "artistic_execution_blocked": 140,
+      "certified_or_promoted": 0
+    },
+    "installed_site_verified": false,
+    "authentic_provider_evidence_verified": false,
+    "release_decision": "NO-GO",
+    "hosted_exact_head_receipt": "See Batch5 draft PR and issue1209 after publication; baseline audit not reused for changed code"
   }
 }

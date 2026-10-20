@@ -32,6 +32,22 @@ if(!is_array((new DigiForge\Finance\Repository())->importDeclaration($input)))th
 $allocation=['source_hash'=>$source['declaration_hash'],'scope'=>array_intersect_key($allocationFixture['target'],array_flip(['shop_key','business_id','store_id','environment'])),
  'lines'=>[['target'=>$allocationFixture['target'],'amount'=>'10','base_amount'=>'10']]];
 file_put_contents($dir.'/allocation.json',wp_json_encode($allocation));chmod($dir.'/allocation.json',0600);
+// A separate exact-inverse fixture retains a genuine synthetic independent local
+// original review before recording the internal reversal declaration. No real import.
+$rf=(new ReflectionMethod(FinanceAllocationReviewTest::class,'fixture'))->invoke(new FinanceAllocationReviewTest());
+$ri=$rf['source'];unset($ri['declaration_hash'],$ri['accounting_convention'],$ri['authenticity']);
+if(!is_array((new DigiForge\Finance\Repository())->importDeclaration($ri)))throw new RuntimeException('Synthetic reversal source unavailable.');
+$rs=array_intersect_key($rf['target'],array_flip(['shop_key','business_id','store_id','environment']));$service=new DigiForge\Finance\AllocationReview();
+$pending=$service->propose($rf['source']['declaration_hash'],$rs,[['target'=>$rf['target'],'amount'=>'10','base_amount'=>'10']],time()-1,time()+3600,'browser-original-proposal',0);
+if(!is_array($pending))throw new RuntimeException('Synthetic original proposal unavailable.');
+wp_set_current_user($users['reviewer']['id']);
+$reviewed=$service->decide($rf['source']['declaration_hash'],$rs,$pending['review']['revision'],$pending['review']['proposal_hash'],'APPROVED','browser-original-review');
+if(!is_array($reviewed))throw new RuntimeException('Synthetic original local review unavailable.');
+$reference=['source_hash'=>$rf['source']['declaration_hash']]+array_intersect_key($reviewed['review'],array_flip(['revision','state_hash','proposal_hash']));
+$reverse=array_replace($ri,['external_transaction_id'=>'browser-exact-reversal','reversal_of_hash'=>$rf['source']['declaration_hash'],'amount'=>'-10.0000','base_amount'=>'-10.0000']);
+$reverseHash=DigiForge\Finance\DeclarationContract::normalize($reverse)['declaration_hash'];
+if(!is_array((new DigiForge\Finance\Repository())->importDeclaration($reverse)))throw new RuntimeException('Synthetic inverse declaration unavailable.');
+file_put_contents($dir.'/allocation-reversal.json',wp_json_encode(['source_hash'=>$reverseHash,'scope'=>$rs,'original_review_reference'=>$reference,'lines'=>[['target'=>$rf['target'],'amount'=>'-10','base_amount'=>'-10']]]));chmod($dir.'/allocation-reversal.json',0600);
 // A signed source authority survives only this disposable fixture; no private signing key is exported.
 copy(DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE,$dir.'/authority.json');chmod($dir.'/authority.json',0600);
 file_put_contents($dir.'/public-authority.php',"<?php\ndefine('DIGIFORGE_SHOP_ACCESS_TRUST_KEY',".var_export(DIGIFORGE_SHOP_ACCESS_TRUST_KEY,true).");\ndefine('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE',".var_export($dir.'/authority.json',true).");\n");

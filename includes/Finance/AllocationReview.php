@@ -9,17 +9,22 @@ use WP_Error;
 /** Versioned independently reviewed local explicit allocations. No financial or execution authority. */
 final class AllocationReview
 {
-    /** Persistent reversals require retained reviewed original proof and are deliberately unsupported. */
-    public const PERSISTENT_REVERSALS_SUPPORTED=false;
+    /** Reversals require an exact retained independently approved ordinary review. */
+    public const PERSISTENT_REVERSALS_SUPPORTED=true;
 
     private const KIND='finance_allocation';
 
-    public function propose(string $sourceHash,array $scope,array $explicitLines,int $effectiveAt,int $expiresAt,string $requestId,int $expectedRevision): array|WP_Error
+    public function propose(string $sourceHash,array $scope,array $explicitLines,int $effectiveAt,int $expiresAt,string $requestId,int $expectedRevision,?array $originalReviewReference=null): array|WP_Error
     {
         $scope=$this->admit($sourceHash,$scope);if ($scope instanceof WP_Error) return $scope;
-        $packet=(new AllocationReadModel())->preview($sourceHash,$scope,$explicitLines);
+        $original=null;
+        if ($originalReviewReference!==null) {
+            $original=$this->originalProof($originalReviewReference,$scope);
+            if ($original instanceof WP_Error) return $original;
+        }
+        $packet=(new AllocationReadModel())->preview($sourceHash,$scope,$explicitLines,$original['packet']??null);
         if ($packet instanceof WP_Error) return self::error('source_unavailable',409);
-        try { $payload=AllocationReviewPayload::create($sourceHash,$scope,$packet); }
+        try { $payload=AllocationReviewPayload::create($sourceHash,$scope,$packet,$originalReviewReference); }
         catch (\InvalidArgumentException|\TypeError) { return self::error('invalid_payload',400); }
         $condition=fn(): bool|WP_Error => $this->validate($payload,$sourceHash,$scope) instanceof WP_Error ? self::error('changed',409) : true;
         $state=ReviewedLocalEvidence::propose(self::KIND,$scope['shop_key'],self::key($sourceHash,$scope),$payload,$effectiveAt,$expiresAt,$requestId,$expectedRevision,$condition);
@@ -69,6 +74,9 @@ final class AllocationReview
             else $status='REVIEWED_LOCAL_ALLOCATION';
         }
         if ($packet instanceof WP_Error && !in_array($status,['REJECTED','REVOKED','EXPIRED','NOT_YET_EFFECTIVE'],true)) $status='STALE';
+        if (!($packet instanceof WP_Error) && isset($state['payload']['original_review_reference'])
+            && in_array($status,['PENDING','REVIEWED_LOCAL_ALLOCATION'],true)
+            && $this->validate($state['payload'],$sourceHash,$scope) instanceof WP_Error) return self::error('changed',409);
         if ($state!==ReviewedLocalEvidence::read(self::KIND,$scope['shop_key'],$key)) return self::error('changed',409);
         // A final actor/window recheck follows the complete source/target rebuild and stream reread.
         if ($status==='REVIEWED_LOCAL_ALLOCATION' && $state!==ReviewedLocalEvidence::approved(self::KIND,$scope['shop_key'],$key)) return self::error('changed',409);
@@ -83,6 +91,43 @@ final class AllocationReview
             ? $result : ($result instanceof WP_Error ? $result : self::error('not_current',409));
     }
 
+    /**
+     * Historical ordinary evidence is available only through its CURRENT reviewed inverse.
+     * It is never promoted back to current(): the original economic source remains reversed.
+     */
+    public function reviewedOriginal(string $reversalHash,array $scope): array|WP_Error
+    {
+        $reversal=$this->current($reversalHash,$scope);
+        if ($reversal instanceof WP_Error) return $reversal;
+        $reference=$reversal['original_review_reference']??null;
+        if (!is_array($reference)) return self::error('original_unavailable',409);
+        $scope=$reversal['scope'];$proof=$this->originalProof($reference,$scope);
+        if ($proof instanceof WP_Error) return $proof;
+        $again=$this->current($reversalHash,$scope);
+        if ($again instanceof WP_Error || Validator::canonicalJson($again)!==Validator::canonicalJson($reversal)) return self::error('changed',409);
+        $final=$this->originalProof($reference,$scope);
+        if ($final instanceof WP_Error || $proof!==$final) return self::error('changed',409);
+        return self::project($reference['source_hash'],$scope,$proof['state'],'HISTORICAL_REVIEWED_LOCAL_ALLOCATION',$proof['packet']);
+    }
+
+    /** Only the existing signed/audited APPROVED stream supplies the original packet. */
+    private function originalProof(array $reference,array $scope): array|WP_Error
+    {
+        try {
+            $reference=AllocationReviewPayload::reference($reference);
+            $hash=$reference['source_hash'];
+            $scope=AllocationReviewPayload::scope($hash,$scope);
+            $state=ReviewedLocalEvidence::approved(self::KIND,$scope['shop_key'],self::key($hash,$scope));
+            if ($state instanceof WP_Error) return self::error('original_unavailable',409);
+            if ($state['revision']!==$reference['revision'] || $state['proposal_hash']!==$reference['proposal_hash']
+                || Validator::hash($state)!==$reference['state_hash']) return self::error('original_changed',409);
+            // A typed ordinary v1 envelope excludes reversals and caller-supplied packets.
+            if (!is_array($state['payload']??null) || ($state['payload']['schema']??null)!=='digiforge-finance-allocation-review-v1') return self::error('original_invalid',409);
+            $packet=AllocationReviewPayload::packet($state['payload'],$hash,$scope);
+            return ['state'=>$state,'packet'=>$packet];
+        } catch (\InvalidArgumentException|\TypeError) { return self::error('original_invalid',409); }
+    }
+
     private function readRequired(string $hash,array $scope): array|WP_Error
     {
         $result=$this->read($hash,$scope);return $result ?? self::error('missing',409);
@@ -93,8 +138,14 @@ final class AllocationReview
         try {
             $packet=AllocationReviewPayload::packet($payload,$sourceHash,$scope);$lines=[];
             foreach ($packet['lines'] as $line) $lines[]=['target'=>$line['target'],'amount'=>$line['amount'],'base_amount'=>$line['base_amount']];
-            $current=(new AllocationReadModel())->preview($sourceHash,$scope,$lines);
+            $original=null;
+            if (isset($payload['original_review_reference'])) {
+                $original=$this->originalProof($payload['original_review_reference'],$scope);
+                if ($original instanceof WP_Error) return $original;
+            }
+            $current=(new AllocationReadModel())->preview($sourceHash,$scope,$lines,$original['packet']??null);
             if ($current instanceof WP_Error || Validator::canonicalJson($current)!==Validator::canonicalJson($packet)) return self::error('stale',409);
+            if ($original!==null && $original!==$this->originalProof($payload['original_review_reference'],$scope)) return self::error('original_changed',409);
             return $packet;
         } catch (\InvalidArgumentException|\TypeError) { return self::error('invalid_payload',409); }
     }
@@ -113,9 +164,11 @@ final class AllocationReview
     {
         $review=array_intersect_key($state,array_flip(['revision','version','proposal_hash','author_id','reviewer_id','effective_at','expires_at']));
         $review['state_hash']=Validator::hash($state);
-        return ['scope'=>$scope,'source_hash'=>$hash,'allocation_packet'=>$packet,'review'=>$review,'local_review_status'=>$status,
+        $result=['scope'=>$scope,'source_hash'=>$hash,'allocation_packet'=>$packet,'review'=>$review,'local_review_status'=>$status,
             'authenticity'=>'UNKNOWN','source_completeness'=>'UNKNOWN','actual_settlement_verified'=>false,
             'period_approval_authorized'=>false,'external_execution_authorized'=>false,'money_movement_authorized'=>false,'tax_filing_authorized'=>false];
+        if (is_array($state['payload']['original_review_reference']??null)) $result['original_review_reference']=$state['payload']['original_review_reference'];
+        return $result;
     }
     private static function denied(WP_Error $error): WP_Error { $data=$error->get_error_data();return self::error('unavailable',is_array($data)?(int)($data['status']??409):409); }
     private static function error(string $code,int $status): WP_Error
