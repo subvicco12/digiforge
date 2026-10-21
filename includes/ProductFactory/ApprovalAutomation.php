@@ -236,6 +236,10 @@ final class ApprovalAutomation
 
     public function run(int $candidateId, string $shop, string $runKey = ''): void
     {
+        if (! Settings::is_enabled('ai') || ! Settings::is_enabled('product_development')) {
+            Logger::audit('u3_product_build_blocked', ['reason'=>'dispatcher_not_effective','external_actions'=>false], 'research_candidate', (string)$candidateId);
+            return;
+        }
         $shop = sanitize_key($shop);
         if (! in_array($shop, ['digital', 'goods'], true)) {
             Logger::audit('u3_product_build_failed', ['reason' => 'invalid_shop'], 'research_candidate', (string) $candidateId);
@@ -263,7 +267,7 @@ final class ApprovalAutomation
         $stateKey=$this->stateKey($runKey);
         $state=get_option($stateKey,[]);$state=is_array($state)?$state:[];
         $createdAt=(int)($state['created_at']??time());
-        if((time()-$createdAt)>self::MAX_RECOVERY_SECONDS){
+        if($this->recoveryWindowExpired($createdAt,time())){
             $this->terminalError($candidateId,$shop,$runKey,new WP_Error('digiforge_u3_runtime_expired','Product Factory run exceeded the safe recovery window.'),$stateKey,$state);return;
         }
         $state['created_at']=$createdAt;$state['stage']=$stage;$state['updated_at']=time();update_option($stateKey,$state,false);
@@ -365,6 +369,11 @@ final class ApprovalAutomation
         Logger::audit('u3_product_build_completed',['shop'=>$shop,'run_key'=>$runKey,'product_version_id'=>(int)($result['product_version']['id']??0),'workflow_status'=>(string)($result['workflow_status']??''),'product_approval_required'=>(bool)($result['product_approval_required']??false),'external_actions'=>false],'research_candidate',(string)$candidateId);
     }
 
+    private function recoveryWindowExpired(int $createdAt,int $now):bool
+    {
+        return ($now-$createdAt)>self::MAX_RECOVERY_SECONDS;
+    }
+
     /** @return array{run_id:string,started_at:string} */
     private function aiRunContext(string $runKey, int $createdAt): array
     {
@@ -386,6 +395,7 @@ final class ApprovalAutomation
     /** @param array<string,mixed> $developed @param array<string,mixed> $state @param array<string,mixed> $badPayload */
     private function restartManifest(int $candidateId,string $shop,string $runKey,array $developed,WP_Error $error,string $stateKey,array $state,Orchestrator $orchestrator,array $badPayload=[]):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         $attempt=(int)($state['manifest_repair_attempts']??0);
         $structural=str_starts_with($error->get_error_code(),'digiforge_production_')||str_starts_with($error->get_error_code(),'digiforge_u3_');
         if(!$structural&&!$this->retryable($error))return false;
@@ -416,6 +426,7 @@ final class ApprovalAutomation
 
     private function retryable(WP_Error $error):bool
     {
+        if((((array)$error->get_error_data())['retry_permitted']??null)===false)return false;
         return in_array($error->get_error_code(),[
             'digiforge_launch_ai_transport','digiforge_launch_ai_provider','digiforge_launch_ai_incomplete',
             'digiforge_launch_ai_invalid_json','digiforge_launch_ai_rate_limited','digiforge_create_failed'
@@ -461,16 +472,10 @@ final class ApprovalAutomation
     private function resolveShop(int $candidateId): string
     {
         global $wpdb;
-        $config = $wpdb->get_var($wpdb->prepare(
-            'SELECT s.config FROM ' . Tables::research_candidate_evidence() . ' ce '
-            . 'INNER JOIN ' . Tables::research_evidence() . ' e ON e.id=ce.evidence_id '
-            . 'INNER JOIN ' . Tables::research_observations() . ' o ON o.id=e.observation_id '
-            . 'INNER JOIN ' . Tables::research_sources() . ' s ON s.id=o.source_id '
-            . 'WHERE ce.candidate_id=%d ORDER BY ce.evidence_id ASC LIMIT 1',
-            $candidateId
-        ));
-        $decoded = is_string($config) ? json_decode($config, true) : null;
-        $shop = is_array($decoded) ? sanitize_key((string) ($decoded['shop'] ?? '')) : '';
+        $config=$wpdb->get_var($wpdb->prepare('SELECT score_inputs FROM '.Tables::research_candidates().' WHERE id=%d',$candidateId));
+        $decoded=is_string($config)?json_decode($config,true):null;
+        $shop=is_array($decoded)?sanitize_key((string)($decoded['shop_key']??'')):'';
+        if($shop==='personalized_pod')$shop='goods';
         return in_array($shop, ['digital', 'goods'], true) ? $shop : '';
     }
 }
