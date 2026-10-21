@@ -18,6 +18,34 @@ final class PrintifyCatalogScopedSmokeTest extends WP_UnitTestCase {
  private function client(int &$calls):DigiForge\POD\PrintifyCatalogClient {return new DigiForge\POD\PrintifyCatalogClient(static function($url,$args)use(&$calls){++$calls;self::assertSame('https://api.printify.com/v1/catalog/blueprints/101/print_providers/2/variants.json',$url);self::assertSame('GET',$args['method']);self::assertSame(0,$args['redirection']);self::assertSame(10,$args['timeout']);return ['response'=>['code'=>200],'body'=>'{"variants":[{"id":202,"title":"synthetic only","placeholders":[]},{"id":203}]}'];});}
 
  private function grant(Reads $r):array {$this->input['requests']=[['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2]]; $g=$r->approve($this->input,'scoped-fixture-'.wp_generate_password(12,false));self::assertIsArray($g);return $g;}
+ private function geometryPreview(array $response):array|WP_Error {
+  $calls=0;$client=new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls,$response){++$calls;return ['response'=>['code'=>200],'body'=>wp_json_encode($response)];});
+  $r=new Reads($client);$g=$this->grant($r);$this->unlocked();$result=DigiForge\POD\PrintifyCatalogPreview::inspectScoped($g['sha256'],0,'geometry-'.wp_generate_uuid4(),$client);self::assertSame(1,$calls);return $result;
+ }
+ public function testTemplateFreeRectanglesRemainVariantSpecificAndUncertified():void {
+  $response=['id'=>2,'variants'=>[
+   ['id'=>202,'placeholders'=>[['position'=>'front','decoration_method'=>'dtg','width'=>3951,'height'=>4800]],'decoration_methods'=>['dtg']],
+   ['id'=>203,'placeholders'=>[['position'=>'front','decoration_method'=>'dtg','width'=>3000,'height'=>4000]]],
+  ]];
+  $out=$this->geometryPreview($response);self::assertIsArray($out);
+  $canonical=['{"decoration_methods":["dtg"],"id":202,"placeholders":[{"decoration_method":"dtg","height":4800,"position":"front","width":3951}]}','{"id":203,"placeholders":[{"decoration_method":"dtg","height":4000,"position":"front","width":3000}]}'];
+  self::assertSame(hash('sha256',wp_json_encode($response)),$out['source_sha256']);self::assertSame('printify-catalog-rectangles-v1',$out['geometry_evidence_schema']);
+  foreach($out['variants']as $i=>$variant){self::assertSame($response['variants'][$i]['placeholders'],$variant['catalog_placeholders']);self::assertSame('OBSERVED',$variant['placeholder_dimensions_status']);self::assertNull($variant['print_area']);self::assertSame('UNKNOWN',$variant['geometry_status']);self::assertSame('UNKNOWN',$variant['safe_zone_status']);self::assertSame('UNKNOWN',$variant['bleed_status']);self::assertSame('UNKNOWN',$variant['dpi_status']);self::assertSame('UNKNOWN',$variant['production_tolerance_status']);self::assertSame(hash('sha256',$canonical[$i]),$variant['variant_record_sha256']);}
+  self::assertSame('UNKNOWN',$out['provider_routing_status']);self::assertSame('UNKNOWN',$out['cross_variant_scaling_status']);self::assertSame('NOT_CERTIFIED',$out['certification']);self::assertSame('NONE',$out['persistence']);
+ }
+ public function testAbsentTemplatesAndPlaceholdersDoNotClaimIncompatibility():void {
+  $out=$this->geometryPreview(['variants'=>[['id'=>202],['id'=>203,'placeholders'=>[]]]]);self::assertIsArray($out);
+  foreach($out['variants']as $v){self::assertSame([],$v['catalog_placeholders']);self::assertSame('UNKNOWN',$v['placeholder_dimensions_status']);self::assertSame('UNKNOWN',$v['geometry_status']);}
+ }
+ public function testMalformedOrConflictingGeometryIsNotDraftEvidence():void {
+  $valid=['position'=>'front','decoration_method'=>'dtg','width'=>3951,'height'=>4800];$cases=[];
+  foreach(['width'=>0,'height'=>4800.5,'position'=>'<script>','decoration_method'=>'','width_px'=>3951]as $key=>$value){$p=$valid;$p[$key]=$value;if($key==='width_px')unset($p['width']);$cases[]=['variants'=>[['id'=>202,'placeholders'=>[$p]]]];}
+  $cases[]=['variants'=>[['id'=>202,'placeholders'=>[$valid,$valid]]]];
+  $cases[]=['variants'=>[['id'=>202,'placeholders'=>['front'=>$valid]]]];
+  $cases[]=['variants'=>[['id'=>202,'placeholders'=>[$valid],'decoration_methods'=>['embroidery']]]];
+  $cases[]=['id'=>999,'variants'=>[['id'=>202,'placeholders'=>[$valid]]]];
+  foreach($cases as $response)self::assertWPError($this->geometryPreview($response));
+ }
  public function testScopedClientCannotUsePermissiveCallbackWithoutReservedGrant():void {
   $calls=0;$client=new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls){++$calls;return ['response'=>['code'=>200],'body'=>'{}'];},null,static fn()=>true);
   self::assertWPError($client->scopedRead('synthetic-token',['kind'=>'variants','blueprint_id'=>101,'provider_id'=>2]));self::assertSame(0,$calls);
