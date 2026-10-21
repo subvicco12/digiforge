@@ -1,0 +1,561 @@
+{
+  "provenance": {
+    "source_url": "https://www.etsy.com/openapi/generated/oas/3.0.0.json",
+    "retrieved_date": "2026-10-20",
+    "retrieval": "connected public-document tool, rawHtml, maxAge=0, HTTP200; UTF-8 snapshot, not authenticated API data",
+    "openapi_version": "3.0.2",
+    "api_version": "3.0.0",
+    "full_snapshot_sha256": "9f0fe8cf1352a444b6069ec04699809bcde41227cf16764e76a98d13e7eb7797",
+    "terms_of_service": "https://www.etsy.com/legal/api"
+  },
+  "components": {
+    "schemas": {
+      "Money": {
+        "type": "object",
+        "x-resource-id": "Money",
+        "description": "A representation of an amount of money.",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "The amount of represented by this data.",
+            "format": "int64"
+          },
+          "divisor": {
+            "type": "integer",
+            "description": "The divisor to render the amount.",
+            "format": "int64",
+            "minimum": 0
+          },
+          "currency_code": {
+            "type": "string",
+            "description": "The ISO currency code for this data."
+          }
+        }
+      },
+      "PaymentAccountLedgerEntry": {
+        "type": "object",
+        "x-resource-id": "PaymentAccountLedgerEntry",
+        "description": "Represents an entry in a shop's ledger.",
+        "properties": {
+          "entry_id": {
+            "type": "integer",
+            "description": "The ledger entry's numeric ID.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "ledger_id": {
+            "type": "integer",
+            "description": "The ledger's numeric ID.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "sequence_number": {
+            "type": "integer",
+            "description": "The sequence allows ledger entries to be sorted chronologically. The higher the sequence, the more recent the entry.",
+            "format": "int64"
+          },
+          "amount": {
+            "type": "integer",
+            "description": "The amount of money credited to the ledger.",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string",
+            "description": "The currency of the entry on the ledger."
+          },
+          "description": {
+            "type": "string",
+            "description": "Details what kind of ledger entry this is: a payment, refund, reversal of a failed refund, disbursement, returned disbursement, recoupment, miscellaneous credit, miscellaneous debit, or bill payment."
+          },
+          "balance": {
+            "type": "integer",
+            "description": "The amount of money in the shop's ledger the moment after this entry was applied.",
+            "format": "int64"
+          },
+          "create_date": {
+            "type": "integer",
+            "description": "The date and time the ledger entry was created in Epoch seconds.",
+            "format": "int64",
+            "minimum": 0
+          },
+          "created_timestamp": {
+            "type": "integer",
+            "description": "The date and time the ledger entry was created in Epoch seconds.",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ledger_type": {
+            "type": "string",
+            "description": "The original reference type for the ledger entry."
+          },
+          "reference_type": {
+            "type": "string",
+            "description": "The object type the ledger entry refers to."
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The object id the ledger entry refers to.",
+            "nullable": true
+          },
+          "parent_entry_id": {
+            "type": "integer",
+            "description": "The parent ledger entry ID used to match related entries (e.g., vat_seller_services to originating seller fees).",
+            "format": "int64",
+            "minimum": 0
+          },
+          "payment_adjustments": {
+            "type": "array",
+            "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+            "items": {
+              "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentAdjustment"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "PaymentAdjustment": {
+        "type": "object",
+        "x-resource-id": "PaymentAdjustment",
+        "description": "Represents a refund, which applies to a prior Etsy payment. All monetary amounts are in USD pennies unless otherwise specified.",
+        "properties": {
+          "payment_adjustment_id": {
+            "type": "integer",
+            "description": "The numeric ID for a payment adjustment.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "payment_id": {
+            "type": "integer",
+            "description": "A unique numeric ID for a payment to a specific Etsy [shop](/documentation/reference#tag/Shop).",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "description": "The status string of the payment adjustment."
+          },
+          "is_success": {
+            "type": "boolean",
+            "description": "When true, the payment adjustment was or is likely to complete successfully."
+          },
+          "user_id": {
+            "type": "integer",
+            "description": "The numeric ID for the [user](/documentation/reference#tag/User) (seller) fulfilling the purchase.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "A human-readable string describing the reason for the refund."
+          },
+          "total_adjustment_amount": {
+            "type": "integer",
+            "description": "The total numeric amount of the refund in the payment currency.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "shop_total_adjustment_amount": {
+            "type": "integer",
+            "description": "The numeric amount of the refund in the shop currency.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "buyer_total_adjustment_amount": {
+            "type": "integer",
+            "description": "The numeric amount of the refund in the buyer currency.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "total_fee_adjustment_amount": {
+            "type": "integer",
+            "description": "The numeric amount of card processing fees associated with a payment adjustment.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "create_timestamp": {
+            "type": "integer",
+            "description": "The transaction's creation date and time, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "created_timestamp": {
+            "type": "integer",
+            "description": "The transaction's creation date and time, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "update_timestamp": {
+            "type": "integer",
+            "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "updated_timestamp": {
+            "type": "integer",
+            "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "payment_adjustment_items": {
+            "type": "array",
+            "description": "List of payment adjustment line items.",
+            "items": {
+              "description": "List of payment adjustment line items.",
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentAdjustmentItem"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "PaymentAdjustmentItem": {
+        "type": "object",
+        "x-resource-id": "PaymentAdjustmentItem",
+        "description": "A payment adjustment line item for a payment adjustment.",
+        "properties": {
+          "payment_adjustment_id": {
+            "type": "integer",
+            "description": "The numeric ID for a payment adjustment.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "payment_adjustment_item_id": {
+            "type": "integer",
+            "description": "Unique ID for the adjustment line item.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "adjustment_type": {
+            "type": "string",
+            "description": "String indicating the type of adjustment for this line item.",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "description": "Integer value for the amount of the adjustment in original currency.",
+            "format": "int64",
+            "default": 0
+          },
+          "shop_amount": {
+            "type": "integer",
+            "description": "Integer value for the amount of the adjustment in currency for the shop.",
+            "format": "int64",
+            "default": 0
+          },
+          "transaction_id": {
+            "type": "integer",
+            "description": "The unique numeric ID for a transaction.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 1
+          },
+          "bill_payment_id": {
+            "type": "integer",
+            "description": "Unique ID for the bill payment adjustment.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 1
+          },
+          "created_timestamp": {
+            "type": "integer",
+            "description": "The transaction's creation date and time, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "updated_timestamp": {
+            "type": "integer",
+            "description": "The update date and time the payment adjustment in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          }
+        }
+      },
+      "PaymentAccountLedgerEntries": {
+        "type": "object",
+        "x-resource-id": "PaymentAccountLedgerEntries",
+        "description": "A set of PaymentAccountLedgerEntry resources",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "The number of PaymentAccountLedgerEntry resources found.",
+            "format": "int64",
+            "minimum": 0
+          },
+          "results": {
+            "type": "array",
+            "description": "The PaymentAccountLedgerEntry resources found.",
+            "items": {
+              "description": "The PaymentAccountLedgerEntry resources found.",
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentAccountLedgerEntry"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Payments": {
+        "type": "object",
+        "x-resource-id": "Payments",
+        "description": "Represents several payments made with Etsy Payments. All monetary amounts are in USD pennies unless otherwise specified.",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "The number of payments in the response.",
+            "format": "int64",
+            "minimum": 0
+          },
+          "results": {
+            "type": "array",
+            "description": "A list of payments.",
+            "items": {
+              "description": "A list of payments.",
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "x-resource-id": "Payment",
+        "description": "Represents a payment made with Etsy Payments. All monetary amounts are in USD pennies unless otherwise specified.",
+        "properties": {
+          "payment_id": {
+            "type": "integer",
+            "description": "A unique numeric ID for a payment to a specific Etsy [shop](/documentation/reference#tag/Shop).",
+            "format": "int64",
+            "minimum": 1
+          },
+          "buyer_user_id": {
+            "type": "integer",
+            "description": "The numeric ID for the [user](/documentation/reference#tag/User) who paid the purchase.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "shop_id": {
+            "type": "integer",
+            "description": "The unique positive non-zero numeric ID for an Etsy Shop.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "receipt_id": {
+            "type": "integer",
+            "description": "The numeric ID for the [receipt](/documentation/reference#tag/Shop-Receipt) associated to this transaction.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "amount_gross": {
+            "description": "An integer equal to gross amount of the order, in pennies, including shipping and taxes.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ]
+          },
+          "amount_fees": {
+            "description": "An integer equal to the original card processing fee of the order in pennies.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ]
+          },
+          "amount_net": {
+            "description": "An integer equal to the payment value, in pennies, less fees (`amount_gross` - `amount_fees`).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ]
+          },
+          "posted_gross": {
+            "description": "The total gross value of the payment posted once the purchase ships. This is equal to the `amount_gross` UNLESS the seller issues a refund prior to shipping. We consider \"shipping\" to be the event which \"posts\" to the ledger. Therefore, if the seller refunds first, we reduce the `amount_gross` first and post then that amount. The seller never sees the refunded amount in their ledger. This is equal to the \"Credit\" amount in the ledger entry.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "posted_fees": {
+            "description": "The total value of the fees posted once the purchase ships. Etsy refunds a proportional amount of the fees when a seller refunds a buyer. When the seller issues a refund prior to shipping, the posted amount is less than the original.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "posted_net": {
+            "description": "The total value of the payment at the time of posting, less fees. (`posted_gross` - `posted_fees`)",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "adjusted_gross": {
+            "description": "The gross payment amount after the seller refunds a payment, partially or fully.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "adjusted_fees": {
+            "description": "The new fee amount after a seller refunds a payment, partially or fully.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "adjusted_net": {
+            "description": "The total value of the payment after refunds, less fees (`adjusted_gross` - `adjusted_fees`).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ],
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "description": "The ISO (alphabetic) code string for the payment's currency."
+          },
+          "shop_currency": {
+            "type": "string",
+            "description": "The ISO (alphabetic) code for the shop's currency. The shop displays all prices in this currency by default.",
+            "nullable": true
+          },
+          "buyer_currency": {
+            "type": "string",
+            "description": "The currency string of the buyer.",
+            "nullable": true
+          },
+          "shipping_user_id": {
+            "type": "integer",
+            "description": "The numeric ID of the user to which the seller ships the order.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 1
+          },
+          "shipping_address_id": {
+            "type": "integer",
+            "description": "The numeric id identifying the shipping address.",
+            "format": "int64",
+            "minimum": 1
+          },
+          "billing_address_id": {
+            "type": "integer",
+            "description": "The numeric ID identifying the billing address of the buyer.",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "status": {
+            "type": "string",
+            "description": "A string indicating the current status of the payment, most commonly \"settled\" or \"authed\"."
+          },
+          "shipped_timestamp": {
+            "type": "integer",
+            "description": "The transaction's shipping date and time, in epoch seconds.",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 946684800
+          },
+          "create_timestamp": {
+            "type": "integer",
+            "description": "The transaction's creation date and time, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "created_timestamp": {
+            "type": "integer",
+            "description": "The transaction's creation date and time, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "update_timestamp": {
+            "type": "integer",
+            "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "updated_timestamp": {
+            "type": "integer",
+            "description": "The date and time of the last change to the payment adjustment in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "payment_adjustments": {
+            "type": "array",
+            "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+            "items": {
+              "description": "List of refund objects on an Etsy Payments transaction. All monetary amounts are in USD pennies unless otherwise specified.",
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PaymentAdjustment"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "ShopRefund": {
+        "type": "object",
+        "x-resource-id": "ShopRefund",
+        "description": "The refund record for a receipt.",
+        "properties": {
+          "amount": {
+            "description": "A number equal to the refund total.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              }
+            ]
+          },
+          "created_timestamp": {
+            "type": "integer",
+            "description": "The date & time of the refund, in epoch seconds.",
+            "format": "int64",
+            "minimum": 946684800
+          },
+          "reason": {
+            "type": "string",
+            "description": "The reason string given for the refund.",
+            "nullable": true
+          },
+          "note_from_issuer": {
+            "type": "string",
+            "description": "The note string created by the refund issuer.",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "The status indication string for the refund.",
+            "nullable": true
+          }
+        }
+      }
+    }
+  }
+}
