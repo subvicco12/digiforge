@@ -29,13 +29,16 @@ final class ProductionTemplateContractStructureTest extends TestCase
     {
         $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
         self::assertStringContainsString('fromPrintifyCatalog(array $catalog,array $geometry,array $template)',$source);
-        self::assertStringContainsString("(\$catalog['provider']??'')!=='printify'",$source);
-        self::assertStringContainsString("provider_product_key",$source);
-        self::assertStringContainsString("provider_variant_key",$source);
-        self::assertStringContainsString("'print_areas'=>\$geometry",$source);
+        self::assertStringContainsString('return self::fromPrintifyVariants([$catalog],$geometry,$template)',$source);
+        self::assertStringContainsString('fromPrintifyVariants(array $catalogVariants,array $geometry,array $template)',$source);
+        self::assertStringContainsString('provider_product_key',$source);
+        self::assertStringContainsString('provider_variant_key',$source);
+        self::assertStringContainsString('_catalog_bindings',$source);
+        self::assertStringContainsString('authoritative Printify placeholder dimensions',$source);
         self::assertStringContainsString("array_key_exists(\$reserved,\$template)",$source);
         self::assertStringContainsString("is derived and cannot be overridden",$source);
-        self::assertStringContainsString("(int)\$product<1",$source);
+        self::assertStringContainsString('persisted Printify catalog row is required',$source);
+        self::assertStringContainsString('Printify variant payload does not match its source digest',$source);
         self::assertStringNotContainsString("\$catalog['print_areas']",$source);
         self::assertStringNotContainsString("\$template+['supplier'",$source);
     }

@@ -13,7 +13,13 @@ final class WebhookEvidenceAvailabilityContractTest extends TestCase{
  }
  public function testConcurrentWinnerAndGenuineInsertFailureRemainDistinct():void{
   $s=(string)file_get_contents(dirname(__DIR__,2).'/includes/Listings/WebhookEvidenceRepository.php');
-  self::assertGreaterThanOrEqual(2,substr_count($s,"'idempotent_replay'=>true"));
+  // Both paths must use the same immutable-identity gate, not duplicate unchecked returns.
+  self::assertSame(2,substr_count($s,'$this->replay('));
+  self::assertStringContainsString('if(is_array($existing))return $this->replay($existing,$identity);',$s);
+  self::assertStringContainsString('if(is_array($winner))return $this->replay($winner,$identity);',$s);
+  self::assertSame(1,substr_count($s,"'idempotent_replay'=>true"));
+  self::assertStringContainsString('hash_equals($value,$stored[$key])',$s);
+  self::assertStringContainsString("'webhook_evidence_conflict'",$s);
   self::assertStringContainsString("'webhook_evidence_failed','Webhook evidence could not be persisted.'",$s);
   self::assertStringContainsString("['status'=>503]",$s);
  }
