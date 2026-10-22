@@ -74,6 +74,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install bounded document text verifier dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          /usr/bin/pdftotext -v
+
       - name: Install pinned offline cutout processor
         run: |
           python3 -m venv /tmp/digiforge-cutout-runtime
@@ -107,6 +113,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq subversion default-mysql-client
           bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 latest
+
+      - name: External document admission focused regression tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'ExternalDocument(Admission|ListingIntegrity)Test'
 
       - name: WordPress database integration tests
         env:

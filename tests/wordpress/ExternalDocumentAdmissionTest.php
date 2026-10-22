@@ -20,6 +20,12 @@ final class ExternalDocumentAdmissionTest extends WP_UnitTestCase
         self::assertTrue(class_exists(DigiForge\ProductFactory\ExternalDocumentAdmission::class), 'External document custody service must exist.');
     }
 
+    public function testExternalGeneratorCannotBypassPdfGateWithoutAuthenticProof(): void
+    {
+        $revision=['id'=>999999,'mime_type'=>'application/pdf','checksum_sha256'=>hash('sha256','forged'),'storage_reference'=>'local://forged.pdf','provenance'=>['generator'=>'digiforge_external_document','pdf_generator_profile'=>'digiforge-external-docx-pdf-v1']];
+        self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+    }
+
     public function testOrdinaryCapabilityWithoutExplicitShopAssignmentCannotAdmit(): void
     {
         $result=(new DigiForge\ProductFactory\ExternalDocumentAdmission())->admit($this->request());
@@ -97,6 +103,30 @@ final class ExternalDocumentAdmissionTest extends WP_UnitTestCase
             file_put_contents($request['export_path'],"\n",FILE_APPEND);$request['export_sha256']=hash_file('sha256',$request['export_path']);
             $conflict=$service->admit($request);self::assertWPError($conflict);
             self::assertSame('digiforge_external_document_replay_conflict',$conflict->get_error_code());
+        } finally { @unlink($request['source_path']);@unlink($request['export_path']); }
+    }
+
+    public function testRealCustodyRequiresOneExactQaAndRejectsTamperingAndBorrowedBinding(): void
+    {
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge_products']);
+        $request=$this->documentRequest();
+        try {
+            $admitted=(new DigiForge\ProductFactory\ExternalDocumentAdmission())->admit($request);self::assertNotWPError($admitted);
+            $production=new DigiForge\Production\Repository();$revision=$production->addRevision($admitted['revision_input']);self::assertNotWPError($revision);
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            $details=$admitted['evidence']+['binding'=>$admitted['binding']];
+            $qa=['target_type'=>'revision','target_id'=>$revision['id'],'check_type'=>'external_document_source_completeness','status'=>'PASS','details'=>$details];
+            self::assertNotWPError($production->addQa($qa));
+            self::assertTrue(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            foreach(['source','export'] as $kind){$path=$admitted[$kind]['absolute_path'];$bytes=file_get_contents($path);file_put_contents($path,'tampered');try{self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));}finally{file_put_contents($path,$bytes);}}
+            $borrowed=$revision;$borrowed['provenance']['binding']['asset_spec_id']++;
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($borrowed));
+            $forged=$revision;$forged['provenance']['normalized_text_sha256']=str_repeat('0',64);
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($forged));
+            self::assertNotWPError($production->addQa($qa));
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            ShopAccessFixture::reset();
+            self::assertWPError((new DigiForge\ProductFactory\ExternalDocumentAdmission())->admit($request));
         } finally { @unlink($request['source_path']);@unlink($request['export_path']); }
     }
 
