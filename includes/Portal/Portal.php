@@ -68,6 +68,7 @@ final class Portal
     private ?array $draftQaPreview = null;
     private array $authorizedShops = [];
     private bool $allShopsAuthorized = false;
+    private bool $approvalAllShopsAuthorized = false;
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
@@ -133,15 +134,16 @@ final class Portal
 
         wp_enqueue_style('digiforge-portal', DIGIFORGE_URL . 'assets/portal.css', [], DIGIFORGE_VERSION);
         $view = isset($_GET['df_view']) ? sanitize_key(wp_unslash($_GET['df_view'])) : 'dashboard';
-        if (! isset(self::NAV[$view]) || ! current_user_can(self::NAV[$view]['cap'])) {
+        if (! isset(self::NAV[$view]) || (! current_user_can(self::NAV[$view]['cap']) && !($view==='approvals' && current_user_can('manage_digiforge_products')))) {
             $view = 'dashboard';
         }
 
-        $access=\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
+        $approvalAccess=$this->approvalShopAccess();
+        $access=$view==='approvals'?$approvalAccess:\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
         if(is_wp_error($access))return $this->notice('Shop authorization evidence is unavailable.',true);
-        $this->authorizedShops=$access;$this->allShopsAuthorized=count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
+        $this->authorizedShops=$access;$this->allShopsAuthorized=$view==='approvals'?$this->approvalAllShopsAuthorized:count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
         $requested=$_GET['df_shop']??'all';
-        if(!is_string($requested)||!array_key_exists($requested,ShopOperationsReadModel::shops())||($requested==='all'&&!$this->allShopsAuthorized)||($requested!=='all'&&!in_array($requested,$access,true)))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
+        if(!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
         // These views contain global or fixed-shop aggregates; partial grants cannot read them.
         if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
@@ -154,7 +156,7 @@ final class Portal
                 </div>
                 <nav class="df-nav" aria-label="DigiForge navigation">
                     <?php foreach (self::NAV as $slug => $item) : ?>
-                        <?php if (! current_user_can($item['cap'])) { continue; } ?>
+                        <?php if ($slug==='approvals' ? (is_wp_error($approvalAccess)||!$this->scopeAuthorized($requested,$approvalAccess,$this->approvalAllShopsAuthorized)) : !current_user_can($item['cap'])) { continue; } ?>
                         <a <?php if ($view === $slug) { echo 'aria-current="page"'; } ?> class="<?php echo $view === $slug ? 'is-active' : ''; ?>"
                            href="<?php echo esc_url($this->url($slug)); ?>">
                             <?php echo esc_html($item['label']); ?>
@@ -571,9 +573,9 @@ final class Portal
     private function digitalFactoryOperations():void
     {
         $repo=new \DigiForge\DigitalFactory\Repository();$selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$products=$repo->all('digital_product',1,50,$selected===ShopOperationsReadModel::ALL?null:$selected);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
-        $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['APPROVED','RELEASE_READY','ACTIVE'],true))$counts['approved']++;}}
-        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
-        if(!$queryOk){echo '<div class="df-notice df-notice-error">Digital Factory evidence unavailable. Database reads failed; zero products or readiness is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>Recent digital products</span><b>'.esc_html((string)$counts['total']).'</b></div><div><span>Draft</span><b>'.esc_html((string)$counts['draft']).'</b></div><div><span>Review</span><b>'.esc_html((string)$counts['review']).'</b></div><div><span>Approved / release-ready</span><b>'.esc_html((string)$counts['approved']).'</b></div><div><span>External publish authority</span><b>NO</b></div></div>';if($items===[]){echo '<div class="df-empty">No digital products in the bounded view.</div>';}else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Digital product</th><th>Product version</th><th>Category</th><th>State</th><th>Readiness</th><th>Next governed step</th></tr></thead><tbody>';foreach($items as $row){$ready=is_array($row['readiness']??null)?$row['readiness']:json_decode((string)($row['readiness']??''),true);$blocked=is_array($ready)?count(array_filter($ready,static fn($v):bool=>$v!==true)):null;echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['name']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['category']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html($blocked===null?'UNVERIFIED':($blocked===0?'PASS':$blocked.' BLOCKED')).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('approvals')).'">Open Product Approval</a></td></tr>';}echo '</tbody></table></div>';}}
+        $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['HUMAN_APPROVED','PLATFORM_DRAFT','FINAL_VALIDATION','PUBLISH_READY'],true))$counts['approved']++;}}
+        echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Registry status is not Product Approval or release evidence. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
+        if(!$queryOk){echo '<div class="df-notice df-notice-error">Digital Factory evidence unavailable. Database reads failed; zero products or readiness is not inferred.</div>';}else{echo '<div class="df-signal-grid"><div><span>Recent digital products</span><b>'.esc_html((string)$counts['total']).'</b></div><div><span>Draft</span><b>'.esc_html((string)$counts['draft']).'</b></div><div><span>Review</span><b>'.esc_html((string)$counts['review']).'</b></div><div><span>Registry post-review states</span><b>'.esc_html((string)$counts['approved']).'</b></div><div><span>External publish authority</span><b>NO</b></div></div>';if($items===[]){echo '<div class="df-empty">No digital products in the bounded view.</div>';}else{echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable evidence table"><table class="df-table"><thead><tr><th>Digital product</th><th>Product version</th><th>Category</th><th>State</th><th>Readiness</th><th>Next governed step</th></tr></thead><tbody>';foreach($items as $row){$ready=is_array($row['readiness']??null)?$row['readiness']:json_decode((string)($row['readiness']??''),true);$expected=\DigiForge\DigitalFactory\Lifecycle::readiness();$valid=is_array($ready)&&array_diff_key($expected,$ready)===[]&&array_diff_key($ready,$expected)===[]&&count(array_filter($ready,'is_bool'))===count($expected);$blocked=$valid?count(array_filter($ready,static fn($v):bool=>$v!==true)):null;echo '<tr><td>#'.esc_html((string)$row['id']).' '.esc_html((string)$row['name']).'</td><td>#'.esc_html((string)$row['product_version_id']).'</td><td>'.esc_html((string)$row['category']).'</td><td>'.esc_html((string)$row['state']).'</td><td>'.esc_html($blocked===null?'UNVERIFIED':($blocked===0?'REGISTRY COMPLETE — UNVERIFIED':$blocked.' registry gates pending')).'</td><td><a class="df-button df-button-compact" href="'.esc_url($this->url('approvals')).'">Open Product Approval</a></td></tr>';}echo '</tbody></table></div>';}}
         echo '<p class="df-muted">This view cannot publish to Etsy, mutate a marketplace listing, fulfill an order, or grant external execution authority.</p></section>';
         foreach($this->tables('digital') as $label=>$table)$this->panelTable($label,$table);
     }
@@ -1003,8 +1005,33 @@ final class Portal
         echo '</section>';
     }
 
+    /** Each inbox panel retains its own capability and shop checks. */
+    private function approvalShopAccess(): array|\WP_Error
+    {
+        $this->approvalAllShopsAuthorized=false;
+        $shops=[];
+        foreach(['manage_digiforge_research','manage_digiforge_products'] as $cap){
+            if(!current_user_can($cap))continue;
+            $allowed=\DigiForge\Security\ShopAccess::allowedShops($cap);
+            if(is_wp_error($allowed)){$this->approvalAllShopsAuthorized=false;return $allowed;}
+            if($this->scopeAuthorized('all',$allowed))$this->approvalAllShopsAuthorized=true;
+            $shops=array_merge($shops,$allowed);
+        }
+        return array_values(array_unique($shops));
+    }
+
+    private function scopeAuthorized(mixed $shop,array $access,?bool $allAuthorized=null): bool
+    {
+        if(!is_string($shop)||!array_key_exists($shop,ShopOperationsReadModel::shops()))return false;
+        return $shop==='all'
+            ? ($allAuthorized??(count(array_intersect(\DigiForge\Security\ShopAccessPolicy::canonicalShops(),$access))===4))
+            : in_array($shop,$access,true);
+    }
+
     private function approvals(): void
     {
+        $researchAccess=current_user_can('manage_digiforge_research')?\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_research'):[];
+        if(is_wp_error($researchAccess)||!$this->scopeAuthorized($_GET['df_shop']??'all',$researchAccess))return;
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Research approval inbox</h2>'
             . '<p>Approve or reject every candidate before product development.</p></div></div>';
         $this->candidateCards(ResearchRepository::REVIEW_PENDING, 50, true);
