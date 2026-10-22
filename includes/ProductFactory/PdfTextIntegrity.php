@@ -54,7 +54,7 @@ final class PdfTextIntegrity
         preg_match_all('/stream\n(.*?)\nendstream/s',$pdf,$streams);
         preg_match_all('/^[0-9]+ 0 obj\n<< \/Type \/Page \/Parent 2 0 R \/MediaBox \[0 0 ([0-9]+) ([0-9]+)\]/m',$pdf,$boxes,PREG_SET_ORDER);
         if(count($streams[1])<1||count($streams[1])>self::MAX_PAGES||count($boxes)!==count($streams[1]))return false;
-        if(!str_contains($pdf,"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj"))return false;
+        if(!str_contains($pdf,"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj"))return false;
         $pages=[];
         foreach($streams[1] as $index=>$stream){
             if(!preg_match('/\ABT \/F1 11 Tf ([0-9]+) ([0-9]+) Td 14 TL\n(.*)ET\z/s',$stream,$body))return false;

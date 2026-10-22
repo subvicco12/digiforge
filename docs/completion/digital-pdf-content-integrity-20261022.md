@@ -4,7 +4,7 @@ Baseline: draft #1236, `36324b6f2e31c69d68f2685027745f6f18bd6681`, audit #4772 P
 
 ## Reproduction
 
-`LocalAssetProducer::pdf()` called `wrap()`, which inserted a blank line after every source paragraph and returned `array_slice($lines,0,54)`. A synthetic source with 60 required sections plus a final sentinel produced a valid single-page PDF. Poppler extraction ended at section27: required text and the final sentinel were absent. The baseline `AutomatedQa::inspect()` nevertheless returned `passed=true` because PDF structure/checksum do not prove completeness. Mobile output could also place text below the page. `strip_tags()` and iconv TRANSLIT silently changed other input.
+`LocalAssetProducer::pdf()` called `wrap()`, which inserted a blank line after every source paragraph and returned `array_slice($lines,0,54)`. A synthetic source with 60 required sections plus a final sentinel produced a valid single-page PDF. Poppler extraction ended at section27: required text and the final sentinel were absent. The baseline `AutomatedQa::inspect()` nevertheless returned `passed=true` because PDF structure/checksum do not prove completeness. Mobile output could also place text below the page. Independent extraction further reproduced default StandardEncoding changing ASCII apostrophe/backtick into curly quotes; the generator and verifier now require explicit WinAnsiEncoding, with all95 supported printable ASCII characters covered. `strip_tags()` and iconv TRANSLIT silently changed other input.
 
 Original synthetic input SHA-256: `a1c6eaee3255ecd9d851e176593f4c476d825e9c37fbb8a47af7a6894285db4e`.
 Truncated baseline PDF SHA-256: `647b534c1777c0747c84c8b55c40b1a286438a5193bcb3f00a216e91c0b08986`.
@@ -38,8 +38,8 @@ No historical artifact, stored QA row, approval or version is rewritten/backfill
 Initial regression:16 tests,13 failures and2 runtime errors reproduced omissions, rewriting/invalid input and missing completeness checks. Additional adversarial tests reproduced literal-operator misclassification, off-page QA and structural-only approval admission before correction.
 
 - Full local unit suite:1,743 tests /9,181 assertions,1 existing skip.
-- Focused real WordPress suite:51 tests /871 assertions, including23 new PDF cases and existing protected Digital/listing/shop-isolation cases.
-- Independent Poppler25.03.0 extraction: all61 required lines match expected source after explicit synthetic three-page preparation; no source content lost. Accepted synthetic PDF SHA-256: `c54a720cb74f5a88fa7fb9c267d75c3e90bf97bf24000e6c0844c872cc49cff9`.
+- Focused real WordPress suite:52 tests /874 assertions, including24 new PDF cases and existing protected Digital/listing/shop-isolation cases.
+- Independent Poppler25.03.0 extraction also verifies exact apostrophe/backtick output after the encoding fix. All61 required lines match expected source after explicit synthetic three-page preparation; no source content lost. Accepted synthetic PDF SHA-256: `5e5c88c564d044ea57d3400b276504e901e5c5dcde119f3f6879e929041ac6ae`.
 - Source/visible-text hashes for that fixture: `cfc4666fb28a7218d1ceb536f24342800fc888f038ee31f47973a17d83d58791` / `be570f5a9c29692a6fcc724ec33add9e78a73c805930b528d80ba3188e310bbc`.
 - The synthetic100-page Letter boundary document exceeds256KiB and passes complete extraction/QA. The101st section,8MiB+1 source, oversized page/line, unsupported text, missing optional content, tampering and immutable replay conflicts are covered.
 - Exact-head hosted audit/package/security results belong in the final PR/issue receipt; no unobserved result is asserted here.

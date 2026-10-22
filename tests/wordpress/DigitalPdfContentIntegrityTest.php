@@ -81,6 +81,14 @@ final class DigitalPdfContentIntegrityTest extends WP_UnitTestCase
         self::assertFalse((new DigiForge\ProductFactory\AutomatedQa())->inspect($asset)['passed']);
     }
 
+    public function testEverySupportedAsciiCharacterExtractsWithoutFontSubstitution(): void
+    {
+        $text=implode("\n",str_split(implode('',array_map('chr',range(32,126))),20));
+        $asset=$this->write($text);self::assertNotWPError($asset);
+        self::assertSame([$text],$this->extract((string)file_get_contents($asset['absolute_path'])));
+        self::assertTrue((new DigiForge\ProductFactory\AutomatedQa())->inspect($asset)['passed']);
+    }
+
     public function testLiteralPdfOperatorsArePreservedAsCustomerText(): void
     {
         $asset=$this->write('/Type /Page is plain customer text');self::assertNotWPError($asset);
@@ -195,6 +203,9 @@ final class DigitalPdfContentIntegrityTest extends WP_UnitTestCase
         preg_match_all('/stream\n(.*?)\nendstream/s',$pdf,$streams);$pages=[];
         foreach($streams[1] as $stream){preg_match_all('/\(((?:\\\\.|[^\\\\()])*)\) Tj T\*/s',$stream,$matches);$lines=[];
             foreach($matches[1] as $line)$lines[]=preg_replace_callback('/\\\\([\\\\()])/',static fn(array $m):string=>$m[1],$line);
+            // PDF StandardEncoding maps these code points to curly quote glyphs.
+            // WinAnsiEncoding is needed for the supported ASCII punctuation semantics.
+            if(!str_contains($pdf,'/Encoding /WinAnsiEncoding'))$lines=array_map(static fn(string $line):string=>strtr($line,["'"=>"’","`"=>"‘"]),$lines);
             $pages[]=implode("\n",$lines);
         }
         return $pages;
