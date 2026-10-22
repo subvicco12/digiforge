@@ -13,12 +13,13 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
     private array $inputs=[];
     private int $httpCalls=0;
     private Closure $http;
+    private int $scopeOwner;
 
     protected function setUp(): void
     {
         parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();
         wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
-        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge','manage_digiforge_products','manage_digiforge_listings']);
+        $this->scopeOwner=ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge','manage_digiforge_products','manage_digiforge_listings']);
         $this->http=function(){++$this->httpCalls;return new WP_Error('external_listing_test_network_denied');};add_filter('pre_http_request',$this->http);
     }
     protected function tearDown(): void
@@ -96,6 +97,42 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
         $f=$this->fixture();global $wpdb;
         self::assertSame(1,$wpdb->update(Tables::asset_revisions(),['mime_type'=>'application/octet-stream','provenance'=>'{}'],['id'=>$f['revision']['id']]));
         self::assertWPError((new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-stripped-'.wp_generate_uuid4()));self::assertSame(0,$this->listingCount((int)$f['version']['id']));
+    }
+
+    public function testListingAssignmentLostDuringFinalQaReadDeniesBeforeAnyBusinessWrite(): void
+    {
+        $f=$this->fixture();global $wpdb;
+        $used=$wpdb->get_var($wpdb->prepare('SELECT COALESCE(SUM(quantity),0) FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND stage=%s AND workflow=%s AND occurred_at>=%s','digital','listing_prepare','listing_factory_sandbox',gmdate('Y-m-01 00:00:00')));self::assertTrue(is_numeric($used));
+        self::assertNotWPError((new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>'digital','currency'=>'USD','budgets'=>['month'=>10],'stages'=>['listing_prepare'=>['limit'=>(int)$used+1,'estimated_unit_cost'=>0]]],'sandbox'));
+        $productId=(int)$f['version']['product_id'];
+        $before=(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::shop_ai_usage().' WHERE product_id=%d AND stage=%s',$productId,'listing_prepare'));
+        $actor=get_current_user_id();$owner=$this->scopeOwner;$revoked=false;
+        $filter=static function(string $query)use(&$revoked,$owner,$actor):string{
+            if (!$revoked&&str_contains($query,'SELECT status,details FROM '.Tables::production_qa())&&str_contains($query,'external_document_source_completeness')) {
+                $revoked=true;
+                // Preserve product authority with a separately signed replacement assignment;
+                // revoke only grants carrying the listing capability, leaving WP roles intact.
+                ShopAccessFixture::grant($owner,$actor,'digital',['manage_digiforge','manage_digiforge_products']);
+                wp_set_current_user($owner);
+                try {
+                    $repo=new DigiForge\Security\ShopAccessRepository();$state=$repo->read('digital');self::assertNotWPError($state);
+                    foreach($state['grants'] as $id=>$grant){
+                        if($grant['actor_id']!==$actor||$grant['revoked']||!in_array('manage_digiforge_listings',$grant['caps'],true))continue;
+                        $result=$repo->revoke('digital',$id,str_replace('-','_',wp_generate_uuid4()),$state['revision']);self::assertNotWPError($result);$state=$repo->read('digital');self::assertNotWPError($state);
+                    }
+                } finally {wp_set_current_user($actor);}
+                self::assertNotWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_products'));
+                self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_listings'));
+                self::assertTrue(current_user_can('manage_digiforge_listings'));
+            }
+            return $query;
+        };
+        add_filter('query',$filter);
+        try {$result=(new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-midworker-acl-'.wp_generate_uuid4());}
+        finally {remove_filter('query',$filter);}
+        self::assertTrue($revoked,'The actual post-worker QA query must exercise the listing-only assignment loss.');self::assertWPError($result);
+        self::assertSame(0,$this->listingCount((int)$f['version']['id']));
+        self::assertSame($before,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::shop_ai_usage().' WHERE product_id=%d AND stage=%s',$productId,'listing_prepare')));
     }
 
     public function testLostExactShopAssignmentDeniesBeforeListingCreation(): void

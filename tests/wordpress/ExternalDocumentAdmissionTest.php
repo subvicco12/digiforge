@@ -186,15 +186,15 @@ final class ExternalDocumentAdmissionTest extends WP_UnitTestCase
     public function testLateQaReadMutationCannotRetainGateAcceptance(string $target): void
     {
         [$request,$admitted,$revision]=$this->reviewableRevision();$mutated=false;$path=null;$original=null;
-        $other=$this->request();
+        $other=$this->request();$mutationKey='late-mutation-'.wp_generate_uuid4();$mutationSaved=null;
         if ($target!=='lineage') {
             $path=$target==='manifest'?DigiForge\ProductFactory\AssetStorage::absolutePath($revision['provenance']['custody_manifest_storage_reference']):$admitted[$target]['absolute_path'];
             self::assertIsString($path);$original=file_get_contents($path);
         }
-        $filter=static function(string $query)use(&$mutated,$target,$request,$other,$path):string{
+        $filter=static function(string $query)use(&$mutated,&$mutationSaved,$target,$request,$other,$path,$mutationKey):string{
             if (!$mutated&&str_contains($query,'SELECT status,details FROM '.DigiForge\Database\Tables::production_qa())&&str_contains($query,'external_document_source_completeness')) {
                 $mutated=true;
-                if ($target==='lineage') { global $wpdb;$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$other['product_version_id']],['id'=>$request['asset_spec_id']]); }
+                if ($target==='lineage') { global $wpdb;$mutationSaved=$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$other['product_version_id'],'asset_key'=>$mutationKey],['id'=>$request['asset_spec_id']]); }
                 else { file_put_contents($path,'changed during final QA read'); }
             }
             return $query;
@@ -204,10 +204,11 @@ final class ExternalDocumentAdmissionTest extends WP_UnitTestCase
             add_filter('query',$filter);
             self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
             self::assertTrue($mutated,'The final real QA read must trigger the mutation.');
+            if ($target==='lineage') { self::assertSame(1,$mutationSaved,'The lineage change must be a real successful database mutation.'); }
         } finally {
             remove_filter('query',$filter);
             if ($path!==null&&is_string($original)) { file_put_contents($path,$original); }
-            if ($target==='lineage') { global $wpdb;$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$request['product_version_id']],['id'=>$request['asset_spec_id']]); }
+            if ($target==='lineage') { global $wpdb;$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$request['product_version_id'],'asset_key'=>'external-document'],['id'=>$request['asset_spec_id']]); }
             @unlink($request['source_path']);@unlink($request['export_path']);
         }
     }
