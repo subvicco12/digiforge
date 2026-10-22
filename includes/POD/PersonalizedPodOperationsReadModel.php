@@ -11,12 +11,15 @@ use DigiForge\Database\Tables;
  */
 final class PersonalizedPodOperationsReadModel
 {
-    public function snapshot(int $limit=50): array
+    public function snapshot(int $limit=50, string $shop='personalized_pod'): array
     {
+        if(!is_user_logged_in()||!current_user_can('manage_digiforge_pod')||!\DigiForge\Security\ShopAccessPolicy::validShop($shop)||is_wp_error(\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_pod')))return $this->unavailable();
         global $wpdb;
+        $wpdb->last_error='';
+        $where=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');
         $limit=max(1,min(100,$limit));
         $rows=$wpdb->get_results($wpdb->prepare(
-            'SELECT id,order_id,provider_mapping_id,ownership_mapping_id,state,approved_by,approved_at,external_execution_authorized,external_execution_performed,created_at FROM '.Tables::pod_authorization_packages().' ORDER BY id DESC LIMIT %d',
+            'SELECT p.id,p.order_id,p.provider_mapping_id,p.ownership_mapping_id,p.state,p.approved_by,p.approved_at,p.external_execution_authorized,p.external_execution_performed,p.created_at FROM '.Tables::pod_authorization_packages().' p INNER JOIN '.Tables::orders().' o ON o.id=p.order_id WHERE '.$where.' ORDER BY p.id DESC LIMIT %d',
             $limit
         ),ARRAY_A);
         if(!is_array($rows)||!empty($wpdb->last_error)){

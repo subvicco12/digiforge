@@ -43,12 +43,13 @@ final class MasterCatalogV2AcceptanceRepository {
  }
  private function candidate(int $versionId):array|WP_Error {
   global $wpdb;$wpdb->last_error='';
-  $v=$wpdb->get_row($wpdb->prepare('SELECT id,parent_version_id,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE id=%d AND catalog_key=%s LIMIT 1',$versionId,MasterCatalogV2Reference::CATALOG_KEY),ARRAY_A);
+  $v=$wpdb->get_row($wpdb->prepare('SELECT id,catalog_key,migration_metadata,parent_version_id,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE id=%d AND catalog_key=%s LIMIT 1',$versionId,MasterCatalogV2Reference::CATALOG_KEY),ARRAY_A);
   if(!is_array($v)||!empty($wpdb->last_error))return new WP_Error('catalog_acceptance_evidence_unavailable','Authoritative candidate evidence is unavailable.',[],503);
   if((string)$v['source_state']!=='MIGRATION_CANDIDATE'||(int)$v['row_count']!==MasterCatalogV2Reference::ROW_COUNT||(int)$v['production_authority']!==0||!hash_equals(MasterCatalogV2Reference::SOURCE_SHA256,(string)$v['source_sha256'])||preg_match('/^[a-f0-9]{64}$/',(string)$v['fingerprint'])!==1)return new WP_Error('catalog_acceptance_candidate_invalid','Candidate evidence does not match the governed non-authorizing Master 500 v2 identity.',[],409);
-  $wpdb->last_error='';$p=$wpdb->get_row($wpdb->prepare('SELECT id,catalog_key,source_sha256,source_state,row_count,production_authority FROM '.Tables::catalog_versions().' WHERE id=%d LIMIT 1',(int)$v['parent_version_id']),ARRAY_A);
+  $wpdb->last_error='';$p=$wpdb->get_row($wpdb->prepare('SELECT id,catalog_key,migration_metadata,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE id=%d LIMIT 1',(int)$v['parent_version_id']),ARRAY_A);
   if(!is_array($p)||!empty($wpdb->last_error))return new WP_Error('catalog_acceptance_parent_unavailable','Exact immutable v1 parent evidence is unavailable.',[],503);
   if(!hash_equals(PersonalizedCatalogReference::CATALOG_KEY,(string)$p['catalog_key'])||!hash_equals(PersonalizedCatalogReference::SOURCE_SHA256,(string)$p['source_sha256'])||(string)$p['source_state']!=='IMMUTABLE_REFERENCE'||(int)$p['row_count']!==PersonalizedCatalogReference::LISTING_COUNT||(int)$p['production_authority']!==0)return new WP_Error('catalog_acceptance_parent_invalid','Candidate parent does not match the exact immutable v1 identity.',[],409);
+  foreach([$p,$v] as $version){$items=GovernedCatalogRepository::verifyVersionEvidence($version);if(is_wp_error($items))return $items;}
   return $v;
  }
 }
