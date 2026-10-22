@@ -1,0 +1,56 @@
+{
+  "family_id": "FC01",
+  "version": 2,
+  "shop_key": "personalized_pod",
+  "state": "OFFLINE_CONCEPT_REVIEW_REQUIRED",
+  "canvas": {
+    "width": 900,
+    "height": 700
+  },
+  "proposed_review_locale": "en-US",
+  "font_sha256": "04fa859f350adcab39b44f182d061a940b4050adc402ca6aa84a3e8c02749b6e",
+  "ornament_svg_sha256": "4953c8f0a08eb4ea8b40c7e43272045a81efde9d371a7e6153adda13a6042a1d",
+  "ornament_png_sha256": "c8419eb7199f59fca98994e18eec82064d64628f2122a6fe489bae350b4dbba6",
+  "ornament_conversion": "quadratic-Bezier-64-segments-per-curve/Pillow-12.3.0/RGBA8",
+  "parent_sources": {
+    "families.json": "bce4622db1315844e471b41c44f21e6af84b2d43707cac31451ccf3de749e17c",
+    "registry.json": "67d6609ccb4f7b3b4fcc69894c80e6592a90e0e1b4a2b5c7360c0c32fc563a9e",
+    "sources/20_Personalized_Template_Previews/FC01_preview.svg": "a35a9ec7502c30b7a886bb1cc4c007d553034037956ab0161b0cfea38a791ca4",
+    "sources/20_Personalized_Template_Previews/FC01_preview.png": "a5bd15dbf228a668f6c65e54021504c8c8ce7de3778ed4ee5199aa3464b6419b",
+    "sources/POD_Reusable_Vector_Components/family_leaf_border.svg": "41eec011037228f7c86970e03ee7b86e4ef0dc03a549a7b5e00d7143dec37bfa",
+    "components/family_leaf_border.png": "ab1ee370d5a885d0910e266cb631c43c556997f149227ed278c757d13764620e",
+    "sources/20_Personalized_Template_Previews/preview_manifest.csv": "27079830eac098c248bbc7602d85f1c5ffcf2c2eb72a86205bf0f44bcc48f259"
+  },
+  "regions": {
+    "header": {
+      "x": 10,
+      "y": 60,
+      "width": 880,
+      "height": 70
+    },
+    "ornament": {
+      "x": 340,
+      "y": 180,
+      "width": 220,
+      "height": 160
+    },
+    "family_name": {
+      "x": 10,
+      "y": 390,
+      "width": 880,
+      "height": 80
+    },
+    "established": {
+      "x": 10,
+      "y": 510,
+      "width": 880,
+      "height": 60
+    }
+  },
+  "scales": {
+    "header": 5,
+    "family_name": 3,
+    "established": 2
+  },
+  "concept_revision": 2
+}
