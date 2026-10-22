@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
-require_once __DIR__.'/OfflineListingOrderLineageTest.php';
 require_once __DIR__.'/ExternalDocumentAdmissionTest.php';
 
 use DigiForge\Database\Tables;
@@ -27,10 +26,30 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
         remove_filter('pre_http_request',$this->http);foreach($this->inputs as $path)@unlink($path);
         self::assertSame(0,$this->httpCalls);self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));parent::tearDown();
     }
+    private function syntheticReviewedVersion(): array
+    {
+        // ACL lifecycle commits during the race test can outlive the WP transaction.
+        // Give every researched identity a unique name so no later test borrows it.
+        $nonce=wp_generate_uuid4();$research=new DigiForge\Research\Repository();
+        $source=$research->createSource(['shop_key'=>'digital','name'=>'Synthetic external listing source '.$nonce,'source_type'=>'manual','environment'=>'sandbox']);self::assertNotWPError($source);
+        $observation=$research->ingest(['source_id'=>$source['id'],'title'=>'Synthetic external listing observation '.$nonce,'body'=>'Synthetic test only; no marketplace demand or commercial acceptance.']);self::assertNotWPError($observation);
+        $evidence=$research->addEvidence((int)$observation['id'],['evidence_type'=>'manual_note','value'=>'Unique synthetic listing lineage '.$nonce]);self::assertNotWPError($evidence);
+        $candidate=$research->createCandidate(['shop_key'=>'digital','title'=>'Synthetic external listing candidate '.$nonce]);self::assertNotWPError($candidate);self::assertTrue($research->linkEvidence((int)$candidate['id'],(int)$evidence['id']));
+        self::assertNotWPError($research->review((int)$candidate['id'],'APPROVED','Synthetic test fixture only; no owner approval.'));
+        $opportunity=$research->promote((int)$candidate['id']);self::assertNotWPError($opportunity);
+        $products=new DigiForge\ProductFactory\Repository();
+        $family=$products->create('product_family',['opportunity_id'=>$opportunity['id'],'name'=>'Synthetic external listing family '.$nonce]);self::assertNotWPError($family);
+        $product=$products->create('product',['product_family_id'=>$family['id'],'name'=>'Synthetic external listing product '.$nonce]);self::assertNotWPError($product);
+        $notes=['spec'=>['listing_title_draft'=>'Synthetic external document review '.$nonce,'listing_description_draft'=>'Local technical test fixture only; no live sale or commercial approval.','seo_keywords'=>['synthetic','fixture'],'price_strategy'=>['recommended_etsy_price_usd'=>12],'delivery_selection'=>['selected_language'=>'English']]];
+        $version=$products->create('product_version',['product_id'=>$product['id'],'version_label'=>'synthetic-listing-'.$nonce,'notes'=>wp_json_encode($notes)]);self::assertNotWPError($version);
+        self::assertNotWPError($products->transition('product_version',(int)$version['id'],'REVIEW'));self::assertNotWPError($products->transition('product_version',(int)$version['id'],'APPROVED'));
+        return $version;
+    }
+
     private function fixture(): array
     {
-        // Reuse the existing synthetic researched, approved version and real document generators.
-        $version=(new ReflectionMethod(OfflineListingOrderLineageTest::class,'version'))->invoke(new OfflineListingOrderLineageTest(),'digital');
+        // Use unique synthetic researched identities and the shared real document generators.
+        $version=$this->syntheticReviewedVersion();
         $request=(new ReflectionMethod(ExternalDocumentAdmissionTest::class,'documentRequest'))->invoke(new ExternalDocumentAdmissionTest());
         $this->inputs=[$request['source_path'],$request['export_path']];$production=new Repository();
         $spec=$production->createSpec(['product_version_id'=>$version['id'],'asset_key'=>'external-listing-source','asset_type'=>'digital_document','format'=>'pdf']);self::assertNotWPError($spec);
@@ -57,7 +76,7 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
     {
         // Reproduce the defect without the new custody service: approved native fixture
         // becomes an invalid external-document revision AFTER cached bundle validation.
-        $version=(new ReflectionMethod(OfflineListingOrderLineageTest::class,'version'))->invoke(new OfflineListingOrderLineageTest(),'digital');
+        $version=$this->syntheticReviewedVersion();
         $production=new Repository();
         $spec=$production->createSpec(['product_version_id'=>$version['id'],'asset_key'=>'cached-release-drift','asset_type'=>'digital_document','format'=>'pdf']);self::assertNotWPError($spec);
         $revision=$production->addRevision(['asset_spec_id'=>$spec['id'],'revision_label'=>'synthetic-cache-baseline','storage_reference'=>'local://synthetic/cached.png','checksum_sha256'=>hash('sha256','synthetic cached baseline'),'mime_type'=>'image/png','byte_size'=>25,'provenance'=>['origin'=>'synthetic_cached_release_fixture']]);self::assertNotWPError($revision);
@@ -107,7 +126,7 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
         $productId=(int)$f['version']['product_id'];
         $before=(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::shop_ai_usage().' WHERE product_id=%d AND stage=%s',$productId,'listing_prepare'));
         $actor=get_current_user_id();$owner=$this->scopeOwner;$revoked=false;
-        $filter=static function(string $query)use(&$revoked,$owner,$actor):string{
+        $filter=function(string $query)use(&$revoked,$owner,$actor):string{
             if (!$revoked&&str_contains($query,'SELECT status,details FROM '.Tables::production_qa())&&str_contains($query,'external_document_source_completeness')) {
                 $revoked=true;
                 // Preserve product authority with a separately signed replacement assignment;
@@ -115,15 +134,15 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
                 ShopAccessFixture::grant($owner,$actor,'digital',['manage_digiforge','manage_digiforge_products']);
                 wp_set_current_user($owner);
                 try {
-                    $repo=new DigiForge\Security\ShopAccessRepository();$state=$repo->read('digital');self::assertNotWPError($state);
+                    $repo=new DigiForge\Security\ShopAccessRepository();$state=$repo->read('digital');$this->assertNotWPError($state);
                     foreach($state['grants'] as $id=>$grant){
                         if($grant['actor_id']!==$actor||$grant['revoked']||!in_array('manage_digiforge_listings',$grant['caps'],true))continue;
-                        $result=$repo->revoke('digital',$id,str_replace('-','_',wp_generate_uuid4()),$state['revision']);self::assertNotWPError($result);$state=$repo->read('digital');self::assertNotWPError($state);
+                        $result=$repo->revoke('digital',$id,str_replace('-','_',wp_generate_uuid4()),$state['revision']);$this->assertNotWPError($result);$state=$repo->read('digital');$this->assertNotWPError($state);
                     }
                 } finally {wp_set_current_user($actor);}
-                self::assertNotWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_products'));
-                self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_listings'));
-                self::assertTrue(current_user_can('manage_digiforge_listings'));
+                $this->assertNotWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_products'));
+                $this->assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_listings'));
+                $this->assertTrue(current_user_can('manage_digiforge_listings'));
             }
             return $query;
         };
