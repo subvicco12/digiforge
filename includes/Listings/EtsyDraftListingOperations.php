@@ -36,7 +36,9 @@ final class EtsyDraftListingOperations
     /** @return array<string,mixed>|WP_Error */
     public static function inventory(int $listingId,array $products): array|WP_Error
     {
-        if ($listingId<1 || $products===[]) return self::error('inventory','Listing id and products are required.');
+        // Each inventory product represents one selected variation combination.
+        // Do not trim or split an over-limit linked listing automatically.
+        if ($listingId<1 || $products===[] || count($products)>400) return self::error('inventory','Valid listing id and one to 400 inventory combinations are required.');
         return self::plan('UPDATE_INVENTORY','PUT',"/application/listings/{$listingId}/inventory",['products'=>$products]);
     }
 
