@@ -10,6 +10,7 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
 {
     private array $paths = [];
     private int $networkCalls = 0;
+    private array $pdfEvidence = [];
     private mixed $networkFilter;
 
     protected function setUp(): void
@@ -80,7 +81,7 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
         self::assertSame(strlen($bytes), file_put_contents($path, $bytes));
         $hash = hash_file('sha256', $path);
         $qa = (new DigiForge\ProductFactory\AutomatedQa())->inspect(
-            ['absolute_path'=>$path,'format'=>$format,'checksum_sha256'=>$hash]);
+            ['absolute_path'=>$path,'format'=>$format,'checksum_sha256'=>$hash]+($format==='pdf'?$this->pdfEvidence:[]));
         self::assertSame($expectedPass, $qa['passed'], $format.' deterministic QA');
         $repository = new DigiForge\DigitalFactory\Repository();
         $file = $repository->create('digital_file', ['name'=>'Synthetic '.$format,'file_type'=>$format,
@@ -97,7 +98,7 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
     }
 
     /** Actual bounded formats accepted by AutomatedQa, not the broader validation vocabulary. */
-    private function supportedArtifacts(): array
+    private function supportedArtifacts(int $productVersionId): array
     {
         $zipPath = sys_get_temp_dir().'/df-inventory-'.wp_generate_uuid4().'.zip';
         $this->paths[] = $zipPath;
@@ -105,9 +106,13 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
         self::assertTrue($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::EXCL));
         self::assertTrue($zip->addFromString('customer.txt', "Original local fixture.\n"));
         self::assertTrue($zip->close());
-        $pdf = (new ReflectionMethod(DigiForge\ProductFactory\LocalAssetProducer::class, 'pdf'))
-            ->invoke(new DigiForge\ProductFactory\LocalAssetProducer(), 'Original local PDF fixture.', 'fixture.pdf');
-        self::assertIsString($pdf);
+        $pdfAsset = (new DigiForge\ProductFactory\LocalAssetProducer())->write(
+            $productVersionId, 'fixture.pdf', 'pdf', 'Original local PDF fixture.');
+        self::assertNotWPError($pdfAsset);
+        $this->paths[] = $pdfAsset['absolute_path'];
+        $this->pdfEvidence = array_intersect_key($pdfAsset, array_fill_keys(
+            ['pdf_source_sha256','pdf_text_sha256','pdf_generator_profile'], true));
+        $pdf = (string) file_get_contents($pdfAsset['absolute_path']);
         return [
             'pdf'=>$pdf,
             'svg'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="red"/></svg>',
@@ -124,11 +129,12 @@ final class PortalArtifactCoverageAcceptanceTest extends WP_UnitTestCase
     {
         $product = $this->product('digital');
         $proofs = [];
-        foreach ($this->supportedArtifacts() as $format=>$bytes) {
+        foreach ($this->supportedArtifacts((int)$product['product_version_id']) as $format=>$bytes) {
             $proofs[] = $this->check($product, $format, $bytes);
         }
         $html = $this->render('digital');
         $otherHtml = $this->render('personalized_pod');
+        self::assertStringContainsString('pdf_source_text_completeness: PASS', $html);
         $repository = new DigiForge\DigitalFactory\Repository();
         foreach ($proofs as $proof) {
             $stored = $repository->find('digital_download_check', $proof['id']);

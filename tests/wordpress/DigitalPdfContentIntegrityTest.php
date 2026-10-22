@@ -132,6 +132,14 @@ final class DigitalPdfContentIntegrityTest extends WP_UnitTestCase
         self::assertSame(0,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$t::release_bundles().' b INNER JOIN '.$t::production_plans()." p ON p.id=b.production_plan_id WHERE p.product_version_id=%d AND b.state='RELEASE_READY'",$version['id'])));
     }
 
+    public function testOversizedPdfCannotPassQaFromABoundedPrefixSample(): void
+    {
+        $asset=$this->write('Required bounded text');self::assertNotWPError($asset);
+        file_put_contents($asset['absolute_path'],str_repeat(' ',8388608),FILE_APPEND);
+        $asset['checksum_sha256']=hash_file('sha256',$asset['absolute_path']);
+        self::assertFalse((new DigiForge\ProductFactory\AutomatedQa())->inspect($asset)['passed']);
+    }
+
     public function testHistoricalStructuralOnlyQaCannotApproveOrReleaseLocalPdf(): void
     {
         [$production,$plan,$revision,$bundle]=$this->reviewFixture(false);

@@ -1336,7 +1336,7 @@ final class Portal
             || !is_int($bytes) || $bytes < 1 || !is_array($checks) || !array_is_list($checks)
             || count($checks) < 1 || count($checks) > 24) return $unverified;
         $allowed = ['file_exists','file_nonempty','checksum_match','filename_safe','extension_match',
-            'format_integrity','credential_leak_scan','pdf_page_count','pdf_media_box',
+            'format_integrity','credential_leak_scan','pdf_source_text_completeness','pdf_page_count','pdf_media_box',
             'pdf_duplicate_page_scan','pdf_link_qr_map_scan','png_dimensions','svg_dimensions',
             'svg_active_content_scan','html_active_content_scan','zip_safe_members',
             'zip_unique_members','zip_member_inventory'];

@@ -48,7 +48,7 @@ final class AutomatedQa
         $checks[] = $this->check('credential_leak_scan', ! $unsafe, []);
 
         if ($format === 'pdf') {
-            $checks[] = $this->check('pdf_source_text_completeness', PdfTextIntegrity::matches($sample, $asset), ['artifact_sha256'=>$asset['checksum_sha256']??null,'source_sha256'=>$asset['pdf_source_sha256']??null,'expected_text_sha256'=>$asset['pdf_text_sha256']??null,'generator_profile'=>$asset['pdf_generator_profile']??null]);
+            $checks[] = $this->check('pdf_source_text_completeness', $size <= PdfTextIntegrity::MAX_BYTES && PdfTextIntegrity::matches($sample, $asset), ['artifact_sha256'=>$asset['checksum_sha256']??null,'source_sha256'=>$asset['pdf_source_sha256']??null,'expected_text_sha256'=>$asset['pdf_text_sha256']??null,'generator_profile'=>$asset['pdf_generator_profile']??null]);
             $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $sample);
             $checks[] = $this->check('pdf_page_count', is_int($pageCount) && $pageCount > 0, ['page_count' => (int) $pageCount]);
             preg_match('/\/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]/', $sample, $mediaBox);
