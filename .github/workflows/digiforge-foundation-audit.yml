@@ -270,6 +270,9 @@ jobs:
           unzip -l build/digiforge.zip > build/package-files.txt
           grep -q 'digiforge/digiforge.php' build/package-files.txt
           grep -q 'digiforge/uninstall.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/ExternalDocumentAdmission.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/ExternalDocumentRevision.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/offline/verify_external_document.py' build/package-files.txt
           ! grep -Eq '(^|/)(vendor|tests|docs|\.github|bin)/' build/package-files.txt
           (cd build && sha256sum --check digiforge.zip.sha256)
           test -s build/digiforge.release-manifest.json

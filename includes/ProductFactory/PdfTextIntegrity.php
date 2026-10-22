@@ -78,9 +78,13 @@ final class PdfTextIntegrity
     /** Rechecks local-generator evidence before Gate 2 or release validation. */
     public static function validateRevision(array $revision): true|\WP_Error
     {
-        if(($revision['mime_type']??'')!=='application/pdf')return true;
         $provenance=$revision['provenance']??null;
         if(is_string($provenance))$provenance=json_decode($provenance,true);
+        $externalCustodyPrefix=AssetStorage::RELATIVE_ROOT.'/external-documents/';
+        if(str_starts_with((string)($revision['storage_reference']??''),$externalCustodyPrefix)
+            ||(is_array($provenance)&&(($provenance['generator']??null)==='digiforge_external_document'
+                ||array_key_exists('custody_manifest_storage_reference',$provenance))))return ExternalDocumentRevision::validate($revision);
+        if(($revision['mime_type']??'')!=='application/pdf')return true;
         if(!is_array($provenance))return self::error('pdf_review_evidence','PDF provenance is unavailable; source-complete review is required.');
         if(($provenance['generator']??null)!=='digiforge_u3')return true; // Other governed PDF adapters keep their own contracts.
         $hash=$revision['checksum_sha256']??null;

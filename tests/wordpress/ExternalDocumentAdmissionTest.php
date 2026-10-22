@@ -130,6 +130,114 @@ final class ExternalDocumentAdmissionTest extends WP_UnitTestCase
         } finally { @unlink($request['source_path']);@unlink($request['export_path']); }
     }
 
+    public function testRevocationDuringFinalQaReadPreventsGateAcceptance(): void
+    {
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge_products']);
+        $request=$this->documentRequest();$revoked=false;
+        $filter=static function(string $query)use(&$revoked):string{
+            if (!$revoked&&str_contains($query,'SELECT status,details FROM ' . DigiForge\Database\Tables::production_qa())&&str_contains($query,'external_document_source_completeness')) {
+                $revoked=true;ShopAccessFixture::reset();
+            }
+            return $query;
+        };
+        try {
+            $admitted=(new DigiForge\ProductFactory\ExternalDocumentAdmission())->admit($request);self::assertNotWPError($admitted);
+            $production=new DigiForge\Production\Repository();$revision=$production->addRevision($admitted['revision_input']);self::assertNotWPError($revision);
+            self::assertNotWPError($production->addQa(['target_type'=>'revision','target_id'=>$revision['id'],'check_type'=>'external_document_source_completeness','status'=>'PASS','details'=>$admitted['evidence']+['binding'=>$admitted['binding']]]));
+            add_filter('query',$filter);
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            self::assertTrue($revoked,'The real final QA read must trigger the mid-validation revocation.');
+        } finally { remove_filter('query',$filter);@unlink($request['source_path']);@unlink($request['export_path']); }
+    }
+
+    public function testExternalMimeDowngradeAndStrippedProvenanceCannotBypassGate(): void
+    {
+        [$request,$admitted,$revision]=$this->reviewableRevision();
+        try {
+            self::assertTrue(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            $downgraded=$revision;$downgraded['mime_type']='text/plain';
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($downgraded));
+            $stripped=$revision;$stripped['provenance']=[];
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($stripped));
+            $stripped['mime_type']='text/plain';
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($stripped));
+        } finally { @unlink($request['source_path']);@unlink($request['export_path']); }
+    }
+
+    public function testDifferentCurrentlyAuthorizedReviewerCanValidateCustody(): void
+    {
+        [$request,$admitted,$revision]=$this->reviewableRevision();$importer=get_current_user_id();
+        try {
+            $reviewer=self::factory()->user->create(['role'=>'administrator']);
+            ShopAccessFixture::authorizeActor($reviewer,['digital'],['manage_digiforge_products']);
+            wp_set_current_user($reviewer);
+            self::assertNotSame($importer,get_current_user_id());
+            self::assertSame($importer,$admitted['binding']['actor_id']);
+            self::assertTrue(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+        } finally { wp_set_current_user($importer);@unlink($request['source_path']);@unlink($request['export_path']); }
+    }
+
+    public static function lateMutationTargets(): array
+    {
+        return [['source'],['export'],['manifest'],['lineage']];
+    }
+
+    /** @dataProvider lateMutationTargets */
+    public function testLateQaReadMutationCannotRetainGateAcceptance(string $target): void
+    {
+        [$request,$admitted,$revision]=$this->reviewableRevision();$mutated=false;$path=null;$original=null;
+        $other=$this->request();
+        if ($target!=='lineage') {
+            $path=$target==='manifest'?DigiForge\ProductFactory\AssetStorage::absolutePath($revision['provenance']['custody_manifest_storage_reference']):$admitted[$target]['absolute_path'];
+            self::assertIsString($path);$original=file_get_contents($path);
+        }
+        $filter=static function(string $query)use(&$mutated,$target,$request,$other,$path):string{
+            if (!$mutated&&str_contains($query,'SELECT status,details FROM '.DigiForge\Database\Tables::production_qa())&&str_contains($query,'external_document_source_completeness')) {
+                $mutated=true;
+                if ($target==='lineage') { global $wpdb;$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$other['product_version_id']],['id'=>$request['asset_spec_id']]); }
+                else { file_put_contents($path,'changed during final QA read'); }
+            }
+            return $query;
+        };
+        try {
+            self::assertTrue(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            add_filter('query',$filter);
+            self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+            self::assertTrue($mutated,'The final real QA read must trigger the mutation.');
+        } finally {
+            remove_filter('query',$filter);
+            if ($path!==null&&is_string($original)) { file_put_contents($path,$original); }
+            if ($target==='lineage') { global $wpdb;$wpdb->update(DigiForge\Database\Tables::asset_specs(),['product_version_id'=>$request['product_version_id']],['id'=>$request['asset_spec_id']]); }
+            @unlink($request['source_path']);@unlink($request['export_path']);
+        }
+    }
+
+    public function testRetainedSameByteSymlinkCannotSubstituteForCustody(): void
+    {
+        [$request,$admitted,$revision]=$this->reviewableRevision();
+        try {
+            foreach (['source','export','manifest'] as $target) {
+                $path=$target==='manifest'?DigiForge\ProductFactory\AssetStorage::absolutePath($revision['provenance']['custody_manifest_storage_reference']):$admitted[$target]['absolute_path'];
+                self::assertIsString($path);$original=file_get_contents($path);$outside=tempnam(sys_get_temp_dir(),'df-same-byte-');
+                file_put_contents($outside,$original);unlink($path);
+                try {
+                    self::assertTrue(symlink($outside,$path));
+                    self::assertSame(hash_file('sha256',$outside),hash_file('sha256',$path));
+                    self::assertWPError(DigiForge\ProductFactory\PdfTextIntegrity::validateRevision($revision));
+                } finally { @unlink($path);file_put_contents($path,$original);@unlink($outside); }
+            }
+        } finally { @unlink($request['source_path']);@unlink($request['export_path']); }
+    }
+
+    private function reviewableRevision(): array
+    {
+        ShopAccessFixture::authorizeActor(get_current_user_id(),['digital'],['manage_digiforge_products']);
+        $request=$this->documentRequest();$admitted=(new DigiForge\ProductFactory\ExternalDocumentAdmission())->admit($request);self::assertNotWPError($admitted);
+        $production=new DigiForge\Production\Repository();$revision=$production->addRevision($admitted['revision_input']);self::assertNotWPError($revision);
+        self::assertNotWPError($production->addQa(['target_type'=>'revision','target_id'=>$revision['id'],'check_type'=>'external_document_source_completeness','status'=>'PASS','details'=>$admitted['evidence']+['binding'=>$admitted['binding']]]));
+        return [$request,$admitted,$revision];
+    }
+
     private function documentRequest(): array
     {
         $request=$this->request();$doc=tempnam(sys_get_temp_dir(),'df-external-docx-');$pdf=tempnam(sys_get_temp_dir(),'df-external-pdf-');

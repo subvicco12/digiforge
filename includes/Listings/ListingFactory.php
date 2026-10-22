@@ -78,6 +78,9 @@ final class ListingFactory
         $wpdb->last_error='';$environments=$wpdb->get_col($wpdb->prepare('SELECT DISTINCT s.environment FROM '.Tables::research_candidate_evidence().' ce INNER JOIN '.Tables::research_evidence().' e ON e.id=ce.evidence_id INNER JOIN '.Tables::research_observations().' o ON o.id=e.observation_id INNER JOIN '.Tables::research_sources().' s ON s.id=o.source_id WHERE ce.candidate_id=%d',(int)$owners[0]['id']));
         if($wpdb->last_error!==''||!is_array($environments)||count($environments)!==1||!in_array($environments[0],['sandbox','production'],true))return $this->error('listing_factory_environment','Exact unambiguous research environment evidence is required.',409);
 
+        $externalIntegrity = $this->externalDocumentIntegrity($bundle, $productVersionId);
+        if ($externalIntegrity instanceof WP_Error) { return $externalIntegrity; }
+
         $quota=(new ListingPreparationQuotaRepository())->reserve($shop,(string)$environments[0],$version,$bundle,$idempotencyKey,$runContext);
         if(is_wp_error($quota))return $quota;
 
@@ -185,6 +188,61 @@ final class ListingFactory
             'etsy_api_invoked' => false,
             'external_actions_performed' => false,
         ];
+    }
+
+    /** Recheck exact cached bundle members before any listing/quota write. */
+    private function externalDocumentIntegrity(array $bundle, int $productVersionId): true|WP_Error
+    {
+        $raw = $bundle['manifest'] ?? null;
+        if (!is_string($raw) || strlen($raw) > 1048576) {
+            return $this->error('listing_factory_external_document_evidence', 'Exact release manifest evidence is required.', 409);
+        }
+        try { $manifest = json_decode($raw, true, 16, JSON_THROW_ON_ERROR); }
+        catch (\Throwable) { return $this->error('listing_factory_external_document_evidence', 'Exact release manifest evidence is required.', 409); }
+        if (!is_array($manifest) || !array_is_list($manifest) || count($manifest) > 2000) {
+            return $this->error('listing_factory_external_document_evidence', 'Exact bounded release manifest evidence is required.', 409);
+        }
+        $manifestHash = $bundle['checksum_sha256'] ?? null;
+        if (!is_string($manifestHash) || preg_match('/^[a-f0-9]{64}$/D', $manifestHash) !== 1
+            || !hash_equals($manifestHash, hash('sha256', (new \DigiForge\Production\Validator())->canonicalJson($manifest)))) {
+            return $this->error('listing_factory_external_document_evidence', 'Current release manifest fingerprint is required.', 409);
+        }
+        if ($manifest === []) { return true; }
+        global $wpdb;
+        foreach ($manifest as $item) {
+            if (!is_array($item) || !is_int($item['asset_revision_id'] ?? null) || $item['asset_revision_id'] < 1
+                || !is_int($item['asset_spec_id'] ?? null) || $item['asset_spec_id'] < 1
+                || !is_string($item['checksum_sha256'] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $item['checksum_sha256']) !== 1) {
+                return $this->error('listing_factory_external_document_evidence', 'Exact release member identity is required.', 409);
+            }
+            $wpdb->last_error = '';
+            $revision = $wpdb->get_row($wpdb->prepare('SELECT r.*, s.product_version_id AS bound_product_version_id FROM ' . Tables::asset_revisions() . ' r INNER JOIN ' . Tables::asset_specs() . ' s ON s.id=r.asset_spec_id WHERE r.id=%d', $item['asset_revision_id']), ARRAY_A);
+            if ($wpdb->last_error !== '') {
+                return $this->error('listing_factory_external_document_unavailable', 'Bound release member evidence could not be read.', 503);
+            }
+            if (!is_array($revision)) {
+                return $this->error('listing_factory_external_document_evidence', 'Bound release member evidence is unavailable.', 409);
+            }
+            $provenance = $revision['provenance'] ?? null;
+            if (is_string($provenance)) { $provenance = json_decode($provenance, true); }
+            $namespace = \DigiForge\ProductFactory\AssetStorage::RELATIVE_ROOT . '/external-documents/';
+            $external = str_starts_with((string)($revision['storage_reference'] ?? ''), $namespace)
+                || (is_array($provenance) && (($provenance['generator'] ?? null) === 'digiforge_external_document'
+                    || ($provenance['pdf_generator_profile'] ?? null) === 'digiforge-external-docx-pdf-v1'
+                    || isset($provenance['custody_manifest_storage_reference'])));
+            if (!$external) { continue; }
+            $access = \DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_listings');
+            if ($access instanceof WP_Error) { return $access; }
+            if ((int)$revision['asset_spec_id'] !== $item['asset_spec_id']
+                || (int)$revision['bound_product_version_id'] !== $productVersionId
+                || ($revision['state'] ?? null) !== 'APPROVED'
+                || ($revision['checksum_sha256'] ?? null) !== $item['checksum_sha256']) {
+                return $this->error('listing_factory_external_document_evidence', 'Exact approved external-document member is required.', 409);
+            }
+            $integrity = \DigiForge\ProductFactory\ExternalDocumentRevision::validate($revision);
+            if ($integrity instanceof WP_Error) { return $integrity; }
+        }
+        return true;
     }
 
     private function error(string $code, string $message, int $status = 400): WP_Error

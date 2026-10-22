@@ -84,6 +84,20 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
         $f=$this->fixture();file_put_contents($f['admitted'][$kind]['absolute_path'],'tampered retained bytes');
         self::assertWPError((new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-tamper-'.wp_generate_uuid4()));self::assertSame(0,$this->listingCount((int)$f['version']['id']));
     }
+    public function testCachedManifestCannotRemoveExternalMemberWithoutMatchingHash(): void
+    {
+        $f=$this->fixture();global $wpdb;
+        self::assertSame(1,$wpdb->update(Tables::release_bundles(),['manifest'=>'[]'],['id'=>$f['bundle']['id']]));
+        self::assertWPError((new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-manifest-'.wp_generate_uuid4()));self::assertSame(0,$this->listingCount((int)$f['version']['id']));
+    }
+
+    public function testReservedCustodyNamespaceCannotDowngradeStrippedMetadata(): void
+    {
+        $f=$this->fixture();global $wpdb;
+        self::assertSame(1,$wpdb->update(Tables::asset_revisions(),['mime_type'=>'application/octet-stream','provenance'=>'{}'],['id'=>$f['revision']['id']]));
+        self::assertWPError((new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-stripped-'.wp_generate_uuid4()));self::assertSame(0,$this->listingCount((int)$f['version']['id']));
+    }
+
     public function testLostExactShopAssignmentDeniesBeforeListingCreation(): void
     {
         $f=$this->fixture();ShopAccessFixture::reset();
