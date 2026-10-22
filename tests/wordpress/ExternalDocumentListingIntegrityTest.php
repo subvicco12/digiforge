@@ -121,6 +121,9 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
     public function testListingAssignmentLostDuringFinalQaReadDeniesBeforeAnyBusinessWrite(): void
     {
         $f=$this->fixture();global $wpdb;
+        $policyTable=Tables::shop_ai_policies();$wpdb->last_error='';
+        $originalPolicies=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.$policyTable.' WHERE shop_key=%s AND environment=%s ORDER BY id ASC LIMIT 2','digital','sandbox'),ARRAY_A);
+        self::assertSame('',$wpdb->last_error);self::assertIsArray($originalPolicies);self::assertLessThanOrEqual(1,count($originalPolicies));
         $used=$wpdb->get_var($wpdb->prepare('SELECT COALESCE(SUM(quantity),0) FROM '.Tables::shop_ai_usage().' WHERE shop_key=%s AND stage=%s AND workflow=%s AND occurred_at>=%s','digital','listing_prepare','listing_factory_sandbox',gmdate('Y-m-01 00:00:00')));self::assertTrue(is_numeric($used));
         self::assertNotWPError((new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>'digital','currency'=>'USD','budgets'=>['month'=>10],'stages'=>['listing_prepare'=>['limit'=>(int)$used+1,'estimated_unit_cost'=>0]]],'sandbox'));
         $productId=(int)$f['version']['product_id'];
@@ -148,7 +151,14 @@ final class ExternalDocumentListingIntegrityTest extends WP_UnitTestCase
         };
         add_filter('query',$filter);
         try {$result=(new DigiForge\Listings\ListingFactory())->prepare((int)$f['version']['id'],'external-midworker-acl-'.wp_generate_uuid4());}
-        finally {remove_filter('query',$filter);}
+        finally {
+            remove_filter('query',$filter);
+            // The real ACL repository commits. Restore only this exact synthetic
+            // policy scope even when the expected business-denial assertion fails.
+            $wpdb->last_error='';$deleted=$wpdb->delete($policyTable,['shop_key'=>'digital','environment'=>'sandbox']);self::assertNotFalse($deleted);self::assertSame('',$wpdb->last_error);
+            foreach($originalPolicies as $policy){self::assertSame(1,$wpdb->insert($policyTable,$policy));self::assertSame('',$wpdb->last_error);}
+            $restored=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.$policyTable.' WHERE shop_key=%s AND environment=%s ORDER BY id ASC LIMIT 2','digital','sandbox'),ARRAY_A);self::assertSame($originalPolicies,$restored);
+        }
         self::assertTrue($revoked,'The actual post-worker QA query must exercise the listing-only assignment loss.');self::assertWPError($result);
         self::assertSame(0,$this->listingCount((int)$f['version']['id']));
         self::assertSame($before,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::shop_ai_usage().' WHERE product_id=%d AND stage=%s',$productId,'listing_prepare')));

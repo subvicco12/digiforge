@@ -193,6 +193,8 @@ final class ListingFactory
     /** Recheck exact cached bundle members before any listing/quota write. */
     private function externalDocumentIntegrity(array $bundle, int $productVersionId): true|WP_Error
     {
+        $listingActor = get_current_user_id();
+        $externalRequired = false;
         $raw = $bundle['manifest'] ?? null;
         if (!is_string($raw) || strlen($raw) > 1048576) {
             return $this->error('listing_factory_external_document_evidence', 'Exact release manifest evidence is required.', 409);
@@ -231,6 +233,7 @@ final class ListingFactory
                     || ($provenance['pdf_generator_profile'] ?? null) === 'digiforge-external-docx-pdf-v1'
                     || isset($provenance['custody_manifest_storage_reference'])));
             if (!$external) { continue; }
+            $externalRequired = true;
             $access = \DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_listings');
             if ($access instanceof WP_Error) { return $access; }
             if ((int)$revision['asset_spec_id'] !== $item['asset_spec_id']
@@ -241,6 +244,19 @@ final class ListingFactory
             }
             $integrity = \DigiForge\ProductFactory\ExternalDocumentRevision::validate($revision);
             if ($integrity instanceof WP_Error) { return $integrity; }
+        }
+        // Worker execution and evidence reads can outlive an assignment. Recheck
+        // listing authority for the same actor after every external member check,
+        // immediately before the caller reserves quota or creates listing rows.
+        if ($externalRequired) {
+            if ($listingActor < 1 || get_current_user_id() !== $listingActor) {
+                return $this->error('listing_factory_external_document_authority', 'Current exact listing authority is required.', 403);
+            }
+            $access = \DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_listings');
+            if ($access instanceof WP_Error) { return $access; }
+            if (get_current_user_id() !== $listingActor) {
+                return $this->error('listing_factory_external_document_authority', 'Current exact listing authority is required.', 403);
+            }
         }
         return true;
     }

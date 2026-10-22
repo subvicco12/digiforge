@@ -425,3 +425,16 @@ Focused WordPress59/1246 PASS; full local unit1743/9181 with1 existing skip; ind
 Draft #1238 adds a narrowly governed external DOCX/PDF admission path on cumulative #1237. See `external-digital-document-admission-20261022.md` for exact original Wedding Guide v0.4 hashes, bounded parser results, required immutable custody/QA contracts and limitations. The actual three source/PDF pairs pass source-text/declared-body-bounds verification; that does not register a product or approve commercial, linguistic, visual, Word/Google Docs or installed-site acceptance. The newly generated Wedding Guide remains separate from historical Product #25. Technical source custody and independent Product Approval are separate steps.
 
 Initial test-first head `dd585c6add52752e067b404413ef4d0b2fac3bab` and subsequent exact-head mandatory PHP 8.3 audit results are recorded on #1238 and issue #1209; no changed code inherits audit #4775. Until those results are observed, new PHP/WordPress behavior remains unverified. Original-source classifications are preserved:246/268 non-Finance implementation candidates,22 UNVERIFIED; no Finance criterion changes. **NO-GO; STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.**
+
+Affected authoritative atomic IDs (supplementary evidence only; original-source TSV classifications unchanged):
+
+| Criterion | Preserved candidate status | Phase 2 evidence / remaining boundary |
+|---|---|---|
+| DERIVED-BP-digital-technical | IMPLEMENTED | External source-bound parser/custody candidate and focused WordPress/offline tests; exact-head receipt on #1238/#1209. |
+| BP-qa-pass-evidence | IMPLEMENTED | Actual source/export/manifest/QA revalidation; no synthetic test becomes a commercial approval. |
+| BP-digital-semantic-content | UNVERIFIED | Original Wedding Guide text can be compared technically; attributable independent content review still required. |
+| BP-digital-semantic-visual | UNVERIFIED | Declared body bounds do not establish visual fidelity or ordinary buyer editability. |
+| BP-digital-semantic-commercial | UNVERIFIED | Independent commercial decision remains required. |
+| BP-digital-semantic-ip | UNVERIFIED | Authentic creator/font/asset/buyer-license provenance and review remain required. |
+| BP-digital-semantic-policy | UNVERIFIED | Independent policy review remains required; no waiver or approval inferred. |
+| DERIVED-BP-digital-live-certification | UNVERIFIED | No live draft, file upload, publication authorization or installed-site acceptance performed. |
