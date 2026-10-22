@@ -31,6 +31,7 @@ final class AutomatedQa
         $checks[] = $this->check('extension_match', $extension === $format, ['extension' => $extension, 'format' => $format]);
 
         $sample = (string) file_get_contents($path, false, null, 0, min(262144, max(1, $size)));
+        if ($format === 'pdf' && $size <= PdfTextIntegrity::MAX_BYTES) { $sample = (string) file_get_contents($path, false, null, 0, PdfTextIntegrity::MAX_BYTES + 1); }
         $integrity = match ($format) {
             'pdf' => str_starts_with($sample, '%PDF-') && str_contains($sample, '%%EOF'),
             'svg' => str_contains(strtolower($sample), '<svg') && str_contains(strtolower($sample), '</svg>'),
@@ -47,6 +48,7 @@ final class AutomatedQa
         $checks[] = $this->check('credential_leak_scan', ! $unsafe, []);
 
         if ($format === 'pdf') {
+            $checks[] = $this->check('pdf_source_text_completeness', PdfTextIntegrity::matches($sample, $asset), ['artifact_sha256'=>$asset['checksum_sha256']??null,'source_sha256'=>$asset['pdf_source_sha256']??null,'expected_text_sha256'=>$asset['pdf_text_sha256']??null,'generator_profile'=>$asset['pdf_generator_profile']??null]);
             $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $sample);
             $checks[] = $this->check('pdf_page_count', is_int($pageCount) && $pageCount > 0, ['page_count' => (int) $pageCount]);
             preg_match('/\/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)\s+([0-9.]+)\s*\]/', $sample, $mediaBox);

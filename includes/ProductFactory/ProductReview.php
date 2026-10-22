@@ -210,6 +210,8 @@ final class ProductReview
             if ($total < 1 || $bad > 0) {
                 return $this->error('qa_failed', 'Every required asset must have completed passing QA checks.', 409);
             }
+            $pdfIntegrity = PdfTextIntegrity::validateRevision($revision);
+            if (is_wp_error($pdfIntegrity)) { return $pdfIntegrity; }
             $revisions[] = (int) $revision['id'];
         }
         return $revisions;
