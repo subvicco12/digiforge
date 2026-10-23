@@ -6,6 +6,13 @@ sys.path.insert(0,str(OFFLINE))
 import sam_matting as worker
 
 class SamMattingBoundaryTest(unittest.TestCase):
+    def test_runtime_versions_match_every_exact_dependency_pin(self):
+        pins={}
+        for line in (OFFLINE/"requirements-sam-matting.txt").read_text().splitlines():
+            if line and not line.startswith(("#","--")):
+                name,version=line.split("==");pins[name]=version
+        self.assertEqual(pins,worker.VERSIONS)
+
     def payload(self):
         return dict(width=16,height=16,rgba=base64.b64encode(b'\xff'*1024).decode(),selection=dict(subjects=[dict(x=1,y=1,width=14,height=14)],selected=0,foreground_points=[dict(x=8,y=8)],trimap_width=8))
     def test_exact_opaque_contract_and_unsupported_widths(self):

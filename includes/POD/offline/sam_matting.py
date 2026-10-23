@@ -9,7 +9,7 @@ from segment import selection_contract
 sys.pycache_prefix=None
 VERSION='sam2-small-cf8-experimental-v1'
 MODEL_SHA='6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38'
-VERSIONS={'antlr4-python3-runtime': '4.9.3', 'filelock': '3.32.3', 'fsspec': '2026.7.0', 'hydra-core': '1.3.7', 'iopath': '0.1.10', 'Jinja2': '3.1.6', 'llvmlite': '0.50.0', 'MarkupSafe': '3.0.3', 'mpmath': '1.3.0', 'networkx': '3.6.1', 'numba': '0.68.0', 'numpy': '2.2.6', 'omegaconf': '2.3.1', 'packaging': '26.3', 'pillow': '13.0.0', 'portalocker': '4.4.0', 'PyMatting': '1.1.16', 'PyYAML': '6.0.3', 'scipy': '1.18.1', 'setuptools': '83.0.0', 'sympy': '1.14.0', 'torch': '2.14.1+cpu', 'torchvision': '0.29.1+cpu', 'tqdm': '4.67.1', 'typing_extensions': '4.16.0'}
+VERSIONS={'antlr4-python3-runtime': '4.9.3', 'filelock': '4.2.1', 'fsspec': '2026.7.0', 'hydra-core': '1.3.7', 'iopath': '0.1.10', 'Jinja2': '3.1.6', 'llvmlite': '0.50.0', 'MarkupSafe': '3.0.3', 'mpmath': '1.3.0', 'networkx': '3.6.1', 'numba': '0.68.0', 'numpy': '2.2.6', 'omegaconf': '2.3.1', 'packaging': '26.3', 'pillow': '13.0.0', 'portalocker': '4.4.0', 'PyMatting': '1.1.16', 'PyYAML': '6.0.3', 'scipy': '1.18.1', 'setuptools': '84.1.0', 'sympy': '1.14.0', 'torch': '2.14.1+cpu', 'torchvision': '0.29.1+cpu', 'tqdm': '4.67.1', 'typing_extensions': '4.16.0'}
 
 def decode_request(p):
     if not isinstance(p,dict) or set(p)!={'width','height','rgba','selection'}:
