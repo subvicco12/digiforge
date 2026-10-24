@@ -10,8 +10,12 @@ final class DriveGoogleOAuth
         private string $clientId,private string $callback,#[\SensitiveParameter] private string $clientSecretCiphertext)
     {
         $u=parse_url($callback);
+        $keys=['scheme','host','path'];
+        // WordPress admin-post needs this single exact action query; no redirect or extra parameter.
+        if(is_array($u)&&($u['query']??null)==='action=digiforge_google_oauth_callback'
+            &&str_ends_with($u['path']??'','/wp-admin/admin-post.php'))$keys[]='query';
         if(!is_array($u)||($u['scheme']??'')!=='https'||empty($u['host'])||empty($u['path'])
-            ||array_diff(array_keys($u),['scheme','host','path'])!==[]
+            ||array_diff(array_keys($u),$keys)!==[]
             ||preg_match('/^[A-Za-z0-9.-]{1,200}\.apps\.googleusercontent\.com$/D',$clientId)!==1
             ||strlen($clientSecretCiphertext)>16384||preg_match('/^(?:sodium|openssl):v1:[A-Za-z0-9+\/]+=*$/D',$clientSecretCiphertext)!==1)throw new \InvalidArgumentException('Google configuration unavailable.');
     }
