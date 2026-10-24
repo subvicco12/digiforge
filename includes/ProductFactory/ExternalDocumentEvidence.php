@@ -88,6 +88,11 @@ final class ExternalDocumentEvidence
                 || preg_match('/^[a-f0-9]{64}$/D', $receipt['normalized_text_sha256']) !== 1) {
                 throw new \RuntimeException();
             }
+            if (array_key_exists('source_layout_profile', $receipt)
+                && ($receipt['source_layout_profile'] !== 'INLINE_RGBA8_PNG_STATIC_HEADER_V1'
+                    || ($receipt['artwork_export_parity_verified'] ?? null) !== false)) {
+                throw new \RuntimeException();
+            }
             foreach (['source_sha256', 'export_sha256'] as $index => $key) {
                 if (($receipt[$key] ?? null) !== $hashes[$index] || hash_file('sha256', $paths[$index]) !== $hashes[$index]) {
                     throw new \RuntimeException();

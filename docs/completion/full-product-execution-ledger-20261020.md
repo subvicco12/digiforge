@@ -1,5 +1,10 @@
 # Full-product integration execution ledger
 
+## 2026-10-24 — Exact illustrated Wedding v0.5 admission
+
+Narrow passive PNG/default-header support now passes both recovered immutable Letter/A4 source/PDF pairs:52distinct fields/55occurrences and nine pages each; modified header/PNG copies reject. See illustrated-document-admission-20261024.md and exact hash-bound JSON receipt. Existing literal-text, per-word geometry, footer, lineage/custody and independent semantic gates remain. Unknown picture formats/active features reject; artwork PDF pixel parity remains explicitly false/unverified. Original product files/historical Product25 unchanged. Focused Python17tests and PHP12/77 pass; real WordPress custody regressions authored for exact-head hosted audit. Google issuer/OAuth/dispatch and22 non-Finance acceptance criteria remain open. STOP ALL/external lock ON; automation OFF; Finance excluded; RELEASE HOLD; NO-GO.
+
+
 ## 2026-10-24 — Work-local durable Google grant consumption
 
 Work now has scratch-only PHP8.3 and an exact checkout of #1241/#1242 at544a749f062fe34134c822abbca50504b5c64152. No system/production configuration changed. Added an atomic CAS-backed journal consuming already-issued grant records: replay/quota enforcement, monotonic revocation, crash-pending evidence, single-use completion claims and no repeated create after uncertain outcomes. Existing RecoveryDispatchLedger remains the actual database boundary; no new schema/public endpoint. Reservations are NOT execution authorization. Trusted issuance/account ownership, OAuth credential/session lifecycle and guarded HTTP dispatch remain NOT IMPLEMENTED; execute() remains closed.

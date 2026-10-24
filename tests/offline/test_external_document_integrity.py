@@ -23,12 +23,14 @@ def docx(path, text='Exact source - punctuation!', width=12240, height=15840, ex
             z.writestr(key, value)
 
 
-def pdf(path, text='Exact source - punctuation!', width=612, height=792, x=72, y=None, footer=None, footer_y=22):
+def pdf(path, text='Exact source - punctuation!', width=612, height=792, x=72, y=None, footer=None, footer_y=22, header=None, header_y=None):
     y = height-90 if y is None else y
     text = text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
     stream = f'BT /F1 12 Tf {x} {y} Td ({text}) Tj ET'.encode('ascii')
     if footer is not None:
         stream += f' BT /F1 10 Tf 72 {footer_y} Td ({footer}) Tj ET'.encode('ascii')
+    if header is not None:
+        stream += f' BT /F1 10 Tf 72 {height-30 if header_y is None else header_y} Td ({header}) Tj ET'.encode('ascii')
     objects = [b'<< /Type /Catalog /Pages 2 0 R >>', b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>', f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>'.encode(), b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream']
     result = b'%PDF-1.4\n'; offsets = [0]
     for i, body in enumerate(objects, 1):
