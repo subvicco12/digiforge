@@ -13,7 +13,7 @@ final class DriveWordPressGrantStore implements DriveGrantStore
     public function compareAndSwap(string $key,array $expected,array $next):bool
     {
         if(!self::key($key))return false;
-        try{return RecoveryDispatchLedger::compareAndSwap($key,$expected,$next);}catch(\Throwable){return false;}
+        try{return $expected===[]?RecoveryDispatchLedger::insert($key,$next):RecoveryDispatchLedger::compareAndSwap($key,$expected,$next);}catch(\Throwable){return false;}
     }
-    private static function key(string $key):bool { return preg_match('/^digiforge_google_grant_[a-f0-9]{64}$/D',$key)===1; }
+    private static function key(string $key):bool { return preg_match('/^digiforge_google_(?:grant|oauth|connection|operation)_[a-f0-9]{64}$/D',$key)===1; }
 }
