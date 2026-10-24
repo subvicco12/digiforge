@@ -48,17 +48,18 @@ final class DriveGoogleWordPress
         nocache_headers();if(!headers_sent())header('Referrer-Policy: no-referrer');
         if($r===null)$this->deny();
         // Fixed local destination; never reflect code, state, tokens or provider error text.
-        wp_safe_redirect(home_url('/?df_view=digital&df_google=connected&df_google_plan='.rawurlencode($r['plan_id'])));exit;
+        wp_safe_redirect(home_url('/?df_view=digital&df_shop=digital&df_google=connected&df_google_plan='.rawurlencode($r['plan_id'])));exit;
     }
     public function queue():never
     {
         $this->authorize('digiforge_google_queue');$workflow=$this->services();$id=$_POST['plan_id']??null;
         if(!is_string($id)||preg_match('/^[a-f0-9]{64}$/D',$id)!==1||$workflow===null)$this->deny();
         $role=$_POST['reconcile']??null;
-        if(($_POST['refresh']??null)==='connection'){if(!$workflow->refresh($id))$this->deny();nocache_headers();wp_safe_redirect(home_url('/?df_view=automation&df_google=credential_refreshed'));exit;}
-        if(($_POST['renew']??null)==='grant'){if(!$workflow->renew($id))$this->deny();nocache_headers();wp_safe_redirect(home_url('/?df_view=automation&df_google=grant_renewed'));exit;}
+        if(($_POST['refresh']??null)==='connection'){if(!$workflow->refresh($id))$this->deny();nocache_headers();wp_safe_redirect(home_url('/?df_view=digital&df_shop=digital&df_google=credential_refreshed&df_google_plan='.rawurlencode($id)));exit;}
+        if(($_POST['renew']??null)==='grant'){if(!$workflow->renew($id))$this->deny();nocache_headers();wp_safe_redirect(home_url('/?df_view=digital&df_shop=digital&df_google=grant_renewed&df_google_plan='.rawurlencode($id)));exit;}
         $r=$role===null?$workflow->submit($id):(is_string($role)?$workflow->reconcile($id,$role):null);
-        if($r===null)$this->deny();nocache_headers();wp_safe_redirect(home_url('/?df_view=automation&df_google=queued'));exit;
+        if($r===null)$this->deny();$notice=is_array($r)?match($r['state']??null){'UNKNOWN'=>'unknown','RUNNING'=>'running','TECHNICAL_QA_COMPLETE'=>'technical_qa_complete',default=>'queued'}:'queued';
+        nocache_headers();wp_safe_redirect(home_url('/?df_view=digital&df_shop=digital&df_google='.$notice.'&df_google_plan='.rawurlencode($id)));exit;
     }
     public function run(mixed $jobId):void
     {
@@ -83,7 +84,7 @@ final class DriveGoogleWordPress
     }
     private function authorize(string $nonce):void
     {
-        if(($_SERVER['REQUEST_METHOD']??'')!=='POST'||!is_user_logged_in()||!current_user_can('manage_digiforge_connections')
+        if(($_POST['df_confirm_google_action']??null)!=='1'||($_SERVER['REQUEST_METHOD']??'')!=='POST'||!is_user_logged_in()||!current_user_can('manage_digiforge_connections')
             ||!current_user_can('manage_digiforge_settings')||ShopAccess::authorize('digital','manage_digiforge_products')!==true)$this->deny();
         check_admin_referer($nonce);
     }

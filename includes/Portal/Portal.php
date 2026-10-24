@@ -572,6 +572,7 @@ final class Portal
 
     private function digitalFactoryOperations():void
     {
+        (new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));
         $repo=new \DigiForge\DigitalFactory\Repository();$selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$products=$repo->all('digital_product',1,50,$selected===ShopOperationsReadModel::ALL?null:$selected);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
         $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['HUMAN_APPROVED','PLATFORM_DRAFT','FINAL_VALIDATION','PUBLISH_READY'],true))$counts['approved']++;}}
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Registry status is not Product Approval or release evidence. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
@@ -747,6 +748,7 @@ final class Portal
 
     private function automationOperations(): void
     {
+        (new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));
         $scheduled=(new \DigiForge\Queue\ScheduledTaskReadModel())->snapshot();
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Product Factory scheduled tasks</h2><span class="df-status">READ ONLY</span></div><p class="df-muted">System-wide bounded scheduler metadata only. Viewing tasks cannot run, retry or dispatch them; task arguments and run keys are hidden.</p><div class="df-signal-grid"><div><span>Action Scheduler evidence</span><b>'.esc_html($scheduled['query_state']['action_scheduler']).'</b></div><div><span>WP cron evidence</span><b>'.esc_html($scheduled['query_state']['wp_cron']).'</b></div></div>';
         if($scheduled['query_state']['action_scheduler']!=='AVAILABLE')echo '<p class="df-muted">Action Scheduler is unavailable or not installed; an empty scheduler is not inferred.</p>';

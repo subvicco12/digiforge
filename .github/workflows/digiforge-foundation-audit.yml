@@ -122,7 +122,26 @@ jobs:
       - name: WordPress database integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: composer test:wordpress
+        run: |
+          mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
+          export DF_GOOGLE_PORTAL_FIXTURES="$RUNNER_TEMP/google-portal-fixtures"
+          composer test:wordpress
+
+      - name: Set up Node for offline portal acceptance
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Google portal offline fixture browser acceptance
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/google-portal-browser-cache
+        run: |
+          set -euo pipefail
+          runtime="$RUNNER_TEMP/google-portal-browser"
+          npm install --prefix "$runtime" --ignore-scripts --save-exact playwright@1.62.1
+          npm audit --prefix "$runtime" --omit=dev --audit-level=high
+          node "$runtime/node_modules/playwright/cli.js" install --with-deps chromium
+          NODE_PATH="$runtime/node_modules" node tests/browser/google-drive-portal.cjs "$RUNNER_TEMP/google-portal-fixtures"
 
       - name: Official Action Scheduler integration acceptance
         env:

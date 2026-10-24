@@ -71,7 +71,7 @@ final class DriveGoogleCallbackQueueTest extends WP_UnitTestCase
         $_SERVER['REQUEST_METHOD']='GET';$_GET=['action'=>'digiforge_google_oauth_callback','state'=>$q['state'],'code'=>'synthetic-code'];
         $destination='';$redirect=static function($url)use(&$destination){$destination=$url;throw new RuntimeException('google_test_redirect');};add_filter('wp_redirect',$redirect);
         try{try{$runtime->callback();self::fail('Redirect expected.');}catch(RuntimeException $e){self::assertSame('google_test_redirect',$e->getMessage());}
-            self::assertSame(home_url('/?df_view=digital&df_google=connected&df_google_plan='.$b['id']),$destination);self::assertStringNotContainsString($q['state'],$destination);self::assertStringNotContainsString('synthetic-code',$destination);
+            self::assertSame(home_url('/?df_view=digital&df_shop=digital&df_google=connected&df_google_plan='.$b['id']),$destination);self::assertStringNotContainsString($q['state'],$destination);self::assertStringNotContainsString('synthetic-code',$destination);
         }finally{remove_filter('wp_redirect',$redirect);$_GET=$oldGet;if($oldCookie===null)unset($_COOKIE[LOGGED_IN_COOKIE]);else $_COOKIE[LOGGED_IN_COOKIE]=$oldCookie;if($method===null)unset($_SERVER['REQUEST_METHOD']);else $_SERVER['REQUEST_METHOD']=$method;}
         self::assertSame(2,$http->calls);
         $queued=$workflow->submit($b['id']);global $wpdb;
