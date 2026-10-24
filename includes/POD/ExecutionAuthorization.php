@@ -27,6 +27,9 @@ final class ExecutionAuthorization
         $requestFingerprint=strtolower(trim($requestFingerprint));
         if(str_starts_with($action,'PROVIDER_')&&!preg_match('/^[a-f0-9]{64}$/',$requestFingerprint))return new WP_Error('digiforge_pod_request_fingerprint','Provider execution authorization requires the exact approved request fingerprint.',['status'=>400]);
         if($requestFingerprint!==''&&!preg_match('/^[a-f0-9]{64}$/',$requestFingerprint))return new WP_Error('digiforge_pod_request_fingerprint','Request fingerprint is invalid.',['status'=>400]);
+        if(isset($approval['action'])&&$approval['action']!==$action)return new WP_Error('digiforge_pod_approval_action','Recorded human approval is for a different action.',['status'=>409]);
+        if(isset($approval['approved_by'])&&$approval['approved_by']!==$authorizerId)return new WP_Error('digiforge_pod_approval_actor','Recorded human approval belongs to another actor.',['status'=>403]);
+        if(isset($approval['request_fingerprint'])&&(!is_string($approval['request_fingerprint'])||!hash_equals($approval['request_fingerprint'],$requestFingerprint)))return new WP_Error('digiforge_pod_approval_request','Recorded human approval request differs.',['status'=>409]);
         $issued=time();$payload=['action'=>$action,'evidence_hash'=>$hash,'authorized_by'=>$authorizerId,'nonce'=>$nonce,'issued_at'=>$issued,'expires_at'=>$issued+$ttlSeconds];
         if($requestFingerprint!=='')$payload['request_fingerprint']=$requestFingerprint;
         $canonical=$payload;ksort($canonical);

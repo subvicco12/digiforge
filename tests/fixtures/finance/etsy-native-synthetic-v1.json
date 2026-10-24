@@ -1,0 +1,83 @@
+{
+  "classification": "SYNTHETIC_NOT_PROVIDER_RECORDS",
+  "scope": {
+    "shop_key": "digital",
+    "environment": "test",
+    "business_id": 1,
+    "store_id": 2,
+    "external_shop_id": 777
+  },
+  "payment": {
+    "payment_id": 11,
+    "shop_id": 777,
+    "receipt_id": 12,
+    "amount_gross": {
+      "amount": 12345,
+      "divisor": 1000,
+      "currency_code": "USD"
+    },
+    "amount_fees": {
+      "amount": 345,
+      "divisor": 1000,
+      "currency_code": "USD"
+    },
+    "amount_net": {
+      "amount": 12000,
+      "divisor": 1000,
+      "currency_code": "USD"
+    },
+    "posted_gross": null,
+    "posted_fees": null,
+    "posted_net": null,
+    "currency": "USD",
+    "shop_currency": "EUR",
+    "buyer_currency": "GBP",
+    "status": "authed",
+    "create_timestamp": 1790000000,
+    "created_timestamp": 1790000000,
+    "update_timestamp": 1790000100,
+    "updated_timestamp": 1790000100,
+    "payment_adjustments": [
+      {
+        "payment_adjustment_id": 21,
+        "payment_id": 11,
+        "status": "pending",
+        "is_success": true,
+        "total_adjustment_amount": null,
+        "shop_total_adjustment_amount": 17,
+        "buyer_total_adjustment_amount": null,
+        "total_fee_adjustment_amount": 0,
+        "created_timestamp": 1790000050,
+        "updated_timestamp": 1790000100,
+        "payment_adjustment_items": [
+          {
+            "payment_adjustment_id": 21,
+            "payment_adjustment_item_id": 31,
+            "adjustment_type": null,
+            "amount": -17,
+            "shop_amount": -20,
+            "transaction_id": null,
+            "bill_payment_id": null,
+            "created_timestamp": 1790000050,
+            "updated_timestamp": 1790000100
+          }
+        ]
+      }
+    ]
+  },
+  "ledger_entry": {
+    "entry_id": 11,
+    "ledger_id": 90,
+    "sequence_number": 3,
+    "amount": -17,
+    "currency": "EUR",
+    "balance": 100,
+    "create_date": 1790000000,
+    "created_timestamp": 1790000000,
+    "ledger_type": "synthetic_type",
+    "reference_type": "payment",
+    "reference_id": "11",
+    "parent_entry_id": 0,
+    "payment_adjustments": []
+  }
+}
