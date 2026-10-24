@@ -22,7 +22,7 @@ final class DriveHttpsProtocol
             if($sourceBytes===''||strlen($sourceBytes)>DriveTransferRequest::LIMIT||!hash_equals($plan['source_sha256'],hash('sha256',$sourceBytes)))throw new \InvalidArgumentException('Invalid Drive source.');
             $metadata=json_encode($canonical['metadata'],JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
             // Stable framing preserves retry identity; collisions deny instead of corrupting bytes.
-            $boundary='digiforge_'.hash('sha256',$plan['id'].':'.$stage);
+            $boundary='df_'.hash('sha256',$plan['id'].':'.$stage);
             if(str_contains($sourceBytes,$boundary)||str_contains($metadata,$boundary))throw new \InvalidArgumentException('Invalid Drive framing.');
             $args['body']='--'.$boundary."\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".$metadata."\r\n--".$boundary."\r\nContent-Type: ".DriveTransferRequest::DOCX."\r\n\r\n".$sourceBytes."\r\n--".$boundary."--\r\n";
             $args['headers']['Content-Type']='multipart/related; boundary='.$boundary;
