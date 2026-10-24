@@ -119,13 +119,14 @@ jobs:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
         run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'ExternalDocument(Admission|ListingIntegrity)Test'
 
+      - name: Prepare Google portal capture directory
+        run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
+
       - name: WordPress database integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: |
-          mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
-          export DF_GOOGLE_PORTAL_FIXTURES="$RUNNER_TEMP/google-portal-fixtures"
-          composer test:wordpress
+          DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+        run: composer test:wordpress
 
       - name: Set up Node for offline portal acceptance
         uses: actions/setup-node@v4

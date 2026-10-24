@@ -31,3 +31,5 @@ Authoritative non-Finance ledger remains246/268 implementation candidates and22 
 Minimum external path: separately authorized secure backend OAuth setup and real account/folder/conversion/recovery acceptance; exact-hash content/design/rights/policy/buyer review; authentic POD geometry/rights and attributable metrics; separately authorized installed desktop/mobile acceptance. No manual upload is requested for existing originals.
 
 STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD. No real credentials, live Google/provider operations, production/staging writes, Etsy publishing, Printify production, merges, deployments or activation. Operational/commercial release remains NO-GO.
+
+Audit history: #4794/46cd36f passed PHP/unit then stopped before WordPress/browser on the existing environment-profile contract requiring the literal `run: composer test:wordpress`. Follow-up preserves that exact command and sets capture path via `env` with a separate mkdir step. Existing test unchanged; focused environment-profile regressions PASS. Final exact-head audit still required.
