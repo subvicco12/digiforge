@@ -35,8 +35,19 @@ final class DriveExecutionGrant
                 return false;
             }
         }
-        if (($plan['shop_key'] ?? null) !== 'digital'
-            || ($plan['folder_id'] ?? null) !== DriveTransferRequest::FOLDER
+        foreach (['id', 'installation_sha256', 'source_sha256'] as $key) {
+            if (!is_string($plan[$key] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $plan[$key]) !== 1) {
+                return false;
+            }
+        }
+        foreach (['product_id', 'product_version_id', 'revision_id'] as $key) {
+            if (!is_int($plan[$key] ?? null) || $plan[$key] < 1) { return false; }
+        }
+        if (!in_array($plan['environment'], ['local', 'development', 'staging', 'production'], true)) {
+            return false;
+        }
+        if ($plan['shop_key'] !== 'digital'
+            || $plan['folder_id'] !== DriveTransferRequest::FOLDER
             || !is_string($grant['issuer'] ?? null)
             || preg_match('/^[A-Za-z0-9_-]{1,80}$/D', $grant['issuer']) !== 1
             || !is_string($grant['connection_id'] ?? null)
@@ -57,7 +68,7 @@ final class DriveExecutionGrant
             || !array_is_list($grant['stages'])
             || count($grant['stages']) < 1
             || count($grant['stages']) > count(self::STAGES)
-            || count(array_unique($grant['stages'])) !== count($grant['stages'])) {
+            ) {
             return false;
         }
         foreach ($grant['stages'] as $allowed) {
@@ -65,6 +76,7 @@ final class DriveExecutionGrant
                 return false;
             }
         }
-        return in_array($stage, $grant['stages'], true);
+        return count(array_unique($grant['stages'])) === count($grant['stages'])
+            && in_array($stage, $grant['stages'], true);
     }
 }

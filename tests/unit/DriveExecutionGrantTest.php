@@ -50,4 +50,18 @@ final class DriveExecutionGrantTest extends TestCase
             self::assertFalse(Grant::validate($bad,$p,'folder',150,false,true),$key);
         }
     }
+    public function testMalformedIdentityAndNestedStagesDenyWithoutWarnings(): void
+    {
+        $p=$this->plan();
+        foreach (['id'=>'invalid','installation_sha256'=>true,'source_sha256'=>'broken',
+                  'product_id'=>true,'product_version_id'=>0,'revision_id'=>-1,
+                  'environment'=>'local\nforeign'] as $key=>$value) {
+            $bad=$p;$bad[$key]=$value;
+            self::assertFalse(Grant::validate($this->grant($bad),$bad,'folder',150,false,true),$key);
+        }
+        $g=$this->grant($p);$g['stages']=[['folder']];
+        self::assertFalse(Grant::validate($g,$p,'folder',150,false,true));
+        $g['stages']=[new stdClass()];
+        self::assertFalse(Grant::validate($g,$p,'folder',150,false,true));
+    }
 }

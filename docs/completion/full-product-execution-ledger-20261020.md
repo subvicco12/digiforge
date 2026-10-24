@@ -1,5 +1,18 @@
 # Full-product integration execution ledger
 
+## 2026-10-24 — Work-local durable Google grant consumption
+
+Work now has scratch-only PHP8.3 and an exact checkout of #1241/#1242 at544a749f062fe34134c822abbca50504b5c64152. No system/production configuration changed. Added an atomic CAS-backed journal consuming already-issued grant records: replay/quota enforcement, monotonic revocation, crash-pending evidence, single-use completion claims and no repeated create after uncertain outcomes. Existing RecoveryDispatchLedger remains the actual database boundary; no new schema/public endpoint. Reservations are NOT execution authorization. Trusted issuance/account ownership, OAuth credential/session lifecycle and guarded HTTP dispatch remain NOT IMPLEMENTED; execute() remains closed.
+
+Reproduced malformed grant identities being accepted (RED), then required exact hashes/positive integer identities and supported environment names. Stage item types now validate before array_unique so nested inputs deny without warning/exception.
+
+Focused local grant/journal/admission:12 tests/77assertions PASS. New production files and validator PHPStan level5 with real repository symbols:PASS. Full local unit1780tests/9325assertions has one environmental error: OfflineCutoutPipelineTest::testPipelineRequiresExplicitSubjectAndNeverCertifiesSemanticHead; pinned scratch OpenCV import itself exits SIGBUS. One existing skip and inherited dynamic-property deprecations retained. Do not call the suite PASS or alter the unrelated cutout gate. New WordPress DB tests cover real durable claims/replay/quota/revocation/corruption; require hosted exact-head audit. No local MariaDB/WP result claimed.
+
+Actual corrected Wedding v0.5 Letter/A4 pairs were run through unchanged verify_external_document.py: both return external_document_integrity_blocked. Current text-only profile rejects media/drawing/header parts present in these sources. Stable-editor evidence is not admission compatibility. Extending passive-artwork/header source-bound evidence safely is a demonstrated remaining Digital capability. No gate relaxed, v0.4 substitution or commercial approval.
+
+Acceptance stays246/268 implementation candidates with22 non-Finance UNVERIFIED. Finance excluded; ten policy approvals unchanged. STOP ALL/external lock ON; automation OFF; RELEASE HOLD; NO-GO. No live Google/provider operations, registration, production/staging writes, orders, publishing, merge, deployment or activation.
+
+
 ## 2026-10-24 — Drive HTTPS protocol and OAuth observation boundary
 
 Isolated descendant of unchanged #1239/b04b4b2abff726223bffa0d85fdfd7c475ddd9e2 (#4783 PASS). New fixed-origin canonical request codec, deterministic source-hashed multipart and bounded/redacted HTTP decoding; strict non-secret OAuth scope/expiry/revocation observation. Mocked HTTP integration reuses durable claims/checkpoints and proves uncertain conversion reconciles once without duplicate POST. No new grant system, credential retrieval, default network sender or live dispatch path: the repository has no Google-specific execution grant/account binding; local reviews and Etsy/Printify authority cannot supply one. See `docs/completion/google-drive-https-boundary-20261024.md` for exact scope and remaining integration/setup work. Actual Wedding Guide v0.5 source bytes remain unavailable; recorded ZIP hash alone is not acceptance. Counts unchanged:246/268 implementation candidates,22 non-Finance and23 Finance UNVERIFIED. No Finance or source-PR changes; STOP ALL/external lock ON, automation OFF, RELEASE HOLD, NO-GO.
