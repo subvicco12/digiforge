@@ -1,5 +1,9 @@
 # Full-product integration execution ledger
 
+## 2026-10-24 — Drive HTTPS protocol and OAuth observation boundary
+
+Isolated descendant of unchanged #1239/b04b4b2abff726223bffa0d85fdfd7c475ddd9e2 (#4783 PASS). New fixed-origin canonical request codec, deterministic source-hashed multipart and bounded/redacted HTTP decoding; strict non-secret OAuth scope/expiry/revocation observation. Mocked HTTP integration reuses durable claims/checkpoints and proves uncertain conversion reconciles once without duplicate POST. No new grant system, credential retrieval, default network sender or live dispatch path: the repository has no Google-specific execution grant/account binding; local reviews and Etsy/Printify authority cannot supply one. See `docs/completion/google-drive-https-boundary-20261024.md` for exact scope and remaining integration/setup work. Actual Wedding Guide v0.5 source bytes remain unavailable; recorded ZIP hash alone is not acceptance. Counts unchanged:246/268 implementation candidates,22 non-Finance and23 Finance UNVERIFIED. No Finance or source-PR changes; STOP ALL/external lock ON, automation OFF, RELEASE HOLD, NO-GO.
+
 ## Authority, baseline and acceptance boundary
 
 Owner continuation now includes Finance **draft engineering, offline tests and schema design only**. Earlier Finance exclusions in historical reports are superseded for engineering, not for provider authenticity or operational authority. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD. No merge, deployment, actual financial approval/submission, production/staging write, credential use or provider operation is performed.

@@ -98,4 +98,29 @@ final class DriveArtifactTransferTest extends WP_UnitTestCase {
   $process=proc_open([PHP_BINARY,'-r',$code],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes);self::assertIsResource($process);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);self::assertSame(0,proc_close($process),$err.$out);self::assertSame('',$err);self::assertSame('digiforge_drive_scope',$out);
  }
  public static function unsupportedEnvironments():array{return [['production'],['staging'],['development']];}
+
+ /** Real codec over mocked HTTP observations; no sender or Google credentials exist. */
+ public function testHttpCodecComposesWithDurableClaimsAndUnknownCreateReconciliation():void {
+  $f=$this->fixture();$p=$this->prepare($f);$fixture=$this->adapter($f);$calls=[];$fail=true;
+  $adapter=new class($fixture,$p,$calls,$fail) implements DriveOfflineTransport {
+   public function __construct(private DriveFixtureTransport $fixture,private array $plan,public array &$calls,public bool &$fail){}
+   public function exchange(array $r,string $bytes):array {
+    DigiForge\DigitalFactory\DriveOAuthResponse::describe(['access_token'=>'synthetic_access','token_type'=>'Bearer','expires_in'=>3600,'scope'=>DigiForge\DigitalFactory\DriveOAuthResponse::SCOPE],time(),time(),false);
+    $done=['original_upload'=>['id'=>'synthetic_original'],'native_conversion'=>['id'=>'synthetic_native']];
+    $wire=DigiForge\DigitalFactory\DriveHttpsProtocol::encode($r,$this->plan,$done,$bytes);$this->calls[]=['stage'=>$r['stage'],'method'=>$wire['args']['method'],'url'=>$wire['url']];
+    $response=$this->fixture->exchange($r,$bytes);
+    // Google may have committed conversion before a response is truncated/lost.
+    if($r['stage']==='native_conversion'&&$this->fail){$this->fail=false;return DigiForge\DigitalFactory\DriveHttpsProtocol::decode($r,200,['content-type'=>'application/json','content-length'=>'999'],'{"id":');}
+    $binary=isset($response['bytes']);$mime=$r['stage']==='pdf_export'?'application/pdf':Request::DOCX;
+    $body=$binary?$response['bytes']:wp_json_encode($response['metadata']??['files'=>$response['files']??[]]);
+    return DigiForge\DigitalFactory\DriveHttpsProtocol::decode($r,$response['status'],['content-type'=>$binary?$mime:'application/json','content-length'=>(string)strlen($body)],$body);
+   }
+  };
+  $first=(new Transfer())->runOffline($p['id'],$adapter);self::assertSame('UNKNOWN',$first['state']);self::assertSame('native_conversion',$first['blocked_stage']);
+  $second=(new Transfer())->runOffline($p['id'],$adapter);self::assertSame('OFFLINE_VERIFIED',$second['state']);
+  self::assertCount(1,array_filter($calls,static fn($r)=>$r['stage']==='native_conversion'));
+  self::assertCount(1,array_filter($calls,static fn($r)=>$r['stage']==='reconcile_native_conversion'));
+  $count=count($calls);self::assertSame($second,(new Transfer())->runOffline($p['id'],$adapter));self::assertCount($count,$calls);
+  self::assertWPError((new Transfer())->execute($p['id']));self::assertSame(0,$this->network);
+ }
 }
