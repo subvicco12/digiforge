@@ -170,14 +170,28 @@ jobs:
           python3 -m unittest discover -s tests/security -p 'test_repository_credentials.py'
           python3 bin/check-repository-credentials.py --scanner "$DIGIFORGE_TEST_GITLEAKS" --report "$RUNNER_TEMP/digiforge-repository-credential-evidence.json"
 
+      - name: Google HTTP boundary scanner regressions
+        run: python3 -m unittest discover -s tests/security -p 'test_google_http_boundary.py'
+
       - name: External HTTP client scan
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin | grep -vE '^includes/DigitalFactory/DriveWordPressGoogleHttp[.]php:[0-9]+:[[:space:]]*\$response=wp_remote_request\(\$url,\$args\);$'; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
+          # One exact Google sender line; all other paths/calls remain globally denied.
+          test "$(grep -c 'wp_remote_request(' includes/DigitalFactory/DriveWordPressGoogleHttp.php)" -eq 1
+          ! grep -nE '(wp_remote_(get|post|head)|curl_init|GuzzleHttp|Requests\\\\)' includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq '!self::valid($url,$args)||!$this->gate->allows($binding)' includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['sslverify']??null)!==true" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['redirection']??null)!==0" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['reject_unsafe_urls']??null)!==true" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$args['limit_response_size']>10000001" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$host==='oauth2.googleapis.com'" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$host!=='www.googleapis.com'" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$args['cookies']=[]" includes/DigitalFactory/DriveWordPressGoogleHttp.php
           test "$(grep -c 'wp_remote_post(' includes/Operations/HostingerRecoveryProvider.php)" -eq 1
           ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Operations/HostingerRecoveryProvider.php
           grep -Fq 'https://developers.hostinger.com/api/hosting/v1' includes/Operations/HostingerRecoveryProvider.php

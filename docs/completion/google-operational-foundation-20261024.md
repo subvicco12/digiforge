@@ -18,7 +18,7 @@ These are internal composable services, not a production activation. Existing `D
 - Operational unit tests14/169 assertions PASS. Combined Google suite51/319 PASS.
 - Three legacy suites PASS; configured PHPStan/style PASS; new core OAuth/authority/dispatcher PHPStan level5 PASS. Authority/clock reads marked impure to preserve repeated current-state checks.
 - Full local unit suite1794/9494, one existing environment error: `OfflineCutoutPipelineTest::testPipelineRequiresExplicitSubjectAndNeverCertifiesSemanticHead` (offline worker not configured), existing skip1. Not a local full-suite PASS. No unrelated cutout gate weakened.
-- New hosted WordPress DB tests cover real unique insertion, stale writes, revocation and a locked real gate/transport with zero HTTP calls. Exact-head mandatory hosted audit is pending at commit preparation; final run receipt belongs on the existing PR/issue.
+- New hosted WordPress DB tests cover real unique insertion, stale writes, revocation and a locked real gate/transport with zero HTTP calls. First exact-head audit #4791 on09ec46b ran hosted unit1794/9500 and WordPress1408/23602 (existing skips1/2), catalog42/690, scheduler4/75 and credential/security checks successfully, then failed at the outbound HTTP allowlist because the new sender was not admitted. The follow-up preserves the global deny, admits only the exact sender line/path, pins guard/TLS/bounds/origins and adds three executing scanner regressions (including rogue paths, lookalike filenames, duplicate calls and missing guards). Regression suite3 PASS; final exact-head audit is pending at follow-up preparation. No check skipped or broadly excluded.
 - No illustrated source-admission tests or stable-editor tests were repeated locally.
 
 ## Product evidence reconciliation
@@ -62,7 +62,7 @@ Authoritative `docs/engineering/original-source/distinct-nonfinance-acceptance.t
 2. When separately authorized, configure the backend OAuth client/callback and the expiring Google-specific execution scope through server custody, then verify the genuine account and folder with the least-privilege app. No manual source upload is requested; originals already exist. Installed callback/queue orchestration is the remaining engineering integration boundary before any live end-to-end claim.
 3. Retain authentic fixed-provider POD geometry/rights/human review, ownership records, attributable metric completeness and separately authorized installed-site desktop/mobile acceptance. Finance remains excluded.
 
-Engineering foundation: tested offline increment, exact-head audit pending at preparation. Operational Google/complete MVP/commercial release: NO-GO. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.
+Engineering foundation: tested offline increment; first audit HTTP-allowlist failure preserved, focused boundary correction complete, final exact-head audit pending at follow-up preparation. Operational Google/complete MVP/commercial release: NO-GO. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.
 
 ## Primary protocol references (documentation only)
 
