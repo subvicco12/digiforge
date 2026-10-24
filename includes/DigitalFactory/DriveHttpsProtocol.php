@@ -6,7 +6,7 @@ namespace DigiForge\DigitalFactory;
 final class DriveHttpsProtocol
 {
     /** Encode only an exact existing source-bound plan; returned arguments contain no secrets. */
-    public static function encode(array $request,array $plan,array $completed,string $sourceBytes):array
+    public static function encode(#[\SensitiveParameter] array $request,#[\SensitiveParameter] array $plan,#[\SensitiveParameter] array $completed,#[\SensitiveParameter] string $sourceBytes):array
     {
         $stage=$request['stage']??'';
         if(!is_string($stage))throw new \InvalidArgumentException('Invalid Drive request.');
@@ -33,7 +33,7 @@ final class DriveHttpsProtocol
     }
 
     /** Decode bounded HTTP observations. Never return provider error bodies, headers or URLs. */
-    public static function decode(array $request,int $status,array $headers,string $body):array
+    public static function decode(#[\SensitiveParameter] array $request,int $status,#[\SensitiveParameter] array $headers,#[\SensitiveParameter] string $body):array
     {
         if($status!==200)return ['status'=>in_array($status,[301,302,303,307,308,400,401,403,404,409,429,500,502,503,504],true)?$status:0];
         $limit=$request['max_response_bytes']??0;$stage=$request['stage']??'';
@@ -59,7 +59,7 @@ final class DriveHttpsProtocol
         // Detailed identity/MIME/parent/version validation remains in the existing orchestrator.
         $safe=self::metadata($data);return $safe===null?['status'=>0]:['status'=>200,'metadata'=>$safe];
     }
-    private static function metadata(mixed $value):?array
+    private static function metadata(#[\SensitiveParameter] mixed $value):?array
     {
         if(!is_array($value)||isset($value['error'])||!DriveTransferRequest::validId($value['id']??null))return null;
         if(isset($value['mimeType'])&&!in_array($value['mimeType'],[DriveTransferRequest::DOCX,DriveTransferRequest::DOC,'application/vnd.google-apps.folder'],true))return null;
@@ -79,7 +79,7 @@ final class DriveHttpsProtocol
         }
         return $safe;
     }
-    private static function canonical(array $value):string
+    private static function canonical(#[\SensitiveParameter] array $value):string
     {
         if(!array_is_list($value))ksort($value);
         foreach($value as &$item)if(is_array($item))$item=self::canonical($item);
