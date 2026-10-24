@@ -1,0 +1,52 @@
+{
+  "trial": "EXACT_V05_LOCAL_TECHNICAL_ONLY",
+  "verifier_sha256": "44c1c9504566cb9350630f264c7cf74696af12defa01644d4011e939666f9b1a",
+  "records": [
+    {
+      "edition": "Letter",
+      "named_field_count": 52,
+      "field_occurrences": 55,
+      "receipt": {
+        "artwork_export_parity_verified": false,
+        "export_sha256": "ef8b759106936b6e63d0874d61cbc379c7dd36c35f0806f67adf38bbc6052f7f",
+        "normalized_text_sha256": "7ab099881c4874eff4cc696f6dacf308774e9a8bc0d183a100db27e2cc67e471",
+        "page_count": 9,
+        "production_authorized": false,
+        "profile": "digiforge-external-docx-pdf-v1",
+        "rights_certified": false,
+        "source_layout_profile": "INLINE_RGBA8_PNG_STATIC_HEADER_V1",
+        "source_sha256": "0a9fabc469d217827ef50f645324c5bbda34f897d969092d21582034eaf10168",
+        "technical_scope": "SOURCE_TEXT_AND_DECLARED_BODY_BOUNDS_ONLY",
+        "text_policy": "UNICODE_WHITESPACE_COLLAPSE_ONLY_LITERAL_GLYPHS",
+        "visual_approved": false
+      },
+      "tampered_header_rejected": true,
+      "tampered_png_rejected": true,
+      "originals_unchanged": true
+    },
+    {
+      "edition": "A4",
+      "named_field_count": 52,
+      "field_occurrences": 55,
+      "receipt": {
+        "artwork_export_parity_verified": false,
+        "export_sha256": "1420880bba0eeda13334269f9e6634dd54aa13fc312b4cedfe3e2d5ed504ef3e",
+        "normalized_text_sha256": "7ab099881c4874eff4cc696f6dacf308774e9a8bc0d183a100db27e2cc67e471",
+        "page_count": 9,
+        "production_authorized": false,
+        "profile": "digiforge-external-docx-pdf-v1",
+        "rights_certified": false,
+        "source_layout_profile": "INLINE_RGBA8_PNG_STATIC_HEADER_V1",
+        "source_sha256": "41170901605d7148ecb61c8ae32e3c6ab1ba9f1095a16dfb3a60831fe274a56c",
+        "technical_scope": "SOURCE_TEXT_AND_DECLARED_BODY_BOUNDS_ONLY",
+        "text_policy": "UNICODE_WHITESPACE_COLLAPSE_ONLY_LITERAL_GLYPHS",
+        "visual_approved": false
+      },
+      "tampered_header_rejected": true,
+      "tampered_png_rejected": true,
+      "originals_unchanged": true
+    }
+  ],
+  "commercial_approval": false,
+  "authoritative_product_id": null
+}

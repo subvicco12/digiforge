@@ -42,6 +42,8 @@ final class ShopAccessAdminGuard
             'digiforge_portal_recovery_plan','digiforge_portal_recovery_accept',
             'digiforge_portal_notification_preferences','digiforge_portal_draft_qa_preview',
             'digiforge_ai_evidence_review','digiforge_local_render_prepare',
+            // Exact Google handlers independently resolve stored Digital source/session authority.
+            'digiforge_google_oauth_start','digiforge_google_oauth_callback','digiforge_google_queue',
             'digiforge_u3_asset_review','digiforge_u3_product_review',
             // Applying stronger protection reveals no shop data and grants no access.
             'digiforge_frontend_protect_production',

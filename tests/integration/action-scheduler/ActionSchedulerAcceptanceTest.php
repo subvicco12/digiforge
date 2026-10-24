@@ -60,4 +60,18 @@ final class ActionSchedulerAcceptanceTest extends WP_UnitTestCase
         $prior=$_GET;try{$_GET=['df_view'=>'automation','df_shop'=>'digital'];$html=(new DigiForge\Portal\Portal())->render();}finally{$_GET=$prior;}
         self::assertStringContainsString('Action Scheduler evidence</span><b>AVAILABLE',$html);self::assertStringContainsString('<td>ACTION_SCHEDULER</td><td>#'.$candidate['id'].'</td><td>digital</td><td>dispatcher</td><td>PENDING</td><td>NO</td>',$html);self::assertStringNotContainsString($args[2],$html);self::assertSame($before,ActionScheduler::store()->get_status($id));self::assertSame($logs,count(ActionScheduler::logger()->get_logs($id)));self::assertFalse($snapshot['external_execution_authorized']);
     }
+    public function testGoogleHookUsesOfficialSchedulerButMissingConfigRemainsBlocked():void
+    {
+        $runtime=new \DigiForge\DigitalFactory\DriveGoogleWordPress();$runtime->register();
+        $jobs=new \DigiForge\DigitalFactory\DriveWordPressQueueJobs();$job=$jobs->create(hash('sha256',wp_generate_uuid4()),'folder',null);self::assertIsInt($job);
+        try{
+            self::assertTrue($jobs->wake($job));$args=[$job];
+            $ids=as_get_scheduled_actions(['hook'=>'digiforge_google_drive_job','args'=>$args,'group'=>'digiforge-google','status'=>ActionScheduler_Store::STATUS_PENDING,'per_page'=>10],'ids');self::assertCount(1,$ids);
+            ActionScheduler_QueueRunner::instance()->process_action((int)$ids[0],'DigiForge Google held acceptance');
+            self::assertSame(ActionScheduler_Store::STATUS_COMPLETE,ActionScheduler::store()->get_status((int)$ids[0]));self::assertSame('BLOCKED',$jobs->read($job)['state']);
+        }finally{
+            remove_action('admin_post_digiforge_google_oauth_start',[$runtime,'start']);remove_action('admin_post_digiforge_google_oauth_callback',[$runtime,'callback']);remove_action('admin_post_digiforge_google_queue',[$runtime,'queue']);remove_action('digiforge_google_drive_job',[$runtime,'run']);
+        }
+    }
+
 }
