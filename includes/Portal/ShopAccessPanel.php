@@ -82,8 +82,11 @@ final class ShopAccessPanel
             $html .= '<p role="status">' . ($_GET['df_access_result'] === 'recorded' ? 'The explicit assignment change was recorded.' : 'Assignment blocked. Refresh signed scope and revision before trying again.') . '</p>';
         }
         $records = ShopAccessAuthority::records();
+        if (defined(\DigiForge\Security\FirstPartyOwnerPolicy::CONFIG)) {
+            $html .= '<p>First-party OWNER: protected account #1. Current verified account binding, administrator role and existing capabilities are required. Enrollment records local access only.</p>';
+        }
         if ($records instanceof \WP_Error) {
-            return $html . '<p>Independent signed owner/delegate authority is missing or invalid. A trusted host operator must provision the reviewed authority envelope and public trust key. This website cannot create that authority or bypass it.</p></section>';
+            return $html . '<p>OWNER account binding or independent delegate authority is unavailable. Review protected server configuration and current account identity. This website cannot create a trust root or bypass it.</p></section>';
         }
         $repo = new ShopAccessRepository();
         $count = 0;
