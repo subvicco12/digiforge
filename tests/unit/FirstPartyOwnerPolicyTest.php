@@ -50,4 +50,14 @@ final class FirstPartyOwnerPolicyTest extends PHPUnit\Framework\TestCase
         self::assertNotContains('manage_digiforge_ai',$class::storedRoleCapabilities(serialize($roles)));
         foreach([null,[],false,'',serialize(new stdClass()),serialize(['editor'=>$roles['administrator']]),str_repeat('x',1048577)] as $raw)self::assertSame([],$class::storedRoleCapabilities($raw));
     }
+    public function testMalformedAccountCannotCollapseToAHashOfFailedJsonOrCoercedFields(): void
+    {
+        $class=DigiForge\Security\FirstPartyOwnerPolicy::class;$i=$this->identity();$caps=DigiForge\Core\Capabilities::ALL;
+        foreach(['user_login'=>"\xc3\x28",'user_pass'=>'','user_registered'=>123,'user_email'=>1] as $key=>$value){
+            $bad=array_replace($i,[$key=>$value]);
+            self::assertSame('',$class::fingerprint($bad));
+            $c=$this->config($i);$c['account_sha256']=hash('sha256','');
+            self::assertSame([],$class::evaluate($c,$bad,['administrator'],$caps,$caps,$c['installation_sha256'],200));
+        }
+    }
 }

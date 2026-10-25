@@ -11,12 +11,14 @@ final class FirstPartyOwnerPolicy
 
     public static function fingerprint(array $identity): string
     {
-        $parts=[];
-        foreach(['ID','user_login','user_email','user_registered','user_pass'] as $key){
-            if(!isset($identity[$key])||(!is_string($identity[$key])&&!is_int($identity[$key])))return '';
+        if(($identity['ID']??null)!==1)return '';
+        $parts=['1'];
+        foreach(['user_login','user_email','user_registered','user_pass'] as $key){
+            if(!is_string($identity[$key]??null)||$identity[$key]===''||strlen($identity[$key])>4096||preg_match('//u',$identity[$key])!==1||preg_match('/[\x00-\x1F\x7F]/',$identity[$key]))return '';
             $parts[]=(string)$identity[$key];
         }
-        return hash('sha256',(string)json_encode($parts,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+        $json=json_encode($parts,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+        return is_string($json)?hash('sha256',$json):'';
     }
 
     /** Pure evaluator. A caller-provided identity here never installs runtime authority. */

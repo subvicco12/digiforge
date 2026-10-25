@@ -614,13 +614,13 @@ final class Portal
         if(!is_string($raw)||strlen($raw)>65536||!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash)||!hash_equals($hash,hash('sha256',$raw)))return 'UNAVAILABLE: payload integrity requires review.';
         try{
             $payload=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
-            if(!is_array($payload)||count($payload)>100||\DigiForge\Orders\Validator::canonicalJson($payload)!==$raw)return 'UNAVAILABLE: canonical personalization required.';
+            if(!is_array($payload)||count($payload)>100||\DigiForge\Orders\Validator::personalizationJson($payload)!==$raw)return 'UNAVAILABLE: canonical personalization required.';
             foreach($payload as &$value){
                 if(!is_scalar($value)&&$value!==null)return 'UNAVAILABLE: typed personalization required.';
                 if(is_string($value)&&str_starts_with($value,'digiforge/product-factory/'))$value='Protected image reference SHA-256 '.hash('sha256',$value);
             }
             unset($value);
-            return \DigiForge\Orders\Validator::canonicalJson($payload);
+            return \DigiForge\Orders\Validator::personalizationJson($payload);
         }catch(\Throwable){return 'UNAVAILABLE: canonical personalization required.';}
     }
 

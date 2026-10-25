@@ -33,8 +33,8 @@ final class EtsyPersonalizationIntakeAcceptanceTest extends WP_UnitTestCase
     }
     public function testLineOnlyTypedBuyerPayloadIsRetainedExactlyAndRequiresHumanPersonalizationReview(): void
     {
-        $payload=['recipient_name'=>'Ada','printed_year'=>2026,'gift'=>true];$f=$this->intake(['personalization'=>$payload]);
-        self::assertSame(1,(int)$f['order']['personalization_required']);self::assertSame(Validator::canonicalJson($payload),$f['line']['personalization_payload']);self::assertSame(hash('sha256',Validator::canonicalJson($payload)),hash('sha256',$f['line']['personalization_payload']));
+        $payload=['recipient_name'=>"  José e\u{0301}  ",'printed_year'=>2026,'gift'=>true];$f=$this->intake(['personalization'=>$payload]);
+        self::assertSame(1,(int)$f['order']['personalization_required']);self::assertSame(Validator::personalizationJson($payload),$f['line']['personalization_payload']);self::assertSame(hash('sha256',Validator::personalizationJson($payload)),hash('sha256',$f['line']['personalization_payload']));
         $decoded=json_decode($f['line']['personalization_payload'],true);foreach($payload as $key=>$value)self::assertSame($value,$decoded[$key]);$readiness=(new Repository())->readiness((int)$f['order']['id']);self::assertNotWPError($readiness);self::assertFalse($readiness['checks']['personalization_reviewed']);self::assertFalse($readiness['ready']);
         $replay=(new ReflectionMethod($this->fixture,'accept'))->invoke($this->fixture,$f['signed']);self::assertNotWPError($replay);self::assertFalse($replay['process_permitted']);
         global $wpdb;self::assertSame($f['line'],$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::order_line_items().' WHERE id=%d',$f['line']['id']),ARRAY_A));
