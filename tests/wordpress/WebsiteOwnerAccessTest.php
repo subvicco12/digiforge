@@ -87,6 +87,154 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
             self::assertStringNotContainsString('Google document preparation',(new DigiForge\Portal\Portal())->render());
         } finally { $_GET=$before; }
     }
+    public static function ownerShops(): array
+    {
+        return [['digital'], ['personalized_pod'], ['standard_pod'], ['jewelry']];
+    }
+
+    /** @dataProvider ownerShops */
+    public function testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation(string $shop): void
+    {
+        $actor = get_current_user_id();
+        $caps = DigiForge\Core\Capabilities::ALL;
+        self::assertCount(15, $caps);
+        $authority = ShopAccessFixture::authority($actor, $shop, $caps);
+        ShopAccessFixture::provision([$authority]);
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['shop' => $shop, 'caps' => $caps, 'approval' => $authority['source_approval_hash']]);
+        $externalCalls = 0;
+        $blockHttp = static function ($preempt) use (&$externalCalls) {
+            $externalCalls++;
+            return new WP_Error('synthetic_external_request_denied');
+        };
+        add_filter('pre_http_request', $blockHttp);
+        try {
+            $result = $panel->processBrowser($p);
+            self::assertNotWPError($result);
+            self::assertFalse($result['external_execution_authorized']);
+            foreach ($caps as $cap) {
+                self::assertTrue(DigiForge\Security\ShopAccess::authorize($shop, $cap), $cap);
+            }
+            $repo = new DigiForge\Security\ShopAccessRepository();
+            $state = $repo->read($shop);
+            self::assertNotWPError($state);
+            self::assertSame(1, $state['revision']);
+            self::assertSame($caps, $state['grants'][$result['grant_id']]['caps']);
+            self::assertTrue($repo->verifyGrantEvidence($result['grant_id'], $state['grants'][$result['grant_id']], 1));
+            self::assertWPError($panel->processBrowser($p));
+            foreach (array_diff(DigiForge\Security\ShopAccessPolicy::canonicalShops(), [$shop]) as $foreign) {
+                self::assertWPError(DigiForge\Security\ShopAccess::authorize($foreign, 'manage_digiforge_finance'));
+            }
+            self::assertSame(1, $repo->read($shop)['revision']);
+            self::assertTrue(DigiForge\Core\Settings::get('stop_all', true));
+            self::assertTrue(DigiForge\Core\Settings::safety_locked());
+            self::assertFalse(DigiForge\Core\Settings::get('automation_armed', false));
+            self::assertSame(0, $externalCalls);
+        } finally {
+            remove_filter('pre_http_request', $blockHttp);
+        }
+    }
+
+    public function testFinanceCheckboxAppearsOnlyInSignedOwnerEnrollment(): void
+    {
+        $authority = ShopAccessFixture::authority(get_current_user_id(), 'digital', DigiForge\Core\Capabilities::ALL);
+        ShopAccessFixture::provision([$authority]);
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $document = new DOMDocument();
+        @$document->loadHTML($panel->render());
+        $xpath = new DOMXPath($document);
+        $finance = '//input[@name="caps[]" and @value="manage_digiforge_finance"]';
+        self::assertSame(1, $xpath->query('//form[.//input[@name="operation" and @value="ENROLL"]]' . $finance)->length);
+        self::assertSame(0, $xpath->query('//form[.//input[@name="operation" and @value="GRANT"]]' . $finance)->length);
+        $authority['authority'] = 'DELEGATE';
+        ShopAccessFixture::provision([$authority]);
+        @$document->loadHTML($panel->render());
+        self::assertSame(0, (new DOMXPath($document))->query($finance)->length);
+    }
+
+    public function testUnsignedDelegateAndOperatorFinanceSubmissionsCannotUseOwnerEnrollment(): void
+    {
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['caps' => ['manage_digiforge_finance']]);
+        self::assertWPError($panel->processBrowser($p));
+        $authority = ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps'], 0, 'DELEGATE');
+        ShopAccessFixture::provision([$authority]);
+        self::assertWPError($panel->processBrowser($p));
+        $authority['authority'] = 'OWNER';
+        ShopAccessFixture::provision([$authority]);
+        $subject = self::factory()->user->create(['role' => 'administrator']);
+        self::assertWPError($panel->processBrowser(array_replace($p, ['operation' => 'GRANT', 'subject_id' => (string)$subject])));
+        wp_set_current_user($subject);
+        $p['_wpnonce'] = wp_create_nonce($panel::ACTION);
+        self::assertWPError($panel->processBrowser($p));
+        self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+
+    public function testFinanceEnrollmentStillRequiresNonceConfirmationApprovalRoleScopeAndCurrentRevision(): void
+    {
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['caps' => ['manage_digiforge_finance']]);
+        ShopAccessFixture::provision([ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps'])]);
+        foreach ([
+            ['_wpnonce' => 'invalid'], ['confirm' => ''], ['approval' => str_repeat('b', 64)],
+            ['role' => 'subscriber'], ['caps' => ['manage_digiforge_finance', 'manage_options']],
+            ['subject_id' => '1'], ['expected_revision' => '1'], ['expires_at' => (string)(time() + 7200)],
+        ] as $change) {
+            self::assertWPError($panel->processBrowser(array_replace($p, $change)));
+        }
+        self::assertWPError($panel->processBrowser($p, 'GET'));
+        $authority = ShopAccessFixture::authority(get_current_user_id(), 'digital', ['manage_digiforge']);
+        ShopAccessFixture::provision([$authority]);
+        self::assertWPError($panel->processBrowser($p));
+        self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+
+    public function testRevokedAndExpiredOwnerAuthorityInvalidateFinanceAccessAndFurtherEnrollment(): void
+    {
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['caps' => ['manage_digiforge_finance']]);
+        $authority = ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps']);
+        ShopAccessFixture::provision([$authority]);
+        self::assertNotWPError($panel->processBrowser($p));
+        self::assertTrue(DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_finance'));
+        $next = array_replace($p, ['request_id' => 'owner_finance_request_2', 'expected_revision' => '1']);
+        ShopAccessFixture::provision([]);
+        self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_finance'));
+        self::assertWPError($panel->processBrowser($next));
+        $authority['expires_at'] = time() - 1;
+        ShopAccessFixture::provision([$authority]);
+        self::assertWPError(DigiForge\Security\ShopAccessAuthority::records());
+        self::assertWPError($panel->processBrowser($next));
+        self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_finance'));
+        self::assertSame(1, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+
+    public function testFinanceEnrollmentCannotReplaceMissingOrdinaryCapabilityOrDurableAudit(): void
+    {
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['caps' => ['manage_digiforge_finance']]);
+        ShopAccessFixture::provision([ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps'])]);
+        wp_get_current_user()->add_cap('manage_digiforge_finance', false);
+        self::assertWPError($panel->processBrowser($p));
+        wp_get_current_user()->remove_cap('manage_digiforge_finance');
+        global $wpdb;
+        $table = DigiForge\Database\Tables::audit_log();
+        $quotedTable = chr(96) . $table . chr(96);
+        $failAudit = static function (string $sql) use ($quotedTable): string {
+            return str_starts_with($sql, 'INSERT INTO ' . $quotedTable)
+                ? str_replace($quotedTable, chr(96) . 'missing_owner_finance_audit' . chr(96), $sql) : $sql;
+        };
+        $prior = $wpdb->suppress_errors(true);
+        add_filter('query', $failAudit);
+        try {
+            self::assertWPError($panel->processBrowser($p));
+        } finally {
+            remove_filter('query', $failAudit);
+            $wpdb->suppress_errors($prior);
+        }
+        self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+
     public function testAccessPageAndEmptyDashboardHaveNoBusinessDataAndNeverProvisionOnRead(): void
     {
         $get = $_GET;try {
