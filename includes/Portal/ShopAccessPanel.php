@@ -148,7 +148,7 @@ final class ShopAccessPanel
     }
     public function landing(array $shops): string
     {
-        $html = '<section class="df-panel"><h1>Operations Console</h1><p>Only explicitly assigned shop workflows are available. Global evidence remains restricted.</p><a href="' . esc_url(home_url('/?df_view=access')) . '">Shop access and operator assignments</a>';
+        $html = '<section class="df-panel"><h1>Operations Console</h1><p>Only explicitly assigned shop workflows are available. Global evidence requires assignments for all four shops.</p><a href="' . esc_url(home_url('/?df_view=access')) . '">Shop access and operator assignments</a>';
         foreach ($shops as $shop) {
             $html .= '<h2>' . esc_html($shop) . '</h2>';foreach (['businesses' => 'manage_digiforge','products' => 'manage_digiforge_products','digital' => 'manage_digiforge_digital','pod_personalized' => 'manage_digiforge_pod','approvals' => 'manage_digiforge_research','listings' => 'manage_digiforge_listings','production' => 'manage_digiforge_production','automation' => 'manage_digiforge_automation','ai_budget' => 'manage_digiforge_ai','audit' => 'manage_digiforge'] as $view => $cap) {
                 if (($view === 'digital' && $shop !== 'digital') || ($view === 'pod_personalized' && $shop !== 'personalized_pod') || ShopAccess::authorize($shop, $cap) !== true) {

@@ -140,16 +140,15 @@ final class Portal
             $view = 'dashboard';
         }
 
-        if($view==='access')return (new ShopAccessPanel())->render();
         $approvalAccess=$this->approvalShopAccess();
         $access=$view==='approvals'?$approvalAccess:\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
         if(is_wp_error($access))return $this->notice('Shop authorization evidence is unavailable.',true);
         $this->authorizedShops=$access;$this->allShopsAuthorized=$view==='approvals'?$this->approvalAllShopsAuthorized:count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
         if($view==='dashboard'&&!$this->allShopsAuthorized)return (new ShopAccessPanel())->landing($access);
         $requested=$_GET['df_shop']??'all';
-        if(!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
+        if($view!=='access'&&!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
         // These views contain global or fixed-shop aggregates; partial grants cannot read them.
-        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation','businesses'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
+        if(!$this->allShopsAuthorized&&!in_array($view,['access','approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation','businesses'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
         ?>
         <div class="df-portal-shell">
@@ -489,6 +488,7 @@ final class Portal
 
     private function view(string $view): void
     {
+        if ($view === 'access') { echo (new ShopAccessPanel())->render(); return; }
         if ($view === 'dashboard') { $this->dashboard(); return; }
         if ($view === 'approvals') { $this->approvals(); return; }
         if ($view === 'attention') { $this->attention(); return; }
