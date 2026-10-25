@@ -16,6 +16,9 @@ final class FirstPartyOwnerIntegrationTest extends WP_UnitTestCase
         ShopAccessFixture::reset();
         if($this->originalIdentity!==[])$wpdb->update($wpdb->users,$this->originalIdentity,['ID'=>1]);
         clean_user_cache(1);
+        // Parent tearDown rolls back: commit our exact cleanup first, then restore
+        // the expected transaction so it cannot resurrect the fixture audit rows.
+        $wpdb->query('COMMIT');$wpdb->query('START TRANSACTION');
         parent::tearDown();
     }
     /**
@@ -27,7 +30,7 @@ final class FirstPartyOwnerIntegrationTest extends WP_UnitTestCase
     {
         DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();ShopAccessFixture::reset();
         $user=get_userdata(1);self::assertInstanceOf(WP_User::class,$user);
-        $this->originalIdentity=['user_email'=>$user->user_email,'user_registered'=>$user->user_registered,'user_pass'=>$user->user_pass];
+        $this->originalIdentity=['user_login'=>$user->user_login,'user_email'=>$user->user_email,'user_registered'=>$user->user_registered,'user_pass'=>$user->user_pass];
         wp_update_user(['ID'=>1,'user_email'=>'subvicco12@gmail.com']);$user=new WP_User(1);$user->set_role('administrator');wp_set_current_user(1);
         global $wpdb;
         $identity=$wpdb->get_row("SELECT ID,user_login,user_email,user_registered,user_pass FROM {$wpdb->users} WHERE ID=1",ARRAY_A);$identity['ID']=1;
@@ -42,8 +45,11 @@ final class FirstPartyOwnerIntegrationTest extends WP_UnitTestCase
             self::assertWPError($panel->processBrowser($p,'GET'));
             $quoted=chr(96).DigiForge\Database\Tables::audit_log().chr(96);
             $failAudit=static fn(string $sql):string=>str_starts_with($sql,'INSERT INTO '.$quoted)?str_replace($quoted,chr(96).'missing_native_owner_audit'.chr(96),$sql):$sql;
+            $diagnostic=tempnam(sys_get_temp_dir(),'native-owner-audit-');self::assertNotFalse($diagnostic);
+            $errorLog=ini_set('error_log',$diagnostic);
             $prior=$wpdb->suppress_errors(true);add_filter('query',$failAudit);
-            try{self::assertWPError($panel->processBrowser($p));}finally{remove_filter('query',$failAudit);$wpdb->suppress_errors($prior);}
+            try{self::assertWPError($panel->processBrowser($p));}finally{remove_filter('query',$failAudit);$wpdb->suppress_errors($prior);ini_set('error_log',(string)$errorLog);}
+            self::assertStringContainsString('AUDIT_WRITE_FAILED',(string)file_get_contents($diagnostic));unlink($diagnostic);
             self::assertSame(0,$repo->read($record['shop'])['revision']);
             $result=$panel->processBrowser($p);self::assertNotWPError($result);self::assertFalse($result['external_execution_authorized']);
             foreach(DigiForge\Core\Capabilities::ALL as $cap)self::assertTrue(DigiForge\Security\ShopAccess::authorize($record['shop'],$cap));
@@ -76,6 +82,15 @@ final class FirstPartyOwnerIntegrationTest extends WP_UnitTestCase
         }
         $role=get_role('administrator');$role->remove_cap('manage_digiforge_ai');
         self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge'));$role->add_cap('manage_digiforge_ai');
+        $roleKey=$wpdb->get_blog_prefix().'user_roles';get_option($roleKey);wp_roles()->for_site();
+        $rawRoles=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$roleKey));
+        $revoked=unserialize($rawRoles,['allowed_classes'=>false]);unset($revoked['administrator']['capabilities']['manage_digiforge_ai']);
+        $wpdb->update($wpdb->options,['option_value'=>serialize($revoked)],['option_name'=>$roleKey]);
+        try{
+            self::assertWPError(DigiForge\Security\ShopAccessAuthority::records());
+            self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge'));
+            self::assertWPError($repo->enrollOwner('digital','administrator',['manage_digiforge'],time()+300,$records[0]['source_approval_hash'],'native_cached_role_denied',2));
+        }finally{$wpdb->update($wpdb->options,['option_value'=>$rawRoles],['option_name'=>$roleKey]);}
         $state=$repo->read('digital');$ownerId=array_key_first($state['grants']);
         self::assertNotWPError($repo->revoke('digital',$ownerId,'native_owner_revoke_001',$state['revision']));
         self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge'));

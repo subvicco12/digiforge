@@ -37,6 +37,15 @@ final class FirstPartyOwnerPolicy
         return $records;
     }
 
+    public static function storedRoleCapabilities(mixed $raw): array
+    {
+        if(!is_string($raw)||$raw===''||strlen($raw)>1048576)return [];
+        $roles=@unserialize($raw,['allowed_classes'=>false]);
+        if(!is_array($roles)||!is_array($roles['administrator']??null)||!is_array($roles['administrator']['capabilities']??null))return [];
+        $caps=[];foreach(\DigiForge\Core\Capabilities::ALL as $cap){if(($roles['administrator']['capabilities'][$cap]??null)===true)$caps[]=$cap;}
+        return $caps;
+    }
+
     public static function records(): array|\WP_Error
     {
         if(!defined(self::CONFIG))return [];
@@ -46,9 +55,13 @@ final class FirstPartyOwnerPolicy
         if($wpdb->last_error!=='')return new \WP_Error('digiforge_owner_identity_read','OWNER identity evidence unavailable.',['status'=>503]);
         if(!is_array($identity))return self::error();
         $identity['ID']=(int)$identity['ID'];
+        $wpdb->last_error='';
+        $rawRoles=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$wpdb->get_blog_prefix().'user_roles'));
+        if($wpdb->last_error!=='')return new \WP_Error('digiforge_owner_role_read','OWNER role evidence unavailable.',['status'=>503]);
+        $roleCaps=self::storedRoleCapabilities($rawRoles);
         clean_user_cache(1);wp_roles()->for_site();
-        $user=new \WP_User(1);$role=get_role('administrator');$userCaps=[];$roleCaps=[];
-        foreach(\DigiForge\Core\Capabilities::ALL as $cap){if($user->has_cap($cap))$userCaps[]=$cap;if($role&&$role->has_cap($cap))$roleCaps[]=$cap;}
+        $user=new \WP_User(1);$userCaps=[];
+        foreach(\DigiForge\Core\Capabilities::ALL as $cap){if($user->has_cap($cap))$userCaps[]=$cap;}
         $installation=hash('sha256',site_url('/').'|'.$wpdb->prefix);
         $records=self::evaluate(constant(self::CONFIG),$identity,$user->roles,$userCaps,$roleCaps,$installation,time());
         return $records===[]?self::error():$records;

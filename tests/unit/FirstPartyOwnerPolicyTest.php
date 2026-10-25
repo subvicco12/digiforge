@@ -38,4 +38,16 @@ final class FirstPartyOwnerPolicyTest extends PHPUnit\Framework\TestCase
         $i=$this->identity();$c=$this->config($i);$caps=DigiForge\Core\Capabilities::ALL;$class=DigiForge\Security\FirstPartyOwnerPolicy::class;
         foreach([null,[],array_replace($c,['version'=>'1']),array_replace($c,['email_verified_at'=>0]),array_replace($c,['email_verified_at'=>201]),array_replace($c,['expires_at'=>200]),array_replace($c,['expires_at'=>40000000]),array_replace($c,['account_sha256'=>str_repeat('a',64)."\n"]),$c+['email'=>'subvicco12@gmail.com']] as $bad)self::assertSame([],$class::evaluate($bad,$i,['administrator'],$caps,$caps,$c['installation_sha256'],200));
     }
+    public function testFreshStoredRoleCapabilitiesCannotUseCachedOrMalformedEvidence(): void
+    {
+        $class=DigiForge\Security\FirstPartyOwnerPolicy::class;
+        self::assertTrue(is_callable([$class,'storedRoleCapabilities']),'Fresh stored role validation missing');
+        $caps=DigiForge\Core\Capabilities::ALL;$roles=['administrator'=>['name'=>'Administrator','capabilities'=>array_fill_keys($caps,true)]];
+        self::assertSame($caps,$class::storedRoleCapabilities(serialize($roles)));
+        $roles['administrator']['capabilities']['manage_digiforge_ai']=false;
+        self::assertNotContains('manage_digiforge_ai',$class::storedRoleCapabilities(serialize($roles)));
+        $roles['administrator']['capabilities']['manage_digiforge_ai']=1;
+        self::assertNotContains('manage_digiforge_ai',$class::storedRoleCapabilities(serialize($roles)));
+        foreach([null,[],false,'',serialize(new stdClass()),serialize(['editor'=>$roles['administrator']]),str_repeat('x',1048577)] as $raw)self::assertSame([],$class::storedRoleCapabilities($raw));
+    }
 }

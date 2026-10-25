@@ -1,5 +1,23 @@
 # Full-product integration execution ledger
 
+## 2026-10-26 — First-party OWNER and offline launch review waves
+
+Implements the owner's default account decision through protected first-party
+verified-mailbox/account/installation binding, fresh identity and current role plus
+all existing capabilities, composed at the existing authority root. No direct ACL
+bypass or web self-pinning. Four scopes/all15 capabilities remain explicit native
+enrollment; signed delegates remain separate. Adds a hash-bound offline 500-product
+launch-review workflow (20 waves, eight evidence prerequisites each), with every
+product REVIEW_REQUIRED and no publication authority. See
+[implementation and reconciliation](first-party-owner-and-launch-20261026.md).
+Local policy RED→GREEN 3/41, combined access8/68; launch RED→GREEN3. Audit4804
+failed at native fixture isolation after unit1809/9656 and offline162 passed;
+follow-up restores exact synthetic audit/account cleanup with validators intact.
+Final exact-head audit results belong to the batch report. Acceptance unchanged:
+246/268 implementation candidates,22 non-Finance UNVERIFIED;23 Finance-dependent
+criteria separate;500 products NOT_CERTIFIED_OR_PROMOTED. STOP ALL/external lock
+ON; automation OFF; Finance excluded; RELEASE HOLD; no merge/deploy/live actions.
+
 ## 2026-10-25 — Google operator controls and task visibility
 
 Continues audited af38106/#4793 PASS on the same candidate. Digital/Automation panels now provide exact-source connection/transfer/refresh/renew/read-reconciliation controls, explicit nonce + server-enforced confirmation, owner-scoped secret-free source/plan/job/scheduler projection, held/unavailable/UNKNOWN states and Digital/focused-plan return links. General scheduler and existing grant/custody/dispatcher unchanged. Existing Google62/425, legacy/static/style and outbound-regression3 PASS; local full1805/9600 retains known cutout-runtime error/skip1. New native WordPress and Chromium390/768/1280 fixture acceptance are required in hosted CI; first audit #4794/46cd36f stopped at the pre-existing literal WordPress command contract before WP/browser; follow-up restores that command unchanged with separate fixture-directory/env setup, focused profile tests PASS; final exact-head result pending. See google-operator-journey-20261025.md for boundaries: captured native UI/browser fixtures are not installed-site or authenticated browser HTTP acceptance. All22 non-Finance criteria remain UNVERIFIED (246/268 candidates). Finance excluded, source/product history unchanged. STOP ALL/external lock ON; automation OFF; RELEASE HOLD; NO-GO. No live Google/provider calls, production/staging writes, publishing, merge/deployment/activation.
