@@ -94,6 +94,7 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
             $html = (new DigiForge\Portal\Portal())->render();
             self::assertStringContainsString('Shop access and operator assignments', $html);
             self::assertStringNotContainsString('<form', $html);
+            self::assertStringContainsString('Return to Operations Console', $html);
             $_GET = [];
             $html = (new DigiForge\Portal\Portal())->render();
             self::assertStringContainsString('Shop access and operator assignments', $html);

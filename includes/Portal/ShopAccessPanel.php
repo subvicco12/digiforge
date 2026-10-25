@@ -77,7 +77,7 @@ final class ShopAccessPanel
         if (!is_user_logged_in() || !current_user_can('manage_digiforge_settings')) {
             return '<p>Explicit access-management permission required.</p>';
         }
-        $html = '<section class="df-panel"><h1>Shop access and operator assignments</h1><p>WordPress administration does not grant shop access. Select exact capabilities and confirm each local assignment. No provider or production authority is granted.</p>';
+        $html = '<section class="df-panel"><a href="' . esc_url(home_url('/')) . '">Return to Operations Console</a><h1>Shop access and operator assignments</h1><p>WordPress administration does not grant shop access. Select exact capabilities and confirm each local assignment. No provider or production authority is granted.</p>';
         if (isset($_GET['df_access_result']) && in_array($_GET['df_access_result'], ['recorded','blocked'], true)) {
             $html .= '<p role="status">' . ($_GET['df_access_result'] === 'recorded' ? 'The explicit assignment change was recorded.' : 'Assignment blocked. Refresh signed scope and revision before trying again.') . '</p>';
         }
@@ -150,7 +150,7 @@ final class ShopAccessPanel
     {
         $html = '<section class="df-panel"><h1>Operations Console</h1><p>Only explicitly assigned shop workflows are available. Global evidence remains restricted.</p><a href="' . esc_url(home_url('/?df_view=access')) . '">Shop access and operator assignments</a>';
         foreach ($shops as $shop) {
-            $html .= '<h2>' . esc_html($shop) . '</h2>';foreach (['businesses' => 'manage_digiforge','products' => 'manage_digiforge_products','digital' => 'manage_digiforge_digital','pod_personalized' => 'manage_digiforge_pod','approvals' => 'manage_digiforge_research','listings' => 'manage_digiforge_listings','production' => 'manage_digiforge_production','automation' => 'manage_digiforge_automation','ai_budget' => 'manage_digiforge_settings','audit' => 'manage_digiforge'] as $view => $cap) {
+            $html .= '<h2>' . esc_html($shop) . '</h2>';foreach (['businesses' => 'manage_digiforge','products' => 'manage_digiforge_products','digital' => 'manage_digiforge_digital','pod_personalized' => 'manage_digiforge_pod','approvals' => 'manage_digiforge_research','listings' => 'manage_digiforge_listings','production' => 'manage_digiforge_production','automation' => 'manage_digiforge_automation','ai_budget' => 'manage_digiforge_ai','audit' => 'manage_digiforge'] as $view => $cap) {
                 if (($view === 'digital' && $shop !== 'digital') || ($view === 'pod_personalized' && $shop !== 'personalized_pod') || ShopAccess::authorize($shop, $cap) !== true) {
                     continue;
                 }
