@@ -122,6 +122,7 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
             self::assertSame($caps, $state['grants'][$result['grant_id']]['caps']);
             self::assertTrue($repo->verifyGrantEvidence($result['grant_id'], $state['grants'][$result['grant_id']], 1));
             self::assertWPError($panel->processBrowser($p));
+            self::assertWPError($panel->processBrowser(array_replace($p, ['expected_revision' => '1'])));
             foreach (array_diff(DigiForge\Security\ShopAccessPolicy::canonicalShops(), [$shop]) as $foreign) {
                 self::assertWPError(DigiForge\Security\ShopAccess::authorize($foreign, 'manage_digiforge_finance'));
             }
@@ -233,6 +234,27 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
             $wpdb->suppress_errors($prior);
         }
         self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+
+    public function testTamperedSignedOwnerManifestCannotEnrollFinance(): void
+    {
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        $p = array_replace($this->input(), ['caps' => ['manage_digiforge_finance']]);
+        $authority = ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps']);
+        ShopAccessFixture::provision([$authority]);
+        $path = constant('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE');
+        $envelope = json_decode((string)file_get_contents($path), true);
+        $envelope['manifest'] .= ' ';
+        self::assertNotFalse(file_put_contents($path, wp_json_encode($envelope), LOCK_EX));
+        try {
+            $denied = DigiForge\Security\ShopAccessAuthority::records();
+            self::assertWPError($denied);
+            self::assertSame('digiforge_shop_authority_signature', $denied->get_error_code());
+            self::assertWPError($panel->processBrowser($p));
+            self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+        } finally {
+            ShopAccessFixture::provision([$authority]);
+        }
     }
 
     public function testAccessPageAndEmptyDashboardHaveNoBusinessDataAndNeverProvisionOnRead(): void

@@ -57,7 +57,7 @@ final class ShopAccessPanel
             return self::error();
         }
         foreach ($p['caps'] as $cap) {
-            if (!is_string($cap) || !in_array($cap, Capabilities::ALL, true) || str_contains($cap, 'finance')) {
+            if (!is_string($cap) || !in_array($cap, Capabilities::ALL, true) || (str_contains($cap, 'finance') && ($p['operation'] ?? null) !== 'ENROLL')) {
                 return self::error();
             }
         }
@@ -110,7 +110,7 @@ final class ShopAccessPanel
                 }
                 $html .= '<label>Existing WordPress role <input name="role" value="" required></label><fieldset><legend>Explicit capabilities (none selected automatically)</legend>';
                 foreach ($record['caps'] as $cap) {
-                    if (str_contains($cap, 'finance') || !current_user_can($cap)) {
+                    if ((str_contains($cap, 'finance') && $operation !== 'ENROLL') || !current_user_can($cap)) {
                         continue;
                     }$html .= '<label><input type="checkbox" name="caps[]" value="' . esc_attr($cap) . '"> ' . esc_html($cap) . '</label>';
                 }
