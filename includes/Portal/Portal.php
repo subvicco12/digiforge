@@ -149,7 +149,7 @@ final class Portal
         $requested=$_GET['df_shop']??'all';
         if(!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
         // These views contain global or fixed-shop aggregates; partial grants cannot read them.
-        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
+        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation','businesses'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
         ?>
         <div class="df-portal-shell">

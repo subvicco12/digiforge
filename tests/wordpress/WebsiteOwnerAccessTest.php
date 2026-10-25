@@ -23,7 +23,8 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
         $actor = get_current_user_id();
         $caps = ['manage_digiforge','manage_digiforge_digital'];
         $authority = ShopAccessFixture::authority($actor, 'digital', $caps);
-        ShopAccessFixture::provision([$authority]);
+        $delegate = $authority; $delegate['authority'] = 'DELEGATE';
+        ShopAccessFixture::provision([$delegate, $authority]);
         self::assertWPError(DigiForge\Security\ShopAccess::authorize('digital', 'manage_digiforge_digital'));
         $panel = new DigiForge\Portal\ShopAccessPanel();
         $input = $this->input();
@@ -56,6 +57,35 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
         }
         self::assertWPError($panel->processBrowser($p, 'GET'));
         self::assertSame(0, (new DigiForge\Security\ShopAccessRepository())->read('digital')['revision']);
+    }
+    public function testWebsiteOperatorAssignmentUsesExistingRoleAndExactScope(): void
+    {
+        $p = $this->input();
+        ShopAccessFixture::provision([ShopAccessFixture::authority(get_current_user_id(), 'digital', $p['caps'])]);
+        $subject = self::factory()->user->create(['role'=>'administrator']);
+        $p['operation']='GRANT'; $p['subject_id']=(string)$subject;
+        $panel = new DigiForge\Portal\ShopAccessPanel();
+        self::assertNotWPError($panel->processBrowser($p));
+        wp_set_current_user($subject);
+        self::assertTrue(DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge_digital'));
+        self::assertWPError(DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_digital'));
+    }
+    public function testSelectedShopNavigationAndGoogleProjectionDoNotRequireForeignShopGrants(): void
+    {
+        ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], ['manage_digiforge','manage_digiforge_products','manage_digiforge_automation']);
+        $before=$_GET;
+        try {
+            $_GET=['df_view'=>'businesses','df_shop'=>'digital'];
+            $html=(new DigiForge\Portal\Portal())->render();
+            self::assertStringContainsString('Stored business and provider ownership',$html);
+            self::assertStringContainsString('df_shop=digital',$html);
+            $_GET=['df_view'=>'automation','df_shop'=>'digital'];
+            $html=(new DigiForge\Portal\Portal())->render();
+            self::assertStringContainsString('Google document preparation',$html);
+            self::assertStringNotContainsString('Global queue health',$html);
+            $_GET=['df_view'=>'automation','df_shop'=>'personalized_pod'];
+            self::assertStringNotContainsString('Google document preparation',(new DigiForge\Portal\Portal())->render());
+        } finally { $_GET=$before; }
     }
     public function testAccessPageAndEmptyDashboardHaveNoBusinessDataAndNeverProvisionOnRead(): void
     {

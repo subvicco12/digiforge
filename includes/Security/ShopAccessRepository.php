@@ -84,10 +84,10 @@ final class ShopAccessRepository
         if($result instanceof \WP_Error&&!Logger::write('shop_access_privileged_denied',['shop'=>$shop,'action'=>$action,'denial_code'=>$result->get_error_code()],'shop_access',$shop))return self::error('audit',503);
         return $result;
     }
-    public static function authorityFor(int $actor,string $shop,array $caps,int $expiry): array|\WP_Error
+    public static function authorityFor(int $actor,string $shop,array $caps,int $expiry,?string $ownerApproval=null): array|\WP_Error
     {
         $records=ShopAccessAuthority::records();if($records instanceof \WP_Error)return $records;
-        foreach($records as $record){if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
+        foreach($records as $record){if($ownerApproval!==null&&(($record['authority']??null)!=='OWNER'||!hash_equals($record['source_approval_hash'],$ownerApproval)))continue;if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
         return self::error('authority');
     }
     private function mutate(string $shop,string $requestId,int $expectedRevision,array $input,?string $revoke): array|\WP_Error
@@ -117,7 +117,7 @@ final class ShopAccessRepository
             $grant=['actor_id'=>$subject,'shop'=>$shop,'caps'=>$input['caps'],'expires_at'=>$input['expires_at'],'source_approval_hash'=>str_repeat('0',64)];
             if(($subject===$actor&&!isset($input['owner_approval']))||!$user||!$role||!in_array($input['role'],$user->roles,true)||!ShopAccessPolicy::validRecord($grant)||$grant['expires_at']<=time()||count($state['grants'])>=500)return $fail(self::error('assignment'));
             foreach($grant['caps'] as $cap){if(!user_can($actor,$cap)||!user_can($subject,$cap)||!$role->has_cap($cap))return $fail(self::error('scope'));}
-            $authority=self::authorityFor($actor,$shop,$grant['caps'],$grant['expires_at']);
+            $authority=self::authorityFor($actor,$shop,$grant['caps'],$grant['expires_at'],$input['owner_approval']??null);
             $id=hash('sha256',$shop.':'.$requestId);
             $grant+=['role'=>$input['role'],'grantor_id'=>$actor,'revoked'=>false];
         }

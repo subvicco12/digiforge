@@ -37,7 +37,7 @@ final class ShopAccessPanel
         }
         $allowed = ['action','_wpnonce','_wp_http_referer','confirm','operation','shop','role','caps','expires_at','approval','request_id','expected_revision','subject_id','grant_id'];
         if (
-            array_diff(array_keys($p), $allowed) !== [] || !is_string($p['shop'] ?? null) || !in_array($p['shop'], ['digital','personalized_pod'], true)
+            array_diff(array_keys($p), $allowed) !== [] || !is_string($p['shop'] ?? null) || !ShopAccessPolicy::validShop($p['shop'])
             || !is_string($p['request_id'] ?? null) || !is_string($p['expected_revision'] ?? null) || preg_match('/^[0-9]{1,9}$/D', $p['expected_revision']) !== 1
         ) {
             return self::error();
@@ -88,7 +88,7 @@ final class ShopAccessPanel
         $repo = new ShopAccessRepository();
         $count = 0;
         foreach ($records as $record) {
-            if ($record['actor_id'] !== get_current_user_id() || !in_array($record['shop'], ['digital','personalized_pod'], true)) {
+            if ($record['actor_id'] !== get_current_user_id() || !ShopAccessPolicy::validShop($record['shop'])) {
                 continue;
             }
             $state = $repo->read($record['shop']);
@@ -97,7 +97,7 @@ final class ShopAccessPanel
                 continue;
             }
             $count++;
-            $html .= '<h2>' . esc_html($record['shop'] === 'digital' ? 'KINETIQ MATRIX DESIGNS — Digital' : 'DigiCraftifyGoods — Personalized POD') . '</h2>';
+            $html .= '<h2>' . esc_html(match ($record['shop']) { 'digital' => 'KINETIQ MATRIX DESIGNS — Digital', 'personalized_pod' => 'DigiCraftifyGoods — Personalized POD', default => $record['shop'] . ' — future shop; assignment does not activate it' }) . '</h2>';
             $html .= '<p>Signed scope expires ' . esc_html(gmdate('Y-m-d H:i:s', $record['expires_at'])) . ' UTC. Current revision ' . (int)$state['revision'] . '.</p>';
             foreach (['ENROLL','GRANT'] as $operation) {
                 if ($operation === 'ENROLL' && $record['authority'] !== 'OWNER') {
@@ -150,7 +150,7 @@ final class ShopAccessPanel
     {
         $html = '<section class="df-panel"><h1>Operations Console</h1><p>Only explicitly assigned shop workflows are available. Global evidence remains restricted.</p><a href="' . esc_url(home_url('/?df_view=access')) . '">Shop access and operator assignments</a>';
         foreach ($shops as $shop) {
-            $html .= '<h2>' . esc_html($shop) . '</h2>';foreach (['products' => 'manage_digiforge_products','digital' => 'manage_digiforge_digital','pod_personalized' => 'manage_digiforge_pod','approvals' => 'manage_digiforge_research','listings' => 'manage_digiforge_listings','production' => 'manage_digiforge_production','automation' => 'manage_digiforge_automation','ai_budget' => 'manage_digiforge_settings','audit' => 'manage_digiforge'] as $view => $cap) {
+            $html .= '<h2>' . esc_html($shop) . '</h2>';foreach (['businesses' => 'manage_digiforge','products' => 'manage_digiforge_products','digital' => 'manage_digiforge_digital','pod_personalized' => 'manage_digiforge_pod','approvals' => 'manage_digiforge_research','listings' => 'manage_digiforge_listings','production' => 'manage_digiforge_production','automation' => 'manage_digiforge_automation','ai_budget' => 'manage_digiforge_settings','audit' => 'manage_digiforge'] as $view => $cap) {
                 if (($view === 'digital' && $shop !== 'digital') || ($view === 'pod_personalized' && $shop !== 'personalized_pod') || ShopAccess::authorize($shop, $cap) !== true) {
                     continue;
                 }

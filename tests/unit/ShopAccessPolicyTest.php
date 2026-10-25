@@ -14,7 +14,7 @@ final class ShopAccessPolicyTest extends PHPUnit\Framework\TestCase
             self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner(array_replace($r,$change),7,'digital',['manage_digiforge'],150,str_repeat('a',64),100));
         }
         self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'digital',['manage_digiforge_ai'],150,str_repeat('a',64),100));
-        $r['shop']='jewelry';self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'jewelry',['manage_digiforge'],150,str_repeat('a',64),100));
+        $r['shop']='unsupported';self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'unsupported',['manage_digiforge'],150,str_repeat('a',64),100));
     }
 
     public function testActorShopExpiryRevocationAndOrdinaryCapabilitiesAreAllRequired(): void

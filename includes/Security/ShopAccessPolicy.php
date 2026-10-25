@@ -17,7 +17,7 @@ final class ShopAccessPolicy
     public static function canEnrollOwner(array $authority,int $actor,string $shop,array $caps,int $expiry,string $approval,int $now): bool
     {
         return self::validRecord($authority)&&($authority['authority']??null)==='OWNER'
-            &&in_array($shop,['digital','personalized_pod'],true)&&$authority['actor_id']===$actor&&$authority['shop']===$shop
+            &&self::validShop($shop)&&$authority['actor_id']===$actor&&$authority['shop']===$shop
             &&$expiry>$now&&$authority['expires_at']>=$expiry&&$caps!==[]&&array_is_list($caps)
             &&count(array_unique($caps,SORT_REGULAR))===count($caps)&&array_diff($caps,$authority['caps'])===[]
             &&preg_match('/^[a-f0-9]{64}$/D',$approval)===1&&hash_equals($authority['source_approval_hash'],$approval);
