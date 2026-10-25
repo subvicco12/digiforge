@@ -84,10 +84,10 @@ final class ShopAccessRepository
         if($result instanceof \WP_Error&&!Logger::write('shop_access_privileged_denied',['shop'=>$shop,'action'=>$action,'denial_code'=>$result->get_error_code()],'shop_access',$shop))return self::error('audit',503);
         return $result;
     }
-    public static function authorityFor(int $actor,string $shop,array $caps,int $expiry,?string $ownerApproval=null): array|\WP_Error
+    public static function authorityFor(int $actor,string $shop,array $caps,int $expiry,?string $ownerApproval=null,?string $expectedHash=null): array|\WP_Error
     {
         $records=ShopAccessAuthority::records();if($records instanceof \WP_Error)return $records;
-        foreach($records as $record){if($ownerApproval!==null&&(($record['authority']??null)!=='OWNER'||!hash_equals($record['source_approval_hash'],$ownerApproval)))continue;if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
+        foreach($records as $record){if($expectedHash!==null&&!hash_equals($expectedHash,hash('sha256',(string)wp_json_encode($record))))continue;if($ownerApproval!==null&&(($record['authority']??null)!=='OWNER'||!hash_equals($record['source_approval_hash'],$ownerApproval)))continue;if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
         return self::error('authority');
     }
     private function mutate(string $shop,string $requestId,int $expectedRevision,array $input,?string $revoke): array|\WP_Error

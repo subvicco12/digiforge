@@ -13,7 +13,7 @@ final class ShopAccess
             $user=get_userdata($actor);$role=get_role($grant['role']);
             if(!$user||!$role||!in_array($grant['role'],$user->roles,true)||!$role->has_cap($cap)||!ShopAccessPolicy::permits($grant,$actor,$shop,$cap,time(),$ordinary))continue;
             $proof=$repository->verifyGrantEvidence($id,$grant,$state['revision']);if($proof instanceof \WP_Error){$failure=$proof;break;}
-            $authority=ShopAccessRepository::authorityFor($grant['grantor_id'],$shop,$grant['caps'],$grant['expires_at']);
+            $authority=ShopAccessRepository::authorityFor($grant['grantor_id'],$shop,$grant['caps'],$grant['expires_at'],null,$grant['authority_hash']);
             if(!($authority instanceof \WP_Error)&&hash_equals($grant['authority_hash'],$authority['hash'])&&user_can($grant['grantor_id'],'manage_digiforge_settings')){
                 $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if($valid)return true;
             }
