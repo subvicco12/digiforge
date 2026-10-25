@@ -52,7 +52,7 @@ final class PortalPersonalizationAcceptanceTest extends WP_UnitTestCase
         self::assertSame(['name'=>$text],json_decode($before['canonical_payload'],true));
         self::assertSame(hash('sha256',$before['canonical_payload']),$before['payload_hash']);
         $body=$this->body($own,$this->render());
-        PortalActionAcceptanceFixture::invoke('PERSONALIZATION_REVIEW_ACTION',$body,true,false);
+        PortalActionAcceptanceFixture::invoke('PERSONALIZATION_REVIEW_ACTION',$body,false,false);
         $after=$this->stored($id);self::assertSame('APPROVED',$after['review_status']);
         self::assertSame($before['canonical_payload'],$after['canonical_payload']);
         self::assertSame($before['payload_hash'],$after['payload_hash']);
