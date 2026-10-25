@@ -119,6 +119,11 @@ jobs:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
         run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'ExternalDocument(Admission|ListingIntegrity)Test'
 
+      - name: Website explicit owner access focused security tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'WebsiteOwnerAccessTest|ShopAccess(Acceptance|RevocationIntegrity|RestAcceptance|WorkflowAcceptance)Test'
+
       - name: Prepare Google portal capture directory
         run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
 

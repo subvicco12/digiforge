@@ -72,6 +72,7 @@ final class Portal
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
+        'access' => ['label'=>'Shop access / Operators','cap'=>'manage_digiforge_settings'],
         'dashboard' => ['label' => 'Dashboard', 'cap' => 'manage_digiforge'],
         'businesses' => ['label' => 'Businesses / Brands / Shops', 'cap' => 'manage_digiforge'],
         'approvals' => ['label' => 'Approval Inbox', 'cap' => 'manage_digiforge_research'],
@@ -101,6 +102,7 @@ final class Portal
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
+        (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
@@ -138,14 +140,16 @@ final class Portal
             $view = 'dashboard';
         }
 
+        if($view==='access')return (new ShopAccessPanel())->render();
         $approvalAccess=$this->approvalShopAccess();
         $access=$view==='approvals'?$approvalAccess:\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
         if(is_wp_error($access))return $this->notice('Shop authorization evidence is unavailable.',true);
         $this->authorizedShops=$access;$this->allShopsAuthorized=$view==='approvals'?$this->approvalAllShopsAuthorized:count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
+        if($view==='dashboard'&&!$this->allShopsAuthorized)return (new ShopAccessPanel())->landing($access);
         $requested=$_GET['df_shop']??'all';
         if(!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
         // These views contain global or fixed-shop aggregates; partial grants cannot read them.
-        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
+        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
         ?>
         <div class="df-portal-shell">
@@ -158,7 +162,7 @@ final class Portal
                     <?php foreach (self::NAV as $slug => $item) : ?>
                         <?php if ($slug==='approvals' ? (is_wp_error($approvalAccess)||!$this->scopeAuthorized($requested,$approvalAccess,$this->approvalAllShopsAuthorized)) : !current_user_can($item['cap'])) { continue; } ?>
                         <a <?php if ($view === $slug) { echo 'aria-current="page"'; } ?> class="<?php echo $view === $slug ? 'is-active' : ''; ?>"
-                           href="<?php echo esc_url($this->url($slug)); ?>">
+                           href="<?php echo esc_url(add_query_arg('df_shop',is_string($requested)?$requested:'all',$this->url($slug))); ?>">
                             <?php echo esc_html($item['label']); ?>
                         </a>
                     <?php endforeach; ?>
@@ -499,7 +503,7 @@ final class Portal
         if ($view === 'digital') { $this->digitalFactoryOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'analytics') { $this->analyticsOperations(); return; }
-        if ($view === 'automation') { $this->automationOperations(); return; }
+        if ($view === 'automation') { if(!$this->allShopsAuthorized){(new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));}else{$this->automationOperations();} return; }
         if ($view === 'businesses') { $this->businessOperations(); return; }
         if ($view === 'settings') { $this->settingsOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }

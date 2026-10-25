@@ -47,6 +47,8 @@ final class ShopAccessAdminGuard
             'digiforge_u3_asset_review','digiforge_u3_product_review',
             // Applying stronger protection reveals no shop data and grants no access.
             'digiforge_frontend_protect_production',
+            // Handler requires nonce, explicit confirmation and independently signed authority.
+            'digiforge_portal_access',
         ],true)) return;
         if (str_starts_with($action,'digiforge_finance_')) return;
         $cap=match (true) {
