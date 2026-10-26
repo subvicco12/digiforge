@@ -146,5 +146,17 @@
   "external_lock": true,
   "automation": false,
   "release_hold": true,
-  "receipt_sha256": "2029ac2fcf04f295cb9d121c373224078df51bd175a60d94bf45a0fb9357639a"
+  "ci_dependency_correction": {
+    "engineering_commit": "396fcb773636346feaec1b7485e3f12c9ae2edb2",
+    "previous_audit": 4811,
+    "previous_audit_state": "CANCELLED_DEPENDENCY_DOWNLOAD_JOB_TIMEOUT",
+    "attempts": 2,
+    "focused_tests_passed": 5,
+    "owner_package_regressions_passed": 11,
+    "timeout_minutes_unchanged": 20,
+    "apt_trust_preserved": true,
+    "provider_acceptance_granted": false,
+    "new_exact_head_audit_receipt": "PR1242 and issue1209 after report commit"
+  },
+  "receipt_sha256": "a9acc69f414d7f2d8be4785493e0756e302de58d0e0dbf09967040f0ae88884c"
 }
