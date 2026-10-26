@@ -1,0 +1,136 @@
+{
+  "architecture_shops": [
+    "digital",
+    "personalized_pod",
+    "standard_pod",
+    "jewelry"
+  ],
+  "automation": false,
+  "current_committed_dependencies_must_match_source": true,
+  "deployment_authorized": false,
+  "existing_runtime_dependency_references_not_payload": [
+    {
+      "bytes": 1665,
+      "path": "digiforge.php",
+      "sha256": "e9280a31e09a2f57933de5a1892653e9d70fc91bb13b1d133c04c652153d06e9"
+    },
+    {
+      "bytes": 5722,
+      "path": "includes/Core/Plugin.php",
+      "sha256": "f0c660f17252211ba919124baf58cf165c0c033560770198e311302e7586e083"
+    },
+    {
+      "bytes": 1925,
+      "path": "includes/Core/Capabilities.php",
+      "sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e"
+    },
+    {
+      "bytes": 2172,
+      "path": "includes/Security/ShopAccess.php",
+      "sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f"
+    },
+    {
+      "bytes": 2286,
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63"
+    },
+    {
+      "bytes": 14528,
+      "path": "includes/Security/ShopAccessRepository.php",
+      "sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f"
+    },
+    {
+      "bytes": 4438,
+      "path": "includes/Security/ShopAccessAdminGuard.php",
+      "sha256": "33cd18754c22907a3a40ad3cd9a2d4c61f135bf8d0a9530a60dd220a20a79209"
+    },
+    {
+      "bytes": 2923,
+      "path": "includes/Security/Logger.php",
+      "sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844"
+    },
+    {
+      "bytes": 9800,
+      "path": "includes/Database/Tables.php",
+      "sha256": "e5d3bdc505805278acb2c79122c27e0e95d86d20bdd361295917c30b267470d4"
+    },
+    {
+      "bytes": 27213,
+      "path": "includes/Portal/ReviewConfirmation.php",
+      "sha256": "e8df4b9f7323d21838d0cc542e91a6b8caad755e9590df646379a9d655fea3be"
+    },
+    {
+      "bytes": 4926,
+      "path": "includes/Orders/Validator.php",
+      "sha256": "541b5f69e58f31c36090b0e41e5781f9f05e4e8cc57032533a0ca7987a3016f4"
+    },
+    {
+      "bytes": 5568,
+      "path": "includes/REST/ShopAccessController.php",
+      "sha256": "e5e795dba25e1aec63eced77e92f1610ba596f749d712b74642e73b1289aa438"
+    },
+    {
+      "bytes": 208202,
+      "path": "includes/Portal/Portal.php",
+      "sha256": "fb82105c848ac4fe53cc983c2370dd22645c16509512951f2efc3c8c4d88d2c3"
+    }
+  ],
+  "external_lock": true,
+  "files": [
+    {
+      "bytes": 4881,
+      "operation": "ADD",
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "raw_installed_preimage_sha256": null,
+      "sha256": "9b308fb2f1b0b6f01dcd42cdc3ba7813a4c26c2aeaeda080b6fdce70b3739416"
+    },
+    {
+      "bytes": 5046,
+      "operation": "REPLACE",
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "raw_installed_preimage_sha256": null,
+      "sha256": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0"
+    },
+    {
+      "bytes": 11451,
+      "operation": "REPLACE",
+      "path": "includes/Portal/ShopAccessPanel.php",
+      "raw_installed_preimage_sha256": null,
+      "sha256": "171d9e97d250c987332bb6e72156a1d9fd0f453942de9b630ff0e2fc08124105"
+    }
+  ],
+  "finance_operationally_excluded": true,
+  "grants_included": false,
+  "installed_dependency_closure_verified": false,
+  "mailbox_possession_verified": false,
+  "migrations_included": false,
+  "protected_configuration_included": false,
+  "provider_authority_granted": false,
+  "raw_preimages_verified": false,
+  "release_hold": true,
+  "required_administrative_capabilities": [
+    "manage_digiforge",
+    "manage_digiforge_products",
+    "manage_digiforge_digital",
+    "manage_digiforge_research",
+    "manage_digiforge_ai",
+    "manage_digiforge_production",
+    "manage_digiforge_pod",
+    "manage_digiforge_listings",
+    "manage_digiforge_orders",
+    "manage_digiforge_finance",
+    "manage_digiforge_automation",
+    "manage_digiforge_connections",
+    "manage_digiforge_settings",
+    "publish_digiforge",
+    "view_digiforge_analytics"
+  ],
+  "rollback_tested": false,
+  "schema": "digiforge-first-party-owner-source-overlay-v1",
+  "shop_activation_authorized": false,
+  "source_commit": "007da8b9d563567e5811f8ceb43b8732b48a5558",
+  "source_reference_audit": "https://github.com/subvicco12/digiforge/actions/runs/40267811278",
+  "standalone_plugin": false,
+  "state": "REVIEW_ONLY_DEPLOYMENT_BLOCKED",
+  "stop_all": true
+}
