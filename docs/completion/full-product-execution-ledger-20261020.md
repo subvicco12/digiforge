@@ -1,5 +1,15 @@
 # Full-product integration execution ledger
 
+## 2026-10-26 — Narrow OWNER package and supplier decision qualification
+
+Baseline007da8b9d563567e5811f8ceb43b8732b48a5558/audit4809 PASS retained on existing draft #1242. Engineering73c83345b427a46f3f5d377fa81bc6235a7e15fe adds a deterministic Git-blob-based builder and verifier plus committed29,892-byte review ZIP/manifest/checksum. Exact payload: FirstPartyOwnerPolicy, ShopAccessAuthority, ShopAccessPanel only.13 existing dependency references are hashes, not payload or installed proof. Current committed source/dependency drift, cumulative/bootstrap/POD/Google/Finance entries, duplicates/symlinks/traversal, forged manifests/approvals, corruption, overwrite and extraction are rejected. Archive SHA2568090fde4b5eafe23ddfdadfa3714557129558dfe1a4f3d77c9df331d39146243; deployment/rollback/mailbox proof remain false. No installer or authority system was added.
+
+Local package11tests, native OWNER59/1604, full unit1821/9704 (existing skip1), full offline180 and acceptance/diff checks PASS. Independent read-only review found no Critical/Important issue; minor mutation-fixture metadata issue corrected and11/11 independently rerun. Native four-shop/all15-capability and existing nonce/replay/revision/fresh-identity/audit boundaries remain unchanged. New full exact-head hosted audit belongs to the final saved candidate and is recorded in #1242/issue1209, not borrowed from4809.
+
+New official Fulfill Engine shipping source returns200 but conflicts between South Carolina summary and North Carolina center detail, with dynamic rates unavailable. Public provider-method observations are VERIFIED only at catalog-field scope; exact DG2-438 mapping/variants/geometry/cost/shipping/rights/native/physical acceptance remain UNVERIFIED/BLOCKED. Prior401 variant evidence reused, not retried. Fresh production GET health and empty shop discovery retain locks/automation OFF; no installed OWNER/browser certification.
+
+Saved/reopened report: `docs/completion/digiforge-owner-supplier-certification-sprint.md`; sanitized evidence: `docs/completion/evidence/owner-supplier-certification-20261026.json`. All500 identities/20 waves preserved;246/268 candidates +22 UNVERIFIED,23 Finance-dependent criteria separately excluded. No runtime PHP/Finance/schema/CI change, production write, configuration/reset/grant, supplier mutation, order, publishing, merge or deployment. RELEASE HOLD / NO-GO.
+
 ## 2026-10-26 — Cloud OWNER / DG2-438 installed evidence and shortlist correction
 
 Retain existing cumulative draft #1242 and branch; verified baseline f63cd7f49fef61efd89b797550be53c360c190d7/audit4808 PASS. Fresh supported production reads verify API actor1, version1.0.103, STOP ALL/external lock ON, automation OFF, empty explicit shop access, absent native OWNER constant/file, all15 ordinary role capabilities, WordPress core3338 checksums, canonical schema25/legacy marker23/provider1 and three additive InnoDB tables. Normalized source comparison:6 matches/2 differences; raw installed hashes/preimages UNKNOWN; large portal source exceeds reader limit. No arbitrary-PHP workaround or production write.
