@@ -74,6 +74,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Select official HTTPS Ubuntu dependency archives
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_OS python3 bin/configure-ci-ubuntu-mirror.py
+
       - name: Install bounded document text verifier dependency
         run: |
           sudo apt-get update -qq
