@@ -1,5 +1,15 @@
 # Full-product integration execution ledger
 
+## 2026-10-26 — Cloud OWNER / DG2-438 installed evidence and shortlist correction
+
+Retain existing cumulative draft #1242 and branch; verified baseline f63cd7f49fef61efd89b797550be53c360c190d7/audit4808 PASS. Fresh supported production reads verify API actor1, version1.0.103, STOP ALL/external lock ON, automation OFF, empty explicit shop access, absent native OWNER constant/file, all15 ordinary role capabilities, WordPress core3338 checksums, canonical schema25/legacy marker23/provider1 and three additive InnoDB tables. Normalized source comparison:6 matches/2 differences; raw installed hashes/preimages UNKNOWN; large portal source exceeds reader limit. No arbitrary-PHP workaround or production write.
+
+Engineering commit57a7af90b2770bd7f5106db0360087c084ae8e54 corrects a reproduced offline historical-supplier attribution gap: seven foreign/changed/ambiguous observation mutations were accepted. The preparation tool now pins one byte snapshot/hash and exact shop/environment/store/listing/unique product, and exposes that historical scope without certifying DG2-438 mapping. Focused18/110; source reconciliation4 tests; full unit1821/9704 with1 existing optional skip; offline169; acceptance/diff checks PASS. New full exact-head hosted audit belongs to the final saved candidate and is recorded in PR/issue metadata, never borrowed from4808.
+
+Official public blueprint49 provider list returned200 (18 catalog providers); selected variants returned401 with no retry/token use. Candidate Gildan18000 is not the historical product's verified blueprint. Official embroidery and Monster Digital shipping guidance gathered; rate table/variants/geometry/selected cost/shipping/rights/native/physical acceptance remain UNKNOWN. No font/artwork/layout was altered or certified. All20x25 waves and500 identities retained;22 non-Finance and23 separate Finance-dependent criteria remain UNVERIFIED. No Finance processing or files changed.
+
+Saved and reopened report: `docs/completion/digiforge-owner-dg2438-cloud-sprint.md`; sanitized hash/classification receipt: `docs/completion/evidence/owner-dg2438-cloud-readiness-20261026.json`. Proposed three-file OWNER overlay remains blocked by genuine mailbox, raw preimage/dependency/restore and protected custody/legacy-authority evidence and separate installation authorization. No grant/reset/deployment/provider mutation. RELEASE HOLD / NO-GO.
+
 ## 2026-10-26 — First-party OWNER and offline launch review waves
 
 Implements the owner's default account decision through protected first-party

@@ -1,0 +1,357 @@
+{
+  "schema": "digiforge-owner-dg2438-cloud-readiness-v1",
+  "generated_at_utc": "2026-10-26T04:07:52.990827+00:00",
+  "baseline_commit": "f63cd7f49fef61efd89b797550be53c360c190d7",
+  "engineering_commit": "57a7af90b2770bd7f5106db0360087c084ae8e54",
+  "installed_version": "1.0.103",
+  "wordpress_version": "7.1.3",
+  "php_version": "8.3.36",
+  "schema_option": 25,
+  "legacy_db_version_option": 23,
+  "provider_connection_schema": "1",
+  "schema_tables": [
+    "wp_digiforge_catalog_acceptance_evidence",
+    "wp_digiforge_etsy_order_event_evidence",
+    "wp_digiforge_provider_connections"
+  ],
+  "schema_table_engine": "InnoDB",
+  "stop_all": true,
+  "external_lock": true,
+  "automation": false,
+  "owner_account_id": 1,
+  "first_party_owner_config_defined": false,
+  "mailbox_possession_verified": false,
+  "core_checksum_files_verified": 3338,
+  "source_comparison": [
+    {
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "candidate_sha256": "9b308fb2f1b0b6f01dcd42cdc3ba7813a4c26c2aeaeda080b6fdce70b3739416",
+      "candidate_bytes": 4881,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_FILE_NOT_FOUND_BY_WP_CONTENT_READER",
+      "observed_normalized_sha256": null,
+      "normalized_equal": null,
+      "observed_lines": 0,
+      "presence": "ABSENT_404"
+    },
+    {
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "candidate_sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63",
+      "candidate_bytes": 2286,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63",
+      "normalized_equal": true,
+      "observed_lines": 30
+    },
+    {
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "candidate_sha256": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0",
+      "candidate_bytes": 5046,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "024181d6e9795c0a1681e62ff10f80ffea692c6bab2a9debad37a12555161845",
+      "normalized_equal": false,
+      "observed_lines": 61
+    },
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "candidate_sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
+      "candidate_bytes": 14528,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
+      "normalized_equal": true,
+      "observed_lines": 143
+    },
+    {
+      "path": "includes/REST/ShopAccessController.php",
+      "candidate_sha256": "e5e795dba25e1aec63eced77e92f1610ba596f749d712b74642e73b1289aa438",
+      "candidate_bytes": 5568,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "e5e795dba25e1aec63eced77e92f1610ba596f749d712b74642e73b1289aa438",
+      "normalized_equal": true,
+      "observed_lines": 81
+    },
+    {
+      "path": "includes/Portal/ShopAccessPanel.php",
+      "candidate_sha256": "171d9e97d250c987332bb6e72156a1d9fd0f453942de9b630ff0e2fc08124105",
+      "candidate_bytes": 11451,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "2d9335fdc1699097b9d2fa87d7cddb6701b3d74892c4ceec7320146318cbfdf1",
+      "normalized_equal": false,
+      "observed_lines": 162
+    },
+    {
+      "path": "includes/Core/Capabilities.php",
+      "candidate_sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e",
+      "candidate_bytes": 1925,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e",
+      "normalized_equal": true,
+      "observed_lines": 18
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "candidate_sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
+      "candidate_bytes": 2172,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
+      "normalized_equal": true,
+      "observed_lines": 29
+    },
+    {
+      "path": "includes/Security/ShopAccessAdminGuard.php",
+      "candidate_sha256": "33cd18754c22907a3a40ad3cd9a2d4c61f135bf8d0a9530a60dd220a20a79209",
+      "candidate_bytes": 4438,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": "33cd18754c22907a3a40ad3cd9a2d4c61f135bf8d0a9530a60dd220a20a79209",
+      "normalized_equal": true,
+      "observed_lines": 73
+    },
+    {
+      "path": "includes/Portal/Portal.php",
+      "candidate_sha256": "fb82105c848ac4fe53cc983c2370dd22645c16509512951f2efc3c8c4d88d2c3",
+      "candidate_bytes": 208202,
+      "installed_raw_sha256": null,
+      "raw_hash_state": "UNKNOWN_CONNECTOR_REDACTED_LINE_NUMBERED_OUTPUT",
+      "observed_normalized_sha256": null,
+      "normalized_equal": null,
+      "observed_lines": 0
+    }
+  ],
+  "supplier_catalog": {
+    "kind": "PUBLIC_CATALOG_RESPONSE_VIA_FIRECRAWL_NOT_RAW_HTTP_BYTES",
+    "url": "https://api.printify.com/v1/catalog/blueprints/49/print_providers.json",
+    "status": 200,
+    "observed_at": "2026-10-26T04:01:33.631Z",
+    "representation_sha256": "d83a692239d1d68cf248f461010a3485c13db03a6fdd8c278952b9aec44cf64c",
+    "catalog_blueprint_candidate": 49,
+    "mapping_to_historical_product": "UNVERIFIED",
+    "providers": [
+      {
+        "id": 41,
+        "title": "Duplium",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 2.3,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 39,
+        "title": "SwiftPOD",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.2,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 217,
+        "title": "Fulfill Engine",
+        "decoration_methods": [
+          "dtg",
+          "embroidery",
+          "puff-print",
+          "metallic-print",
+          "glitter-print"
+        ],
+        "production_time": {
+          "average": 2.6,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 331,
+        "title": "Shirt Monkey",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 0.9,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 99,
+        "title": "Printify Choice",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.5,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Marco Fine Arts",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.4,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 34,
+        "title": "The Print Bar",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 3.0,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 410,
+        "title": "Printful",
+        "decoration_methods": [
+          "dtg",
+          "embroidery",
+          "dtf"
+        ],
+        "production_time": {
+          "average": 1.3,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 61,
+        "title": "Dimona Tee",
+        "decoration_methods": [
+          "dtg",
+          "embroidery"
+        ],
+        "production_time": {
+          "average": 2.3,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 26,
+        "title": "Textildruck Europa",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.1,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 52,
+        "title": "Stakes Manufacturing",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.5,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 6,
+        "title": "T Shirt and Sons",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.0,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 29,
+        "title": "Monster Digital",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.1,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 402,
+        "title": "Atelier Katanga",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 2.5,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 66,
+        "title": "Prima Printing",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.7,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 72,
+        "title": "Print Clever",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.7,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 50,
+        "title": "Underground Threads",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 2.0,
+          "unit": "business_days"
+        }
+      },
+      {
+        "id": 27,
+        "title": "Print Geek",
+        "decoration_methods": [
+          "dtg"
+        ],
+        "production_time": {
+          "average": 1.8,
+          "unit": "business_days"
+        }
+      }
+    ],
+    "safe_zones": "UNKNOWN",
+    "bleed": "UNKNOWN",
+    "dpi": "UNKNOWN",
+    "variants": "UNKNOWN_401"
+  },
+  "historical_store_id": "28930593",
+  "historical_sweatshirt_id": "6ad647d24f4a65e4300211e5",
+  "master500_mapping_verified": false,
+  "variants_endpoint_status": 401,
+  "supplier_geometry_certified": false,
+  "installed_browser_acceptance": "BLOCKED",
+  "production_writes_authorized": false,
+  "release_hold": true,
+  "receipt_sha256": "70ad42f8a9237a26343cdda16bd74651153840b83f9d5f9de93ffdc1f934ab8a"
+}
