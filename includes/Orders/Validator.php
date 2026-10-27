@@ -81,13 +81,24 @@ final class Validator
         return $value;
     }
 
-    public static function canonicalJson(array $value): string
+    public static function canonicalJson(array $value,bool $preserveText=false): string
     {
-        $normalized = self::canonicalize($value);
-        $json = wp_json_encode($normalized, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $normalized = self::canonicalize($value,!$preserveText);
+        $json = $preserveText
+            ? json_encode($normalized,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)
+            : wp_json_encode($normalized, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (! is_string($json)) {
             throw new InvalidArgumentException('Payload cannot be encoded.');
         }
+        return $json;
+    }
+
+    /** Buyer artwork text is byte-exact; legacy order metadata hashes still trim. */
+    public static function personalizationJson(array $value): string
+    {
+        self::rejectCredentialKeys($value);
+        $json=self::canonicalJson($value,true);
+        if(strlen($json)>self::MAX_STRUCTURED_BYTES)throw new InvalidArgumentException('Personalization exceeds 64 KiB.');
         return $json;
     }
 
@@ -114,7 +125,7 @@ final class Validator
         }
     }
 
-    private static function canonicalize(array $value): array
+    private static function canonicalize(array $value,bool $trimStrings=true): array
     {
         $isList = array_is_list($value);
         if (! $isList) {
@@ -125,8 +136,8 @@ final class Validator
                 $item = get_object_vars($item);
             }
             if (is_array($item)) {
-                $value[$key] = self::canonicalize($item);
-            } elseif (is_string($item)) {
+                $value[$key] = self::canonicalize($item,$trimStrings);
+            } elseif (is_string($item)&&$trimStrings) {
                 $value[$key] = trim($item);
             }
         }

@@ -1,0 +1,162 @@
+{
+  "schema": "digiforge-owner-supplier-certification-evidence-v1",
+  "generated_at_utc": "2026-10-26T08:17:10.675888+00:00",
+  "source_baseline": "007da8b9d563567e5811f8ceb43b8732b48a5558",
+  "engineering_commit": "73c83345b427a46f3f5d377fa81bc6235a7e15fe",
+  "owner_package": {
+    "path": "docs/completion/artifacts/digiforge-owner-007da8b-review.zip",
+    "sha256": "8090fde4b5eafe23ddfdadfa3714557129558dfe1a4f3d77c9df331d39146243",
+    "bytes": 29892,
+    "payload_count": 3,
+    "metadata_count": 3,
+    "scope_verification": "VERIFIED_LOCAL",
+    "deployment_authorized": false,
+    "rollback_tested": false,
+    "raw_production_preimages": "UNKNOWN"
+  },
+  "supplier_matrix": [
+    {
+      "blueprint_candidate": 49,
+      "provider_id": 29,
+      "provider_title": "Monster Digital",
+      "decision": "UNVERIFIED",
+      "verified_public_decoration_methods": [
+        "dtg"
+      ],
+      "reported_average_production_business_days": 1.1,
+      "exact_variant_ids": null,
+      "sku": null,
+      "selected_color_size": null,
+      "print_area_geometry": null,
+      "safe_bleed_dpi": null,
+      "selected_base_cost": null,
+      "selected_shipping_rate": null,
+      "native_personalization": null,
+      "commercial_rights": "UNVERIFIED",
+      "mapped_to_DG2_438": false,
+      "route": "RESEARCH_CANDIDATE_NOT_ASSIGNED"
+    },
+    {
+      "blueprint_candidate": 49,
+      "provider_id": 217,
+      "provider_title": "Fulfill Engine",
+      "decision": "UNVERIFIED",
+      "verified_public_decoration_methods": [
+        "dtg",
+        "embroidery",
+        "puff-print",
+        "metallic-print",
+        "glitter-print"
+      ],
+      "reported_average_production_business_days": 2.6,
+      "exact_variant_ids": null,
+      "sku": null,
+      "selected_color_size": null,
+      "print_area_geometry": null,
+      "safe_bleed_dpi": null,
+      "selected_base_cost": null,
+      "selected_shipping_rate": null,
+      "native_personalization": null,
+      "commercial_rights": "UNVERIFIED",
+      "mapped_to_DG2_438": false,
+      "route": "RESEARCH_CANDIDATE_NOT_ASSIGNED"
+    },
+    {
+      "blueprint_candidate": 49,
+      "provider_id": 410,
+      "provider_title": "Printful",
+      "decision": "UNVERIFIED",
+      "verified_public_decoration_methods": [
+        "dtg",
+        "embroidery",
+        "dtf"
+      ],
+      "reported_average_production_business_days": 1.3,
+      "exact_variant_ids": null,
+      "sku": null,
+      "selected_color_size": null,
+      "print_area_geometry": null,
+      "safe_bleed_dpi": null,
+      "selected_base_cost": null,
+      "selected_shipping_rate": null,
+      "native_personalization": null,
+      "commercial_rights": "UNVERIFIED",
+      "mapped_to_DG2_438": false,
+      "route": "RESEARCH_CANDIDATE_NOT_ASSIGNED"
+    },
+    {
+      "blueprint_candidate": 49,
+      "provider_id": 99,
+      "provider_title": "Printify Choice",
+      "decision": "UNVERIFIED",
+      "verified_public_decoration_methods": [
+        "dtg"
+      ],
+      "reported_average_production_business_days": 1.5,
+      "exact_variant_ids": null,
+      "sku": null,
+      "selected_color_size": null,
+      "print_area_geometry": null,
+      "safe_bleed_dpi": null,
+      "selected_base_cost": null,
+      "selected_shipping_rate": null,
+      "native_personalization": null,
+      "commercial_rights": "UNVERIFIED",
+      "mapped_to_DG2_438": false,
+      "route": "DYNAMIC_CHOICE_NOT_FIXED_FACTORY"
+    }
+  ],
+  "historical_product": {
+    "store": "28930593",
+    "product_id": "6ad647d24f4a65e4300211e5",
+    "master500_identity": "DG2-438",
+    "mapping": "BLOCKED_UNPROVEN",
+    "selected_sizes_conflict": [
+      8,
+      9
+    ]
+  },
+  "prior_catalog_receipt": "docs/completion/evidence/owner-dg2438-cloud-readiness-20261026.json",
+  "new_public_source": {
+    "url": "https://printify.com/shipping-rates/fulfill-engine/",
+    "status": 200,
+    "representation_sha256": "0e9ed810e7922afb4515f7ba9cf131004a47094cd2925dfe8f883eb5432d0efd",
+    "hash_scope": "FIRECRAWL_MARKDOWN_NOT_ORIGINAL_HTTP_BYTES",
+    "country_public_claim": "United States",
+    "state_location_claims": [
+      "South Carolina (summary)",
+      "North Carolina (fulfillment-center detail)"
+    ],
+    "state_location_classification": "UNVERIFIED_CONFLICT",
+    "carriers": [
+      "USPS",
+      "Asendia",
+      "OnTrac"
+    ],
+    "shipping_rate_table": "BLOCKED_LOADING_IN_RETRIEVED_REPRESENTATION"
+  },
+  "no_new_authenticated_supplier_request": true,
+  "variants_401_prior_receipt_reused_not_retried": true,
+  "source_500_identities_preserved": true,
+  "review_waves": 20,
+  "nonfinance_unverified": 22,
+  "finance_criteria_excluded": 23,
+  "criteria_promoted": 0,
+  "stop_all": true,
+  "external_lock": true,
+  "automation": false,
+  "release_hold": true,
+  "ci_dependency_correction": {
+    "engineering_commit": "396fcb773636346feaec1b7485e3f12c9ae2edb2",
+    "previous_audit": 4811,
+    "previous_audit_state": "CANCELLED_DEPENDENCY_DOWNLOAD_JOB_TIMEOUT",
+    "attempts": 2,
+    "focused_tests_passed": 5,
+    "owner_package_regressions_passed": 11,
+    "timeout_minutes_unchanged": 20,
+    "apt_trust_preserved": true,
+    "provider_acceptance_granted": false,
+    "new_exact_head_audit_receipt": "PR1242 and issue1209 after report commit"
+  },
+  "receipt_sha256": "a9acc69f414d7f2d8be4785493e0756e302de58d0e0dbf09967040f0ae88884c"
+}

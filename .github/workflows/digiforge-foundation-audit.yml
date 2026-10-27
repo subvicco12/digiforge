@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     services:
       mariadb:
-        image: public.ecr.aws/docker/library/mariadb:10.11
+        image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2
         env:
           MARIADB_ROOT_PASSWORD: root
           MARIADB_DATABASE: digiforge_tests
@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -54,6 +55,9 @@ jobs:
       - name: Install quality tools
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Audit installed Composer dependency advisories
+        run: composer audit --no-interaction
+
       - name: PHP syntax checks
         shell: bash
         run: |
@@ -65,8 +69,44 @@ jobs:
           done < <(find . -name '*.php' -not -path './.git/*' -not -path './vendor/*' -print0)
           exit "$status"
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Select official HTTPS Ubuntu dependency archives
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_OS python3 bin/configure-ci-ubuntu-mirror.py
+
+      - name: Install bounded document text verifier dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          /usr/bin/pdftotext -v
+
+      - name: Install pinned offline cutout processor
+        run: |
+          python3 -m venv /tmp/digiforge-cutout-runtime
+          /tmp/digiforge-cutout-runtime/bin/pip install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=/tmp/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$(/tmp/digiforge-cutout-runtime/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Audit offline processor dependency advisories
+        run: |
+          python3 bin/audit-cutout-dependencies.py
+          python3 bin/audit-cutout-dependencies.py --sam-matting
+
       - name: Legacy and unit tests
         run: composer test
+
+      - name: Experimental matting boundary static analysis
+        run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php includes/POD/CutoutVisualQa.php
+
+      - name: Printify preview offline smoke tests
+        run: |
+          php -d zend.assertions=1 -d assert.exception=1 tests/printify-catalog-preview-smoke.php
+          php tests/printify-catalog-read-policy-smoke.php
+          php tests/printify-catalog-attempt-authorization-smoke.php
 
       - name: Offline catalog and recovery evidence regression tests
         run: python3 -m unittest discover -s tests/offline -p 'test_*.py' -v
@@ -77,10 +117,55 @@ jobs:
           sudo apt-get install -y -qq subversion default-mysql-client
           bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 latest
 
+      - name: External document admission focused regression tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'ExternalDocument(Admission|ListingIntegrity)Test'
+
+      - name: Website explicit owner access focused security tests
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'FirstPartyOwnerIntegrationTest|WebsiteOwnerAccessTest|ShopAccess(Acceptance|RevocationIntegrity|RestAcceptance|WorkflowAcceptance)Test|OperatorOverviewAcceptanceTest|PortalWorkflowAcceptanceTest|TwoShopPortalAcceptanceTest'
+
+      - name: Prepare Google portal capture directory
+        run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures" "$RUNNER_TEMP/acceptance-review-fixtures"
+
       - name: WordPress database integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+          DF_ACCEPTANCE_REVIEW_FIXTURES: ${{ runner.temp }}/acceptance-review-fixtures
         run: composer test:wordpress
+
+      - name: Set up Node for offline portal acceptance
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Google portal offline fixture browser acceptance
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/google-portal-browser-cache
+        run: |
+          set -euo pipefail
+          runtime="$RUNNER_TEMP/google-portal-browser"
+          npm install --prefix "$runtime" --ignore-scripts --save-exact playwright@1.62.1
+          npm audit --prefix "$runtime" --omit=dev --audit-level=high
+          node "$runtime/node_modules/playwright/cli.js" install --with-deps chromium
+          NODE_PATH="$runtime/node_modules" node tests/browser/google-drive-portal.cjs "$RUNNER_TEMP/google-portal-fixtures"
+          node tests/browser/acceptance-review-workflow.cjs
+          NODE_PATH="$runtime/node_modules" node tests/browser/acceptance-review-native.cjs "$RUNNER_TEMP/acceptance-review-fixtures"
+
+      - name: Official Action Scheduler integration acceptance
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/action-scheduler-3.9.3.tar.gz"
+          curl --fail --location --silent --show-error https://github.com/woocommerce/action-scheduler/archive/refs/tags/3.9.3.tar.gz --output "$archive"
+          echo "5072f65ea3507d91fe731e716e85380dc5c771df7bdf09c60235d2ded1816240  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP"
+          export DIGIFORGE_TEST_ACTION_SCHEDULER_DIR="$RUNNER_TEMP/action-scheduler-3.9.3"
+          vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --bootstrap tests/integration/action-scheduler/bootstrap.php tests/integration/action-scheduler/ActionSchedulerAcceptanceTest.php
 
       - name: Git diff check
         run: git diff --check
@@ -104,14 +189,40 @@ jobs:
             exit 1
           fi
 
+      - name: Complete candidate-history credential scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/gitleaks-8.30.1.tar.gz"
+          curl --fail --location --silent --show-error https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz --output "$archive"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          export DIGIFORGE_TEST_GITLEAKS="$RUNNER_TEMP/gitleaks"
+          python3 -m unittest discover -s tests/security -p 'test_repository_credentials.py'
+          python3 bin/check-repository-credentials.py --scanner "$DIGIFORGE_TEST_GITLEAKS" --report "$RUNNER_TEMP/digiforge-repository-credential-evidence.json"
+
+      - name: Google HTTP boundary scanner regressions
+        run: python3 -m unittest discover -s tests/security -p 'test_google_http_boundary.py'
+
       - name: External HTTP client scan
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin | grep -vE '^includes/DigitalFactory/DriveWordPressGoogleHttp[.]php:[0-9]+:[[:space:]]*\$response=wp_remote_request\(\$url,\$args\);$'; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
           fi
+          # One exact Google sender line; all other paths/calls remain globally denied.
+          test "$(grep -c 'wp_remote_request(' includes/DigitalFactory/DriveWordPressGoogleHttp.php)" -eq 1
+          ! grep -nE '(wp_remote_(get|post|head)|curl_init|GuzzleHttp|Requests\\\\)' includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq '!self::valid($url,$args)||!$this->gate->allows($binding)' includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['sslverify']??null)!==true" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['redirection']??null)!==0" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "(\$args['reject_unsafe_urls']??null)!==true" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$args['limit_response_size']>10000001" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$host==='oauth2.googleapis.com'" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$host!=='www.googleapis.com'" includes/DigitalFactory/DriveWordPressGoogleHttp.php
+          grep -Fq "\$args['cookies']=[]" includes/DigitalFactory/DriveWordPressGoogleHttp.php
           test "$(grep -c 'wp_remote_post(' includes/Operations/HostingerRecoveryProvider.php)" -eq 1
           ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/Operations/HostingerRecoveryProvider.php
           grep -Fq 'https://developers.hostinger.com/api/hosting/v1' includes/Operations/HostingerRecoveryProvider.php
@@ -204,6 +315,9 @@ jobs:
           unzip -l build/digiforge.zip > build/package-files.txt
           grep -q 'digiforge/digiforge.php' build/package-files.txt
           grep -q 'digiforge/uninstall.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/ExternalDocumentAdmission.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/ExternalDocumentRevision.php' build/package-files.txt
+          grep -q 'digiforge/includes/ProductFactory/offline/verify_external_document.py' build/package-files.txt
           ! grep -Eq '(^|/)(vendor|tests|docs|\.github|bin)/' build/package-files.txt
           (cd build && sha256sum --check digiforge.zip.sha256)
           test -s build/digiforge.release-manifest.json
