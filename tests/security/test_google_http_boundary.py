@@ -28,7 +28,12 @@ class GoogleHttpBoundaryTest(unittest.TestCase):
         self.temp.cleanup()
 
     def scan(self):
-        return subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', scan_script()], cwd=self.root,
+        # Preserve the exact audited shell bytes across Windows process quoting.
+        # A long `bash -c` argument is re-quoted by CreateProcess/MSYS and can alter
+        # regex/backslash tokens before Bash sees them. No scan rule is changed.
+        script = self.root / 'http-boundary-scan.sh'
+        script.write_text(scan_script(), newline='\n')
+        return subprocess.run(['bash', '-e', '-o', 'pipefail', str(script)], cwd=self.root,
                               capture_output=True, text=True)
 
     def test_exact_guarded_sender_is_admitted(self):

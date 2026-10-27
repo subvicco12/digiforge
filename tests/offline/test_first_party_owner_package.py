@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 import subprocess
 import sys
+import types
 import unittest
 import warnings
 import zipfile
@@ -278,8 +279,21 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Current committed OWNER dependency drift'):
                 m.build()
 
-    def test_committed_candidate_is_exact_reproducible_review_artifact(self):
-        m = self.module()
+    def historical_module(self):
+        # Preserve the certified archive and verifier at their original source
+        # boundary. It must not be relabelled as this candidate after a repin.
+        current=self.module()
+        baseline='9c8d3a71c1c36fb6b501a2f39b42655a28208875'
+        source=current._git('show',baseline+':bin/package-first-party-owner.py')
+        historical=types.ModuleType('historical_owner_package')
+        historical.__file__=str(ROOT/'bin/package-first-party-owner.py')
+        exec(compile(source,historical.__file__,'exec'),historical.__dict__)
+        git=historical._git
+        historical._git=lambda *args:git(*(baseline if arg=='HEAD' else arg for arg in args))
+        return historical
+
+    def test_historical_archive_keeps_its_exact_original_source_verifier(self):
+        m = self.historical_module()
         path = ROOT / 'docs/completion/artifacts/digiforge-owner-007da8b-review.zip'
         blob = path.read_bytes()
         self.assertEqual(m.build()[0], blob)
@@ -287,6 +301,12 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(blob).hexdigest() + '  ' + path.name + '\n', path.with_suffix('.zip.sha256').read_text())
         with zipfile.ZipFile(io.BytesIO(blob)) as z:
             self.assertEqual(z.read('MANIFEST.json'), path.with_name('digiforge-owner-007da8b-manifest.json').read_bytes())
+
+    def test_current_and_historical_review_archives_cannot_substitute_for_each_other(self):
+        current=self.module();historical=self.historical_module()
+        old=(ROOT/'docs/completion/artifacts/digiforge-owner-007da8b-review.zip').read_bytes()
+        with self.assertRaises(ValueError):current.verify(old)
+        with self.assertRaises(ValueError):historical.verify(current.build()[0])
 
     def test_cli_creates_only_archive_never_overwrites_or_extracts(self):
         m = self.module()
