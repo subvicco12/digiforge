@@ -90,7 +90,7 @@ final class PrintifyCatalogClient
         catch (\Throwable) { return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]); }
         if (is_wp_error($response)) return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]);
         $status = (int) wp_remote_retrieve_response_code($response);
-        if ($status !== 200) return new WP_Error('catalog_read_http', 'Catalog GET did not return HTTP 200; no automatic retry.', ['status'=>502]);
+        if ($status !== 200) return new WP_Error('catalog_read_http', 'Catalog GET did not return HTTP 200; no automatic retry.', ['status'=>502,'provider_status'=>$status,'category'=>match(true){$status===401||$status===403=>'AUTHORIZATION',$status===429=>'RATE_LIMIT',$status>=500=>'PROVIDER_UNAVAILABLE',default=>'UNEXPECTED_STATUS'},'retry_permitted'=>false,'mutation_authorized'=>false]);
         $authorized = PrintifyCatalogReadPolicy::authorizeReserved($authority, $request, $token, false);
         if ($authorized !== true) return $authorized;
         $body = (string) wp_remote_retrieve_body($response);

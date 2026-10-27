@@ -26,6 +26,7 @@ final class PrintifyCatalogReadContract {
  /** Validate endpoint-specific envelopes before accepting even draft evidence. */
  public static function select(array $data,array $r):array {
   self::endpoint($r);
+  if((array_key_exists('next_page_url',$data)&&$data['next_page_url']!==null)||(isset($data['last_page'])&&$data['last_page']!==1))throw new \InvalidArgumentException('Catalog pagination is unsupported; partial evidence denied.');
   if(in_array($r['kind'],['shipping','shipping_method'],true)){self::shipping($data,$r);return $data;}
   if($r['kind']==='blueprint'){
    self::record($data);if($data['id']!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');return $data;
