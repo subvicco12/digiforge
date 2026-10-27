@@ -72,6 +72,7 @@ final class Portal
 
     /** @var array<string,array{label:string,cap:string}> */
     private const NAV = [
+        'access' => ['label'=>'Shop access / Operators','cap'=>'manage_digiforge_settings'],
         'dashboard' => ['label' => 'Dashboard', 'cap' => 'manage_digiforge'],
         'businesses' => ['label' => 'Businesses / Brands / Shops', 'cap' => 'manage_digiforge'],
         'approvals' => ['label' => 'Approval Inbox', 'cap' => 'manage_digiforge_research'],
@@ -101,6 +102,7 @@ final class Portal
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
+        (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
@@ -142,10 +144,11 @@ final class Portal
         $access=$view==='approvals'?$approvalAccess:\DigiForge\Security\ShopAccess::allowedShops(self::NAV[$view]['cap']);
         if(is_wp_error($access))return $this->notice('Shop authorization evidence is unavailable.',true);
         $this->authorizedShops=$access;$this->allShopsAuthorized=$view==='approvals'?$this->approvalAllShopsAuthorized:count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$access))===4;
+        if($view==='dashboard'&&!$this->allShopsAuthorized)return (new ShopAccessPanel())->landing($access);
         $requested=$_GET['df_shop']??'all';
-        if(!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
+        if($view!=='access'&&!$this->scopeAuthorized($requested,$access,$view==='approvals'?$this->approvalAllShopsAuthorized:null))return $this->notice('An explicit assignment is required for the requested shop scope.',true);
         // These views contain global or fixed-shop aggregates; partial grants cannot read them.
-        if(!$this->allShopsAuthorized&&!in_array($view,['approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
+        if(!$this->allShopsAuthorized&&!in_array($view,['access','approvals','research','products','digital','production','orders','fulfillment','ai_budget','pod_personalized','listings','audit','automation','businesses'],true))return $this->notice('This view contains global evidence and requires assignments for all four shops.',true);
         ob_start();
         ?>
         <div class="df-portal-shell">
@@ -158,7 +161,7 @@ final class Portal
                     <?php foreach (self::NAV as $slug => $item) : ?>
                         <?php if ($slug==='approvals' ? (is_wp_error($approvalAccess)||!$this->scopeAuthorized($requested,$approvalAccess,$this->approvalAllShopsAuthorized)) : !current_user_can($item['cap'])) { continue; } ?>
                         <a <?php if ($view === $slug) { echo 'aria-current="page"'; } ?> class="<?php echo $view === $slug ? 'is-active' : ''; ?>"
-                           href="<?php echo esc_url($this->url($slug)); ?>">
+                           href="<?php echo esc_url(add_query_arg('df_shop',is_string($requested)?$requested:'all',$this->url($slug))); ?>">
                             <?php echo esc_html($item['label']); ?>
                         </a>
                     <?php endforeach; ?>
@@ -485,6 +488,7 @@ final class Portal
 
     private function view(string $view): void
     {
+        if ($view === 'access') { echo (new ShopAccessPanel())->render(); return; }
         if ($view === 'dashboard') { $this->dashboard(); return; }
         if ($view === 'approvals') { $this->approvals(); return; }
         if ($view === 'attention') { $this->attention(); return; }
@@ -499,7 +503,7 @@ final class Portal
         if ($view === 'digital') { $this->digitalFactoryOperations(); return; }
         if ($view === 'finance') { $this->financeOperations(); return; }
         if ($view === 'analytics') { $this->analyticsOperations(); return; }
-        if ($view === 'automation') { $this->automationOperations(); return; }
+        if ($view === 'automation') { if(!$this->allShopsAuthorized){(new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));}else{$this->automationOperations();} return; }
         if ($view === 'businesses') { $this->businessOperations(); return; }
         if ($view === 'settings') { $this->settingsOperations(); return; }
         if ($view === 'pod_future_nonpersonalized') { $this->futureNonPersonalizedPod(); return; }
@@ -572,6 +576,7 @@ final class Portal
 
     private function digitalFactoryOperations():void
     {
+        (new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));
         $repo=new \DigiForge\DigitalFactory\Repository();$selected=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$products=$repo->all('digital_product',1,50,$selected===ShopOperationsReadModel::ALL?null:$selected);$queryOk=!empty($products['query_ok']);$items=(array)($products['items']??[]);
         $counts=['total'=>0,'draft'=>0,'review'=>0,'approved'=>0];if($queryOk){foreach($items as $row){$counts['total']++;$state=strtoupper((string)($row['state']??''));if($state==='DRAFT')$counts['draft']++;elseif(str_contains($state,'REVIEW'))$counts['review']++;elseif(in_array($state,['HUMAN_APPROVED','PLATFORM_DRAFT','FINAL_VALIDATION','PUBLISH_READY'],true))$counts['approved']++;}}
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Digital Product Factory</h2><p>Portal-first lifecycle visibility for customer files, packages, previews, templates, licenses and download QA. Registry status is not Product Approval or release evidence. Product Approval remains a separate human Gate 2 decision.</p></div><span class="df-status">INTERNAL WORKFLOW</span></div>';
@@ -609,13 +614,13 @@ final class Portal
         if(!is_string($raw)||strlen($raw)>65536||!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash)||!hash_equals($hash,hash('sha256',$raw)))return 'UNAVAILABLE: payload integrity requires review.';
         try{
             $payload=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
-            if(!is_array($payload)||count($payload)>100||\DigiForge\Orders\Validator::canonicalJson($payload)!==$raw)return 'UNAVAILABLE: canonical personalization required.';
+            if(!is_array($payload)||count($payload)>100||\DigiForge\Orders\Validator::personalizationJson($payload)!==$raw)return 'UNAVAILABLE: canonical personalization required.';
             foreach($payload as &$value){
                 if(!is_scalar($value)&&$value!==null)return 'UNAVAILABLE: typed personalization required.';
                 if(is_string($value)&&str_starts_with($value,'digiforge/product-factory/'))$value='Protected image reference SHA-256 '.hash('sha256',$value);
             }
             unset($value);
-            return \DigiForge\Orders\Validator::canonicalJson($payload);
+            return \DigiForge\Orders\Validator::personalizationJson($payload);
         }catch(\Throwable){return 'UNAVAILABLE: canonical personalization required.';}
     }
 
@@ -747,6 +752,7 @@ final class Portal
 
     private function automationOperations(): void
     {
+        (new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));
         $scheduled=(new \DigiForge\Queue\ScheduledTaskReadModel())->snapshot();
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Product Factory scheduled tasks</h2><span class="df-status">READ ONLY</span></div><p class="df-muted">System-wide bounded scheduler metadata only. Viewing tasks cannot run, retry or dispatch them; task arguments and run keys are hidden.</p><div class="df-signal-grid"><div><span>Action Scheduler evidence</span><b>'.esc_html($scheduled['query_state']['action_scheduler']).'</b></div><div><span>WP cron evidence</span><b>'.esc_html($scheduled['query_state']['wp_cron']).'</b></div></div>';
         if($scheduled['query_state']['action_scheduler']!=='AVAILABLE')echo '<p class="df-muted">Action Scheduler is unavailable or not installed; an empty scheduler is not inferred.</p>';

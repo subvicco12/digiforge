@@ -5,6 +5,18 @@ require_once __DIR__.'/../../includes/Security/ShopAccessPolicy.php';
 require_once __DIR__.'/../../includes/Security/ShopAccessAuthority.php';
 final class ShopAccessPolicyTest extends PHPUnit\Framework\TestCase
 {
+    public function testOwnerEnrollmentRequiresExactSignedRootActiveShopAndApproval(): void
+    {
+        $r=['actor_id'=>7,'shop'=>'digital','caps'=>['manage_digiforge'],'expires_at'=>200,'source_approval_hash'=>str_repeat('a',64),'authority'=>'OWNER'];
+        self::assertTrue(is_callable([DigiForge\Security\ShopAccessPolicy::class,'canEnrollOwner']), 'Explicit signed-owner enrollment policy is missing');
+        self::assertTrue(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'digital',['manage_digiforge'],150,str_repeat('a',64),100));
+        foreach([['actor_id'=>8],['shop'=>'personalized_pod'],['authority'=>'DELEGATE'],['expires_at'=>100],['source_approval_hash'=>str_repeat('b',64)]] as $change){
+            self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner(array_replace($r,$change),7,'digital',['manage_digiforge'],150,str_repeat('a',64),100));
+        }
+        self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'digital',['manage_digiforge_ai'],150,str_repeat('a',64),100));
+        $r['shop']='unsupported';self::assertFalse(DigiForge\Security\ShopAccessPolicy::canEnrollOwner($r,7,'unsupported',['manage_digiforge'],150,str_repeat('a',64),100));
+    }
+
     public function testActorShopExpiryRevocationAndOrdinaryCapabilitiesAreAllRequired(): void
     {
         $r=['actor_id'=>7,'shop'=>'jewelry','caps'=>['manage_digiforge_research'],'expires_at'=>101,'source_approval_hash'=>str_repeat('a',64),'revoked'=>false];

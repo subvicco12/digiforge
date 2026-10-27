@@ -115,8 +115,50 @@ final class PrintifyCatalogReadRepository {
    // Either half of durable dispatch evidence consumes the intent permanently.
    // A missing option is uncertainty, never permission to repeat the request.
    if($dispatch!==null||$anchors!==[])return self::error('dispatch_replay_or_unavailable',409);
+   $rate=$this->reserveAccountRate($g);if($rate instanceof WP_Error)return $rate;
+   $current=$this->grant($sha);if($current instanceof WP_Error)return $current;$latest=$this->readPermission($sha,$current);if($latest instanceof WP_Error)return $latest;if($latest!==$permission||!self::reader())return self::error('approval_or_safety_changed',409);$access=$this->assigned($current);if($access instanceof WP_Error)return $access;
    return $this->transaction(function()use($name,$sha,$key){if($this->load($name)!==null)return self::error('dispatch_replay',409);
     $r=self::seal(['grant_sha256'=>$sha,'request_sha256'=>$key,'dispatched_at'=>gmdate('c')]);$saved=$this->put($name,$r,'catalog_read_dispatched');return $saved instanceof WP_Error?$saved:true;});
+  });
+ }
+ /** Reuse only current, audited same-grant observations; never a credential or authority cache. */
+ public function research(string $sha,int $index,string $key,int $maxAge=300):array|WP_Error {
+  if(!self::reader())return self::error('account_scope',403);
+  if(wp_get_environment_type()!=='production')return self::error('main_site_required',409);
+  try{self::requestKey($key);}catch(\Throwable){return self::error('request_key',400);}
+  if($maxAge<0||$maxAge>900)return self::error('cache_age',400);
+  $g=$this->grant($sha);if($g instanceof WP_Error)return $g;
+  if($g['grant']['account_id']!==get_current_user_id()||$index<0||!isset($g['grant']['requests'][$index]))return self::error('request_scope',403);
+  $access=$this->assigned($g);if($access instanceof WP_Error)return $access;
+  $permission=$this->readPermission($sha,$g);if($permission instanceof WP_Error)return $permission;
+  if($maxAge>0){
+   global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_col($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s LIMIT 11',$wpdb->esc_like('df_catalog_read_evidence_'.$sha.'_').'%'));
+   if(self::databaseFailed()||!is_array($rows)||count($rows)>10)return self::error('cache_unavailable',503);
+   $wpdb->last_error='';$cacheAnchors=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND context LIKE %s LIMIT 11','catalog_read_evidence','catalog_read','%'.$wpdb->esc_like('"grant_sha256":"'.$sha.'"').'%'));if(self::databaseFailed()||!is_array($cacheAnchors)||count($cacheAnchors)!==count($rows))return self::error('cache_evidence_missing',503);
+   $hit=null;foreach($rows as $raw){$candidate=json_decode($raw,true);if(!is_array($candidate)||!self::sealed($candidate))return self::error('cache_corrupt',503);
+    if(self::json($candidate['request']??[])!==self::json($g['grant']['requests'][$index]))continue;
+    $observed=strtotime($candidate['observed_at']??'');if($observed===false||$observed>time())return self::error('cache_timestamp',503);if(time()-$observed>$maxAge)continue;
+    $e=$this->evidence($sha,$candidate['request_sha256']??'');if($e instanceof WP_Error)return $e;
+    if(($e['safety_exception_sha256']??null)!==$permission['safety_exception_sha256'])return self::error('cache_permission_changed',409);
+    if($hit!==null&&$hit['response_sha256']!==$e['response_sha256'])return self::error('cache_conflict',409);$hit=$e;
+   }
+   if($hit!==null){$current=$this->grant($sha);if($current instanceof WP_Error)return $current;$nowPermission=$this->readPermission($sha,$current);if($nowPermission instanceof WP_Error)return $nowPermission;if($nowPermission!==$permission||!self::reader())return self::error('cache_permission_changed',409);$access=$this->assigned($current);if($access instanceof WP_Error)return $access;return $hit+['cache_status'=>'HIT','cache_max_age_seconds'=>$maxAge];}
+  }
+  $fresh=$this->read($sha,$index,$key);return $fresh instanceof WP_Error?$fresh:$fresh+['cache_status'=>'MISS','cache_max_age_seconds'=>$maxAge];
+ }
+ /** Fifty per fixed minute => at most100 per rolling minute, shared across tokens/grants/shops. */
+ private function reserveAccountRate(array $grant):true|WP_Error {
+  $context=PrintifyConnectionBoundary::context($grant['binding']['shop_key'],$grant['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if($context instanceof WP_Error)return $context;
+  $account=hash('sha256',self::json(array_intersect_key($context,array_flip(['installation_sha256','environment','provider','external_account_reference']))));
+  return $this->locked($account,function()use($account,$grant){
+   $bucket=hash('sha256',$account.'|'.intdiv(time(),60));$prefix='df_catalog_rate_'.$bucket.'_';global $wpdb;$wpdb->last_error='';
+   $rows=$wpdb->get_col($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s LIMIT 51',$wpdb->esc_like($prefix).'%'));if(self::databaseFailed()||!is_array($rows)||count($rows)>50)return self::error('rate_evidence',503);
+   $wpdb->last_error='';$audits=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND context LIKE %s LIMIT 51','catalog_read_rate_reserved','catalog_read','%'.$wpdb->esc_like('"rate_bucket_sha256":"'.$bucket.'"').'%'));if(self::databaseFailed()||!is_array($audits)||count($rows)!==count($audits))return self::error('rate_evidence',503);
+   $anchors=[];foreach($audits as $raw){$a=json_decode($raw,true);if(!is_array($a)||($a['rate_bucket_sha256']??null)!==$bucket||!is_string($a['sha256']??null)||isset($anchors[$a['sha256']]))return self::error('rate_evidence',503);$anchors[$a['sha256']]=true;}
+   foreach($rows as $raw){$r=json_decode($raw,true);if(!is_array($r)||!self::sealed($r)||($r['rate_bucket_sha256']??null)!==$bucket||($r['account_sha256']??null)!==$account||!isset($anchors[$r['sha256']]))return self::error('rate_evidence',503);unset($anchors[$r['sha256']]);}if($anchors!==[])return self::error('rate_evidence',503);
+   if(count($rows)>=50)return self::error('account_rate_limit',429);
+   return $this->transaction(function()use($prefix,$bucket,$account,$grant,$rows){$r=self::seal(['slot'=>count($rows),'rate_bucket_sha256'=>$bucket,'account_sha256'=>$account,'grant_sha256'=>$grant['sha256'],'reserved_at'=>gmdate('c')]);$saved=$this->put($prefix.count($rows),$r);if($saved instanceof WP_Error)return $saved;
+    return Logger::write('catalog_read_rate_reserved',['sha256'=>$r['sha256'],'rate_bucket_sha256'=>$bucket],'catalog_read',$r['sha256'])?true:self::error('rate_audit_unavailable',503);});
   });
  }
  public function read(string $sha,int $index,string $key,bool $persist=true):array|WP_Error {
@@ -148,7 +190,7 @@ final class PrintifyCatalogReadRepository {
   });
  }
  public function evidence(string $sha,string $requestSha):array|WP_Error {
-  if(!self::reader())return self::error('account_scope',403);try{self::hash($sha);self::hash($requestSha);}catch(\Throwable){return self::error('invalid_identity',400);}$g=$this->grant($sha);if($g instanceof WP_Error)return $g;if($g['grant']['account_id']!==get_current_user_id())return self::error('account_scope',403);$e=$this->load('df_catalog_read_evidence_'.$sha.'_'.$requestSha);if($e instanceof WP_Error)return $e;if($e===null||!self::sealed($e)||!$this->audited('catalog_read_evidence',$e['sha256'])||$e['grant_sha256']!==$sha||$e['request_sha256']!==$requestSha||hash('sha256',$e['response_body'])!==$e['response_sha256'])return self::error('evidence_unavailable',503);return self::publicEvidence($e);
+  if(!self::reader())return self::error('account_scope',403);try{self::hash($sha);self::hash($requestSha);}catch(\Throwable){return self::error('invalid_identity',400);}$g=$this->grant($sha);if($g instanceof WP_Error)return $g;if($g['grant']['account_id']!==get_current_user_id())return self::error('account_scope',403);$access=$this->assigned($g);if($access instanceof WP_Error)return $access;$e=$this->load('df_catalog_read_evidence_'.$sha.'_'.$requestSha);if($e instanceof WP_Error)return $e;if($e===null||!self::sealed($e)||!$this->audited('catalog_read_evidence',$e['sha256'])||$e['grant_sha256']!==$sha||$e['request_sha256']!==$requestSha||hash('sha256',$e['response_body'])!==$e['response_sha256'])return self::error('evidence_unavailable',503);return self::publicEvidence($e);
  }
  private function grant(string $sha,bool $active=true):array|WP_Error {
   try{self::hash($sha);$r=$this->load('df_catalog_read_grant_'.$sha);if($r instanceof WP_Error)return $r;if($r===null||!self::sealed($r)||$r['sha256']!==$sha||(!self::mainSite()||$r['site_sha256']!==self::site())||!$this->audited('catalog_read_approved',$sha))return self::error('grant_evidence',409);

@@ -36,6 +36,7 @@ final class ReviewedContractsPanel
             echo '<form data-contract-read="'.esc_attr($kind).'" class="df-review-form"><label for="'.esc_attr($id.'-key').'">Exact contract key</label><input id="'.esc_attr($id.'-key').'" name="key" required maxlength="240"><button class="df-button" type="submit">Load current evidence</button></form><div data-contract-result="'.esc_attr($kind).'" role="status" aria-live="polite"></div><div data-contract-decisions="'.esc_attr($kind).'"></div></details>';
         }
         if(in_array($shop,['digital','personalized_pod'],true)) {
+            AcceptanceReviewPanel::render($shop);
             wp_enqueue_script('digiforge-acceptance-status',DIGIFORGE_URL.'assets/acceptance-contract-status.js',[],DIGIFORGE_VERSION.'.'.substr(hash_file('sha256',DIGIFORGE_PATH.'assets/acceptance-contract-status.js'),0,12),true);
             echo '<details data-acceptance-status><summary>Reviewed acceptance status (read only)</summary><p>UNKNOWN measurements and UNVERIFIED evidence remain blocked. A reviewed engineering contract is not supplier certification, product approval or production authority. Resolved local identity does not verify the purpose or contents of evidence.</p><form><label for="df-acceptance-criterion">Criterion</label><select id="df-acceptance-criterion" name="criterion">';
             foreach(ReviewedAcceptanceContract::criteria() as $criterion) {

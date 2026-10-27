@@ -18,6 +18,16 @@ final class ShopAccessAuthority
 {
     public static function records(): array|\WP_Error
     {
+        $native=FirstPartyOwnerPolicy::records();
+        if($native instanceof \WP_Error)return $native;
+        $signed=self::signedRecords();
+        if(!defined(FirstPartyOwnerPolicy::CONFIG))return $signed;
+        // Configured native OWNER is exclusive. Signed operators remain separate delegates.
+        if($signed instanceof \WP_Error)return $native;
+        return array_merge($native,array_values(array_filter($signed,static fn(array $r):bool=>$r['authority']==='DELEGATE')));
+    }
+    private static function signedRecords(): array|\WP_Error
+    {
         // Local independently provisioned envelope supports revocation between requests.
         // No application route writes this file; its signature is checked on every read.
         if(defined('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE')){

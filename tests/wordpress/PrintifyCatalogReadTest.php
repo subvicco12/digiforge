@@ -95,4 +95,84 @@ final class PrintifyCatalogReadTest extends WP_UnitTestCase {
   $calls=0;$r=new Reads($this->client($calls));$grant=$r->approve($this->input,'exception-audit-grant');global $wpdb;$wpdb->suppress_errors(true);$f=static fn(string $sql):string=>str_contains($sql,'INSERT INTO `'.Tables::audit_log().'`')&&str_contains($sql,'catalog_get_exception_approved')?'SELECT * FROM nonexistent_exception_audit_fixture':$sql;add_filter('query',$f);try{self::assertWPError($r->approveSafetyException($grant['sha256'],$this->exceptionInput(),'exception-audit-failure'));}finally{remove_filter('query',$f);$wpdb->suppress_errors(false);}self::assertWPError($r->read($grant['sha256'],0,'failed-exception-approval'));self::assertSame(0,$calls);
  }
 
+ public function testResearchReceiptCacheUsesNoSecondDispatchAndRechecksScope():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-cache-grant');
+  $first=$r->research($grant['sha256'],0,'research-first',300);self::assertIsArray($first);self::assertSame('MISS',$first['cache_status']);
+  $second=$r->research($grant['sha256'],0,'research-second',300);self::assertIsArray($second);self::assertSame('HIT',$second['cache_status']);self::assertSame(1,$calls);self::assertSame($first['response_sha256'],$second['response_sha256']);
+  self::assertTrue($r->revoke($grant['sha256']));self::assertWPError($r->research($grant['sha256'],0,'research-revoked',300));self::assertSame(1,$calls);
+ }
+ public function testResearchCacheCannotBypassLocksExpiryOrMissingAudit():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-block-grant');self::assertIsArray($r->research($grant['sha256'],0,'research-block-first',300));
+  DigiForge\Core\Settings::protectProduction();self::assertWPError($r->research($grant['sha256'],0,'research-locked',300));self::assertSame(1,$calls);$this->unlocked();
+  global $wpdb;$before=$r->evidence($grant['sha256'],hash('sha256','research-block-first'));self::assertIsArray($before);self::assertSame(1,$wpdb->delete(Tables::audit_log(),['event_type'=>'catalog_read_evidence','object_id'=>$before['sha256']],['%s','%s']));self::assertWPError($r->evidence($grant['sha256'],hash('sha256','research-block-first')));
+  self::assertWPError($r->research($grant['sha256'],0,'research-missing-audit',300));self::assertSame(1,$calls);
+ }
+ public function testAccountRateReservationSurvivesCrossGrantAndMissingRow():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-rate-first');self::assertIsArray($r->read($grant['sha256'],0,'research-rate-one'));
+  global $wpdb;$rows=$wpdb->get_results($wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'df_catalog_rate_%%' AND option_value LIKE %s",'%'.$wpdb->esc_like($grant['sha256']).'%'),ARRAY_A);self::assertCount(1,$rows);
+  $wpdb->delete($wpdb->options,['option_name'=>$rows[0]['option_name']]);$other=$r->approve($this->input,'research-rate-second');self::assertWPError($r->read($other['sha256'],0,'research-rate-two'));self::assertSame(1,$calls);
+ }
+
+ public function testAccountRateCeilingAcrossGrantsAndRateAuditFailure():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-ceiling-first');
+  $method=new ReflectionMethod(Reads::class,'reserveAccountRate');$method->setAccessible(true);
+  for($i=0;$i<50;$i++)self::assertTrue($method->invoke($r,$grant));
+  $other=$r->approve($this->input,'research-ceiling-second');$denied=$r->read($other['sha256'],0,'research-ceiling-denied');self::assertWPError($denied);self::assertSame('catalog_read_account_rate_limit',$denied->get_error_code());self::assertSame(0,$calls);
+ }
+ public function testResearchRestCacheIsNonceProtectedAndBounded():void {
+  $controller=new DigiForge\REST\PrintifyCatalogReadController();$controller->register();do_action('rest_api_init');$grant=(new Reads())->approve($this->input,'research-rest-grant');
+  $request=new WP_REST_Request('GET','/digiforge/v1/printify/catalog-read/'.$grant['sha256']);$request->set_query_params(['request_index'=>0,'max_age'=>901]);$request->set_header('Idempotency-Key','research-rest-request');
+  self::assertSame(403,rest_do_request($request)->get_status());$request->set_header('X-WP-Nonce',wp_create_nonce('wp_rest'));self::assertSame(400,rest_do_request($request)->get_status());
+ }
+
+ public function testRateReservationCannotHideAnInFlightLockChange():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-rate-lock-grant');
+  $hook=static function(string $sql):string{if(str_contains($sql,'catalog_read_rate_reserved')&&str_starts_with($sql,'INSERT')){global $wpdb;$wpdb->query("UPDATE ".Tables::settings()." SET setting_value='true' WHERE setting_key='stop_all'");}return $sql;};
+  add_filter('query',$hook);try{self::assertWPError($r->read($grant['sha256'],0,'research-rate-lock'));self::assertSame(0,$calls);}finally{remove_filter('query',$hook);}
+ }
+ public function testCachedEvidenceCannotLeakToARevokedShopAssignment():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-assignment-grant');self::assertIsArray($r->research($grant['sha256'],0,'research-assignment-first'));
+  ShopAccessFixture::reset();self::assertWPError($r->research($grant['sha256'],0,'research-assignment-denied'));self::assertWPError($r->evidence($grant['sha256'],hash('sha256','research-assignment-first')));self::assertSame(1,$calls);
+ }
+ public function testStructuredHttpFailuresRemainConsumedAndSanitized():void {
+  $this->unlocked();foreach([401=>'AUTHORIZATION',403=>'AUTHORIZATION',429=>'RATE_LIMIT',503=>'PROVIDER_UNAVAILABLE']as $status=>$category){$calls=0;$r=new Reads(new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls,$status){++$calls;return ['response'=>['code'=>$status],'body'=>'private provider body'];}));$grant=$r->approve($this->input,'research-http-'.$status);$result=$r->read($grant['sha256'],0,'research-http-attempt');self::assertWPError($result);self::assertSame($status,$result->get_error_data()['provider_status']);self::assertSame($category,$result->get_error_data()['category']);self::assertFalse($result->get_error_data()['retry_permitted']);self::assertStringNotContainsString('private provider body',wp_json_encode($result));self::assertWPError($r->read($grant['sha256'],0,'research-http-attempt'));self::assertSame(1,$calls);}
+ }
+
+ public function testResearchConflictingReceiptsCannotBeSilentlySelected():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-conflict-grant');self::assertIsArray($r->read($grant['sha256'],0,'research-conflict-first'));
+  $other=new Reads(new DigiForge\POD\PrintifyCatalogClient(static function()use(&$calls){++$calls;return ['response'=>['code'=>200],'body'=>'{"variants":[{"id":202,"title":"different synthetic observation"}]}'];}));self::assertIsArray($other->read($grant['sha256'],0,'research-conflict-second'));
+  $result=$r->research($grant['sha256'],0,'research-conflict-cache');self::assertWPError($result);self::assertSame('catalog_read_cache_conflict',$result->get_error_code());self::assertSame(2,$calls);
+ }
+
+ public function testPodOnlyRevocationDuringFinalCacheReloadDeniesHit():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$reader=self::factory()->user->create(['role'=>'administrator']);ShopAccessFixture::authorizeActor($reader,['personalized_pod'],['manage_digiforge','manage_digiforge_connections']);$podOwner=ShopAccessFixture::authorizeActor($reader,['personalized_pod'],['manage_digiforge_pod']);$this->input['account_id']=$reader;$grant=$r->approve($this->input,'research-race-grant');wp_set_current_user($reader);self::assertIsArray($r->research($grant['sha256'],0,'research-race-first'));
+  $loads=0;$revoked=false;$hook=static function(string $sql)use(&$loads,&$revoked,$grant,$reader,$podOwner):string{
+   if(str_starts_with($sql,'SELECT option_value')&&str_contains($sql,'df_catalog_read_grant_'.$grant['sha256'])&&++$loads===3){$revoked=true;wp_set_current_user($podOwner);$acl=new DigiForge\Security\ShopAccessRepository();$state=$acl->read('personalized_pod');foreach($state['grants']as $id=>$record){if($record['actor_id']===$reader&&$record['grantor_id']===$podOwner&&!$record['revoked']){self::assertIsArray($acl->revoke('personalized_pod',$id,'research-cache-pod-revoke',$state['revision']));break;}}wp_set_current_user($reader);}return $sql;};
+  add_filter('query',$hook);try{$result=$r->research($grant['sha256'],0,'research-race-cached');}finally{remove_filter('query',$hook);}self::assertTrue($revoked);self::assertWPError($result);self::assertSame(1,$calls);
+ }
+
+ public function testSeparateGrantCannotDispatchWhileProviderAccountLockIsHeld():void {
+  $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-account-lock-grant');$context=DigiForge\POD\PrintifyConnectionBoundary::context('personalized_pod',$this->input['integration_id'],'printify.catalog.read');
+  $json=new ReflectionMethod(Reads::class,'json');$json->setAccessible(true);$account=hash('sha256',$json->invoke(null,array_intersect_key($context,array_flip(['installation_sha256','environment','provider','external_account_reference']))));$connection=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$lock='df-catalog-read-'.substr($account,0,45);self::assertSame('1',(string)$connection->get_var($connection->prepare('SELECT GET_LOCK(%s,0)',$lock)));
+  try{self::assertWPError($r->read($grant['sha256'],0,'research-account-lock-request'));self::assertSame(0,$calls);}finally{$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)',$lock));$connection->close();}
+ }
+
+ public function testPreparedLiveAcceptancePlanIsEightGetOnlyReadsUnderUnchangedLocks():void {
+  $plan=DigiForge\POD\PrintifyCatalogResearch::requests(49,[410,217,61]);$this->input['requests']=$plan;$this->input['max_requests']=8;$calls=[];
+  $client=new DigiForge\POD\PrintifyCatalogClient(static function(string $url,array $args)use(&$calls):array{
+   self::assertSame('GET',$args['method']);self::assertSame(0,$args['redirection']);self::assertTrue($args['sslverify']);$calls[]=$url;
+   if($url==='https://api.printify.com/v1/catalog/blueprints/49.json')$data=['id'=>49,'title'=>'synthetic blueprint'];
+   elseif($url==='https://api.printify.com/v1/catalog/blueprints/49/print_providers.json')$data=[['id'=>410,'title'=>'synthetic provider410'],['id'=>217,'title'=>'synthetic provider217'],['id'=>61,'title'=>'synthetic provider61']];
+   elseif(preg_match('#^https://api\.printify\.com/v1/catalog/blueprints/49/print_providers/(410|217|61)/variants\.json$#',$url,$match))$data=['id'=>(int)$match[1],'variants'=>[['id'=>1000+(int)$match[1],'title'=>'synthetic variant','decoration_methods'=>['dtg'],'placeholders'=>[['position'=>'front','decoration_method'=>'dtg','width'=>100,'height'=>200]]]]];
+   else{self::assertMatchesRegularExpression('#^https://api\.printify\.com/v2/catalog/blueprints/49/print_providers/(410|217|61)/shipping\.json$#',$url);$data=['data'=>[['id'=>'1','type'=>'shipping_method','attributes'=>['name'=>'standard']]]];}
+   return ['response'=>['code'=>200],'body'=>wp_json_encode($data)];
+  });
+  $r=new Reads($client);$grant=$r->approve($this->input,'prepared-acceptance-grant');self::assertIsArray($grant);self::assertWPError($r->research($grant['sha256'],0,'prepared-before-exception'));self::assertCount(0,$calls);
+  self::assertIsArray($r->approveSafetyException($grant['sha256'],$this->exceptionInput(),'prepared-explicit-exception'));$receipts=[];
+  foreach($plan as $index=>$scope){$e=$r->research($grant['sha256'],$index,'prepared-read-'.$index,0);self::assertIsArray($e);ksort($scope);self::assertSame($scope,$e['request']);self::assertFalse($e['supplier_certified']);self::assertFalse($e['mutation_authorized']);$receipts[]=$e;}
+  self::assertCount(8,$calls);$comparison=DigiForge\POD\PrintifyCatalogResearch::compare($receipts);self::assertFalse($comparison['supplier_certified']);foreach($comparison['providers']as $provider){self::assertSame('UNKNOWN',$provider['safe_zone']);self::assertSame('UNKNOWN',$provider['dpi']);self::assertSame('UNKNOWN_UNTIL_EXPLICIT_METHOD_READ',$provider['destination_rates']);}
+  foreach($plan as $index=>$scope){$cached=$r->research($grant['sha256'],$index,'prepared-cache-'.$index);self::assertIsArray($cached);self::assertSame('HIT',$cached['cache_status']);}self::assertCount(8,$calls);self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertTrue((bool)DigiForge\Core\Settings::get('stop_all',true));self::assertFalse(DigiForge\Core\Settings::is_enabled('printify'));
+  self::assertWPError($r->research($grant['sha256'],8,'prepared-outside-scope'));self::assertTrue($r->revoke($grant['sha256']));self::assertWPError($r->research($grant['sha256'],0,'prepared-revoked'));self::assertCount(8,$calls);
+ }
+
 }

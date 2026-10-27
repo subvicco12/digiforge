@@ -89,7 +89,7 @@ final class PrintifyCatalogPreview
     }
 
     /** Documented API placeholder fields only; never derive DPI, safe zones or bleed. */
-    private static function placeholders(array $variant): array|WP_Error
+    public static function placeholders(array $variant): array|WP_Error
     {
         $error = static fn(): WP_Error => new WP_Error('digiforge_printify_preview_geometry', 'Invalid or conflicting catalog placeholder evidence.', ['status'=>502]);
         $methods = $variant['decoration_methods'] ?? null;

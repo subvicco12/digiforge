@@ -85,6 +85,7 @@ final class Plugin {
         (new FinanceController())->register();
         (new LaunchController())->register();
         (new Scheduler())->register();
+        (new \DigiForge\DigitalFactory\DriveGoogleWordPress())->register();
         (new \DigiForge\ProductFactory\ApprovalAutomation())->register();
         (new \DigiForge\Portal\Portal())->register();
         (new \DigiForge\Portal\U3ApprovalInbox())->register();

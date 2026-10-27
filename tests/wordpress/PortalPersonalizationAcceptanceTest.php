@@ -27,7 +27,7 @@ final class PortalPersonalizationAcceptanceTest extends WP_UnitTestCase
         self::assertTrue(Settings::safety_locked());self::assertTrue(Settings::get('stop_all',true));self::assertFalse(Settings::get('automation_armed',false));
         parent::tearDown();
     }
-    private function fixture(string $shop='personalized_pod',string $answer='  Ada  '): array
+    private function fixture(string $shop='personalized_pod',string $answer='Ada'): array
     {
         // Reuse the existing source→canonical product fixture; no render/template certification is needed.
         $case=new PortalSourceWorkflowAcceptanceTest();$candidate=new ReflectionMethod($case,'candidate');$product=new ReflectionMethod($case,'product');
@@ -44,6 +44,22 @@ final class PortalPersonalizationAcceptanceTest extends WP_UnitTestCase
     private function render(string $shop='personalized_pod'): string
     {
         $prior=$_GET;try{$_GET=['df_view'=>'orders','df_shop'=>$shop];return (new Portal())->render();}finally{$_GET=$prior;}
+    }
+    public function testExactBuyerUnicodeAndWhitespaceSurviveStoredSubmissionAndPortalReview(): void
+    {
+        $text="  José e\u{0301}  ";$own=$this->fixture('personalized_pod',$text);
+        $id=(int)$own['submission']['id'];$before=$this->stored($id);
+        self::assertSame(['name'=>$text],json_decode($before['canonical_payload'],true));
+        self::assertSame(hash('sha256',$before['canonical_payload']),$before['payload_hash']);
+        $body=$this->body($own,$this->render());
+        PortalActionAcceptanceFixture::invoke('PERSONALIZATION_REVIEW_ACTION',$body,false,false);
+        $after=$this->stored($id);self::assertSame('APPROVED',$after['review_status']);
+        self::assertSame($before['canonical_payload'],$after['canonical_payload']);
+        self::assertSame($before['payload_hash'],$after['payload_hash']);
+        $repo=new Repository();$different=$repo->createTypedPersonalization($own['arguments'],$own['questions'],['question_7'=>trim($text)]);
+        // Changing buyer text is a distinct unreviewed submission, never reuse of the approval.
+        self::assertNotWPError($different);self::assertNotSame($before['payload_hash'],$different['payload_hash']);
+        self::assertSame('UNREVIEWED',$different['review_status']);
     }
     private function document(string $html): DOMDocument
     {
