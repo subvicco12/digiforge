@@ -12,7 +12,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_COMMIT = '007da8b9d563567e5811f8ceb43b8732b48a5558'
+SOURCE_COMMIT = 'aa8b687501450f0e243c4aa9854e9089a44a76b5'
 SOURCE_FILES = (
     {
         'path': 'includes/Security/FirstPartyOwnerPolicy.php',
@@ -24,7 +24,7 @@ SOURCE_FILES = (
     },
     {
         'path': 'includes/Portal/ShopAccessPanel.php',
-        'sha256': '171d9e97d250c987332bb6e72156a1d9fd0f453942de9b630ff0e2fc08124105',
+        'sha256': 'b04790be6fe8892df4976064fed544786e63076926c09fcd3d46700e73a9c88e',
     },
 )
 SOURCE_HASHES = {row['path']: row['sha256'] for row in SOURCE_FILES}
@@ -36,6 +36,7 @@ DEPENDENCIES = (
     'includes/Security/Logger.php', 'includes/Database/Tables.php',
     'includes/Portal/ReviewConfirmation.php', 'includes/Orders/Validator.php',
     'includes/REST/ShopAccessController.php', 'includes/Portal/Portal.php',
+    'includes/Portal/ShopWorkflowNavigation.php',
 )
 LIMIT = 1048576
 INSTRUCTIONS = b'''# OWNER source overlay: REVIEW ONLY, DEPLOYMENT BLOCKED
@@ -122,7 +123,8 @@ def build():
     manifest = {
         'schema': 'digiforge-first-party-owner-source-overlay-v1',
         'source_commit': SOURCE_COMMIT,
-        'source_reference_audit': 'https://github.com/subvicco12/digiforge/actions/runs/40267811278',
+        'source_reference_audit': None,
+        'source_reference_audit_state': 'COMPLETE_EXACT_CANDIDATE_AUDIT_REQUIRED',
         'state': 'REVIEW_ONLY_DEPLOYMENT_BLOCKED', 'standalone_plugin': False,
         'files': [{'path': p, 'sha256': SOURCE_HASHES[p], 'bytes': len(files[p]),
                    'operation': 'ADD' if p == PAYLOADS[0] else 'REPLACE',

@@ -42,7 +42,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             self.assertEqual('LOCAL_FILES_PRESENT_DEPENDENCIES_MATCH', result['capture_status'])
             for key in ['production_source_verified', 'deployment_authorized', 'rollback_tested', 'mailbox_possession_verified']:
                 self.assertFalse(result[key])
-            self.assertEqual(16, len(result['capture_files']))
+            self.assertEqual(17, len(result['capture_files']))
             self.assertEqual('ABSENT_IN_LOCAL_CAPTURE', result['capture_files'][0]['capture_state'])
             self.assertEqual(before, {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()})
             self.assertEqual(3, len(m.PAYLOADS))
@@ -151,7 +151,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             self.assertEqual(2, result.returncode)
             self.assertNotIn(marker, result.stdout + result.stderr)
             report = json.loads(result.stdout)
-            self.assertEqual(16, len(report['capture_files']))
+            self.assertEqual(17, len(report['capture_files']))
             self.assertNotIn('wp-config.php', result.stdout)
             self.assertFalse(report['production_source_verified'])
 
@@ -182,6 +182,10 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         self.assertFalse(manifest['mailbox_possession_verified'])
         self.assertEqual(['digital', 'personalized_pod', 'standard_pod', 'jewelry'], manifest['architecture_shops'])
         self.assertEqual(15, len(set(manifest['required_administrative_capabilities'])))
+        references={row['path'] for row in manifest['existing_runtime_dependency_references_not_payload']}
+        self.assertIn('includes/Portal/ShopWorkflowNavigation.php', references)
+        self.assertIsNone(manifest['source_reference_audit'])
+        self.assertEqual('COMPLETE_EXACT_CANDIDATE_AUDIT_REQUIRED',manifest['source_reference_audit_state'])
         self.assertEqual('REVIEW_ONLY_DEPLOYMENT_BLOCKED', m.verify(blob)['state'])
 
     def test_reproducible_source_does_not_read_mutable_checkout(self):
@@ -191,7 +195,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             second, again = m.build()
         self.assertEqual(first, second)
         self.assertEqual(manifest, again)
-        self.assertEqual('007da8b9d563567e5811f8ceb43b8732b48a5558', manifest['source_commit'])
+        self.assertEqual('aa8b687501450f0e243c4aa9854e9089a44a76b5', manifest['source_commit'])
         self.assertTrue(all(r['raw_installed_preimage_sha256'] is None for r in manifest['files']))
 
     def test_extra_cumulative_pod_google_finance_or_traversal_members_reject(self):

@@ -169,6 +169,13 @@ final class AcceptanceReviewWorkflowTest extends WP_UnitTestCase
             $_REQUEST=[];$_SERVER['HTTP_X_WP_NONCE']=wp_create_nonce('wp_rest');
             self::assertTrue(rest_get_server()->check_authentication());
             self::assertSame(201,rest_do_request($this->request($this->proposal()))->get_status());
+            $originalCookie=$_COOKIE[LOGGED_IN_COOKIE];$otherToken=WP_Session_Tokens::get_instance($actor)->create(time()+600);
+            try {
+                $_COOKIE[LOGGED_IN_COOKIE]=wp_generate_auth_cookie($actor,time()+600,'logged_in',$otherToken);
+                $_SERVER['HTTP_X_WP_NONCE']=wp_create_nonce('wp_rest');
+                $_COOKIE[LOGGED_IN_COOKIE]=$originalCookie;
+                self::assertWPError(rest_get_server()->check_authentication());
+            } finally { WP_Session_Tokens::get_instance($actor)->destroy($otherToken);$_COOKIE[LOGGED_IN_COOKIE]=$originalCookie; }
             $_SERVER['HTTP_X_WP_NONCE']='invalid';self::assertWPError(rest_get_server()->check_authentication());
             unset($_SERVER['HTTP_X_WP_NONCE']);self::assertTrue(rest_get_server()->check_authentication());
             self::assertSame(0,get_current_user_id());

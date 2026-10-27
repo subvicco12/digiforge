@@ -9,7 +9,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
  try {for(const shop of ['digital','personalized_pod'])for(const width of [390,768,1280])for(const pretty of [false,true]){
   const page=await browser.newPage({viewport:{width,height:1000}});let calls=0,fail=false;
   let html=fs.readFileSync(path.join(dir,shop+'.html'),'utf8');
-  html=html.replace(/data-endpoint="[^"]+"/,`data-endpoint="${pretty?'https://example.org/wp-json/digiforge/v1/reviewed-contracts/'+shop+'/':'https://example.org/?rest_route=/digiforge/v1/reviewed-contracts/'+shop+'/'}"`);
+  html=html.replace(/data-endpoint="[^"]+"/g,`data-endpoint="${pretty?'https://example.org/wp-json/digiforge/v1/reviewed-contracts/'+shop+'/':'https://example.org/?rest_route=/digiforge/v1/reviewed-contracts/'+shop+'/'}"`);
   await page.route('**/*',async route=>{
    const r=route.request(),url=new URL(r.url());
    if(url.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}'+css+'</style><div class="df-portal-shell"><aside class="df-portal-sidebar">Synthetic operator navigation</aside><main class="df-portal-main">'+html+'</main></div><script>'+script+'</script></html>'});
