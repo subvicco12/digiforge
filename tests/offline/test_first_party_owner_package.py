@@ -4,6 +4,7 @@ import copy
 import io
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import subprocess
@@ -24,6 +25,135 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
+
+    def capture(self, module, root):
+        for name in module.DEPENDENCIES + module.PAYLOADS[1:]:
+            target = root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(module._source(name, module.SOURCE_COMMIT))
+
+    def test_private_capture_never_becomes_production_or_rollback_approval(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.capture(m, root)
+            before = {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+            result = m.inspect_capture(root)
+            self.assertEqual('LOCAL_FILES_PRESENT_DEPENDENCIES_MATCH', result['capture_status'])
+            for key in ['production_source_verified', 'deployment_authorized', 'rollback_tested', 'mailbox_possession_verified']:
+                self.assertFalse(result[key])
+            self.assertEqual(16, len(result['capture_files']))
+            self.assertEqual('ABSENT_IN_LOCAL_CAPTURE', result['capture_files'][0]['capture_state'])
+            self.assertEqual(before, {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()})
+            self.assertEqual(3, len(m.PAYLOADS))
+
+    def test_missing_preimage_and_dependency_drift_block_scope(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.capture(m, root)
+            (root / m.PAYLOADS[1]).unlink()
+            (root / m.DEPENDENCIES[0]).write_bytes(b'<?php /* synthetic altered dependency */')
+            result = m.inspect_capture(root)
+            self.assertEqual('MISSING_OR_DRIFTED', result['capture_status'])
+            self.assertIn('MISSING_PREIMAGE', str(result))
+            self.assertIn('DEPENDENCY_DRIFT', str(result))
+            self.assertFalse(result['deployment_authorized'])
+
+    def test_extra_previously_unknown_policy_is_not_silently_overwritten(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.capture(m, root)
+            (root / m.PAYLOADS[0]).write_bytes(b'<?php /* unrelated synthetic policy */')
+            result = m.inspect_capture(root)
+            self.assertEqual('MISSING_OR_DRIFTED', result['capture_status'])
+            self.assertEqual('UNEXPECTED_EXISTING_POLICY', result['capture_files'][0]['scope_check'])
+
+    def test_capture_symlink_parents_and_nonregular_files_reject(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.capture(m, root)
+            target = root / m.PAYLOADS[1]
+            target.unlink()
+            target.symlink_to('/etc/passwd')
+            with self.assertRaises(ValueError):
+                m.inspect_capture(root)
+
+    def test_capture_cli_never_returns_deployment_success_or_extracts(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, str(ROOT / 'bin/package-first-party-owner.py'), '--inspect-capture', directory], capture_output=True, text=True)
+            self.assertEqual(2, result.returncode)
+            report = json.loads(result.stdout)
+            self.assertFalse(report['deployment_authorized'])
+            self.assertEqual([], list(Path(directory).iterdir()))
+
+    def test_capture_root_parent_links_fifo_hardlinks_and_oversize_reject(self):
+        m = self.module()
+        for kind in ['root-link', 'parent-link', 'fifo', 'hardlink', 'oversize']:
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / 'capture'
+                root.mkdir()
+                self.capture(m, root)
+                target = root / m.PAYLOADS[1]
+                selected = root
+                if kind == 'root-link':
+                    selected = Path(directory) / 'link'
+                    selected.symlink_to(root, target_is_directory=True)
+                elif kind == 'parent-link':
+                    (root / 'includes').rename(root / 'held-includes')
+                    (root / 'includes').symlink_to(root / 'held-includes', target_is_directory=True)
+                elif kind == 'fifo':
+                    target.unlink()
+                    os.mkfifo(target)
+                elif kind == 'hardlink':
+                    os.link(target, root / 'another-link')
+                else:
+                    target.write_bytes(b'x' * (m.LIMIT + 1))
+                with self.assertRaises(ValueError):
+                    m.inspect_capture(selected)
+
+    def test_capture_changed_during_read_rejects_without_exporting_content(self):
+        m = self.module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.capture(m, root)
+            target = root / m.PAYLOADS[1]
+            original_read = os.read
+            changed = False
+            def read(fd, count):
+                nonlocal changed
+                chunk = original_read(fd, count)
+                if chunk and not changed:
+                    changed = True
+                    with target.open('ab') as output:
+                        output.write(b'changed synthetic capture')
+                return chunk
+            opened = m._capture_directory(root)
+            try:
+                with patch.object(m.os, 'read', side_effect=read):
+                    with self.assertRaisesRegex(ValueError, 'Capture changed'):
+                        m._capture_file(opened, m.PAYLOADS[1])
+            finally:
+                os.close(opened)
+
+    def test_capture_cli_emits_metadata_only_and_ignores_protected_configuration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            m = self.module()
+            root = Path(directory)
+            self.capture(m, root)
+            marker = 'CAPTURE_CONTENT_MUST_NOT_BE_EXPORTED'
+            (root / m.PAYLOADS[1]).write_text('<?php /* ' + marker + ' */')
+            (root / 'wp-config.php').write_text(marker)
+            result = subprocess.run([sys.executable, str(ROOT / 'bin/package-first-party-owner.py'), '--inspect-capture', directory], capture_output=True, text=True)
+            self.assertEqual(2, result.returncode)
+            self.assertNotIn(marker, result.stdout + result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(16, len(report['capture_files']))
+            self.assertNotIn('wp-config.php', result.stdout)
+            self.assertFalse(report['production_source_verified'])
 
     def altered(self, blob, change):
         with zipfile.ZipFile(io.BytesIO(blob)) as z:

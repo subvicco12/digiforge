@@ -104,7 +104,7 @@ final class PrintifyCatalogReadTest extends WP_UnitTestCase {
  public function testResearchCacheCannotBypassLocksExpiryOrMissingAudit():void {
   $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-block-grant');self::assertIsArray($r->research($grant['sha256'],0,'research-block-first',300));
   DigiForge\Core\Settings::protectProduction();self::assertWPError($r->research($grant['sha256'],0,'research-locked',300));self::assertSame(1,$calls);$this->unlocked();
-  global $wpdb;$before=$r->evidence($grant['sha256'],hash('sha256','research-block-first'));self::assertIsArray($before);self::assertSame(1,$wpdb->delete(Tables::audit_log(),['event_type'=>'catalog_read_evidence','object_id'=>$before['sha256']]));self::assertWPError($r->evidence($grant['sha256'],hash('sha256','research-block-first')));
+  global $wpdb;$before=$r->evidence($grant['sha256'],hash('sha256','research-block-first'));self::assertIsArray($before);self::assertSame(1,$wpdb->delete(Tables::audit_log(),['event_type'=>'catalog_read_evidence','object_id'=>$before['sha256']],['%s','%s']));self::assertWPError($r->evidence($grant['sha256'],hash('sha256','research-block-first')));
   self::assertWPError($r->research($grant['sha256'],0,'research-missing-audit',300));self::assertSame(1,$calls);
  }
  public function testAccountRateReservationSurvivesCrossGrantAndMissingRow():void {
@@ -155,6 +155,24 @@ final class PrintifyCatalogReadTest extends WP_UnitTestCase {
   $calls=0;$r=new Reads($this->client($calls));$this->unlocked();$grant=$r->approve($this->input,'research-account-lock-grant');$context=DigiForge\POD\PrintifyConnectionBoundary::context('personalized_pod',$this->input['integration_id'],'printify.catalog.read');
   $json=new ReflectionMethod(Reads::class,'json');$json->setAccessible(true);$account=hash('sha256',$json->invoke(null,array_intersect_key($context,array_flip(['installation_sha256','environment','provider','external_account_reference']))));$connection=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$lock='df-catalog-read-'.substr($account,0,45);self::assertSame('1',(string)$connection->get_var($connection->prepare('SELECT GET_LOCK(%s,0)',$lock)));
   try{self::assertWPError($r->read($grant['sha256'],0,'research-account-lock-request'));self::assertSame(0,$calls);}finally{$connection->get_var($connection->prepare('SELECT RELEASE_LOCK(%s)',$lock));$connection->close();}
+ }
+
+ public function testPreparedLiveAcceptancePlanIsEightGetOnlyReadsUnderUnchangedLocks():void {
+  $plan=DigiForge\POD\PrintifyCatalogResearch::requests(49,[410,217,61]);$this->input['requests']=$plan;$this->input['max_requests']=8;$calls=[];
+  $client=new DigiForge\POD\PrintifyCatalogClient(static function(string $url,array $args)use(&$calls):array{
+   self::assertSame('GET',$args['method']);self::assertSame(0,$args['redirection']);self::assertTrue($args['sslverify']);$calls[]=$url;
+   if($url==='https://api.printify.com/v1/catalog/blueprints/49.json')$data=['id'=>49,'title'=>'synthetic blueprint'];
+   elseif($url==='https://api.printify.com/v1/catalog/blueprints/49/print_providers.json')$data=[['id'=>410,'title'=>'synthetic provider410'],['id'=>217,'title'=>'synthetic provider217'],['id'=>61,'title'=>'synthetic provider61']];
+   elseif(preg_match('#^https://api\.printify\.com/v1/catalog/blueprints/49/print_providers/(410|217|61)/variants\.json$#',$url,$match))$data=['id'=>(int)$match[1],'variants'=>[['id'=>1000+(int)$match[1],'title'=>'synthetic variant','decoration_methods'=>['dtg'],'placeholders'=>[['position'=>'front','decoration_method'=>'dtg','width'=>100,'height'=>200]]]]];
+   else{self::assertMatchesRegularExpression('#^https://api\.printify\.com/v2/catalog/blueprints/49/print_providers/(410|217|61)/shipping\.json$#',$url);$data=['data'=>[['id'=>'1','type'=>'shipping_method','attributes'=>['name'=>'standard']]]];}
+   return ['response'=>['code'=>200],'body'=>wp_json_encode($data)];
+  });
+  $r=new Reads($client);$grant=$r->approve($this->input,'prepared-acceptance-grant');self::assertIsArray($grant);self::assertWPError($r->research($grant['sha256'],0,'prepared-before-exception'));self::assertCount(0,$calls);
+  self::assertIsArray($r->approveSafetyException($grant['sha256'],$this->exceptionInput(),'prepared-explicit-exception'));$receipts=[];
+  foreach($plan as $index=>$scope){$e=$r->research($grant['sha256'],$index,'prepared-read-'.$index,0);self::assertIsArray($e);ksort($scope);self::assertSame($scope,$e['request']);self::assertFalse($e['supplier_certified']);self::assertFalse($e['mutation_authorized']);$receipts[]=$e;}
+  self::assertCount(8,$calls);$comparison=DigiForge\POD\PrintifyCatalogResearch::compare($receipts);self::assertFalse($comparison['supplier_certified']);foreach($comparison['providers']as $provider){self::assertSame('UNKNOWN',$provider['safe_zone']);self::assertSame('UNKNOWN',$provider['dpi']);self::assertSame('UNKNOWN_UNTIL_EXPLICIT_METHOD_READ',$provider['destination_rates']);}
+  foreach($plan as $index=>$scope){$cached=$r->research($grant['sha256'],$index,'prepared-cache-'.$index);self::assertIsArray($cached);self::assertSame('HIT',$cached['cache_status']);}self::assertCount(8,$calls);self::assertTrue(DigiForge\Core\Settings::safety_locked());self::assertTrue((bool)DigiForge\Core\Settings::get('stop_all',true));self::assertFalse(DigiForge\Core\Settings::is_enabled('printify'));
+  self::assertWPError($r->research($grant['sha256'],8,'prepared-outside-scope'));self::assertTrue($r->revoke($grant['sha256']));self::assertWPError($r->research($grant['sha256'],0,'prepared-revoked'));self::assertCount(8,$calls);
  }
 
 }

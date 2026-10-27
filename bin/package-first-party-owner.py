@@ -4,6 +4,8 @@ import argparse
 import hashlib
 import io
 import json
+import os
+import stat
 from pathlib import Path
 import re
 import subprocess
@@ -176,13 +178,97 @@ def verify(blob):
     return manifest
 
 
+def _capture_directory(root):
+    """Anchor a local directory without following any symlink component."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    current = os.open('/', flags)
+    try:
+        for part in Path(root).absolute().parts[1:]:
+            opened = os.open(part, flags, dir_fd=current)
+            os.close(current)
+            current = opened
+        return current
+    except OSError:
+        os.close(current)
+        raise ValueError('Regular private capture directory required') from None
+
+
+def _capture_file(root_fd, path):
+    directory = os.dup(root_fd)
+    try:
+        parts = Path(path).parts
+        for part in parts[:-1]:
+            opened = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = opened
+        opened = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        try:
+            before = os.fstat(opened)
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or not 0 < before.st_size <= LIMIT:
+                raise ValueError('Bounded regular single-link capture file required')
+            content = bytearray()
+            while len(content) <= LIMIT:
+                chunk = os.read(opened, min(65536, LIMIT + 1 - len(content)))
+                if not chunk:
+                    break
+                content.extend(chunk)
+            after = os.fstat(opened)
+            named = os.stat(parts[-1], dir_fd=directory, follow_symlinks=False)
+            fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns', 'st_mode', 'st_nlink')
+            if len(content) != before.st_size or any(getattr(before, k) != getattr(after, k) or getattr(after, k) != getattr(named, k) for k in fields):
+                raise ValueError('Capture changed during inspection')
+            return {'capture_state': 'PRESENT_IN_LOCAL_CAPTURE', 'capture_sha256': hashlib.sha256(content).hexdigest(),
+                    'capture_bytes': len(content), 'captured_copy_mode': format(stat.S_IMODE(before.st_mode), '04o')}
+        finally:
+            os.close(opened)
+    except FileNotFoundError:
+        return {'capture_state': 'ABSENT_IN_LOCAL_CAPTURE', 'capture_sha256': None, 'capture_bytes': None}
+    except OSError:
+        raise ValueError('Unsafe or unreadable capture file') from None
+    finally:
+        os.close(directory)
+
+
+def inspect_capture(root):
+    """Compare a private local copy only. Never authenticates production provenance."""
+    _, manifest = build()
+    expected = {r['path']: r['sha256'] for r in manifest['files'] + manifest['existing_runtime_dependency_references_not_payload']}
+    directory = _capture_directory(root)
+    rows = []
+    blocked = False
+    try:
+        for path in PAYLOADS + DEPENDENCIES:
+            row = {'path': path, 'candidate_sha256': expected[path]} | _capture_file(directory, path)
+            present = row['capture_state'] == 'PRESENT_IN_LOCAL_CAPTURE'
+            matches = present and row['capture_sha256'] == expected[path]
+            if path in DEPENDENCIES:
+                check = 'CAPTURE_MATCH' if matches else ('DEPENDENCY_DRIFT' if present else 'MISSING_DEPENDENCY')
+            elif path == PAYLOADS[0]:
+                check = 'ABSENCE_OBSERVED_NOT_PROVEN' if not present else ('ALREADY_TARGET_IN_CAPTURE' if matches else 'UNEXPECTED_EXISTING_POLICY')
+            else:
+                check = 'ALREADY_TARGET_IN_CAPTURE' if matches else ('PREIMAGE_PRESENT_REVIEW_REQUIRED' if present else 'MISSING_PREIMAGE')
+            blocked |= check in ('DEPENDENCY_DRIFT', 'MISSING_DEPENDENCY', 'UNEXPECTED_EXISTING_POLICY', 'MISSING_PREIMAGE')
+            rows.append(row | {'scope_check': check})
+    finally:
+        os.close(directory)
+    return {'schema': 'digiforge-owner-private-capture-inspection-v1', 'source_commit': SOURCE_COMMIT,
+            'state': 'REVIEW_ONLY_DEPLOYMENT_BLOCKED', 'capture_status': 'MISSING_OR_DRIFTED' if blocked else 'LOCAL_FILES_PRESENT_DEPENDENCIES_MATCH',
+            'capture_files': rows, 'production_source_verified': False, 'installed_dependency_closure_verified': False,
+            'production_absence_verified': False, 'mailbox_possession_verified': False, 'rollback_tested': False,
+            'deployment_authorized': False, 'grants_created': False, 'external_actions_performed': False}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--output', type=Path, help='New local review .zip; never overwrites')
     mode.add_argument('--verify', type=Path, help='Validate only; never extracts or installs')
+    mode.add_argument('--inspect-capture', type=Path, help='Inspect a private local plugin-source copy; never installs or approves')
     args = parser.parse_args()
     try:
+        if args.inspect_capture:
+            print(json.dumps(inspect_capture(args.inspect_capture), sort_keys=True))
+            parser.exit(2, 'Local inspection only; production provenance and deployment remain blocked.\n')
         if args.verify:
             with args.verify.open('rb') as source:
                 manifest = verify(source.read(LIMIT + 1))
