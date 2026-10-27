@@ -128,12 +128,13 @@ jobs:
         run: vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter 'FirstPartyOwnerIntegrationTest|WebsiteOwnerAccessTest|ShopAccess(Acceptance|RevocationIntegrity|RestAcceptance|WorkflowAcceptance)Test|OperatorOverviewAcceptanceTest|PortalWorkflowAcceptanceTest|TwoShopPortalAcceptanceTest'
 
       - name: Prepare Google portal capture directory
-        run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
+        run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures" "$RUNNER_TEMP/acceptance-review-fixtures"
 
       - name: WordPress database integration tests
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
           DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+          DF_ACCEPTANCE_REVIEW_FIXTURES: ${{ runner.temp }}/acceptance-review-fixtures
         run: composer test:wordpress
 
       - name: Set up Node for offline portal acceptance
@@ -151,6 +152,8 @@ jobs:
           npm audit --prefix "$runtime" --omit=dev --audit-level=high
           node "$runtime/node_modules/playwright/cli.js" install --with-deps chromium
           NODE_PATH="$runtime/node_modules" node tests/browser/google-drive-portal.cjs "$RUNNER_TEMP/google-portal-fixtures"
+          node tests/browser/acceptance-review-workflow.cjs
+          NODE_PATH="$runtime/node_modules" node tests/browser/acceptance-review-native.cjs "$RUNNER_TEMP/acceptance-review-fixtures"
 
       - name: Official Action Scheduler integration acceptance
         env:

@@ -12,6 +12,15 @@ final class ReviewedAcceptanceContract
  private const CRITERIA=['BP-seam-panel-render','BP-ai-value-routing','BP-template-qa-spelling','BP-portal-7-supplier-readiness','BP-portal-17-conversion','BP-portal-17-supplier-performance','BP-portal-17-product-performance','BP-portal-17-shop-performance','BP-portal-17-defect-quality','BP-quality-feedback'];
  /** Safe metadata only; referenced records and measurements remain unverified. */
  public static function criteria():array {return self::CRITERIA;}
+ /** Inspect the exact pending or decided payload before an independent decision. */
+ public static function inspect(string $shop,string $criterion,string $scope):array|WP_Error {
+  $key=self::key($shop,$criterion,$scope);if(is_wp_error($key))return $key;
+  $access=ShopAccess::authorize($shop,'manage_digiforge_settings');if(is_wp_error($access))return $access;
+  $state=ReviewedLocalEvidence::read('policy',$shop,$key);if(is_wp_error($state))return $state;
+  if(!is_array($state)||self::validate($shop,$state['payload'])!==$key)return self::error();
+  return $state+['contract_key'=>$key,'shop_key'=>$shop,'criterion'=>$criterion,'scope'=>$scope,
+   'evidence_state'=>'UNVERIFIED','external_execution_authorized'=>false,'production_authorized'=>false,'supplier_approved'=>false];
+ }
  public static function status(string $shop,string $criterion,string $scope):array|WP_Error {
   $key=self::key($shop,$criterion,$scope);if(is_wp_error($key))return $key;
   $state=ReviewedLocalEvidence::read('policy',$shop,$key);if(is_wp_error($state))return $state;

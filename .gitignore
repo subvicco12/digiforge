@@ -1,4 +1,5 @@
 /vendor/
+/.runtime/
 /build/
 /.phpunit.cache/
 /.phpstan.cache/

@@ -60,7 +60,11 @@ final class ShopAccessRestGuard
     {
         $path=substr($route, strlen('/digiforge/v1/'));
         return match (true) {
-            preg_match('#^reviewed-contracts/(digital|personalized_pod)/acceptance$#D',$path)===1 => $method==='GET'?[['manage_digiforge']]:[],
+            preg_match('#^reviewed-contracts/(digital|personalized_pod)/acceptance(?:/(proposal|decision))?$#D',$path,$acceptance)===1 => match (true) {
+                !isset($acceptance[2]) && $method==='GET' => [['manage_digiforge']],
+                (!isset($acceptance[2]) && $method==='POST') || (($acceptance[2]??null)==='proposal' && $method==='GET') || (($acceptance[2]??null)==='decision' && $method==='POST') => [['manage_digiforge','manage_digiforge_settings']],
+                default => [],
+            },
             preg_match('#^reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$path,$contract)===1 => $method==='GET'?[['manage_digiforge']]:[['manage_digiforge',isset($contract[3])||$contract[2]==='policy'?'manage_digiforge_settings':'manage_digiforge_connections']],
             str_starts_with($path,'printify/catalog-read/')=>[['manage_digiforge_connections','manage_digiforge_pod']],
             $path==='etsy/operations'=>[['manage_digiforge_connections','manage_digiforge_orders']],

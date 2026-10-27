@@ -17,6 +17,15 @@ final class ReviewedContractsController
     {
         add_action('rest_api_init', function(): void {
             register_rest_route('digiforge/v1','/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/acceptance',['methods'=>'GET','permission_callback'=>[$this,'canReadAcceptance'],'callback'=>[$this,'readAcceptance']]);
+            register_rest_route('digiforge/v1','/reviewed-contracts/(?P<shop>digital|personalized_pod)/acceptance',[
+                'methods'=>'POST','permission_callback'=>[$this,'canWriteAcceptance'],'callback'=>[$this,'proposeAcceptance'],
+            ]);
+            register_rest_route('digiforge/v1','/reviewed-contracts/(?P<shop>digital|personalized_pod)/acceptance/decision',[
+                'methods'=>'POST','permission_callback'=>[$this,'canWriteAcceptance'],'callback'=>[$this,'decideAcceptance'],
+            ]);
+            register_rest_route('digiforge/v1','/reviewed-contracts/(?P<shop>digital|personalized_pod)/acceptance/proposal',[
+                'methods'=>'GET','permission_callback'=>[$this,'canWriteAcceptance'],'callback'=>[$this,'inspectAcceptance'],
+            ]);
             $route='/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/(?P<kind>policy|ownership)';
             register_rest_route('digiforge/v1',$route,[
                 ['methods'=>'GET','permission_callback'=>[$this,'canRead'],'callback'=>[$this,'read']],
@@ -32,6 +41,57 @@ final class ReviewedContractsController
         $shop=$request->get_url_params()['shop']??null;
         if(!is_string($shop)||!in_array($shop,['digital','personalized_pod'],true))return self::error('scope',403);
         return ShopAccess::authorize($shop,'manage_digiforge');
+    }
+
+    public function canWriteAcceptance(WP_REST_Request $request): true|WP_Error
+    {
+        $access=$this->canReadAcceptance($request);
+        if (is_wp_error($access)) return $access;
+        if (!wp_verify_nonce($request->get_header('X-WP-Nonce'),'wp_rest')) return self::error('nonce',403);
+        return ShopAccess::authorize($request->get_url_params()['shop'],'manage_digiforge_settings');
+    }
+
+    public function inspectAcceptance(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $access=$this->canWriteAcceptance($request);if (is_wp_error($access)) return $access;
+        $q=$this->query($request);if (is_wp_error($q)) return $q;
+        if ($request->get_method()!=='GET' || $request->get_body()!=='' || !self::exact($q,['criterion','scope'])
+            || !is_string($q['criterion']) || !is_string($q['scope'])) return self::error('typed',400);
+        $state=\DigiForge\Portal\ReviewedAcceptanceContract::inspect($request->get_url_params()['shop'],$q['criterion'],$q['scope']);
+        return is_wp_error($state)?$state:new WP_REST_Response($state,200,['Cache-Control'=>'private, no-store']);
+    }
+
+    private function acceptanceBody(WP_REST_Request $request,bool $decision): array|WP_Error
+    {
+        $access=$this->canWriteAcceptance($request);
+        if (is_wp_error($access)) return $access;
+        if ($request->get_method()!=='POST' || $this->query($request)!==[] || !$request->is_json_content_type()) return self::error('typed',400);
+        $body=\DigiForge\Portal\AcceptanceReviewRequest::parse($request->get_body(),$decision);
+        return $body??self::error('typed',400);
+    }
+
+    public function proposeAcceptance(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $body=$this->acceptanceBody($request,false);
+        if (is_wp_error($body)) return $body;
+        $shop=$request->get_url_params()['shop'];
+        $state=\DigiForge\Portal\ReviewedAcceptanceContract::propose($shop,$body['input'],$body['effective_at'],$body['expires_at'],$body['request_id'],$body['expected_revision']);
+        return is_wp_error($state)?$state:new WP_REST_Response($this->acceptanceResult($shop,$state),201,['Cache-Control'=>'private, no-store']);
+    }
+
+    public function decideAcceptance(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $body=$this->acceptanceBody($request,true);
+        if (is_wp_error($body)) return $body;
+        $shop=$request->get_url_params()['shop'];
+        $state=\DigiForge\Portal\ReviewedAcceptanceContract::decide($shop,$body['criterion'],$body['scope'],$body['expected_revision'],$body['proposal_hash'],$body['decision'],$body['request_id']);
+        return is_wp_error($state)?$state:new WP_REST_Response($this->acceptanceResult($shop,$state),200,['Cache-Control'=>'private, no-store']);
+    }
+
+    private function acceptanceResult(string $shop,array $state): array
+    {
+        return $state+['shop_key'=>$shop,'criterion'=>$state['payload']['criterion'],'scope'=>$state['payload']['scope'],
+            'evidence_state'=>'UNVERIFIED','production_authorized'=>false,'supplier_approved'=>false];
     }
 
     public function readAcceptance(WP_REST_Request $request): WP_REST_Response|WP_Error

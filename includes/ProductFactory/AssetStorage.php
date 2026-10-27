@@ -54,7 +54,10 @@ final class AssetStorage
         if ($root === false || $path === false || ! is_file($path)) {
             return null;
         }
-        $prefix = trailingslashit($root);
+        // realpath returns native separators; WordPress trailingslashit always adds
+        // '/', which cannot match a canonical Windows child path. Keep the final
+        // separator in the containment check so sibling names still fail closed.
+        $prefix = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         return str_starts_with($path, $prefix) ? $path : null;
     }
 }

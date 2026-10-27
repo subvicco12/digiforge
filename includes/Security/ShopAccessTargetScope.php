@@ -26,7 +26,10 @@ final class ShopAccessTargetScope
             foreach(['shop','shop_key'] as $field){$claim=$request->get_param($field);if($claim!==null&&$claim!==$shop)return self::error();}
             return $shop;
         }
-        if ($request->get_method()==='GET' && preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod)/acceptance$#D',$route,$acceptance)) {
+        if (preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod)/acceptance(?:/(proposal|decision))?$#D',$route,$acceptance)
+            && ((!isset($acceptance[2]) && in_array($request->get_method(),['GET','POST'],true))
+                || (($acceptance[2]??null)==='proposal' && $request->get_method()==='GET')
+                || (($acceptance[2]??null)==='decision' && $request->get_method()==='POST'))) {
             return in_array($acceptance[1],$allowed,true)?$acceptance[1]:self::error();
         }
         if (preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$route,$contract)) {
