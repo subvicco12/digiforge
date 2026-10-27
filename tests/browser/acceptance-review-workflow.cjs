@@ -33,4 +33,3 @@ async function scenario({foreign=false, failure=false, stale=false, decision=fal
   else {assert.match(output.textContent,/PENDING/);assert.match(output.textContent,/<img onerror=bad>/);assert.match(output.textContent,/UNVERIFIED/);}
 }
 (async()=>{let checks=0;for(const pretty of [false,true])for(const options of [{},{decision:true},{inspect:true},{inspect:true,foreign:true},{foreign:true},{failure:true},{stale:true},{invalid:true}]){await scenario({...options,pretty});checks++;}console.log(`PASS: ${checks} acceptance review transport scenarios`);})().catch(error=>{console.error(error);process.exit(1);});
-

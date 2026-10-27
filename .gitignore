@@ -1,5 +1,6 @@
 /vendor/
 /.runtime/
+__pycache__/
 /build/
 /.phpunit.cache/
 /.phpstan.cache/
