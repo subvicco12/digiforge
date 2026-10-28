@@ -1,0 +1,195 @@
+{
+  "schema": "digiforge-readonly-closure-observations-v1",
+  "engineering_sha": "cabe5ad73226cc49e4ec0726c52c96084231e7fe",
+  "evidence_baseline_sha": "baeeceadc79ad90a784ec9610836c74a0e354312",
+  "scope": "AUTHENTICATED_GET_AND_REDACTED_SOURCE_OBSERVATIONS_ONLY",
+  "production_health": {
+    "status": "ok",
+    "version": "1.0.103",
+    "automation_enabled": false,
+    "stop_all": true,
+    "externally_locked": true
+  },
+  "recovery_health": {
+    "status": "ok",
+    "version": "1.0.103",
+    "automation_enabled": false,
+    "stop_all": true,
+    "externally_locked": true
+  },
+  "staging_health": {
+    "status": "ok",
+    "version": "1.0.103",
+    "automation_enabled": false,
+    "stop_all": true,
+    "externally_locked": true
+  },
+  "production_actor": {
+    "id": 1,
+    "roles": [
+      "administrator"
+    ],
+    "ordinary_digiforge_capabilities": [
+      "manage_digiforge",
+      "manage_digiforge_products",
+      "manage_digiforge_digital",
+      "manage_digiforge_research",
+      "manage_digiforge_ai",
+      "manage_digiforge_production",
+      "manage_digiforge_pod",
+      "manage_digiforge_listings",
+      "manage_digiforge_orders",
+      "manage_digiforge_finance",
+      "manage_digiforge_automation",
+      "manage_digiforge_connections",
+      "manage_digiforge_settings",
+      "publish_digiforge",
+      "view_digiforge_analytics"
+    ],
+    "mailbox_possession_verified": false,
+    "first_party_owner_verified": false
+  },
+  "shop_access": {
+    "default": {
+      "shops": [],
+      "capability": "manage_digiforge",
+      "implicit_access": false,
+      "external_execution_authorized": false
+    },
+    "digital": {
+      "shops": [],
+      "capability": "manage_digiforge_digital",
+      "implicit_access": false,
+      "external_execution_authorized": false
+    },
+    "personalized_pod": {
+      "shops": [],
+      "capability": "manage_digiforge_pod",
+      "implicit_access": false,
+      "external_execution_authorized": false
+    },
+    "invalid_capability": "400 digiforge_shop_access_typed",
+    "grant_read": "403 digiforge_shop_access_nonce",
+    "recovery": "404 rest_no_route",
+    "staging": "404 rest_no_route"
+  },
+  "source_targets": [
+    {
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "state": "CONNECTOR_NOT_FOUND",
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Portal/ShopAccessPanel.php",
+      "state": "REDACTED_REPRESENTATION_DIFFERS_NOT_RAW_PROOF",
+      "lines": 162,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "state": "REDACTED_REPRESENTATION_DIFFERS_NOT_RAW_PROOF",
+      "lines": 61,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Core/Plugin.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 114,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "digiforge.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 55,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 29,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 143,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Core/Capabilities.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 18,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 30,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Database/Tables.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 103,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/Logger.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 85,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Security/ShopAccessAdminGuard.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 73,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Portal/ReviewConfirmation.php",
+      "state": "REDACTED_REPRESENTATION_DIFFERS_NOT_RAW_PROOF",
+      "lines": 140,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/REST/ShopAccessController.php",
+      "state": "NORMALIZED_REPRESENTATION_MATCH",
+      "lines": 81,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Orders/Validator.php",
+      "state": "REDACTED_REPRESENTATION_DIFFERS_NOT_RAW_PROOF",
+      "lines": 136,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Portal/ShopWorkflowNavigation.php",
+      "state": "CONNECTOR_NOT_FOUND",
+      "lines": 0,
+      "raw_preimage_verified": false
+    },
+    {
+      "path": "includes/Portal/Portal.php",
+      "state": "BLOCKED_64KIB_CONNECTOR_LIMIT",
+      "lines": 0,
+      "raw_preimage_verified": false
+    }
+  ],
+  "raw_production_preimages_obtained": false,
+  "backup_checkpoint_identified": false,
+  "restore_executed": false,
+  "restore_certified": false,
+  "authenticated_browser_session_available": false,
+  "rendered_access_page": "SIGN_IN_REQUIRED_NO_AUTHENTICATED_BROWSER_SESSION",
+  "desktop_mobile_acceptance": "UNKNOWN_NOT_EXECUTED",
+  "wedding_v05": "Original bytes unavailable; accessible Drive searches returned v0.4 candidates or no v0.5 match; no absence claim for all Drive",
+  "new_criteria_verified": [],
+  "production_mutation_commands_executed": false,
+  "observed_at_utc": "2026-10-28T17:58:13.440Z",
+  "production_runtime": {
+    "wordpress": "7.1.3",
+    "php": "8.3.36",
+    "wpvibe": "1.17.3"
+  }
+}
