@@ -57,14 +57,26 @@ final class DriveGoogleWorkflow
             }
             if(!is_array($row)||($row['binding']??null)!==$b||$this->authority->current($b,$row['grant'],'folder',$this->gate->now())===null)return null;
             foreach($row['claims'] as $claimedStage=>$claim){
-                if($claim['state']==='PENDING'){
+                // A successful explicit GET reconciliation supplies the result without rewriting
+                // the crashed create claim. Preserve that history, but allow the next stage to resume.
+                $reconciled=in_array($claimedStage,['original_upload','native_conversion'],true)
+                    &&isset($row['results'][$claimedStage])
+                    &&($row['claims']['reconcile_'.$claimedStage]['state']??null)==='OBSERVED';
+                if($claim['state']==='PENDING'&&!$reconciled){
                     $job=$this->jobs->read($row['jobs'][$claimedStage]??0);
                     return ['plan_id'=>$planId,'state'=>($job['state']??null)==='RUNNING'?'RUNNING':'UNKNOWN','production_authorized'=>false];
                 }
             }
             if(in_array($row['state'],['UNKNOWN','TECHNICAL_QA_COMPLETE'],true))return ['plan_id'=>$planId,'state'=>$row['state'],'production_authorized'=>false];
             $stage='folder';$dep=null;
-            foreach(self::STAGES as $candidate){if(!isset($row['results'][$candidate])){$stage=$candidate;break;}$dep=$row['jobs'][$candidate]??$dep;}
+            foreach(self::STAGES as $candidate){
+                if(!isset($row['results'][$candidate])){$stage=$candidate;break;}
+                if(($row['claims']['reconcile_'.$candidate]['state']??null)==='OBSERVED'){
+                    // The original create may remain HUMAN_REVIEW after a crash. Its successful
+                    // reconciliation, not that failed job, is the predecessor of recovered work.
+                    $dep=$row['jobs']['reconcile_'.$candidate]??null;if(!is_int($dep))return null;
+                }else $dep=$row['jobs'][$candidate]??$dep;
+            }
             $id=$this->schedule($planId,$stage,$dep);return $id===null?null:['plan_id'=>$planId,'job_id'=>$id,'state'=>'QUEUED','production_authorized'=>false];
         }catch(\Throwable){return null;}
     }
@@ -101,6 +113,8 @@ final class DriveGoogleWorkflow
             $r=$this->store->read(self::key('transfer',$planId));$stage='reconcile_'.$role;
             if(!is_array($r)||!isset($r['claims'][$role])||isset($r['results'][$role])
                 ||$this->authority->current($p['binding'],$r['grant'],$stage,$this->gate->now())===null)return null;
+            $job=$this->jobs->read($r['jobs'][$role]??0);
+            if($job===null||$job['transfer']!==$planId||$job['stage']!==$role||$job['state']==='RUNNING')return null;
             return $this->schedule($planId,$stage,null);
         }catch(\Throwable){return null;}
     }

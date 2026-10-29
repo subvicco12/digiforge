@@ -11,7 +11,9 @@ final class GoogleFixtureJobs implements DriveQueueJobs
     public array $rows=[];
     public array $wake=[];
     public bool $available=true;
+    public bool $createAvailable=true;
     public function create(string $t,string $s,?int $dependency):?int{
+        if(!$this->createAvailable)return null;
         foreach($this->rows as $id=>$r)if($r['transfer']===$t&&$r['stage']===$s)return $id;
         $id=count($this->rows)+1;$this->rows[$id]=['id'=>$id,'transfer'=>$t,'stage'=>$s,'state'=>'BLOCKED','owner'=>null,'dependency'=>$dependency];return $id;
     }
@@ -123,6 +125,79 @@ final class DriveGoogleQueueTest extends TestCase
         $this->h->responses=[$this->json(['access_token'=>'synthetic-refreshed','token_type'=>'Bearer','expires_in'=>3600,'scope'=>'https://www.googleapis.com/auth/drive.file']),$this->json(['user'=>['permissionId'=>'synthetic-account']])];
         self::assertTrue($this->w->refresh($this->b['id']));$before=count($this->h->requests);self::assertSame('BLOCKED',$this->w->run(1)['state']);self::assertCount($before,$this->h->requests);
         self::assertTrue($this->w->renew($this->b['id']));self::assertCount($before,$this->h->requests);
+    }
+
+    public static function crashedCreates():array{return [['original_upload',2,'wake'],['native_conversion',4,'wake'],['original_upload',2,'create'],['native_conversion',4,'create']];}
+    /** @dataProvider crashedCreates */
+    public function testReconciledCrashCanResumeAfterSchedulerFailureWithoutRepeatingCreate(string $role,int $failedJob,string $outage):void{
+        $this->connect();$this->w->submit($this->b['id']);
+        $native=$this->metadata('native_conversion','native');
+        $responses=[
+            $this->json(['id'=>DriveTransferRequest::FOLDER,'mimeType'=>'application/vnd.google-apps.folder','trashed'=>false,'capabilities'=>['canAddChildren'=>true]]),
+            $this->json($this->metadata('original_upload','original')),
+            ['status'=>200,'headers'=>['content-type'=>DriveTransferRequest::DOCX],'body'=>'source'],
+            $this->json($native),$this->json($native),
+            ['status'=>200,'headers'=>['content-type'=>'application/pdf'],'body'=>'%PDF-synthetic'],$this->json($native),
+        ];
+        $this->h->responses=array_slice($responses,0,$failedJob-1);
+        for($id=1;$id<$failedJob;$id++)self::assertSame('QUEUED',$this->w->run($id)['state']);
+        $this->h->responses=[new RuntimeException('uncertain create')];
+        self::assertSame('UNKNOWN',$this->w->run($failedJob)['state']);
+        // A killed worker can leave its durable claim PENDING; the old job is no longer running.
+        $key=DriveGoogleOAuth::key('operation','workflow:transfer:'.$this->b['id']);
+        $this->s->rows[$key]['claims'][$role]['state']='PENDING';
+        $claim=$this->s->rows[$key]['claims'][$role];$before=count($this->h->requests);
+        self::assertSame('UNKNOWN',$this->w->submit($this->b['id'])['state']);
+        self::assertCount($before,$this->h->requests);
+        $reconcile=$this->w->reconcile($this->b['id'],$role);self::assertIsInt($reconcile);
+        $this->h->responses=[$this->json(['files'=>[$this->metadata($role,$role==='original_upload'?'original':'native')]])];
+        if($outage==='wake')$this->jobs->available=false;else $this->jobs->createAvailable=false;
+        self::assertSame('BLOCKED',$this->w->run($reconcile)['state']);
+        self::assertSame('SUCCESS',$this->jobs->rows[$reconcile]['state']);
+        $this->jobs->available=true;$this->jobs->createAvailable=true;$before=count($this->h->requests);
+        $this->g->allowed=false;self::assertNull($this->w->submit($this->b['id']));
+        $this->g->allowed=true;$this->g->clock=1001;
+        self::assertNull($this->w->submit($this->b['id']),'Recovered evidence cannot renew expired authority.');
+        self::assertTrue($this->w->renew($this->b['id']));
+        self::assertCount($before,$this->h->requests,'Explicit renewal never dispatches.');
+        $resumed=$this->w->submit($this->b['id']);
+        self::assertSame('QUEUED',$resumed['state']);
+        self::assertCount($before,$this->h->requests,'Resumption only wakes the persisted next job.');
+        self::assertSame($claim,$this->s->rows[$key]['claims'][$role],'Crash evidence must remain immutable.');
+        $this->h->responses=array_slice($responses,$failedJob);
+        for($id=$resumed['job_id'];$id<=8;$id++){
+            $result=$this->w->run($id);self::assertSame($id===8?'TECHNICAL_QA_COMPLETE':'QUEUED',$result['state']);
+            self::assertFalse($result['production_authorized']);
+        }
+        self::assertCount(10,$this->h->requests,'Only the failed create and one GET reconciliation are added.');
+        self::assertSame($claim,$this->s->rows[$key]['claims'][$role]);
+    }
+
+    public function testUnprovenResultCannotSuppressPendingCrashClaim():void{
+        $this->connect();$this->w->submit($this->b['id']);
+        $key=DriveGoogleOAuth::key('operation','workflow:transfer:'.$this->b['id']);
+        $this->s->rows[$key]['claims']['original_upload']=['attempt'=>str_repeat('c',64),'state'=>'PENDING'];
+        $this->s->rows[$key]['results']['original_upload']=['status'=>200];
+        $before=count($this->h->requests);
+        self::assertSame('UNKNOWN',$this->w->submit($this->b['id'])['state']);
+        self::assertCount($before,$this->h->requests);
+    }
+
+    public function testConcurrentReconciliationCannotInterfereWithRunningCreate():void{
+        $this->connect();$this->w->submit($this->b['id']);
+        $this->h->responses=[$this->json(['id'=>DriveTransferRequest::FOLDER,'mimeType'=>'application/vnd.google-apps.folder','trashed'=>false,'capabilities'=>['canAddChildren'=>true]])];
+        self::assertSame('QUEUED',$this->w->run(1)['state']);
+        $reconciliation='not_called';
+        $this->h->during=function()use(&$reconciliation){
+            $reconciliation=$this->w->reconcile($this->b['id'],'original_upload');
+        };
+        $this->h->responses=[$this->json($this->metadata('original_upload','original'))];
+        $result=$this->w->run(2);
+        self::assertNull($reconciliation,'The portal running-job restriction must also hold at the server boundary.');
+        self::assertSame('QUEUED',$result['state']);
+        self::assertSame('SUCCESS',$this->jobs->rows[2]['state']);
+        self::assertSame('original_readback',$this->jobs->rows[3]['stage']);
+        self::assertCount(4,$this->h->requests);
     }
 
 }
