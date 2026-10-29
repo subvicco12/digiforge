@@ -285,7 +285,7 @@ final class U3ApprovalInbox
             $row['assets'] = $this->assetsForPlan($planId);
             if ($assetCount === null || $row['assets'] === null) { return null; }
             $row['asset_count'] = $assetCount;
-            $revisionFailures = 0;
+            $revisionFailures = $assetCount < 1 ? 1 : 0;
             foreach ((array) $row['assets'] as $asset) {
                 $revisionId = (int) ($asset['revision_id'] ?? 0);
                 if ($revisionId < 1 || (string) ($asset['revision_state'] ?? '') !== 'QA_PASSED') { $revisionFailures++; continue; }
@@ -297,10 +297,11 @@ final class U3ApprovalInbox
             if (count((array) $row['assets']) < (int) $row['asset_count']) { $revisionFailures += (int) $row['asset_count'] - count((array) $row['assets']); }
             $row['semantic_checks'] = $this->semanticChecks($planId);
             if ($row['semantic_checks'] === null) { return null; }
-            $semanticTotal = count($row['semantic_checks']);
             $semanticFailures = count(array_filter((array) $row['semantic_checks'], static fn(array $check): bool => ! in_array((string) ($check['status'] ?? ''), ['PASS', 'WAIVED'], true)));
+            $semanticGate=(new ProductReview())->planQaPassed($planId);
+            if(is_wp_error($semanticGate)&&($semanticGate->get_error_data()['status']??409)===503)return null;
             $row['qa_failures'] = $revisionFailures + $semanticFailures;
-            $row['semantic_qa_status'] = $semanticTotal >= 7 && $semanticFailures === 0 ? 'PASS' : 'BLOCKED';
+            $row['semantic_qa_status'] = $semanticGate===true ? 'PASS' : 'BLOCKED';
         }
         unset($row);
         return $rows;

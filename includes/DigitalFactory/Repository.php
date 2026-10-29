@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\DigitalFactory;
 
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
 use DigiForge\Security\Logger;
 
 /** Persistence boundary for the internal-only Digital Product Factory. */
@@ -55,6 +56,17 @@ final class Repository {
     private const TEXT = ['name', 'category', 'file_type', 'mime_type', 'storage_reference', 'version_label', 'generation_status', 'preview_reference', 'template_reference', 'license_type', 'target_type', 'failure_reason', 'status'];
     private const TEXTAREA = ['access_instructions', 'terms'];
     private const STRUCTURED = ['manifest', 'details'];
+    /** Existing Migrator defaults, used only to compare complete retry intent. */
+    private const CREATE_DEFAULTS = [
+        'digital_product'=>[],
+        'digital_file'=>['mime_type'=>'','storage_reference'=>'','checksum_sha256'=>'','status'=>'PENDING'],
+        'digital_file_version'=>['storage_reference'=>'','checksum_sha256'=>'','byte_size'=>0,'status'=>'PENDING'],
+        'digital_package'=>['manifest'=>null,'checksum_sha256'=>'','byte_size'=>0,'generation_status'=>'PENDING'],
+        'digital_preview'=>['preview_reference'=>'','status'=>'PENDING'],
+        'digital_template'=>['template_reference'=>'','access_instructions'=>null,'status'=>'DRAFT'],
+        'digital_license'=>['terms'=>null,'license_code_hash'=>'','status'=>'ACTIVE'],
+        'digital_download_check'=>['validation_result'=>'PENDING','failure_reason'=>'','review_status'=>'UNREVIEWED','details'=>null],
+    ];
 
     public function create(string $type, array $input, ?string $idempotency_key = null): array|\WP_Error {
         $definition = self::DEFINITIONS[$type] ?? null;
@@ -64,20 +76,21 @@ final class Repository {
         if (is_wp_error($fields)) { return $fields; }
         $key = $this->key($idempotency_key);
         if (is_wp_error($key)) { return $key; }
-        if ($key !== null) { $existing=$this->find_by_key($type,$key); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} }
         $data = $this->sanitize($input);
         if (is_wp_error($data)) { return $data; }
         $required = $this->validate_required($definition, $data);
         if (is_wp_error($required)) { return $required; }
-        $relationship = $this->validate_relationships($type, $data);
-        if (is_wp_error($relationship)) { return $relationship; }
-        if ($type === 'digital_product') { $data['state'] = 'DRAFT'; $data['readiness'] = wp_json_encode(Lifecycle::readiness()); }
         $validated = $this->validate_special_fields($type, $data, $input, true);
         if (is_wp_error($validated)) { return $validated; }
         $data = $validated;
+        $relationship = $this->validate_relationships($type, $data);
+        if (is_wp_error($relationship)) { return $relationship; }
+        if ($key !== null) { $existing=$this->find_by_key($type,$key,$data); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} }
+        if ($type === 'digital_product') { $data['state'] = 'DRAFT'; $data['readiness'] = wp_json_encode(Lifecycle::readiness()); }
+        $intent = array_diff_key($data, ['state'=>true,'readiness'=>true]);
         $now = current_time('mysql', true); $data += ['idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now];
         global $wpdb;
-        $wpdb->last_error=''; if ($wpdb->insert($this->table($type), $data)!==1 || !empty($wpdb->last_error)) { if ($key !== null) { $existing=$this->find_by_key($type,$key); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} } return $this->error('create_failed', 'Unable to create digital entity.', 500); }
+        $wpdb->last_error=''; if ($wpdb->insert($this->table($type), $data)!==1 || !empty($wpdb->last_error)) { if ($key !== null) { $existing=$this->find_by_key($type,$key,$intent); if(is_wp_error($existing)){return $existing;} if($existing!==null){return $existing+['idempotent_replay'=>true];} } return $this->error('create_failed', 'Unable to create digital entity.', 500); }
         $id = (int) $wpdb->insert_id;
         Logger::audit($type . '_created', ['idempotency_key' => $key === null ? '' : '[PRESENT]'], $type, (string) $id);
         return $this->find($type, $id) ?? $this->error('create_failed', 'Unable to read created entity.', 500);
@@ -126,9 +139,9 @@ final class Repository {
         $where=$shop===null?'':' WHERE '.($scope??'1=0');
         $wpdb->last_error='';
         $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . $where . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
-        $rows_ok = is_array($rows) && (string) $wpdb->last_error === '';
+        $rows_ok = is_array($rows) && !QueryEvidence::failed();
         $total_raw = $rows_ok ? $wpdb->get_var('SELECT COUNT(*) FROM ' . $table . $where) : null;
-        $query_ok = $rows_ok && $total_raw !== null && (string) $wpdb->last_error === '';
+        $query_ok = $rows_ok && $total_raw !== null && !QueryEvidence::failed();
         $total = $query_ok ? (int) $total_raw : 0;
         return ['items' => $query_ok ? array_map([$this, 'normalize'], $rows) : [], 'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => $query_ok ? (int) ceil($total / $per_page) : 0], 'query_ok' => $query_ok];
     }
@@ -184,7 +197,7 @@ final class Repository {
         return is_string($encoded) ? $encoded : $this->error('validation', 'Structured field could not be encoded.');
     }
     private function validate_special_fields(string $type, array $data, array $input, bool $apply_defaults = false): array|\WP_Error {
-        if (isset($input['checksum_sha256'])) { $checksum = Validator::checksum((string) $input['checksum_sha256']); if ($checksum === '' && $input['checksum_sha256'] !== '') { return $this->error('validation', 'Checksum must be SHA-256.'); } $data['checksum_sha256'] = $checksum; }
+        if (array_key_exists('checksum_sha256',$input)) { if(!is_string($input['checksum_sha256']))return $this->error('validation','Checksum must be SHA-256.'); $checksum = Validator::checksum($input['checksum_sha256']); if ($checksum === '' && $input['checksum_sha256'] !== '') { return $this->error('validation', 'Checksum must be SHA-256.'); } $data['checksum_sha256'] = $checksum; }
         if ($type === 'digital_download_check') {
             foreach (['check_type' => 'check', 'validation_result' => 'result', 'review_status' => 'review'] as $field => $method) {
                 if (isset($input[$field])) { $data[$field] = Validator::$method((string) $input[$field]); if ($data[$field] === '') { return $this->error('validation', "Invalid $field."); } }
@@ -233,7 +246,7 @@ final class Repository {
             ] as $sql){$check=$hasMismatch($sql);if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;}
         } elseif ($type === 'digital_preview') {
             $check=$hasMismatch($wpdb->prepare('SELECT COUNT(*) FROM ' . Tables::digital_templates() . ' WHERE digital_preview_id = %d AND (digital_product_id <> %d OR digital_file_id <> %d)', $id, $data['digital_product_id'], $data['digital_file_id']));
-            if(is_wp_error($check))return $check;$mismatch=$mismatch||$check;
+            if(is_wp_error($check))return $check;$mismatch=$check;
         }
         $target_names = ['digital_file' => 'file', 'digital_file_version' => 'file_version', 'digital_package' => 'package', 'digital_preview' => 'preview', 'digital_template' => 'template', 'digital_license' => 'license'];
         if (isset($target_names[$type])) {
@@ -247,7 +260,21 @@ final class Repository {
     }
 
     private function key(?string $key): string|null|\WP_Error { if ($key === null || trim($key) === '') { return null; } $key = sanitize_text_field($key); return strlen($key) > 191 ? $this->error('validation', 'Idempotency key is too long.') : $key; }
-    private function find_by_key(string $type, string $key): array|\WP_Error|null { global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE idempotency_key = %s', $key), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital idempotency evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
+    private function find_by_key(string $type, string $key, array $intent): array|\WP_Error|null {
+        global $wpdb; $wpdb->last_error='';
+        $row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$this->table($type).' WHERE idempotency_key = %s',$key),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('evidence_unavailable','Digital idempotency evidence is unavailable.',503);
+        if(!is_array($row))return null;
+        $existing=$this->normalize($row);
+        foreach($intent+self::CREATE_DEFAULTS[$type] as $field=>$value){
+            if(in_array($field,self::STRUCTURED,true)&&is_string($value))$value=json_decode($value,true);
+            // License fingerprints participate in identity without entering public responses.
+            $actual=$field==='license_code_hash'?($row[$field]??null):($existing[$field]??null);
+            if(\DigiForge\Listings\Validator::canonicalJson([$actual])!==\DigiForge\Listings\Validator::canonicalJson([$value]))
+                return $this->error('idempotency_conflict','Idempotency identity belongs to different digital content or lineage.',409);
+        }
+        return $existing;
+    }
     private function table(string $type): string { $method = self::DEFINITIONS[$type]['table']; return Tables::$method(); }
     private function normalize(array $row): array { foreach (array_merge(['id', 'created_by'], self::IDS) as $field) { if (isset($row[$field])) { $row[$field] = (int) $row[$field]; } } unset($row['idempotency_key'], $row['license_code_hash']); foreach (array_merge(['readiness'], self::STRUCTURED) as $field) { if (isset($row[$field]) && is_string($row[$field])) { $decoded = json_decode($row[$field], true); if (is_array($decoded)) { $row[$field] = $decoded; } } } return $row; }
     private function error(string $code, string $message, int $status = 400): \WP_Error { return new \WP_Error('digiforge_' . $code, __($message, 'digiforge'), ['status' => $status]); }

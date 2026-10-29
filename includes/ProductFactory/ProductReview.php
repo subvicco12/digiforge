@@ -146,8 +146,10 @@ final class ProductReview
         return is_array($row) ? $row : null;
     }
 
-    /** @return true|WP_Error */
-    private function planQaPassed(int $planId): true|WP_Error
+    /** Read-only shared semantic gate. A pass is not Product Approval or commercial authority.
+     * @return true|WP_Error
+     */
+    public function planQaPassed(int $planId): true|WP_Error
     {
         global $wpdb;
         $wpdb->last_error = '';

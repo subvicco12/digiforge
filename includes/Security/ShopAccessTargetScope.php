@@ -50,6 +50,12 @@ final class ShopAccessTargetScope
         elseif (preg_match('#^/digiforge/v1/research/candidates/[1-9][0-9]*/(review|promote|retry-product-factory)$#D',$route)) $table=Tables::research_candidates();
         elseif (preg_match('#^/digiforge/v1/pod/mappings/[1-9][0-9]*/readiness$#D',$route)) $table=Tables::pod_mappings();
         elseif (preg_match('#^/digiforge/v1/(opportunities|product-families|products|product-versions)/[1-9][0-9]*(/state)?$#D',$route,$m)) $table=match($m[1]){'opportunities'=>Tables::opportunities(),'product-families'=>Tables::product_families(),'products'=>Tables::products(),'product-versions'=>Tables::product_versions()};
+        elseif ($request->get_method()==='GET'&&preg_match('#^/digiforge/v1/(digital-products|digital-files|digital-file-versions|digital-packages|digital-previews|digital-templates|digital-licenses|digital-download-checks)/[1-9][0-9]*$#D',$route,$m)) $table=match($m[1]){
+            'digital-products'=>Tables::digital_products(),'digital-files'=>Tables::digital_files(),
+            'digital-file-versions'=>Tables::digital_file_versions(),'digital-packages'=>Tables::digital_packages(),
+            'digital-previews'=>Tables::digital_previews(),'digital-templates'=>Tables::digital_templates(),
+            'digital-licenses'=>Tables::digital_licenses(),'digital-download-checks'=>Tables::digital_download_checks(),
+        };
         if ($table===null) return false;
         if (!is_scalar($id)||!preg_match('/^[1-9][0-9]*$/D',(string)$id)) return self::error();
         global $wpdb;$matches=[];
