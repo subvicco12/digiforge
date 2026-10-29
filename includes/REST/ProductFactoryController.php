@@ -30,19 +30,31 @@ final class ProductFactoryController {
     private function index(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
         $result = $this->repository->all($type, absint($request->get_param('page')), absint($request->get_param('per_page')));
         if (is_wp_error($result)) { return $result; }
+        $current=$this->currentAccess($request);if (is_wp_error($current)) { return $current; }
         $response = new \WP_REST_Response($result, 200);
         $response->header('X-WP-Total', (string) $result['pagination']['total_items']);
         $response->header('X-WP-TotalPages', (string) $result['pagination']['total_pages']);
         return $response;
     }
-    private function show(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error { $item = $this->repository->find($type, absint($request['id'])); return $item === null ? new \WP_Error('digiforge_not_found', __('Entity not found.', 'digiforge'), ['status' => 404]) : new \WP_REST_Response($item, 200); }
+    private function show(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
+        $item = $this->repository->find($type, absint($request['id']));
+        if (is_wp_error($item)) { return $item; }
+        // Current assignment must still permit disclosure after the item lookup.
+        $current=$this->currentAccess($request);if (is_wp_error($current)) { return $current; }
+        return $item === null ? new \WP_Error('digiforge_not_found', __('Entity not found.', 'digiforge'), ['status' => 404]) : new \WP_REST_Response($item, 200);
+    }
     private function create(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error {
         if (strlen((string) $request->get_body()) > self::MAX_BODY_BYTES) { return new \WP_Error('payload_too_large', __('JSON body exceeds 64 KiB.', 'digiforge'), ['status' => 413]); }
+        $current=$this->currentAccess($request);if (is_wp_error($current)) { return $current; }
         $key = sanitize_text_field((string) ($request->get_header('Idempotency-Key')));
         $result = $this->repository->create($type, (array) $request->get_json_params(), $key === '' ? null : $key);
         if (is_wp_error($result)) { return $result; }
         $replay = (bool) ($result['idempotent_replay'] ?? false); unset($result['idempotent_replay']);
         $response = new \WP_REST_Response($result, $replay ? 200 : 201); if ($replay) { $response->header('Idempotent-Replay', 'true'); } return $response;
     }
-    private function transition(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error { if (strlen((string) $request->get_body()) > self::MAX_BODY_BYTES) { return new \WP_Error('payload_too_large', __('JSON body exceeds 64 KiB.', 'digiforge'), ['status' => 413]); } $result = $this->repository->transition($type, absint($request['id']), (string) $request->get_param('state')); return is_wp_error($result) ? $result : new \WP_REST_Response($result, 200); }
+    private function transition(\WP_REST_Request $request, string $type): \WP_REST_Response|\WP_Error { if (strlen((string) $request->get_body()) > self::MAX_BODY_BYTES) { return new \WP_Error('payload_too_large', __('JSON body exceeds 64 KiB.', 'digiforge'), ['status' => 413]); } $current=$this->currentAccess($request);if (is_wp_error($current)) { return $current; } $result = $this->repository->transition($type, absint($request['id']), (string) $request->get_param('state')); return is_wp_error($result) ? $result : new \WP_REST_Response($result, 200); }
+    private function currentAccess(\WP_REST_Request $request): true|\WP_Error {
+        $decision=(new \DigiForge\Security\ShopAccessRestGuard())->admit(null,[],$request);
+        return $decision instanceof \WP_Error ? $decision : true;
+    }
 }

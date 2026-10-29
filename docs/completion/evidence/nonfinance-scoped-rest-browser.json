@@ -1,0 +1,88 @@
+{
+  "scope": "authenticated_disposable_loopback_nonfinance_browser_only",
+  "application_baseline": "f5262a308a4bd53682b0cb22fe2657a44b061841",
+  "application_changes_under_test": [
+    "includes/REST/ProductFactoryController.php",
+    "includes/Security/ShopAccessRestGuard.php"
+  ],
+  "wordpress_version": "7.1.3",
+  "database": "digiforge_gap_browser_tests",
+  "database_host": "127.0.0.1:3306",
+  "historical_nonfinance_harness": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+  "harness_adaptation": "Private runner application path points at current checkout; 768px tablet viewport added to existing 390/1280 loop. Existing assertions/guards unchanged; no Finance fixtures executed.",
+  "evidence": {
+    "status": "PASS",
+    "chromium_version": "154.0.8037.57",
+    "node_version": "v24.19.0",
+    "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+    "checks": 85,
+    "requests": 236,
+    "blocked_requests": 0,
+    "widths": [
+      390,
+      768,
+      1280
+    ],
+    "business_tables_unchanged": 44,
+    "stop_all": true,
+    "external_locked": true,
+    "automation_armed": false,
+    "external_requests": 0,
+    "business_row_mutations": 0,
+    "fixture_bootstrap_ddl_statements": 0,
+    "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification."
+  },
+  "installed_site_acceptance": false,
+  "commercial_certification": false,
+  "production_actions_performed": false,
+  "source_files": [
+    {
+      "path": "includes/REST/ProductFactoryController.php",
+      "sha256": "e1d80573cf9840ec1b18782f76c7ce61278a6f56a36d927d189fd70bd4ac2f95"
+    },
+    {
+      "path": "includes/Security/ShopAccessRestGuard.php",
+      "sha256": "eb5164b52d0c11e4b20c36f88d5b6930433dcf5ef76f418e876b2c98582cf537"
+    }
+  ],
+  "initial_two_viewport_checks": 64,
+  "harness_source_receipt": [
+    {
+      "path": "authenticated-local-portal.cjs",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "cf09bb572f44ad40154b6414475f58ea94b97caf91f330b5ef77563ac6e51221",
+      "adaptation": "Only current application repository path and addition of 768px tablet viewport; existing assertions and safety guards unchanged.",
+      "executed_sha256": "e876195a5f8a4bab49c3c97bbe91a2930f4f6505d7fdecae42adcbe5afa3d06b"
+    },
+    {
+      "path": "authenticated-local/setup.php",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "efe16fa88e9993c739169b1a93a28206c0d8efd7258b6ad01d55f5093f7fc098",
+      "executed_sha256": "efe16fa88e9993c739169b1a93a28206c0d8efd7258b6ad01d55f5093f7fc098"
+    },
+    {
+      "path": "authenticated-local/guard.php",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "8f38c8f33bdc049421ea4ca82a287c58549fa261ee125ba8390872c6d99160c5",
+      "executed_sha256": "8f38c8f33bdc049421ea4ca82a287c58549fa261ee125ba8390872c6d99160c5"
+    },
+    {
+      "path": "authenticated-local/router.php",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "c12d317a55dfc97520d3268868e92364f531854b4da0552889224038dcc8d118",
+      "executed_sha256": "c12d317a55dfc97520d3268868e92364f531854b4da0552889224038dcc8d118"
+    },
+    {
+      "path": "authenticated-local/verify.php",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "8b542eefd92589c29d911a780150c3c50e4c6a33a0dcf8dd34455cb533bb56e7",
+      "executed_sha256": "8b542eefd92589c29d911a780150c3c50e4c6a33a0dcf8dd34455cb533bb56e7"
+    },
+    {
+      "path": "authenticated-local/cleanup.php",
+      "source_commit": "d381d0a10251c89caa37c069d069f4aa892a1d08",
+      "source_sha256": "b7366069c7f4968c4fa29b2581232dc0889f85d78e7b702f97ca6c6b0cd101c6",
+      "executed_sha256": "b7366069c7f4968c4fa29b2581232dc0889f85d78e7b702f97ca6c6b0cd101c6"
+    }
+  ]
+}

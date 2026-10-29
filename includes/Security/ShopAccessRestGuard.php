@@ -36,6 +36,7 @@ final class ShopAccessRestGuard
         }
         $sets=self::capabilitySets($route, $request->get_method());
         if ($sets===[]) return self::deny('unmapped');
+        $alternatives=[];$targetShops=[];
         foreach ($sets as $caps) {
             $allowed=ShopAccessPolicy::canonicalShops();
             foreach ($caps as $cap) {
@@ -44,9 +45,18 @@ final class ShopAccessRestGuard
                 $allowed=array_values(array_intersect($allowed,$granted));
             }
             if ($allowed===[]) continue;
-            $target=ShopAccessTargetScope::forRequest($request, $allowed);
-            if ($target instanceof \WP_Error) return $target;
+            $alternatives[]=['caps'=>$caps,'shops'=>$allowed];
+            $targetShops=array_values(array_unique(array_merge($targetShops,$allowed)));
+        }
+        if ($alternatives===[]) return self::deny('denied');
+        // Resolve one exact stored target across the existing OR alternatives. A
+        // different shop's first capability must not veto a valid read alternative.
+        $target=ShopAccessTargetScope::forRequest($request, $targetShops);
+        if ($target instanceof \WP_Error) return $target;
+        foreach ($alternatives as $alternative) {
+            $caps=$alternative['caps'];$allowed=$alternative['shops'];
             if (is_string($target)) {
+                if (!in_array($target,$allowed,true)) continue;
                 foreach ($caps as $cap) { $decision=ShopAccess::authorize($target,$cap);if ($decision instanceof \WP_Error) return $decision; }
                 return $result;
             }
