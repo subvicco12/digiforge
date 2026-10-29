@@ -4,16 +4,24 @@ namespace DigiForge\DigitalFactory;
 /** Fixed-origin WordPress transport; only internal services compose it, never enabled by default. */
 final class DriveWordPressGoogleHttp implements DriveGoogleHttp
 {
-    public function __construct(private DriveGoogleGate $gate){}
+    public function __construct(private DriveGoogleGate $gate,private ?\Closure $workerCurrent=null){}
+    /** Server-only extra veto; preserve any earlier worker restriction as well. */
+    public function forWorker(\Closure $current):self {
+        $prior=$this->workerCurrent;
+        return new self($this->gate,static fn():bool=>($prior===null||$prior())&&$current());
+    }
     public function exchange(#[\SensitiveParameter] array $binding,string $url,#[\SensitiveParameter] array $args):array
     {
         if(!self::valid($url,$args)||!$this->gate->allows($binding))throw new \RuntimeException('Google dispatch blocked.');
+        if($this->workerCurrent!==null&&!($this->workerCurrent)())throw new \RuntimeException('Google worker lease changed.');
         // Gate runs immediately before WordPress takes custody of the transient bearer/body.
         $args['cookies']=[];$args['blocking']=true;$args['stream']=false;
         $response=wp_remote_request($url,$args);
         if(is_wp_error($response))return ['status'=>0,'headers'=>[],'body'=>''];
-        $body=wp_remote_retrieve_body($response);$headers=wp_remote_retrieve_headers($response);
-        $headers=is_array($headers)?$headers:(method_exists($headers,'getAll')?$headers->getAll():[]);
+        // WordPress response filters can return malformed values despite helper PHPDocs.
+        $body=$response['body']??'';$headers=$response['headers']??[];
+        $headers=is_array($headers)?$headers:(is_object($headers)&&method_exists($headers,'getAll')?$headers->getAll():[]);
+        if(!is_array($headers))$headers=[];
         if(!is_string($body)||strlen($body)>$args['limit_response_size'])return ['status'=>0,'headers'=>[],'body'=>''];
         return ['status'=>(int)wp_remote_retrieve_response_code($response),'headers'=>array_intersect_key($headers,array_flip(['content-type','content-length','content-encoding'])),'body'=>$body];
     }

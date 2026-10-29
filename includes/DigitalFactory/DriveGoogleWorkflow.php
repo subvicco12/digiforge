@@ -141,7 +141,9 @@ final class DriveGoogleWorkflow
             $attempt=bin2hex(random_bytes(32));$next=$record;$next['claims'][$stage]=['attempt'=>$attempt,'state'=>'PENDING'];
             if(!$this->store->compareAndSwap($key,$record,$next))throw new \RuntimeException('Queue claim unavailable.');$record=$next;
             $source=($this->source)($b);if(!is_array($source)||!is_string($source['bytes']??null)||!hash_equals($b['source_sha256'],hash('sha256',$source['bytes'])))throw new \RuntimeException('Source unavailable.');
-            $r=$this->dispatcher->dispatch($b,$g,$stage,[],$source['bytes'],$attempt,$this->gate->now());
+            $workerCurrent=fn():bool=>$this->jobs->active($id,$owner);
+            $r=$this->dispatcher->dispatch($b,$g,$stage,[],$source['bytes'],$attempt,$this->gate->now(),$workerCurrent);
+            if(!$workerCurrent())throw new \RuntimeException('Worker lease changed.');
             if(($r['state']??null)!=='OBSERVED')throw new \RuntimeException('Attempt uncertain.');
             $value=$r['observation'];if(isset($value['bytes'])){$value=['sha256'=>hash('sha256',$value['bytes'])];}
             if($stage==='pdf_export'){$value=($this->export)($b,$r['observation']['bytes']);if(!is_array($value))throw new \RuntimeException('Export custody unavailable.');}
@@ -150,12 +152,13 @@ final class DriveGoogleWorkflow
                 if(!is_array($qa)||($qa['source_sha256']??null)!==$b['source_sha256']||($qa['visual_approved']??null)!==false
                     ||($qa['rights_certified']??null)!==false||($qa['production_authorized']??null)!==false)throw new \RuntimeException('Final source/export QA unavailable.');$value=$qa;
             }
-            if($this->authority->current($b,$g,$stage,$this->gate->now())===null)throw new \RuntimeException('Authority changed.');
+            if($this->authority->current($b,$g,$stage,$this->gate->now())===null||!$workerCurrent())throw new \RuntimeException('Authority or worker changed.');
             $target=str_starts_with($stage,'reconcile_')?substr($stage,10):$stage;
             $next=$record;$next['claims'][$stage]['state']='OBSERVED';$next['results'][$target]=$value;
             $next['state']=$target==='native_final'?'TECHNICAL_QA_COMPLETE':'QUEUED';
             if(!$this->store->compareAndSwap($key,$record,$next))throw new \RuntimeException('Queue checkpoint unavailable.');
-            if(!$this->jobs->finish($id,$owner,'SUCCESS'))return ['state'=>'UNKNOWN','production_authorized'=>false];
+            $record=$next;
+            if(!$this->jobs->finish($id,$owner,'SUCCESS'))throw new \RuntimeException('Queue completion unavailable.');
             $index=array_search($target,self::STAGES,true);
             if($index!==false&&isset(self::STAGES[$index+1])&&$this->schedule($b['id'],self::STAGES[$index+1],$id)===null)return ['state'=>'BLOCKED','production_authorized'=>false];
             return ['state'=>$next['state'],'provider_acceptance'=>'UNKNOWN','production_authorized'=>false];

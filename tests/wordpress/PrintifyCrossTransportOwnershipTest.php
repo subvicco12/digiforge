@@ -31,6 +31,7 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
   $permit['authorization']=$issued['authorization'];$permit['authorization_hash']=$issued['authorization_hash'];$nonce=hash('sha256',$rawNonce);$authorizationHash=$issued['authorization_hash'];
   self::assertSame(1,$wpdb->insert(Tables::pod_execution_nonces(),['nonce_hash'=>$nonce,'authorization_hash'=>$authorizationHash,'consumed_by'=>get_current_user_id(),'consumed_at'=>$now]));
   self::assertSame(1,$wpdb->insert(Tables::pod_authorization_bindings(),['package_id'=>$package,'package_hash'=>$hash,'authorization_hash'=>$authorizationHash,'nonce_hash'=>$nonce,'bound_by'=>get_current_user_id(),'bound_at'=>$now]));
+  $this->currentOrderForPermit($permit,$payload);
   return [$permit,$payload,$review];
  }
  public function testMissingContextDeniesBeforeCredentialCiphertextRead():void {
@@ -125,4 +126,49 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
   [$permit,$payload]=$this->request();global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});$fault=static fn(string $q):string=>str_starts_with($q,'INSERT INTO `'.Tables::audit_log().'`')&&str_contains($q,'printify_dispatch_claimed')?'SELECT FROM /* synthetic audit failure */':$q;$prior=$wpdb->suppress_errors(true);add_filter('query',$fault);
   try{self::assertWPError($this->simulated(fn()=>$transport->execute($permit,$payload)));}finally{remove_filter('query',$fault);$wpdb->suppress_errors($prior);}self::assertSame(0,$calls);self::assertNull($wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",'df_printify_dispatch_'.$permit['authorization_hash'])));
  }
+ private function currentOrderForPermit(array $permit,array $payload):array {
+  global $wpdb;$packageId=(int)$wpdb->get_var($wpdb->prepare('SELECT package_id FROM '.Tables::pod_authorization_bindings().' WHERE authorization_hash=%s',$permit['authorization_hash']));$package=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$packageId),ARRAY_A);self::assertIsArray($package);
+  $mapping=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_mappings().' WHERE id=%d',$package['provider_mapping_id']),ARRAY_A);self::assertIsArray($mapping);
+  $orders=new DigiForge\Orders\Repository();$existing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE id=%d',(int)$package['order_id']),ARRAY_A);
+  if(is_array($existing)&&$existing['environment']===$mapping['environment']&&$existing['shop_reference']===$payload['connection_scope']['shop_key']){$ready=$orders->readiness((int)$existing['id']);if(is_array($ready)&&$ready['ready']&&hash_equals($package['readiness_hash'],hash('sha256',wp_json_encode($ready))))return ['order_id'=>(int)$existing['id'],'package_id'=>$packageId];}
+  $order=$orders->createOrder(['channel'=>'etsy','environment'=>$mapping['environment'],'shop_reference'=>$payload['connection_scope']['shop_key'],'external_order_reference'=>'synthetic-cancellation-'.wp_generate_uuid4()]);self::assertNotWPError($order);
+  self::assertNotWPError($orders->addLineItem(['order_id'=>$order['id'],'product_version_id'=>$mapping['product_version_id'],'provider_mapping_id'=>$mapping['id']]));foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED']as $state)self::assertNotWPError($orders->transition('order',(int)$order['id'],$state));
+  $readiness=$orders->readiness((int)$order['id']);self::assertNotWPError($readiness);self::assertTrue($readiness['ready']);self::assertSame(1,$wpdb->update(Tables::pod_authorization_packages(),['order_id'=>$order['id'],'readiness_hash'=>hash('sha256',wp_json_encode($readiness))],['id'=>$packageId]));return ['order_id'=>(int)$order['id'],'package_id'=>$packageId];
+ }
+ /** @dataProvider actions */
+ public function testOrderCancellationAfterConsumptionDeniesBeforeCredentialRead(string $action):void {
+  [$permit,$payload]=$this->request($action);$f=$this->currentOrderForPermit($permit,$payload);self::assertNotWPError((new DigiForge\Orders\Repository())->transition('order',$f['order_id'],'ON_HOLD'));
+  global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$reads=0;$calls=0;$observe=static function(string $q)use(&$reads):string{if(str_contains($q,'SELECT ciphertext'))++$reads;return $q;};add_filter('query',$observe);
+  $transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return ['response'=>['code'=>200],'body'=>'{"id":"synthetic-result"}'];});
+  try{$out=$this->simulated(fn()=>$transport->execute($permit,$payload));}finally{remove_filter('query',$observe);}
+  self::assertWPError($out);self::assertSame(0,$reads);self::assertSame(0,$calls);self::assertSame('APPROVED_PACKAGE',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$f['package_id'])));self::assertTrue(DigiForge\Core\Settings::safety_locked());
+ }
+ public function testCancellationDuringCredentialReadCannotReachSender():void {
+  [$permit,$payload]=$this->request();$f=$this->currentOrderForPermit($permit,$payload);global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$changed=false;$calls=0;
+  $cancel=function(string $q)use($f,&$changed):string{if(!$changed&&str_contains($q,'SELECT ciphertext')){$changed=true;self::assertNotWPError((new DigiForge\Orders\Repository())->transition('order',$f['order_id'],'ON_HOLD'));}return $q;};add_filter('query',$cancel);
+  $transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return ['response'=>['code'=>200],'body'=>'{"id":"synthetic-result"}'];});
+  try{$out=$this->simulated(fn()=>$transport->execute($permit,$payload));}finally{remove_filter('query',$cancel);}self::assertTrue($changed);self::assertWPError($out);self::assertSame(0,$calls);
+ }
+ public function testCancellationAfterDispatchRemainsUnknownAndCannotReplay():void {
+  [$permit,$payload]=$this->request();$f=$this->currentOrderForPermit($permit,$payload);global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$calls=0;
+  $transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls,$f){++$calls;self::assertNotWPError((new DigiForge\Orders\Repository())->transition('order',$f['order_id'],'ON_HOLD'));return ['response'=>['code'=>200],'body'=>'{"id":"synthetic-result"}'];});
+  $out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertIsArray($out);self::assertSame('UNKNOWN',$out['status']);self::assertSame(1,$calls);self::assertWPError($this->simulated(fn()=>$transport->execute($permit,$payload)));self::assertSame(1,$calls);
+ }
+
+ public static function orderDrifts():array{return [['missing'],['foreign_shop'],['foreign_environment'],['stale_readiness'],['invalid_line'],['query_failure']];}
+ /** @dataProvider orderDrifts */
+ public function testChangedOrderEvidenceCannotReachCredentialsOrSender(string $case):void {
+  [$permit,$payload]=$this->request();$f=$this->currentOrderForPermit($permit,$payload);global $wpdb;
+  if($case==='missing')self::assertSame(1,$wpdb->update(Tables::pod_authorization_packages(),['order_id'=>2147483647],['id'=>$f['package_id']]));
+  if($case==='foreign_shop')self::assertSame(1,$wpdb->update(Tables::orders(),['shop_reference'=>'digital'],['id'=>$f['order_id']]));
+  if($case==='foreign_environment')self::assertSame(1,$wpdb->update(Tables::orders(),['environment'=>'sandbox'],['id'=>$f['order_id']]));
+  if($case==='stale_readiness')self::assertSame(1,$wpdb->update(Tables::pod_authorization_packages(),['readiness_hash'=>hash('sha256','stale')],['id'=>$f['package_id']]));
+  if($case==='invalid_line')self::assertSame(1,$wpdb->update(Tables::order_line_items(),['validation_status'=>'UNVALIDATED'],['order_id'=>$f['order_id']]));
+  $wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$reads=0;$calls=0;$failed=false;
+  $query=static function(string $q)use($case,&$reads,&$failed):string{if(str_contains($q,'SELECT ciphertext'))++$reads;if($case==='query_failure'&&str_starts_with($q,'SELECT COUNT(*) FROM '.Tables::orders().' dispatch_order')){$failed=true;return str_replace(Tables::orders(),Tables::orders().'_unavailable',$q);}return $q;};
+  $previous=$wpdb->suppress_errors(true);add_filter('query',$query);$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});
+  try{$out=$this->simulated(fn()=>$transport->execute($permit,$payload));}finally{remove_filter('query',$query);$wpdb->suppress_errors($previous);$wpdb->last_error='';}
+  self::assertWPError($out);self::assertSame(0,$reads);self::assertSame(0,$calls);if($case==='query_failure')self::assertTrue($failed);self::assertTrue(DigiForge\Core\Settings::safety_locked());
+ }
+
 }

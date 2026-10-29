@@ -2,23 +2,24 @@
 declare(strict_types=1);
 namespace DigiForge\DigitalFactory;
 
-/** One guarded attempt. No autonomous stage progression, retry, credential response or activation route. */
+/** One guarded attempt. Optional server worker context only adds a veto; grants/locks remain independent. */
 final class DriveGoogleDispatcher
 {
     public function __construct(private DriveGrantStore $store,private DriveGoogleGate $gate,private DriveGoogleOAuth $oauth,
         private DriveGoogleAuthority $authority,private DriveGoogleHttp $http){}
     public function dispatch(array $plan,#[\SensitiveParameter] array $grant,string $stage,array $completed,
-        #[\SensitiveParameter] string $source,string $attempt,int $now):array
+        #[\SensitiveParameter] string $source,string $attempt,int $now,?\Closure $workerCurrent=null):array
     {
         $blocked=['state'=>'BLOCKED','provider_acceptance'=>'UNKNOWN','production_authorized'=>false];
         $ticket=null;$operationKey=null;$operation=null;$journal=new DriveGrantJournal($this->store);
         try{
             $b=DriveGoogleOAuth::binding($plan);
+            if($workerCurrent!==null&&!$workerCurrent())return $blocked;
             if($now!==$this->gate->now()||$source==='' ||strlen($source)>DriveTransferRequest::LIMIT||!hash_equals($b['source_sha256'],hash('sha256',$source)))return $blocked;
             $completed=$this->completed($b,$stage,$completed);if($completed===null)return $blocked;
             $request=str_starts_with($stage,'reconcile_')?DriveTransferRequest::reconciliation(substr($stage,10),$b):DriveTransferRequest::build($stage,$b,$completed);
             $wire=DriveHttpsProtocol::encode($request,$b,$completed,$source);
-            $connection=$this->authority->current($b,$grant,$stage,$now);if($connection===null)return $blocked;
+            $connection=$this->authority->current($b,$grant,$stage,$now);if($connection===null||($workerCurrent!==null&&!$workerCurrent()))return $blocked;
             $ticket=$journal->reserve($grant,$b,$stage,$attempt,$now);if($ticket===null)return $blocked;
             if(in_array($stage,['original_upload','native_conversion'],true)){
                 // Across grants/nonces, process restarts and credential refresh: never blindly repeat a create.
@@ -26,12 +27,14 @@ final class DriveGoogleDispatcher
                 $operation=['binding'=>$b,'stage'=>$stage,'attempt_id'=>$attempt,'state'=>'PENDING','response_sha256'=>null];
                 if(!$this->store->compareAndSwap($operationKey,[],$operation))return $blocked;
             }
-            if($this->authority->current($b,$grant,$stage,$now)===null)return $blocked;
+            if($this->authority->current($b,$grant,$stage,$now)===null||($workerCurrent!==null&&!$workerCurrent()))return $blocked;
             $token=$this->oauth->access($b,$grant['connection_id'],$connection['generation'],$now);
-            if($token===null||!$this->gate->allows($b)||$this->authority->current($b,$grant,$stage,$now)===null)return $blocked;
+            if($token===null||!$this->gate->allows($b)||$this->authority->current($b,$grant,$stage,$now)===null||($workerCurrent!==null&&!$workerCurrent()))return $blocked;
             $args=$wire['args'];$args['headers']['Authorization']='Bearer '.$token;
-            $r=$this->http->exchange($b,$wire['url'],$args);unset($args,$token);
-            if($this->authority->current($b,$grant,$stage,$now)===null)throw new \RuntimeException('Google authority changed.');
+            $http=$this->http;
+            if($workerCurrent!==null&&$http instanceof DriveWordPressGoogleHttp)$http=$http->forWorker($workerCurrent);
+            $r=$http->exchange($b,$wire['url'],$args);unset($args,$token);
+            if($this->authority->current($b,$grant,$stage,$now)===null||($workerCurrent!==null&&!$workerCurrent()))throw new \RuntimeException('Google authority or worker changed.');
             $decoded=DriveHttpsProtocol::decode($request,$r['status']??0,$r['headers']??[],$r['body']??'');unset($r);
             // A valid wire observation is not semantic artifact acceptance. Existing source/export QA must still run.
             $value=$this->value($b,$stage,$decoded,$completed);
@@ -47,7 +50,7 @@ final class DriveGoogleDispatcher
             return ['state'=>$state,'observation'=>$decoded,'provider_acceptance'=>'UNKNOWN','production_authorized'=>false];
         }catch(\Throwable){
             if($ticket!==null){$journal->finish($grant,$plan,$ticket,'UNKNOWN',hash('sha256','google-attempt-unknown'),$this->gate->now());}
-            if($operationKey!==null&&$operation!==null){$unknown=$operation;$unknown['state']='UNKNOWN';$this->store->compareAndSwap($operationKey,$operation,$unknown);}
+            if($operationKey!==null){$unknown=$operation;$unknown['state']='UNKNOWN';$this->store->compareAndSwap($operationKey,$operation,$unknown);}
             return ['state'=>'UNKNOWN','reconciliation_required'=>true,'provider_acceptance'=>'UNKNOWN','production_authorized'=>false];
         }
     }

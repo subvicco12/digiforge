@@ -10,5 +10,7 @@ interface DriveQueueJobs
     public function wake(int $id):bool;
     public function block(int $id):bool;
     public function claim(int $id,string $owner):bool;
+    /** @phpstan-impure */
+    public function active(int $id,string $owner):bool;
     public function finish(int $id,string $owner,string $state):bool;
 }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\DigitalFactory;
 use DigiForge\Queue\JobRepository;
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
 
 /** Existing queue, leases/dependencies and Action Scheduler; never enables the general scheduler. */
 final class DriveWordPressQueueJobs implements DriveQueueJobs
@@ -15,7 +16,7 @@ final class DriveWordPressQueueJobs implements DriveQueueJobs
     public function read(int $id):?array
     {
         global $wpdb;$wpdb->last_error='';$r=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::jobs().' WHERE id=%d',$id),ARRAY_A);
-        if($wpdb->last_error!==''||!is_array($r)||$r['job_type']!=='google_drive_stage')return null;
+        if(QueryEvidence::failed()||!is_array($r)||$r['job_type']!=='google_drive_stage')return null;
         $p=json_decode($r['payload'],true);if(!is_array($p)||($p['shop_key']??null)!=='digital'
             ||!is_string($p['google_transfer']??null)||preg_match('/^[a-f0-9]{64}$/D',$p['google_transfer'])!==1
             ||!is_string($p['stage']??null)||array_diff(array_keys($p),['google_transfer','stage','shop_key','_digiforge_dependencies'])!==[])return null;
@@ -42,6 +43,7 @@ final class DriveWordPressQueueJobs implements DriveQueueJobs
     public function finish(int $id,string $owner,string $state):bool
     {
         $r=$this->read($id);if($r===null||$r['state']!=='RUNNING'||$r['owner']!==$owner||!in_array($state,['SUCCESS','HUMAN_REVIEW','BLOCKED'],true))return false;
-        $repo=new JobRepository();return $repo->transition($id,'RUNNING',$state)&&$repo->releaseLease($id,$owner);
+        return (new JobRepository())->finishLease($id,$owner,$state);
     }
+    public function active(int $id,string $owner):bool { return (new JobRepository())->hasCurrentLease($id,$owner); }
 }

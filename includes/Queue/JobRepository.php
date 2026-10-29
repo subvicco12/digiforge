@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DigiForge\Queue;
 
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
 use WP_Error;
 
 /** Persists governed job intent. Worker execution remains deliberately absent. */
@@ -128,6 +129,29 @@ final class JobRepository
         );
 
         return $updated === 1;
+    }
+
+    /** Current worker context is an additional veto, never external authority.
+     * @phpstan-impure
+     */
+    public function hasCurrentLease(int $id, string $owner): bool
+    {
+        if ($id < 1 || $owner === '' || sanitize_key($owner) !== $owner) return false;
+        global $wpdb;$wpdb->last_error='';
+        $row=$wpdb->get_row($wpdb->prepare('SELECT state,locked_by,lease_expires_at FROM '.Tables::jobs().' WHERE id=%d',$id),ARRAY_A);
+        return !QueryEvidence::failed() && is_array($row) && ($row['state']??null)==='RUNNING'
+            && ($row['locked_by']??null)===$owner && is_string($row['lease_expires_at']??null)
+            && preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/D',$row['lease_expires_at'])===1
+            && $row['lease_expires_at']>=current_time('mysql',true);
+    }
+
+    /** Commit completion and lease release together, only for the current worker. */
+    public function finishLease(int $id, string $owner, string $state): bool
+    {
+        if ($id < 1 || $owner === '' || sanitize_key($owner)!==$owner || !in_array($state,['SUCCESS','HUMAN_REVIEW','BLOCKED'],true)) return false;
+        global $wpdb;$now=current_time('mysql',true);$wpdb->last_error='';
+        $updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::jobs()." SET state = %s, locked_by = NULL, locked_at = NULL, lease_expires_at = NULL, updated_at = %s WHERE id = %d AND state = 'RUNNING' AND BINARY locked_by = BINARY %s AND lease_expires_at IS NOT NULL AND lease_expires_at >= %s",$state,$now,$id,$owner,$now));
+        return $updated===1 && !QueryEvidence::failed();
     }
 
     private function dependenciesReady(int $id): bool

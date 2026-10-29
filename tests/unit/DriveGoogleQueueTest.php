@@ -28,6 +28,7 @@ final class GoogleFixtureJobs implements DriveQueueJobs
         if($this->rows[$id]['state']!=='RUNNING'||$this->rows[$id]['owner']!==$owner)return false;
         $this->rows[$id]['state']=$state;$this->rows[$id]['owner']=null;return true;
     }
+    public function active(int $id,string $owner):bool {return ($this->rows[$id]['state']??null)==='RUNNING'&&($this->rows[$id]['owner']??null)===$owner;}
 }
 final class DriveGoogleQueueTest extends TestCase
 {
