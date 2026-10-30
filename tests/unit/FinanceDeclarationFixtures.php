@@ -5,6 +5,17 @@ namespace DigiForge\Tests;
 
 final class FinanceDeclarationFixtures
 {
+    /** Fictional CSV inspection only; supplied identities and headers establish no provider ownership/schema. */
+    public static function csvInspection(array $scope,array $overrides=[]):array
+    {
+        $context=array_replace(['shop_key'=>$scope['shop_key'],'environment'=>$scope['environment']??'test','business_id'=>$scope['business_id'],'store_id'=>$scope['store_id'],
+            'external_shop_id'=>777,'external_account_id'=>778,'integration_id'=>3,'source_contract_sha256'=>hash('sha256','digiforge-finance-csv-structure-v1')],$overrides);
+        $raw="Fixture ID,Fixture Amount\n001,0.00100\n";
+        $capture=array_intersect_key($context,array_flip(['shop_key','environment','business_id','store_id','external_shop_id']))+
+            ['source_sha256'=>hash('sha256',$raw),'observed_at'=>'2026-10-19T12:00:00Z','source_reference'=>'local://synthetic/csv-marker'];
+        return ['context'=>$context,'documents'=>[['raw'=>$raw,'layout'=>['delimiter'=>',','headers'=>['Fixture ID','Fixture Amount']],'declared_rows'=>1,'capture'=>$capture]]];
+    }
+
     public static function input(array $overrides = []): array
     {
         return array_replace_recursive([

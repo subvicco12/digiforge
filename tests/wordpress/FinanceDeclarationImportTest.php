@@ -419,4 +419,21 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
         add_filter('query',$filter);try{$result=DigiForge\Portal\FinanceDeclarationPanel::exportBrowser($post,'personalized_pod');}finally{remove_filter('query',$filter);}
         self::assertTrue($hit);self::assertWPError($result);
     }
+    public function testCsvInspectionCannotRecognizePodRevenueOrRepairRevokedProvisionalLineage():void
+    {
+        $input=$this->fixture();$repo=new Repository();global $wpdb;
+        $csv=FinanceDeclarationFixtures::csvInspection($input['scope']);
+        $inspect=DigiForge\Finance\SourceAdmission::preview('printify',$csv['documents'],$csv['context'],$csv['context'],time(),'csv_structure');self::assertIsArray($inspect);
+        self::assertWPError($repo->importDeclaration($inspect));self::assertSame('0',$wpdb->get_var('SELECT COUNT(*) FROM '.Tables::finance_ledger()));
+        $row=$repo->importDeclaration($input);self::assertIsArray($row);
+        $model=new DigiForge\Finance\DeclarationReadModel();$before=$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD');
+        self::assertSame('PROVISIONAL',$before['state']);self::assertSame('UNKNOWN',$before['source_completeness']);
+        $again=DigiForge\Finance\SourceAdmission::preview('printify',$csv['documents'],$csv['context'],$csv['context'],time(),'csv_structure');
+        self::assertSame($inspect,$again);self::assertFalse($again['period_approval_authorized']);
+        self::assertSame($before,$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        self::assertSame(1,$wpdb->update(Tables::pod_business_mappings(),['state'=>'REVOKED'],['provider_mapping_id'=>$input['scope']['provider_mapping_id']]));
+        self::assertSame('BLOCKED',$model->snapshot('personalized_pod','test','2026-10-01','2026-10-31','USD')['state']);self::assertWPError($repo->importDeclaration($input));
+        self::assertSame($row,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE id=%d',$row['id']),ARRAY_A));
+    }
+
 }

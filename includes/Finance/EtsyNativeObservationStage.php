@@ -11,12 +11,8 @@ final class EtsyNativeObservationStage
 
     public static function preview(array $documents,array $context,array $selectedContext,int $asOf):array
     {
-        self::exact($context,self::CONTEXT);self::exact($selectedContext,self::CONTEXT);
-        foreach(self::CONTEXT as $key)if($context[$key]!==$selectedContext[$key])self::invalid();
-        if(!in_array($context['shop_key'],['digital','personalized_pod'],true)
-            ||!is_string($context['environment'])||Validator::environment($context['environment'])!==$context['environment']
-            ||$context['source_contract_sha256']!==EtsyFinancialSourceParser::CONTRACT_SHA256||$asOf<1)self::invalid();
-        foreach(['business_id','store_id','external_shop_id','external_account_id','integration_id']as$key)if(!is_int($context[$key])||$context[$key]<1)self::invalid();
+        self::assertContext($context,$selectedContext,EtsyFinancialSourceParser::CONTRACT_SHA256);
+        if($asOf<1)self::invalid();
         if(!array_is_list($documents)||count($documents)<1||count($documents)>self::MAX_DOCUMENTS)self::invalid();
         $scope=array_intersect_key($context,array_flip(['shop_key','environment','business_id','store_id','external_shop_id']));
         $bytes=0;$seen=[];$identities=[];$shared=0;$missing=0;$staged=[];
@@ -72,6 +68,17 @@ final class EtsyNativeObservationStage
                 'documents_without_transaction_identity','mapping_blockers','authenticity','ownership','settlement','source_completeness',
                 'persistence_performed','durable_replay_protection','period_approval_authorized','external_execution_authorized','accounting_import_authorized']))+['sources'=>$rows];
         }catch(\TypeError|\ErrorException){self::invalid();}
+    }
+
+    /** Shared declared observation scope only; never authenticates ownership or a provider schema. */
+    public static function assertContext(array $context,array $selectedContext,string $contractHash):void
+    {
+        self::exact($context,self::CONTEXT);self::exact($selectedContext,self::CONTEXT);
+        foreach(self::CONTEXT as $key)if($context[$key]!==$selectedContext[$key])self::invalid();
+        if(!in_array($context['shop_key'],['digital','personalized_pod'],true)
+            ||!is_string($context['environment'])||Validator::environment($context['environment'])!==$context['environment']
+            ||$context['source_contract_sha256']!==$contractHash)self::invalid();
+        foreach(['business_id','store_id','external_shop_id','external_account_id','integration_id']as$key)if(!is_int($context[$key])||$context[$key]<1)self::invalid();
     }
 
     private static function exact(array $input,array $fields):void{$keys=array_keys($input);sort($keys);sort($fields);if($keys!==$fields)self::invalid();}

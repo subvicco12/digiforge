@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 245,
+  "requests": 462,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    768,
+    1280
+  ],
+  "business_tables_unchanged": 47,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "schema": "digiforge-finance-csv-local-browser-evidence-v1",
+  "baseline": "8cb4020a365dd1ef6a626717e9a65a5bab589b25",
+  "recorded_at": "2026-10-30T15:49:58.705576+00:00",
+  "production_certified": false,
+  "installed_site_acceptance": false,
+  "source_sha256": {
+    "includes/Finance/CsvSourceStage.php": "810b61c0929cff10d221bc25a1b5c2832eda3cf441fcbdb893bdcbd71c8e06c7",
+    "includes/Finance/EtsyNativeObservationStage.php": "d5d7f9e614b39073e50d5d98eb938ecf095c4b7739df96293942d4d0a0b7af0d",
+    "includes/Finance/SourceAdmission.php": "58b5aa41d0fce076c7c202e1de6a0f8a6a26aa7b1c47c47de3a025d1de571ffa",
+    "includes/Portal/FinanceNativeSourceWorkflow.php": "dc37aecc77d44a27b362193e0fe547631bf7a0026313bf70393eb5339e0b9b6b",
+    "tests/browser/authenticated-local-portal.cjs": "2ac352b8737b8732cafb29159394917b5efab718c67f5b3258d7741c8bf9d3e9",
+    "tests/browser/authenticated-local/router.php": "0b2649ed7c7900fe63b0034b9c03bb6782578d1a2aee8f0400e50468f5ca4ede"
+  }
+}

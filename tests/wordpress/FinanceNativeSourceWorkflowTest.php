@@ -5,6 +5,7 @@ use DigiForge\Finance\EtsyFinancialSourceParser;
 use DigiForge\Portal\FinanceNativeSourceWorkflow;
 use DigiForge\Security\ShopAccessPolicy;
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
+require_once dirname(__DIR__).'/unit/FinanceDeclarationFixtures.php';
 
 /** Synthetic original JSON only; no provider/credential access or accounting writes. */
 final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
@@ -80,4 +81,49 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
         // Each preview hashes its own observation second; provider selection changes no source fields.
         unset($legacy['stage_hash'],$explicit['stage_hash']);self::assertSame($legacy,$explicit);
     }
+    private function csvPayload(string $shop='digital'):array
+    {
+        $post=$this->payload($shop);$old=json_decode($post['context_json'],true);
+        $csv=DigiForge\Tests\FinanceDeclarationFixtures::csvInspection($old);
+        $post['source_format']='csv_structure';$post['provider']='printify';$post['context_json']=wp_json_encode($csv['context']);$post['documents_json']=wp_json_encode($csv['documents']);
+        return $post;
+    }
+    public function testCsvInspectionForDigitalAndPodNeverCreatesDeclarationsOrProviderCalls():void
+    {
+        global $wpdb;$before=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A);$http=0;
+        $network=static function($pre)use(&$http){++$http;return new WP_Error('csv_external_forbidden');};add_filter('pre_http_request',$network,PHP_INT_MAX);
+        try{foreach(['digital','personalized_pod']as$shop){$result=FinanceNativeSourceWorkflow::processBrowser($this->csvPayload($shop),$shop);self::assertIsArray($result);
+            self::assertSame('STRUCTURE_VALID_PROVIDER_FORMAT_BLOCKED',$result['state']);self::assertSame('DECLARED_COUNTS_MATCH',$result['population']['state']);
+            self::assertSame('UNKNOWN',$result['provider_schema']);self::assertFalse($result['accounting_import_authorized']);self::assertFalse($result['period_approval_authorized']);
+            self::assertWPError((new DigiForge\Finance\Repository())->importDeclaration($result));}}
+        finally{remove_filter('pre_http_request',$network,PHP_INT_MAX);}
+        self::assertSame(0,$http);self::assertSame($before,$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A));
+    }
+    public function testCsvPortalUsesStructureOnlyLanguageClearsInputsAndWithholdsCells():void
+    {
+        $post=$_POST;$server=$_SERVER;
+        try{$_POST=wp_slash($this->csvPayload());$_SERVER['REQUEST_METHOD']='POST';$_SERVER['CONTENT_LENGTH']='2000';ob_start();FinanceNativeSourceWorkflow::render('digital');$html=ob_get_clean();}
+        finally{$_POST=$post;$_SERVER=$server;}
+        self::assertStringContainsString('STRUCTURE_VALID_PROVIDER_FORMAT_BLOCKED',$html);self::assertStringContainsString('Declared row counts do not prove source completeness',$html);
+        self::assertStringNotContainsString('SCHEMA_VALIDATED_UNVERIFIED_SOURCE',$html);self::assertStringNotContainsString('0.00100',$html);self::assertStringNotContainsString('csv-marker',$html);
+        self::assertStringContainsString('name="documents_json" rows="8" maxlength="1048576" required></textarea>',$html);
+    }
+    public function testCsvInspectionRejectsForeignCaptureRevokedAndDeferredAccess():void
+    {
+        $post=$this->csvPayload();$docs=json_decode($post['documents_json'],true);$docs[0]['capture']['shop_key']='personalized_pod';$post['documents_json']=wp_json_encode($docs);
+        self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));
+        self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($this->csvPayload('jewelry'),'jewelry'));
+        ShopAccessFixture::reset();self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($this->csvPayload(),'digital'));
+    }
+
+    public function testCsvReturnRechecksActorLossDuringFinalAllFourShopRead():void
+    {
+        $post=$this->csvPayload();$changed=false;$reads=0;
+        $filter=static function(string $sql)use(&$changed,&$reads):string{
+            if(str_starts_with($sql,'SELECT option_value FROM ')&&str_contains($sql,"'digiforge_shop_access_state_digital'")&&++$reads===2){$changed=true;wp_set_current_user(0);}return $sql;
+        };
+        add_filter('query',$filter);try{$result=FinanceNativeSourceWorkflow::processBrowser($post,'digital');}finally{remove_filter('query',$filter);}
+        self::assertTrue($changed);self::assertGreaterThanOrEqual(2,$reads);self::assertWPError($result);self::assertSame(403,$result->get_error_data()['status']);
+    }
+
 }

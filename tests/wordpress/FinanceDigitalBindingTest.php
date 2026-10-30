@@ -190,4 +190,20 @@ final class FinanceDigitalBindingTest extends WP_UnitTestCase
             self::assertWPError($result,'Digital references must be revalidated after common FX processing.');
         }finally{remove_filter('query',$isolate,99);$wpdb->query('DROP TEMPORARY TABLE IF EXISTS '.$temporary);}
     }
+    public function testCsvDeclaredPopulationCannotApproveDigitalFinanceOrBypassReviewedSellerRevocation():void
+    {
+        $f=$this->fixture();$approved=$this->approve($f);$i=$f['input'];global $wpdb;
+        $input=DigiForge\Tests\FinanceDeclarationFixtures::input(['scope'=>['shop_key'=>'digital','business_id'=>$i['business_id'],'store_id'=>$i['store_id'],'product_version_id'=>$f['product_version_id'],'provider_mapping_id'=>0,'variant_ref'=>'','order_id'=>0,'listing_id'=>0]]);
+        $csv=DigiForge\Tests\FinanceDeclarationFixtures::csvInspection($input['scope'],['external_shop_id'=>67757764,'external_account_id'=>123456,'integration_id'=>$i['integration_id']]);
+        $inspect=DigiForge\Finance\SourceAdmission::preview('etsy',$csv['documents'],$csv['context'],$csv['context'],time(),'csv_structure');self::assertIsArray($inspect);
+        self::assertSame('DECLARED_COUNTS_MATCH',$inspect['population']['state']);self::assertFalse($inspect['period_approval_authorized']);
+        $repo=new DigiForge\Finance\Repository();self::assertWPError($repo->importDeclaration($inspect));
+        $row=$repo->importDeclaration($input);self::assertIsArray($row);self::assertSame('UNRECONCILED',$row['reconciliation_state']);
+        $report=(new DigiForge\Finance\DeclarationReadModel())->snapshot('digital','test','2026-10-01','2026-10-31','USD');self::assertSame('PROVISIONAL',$report['state']);self::assertSame('UNKNOWN',$report['source_completeness']);
+        wp_set_current_user($f['actors']['reviewer']);self::assertNotWPError((new DigitalSourceBinding())->decide($i['business_id'],$i['store_id'],'test',$approved['revision'],$approved['proposal_hash'],'REVOKED',wp_generate_uuid4()));wp_set_current_user($f['actors']['author']);
+        self::assertWPError($repo->declarationEvidence($row));self::assertWPError($repo->importDeclaration($input));
+        self::assertSame('BLOCKED',(new DigiForge\Finance\DeclarationReadModel())->snapshot('digital','test','2026-10-01','2026-10-31','USD')['state']);
+        self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::pod_mappings().' WHERE product_version_id=%d',$f['product_version_id'])));
+    }
+
 }
