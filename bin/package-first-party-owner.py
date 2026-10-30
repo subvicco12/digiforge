@@ -13,6 +13,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_COMMIT = 'aa8b687501450f0e243c4aa9854e9089a44a76b5'
+# Reviewed reference-only portal label change; OWNER payload identities remain immutable.
+DEPENDENCY_REFERENCE_COMMIT = '27a6d7bd180732f6de1c148abac8ecaf68694f62'
 SOURCE_FILES = (
     {
         'path': 'includes/Security/FirstPartyOwnerPolicy.php',
@@ -112,7 +114,7 @@ def build():
     for path, data in files.items():
         if hashlib.sha256(data).hexdigest() != SOURCE_HASHES[path]:
             raise ValueError('OWNER source changed; independent scope review required')
-    dependencies = {p: _source(p, SOURCE_COMMIT) for p in DEPENDENCIES}
+    dependencies = {p: _source(p, DEPENDENCY_REFERENCE_COMMIT) for p in DEPENDENCIES}
     for path, data in {**files, **dependencies}.items():
         if _source(path, head) != data:
             raise ValueError('Current committed OWNER dependency drift; review new source pins')
@@ -123,6 +125,7 @@ def build():
     manifest = {
         'schema': 'digiforge-first-party-owner-source-overlay-v1',
         'source_commit': SOURCE_COMMIT,
+        'dependency_reference_commit': DEPENDENCY_REFERENCE_COMMIT,
         'source_reference_audit': None,
         'source_reference_audit_state': 'COMPLETE_EXACT_CANDIDATE_AUDIT_REQUIRED',
         'state': 'REVIEW_ONLY_DEPLOYMENT_BLOCKED', 'standalone_plugin': False,

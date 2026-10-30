@@ -31,7 +31,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         for name in module.DEPENDENCIES + module.PAYLOADS[1:]:
             target = root / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(module._source(name, module.SOURCE_COMMIT))
+            target.write_bytes(module._source(name, module.SOURCE_COMMIT if name in module.PAYLOADS else module.DEPENDENCY_REFERENCE_COMMIT))
 
     def test_private_capture_never_becomes_production_or_rollback_approval(self):
         m = self.module()
@@ -189,6 +189,24 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         self.assertEqual('COMPLETE_EXACT_CANDIDATE_AUDIT_REQUIRED',manifest['source_reference_audit_state'])
         self.assertEqual('REVIEW_ONLY_DEPLOYMENT_BLOCKED', m.verify(blob)['state'])
 
+    def test_reference_only_policy_labels_do_not_replace_owner_payload_identity(self):
+        m = self.module()
+        blob, manifest = m.build()
+        self.assertEqual('aa8b687501450f0e243c4aa9854e9089a44a76b5', manifest['source_commit'])
+        self.assertEqual('27a6d7bd180732f6de1c148abac8ecaf68694f62', manifest['dependency_reference_commit'])
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            for path in m.PAYLOADS:
+                self.assertEqual(m._source(path, m.SOURCE_COMMIT), archive.read(path))
+            self.assertNotIn('includes/Portal/Portal.php', archive.namelist())
+            self.assertNotIn('includes/Finance/Repository.php', archive.namelist())
+        old = m.DEPENDENCY_REFERENCE_COMMIT
+        m.DEPENDENCY_REFERENCE_COMMIT = m.SOURCE_COMMIT
+        try:
+            with self.assertRaisesRegex(ValueError, 'Current committed OWNER dependency drift'):
+                m.build()
+        finally:
+            m.DEPENDENCY_REFERENCE_COMMIT = old
+
     def test_reproducible_source_does_not_read_mutable_checkout(self):
         m = self.module()
         first, manifest = m.build()
@@ -256,7 +274,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
 
     def test_new_committed_owner_source_cannot_silently_ship_stale_overlay(self):
         m = self.module()
-        files = {p: m._git('cat-file', 'blob', m.SOURCE_COMMIT + ':' + p) for p in m.PAYLOADS + m.DEPENDENCIES}
+        files = {p: m._git('cat-file', 'blob', (m.SOURCE_COMMIT if p in m.PAYLOADS else m.DEPENDENCY_REFERENCE_COMMIT) + ':' + p) for p in m.PAYLOADS + m.DEPENDENCIES}
         with tempfile.TemporaryDirectory() as tmp:
             def git(*args):
                 return subprocess.run(['git', '-C', tmp, '-c', 'core.hooksPath=/dev/null',
@@ -272,6 +290,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             git('commit', '-qm', 'Synthetic baseline')
             m.ROOT = Path(tmp)
             m.SOURCE_COMMIT = git('rev-parse', 'HEAD').decode().strip()
+            m.DEPENDENCY_REFERENCE_COMMIT = m.SOURCE_COMMIT
             m.build()
             path = Path(tmp) / m.PAYLOADS[0]
             path.write_bytes(path.read_bytes() + b'\n// changed reviewed source\n')
