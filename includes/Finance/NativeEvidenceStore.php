@@ -84,6 +84,17 @@ final class NativeEvidenceStore
             return $this->decode($row,$scope);
         });
     }
+    /** Compare an encrypted copy only; claims, audit, keys and restoration are not certified by a digest. */
+    public function inspectBackupCopy(string $hash,array $scope,string $ciphertext):array|WP_Error
+    {
+        if($ciphertext===''||strlen($ciphertext)>262144)return NativeEvidenceAccess::error();
+        $receipt=$this->receipt($hash,$scope);if($receipt instanceof WP_Error)return $receipt;
+        if(!hash_equals($receipt['ciphertext_sha256'],hash('sha256',$ciphertext)))return NativeEvidenceAccess::error();
+        return $receipt+['backup_copy_digest_matches'=>true,'restore_verified'=>false,'restore_authorized'=>false,
+            'key_recovery_authorized'=>false,'retention_policy'=>'UNAPPROVED','legal_hold_policy'=>'UNAPPROVED',
+            'retention_actions_authorized'=>false,'automatic_cleanup_authorized'=>false,'erasure_authorized'=>false];
+    }
+
     private function decode(array $row,array $scope,bool $requireCurrentScope=true):array
     {
         // Reconstruct immutable first claims and complete correction ancestry from
@@ -119,7 +130,7 @@ final class NativeEvidenceStore
         }
         foreach($expectedClaims as$claim=>$owner)if($this->claim($claim)!==$owner)throw new \RuntimeException();
         if($selected===null||($requireCurrentScope&&Validator::canonicalJson($selected['scope'])!==Validator::canonicalJson($scope)))throw new \RuntimeException();
-        return ['record_hash'=>$row['record_hash'],'raw_source_sha256'=>$row['source_hash'],'state'=>$selected['state'],'supersedes'=>$selected['supersedes'],
+        return ['record_hash'=>$row['record_hash'],'ciphertext_sha256'=>hash('sha256',$row['ciphertext']),'raw_source_sha256'=>$row['source_hash'],'state'=>$selected['state'],'supersedes'=>$selected['supersedes'],
             'authenticity'=>'UNKNOWN','ownership'=>'LOCAL_REVIEW_ONLY','settlement'=>'UNKNOWN','accounting_import_authorized'=>false,
             'transaction_recognition_authorized'=>false,'period_approval_authorized'=>false,'external_execution_authorized'=>false];
     }

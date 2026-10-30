@@ -11,7 +11,7 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
 {
     protected function setUp():void
     {
-        parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();
+        parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();DigiForge\Core\Settings::protectProduction();
         wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
         ShopAccessFixture::authorizeActor(get_current_user_id(),ShopAccessPolicy::canonicalShops(),['manage_digiforge','manage_digiforge_finance']);
     }
@@ -64,5 +64,20 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
         $post=$this->payload();$docs=json_decode($post['documents_json'],true);$post['documents_json']=wp_json_encode([$docs[0],$docs[0]]);
         $out=FinanceNativeSourceWorkflow::processBrowser($post,'digital');self::assertWPError($out);
         self::assertStringNotContainsString('PRIVATE_CUSTOMER_MARKER',wp_json_encode($out));
+    }
+ /** @dataProvider unsupportedProviders */
+    public function testUnsupportedProviderCannotBeParsedAsEtsy(string $provider):void {
+        $post=$this->payload();$post['provider']=$provider;
+        $r=FinanceNativeSourceWorkflow::processBrowser($post,'digital');self::assertWPError($r);
+        self::assertSame('finance_source_contract_missing',$r->get_error_code());
+        self::assertFalse($r->get_error_data()['accounting_import_authorized']);
+    }
+    public static function unsupportedProviders():array{return [['printify'],['gelato'],['openai']];}
+    public function testExplicitEtsySelectionRetainsExactLegacyProjection():void {
+        $post=$this->payload();$legacy=FinanceNativeSourceWorkflow::processBrowser($post,'digital');$post['provider']='etsy';
+        $explicit=FinanceNativeSourceWorkflow::processBrowser($post,'digital');self::assertIsArray($legacy);self::assertIsArray($explicit);
+        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D',$explicit['stage_hash']);
+        // Each preview hashes its own observation second; provider selection changes no source fields.
+        unset($legacy['stage_hash'],$explicit['stage_hash']);self::assertSame($legacy,$explicit);
     }
 }

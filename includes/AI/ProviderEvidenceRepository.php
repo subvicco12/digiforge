@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\AI;
 
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
 use WP_Error;
 
 /** Immutable provider metering and human-reviewed charge evidence, independent of Finance. */
@@ -57,7 +58,7 @@ final class ProviderEvidenceRepository
             global $wpdb;
             if((string)$usage['model_key']!==''&&(string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Existing model projection conflicts with provider metering.',503);
             $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage()." SET model_key=%s WHERE id=%d AND shop_key=%s AND model_key=''",$model,$usageId,$shop));
-            if($updated===false||$wpdb->last_error!=='')return $this->error('reconciliation_required','Metering proof is preserved but model projection is uncertain.',503);
+            if($updated===false||QueryEvidence::failed())return $this->error('reconciliation_required','Metering proof is preserved but model projection is uncertain.',503);
             $confirmed=$this->usage($usageId,$shop);if($confirmed instanceof WP_Error)return $confirmed;
             return (string)$confirmed['model_key']===$model?$saved:$this->error('reconciliation_required','Provider model projection could not be confirmed.',503);
         });
@@ -101,6 +102,7 @@ final class ProviderEvidenceRepository
                 'source'=>'provider_statement','source_sha256'=>$evidence['source_sha256'],'invoice_id'=>$evidence['invoice_id'],'line_id'=>$evidence['line_id'],'amount'=>$amount,'currency'=>$currency];
             $old=$this->read('settlement_'.$usageId);if($old instanceof WP_Error)return $old;
             if($old!==null){
+                if(!$this->chargeWitnessValid($usage,$meter,$old))return $this->error('reconciliation_required','Original charge claim and metering evidence are required; no automatic repair.',503);
                 if($reservation!==null&&(!is_string($old['source_document']??null)||!hash_equals($charge['source_sha256'],hash('sha256',$old['source_document']))))return $this->error('reconciliation_required','Existing immutable settlement lacks retained authoritative source bytes; history cannot be promoted by replay.',503);
                 if(($old['charge']??null)!==$charge)return $this->error('conflict','Immutable charge evidence conflicts with an existing settlement.',409);
                 if((string)$usage['actual_cost']!==$amount)return $this->error('reconciliation_required','Recorded charge and cost projection disagree; reconcile without automatically retrying.',503);
@@ -113,7 +115,7 @@ final class ProviderEvidenceRepository
             $receipt=['charge'=>$charge,'source_document'=>$evidence['source_document']??null,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>current_time('mysql',true),'cost_state'=>'PROVIDER_CHARGE_RECORDED'];
             $saved=$this->put('settlement_'.$usageId,$receipt);if($saved instanceof WP_Error)return $saved;
             $wpdb->last_error='';$ok=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage().' SET actual_cost=%s WHERE id=%d AND shop_key=%s AND currency=%s AND actual_cost=0',$amount,$usageId,$shop,$currency));
-            if($ok===false||(string)$wpdb->last_error!=='')return $this->error('reconciliation_required','Charge proof is recorded but cost persistence is uncertain; no automatic retry.',503);
+            if($ok===false||QueryEvidence::failed())return $this->error('reconciliation_required','Charge proof is recorded but cost persistence is uncertain; no automatic retry.',503);
             $confirmed=$this->usage($usageId,$shop);if($confirmed instanceof WP_Error)return $confirmed;
             if((string)$confirmed['actual_cost']!==$amount)return $this->error('reconciliation_required','Recorded provider charge could not be confirmed against the cost projection.',503);
             $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&MonetaryReservationRepository::micros($amount)>MonetaryReservationRepository::micros($bound['maximum_charge']))return $this->error('reservation_bound_exceeded','Authoritative charge is preserved but exceeds its reserved ceiling; human reconciliation is required.',409);
@@ -132,17 +134,34 @@ final class ProviderEvidenceRepository
         $meter=$this->read('completion_'.$usageId);if($meter instanceof WP_Error)return $meter;
         $charge=$this->read('settlement_'.$usageId);if($charge instanceof WP_Error)return $charge;
         $state=$meter===null?'PENDING_PROVIDER_COMPLETION':'AWAITING_PROVIDER_CHARGE';
-        if($charge!==null)$state=(string)$usage['actual_cost']===(string)$charge['charge']['amount']?'REVIEWED_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
+        $validCharge=$charge!==null&&$this->chargeWitnessValid($usage,$meter,$charge);
+        if($charge!==null)$state=$validCharge&&(string)$usage['actual_cost']===(string)$charge['charge']['amount']?'REVIEWED_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
         if($meter!==null&&(string)$usage['model_key']!==$meter['model'])$state='RECONCILIATION_REQUIRED';
         $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&$charge!==null&&!is_string($charge['source_document']??null))$state='RECONCILIATION_REQUIRED';if($bound!==null&&$meter!==null&&!self::matchesBound($bound,$meter['model'],$meter['usage']))$state='RECONCILIATION_REQUIRED';if($bound!==null&&MonetaryReservationRepository::micros((string)$usage['actual_cost'])>MonetaryReservationRepository::micros($bound['maximum_charge']))$state='RESERVATION_BOUND_EXCEEDED';
         $attribution=(new CostAttributionRepository())->forUsage($usageId,$shop);if($attribution instanceof WP_Error)return $attribution;
-        return ['usage_id'=>$usageId,'shop_key'=>$shop,'attribution'=>$attribution,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge,'reservation'=>$bound,'external_execution_authorized'=>false];
+        return ['usage_id'=>$usageId,'shop_key'=>$shop,'attribution'=>$attribution,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge!==null&&!$validCharge?null:$charge,'reservation'=>$bound,'external_execution_authorized'=>false,'financial_authenticity'=>'UNKNOWN','financial_finality'=>'UNKNOWN','accounting_import_authorized'=>false];
+    }
+
+    /** Reuse the original invoice-line claim; hash-only legacy reviews never certify Finance. */
+    private function chargeWitnessValid(array $usage,?array $meter,array $receipt):bool
+    {
+        $c=$receipt['charge']??null;
+        if(!is_array($c)||!is_array($meter)||($c['usage_id']??null)!==(int)$usage['id']||($c['shop_key']??null)!==$usage['shop_key']
+            ||($c['provider']??null)!=='openai'||($c['source']??null)!=='provider_statement'||($c['currency']??null)!==$usage['currency']
+            ||($c['response_id']??null)!==($meter['response_id']??null)||($c['model']??null)!==($meter['model']??null)
+            ||!is_string($c['amount']??null)||preg_match('/^(?:0|[1-9][0-9]{0,7})\.[0-9]{6}$/D',$c['amount'])!==1
+            ||!is_string($c['source_sha256']??null)||preg_match('/^[a-f0-9]{64}$/D',$c['source_sha256'])!==1
+            ||!is_int($receipt['reviewed_by']??null)||$receipt['reviewed_by']<1)return false;
+        foreach(['invoice_id','line_id']as$field)if(!is_string($c[$field]??null)||preg_match('/^[A-Za-z0-9_.:-]{1,191}$/D',$c[$field])!==1)return false;
+        if(($receipt['source_document']??null)!==null&&(!is_string($receipt['source_document'])||!hash_equals($c['source_sha256'],hash('sha256',$receipt['source_document']))))return false;
+        $claim=$this->read('charge_'.hash('sha256','openai|'.$c['invoice_id'].'|'.$c['line_id']));
+        return is_array($claim)&&$claim===$c;
     }
 
     private function usage(int $id,string $shop):array|WP_Error
     {
         global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE id=%d AND shop_key=%s',$id,$shop),ARRAY_A);
-        if((string)$wpdb->last_error!==''||!is_array($row))return $this->error('reservation_unavailable','Exact shop reservation evidence is unavailable.',503);
+        if(QueryEvidence::failed()||!is_array($row))return $this->error('reservation_unavailable','Exact shop reservation evidence is unavailable.',503);
         if(!str_starts_with((string)$row['idempotency_key'],'generation-')||!in_array($row['stage'],ShopAiPlan::STAGES,true))return $this->error('reservation_invalid','Only a reserved provider generation can carry provider charge evidence.');
         return $row;
     }
@@ -150,15 +169,15 @@ final class ProviderEvidenceRepository
     {
         global $wpdb;if($shop===''||sanitize_key($shop)!==$shop)return $this->error('invalid','Canonical explicit shop required.');
         $lock=ShopAiGovernanceRepository::generationLockName($shop);$wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));
-        if((string)$wpdb->last_error!==''||(string)$acquired!=='1')return $this->error('busy','Shop provider accounting is busy or unavailable.',503);
+        if(QueryEvidence::failed()||(string)$acquired!=='1')return $this->error('busy','Shop provider accounting is busy or unavailable.',503);
         try{$result=$callback();}catch(\Throwable $e){$result=$this->error('uncertain','Provider evidence persistence is uncertain; do not automatically retry.',503);}
-        finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$uncertain=(string)$wpdb->last_error!==''||(string)$released!=='1';}
+        finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$uncertain=QueryEvidence::failed()||(string)$released!=='1';}
         return $uncertain?$this->error('lock_uncertain','Provider accounting lock release is uncertain.',503):$result;
     }
     private function read(string $key):array|WP_Error|null
     {
         global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s','digiforge_ai_evidence_'.$key));
-        if((string)$wpdb->last_error!=='')return $this->error('unavailable','Provider evidence store unavailable.',503);
+        if(QueryEvidence::failed())return $this->error('unavailable','Provider evidence store unavailable.',503);
         if($raw===null)return null;$decoded=json_decode((string)$raw,true);return is_array($decoded)?$decoded:$this->error('corrupt','Provider evidence is corrupt.',503);
     }
     private function put(string $key,array $data):array|WP_Error

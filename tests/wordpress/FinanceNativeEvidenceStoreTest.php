@@ -102,7 +102,7 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
     {
         $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
         if($missing==='claims')$wpdb->delete(NativeFinanceEvidenceSchema::claims(),['record_hash'=>$a['record_hash']]);
-        elseif($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']]);
+        elseif($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']],['%s','%s']);
         else $wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$a['record_hash']]);
         self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
     }
@@ -168,7 +168,7 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
         $b=$store->append($this->document($f,'correction-b'),$f['scope'],$a['record_hash']);self::assertNotWPError($b);
         $c=$store->append($this->document($f,'correction-c'),$f['scope'],$b['record_hash']);self::assertNotWPError($c);
         $doc=$this->document($f,'correction-d');$d=$store->append($doc,$f['scope'],$c['record_hash']);self::assertNotWPError($d);global $wpdb;
-        if($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$b['record_hash']]);
+        if($missing==='audit'){self::assertSame(1,$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$b['record_hash']],['%s','%s']));self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.DigiForge\Database\Tables::audit_log().' WHERE object_type=%s AND object_id=%s','finance_native_evidence',$b['record_hash'])));}
         elseif($missing==='row')$wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$b['record_hash']]);
         else $wpdb->update(NativeFinanceEvidenceSchema::records(),['source_hash'=>str_repeat('0',64)],['record_hash'=>$b['record_hash']]);
         self::assertWPError($store->receipt($d['record_hash'],$f['scope']));self::assertWPError($store->append($doc,$f['scope'],$c['record_hash']));
@@ -246,8 +246,19 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
     public function testAuditCreatorMustMatchEncryptedOriginalProvenance():void
     {
         $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
-        self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::audit_log(),['actor_id'=>$f['actors']['reviewer']],['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']]));
+        self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::audit_log(),['actor_id'=>$f['actors']['reviewer']],['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']],['%d'],['%s','%s']));
         self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
     }
 
+    public function testEncryptedCopyInspectionDoesNotGrantRestoreOrRetentionAuthority():void
+    {
+        $f=$this->fixture();$store=new NativeEvidenceStore();$receipt=$store->append($f['document'],$f['scope']);self::assertIsArray($receipt);
+        self::assertTrue(method_exists($store,'inspectBackupCopy'),'Read-only encrypted-copy evidence boundary is missing.');
+        global $wpdb;$cipher=$wpdb->get_var($wpdb->prepare('SELECT ciphertext FROM '.NativeFinanceEvidenceSchema::records().' WHERE record_hash=%s',$receipt['record_hash']));
+        $result=$store->inspectBackupCopy($receipt['record_hash'],$f['scope'],$cipher);self::assertIsArray($result);self::assertTrue($result['backup_copy_digest_matches']);
+        foreach(['restore_verified','restore_authorized','key_recovery_authorized','retention_actions_authorized','automatic_cleanup_authorized','erasure_authorized']as$key)self::assertFalse($result[$key]);
+        self::assertSame('UNAPPROVED',$result['retention_policy']);self::assertStringNotContainsString('PRIVATE_SYNTHETIC_NATIVE_MARKER',wp_json_encode($result));self::assertStringNotContainsString($cipher,wp_json_encode($result));
+        self::assertWPError($store->inspectBackupCopy($receipt['record_hash'],$f['scope'],$cipher.'x'));
+        self::assertWPError($store->inspectBackupCopy($receipt['record_hash'],array_replace($f['scope'],['external_account_id'=>123457]),$cipher));
+    }
 }

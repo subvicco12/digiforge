@@ -45,4 +45,14 @@ final class AiProviderSettlementTest extends WP_UnitTestCase {
   $repo=new DigiForge\AI\ProviderEvidenceRepository();$response=$this->response();$table=DigiForge\Database\Tables::shop_ai_usage();$filter=static fn(string $sql):string=>str_starts_with($sql,'UPDATE '.$table.' SET model_key=')?'SELECT * FROM digiforge_missing_model_projection':$sql;add_filter('query',$filter);try{$r=$repo->recordOutcome((int)$this->usage['id'],$this->shop,$response);}finally{remove_filter('query',$filter);}self::assertTrue(is_wp_error($r));self::assertSame('RECONCILIATION_REQUIRED',$repo->snapshot((int)$this->usage['id'],$this->shop)['cost_state']);self::assertTrue(is_wp_error($repo->recordOutcome((int)$this->usage['id'],$this->shop,$response)));self::assertTrue(is_wp_error($repo->settle((int)$this->usage['id'],$this->shop,$this->charge($response))));
  }
 
+ /** @dataProvider damagedReceipts */
+ public function testBrokenChargeWitnessCannotRemainReviewed(string $damage):void {
+  $r=new DigiForge\AI\ProviderEvidenceRepository();$response=$this->response();self::assertIsArray($r->recordOutcome((int)$this->usage['id'],$this->shop,$response));$input=$this->charge($response);self::assertIsArray($r->settle((int)$this->usage['id'],$this->shop,$input));
+  global $wpdb;$name='digiforge_ai_evidence_settlement_'.$this->usage['id'];$raw=json_decode($wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name)),true);
+  if($damage==='missing_claim')$wpdb->delete($wpdb->options,['option_name'=>'digiforge_ai_evidence_charge_'.hash('sha256','openai|'.$input['invoice_id'].'|'.$input['line_id'])]);
+  else{$raw['charge'][$damage]=match($damage){'shop_key'=>'foreign-shop','usage_id'=>999999,'source_sha256'=>str_repeat('e',64),'response_id'=>'resp_foreign',default=>'foreign-line'};$wpdb->update($wpdb->options,['option_value'=>wp_json_encode($raw)],['option_name'=>$name]);}
+  $view=$r->snapshot((int)$this->usage['id'],$this->shop);self::assertIsArray($view);self::assertSame('RECONCILIATION_REQUIRED',$view['cost_state']);self::assertNull($view['settlement']);
+  self::assertWPError($r->settle((int)$this->usage['id'],$this->shop,$input));
+ }
+ public static function damagedReceipts():array{return array_map(static fn(string $v):array=>[$v],['missing_claim','shop_key','usage_id','source_sha256','response_id','line_id']);}
 }

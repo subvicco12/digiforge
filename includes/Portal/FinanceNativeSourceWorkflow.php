@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\Portal;
 
-use DigiForge\Finance\EtsyNativeObservationStage;
+use DigiForge\Finance\SourceAdmission;
 use DigiForge\Security\ShopAccess;
 use DigiForge\Security\ShopAccessPolicy;
 use WP_Error;
@@ -18,7 +18,7 @@ final class FinanceNativeSourceWorkflow
         $access=self::authorize($shop);if($access instanceof WP_Error)return $access;
         if(!is_string($post['_wpnonce']??null)||strlen($post['_wpnonce'])>256||!wp_verify_nonce($post['_wpnonce'],self::ACTION))return self::error(403);
         $keys=array_keys($post);sort($keys);
-        if($keys!==['_wpnonce','action','context_json','documents_json','shop_key'])return self::error(400);
+        if($keys!==['_wpnonce','action','context_json','documents_json','shop_key']&&$keys!==['_wpnonce','action','context_json','documents_json','provider','shop_key'])return self::error(400);
         $size=0;foreach($post as$value){if(!is_string($value))return self::error(400);$size+=strlen($value);}
         if($size>self::MAX_REQUEST_BYTES)return self::error(413);
         if($post['action']!==self::ACTION||$post['shop_key']!==$shop)return self::error(400);
@@ -28,8 +28,7 @@ final class FinanceNativeSourceWorkflow
             if(!is_array($context)||!is_array($documents)||($context['shop_key']??null)!==$shop)return self::error(400);
             // Both numeric account/business/store selectors are explicit assertions, not DB ownership evidence.
             // Only the selected shop is an authorization selector; no raw record is read from another tenant.
-            $packet=EtsyNativeObservationStage::preview($documents,$context,$context,time());
-            $result=EtsyNativeObservationStage::projection($packet);
+            $result=SourceAdmission::preview($post['provider']??'etsy',$documents,$context,$context,time());
         }catch(\Throwable){return self::error(400);}
         $access=self::authorize($shop);return $access instanceof WP_Error?$access:$result;
     }
@@ -53,7 +52,7 @@ final class FinanceNativeSourceWorkflow
             echo '</ul>';
         }
         $url=add_query_arg(['df_view'=>'finance','df_shop'=>$shop],OperatorReturnUrl::current());
-        echo '<form method="post" action="'.esc_url($url).'" class="df-review-form"><input type="hidden" name="action" value="'.self::ACTION.'"><input type="hidden" name="shop_key" value="'.self::e($shop).'"><input type="hidden" name="_wpnonce" value="'.self::e(wp_create_nonce(self::ACTION)).'"><label>Declared source context JSON <textarea name="context_json" rows="5" maxlength="65536" required></textarea></label><p>Exact keys: shop_key, environment, business_id, store_id, external_shop_id, external_account_id, integration_id, source_contract_sha256. IDs must be positive integers. Context does not grant provider ownership.</p><label>Native documents JSON <textarea name="documents_json" rows="8" maxlength="1048576" required></textarea></label><p>One to 20 documents, each with native_schema, raw (original JSON as a string), and capture. Capture retains the parser’s exact five scope fields, source_sha256, observed_at and local source_reference. Each source is at most 64 KiB; combined original bytes at most 256 KiB. Future capture dates and duplicate/conflicting identities are blocked. Historical timestamps are not automatically stale.</p><button class="df-button" type="submit">Validate native source (no save)</button></form><p class="df-muted">No durable replay claim, accounting mapping, reconciliation, period approval or provider operation. Source inputs are cleared after every response. No raw customer text is shown.</p></section>';
+        echo '<form method="post" action="'.esc_url($url).'" class="df-review-form"><input type="hidden" name="action" value="'.self::ACTION.'"><input type="hidden" name="shop_key" value="'.self::e($shop).'"><input type="hidden" name="_wpnonce" value="'.self::e(wp_create_nonce(self::ACTION)).'"><label>Source provider <select name="provider"><option value="etsy">Etsy — pinned native schema</option><option value="printify">Printify — paid-source contract required</option><option value="gelato">Gelato — paid-source contract required</option><option value="openai">OpenAI — settled-source contract required</option></select></label><label>Declared source context JSON <textarea name="context_json" rows="5" maxlength="65536" required></textarea></label><p>Exact keys: shop_key, environment, business_id, store_id, external_shop_id, external_account_id, integration_id, source_contract_sha256. IDs must be positive integers. Context does not grant provider ownership.</p><label>Native documents JSON <textarea name="documents_json" rows="8" maxlength="1048576" required></textarea></label><p>One to 20 documents, each with native_schema, raw (original JSON as a string), and capture. Capture retains the parser’s exact five scope fields, source_sha256, observed_at and local source_reference. Each source is at most 64 KiB; combined original bytes at most 256 KiB. Future capture dates and duplicate/conflicting identities are blocked. Historical timestamps are not automatically stale.</p><button class="df-button" type="submit">Validate native source (no save)</button></form><p class="df-muted">No durable replay claim, accounting mapping, reconciliation, period approval or provider operation. Source inputs are cleared after every response. No raw customer text is shown.</p></section>';
     }
 
     private static function authorize(string $shop):true|WP_Error

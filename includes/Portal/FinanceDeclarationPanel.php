@@ -24,6 +24,26 @@ final class FinanceDeclarationPanel
         return $values['period_start']<=$values['period_end']?$values:null;
     }
 
+    /** @phpstan-impure */
+    private static function canExport(string $shop):bool
+    {
+        return in_array($shop,['digital','personalized_pod'],true)&&current_user_can('manage_digiforge')&&(new \DigiForge\REST\FinanceController())->canManage();
+    }
+
+    public static function exportBrowser(array $post,string $shop):array|\WP_Error
+    {
+        $deny=static fn():\WP_Error=>new \WP_Error('finance_review_export_blocked','Current scoped review evidence is required.',['status'=>403]);
+        if(!self::canExport($shop))return $deny();
+        $keys=array_keys($post);sort($keys);
+        if($keys!==['_wpnonce','action','base_currency','environment','period_end','period_start','shop_key'])return $deny();
+        foreach($post as$value)if(!is_string($value)||strlen($value)>256)return $deny();
+        if($post['action']!=='digiforge_finance_review_export'||$post['shop_key']!==$shop||!wp_verify_nonce($post['_wpnonce'],'digiforge_finance_review_export'))return $deny();
+        $query=[];foreach(['environment'=>'environment','period_start'=>'start','period_end'=>'end','base_currency'=>'currency']as$key=>$name)$query['df_finance_'.$name]=$post[$key];
+        $filters=self::filters($query);if($filters===null)return $deny();
+        $result=(new DeclarationReadModel())->reviewExport($shop,$filters['environment'],$filters['period_start'],$filters['period_end'],$filters['base_currency']);
+        return !self::canExport($shop)?$deny():$result;
+    }
+
     public static function render(string $shop,string $view,array $query,string $baseUrl):void
     {
         $filters=self::filters($query);
@@ -33,6 +53,18 @@ final class FinanceDeclarationPanel
         }
         $report=(new DeclarationReadModel())->snapshot($shop,$filters['environment'],$filters['period_start'],$filters['period_end'],$filters['base_currency'],100);
         echo self::html($report,$filters,$shop,$view,$baseUrl);
+        echo '<section class="df-panel" data-finance-review-export>';
+        if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'&&($_POST['action']??null)==='digiforge_finance_review_export'){
+            $length=$_SERVER['CONTENT_LENGTH']??'';
+            $export=is_string($length)&&ctype_digit($length)&&(float)$length>4096?new \WP_Error('finance_review_export_blocked'):self::exportBrowser(wp_unslash($_POST),$shop);
+            if($export instanceof \WP_Error)echo '<p role="status">BLOCKED: current review export evidence unavailable.</p>';
+            else echo '<p>Review package SHA-256: <code>'.self::e($export['sha256']).'</code> (exact bytes field). Copy the complete JSON container for verification; it grants no financial or tax authority.</p><textarea readonly aria-label="Review-only finance evidence package">'.self::e(json_encode($export,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT)).'</textarea>';
+        }
+        $route=['df_view'=>in_array($view,['finance','analytics'],true)?$view:'finance','df_shop'=>$shop];
+        foreach(['environment'=>'environment','period_start'=>'start','period_end'=>'end','base_currency'=>'currency']as$key=>$parameter)$route['df_finance_'.$parameter]=$filters[$key];
+        echo '<form method="post" action="'.self::e(add_query_arg($route,$baseUrl)).'" class="df-review-form"><input type="hidden" name="action" value="digiforge_finance_review_export"><input type="hidden" name="_wpnonce" value="'.self::e(wp_create_nonce('digiforge_finance_review_export')).'">';
+        foreach(['shop_key'=>$shop]+$filters as$key=>$value)echo '<input type="hidden" name="'.self::e($key).'" value="'.self::e($value).'">';
+        echo '<button class="df-button" type="submit">Prepare review-only JSON package</button></form><p>No statutory tax, filing or financial approval is granted.</p></section>';
     }
 
     /** Fixed field projection; no supplied authority flag or raw document becomes an action. */

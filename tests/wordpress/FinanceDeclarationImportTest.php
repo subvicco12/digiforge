@@ -7,6 +7,7 @@ use DigiForge\Finance\Repository;
 use DigiForge\Tests\FinanceDeclarationFixtures;
 
 require_once dirname(__DIR__) . '/unit/FinanceDeclarationFixtures.php';
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 
 /** Synthetic declarations only: no provider API compatibility or financial authority. */
 final class FinanceDeclarationImportTest extends WP_UnitTestCase
@@ -355,4 +356,59 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
     }
     public static function finalReferenceChanges():array
     {return [['revoked'],['deleted'],['reassigned'],['fx_deleted'],['fx_changed'],['reference_read_failure']];}
+    public function testCurrentScopedReviewExportPreservesPrecisionWithoutCertifyingTax():void
+    {
+        $input=$this->fixture();self::assertIsArray((new Repository())->importDeclaration($input));
+        $model=new DigiForge\Finance\DeclarationReadModel();self::assertTrue(method_exists($model,'reviewExport'),'A source-validated review package is missing.');
+        $one=$model->reviewExport('personalized_pod','test','2026-10-01','2026-10-31','USD');self::assertIsArray($one);
+        self::assertSame(hash('sha256',$one['bytes']),$one['sha256']);self::assertSame($one,$model->reviewExport('personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        $body=json_decode($one['bytes'],true,32,JSON_THROW_ON_ERROR);self::assertSame('HUMAN_REVIEW_ONLY',$body['purpose']);self::assertFalse($body['filing_authorized']);
+        self::assertSame('UNKNOWN',$body['source_completeness']);self::assertSame('10.0000',$body['rows'][0]['amount']);self::assertArrayNotHasKey('source_document_ref',$body['rows'][0]);
+        self::assertWPError($model->reviewExport('digital','test','2026-10-01','2026-10-31','USD'));
+        global $wpdb;$wpdb->update(Tables::pod_business_mappings(),['state'=>'REVOKED'],['store_id'=>$input['scope']['store_id']]);
+        self::assertWPError($model->reviewExport('personalized_pod','test','2026-10-01','2026-10-31','USD'));
+    }
+    public function testReviewExportPortalRequiresCurrentFourShopAuthorityAndNonce():void
+    {
+        $input=$this->fixture();self::assertIsArray((new Repository())->importDeclaration($input));
+        self::assertTrue(method_exists(DigiForge\Portal\FinanceDeclarationPanel::class,'exportBrowser'),'Authenticated review export is missing.');
+        ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),DigiForge\Security\ShopAccessPolicy::canonicalShops(),['manage_digiforge','manage_digiforge_finance']);
+        $post=['action'=>'digiforge_finance_review_export','_wpnonce'=>wp_create_nonce('digiforge_finance_review_export'),'shop_key'=>'personalized_pod','environment'=>'test','period_start'=>'2026-10-01','period_end'=>'2026-10-31','base_currency'=>'USD'];
+        self::assertIsArray(DigiForge\Portal\FinanceDeclarationPanel::exportBrowser($post,'personalized_pod'));
+        foreach([['_wpnonce'=>'invalid'],['shop_key'=>'digital'],['filing_authorized'=>'true'],['base_currency'=>'usd']]as$change)self::assertWPError(DigiForge\Portal\FinanceDeclarationPanel::exportBrowser(array_replace($post,$change),'personalized_pod'));
+        ShopAccessFixture::reset();self::assertWPError(DigiForge\Portal\FinanceDeclarationPanel::exportBrowser($post,'personalized_pod'));
+    }
+    public function testReviewPackageVerificationRejectsTamperingAndStaleRevisions():void
+    {
+        $input=$this->fixture();$repo=new Repository();self::assertIsArray($repo->importDeclaration($input));$m=new DigiForge\Finance\DeclarationReadModel();
+        self::assertTrue(method_exists($m,'verifyReviewExport'),'Current-version review export verification is missing.');
+        $p=$m->reviewExport('personalized_pod','test','2026-10-01','2026-10-31','USD');self::assertIsArray($p);
+        self::assertTrue($m->verifyReviewExport($p,'personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        $changed=$p;$changed['bytes'].=" ";$changed['sha256']=hash('sha256',$changed['bytes']);self::assertWPError($m->verifyReviewExport($changed,'personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        self::assertWPError($m->verifyReviewExport($p+['certified'=>true],'personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        $revision=array_replace($input,['revision'=>2,'previous_revision_hash'=>DeclarationContract::normalize($input)['declaration_hash'],'amount'=>'11.0000','base_amount'=>'11.0000']);self::assertIsArray($repo->importDeclaration($revision));
+        self::assertWPError($m->verifyReviewExport($p,'personalized_pod','test','2026-10-01','2026-10-31','USD'));
+    }
+    public function testActualPortalPackageRoundTripsAndRetainsSelectedScope():void
+    {
+        $input=$this->fixture();self::assertIsArray((new Repository())->importDeclaration($input));ShopAccessFixture::reset();
+        ShopAccessFixture::authorizeActor(get_current_user_id(),DigiForge\Security\ShopAccessPolicy::canonicalShops(),['manage_digiforge','manage_digiforge_finance']);
+        $post=['action'=>'digiforge_finance_review_export','_wpnonce'=>wp_create_nonce('digiforge_finance_review_export'),'shop_key'=>'personalized_pod','environment'=>'test','period_start'=>'2026-10-01','period_end'=>'2026-10-31','base_currency'=>'USD'];
+        $query=['df_finance_start'=>'2026-10-01','df_finance_end'=>'2026-10-31','df_finance_environment'=>'test','df_finance_currency'=>'USD'];
+        $oldPost=$_POST;$oldServer=$_SERVER;$_POST=wp_slash($post);$_SERVER['REQUEST_METHOD']='POST';ob_start();
+        try{DigiForge\Portal\FinanceDeclarationPanel::render('personalized_pod','finance',$query,'http://example.org/portal/');$html=ob_get_contents();}finally{ob_end_clean();$_POST=$oldPost;$_SERVER=$oldServer;}
+        self::assertSame(1,preg_match('/<textarea readonly[^>]*>(.*?)<\/textarea>/s',$html,$m));
+        $copied=json_decode(html_entity_decode($m[1],ENT_QUOTES|ENT_HTML5,'UTF-8'),true,32,JSON_THROW_ON_ERROR);
+        self::assertTrue((new DigiForge\Finance\DeclarationReadModel())->verifyReviewExport($copied,'personalized_pod','test','2026-10-01','2026-10-31','USD'));
+        self::assertStringContainsString('df_finance_start=2026-10-01',$html);self::assertStringContainsString('df_finance_end=2026-10-31',$html);
+    }
+    public function testRevokedPortalCapabilityDuringExportCannotReturnBytes():void
+    {
+        $input=$this->fixture();self::assertIsArray((new Repository())->importDeclaration($input));ShopAccessFixture::reset();
+        ShopAccessFixture::authorizeActor(get_current_user_id(),DigiForge\Security\ShopAccessPolicy::canonicalShops(),['manage_digiforge','manage_digiforge_finance']);
+        $post=['action'=>'digiforge_finance_review_export','_wpnonce'=>wp_create_nonce('digiforge_finance_review_export'),'shop_key'=>'personalized_pod','environment'=>'test','period_start'=>'2026-10-01','period_end'=>'2026-10-31','base_currency'=>'USD'];$hit=false;
+        $filter=static function(string $sql)use(&$hit):string{if(!$hit&&str_starts_with($sql,'SELECT * FROM '.Tables::finance_ledger().' WHERE environment=')){$hit=true;wp_get_current_user()->add_cap('manage_digiforge',false);}return $sql;};
+        add_filter('query',$filter);try{$result=DigiForge\Portal\FinanceDeclarationPanel::exportBrowser($post,'personalized_pod');}finally{remove_filter('query',$filter);}
+        self::assertTrue($hit);self::assertWPError($result);
+    }
 }

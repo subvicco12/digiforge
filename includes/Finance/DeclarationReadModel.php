@@ -9,6 +9,34 @@ use WP_Error;
 /** Bounded provisional declaration evidence. No provider authenticity, tax classification or financial authority. */
 final class DeclarationReadModel
 {
+    /** Deterministic review-only JSON over a freshly validated snapshot, never a statutory export. */
+    public function reviewExport(string $shop,string $environment,string $start,string $end,string $currency):array|WP_Error
+    {
+        $report=$this->snapshot($shop,$environment,$start,$end,$currency,200);
+        if(!in_array($shop,['digital','personalized_pod'],true)||($report['state']??null)!=='PROVISIONAL'||!empty($report['truncated'])
+            ||($report['query_state']??null)!=='AVAILABLE'||empty($report['gst_review']['rows']))return new WP_Error('finance_review_export_blocked','Current complete bounded declaration evidence is required.',['status'=>409,'state'=>'BLOCKED']);
+        $rows=[];
+        foreach($report['gst_review']['rows']as$row)$rows[]=array_intersect_key($row,array_flip(['ledger_id','declaration_hash','occurred_at','currency','amount','base_currency','base_amount','category','source_document_hash','fx_snapshot_id']));
+        $body=['schema'=>'digiforge-finance-review-export-v1','purpose'=>'HUMAN_REVIEW_ONLY','scope'=>$report['scope'],
+            'source_report_sha256'=>Validator::hash($report),'calculation_version'=>$report['calculation_version'],'rows'=>$rows,
+            'authenticity'=>'UNKNOWN','source_completeness'=>'UNKNOWN','settlement'=>'UNKNOWN','tax_jurisdiction'=>'REVIEW_REQUIRED',
+            'tax_policy_version'=>null,'tax_calculation_provenance'=>null,'tax_calculation_performed'=>false,'certified_profitability'=>false,'filing_authorized'=>false,'period_approval_authorized'=>false,'external_execution_authorized'=>false];
+        $bytes=json_encode($body,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT)."\n";
+        if(strlen($bytes)>262144)return new WP_Error('finance_review_export_blocked','Bounded review evidence is required.',['status'=>413,'state'=>'BLOCKED']);
+        return ['schema'=>$body['schema'],'scope'=>$body['scope'],'bytes'=>$bytes,'sha256'=>hash('sha256',$bytes),'row_count'=>count($rows),'filing_authorized'=>false];
+    }
+
+    /** Current-source validation, not just a self-supplied checksum or schema label. */
+    public function verifyReviewExport(array $package,string $shop,string $environment,string $start,string $end,string $currency):true|WP_Error
+    {
+        $current=$this->reviewExport($shop,$environment,$start,$end,$currency);
+        if($current instanceof WP_Error)return $current;
+        $keys=array_keys($package);sort($keys);$expected=array_keys($current);sort($expected);
+        if($keys!==$expected)return new WP_Error('finance_review_export_invalid','Exact current review package required.',['status'=>409]);
+        foreach($current as$key=>$value)if(($package[$key]??null)!==$value)return new WP_Error('finance_review_export_invalid','Exact current review package required.',['status'=>409]);
+        return true;
+    }
+
     public function snapshot(string $shop='all',string $environment='test',string $start='',string $end='',string $baseCurrency='USD',int $limit=100):array
     {
         try{$scope=self::scope($shop,$environment,$start,$end,$baseCurrency);}catch(\InvalidArgumentException){return self::blocked([], 'SCOPE_INVALID', 'Explicit canonical report scope is required.');}
