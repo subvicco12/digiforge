@@ -24,6 +24,8 @@ final class FinanceNativeSourceWorkflow
         $size=0;foreach($post as$value){if(!is_string($value))return self::error(400);$size+=strlen($value);}
         if($size>self::MAX_REQUEST_BYTES)return self::error(413);
         if($post['action']!==self::ACTION||$post['shop_key']!==$shop)return self::error(400);
+        // Only pinned native JSON can retain the legacy Etsy default; CSV has no inferred provider.
+        if(($post['source_format']??'native_json')==='csv_structure'&&!array_key_exists('provider',$post))return self::error(400);
         try{
             $context=json_decode($post['context_json'],true,32,JSON_THROW_ON_ERROR);
             $documents=json_decode($post['documents_json'],true,32,JSON_THROW_ON_ERROR);

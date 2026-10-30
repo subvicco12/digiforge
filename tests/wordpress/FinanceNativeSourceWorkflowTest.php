@@ -126,4 +126,10 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
         self::assertTrue($changed);self::assertGreaterThanOrEqual(2,$reads);self::assertWPError($result);self::assertSame(403,$result->get_error_data()['status']);
     }
 
+    public function testCsvInspectionRequiresExplicitProviderRatherThanLegacyEtsyDefault():void
+    {
+        $post=$this->csvPayload();unset($post['provider']);
+        self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));
+    }
+
 }
