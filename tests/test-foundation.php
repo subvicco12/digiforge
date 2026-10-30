@@ -107,7 +107,7 @@ expect(str_contains($financeController, 'Idempotency-Key'), 'finance mutations r
 expect(str_contains($financeController, 'MAX_BODY_BYTES'), 'finance mutations enforce request body bounds');
 $financeRepository = source('includes/Finance/Repository.php');
 expect((bool) preg_match("/'state'\\s*=>\\s*'BLOCKED'/", $financeRepository), 'finance intents are inert and blocked');
-expect(str_contains($financeRepository, 'Logger::audit'), 'finance mutations are audited');
+expect(substr_count($financeRepository, 'if(!Logger::write(') >= 3 && str_contains($financeRepository, 'ROLLBACK TO SAVEPOINT'), 'finance mutations require atomic audit persistence');
 expect(! str_contains($financeRepository, 'wp_remote_'), 'finance repository has no external HTTP client');
 expect(! str_contains($financeRepository, 'curl_init'), 'finance repository has no curl execution');
 

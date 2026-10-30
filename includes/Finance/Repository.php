@@ -133,8 +133,11 @@ final class Repository
     }
 
     public function reviewTaxClassification(int $id,string $decision):array|WP_Error
+    { return $this->atomic(Tables::tax_classifications(),fn()=>$this->reviewTaxRecord($id,$decision)); }
+
+    private function reviewTaxRecord(int $id,string $decision):array|WP_Error
     {
-        $reviewerId=get_current_user_id();if($reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);$decision=strtoupper(sanitize_key($decision));if(!in_array($decision,['APPROVED','REJECTED'],true))return $this->error('validation','Tax review decision must be APPROVED or REJECTED.');$row=$this->find(Tables::tax_classifications(),$id);if(is_wp_error($row))return $row;if(!is_array($row))return $this->error('not_found','Tax classification not found.',404);if((string)$row['review_status']===$decision)return $row+['idempotent_review'=>true];if((string)$row['review_status']!=='UNREVIEWED')return $this->error('review_conflict','Tax classification was already reviewed.',409);$now=$this->now();global $wpdb;$wpdb->last_error='';$ok=$wpdb->update(Tables::tax_classifications(),['review_status'=>$decision,'reviewed_by'=>$reviewerId,'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$id,'review_status'=>'UNREVIEWED']);if($ok===false||!empty($wpdb->last_error))return $this->error('tax_review_persistence_failed','Tax review persistence is unavailable.',503);if($ok!==1)return $this->error('review_conflict','Tax review changed concurrently.',409);Logger::audit('tax_classification_reviewed',['decision'=>$decision],'tax_classification',(string)$id);return $this->find(Tables::tax_classifications(),$id)?:[];
+        $reviewerId=get_current_user_id();if($reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);$decision=strtoupper(sanitize_key($decision));if(!in_array($decision,['APPROVED','REJECTED'],true))return $this->error('validation','Tax review decision must be APPROVED or REJECTED.');$row=$this->find(Tables::tax_classifications(),$id);if(is_wp_error($row))return $row;if(!is_array($row))return $this->error('not_found','Tax classification not found.',404);if((string)$row['review_status']===$decision)return $row+['idempotent_review'=>true];if((string)$row['review_status']!=='UNREVIEWED')return $this->error('review_conflict','Tax classification was already reviewed.',409);$now=$this->now();global $wpdb;$wpdb->last_error='';$ok=$wpdb->update(Tables::tax_classifications(),['review_status'=>$decision,'reviewed_by'=>$reviewerId,'reviewed_at'=>$now,'updated_at'=>$now],['id'=>$id,'review_status'=>'UNREVIEWED']);if($ok===false||!empty($wpdb->last_error))return $this->error('tax_review_persistence_failed','Tax review persistence is unavailable.',503);if($ok!==1)return $this->error('review_conflict','Tax review changed concurrently.',409);if(!Logger::write('tax_classification_reviewed',['decision'=>$decision],'tax_classification',(string)$id))return $this->error('finance_audit_unavailable','Finance audit evidence could not be persisted.',503);return $this->find(Tables::tax_classifications(),$id)?:[];
     }
 
     public function calculatePeriod(array $input,?string $key=null):array|WP_Error
@@ -164,6 +167,13 @@ final class Repository
     public function transition(string $entity,int $id,string $to):array|WP_Error
     {
         $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};
+        if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');
+        return $this->atomic($table,fn()=>$this->transitionRecord($entity,$id,$to));
+    }
+
+    private function transitionRecord(string $entity,int $id,string $to):array|WP_Error
+    {
+        $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};
         $reviewerId=get_current_user_id();
         if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');
         $row=$this->find($table,$id);
@@ -177,7 +187,15 @@ final class Repository
             $complete=$this->validatePeriodApproval($row);
             if($complete instanceof WP_Error)return $complete;
         }
-        if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];
+        if((string)$row['state']===$to){
+            if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
+                global $wpdb;$wpdb->last_error='';
+                $current=$wpdb->get_row($wpdb->prepare('SELECT * FROM `'.$table.'` WHERE id=%d AND '.$this->emptyPeriodSources($row).' FOR UPDATE',$id),ARRAY_A);
+                if(DatabaseEvidence::failed())return $this->error('source_evidence_unavailable','Current period source eligibility could not be read.',503);
+                if(!is_array($current)||$current!==$row)return $this->error('transition_conflict','State or source evidence changed concurrently.',409);
+            }
+            return $row+['idempotent_transition'=>true];
+        }
         if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Finance lifecycle transition is not permitted.',409);
         if(in_array($to,['APPROVED','APPROVED_INTENT'],true)&&$reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
         $now=$this->now();global $wpdb;$data=['state'=>$to,'updated_at'=>$now];
@@ -189,11 +207,26 @@ final class Repository
             $where['metrics']=$row['metrics'];
             foreach(['environment','period_start','period_end','base_currency','calculation_version'] as $field)$where[$field]=$row[$field];
         }
-        $wpdb->last_error='';$updated=$wpdb->update($table,$data,$where);
+        $wpdb->last_error='';
+        if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
+            // Source eligibility belongs to the same current-read statement as the state CAS.
+            $set=[];$conditions=[];
+            foreach($data as$field=>$value)$set[]=$wpdb->prepare('`'.$field.'`=%s',$value);
+            foreach($where as$field=>$value)$conditions[]=$wpdb->prepare('`'.$field.'`=%s',$value);
+            $conditions[]=$this->emptyPeriodSources($row);
+            $updated=$wpdb->query('UPDATE `'.$table.'` SET '.implode(',',$set).' WHERE '.implode(' AND ',$conditions));
+        }else{$updated=$wpdb->update($table,$data,$where);}
         if($updated===false||!empty($wpdb->last_error))return $this->error('transition_failed','Finance lifecycle persistence is unavailable.',503);
         if($updated!==1)return $this->error('transition_conflict','State or immutable evidence changed concurrently.',409);
-        Logger::audit('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id);
+        if(!Logger::write('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id))return $this->error('finance_audit_unavailable','Finance audit evidence could not be persisted.',503);
         return $this->find($table,$id)?:[];
+    }
+
+    private function emptyPeriodSources(array $row):string
+    {
+        global $wpdb;
+        return $wpdb->prepare('NOT EXISTS (SELECT 1 FROM '.Tables::orders().' WHERE environment=%s AND DATE(created_at) BETWEEN %s AND %s FOR UPDATE) AND NOT EXISTS (SELECT 1 FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s FOR UPDATE)',
+            $row['environment'],$row['period_start'],$row['period_end'],$row['environment'],$row['period_start'],$row['period_end']);
     }
 
     /**
@@ -243,6 +276,9 @@ final class Repository
     }
 
     private function insert(string $table,?string $key,array $data,string $objectType):array|WP_Error
+    { return $this->atomic($table,fn()=>$this->insertRecord($table,$key,$data,$objectType)); }
+
+    private function insertRecord(string $table,?string $key,array $data,string $objectType):array|WP_Error
     {
         global $wpdb;
         $periodRevision=$objectType==='finance_period';$declarationRecord=$objectType==='finance_declaration';
@@ -255,7 +291,7 @@ final class Repository
             if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);
             if(is_array($existing)){
                 if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable finance data.',409);
-                return $declarationRecord?$this->confirmDeclarationRecord($existing,$data,true):$existing+['idempotent_replay'=>true];
+                return $this->confirmedReplay($existing,$data,$declarationRecord,$objectType);
             }
             $data['idempotency_key']=$key;
         }
@@ -271,7 +307,7 @@ final class Repository
                 $existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);
                 if($periodRevision&&!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);
                 if(empty($wpdb->last_error)&&is_array($existing)){
-                    if($this->replayCompatible($existing,$data))return $declarationRecord?$this->confirmDeclarationRecord($existing,$data,true):$existing+['idempotent_replay'=>true];
+                    if($this->replayCompatible($existing,$data))return $this->confirmedReplay($existing,$data,$declarationRecord,$objectType);
                     if($periodRevision)return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable finance data.',409);
                 }
             }
@@ -283,7 +319,7 @@ final class Repository
             return $this->error('database_error','Unable to persist finance record.',500);
         }
         $id=(int)$wpdb->insert_id;
-        Logger::audit($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id);
+        if(!Logger::write($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id))return $this->error('finance_audit_unavailable','Finance audit evidence could not be persisted.',503);
         $stored=$this->find($table,$id);
         if($periodRevision){
             if(is_wp_error($stored))return $stored;
@@ -291,7 +327,51 @@ final class Repository
             if(!$this->replayCompatible($stored,$data))return $this->error('period_revision_conflict','Persisted period revision differs from calculated evidence.',409);
         }
         if($declarationRecord)return $this->confirmDeclarationRecord($stored,$data,false);
-        return $stored?:[];
+        if(!is_array($stored))return $this->error('finance_record_unavailable','Persisted Finance evidence could not be read.',503);
+        return $stored;
+    }
+
+    /** Local persistence and its mandatory audit commit together; never commit a caller's transaction. */
+    private function atomic(string $table,callable $work):array|WP_Error
+    {
+        global $wpdb;$started=false;$active=false;$savepoint='';
+        try{
+            $savepoint='df_finance_'.bin2hex(random_bytes(8));
+            foreach(array_unique([$table,Tables::audit_log()])as$required){
+                $wpdb->last_error='';$definition=$wpdb->get_row('SHOW CREATE TABLE `'.$required.'`',ARRAY_N);
+                if(DatabaseEvidence::failed()||!is_array($definition)||!is_string($definition[1]??null)||preg_match('/\bENGINE=InnoDB\b/i',$definition[1])!==1)throw new \RuntimeException();
+            }
+            $wpdb->last_error='';$transaction=$wpdb->get_var('SELECT @@session.in_transaction');
+            if(DatabaseEvidence::failed()||!in_array((string)$transaction,['0','1'],true))throw new \RuntimeException();
+            $active=(string)$transaction==='1';
+            $wpdb->last_error='';if($wpdb->query($active?'SAVEPOINT '.$savepoint:'START TRANSACTION')===false||DatabaseEvidence::failed())throw new \RuntimeException();$started=true;
+            $result=$work();
+            if($result instanceof WP_Error){
+                if($wpdb->query($active?'ROLLBACK TO SAVEPOINT '.$savepoint:'ROLLBACK')===false)throw new \RuntimeException();
+                if($active&&$wpdb->query('RELEASE SAVEPOINT '.$savepoint)===false)throw new \RuntimeException();$started=false;return $result;
+            }
+            $wpdb->last_error='';if($wpdb->query($active?'RELEASE SAVEPOINT '.$savepoint:'COMMIT')===false||DatabaseEvidence::failed())throw new \RuntimeException();
+            $started=false;return $result;
+        }catch(\Throwable){
+            if($started){$wpdb->query($active?'ROLLBACK TO SAVEPOINT '.$savepoint:'ROLLBACK');if($active)$wpdb->query('RELEASE SAVEPOINT '.$savepoint);}
+            return $this->error('finance_transaction_unavailable','Atomic Finance and audit persistence is unavailable.',503);
+        }
+    }
+
+    private function creationAudit(array $row,string $type):true|WP_Error
+    {
+        global $wpdb;$wpdb->last_error='';
+        $proof=$wpdb->get_results($wpdb->prepare('SELECT actor_id,context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s AND event_type=%s LIMIT 2',$type,(string)$row['id'],$type.'_created'),ARRAY_A);
+        if(DatabaseEvidence::failed()||!is_array($proof)||count($proof)!==1)return $this->error('finance_audit_unavailable','Unique original Finance audit evidence is required.',409);
+        $context=json_decode((string)$proof[0]['context'],true);
+        if((string)$proof[0]['actor_id']!==(string)$row['created_by']||$context!==['idempotency_key'=>($row['idempotency_key']??null)===null?'':'[PRESENT]'])return $this->error('finance_audit_conflict','Original Finance audit identity differs.',409);
+        return true;
+    }
+
+    private function confirmedReplay(array $existing,array $data,bool $declaration,string $type):array|WP_Error
+    {
+        $audit=$this->creationAudit($existing,$type);if($audit instanceof WP_Error)return $audit;
+        return $declaration?$this->confirmDeclarationRecord($existing,$data,true):$existing+['idempotent_replay'=>true];
     }
 
     private function confirmDeclarationRecord(array|WP_Error|null $stored,array $data,bool $replay):array|WP_Error
@@ -318,7 +398,7 @@ final class Repository
     private function replayPeriodRevision(array $existing,array $incoming):array|WP_Error
     {
         if(!$this->replayCompatible($existing,$incoming))return $this->error('period_revision_conflict','Existing period revision conflicts with calculated source evidence.',409);
-        return $existing+['idempotent_replay'=>true];
+        return $this->confirmedReplay($existing,$incoming,false,'finance_period');
     }
 
     private function ledgerIntegrityValid(array $row):bool

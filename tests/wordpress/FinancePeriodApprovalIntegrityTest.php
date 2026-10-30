@@ -10,6 +10,71 @@ use DigiForge\Finance\Validator;
 /** Synthetic local evidence only; no financial or production authority. */
 final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
 {
+    /** @dataProvider sourceRaceCases */
+    public function testLateSourceCannotEnterApprovedOrClosedPeriod(string $to, string $source): void
+    {
+        $row=$this->period();$repo=new Repository();global $wpdb;
+        if($to==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
+        $before=$to==='CLOSED'?'APPROVED':'REVIEW_REQUIRED';$changed=false;
+        $filter=static function(string $sql)use(&$changed,$source):string{
+            if(!$changed&&str_starts_with($sql,'UPDATE `'.Tables::finance_periods().'`')){
+                $changed=true;global $wpdb;$now='2026-09-10 12:00:00';
+                if($source==='order')self::assertSame(1,$wpdb->insert(Tables::orders(),['environment'=>'test','external_order_reference'=>'synthetic-period-race','created_at'=>$now,'updated_at'=>$now]));
+                else self::assertIsArray((new Repository())->createLedger(['environment'=>'test','source_type'=>'manual','source_id'=>0,'entry_type'=>'COGS','currency'=>'USD','amount'=>1,'effective_date'=>'2026-09-10']));
+            }
+            return $sql;
+        };
+        add_filter('query',$filter);
+        try{$result=$repo->transition('period',(int)$row['id'],$to);}finally{remove_filter('query',$filter);}
+        self::assertTrue($changed);self::assertWPError($result);
+        self::assertSame($before,$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::finance_periods().' WHERE id=%d',$row['id'])));
+    }
+    public static function sourceRaceCases():array{return [['APPROVED','order'],['APPROVED','ledger'],['CLOSED','order'],['CLOSED','ledger']];}
+
+    /** @dataProvider replayStates */
+    public function testIdempotentReplayRechecksLateActivity(string $state):void
+    {
+        $row=$this->period();$repo=new Repository();self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
+        if($state==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'CLOSED'));
+        $changed=false;$filter=static function(string $sql)use(&$changed):string{
+            if(!$changed&&str_starts_with($sql,'SELECT id FROM '.Tables::finance_ledger().' WHERE environment=')){
+                $changed=true;global $wpdb;self::assertSame(1,$wpdb->insert(Tables::orders(),['environment'=>'test','created_at'=>'2026-09-10 12:00:00','updated_at'=>'2026-09-10 12:00:00']));
+            }return $sql;
+        };
+        add_filter('query',$filter);try{$result=$repo->transition('period',(int)$row['id'],$state);}finally{remove_filter('query',$filter);}
+        self::assertTrue($changed);self::assertWPError($result);
+    }
+    public static function replayStates():array{return [['APPROVED'],['CLOSED']];}
+
+    /** @dataProvider replayStates */
+    public function testSeparatelyCommittedOrderCannotHideBehindTransactionSnapshot(string $to):void
+    {
+        $row=$this->period();$repo=new Repository();global $wpdb;
+        if($to==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
+        // Commit only this disposable fixture baseline, so serialization abort cannot erase it.
+        $actor=get_current_user_id();self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('START TRANSACTION'));
+        // Same disposable test database, separate connection; never production credentials.
+        $other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->query('SET autocommit=1');$sourceId=0;$changed=false;
+        $oldErrors=$wpdb->suppress_errors(true);
+        $filter=static function(string $sql)use(&$changed,&$sourceId,$other):string{
+            if(!$changed&&str_starts_with($sql,'UPDATE `'.Tables::finance_periods().'`')){
+                $changed=true;self::assertSame(1,$other->insert(Tables::orders(),['environment'=>'test','created_at'=>'2026-09-10 12:00:00','updated_at'=>'2026-09-10 12:00:00']));$sourceId=(int)$other->insert_id;
+            }return $sql;
+        };
+        add_filter('query',$filter);
+        try{
+            $result=$repo->transition('period',(int)$row['id'],$to);self::assertTrue($changed);self::assertWPError($result);
+            self::assertSame($to==='CLOSED'?'APPROVED':'REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::finance_periods().' WHERE id=%d',$row['id'])));
+        }finally{
+            remove_filter('query',$filter);
+            // Release fixture locks before cleaning the one separately committed synthetic row.
+            $wpdb->query('ROLLBACK');if($sourceId>0)$other->delete(Tables::orders(),['id'=>$sourceId]);
+            $other->delete(Tables::finance_periods(),['id'=>$row['id']]);$other->delete(Tables::audit_log(),['object_type'=>'finance_period','object_id'=>(string)$row['id']]);
+            $other->delete($wpdb->usermeta,['user_id'=>$actor]);$other->delete($wpdb->users,['ID'=>$actor]);
+            $other->close();$wpdb->suppress_errors($oldErrors);$wpdb->query('START TRANSACTION');
+        }
+    }
+
     public function testMalformedUnresolvedCountsNeverAuthorizePeriodApproval(): void
     {
         Activator::activate();

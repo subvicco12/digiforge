@@ -16,7 +16,7 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
     protected function setUp():void
     {
         parent::setUp();DigiForge\Core\Activator::activate();global$wpdb;
-        foreach([Tables::finance_ledger(),Tables::fx_snapshots(),Tables::finance_periods()]as$table){
+        foreach([Tables::finance_ledger(),Tables::fx_snapshots(),Tables::finance_periods(),Tables::audit_log()]as$table){
             $temporary=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);
             self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporary.' LIKE '.$table));$this->isolatedTables[$table]=$temporary;
         }
@@ -169,6 +169,7 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
     public function testDeclarationInsertReadbackMustReturnItsMatchingImmutableEvidence():void
     {
         $input=$this->fixture();global $wpdb;$table=Tables::finance_ledger();
+        $auditBefore=$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::audit_log()." WHERE event_type='finance_declaration_created'");
         foreach(['empty','changed']as$mode){
             $copy=array_replace($input,['external_transaction_id'=>'readback-'.$mode]);
             $filter=static function(string$sql)use($table,$mode):string{
@@ -179,7 +180,9 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
             try{self::assertWPError((new Repository())->importDeclaration($copy));}
             finally{remove_filter('query',$filter);}
         }
-        self::assertSame('2',$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
+        // Failed readback cannot leave either an admitted declaration or its success audit.
+        self::assertSame('0',$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
+        self::assertSame($auditBefore,$wpdb->get_var("SELECT COUNT(*) FROM ".Tables::audit_log()." WHERE event_type='finance_declaration_created'"));
     }
     public function testDeclaredFxRequiresALocatableSourceReference():void
     {
