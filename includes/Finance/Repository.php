@@ -99,7 +99,7 @@ final class Repository
     public function createLedger(array $input, ?string $key = null): array|WP_Error
     {
         try {
-            $environment=Validator::environment((string)($input['environment']??''));$entryType=Validator::entryType((string)($input['entry_type']??''));$currency=Validator::currency((string)($input['currency']??''));$amount=Validator::amount($input['amount']??0);$effective=Validator::date((string)($input['effective_date']??''));$metadata=Validator::structured((array)($input['metadata']??[]));
+            $environment=Validator::environment((string)($input['environment']??''));$entryType=Validator::entryType((string)($input['entry_type']??''));$currency=Validator::currency((string)($input['currency']??''));$amount=Validator::amount($input['amount']??null);$effective=Validator::date((string)($input['effective_date']??''));$metadata=Validator::structured((array)($input['metadata']??[]));
         } catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}
         $sourceType=sanitize_key((string)($input['source_type']??'manual'));$sourceId=absint($input['source_id']??0);$relationship=$this->validateSource($sourceType,$sourceId,$environment);if(is_wp_error($relationship))return $relationship;
         $baseCurrency=trim((string)($input['base_currency']??''));$baseAmount=null;if($baseCurrency!==''){try{$baseCurrency=Validator::currency($baseCurrency);if($baseCurrency===$currency){$baseAmount=Validator::amount($input['base_amount']??$amount);if($baseAmount!==$amount)return $this->error('fx_amount_conflict','Same-currency base amount must equal the original amount.',409);}elseif(!array_key_exists('base_amount',$input)){return $this->error('fx_evidence_required','Foreign-currency ledger entries require an explicit converted base_amount.',409);}else{$baseAmount=Validator::amount($input['base_amount']);}}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}}
@@ -112,7 +112,7 @@ final class Repository
         try{
             $environment=Validator::environment((string)($input['environment']??''));$base=Validator::currency((string)($input['base_currency']??''));$quote=Validator::currency((string)($input['quote_currency']??''));
             $rate=Validator::positiveRate($input['rate']??0);$metadata=Validator::structured((array)($input['source_metadata']??[]));
-            $asOf=sanitize_text_field((string)($input['as_of_at']??$this->now()));$storedRate=number_format($rate,10,'.','');
+            $asOf=sanitize_text_field((string)($input['as_of_at']??$this->now()));$storedRate=ExactDecimal::rate(is_string($input['rate'])?$input['rate']:number_format($rate,10,'.',''));
             if(($metadata['kind']??null)==='DECLARATION'){
                 if(isset($metadata['exact_fx_snapshot']))throw new \InvalidArgumentException('Exact FX binding is derived.');
                 $storedRate=ExactDecimal::rate($input['rate']??null);
@@ -129,7 +129,7 @@ final class Repository
 
     public function createTaxClassification(array $input,?string $key=null):array|WP_Error
     {
-        try{$environment=Validator::environment((string)($input['environment']??''));$currency=Validator::currency((string)($input['currency']??''));$amount=Validator::amount($input['amount_basis']??0);$evidence=Validator::structured((array)($input['evidence']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}$sourceType=sanitize_key((string)($input['source_type']??'manual'));$sourceId=absint($input['source_id']??0);$relationship=$this->validateSource($sourceType,$sourceId,$environment);if(is_wp_error($relationship))return $relationship;$classification=strtoupper(sanitize_key((string)($input['classification']??'REVIEW_REQUIRED')));if(!in_array($classification,['TAXABLE','NON_TAXABLE','REVIEW_REQUIRED'],true))return $this->error('validation','Invalid tax classification.');return $this->insert(Tables::tax_classifications(),$key,['environment'=>$environment,'source_type'=>$sourceType,'source_id'=>$sourceId,'jurisdiction'=>sanitize_text_field((string)($input['jurisdiction']??'')),'tax_category'=>sanitize_key((string)($input['tax_category']??'')),'classification'=>$classification,'currency'=>$currency,'amount_basis'=>$amount,'evidence'=>Validator::canonicalJson($evidence),'review_status'=>'UNREVIEWED','reviewed_by'=>0,'reviewed_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'tax_classification');
+        try{$environment=Validator::environment((string)($input['environment']??''));$currency=Validator::currency((string)($input['currency']??''));$amount=Validator::amount($input['amount_basis']??null);$evidence=Validator::structured((array)($input['evidence']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}$sourceType=sanitize_key((string)($input['source_type']??'manual'));$sourceId=absint($input['source_id']??0);$relationship=$this->validateSource($sourceType,$sourceId,$environment);if(is_wp_error($relationship))return $relationship;$classification=strtoupper(sanitize_key((string)($input['classification']??'REVIEW_REQUIRED')));if(!in_array($classification,['TAXABLE','NON_TAXABLE','REVIEW_REQUIRED'],true))return $this->error('validation','Invalid tax classification.');return $this->insert(Tables::tax_classifications(),$key,['environment'=>$environment,'source_type'=>$sourceType,'source_id'=>$sourceId,'jurisdiction'=>sanitize_text_field((string)($input['jurisdiction']??'')),'tax_category'=>sanitize_key((string)($input['tax_category']??'')),'classification'=>$classification,'currency'=>$currency,'amount_basis'=>$amount,'evidence'=>Validator::canonicalJson($evidence),'review_status'=>'UNREVIEWED','reviewed_by'=>0,'reviewed_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'tax_classification');
     }
 
     public function reviewTaxClassification(int $id,string $decision):array|WP_Error
@@ -184,8 +184,7 @@ final class Repository
         if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
             if($reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
             if($to==='CLOSED'&&((int)($row['approved_by']??0)<1||empty($row['approved_at'])))return $this->error('period_approval_required','Period closure requires an existing human approval.',409);
-            $complete=$this->validatePeriodApproval($row);
-            if($complete instanceof WP_Error)return $complete;
+            return $this->validatePeriodApproval($row);
         }
         if((string)$row['state']===$to){
             if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
@@ -234,7 +233,7 @@ final class Repository
      * Until an authoritative import contract exists, active periods cannot be approved.
      * Empty local observations are not provider certification or external execution authority.
      */
-    private function validatePeriodApproval(array $row):true|WP_Error
+    private function validatePeriodApproval(array $row):WP_Error
     {
         $metrics=json_decode((string)($row['metrics']??''),true);
         $canonical=['environment'=>(string)($row['environment']??''),'period_start'=>(string)($row['period_start']??''),'period_end'=>(string)($row['period_end']??''),'base_currency'=>(string)($row['base_currency']??''),'metrics'=>$metrics,'calculation_version'=>(string)($row['calculation_version']??'')];
@@ -253,12 +252,14 @@ final class Repository
         $required=['gross_revenue','refund_reserves','platform_payment_fees','shipping_cost','provider_cost','advertising_cost','tax_collected','tax_expense','other_income','other_expense','gross_profit','contribution_profit','net_operating_profit','margin_percent','order_count','average_order_value','unresolved_reconciliation_count'];
         foreach($required as $key)if(!array_key_exists($key,$metrics))return $this->error('period_integrity_invalid','Period metrics are incomplete.',409);
         foreach($metrics as $value)if((!is_int($value)&&!is_float($value))||!is_finite((float)$value)||(float)$value!==0.0)return $this->error('source_completeness_required','Stored period contradicts empty current source evidence.',409);
-        return true;
+        // P07: local zero orders/ledger cannot prove zero external expenses or complete sources.
+        // No approved authoritative completeness/freshness/independent-control contract exists yet.
+        return $this->error('source_controls_required','Independent source completeness, freshness and review controls are required even for an empty local period.',409);
     }
 
     public function list(string $entity,int $page=1,int $perPage=20):array
     {
-        $tables=['ledger'=>Tables::finance_ledger(),'fx'=>Tables::fx_snapshots(),'tax'=>Tables::tax_classifications(),'periods'=>Tables::finance_periods(),'analytics'=>Tables::analytics_snapshots(),'alerts'=>Tables::operational_alerts(),'intents'=>Tables::finance_intents()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
+        $tables=['ledger'=>Tables::finance_ledger(),'fx'=>Tables::fx_snapshots(),'tax'=>Tables::tax_classifications(),'periods'=>Tables::finance_periods(),'analytics'=>Tables::analytics_snapshots(),'alerts'=>Tables::operational_alerts(),'intents'=>Tables::finance_intents()];$table=$tables[$entity]??'';if($table==='')return['items'=>[],'pagination'=>['total_items'=>0,'total_pages'=>0]];global $wpdb;$page=max(1,$page);$perPage=min(100,max(1,$perPage));$offset=($page-1)*$perPage;$wpdb->last_error='';$items=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY id DESC LIMIT %d OFFSET %d",$perPage,$offset),ARRAY_A);if(!is_array($items)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$wpdb->last_error='';$total=$wpdb->get_var("SELECT COUNT(*) FROM $table");if(!is_numeric($total)||!empty($wpdb->last_error))return['items'=>null,'pagination'=>null,'query_state'=>'UNAVAILABLE'];$total=(int)$total;if(in_array($entity,['periods','analytics'],true))foreach($items as &$item){$item['financial_state']='UNKNOWN';$item['certified_profitability']=false;}unset($item);return['items'=>$items,'pagination'=>['total_items'=>$total,'total_pages'=>(int)ceil($total/max(1,$perPage))],'query_state'=>'AVAILABLE'];
     }
 
     private function validateAnalyticsDimension(string $type,int $id,string $environment):true|WP_Error

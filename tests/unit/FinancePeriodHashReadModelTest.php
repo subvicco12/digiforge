@@ -115,6 +115,8 @@ final class FinancePeriodHashReadModelTest extends TestCase
             };
             $result = (new OperationsReadModel())->snapshot();
             self::assertTrue($result['periods'][0]['metrics_valid']);
+            self::assertSame('PROVISIONAL',$result['periods'][0]['financial_state']);
+            self::assertFalse($result['periods'][0]['certified_profitability']);
             self::assertEquals($metrics, $result['periods'][0]['metrics']);
             self::assertTrue($result['analytics'][0]['metrics_valid']);
 
@@ -137,6 +139,7 @@ final class FinancePeriodHashReadModelTest extends TestCase
             };
             $tampered = (new OperationsReadModel())->snapshot();
             self::assertFalse($tampered['periods'][0]['metrics_valid']);
+            self::assertSame('UNKNOWN',$tampered['periods'][0]['financial_state']);
             self::assertSame([], $tampered['periods'][0]['metrics']);
             self::assertFalse($tampered['analytics'][0]['metrics_valid']);
             self::assertSame([], $tampered['analytics'][0]['metrics']);

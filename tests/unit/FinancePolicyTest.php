@@ -30,12 +30,46 @@ final class FinancePolicyTest extends TestCase
         self::assertSame('USD', Validator::currency('usd'));
         self::assertSame('production', Validator::environment('PRODUCTION'));
         self::assertSame('2026-09-13', Validator::date('2026-09-13'));
-        self::assertSame(123.4568, Validator::amount('123.45678'));
+        self::assertSame(123.4568, Validator::amount('123.4568'));
         self::assertSame(7.5, Validator::convert(5.0, 1.5));
         self::assertSame(
             Validator::hash(['b' => 2, 'a' => 1]),
             Validator::hash(['a' => 1, 'b' => 2])
         );
+    }
+
+    /** @dataProvider unsupportedPrecision */
+    public function testApprovedPolicyRejectsImplicitPrecisionLoss(string $method, mixed $value): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        Validator::$method($value);
+    }
+
+    public static function unsupportedPrecision(): array
+    {
+        return [['amount','1.00001'],['amount','-1.00001'],['amount',1.00001],
+            ['amount','1e-4'],['positiveRate','1.00000000001'],['positiveRate',1.00000000001]];
+    }
+
+    public function testRawFinanceMetricListsCannotCertifyHistoricalApprovedZero(): void
+    {
+        require_once dirname(__DIR__,2).'/includes/Finance/Repository.php';
+        if(!defined('ARRAY_A'))define('ARRAY_A','ARRAY_A');
+        global $wpdb;$original=$wpdb??null;
+        try {
+            $wpdb=new class {
+                public string $prefix='wp_';public string $last_error='';
+                public function prepare(string $sql,mixed ...$args):string{return $sql;}
+                public function get_results(string $sql,mixed $mode):array{return [['state'=>'APPROVED','metrics'=>'{"gross_revenue":0}']];}
+                public function get_var(string $sql):string{return '1';}
+            };
+            foreach(['periods','analytics'] as $entity){
+                $result=(new \DigiForge\Finance\Repository())->list($entity);
+                self::assertSame('UNKNOWN',$result['items'][0]['financial_state']);
+                self::assertFalse($result['items'][0]['certified_profitability']);
+                self::assertSame('APPROVED',$result['items'][0]['state'],'Historical lifecycle is preserved, not interpreted as certification.');
+            }
+        } finally {$wpdb=$original;}
     }
 
     public function testNonFiniteFinancialNumbersAreRejected(): void

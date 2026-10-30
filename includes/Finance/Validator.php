@@ -42,26 +42,26 @@ final class Validator
 
     public static function amount(mixed $value): float
     {
-        if (! is_numeric($value)) {
-            throw new InvalidArgumentException('Invalid amount.');
-        }
-        $amount = round((float) $value, 4);
-        if (! is_finite($amount) || $amount < -9999999999.9999 || $amount > 9999999999.9999) {
-            throw new InvalidArgumentException('Amount outside allowed bounds.');
-        }
-        return $amount;
+        return (float) ExactDecimal::money(self::decimalInput($value, 4));
     }
 
     public static function positiveRate(mixed $value): float
     {
-        if (! is_numeric($value)) {
-            throw new InvalidArgumentException('Invalid FX rate.');
+        return (float) ExactDecimal::rate(self::decimalInput($value, 10));
+    }
+
+    /** Legacy numeric callers remain supported; source strings never undergo rounding. */
+    private static function decimalInput(mixed $value, int $scale): string
+    {
+        if (is_string($value)) return $value;
+        if (!is_int($value) && !is_float($value)) throw new InvalidArgumentException('Explicit decimal required.');
+        if (!is_finite((float)$value)) throw new InvalidArgumentException('Finite decimal required.');
+        $text=(string)$value;
+        if (stripos($text, 'e') !== false) {
+            $text=number_format((float)$value,$scale,'.','');
+            if ((float)$text !== (float)$value) throw new InvalidArgumentException('Unsupported decimal precision.');
         }
-        $rate = round((float) $value, 10);
-        if (! is_finite($rate) || $rate <= 0 || $rate > 999999999.9999999999) {
-            throw new InvalidArgumentException('FX rate outside allowed bounds.');
-        }
-        return $rate;
+        return $text;
     }
 
     public static function entryType(string $value): string
@@ -139,17 +139,11 @@ final class Validator
 
     public static function convert(float $amount, float $rate): float
     {
-        if (! is_finite($rate) || $rate <= 0) {
-            throw new InvalidArgumentException('FX rate must be positive and finite.');
-        }
-        if (! is_finite($amount)) {
-            throw new InvalidArgumentException('FX amount must be finite.');
-        }
-        $converted = round($amount * $rate, 4);
-        if (! is_finite($converted)) {
-            throw new InvalidArgumentException('FX conversion overflow.');
-        }
-        return $converted;
+        // Reuse the existing versioned decimal conversion convention, not binary multiplication.
+        return (float) ExactDecimal::convert(
+            ExactDecimal::money(self::decimalInput($amount,4)),
+            ExactDecimal::rate(self::decimalInput($rate,10))
+        );
     }
 
     private static function rejectCredentialKeys(array $value): void

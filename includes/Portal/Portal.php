@@ -727,7 +727,7 @@ final class Portal
     {
         $value=$row['metrics'][$key]??null;
         return ($row['metrics_valid']??false)===true&&(is_int($value)||is_float($value))&&is_finite((float)$value)
-            ?number_format((float)$value,$decimals).$suffix:'UNVERIFIED';
+            ?number_format((float)$value,$decimals).$suffix.' (PROVISIONAL)':'UNKNOWN';
     }
 
     private function lifecycleCount(array $snapshot,string $key):string

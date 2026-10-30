@@ -30,12 +30,12 @@ final class OperationsReadModel
     'metrics'=>$metrics,
     'calculation_version'=>(string)($row['calculation_version']??''),
    ]);
-   unset($row['metrics']);$row['metrics_valid']=$valid;$row['metrics']=$valid?$metrics:[];return $row;
+   unset($row['metrics']);$row['metrics_valid']=$valid;$row['metrics']=$valid?$metrics:[];$row['financial_state']=$valid?'PROVISIONAL':'UNKNOWN';$row['certified_profitability']=false;return $row;
   };
   $normalizeAnalytics=static function(array $row)use($validHash):array{
    $metrics=json_decode((string)($row['metrics']??''),true);
    $valid=is_array($metrics)&&$validHash((string)($row['metrics_hash']??''),$metrics);
-   unset($row['metrics']);$row['metrics_valid']=$valid;$row['metrics']=$valid?$metrics:[];return $row;
+   unset($row['metrics']);$row['metrics_valid']=$valid;$row['metrics']=$valid?$metrics:[];$row['financial_state']=$valid?'PROVISIONAL':'UNKNOWN';$row['certified_profitability']=false;return $row;
   };
   return ['query_state'=>['periods'=>$periodsOk?'AVAILABLE':'UNAVAILABLE','analytics'=>$analyticsOk?'AVAILABLE':'UNAVAILABLE'],'periods'=>$periodsOk?array_map($normalizePeriod,$periods):[],'analytics'=>$analyticsOk?array_map($normalizeAnalytics,$analytics):[],'money_movement_authorized'=>false,'tax_filing_authorized'=>false,'external_execution_authorized'=>false];
  }

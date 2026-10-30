@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 221,
+  "requests": 450,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    768,
+    1280
+  ],
+  "business_tables_unchanged": 47,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "schema": "digiforge-finance-policy-local-browser-evidence-v1",
+  "recorded_at": "2026-10-30T11:43:23.567647+00:00",
+  "baseline": "a60eeeac2ae4675ae14d2e69575a49bef26af6cb",
+  "production_certified": false,
+  "installed_site_acceptance": false,
+  "source_sha256": {
+    "includes/Finance/Validator.php": "9014b48558cd6d7a50bb7db36f0399f66086647eb5c5010ee3f67fde7c798e22",
+    "includes/Finance/Repository.php": "ee800de7819fbcdb2883ef6a187a801bb335a18b31ec70202db83b68e9c89b18",
+    "includes/Finance/OperationsReadModel.php": "34d448dca8c6db2d49cdf6bd15afb809fd2a193821763edce14190de07bd88c2",
+    "includes/Portal/Portal.php": "85971f002f8d1d958794a9edfa76d24d9bb6a94e7df358d47466af278bc9b748",
+    "tests/browser/authenticated-local-portal.cjs": "a3b2190f2fdecb5da3e2571d6002539703de4d6d94b200cdaafa505b47ec06ab",
+    "tests/browser/authenticated-local/router.php": "0b2649ed7c7900fe63b0034b9c03bb6782578d1a2aee8f0400e50468f5ca4ede"
+  }
+}

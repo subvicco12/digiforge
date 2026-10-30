@@ -14,7 +14,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
     public function testLateSourceCannotEnterApprovedOrClosedPeriod(string $to, string $source): void
     {
         $row=$this->period();$repo=new Repository();global $wpdb;
-        if($to==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
+        if($to==='CLOSED')$this->historicalApproval($row);
         $before=$to==='CLOSED'?'APPROVED':'REVIEW_REQUIRED';$changed=false;
         $filter=static function(string $sql)use(&$changed,$source):string{
             if(!$changed&&str_starts_with($sql,'UPDATE `'.Tables::finance_periods().'`')){
@@ -26,7 +26,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
         };
         add_filter('query',$filter);
         try{$result=$repo->transition('period',(int)$row['id'],$to);}finally{remove_filter('query',$filter);}
-        self::assertTrue($changed);self::assertWPError($result);
+        self::assertFalse($changed,'Missing independent controls must deny before a state write.');self::assertWPError($result);
         self::assertSame($before,$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::finance_periods().' WHERE id=%d',$row['id'])));
     }
     public static function sourceRaceCases():array{return [['APPROVED','order'],['APPROVED','ledger'],['CLOSED','order'],['CLOSED','ledger']];}
@@ -34,8 +34,8 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
     /** @dataProvider replayStates */
     public function testIdempotentReplayRechecksLateActivity(string $state):void
     {
-        $row=$this->period();$repo=new Repository();self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
-        if($state==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'CLOSED'));
+        $row=$this->period();$repo=new Repository();$this->historicalApproval($row);
+        if($state==='CLOSED')$this->historicalApproval($row,'CLOSED');
         $changed=false;$filter=static function(string $sql)use(&$changed):string{
             if(!$changed&&str_starts_with($sql,'SELECT id FROM '.Tables::finance_ledger().' WHERE environment=')){
                 $changed=true;global $wpdb;self::assertSame(1,$wpdb->insert(Tables::orders(),['environment'=>'test','created_at'=>'2026-09-10 12:00:00','updated_at'=>'2026-09-10 12:00:00']));
@@ -50,7 +50,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
     public function testSeparatelyCommittedOrderCannotHideBehindTransactionSnapshot(string $to):void
     {
         $row=$this->period();$repo=new Repository();global $wpdb;
-        if($to==='CLOSED')self::assertIsArray($repo->transition('period',(int)$row['id'],'APPROVED'));
+        if($to==='CLOSED')$this->historicalApproval($row);
         // Commit only this disposable fixture baseline, so serialization abort cannot erase it.
         $actor=get_current_user_id();self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('START TRANSACTION'));
         // Same disposable test database, separate connection; never production credentials.
@@ -63,7 +63,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
         };
         add_filter('query',$filter);
         try{
-            $result=$repo->transition('period',(int)$row['id'],$to);self::assertTrue($changed);self::assertWPError($result);
+            $result=$repo->transition('period',(int)$row['id'],$to);self::assertFalse($changed,'Missing independent controls must deny before a state write.');self::assertWPError($result);
             self::assertSame($to==='CLOSED'?'APPROVED':'REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::finance_periods().' WHERE id=%d',$row['id'])));
         }finally{
             remove_filter('query',$filter);
@@ -121,22 +121,29 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
         return $row;
     }
 
-    public function testEmptyLocalPeriodCanBeReviewedWithoutAuthorizingExternalActions(): void
+    public function testApprovedPolicyDeniesEmptyPeriodWithoutIndependentSourceControls(): void
     {
-        $row = $this->period();
-        $repo = new Repository();
-        $approved = $repo->transition('period', (int) $row['id'], 'APPROVED');
-        self::assertIsArray($approved);
-        self::assertSame('APPROVED', $approved['state']);
-        self::assertSame($row['metrics_hash'], $approved['metrics_hash']);
-        self::assertTrue($repo->transition('period', (int) $row['id'], 'APPROVED')['idempotent_transition']);
-        $closed = $repo->transition('period', (int) $row['id'], 'CLOSED');
-        self::assertIsArray($closed);
-        self::assertSame('CLOSED', $closed['state']);
-        self::assertSame($approved['approved_by'], $closed['approved_by']);
-        self::assertSame($approved['approved_at'], $closed['approved_at']);
-        self::assertTrue($repo->transition('period', (int) $row['id'], 'CLOSED')['idempotent_transition']);
+        $row=$this->period();global $wpdb;
+        $before=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_periods().' WHERE id=%d',$row['id']),ARRAY_A);
+        $result=(new Repository())->transition('period',(int)$row['id'],'APPROVED');
+        self::assertWPError($result);
+        self::assertSame('source_controls_required',$result->get_error_code());
+        self::assertSame($before,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_periods().' WHERE id=%d',$row['id']),ARRAY_A));
+    }
+
+    public function testEmptyLocalPeriodCannotBeApprovedOrClosedUnderP07(): void
+    {
+        $row=$this->period();$repo=new Repository();
+        self::assertWPError($repo->transition('period',(int)$row['id'],'APPROVED'));
+        self::assertWPError($repo->transition('period',(int)$row['id'],'CLOSED'));
         self::assertTrue(DigiForge\Core\Settings::safety_locked());
+    }
+
+    /** Historical synthetic state only: no new approval authority is granted by this fixture. */
+    private function historicalApproval(array $row,string $state='APPROVED'): void
+    {
+        global $wpdb;
+        self::assertSame(1,$wpdb->update(Tables::finance_periods(),['state'=>$state,'approved_by'=>get_current_user_id(),'approved_at'=>'2026-09-30 23:59:59'],['id'=>$row['id']]));
     }
 
     public function testMissingFeesOrActualChargesCannotBeReplacedByReconciledLocalEntries(): void
@@ -211,7 +218,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
             $wpdb->suppress_errors($previous);
         }
         $repo = new Repository();
-        self::assertIsArray($repo->transition('period', (int) $row['id'], 'APPROVED'));
+        $this->historicalApproval($row);
         self::assertIsArray($repo->createLedger([
             'environment' => 'test', 'source_type' => 'manual', 'source_id' => 0,
             'entry_type' => 'COGS', 'currency' => 'USD', 'amount' => 1,
@@ -238,7 +245,7 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
     {
         $row = $this->period();
         $repo = new Repository();
-        self::assertIsArray($repo->transition('period', (int) $row['id'], 'APPROVED'));
+        $this->historicalApproval($row);
         self::assertIsArray($repo->createLedger([
             'environment' => 'test', 'source_type' => 'manual', 'source_id' => 0,
             'entry_type' => 'REFUND_RESERVE', 'currency' => 'USD', 'amount' => 1,
@@ -310,9 +317,30 @@ final class FinancePeriodApprovalIntegrityTest extends WP_UnitTestCase
         $row = $repo->createFx($input, 'finance-offline-precision');
         self::assertIsArray($row);
         self::assertSame(Validator::positiveRate($input['rate']), (float) $row['rate']);
+        self::assertSame($input['rate'],$row['rate'],'Exact native FX decimal must not be replaced by a float-formatted approximation.');
         $replay = $repo->createFx($input, 'finance-offline-precision');
         self::assertIsArray($replay);
         self::assertTrue($replay['idempotent_replay']);
+    }
+
+    /** @dataProvider missingAmounts */
+    public function testMissingAmountsNeverBecomeDeclaredZero(string $method,array $input): void
+    {
+        Activator::activate();
+        self::assertWPError((new Repository())->$method($input));
+    }
+    public static function missingAmounts(): array
+    {
+        return [['createLedger',['environment'=>'test','entry_type'=>'REVENUE','currency'=>'USD','effective_date'=>'2026-09-10']],
+            ['createTaxClassification',['environment'=>'test','currency'=>'USD']]];
+    }
+
+    public function testPeriodPortalNeverCertifiesZeroOrMissingMetrics(): void
+    {
+        $portal=new DigiForge\Portal\Portal();$method=new ReflectionMethod($portal,'periodMetric');$method->setAccessible(true);
+        self::assertSame('0.00 (PROVISIONAL)',$method->invoke($portal,['metrics_valid'=>true,'metrics'=>['gross_revenue'=>0]],'gross_revenue',2));
+        self::assertSame('UNKNOWN',$method->invoke($portal,['metrics_valid'=>true,'metrics'=>[]],'gross_revenue',2));
+        self::assertSame('UNKNOWN',$method->invoke($portal,['metrics_valid'=>false,'metrics'=>['gross_revenue'=>0]],'gross_revenue',2));
     }
 
     private function calculationInput(): array
