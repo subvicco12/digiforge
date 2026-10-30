@@ -17,14 +17,22 @@ final class FinanceDeclarationImportTest extends WP_UnitTestCase
     protected function setUp():void
     {
         parent::setUp();DigiForge\Core\Activator::activate();global$wpdb;
-        foreach([Tables::finance_ledger(),Tables::fx_snapshots(),Tables::finance_periods(),Tables::audit_log()]as$table){
+        // Keep the real InnoDB audit table visible to ShopAccess storage verification.
+        // Independent temporary financial tables must not reuse an existing audit identity.
+        $last=$wpdb->get_var("SELECT COALESCE(MAX(CAST(object_id AS UNSIGNED)),0) FROM ".Tables::audit_log()." WHERE object_type IN ('finance_declaration','finance_period','finance_ledger','fx_snapshot') AND object_id REGEXP '^[0-9]+$'");
+        self::assertNotNull($last);$first=(int)$last+1;
+        foreach([Tables::finance_ledger(),Tables::fx_snapshots(),Tables::finance_periods()]as$table){
             $temporary=$table.'_'.substr(str_replace('-','',wp_generate_uuid4()),0,12);
-            self::assertNotFalse($wpdb->query('CREATE TEMPORARY TABLE '.$temporary.' LIKE '.$table));$this->isolatedTables[$table]=$temporary;
+            $definition=$wpdb->get_var('SHOW CREATE TABLE `'.$table.'`',1);self::assertIsString($definition);
+            $definition=str_replace('CREATE TABLE `'.$table.'`','CREATE TEMPORARY TABLE `'.$temporary.'`',$definition);
+            $definition=preg_replace('/ AUTO_INCREMENT=[0-9]+/','',$definition).' AUTO_INCREMENT='.$first;
+            self::assertNotFalse($wpdb->query($definition));$this->isolatedTables[$table]=$temporary;
         }
         $tables=$this->isolatedTables;
         // Run after deliberate fault filters so their predicates still see the production query shape.
         $this->financeFilter=static fn(string$sql):string=>str_replace(array_keys($tables),array_values($tables),$sql);
         add_filter('query',$this->financeFilter,99);
+        self::assertSame('InnoDB',$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',Tables::audit_log())),'The real audit engine must remain independently visible.');
     }
     protected function tearDown():void
     {
