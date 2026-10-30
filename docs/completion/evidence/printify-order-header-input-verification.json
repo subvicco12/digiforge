@@ -1,0 +1,98 @@
+{
+  "schema": "digiforge-owner-supplied-printify-header-evidence-v1",
+  "zip_bytes": 17277,
+  "zip_sha256": "7f804aac62dbd15c00bc6b38a3c2663a735f6375ae9ae7dd8475bbfcc474afb7",
+  "members": [
+    {
+      "member": "23_finance_criteria.csv",
+      "bytes": 7851,
+      "sha256": "d34c457cc430d5c6663aac4da18ce8414b0c2cb4c6e524b3e7632156f622f440"
+    },
+    {
+      "member": "23_finance_criteria.json",
+      "bytes": 10891,
+      "sha256": "4c1fa0d4ad5b6b2660c93dff34ff8dcf3480048bae444cd9556a9ee9f8c59d47"
+    },
+    {
+      "member": "Header_Recovery_and_Codex_Handoff.txt",
+      "bytes": 7797,
+      "sha256": "b8882d019b5cc6abcdfbdd4bd57bced0ddc4b4d9cc711553400a11a4ed107f0a"
+    },
+    {
+      "member": "Printify_order_header_ONLY.csv",
+      "bytes": 306,
+      "sha256": "8b5db86bf5a3855b24a3082e660c97d646743e48023b8d421dea0e65a882c78d"
+    },
+    {
+      "member": "Printify_verified_header_schema.json",
+      "bytes": 3014,
+      "sha256": "14f1327f003624842a0322bf6afb635643640b0a95de5f8ad41d93a14f2b65de"
+    },
+    {
+      "member": "SHA256_manifest.json",
+      "bytes": 1145,
+      "sha256": "c1b03686fa10de42789cfb53426d8b07b97cc786c6c4b30ccca412a96a7a0721"
+    },
+    {
+      "member": "pinned_candidate_csv_contract.txt",
+      "bytes": 18399,
+      "sha256": "eaada1e36c7cc5f446a4b8533ce9c0756adfbdc2be294d0004b6488a6334b4db"
+    },
+    {
+      "member": "source_to_canonical_PROPOSED.json",
+      "bytes": 6260,
+      "sha256": "7acf4199593133392a4b6b6dd6f830bbedd535a013f0ee312a4809d9b0b9bfbc"
+    },
+    {
+      "member": "validation_results.json",
+      "bytes": 457,
+      "sha256": "39645393d5a54c4efc26767c5735768931a92e0d41694b188af77af83f44fb31"
+    }
+  ],
+  "manifest_entries_verified": 8,
+  "zip_crc_verified": true,
+  "zip_paths_unique_and_basenames_only": true,
+  "header_asset": "includes/Finance/contracts/printify-order-export-header-v1.csv",
+  "header_bytes": 306,
+  "header_sha256": "8b5db86bf5a3855b24a3082e660c97d646743e48023b8d421dea0e65a882c78d",
+  "header_columns_in_order": [
+    "Printify ID",
+    "Order Status",
+    "Date created",
+    "Sent to prod",
+    "Sales channel ID",
+    "Sales channel Number",
+    "Store name",
+    "Customer name",
+    "Order type",
+    "Product Cost",
+    "Shipping Cost",
+    "VAT / Tax cost",
+    "Total cost",
+    "Currency",
+    "Order retail value",
+    "Ship To",
+    "Tracking number",
+    "Tracking link",
+    "Shipping carrier",
+    "Invoices"
+  ],
+  "column_count": 20,
+  "physical_data_rows": 0,
+  "ascii_bytes_valid_utf8": true,
+  "bom_present": false,
+  "line_terminator_hex": "0a",
+  "quote_character_hex": "22",
+  "source_custody": "Owner-supplied attachment; source-download provenance not independently re-established. Filename/account narrative is not ownership binding.",
+  "publisher_revision": "UNKNOWN",
+  "publisher_charset": "UNKNOWN",
+  "export_period": "UNKNOWN",
+  "account_store_ownership": "UNKNOWN",
+  "financial_semantics": "UNKNOWN",
+  "settlement": "UNKNOWN",
+  "source_completeness": "UNKNOWN",
+  "proposed_mappings_applied": false,
+  "attached_instructions_executed": false,
+  "provider_requests_performed": false,
+  "financial_acceptance_promoted": false
+}

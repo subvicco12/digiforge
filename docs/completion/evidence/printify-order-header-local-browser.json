@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 284,
+  "requests": 486,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    768,
+    1280
+  ],
+  "business_tables_unchanged": 47,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "schema": "digiforge-observed-printify-header-local-browser-v1",
+  "baseline": "23b1717510f5873be662806bdd91f37fe0e9c2b7",
+  "recorded_at": "2026-10-30T17:23:49.042606+00:00",
+  "production_certified": false,
+  "installed_site_acceptance": false,
+  "source_sha256": {
+    "includes/Finance/PrintifyOrderExportStage.php": "ce26755ef3a61f5f9806effe9daffd80fdfb75fa55bbe83cc89722bc1a6a1fb8",
+    "includes/Finance/contracts/printify-order-export-header-v1.csv": "8b5db86bf5a3855b24a3082e660c97d646743e48023b8d421dea0e65a882c78d",
+    "includes/Finance/SourceAdmission.php": "ae0972855c9add28f8ff9d5aca9b511fc58f95f7bbb9a7a6df4c66af194d5dd5",
+    "includes/Portal/FinanceNativeSourceWorkflow.php": "b8acf81d336610065b2d2f32092aee87ef6d539d61008d3b005721371ee2e9e2",
+    "tests/browser/authenticated-local-portal.cjs": "309b33d7a5199c4d8fce1515f364877776da2e3e7add388ce1f200956ffcbaac",
+    "tests/browser/authenticated-local/router.php": "0b2649ed7c7900fe63b0034b9c03bb6782578d1a2aee8f0400e50468f5ca4ede"
+  }
+}

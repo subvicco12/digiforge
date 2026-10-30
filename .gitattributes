@@ -29,3 +29,6 @@
 /docs/engineering/visual-certification-pilot-v1/** -text whitespace=cr-at-eol
 
 phpunit.wordpress.catalog.xml.dist export-ignore
+
+# Exact owner-supplied observed Printify header bytes are a versioned source fingerprint.
+/includes/Finance/contracts/printify-order-export-header-v1.csv -text

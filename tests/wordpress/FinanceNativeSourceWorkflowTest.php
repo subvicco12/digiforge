@@ -132,4 +132,46 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
         self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));
     }
 
+    private function printifyHeaderPayload(bool $withSyntheticRow=false):array
+    {
+        $post=$this->payload('personalized_pod');$context=json_decode($post['context_json'],true);
+        $context['source_contract_sha256']='8b5db86bf5a3855b24a3082e660c97d646743e48023b8d421dea0e65a882c78d';
+        $raw=file_get_contents(dirname(__DIR__,2).'/includes/Finance/contracts/printify-order-export-header-v1.csv');
+        if($withSyntheticRow){$cells=array_fill(0,20,'');$cells[0]='synthetic-001';$cells[7]='PRIVATE_PRINTIFY_CUSTOMER';$cells[9]='0.00100';$cells[15]='PRIVATE_PRINTIFY_ADDRESS';$cells[17]='https://example.invalid/never-fetch';$raw.=implode(',',$cells)."\n";}
+        $capture=array_intersect_key($context,array_flip(['shop_key','environment','business_id','store_id','external_shop_id']))+
+            ['source_sha256'=>hash('sha256',$raw),'observed_at'=>'2026-10-30T16:00:00Z','source_reference'=>'local://synthetic/observed-printify-header'];
+        $post['provider']='printify';$post['source_format']='printify_order_export_v1';$post['context_json']=wp_json_encode($context);
+        $post['documents_json']=wp_json_encode([['raw'=>$raw,'capture'=>$capture,'declared_rows'=>null]]);return $post;
+    }
+    public function testPrintifyObservedHeaderRemainsOperationalAndCannotEnterAccountingOrEtsyCustody():void
+    {
+        global $wpdb;$before=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A);$http=0;
+        $network=static function($pre)use(&$http){++$http;return new WP_Error('printify_observation_http_forbidden');};add_filter('pre_http_request',$network,PHP_INT_MAX);
+        try{foreach([false,true]as$body){$post=$this->printifyHeaderPayload($body);$result=FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod');self::assertIsArray($result);
+            self::assertSame('OBSERVED_HEADER_MATCHED_UNVERIFIED_ORDER_EXPORT',$result['state']);self::assertSame($body?1:0,$result['population']['physical_rows']);self::assertSame('UNKNOWN',$result['settlement']);self::assertSame('UNKNOWN',$result['source_completeness']);
+            self::assertFalse($result['accounting_import_authorized']);self::assertFalse($result['period_approval_authorized']);self::assertFalse($result['external_execution_authorized']);
+            self::assertWPError((new DigiForge\Finance\Repository())->importDeclaration($result));
+            $scope=json_decode($post['context_json'],true)+['installation_sha256'=>DigiForge\Finance\NativeEvidenceAccess::installation(),'binding_hash'=>str_repeat('a',64),'binding_revision'=>1];
+            self::assertWPError((new DigiForge\Finance\NativeEvidenceStore())->append(json_decode($post['documents_json'],true)[0],$scope));}}
+        finally{remove_filter('pre_http_request',$network,PHP_INT_MAX);}
+        self::assertSame(0,$http);self::assertSame($before,$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A));
+    }
+    public function testPrintifyObservedHeaderPortalKeepsCustomerAmountsAndLinksPrivate():void
+    {
+        $post=$_POST;$server=$_SERVER;
+        try{$_POST=wp_slash($this->printifyHeaderPayload(true));$_SERVER['REQUEST_METHOD']='POST';$_SERVER['CONTENT_LENGTH']='2000';ob_start();FinanceNativeSourceWorkflow::render('personalized_pod');$html=ob_get_clean();}
+        finally{$_POST=$post;$_SERVER=$server;}
+        self::assertStringContainsString('OBSERVED_HEADER_MATCHED_UNVERIFIED_ORDER_EXPORT',$html);self::assertStringContainsString('Order exports are not paid invoices or settlement',$html);
+        foreach(['PRIVATE_PRINTIFY_CUSTOMER','PRIVATE_PRINTIFY_ADDRESS','0.00100','never-fetch']as$private)self::assertStringNotContainsString($private,$html);
+        self::assertStringContainsString('name="documents_json" rows="8" maxlength="1048576" required></textarea>',$html);
+    }
+    public function testPrintifyObservedProfileRejectsEtsyMissingProviderDigitalAndRevokedAccess():void
+    {
+        $post=$this->printifyHeaderPayload();$foreign=$post;$foreign['provider']='etsy';self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($foreign,'personalized_pod'));
+        $missing=$post;unset($missing['provider']);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($missing,'personalized_pod'));
+        self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));
+        $forged=$post;$forged['source_format']='etsy_order_export_v1';self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($forged,'personalized_pod'));
+        ShopAccessFixture::reset();self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod'));wp_set_current_user(0);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod'));
+    }
+
 }
