@@ -13,8 +13,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_COMMIT = 'aa8b687501450f0e243c4aa9854e9089a44a76b5'
-# Reviewed reference-only portal label change; OWNER payload identities remain immutable.
-DEPENDENCY_REFERENCE_COMMIT = '27a6d7bd180732f6de1c148abac8ecaf68694f62'
+# Reviewed ACL transaction/error checks; OWNER payload identities remain immutable.
+DEPENDENCY_REFERENCE_COMMIT = '49c55dfa2c1d0d432b1a10f5587c70d3eeafdd42'
 SOURCE_FILES = (
     {
         'path': 'includes/Security/FirstPartyOwnerPolicy.php',
@@ -35,7 +35,7 @@ DEPENDENCIES = (
     'digiforge.php', 'includes/Core/Plugin.php', 'includes/Core/Capabilities.php',
     'includes/Security/ShopAccess.php', 'includes/Security/ShopAccessPolicy.php',
     'includes/Security/ShopAccessRepository.php', 'includes/Security/ShopAccessAdminGuard.php',
-    'includes/Security/Logger.php', 'includes/Database/Tables.php',
+    'includes/Security/Logger.php', 'includes/Database/Tables.php', 'includes/Database/QueryEvidence.php',
     'includes/Portal/ReviewConfirmation.php', 'includes/Orders/Validator.php',
     'includes/REST/ShopAccessController.php', 'includes/Portal/Portal.php',
     'includes/Portal/ShopWorkflowNavigation.php',

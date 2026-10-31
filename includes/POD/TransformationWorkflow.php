@@ -2,6 +2,9 @@
 declare(strict_types=1);
 namespace DigiForge\POD;
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence;
+use DigiForge\Security\ShopAccess;
+use DigiForge\Security\ShopAccessRepository;
 use DigiForge\Orders\Validator;
 use DigiForge\Portal\ProductEvidenceScope;
 use DigiForge\ProductFactory\AssetStorage;
@@ -23,8 +26,9 @@ final class TransformationWorkflow
             // Validate schema independently of required variable values.
             $fields=$mode['input_fields'];foreach($fields as &$field){if(!is_array($field))throw new \InvalidArgumentException('Typed mode fields required.');$field['required']=false;}unset($field);PersonalizationPayloadContract::validate($fields,[]);
             $name=$this->modeKey($shop,$mode['mode'],$mode['version']);$record=$mode+['shop_key'=>$shop,'reviewed_by'=>get_current_user_id()];$old=$this->option($name);if($old instanceof WP_Error)return $old;
-            if($old!==null)return Validator::canonicalJson($old)===Validator::canonicalJson($record)?$old:self::error('immutable_mode_conflict');
-            return $this->insert($name,$record);
+            if($old!==null)return Validator::canonicalJson($old)===Validator::canonicalJson($record)&&$this->auditedMode($old,$shop)?$old:self::error('immutable_mode_conflict');
+            $saved=$this->insert($name,$record);if($saved instanceof WP_Error)return $saved;
+            return Logger::write('transformation_mode_registered',['mode_sha256'=>hash('sha256',Validator::canonicalJson($record))],'transformation_mode',hash('sha256',Validator::canonicalJson($record)))?$saved:self::error('mode_audit_unavailable');
         });
     }
     public function create(string $shop,string $key,array $request,string $sourcePath,array $rights):array|WP_Error
@@ -35,7 +39,7 @@ final class TransformationWorkflow
             foreach(['product_version_id','template_version'] as $field)if(!is_int($request[$field]??null)||$request[$field]<1)throw new \InvalidArgumentException('Positive typed context/version required.');
             TransformationEngineContract::token($request['template_id']??null);foreach(['template_sha256','personalization_sha256'] as $field)TransformationEngineContract::hash($request[$field]??null);
             if(!is_array($request['options']??null)||!is_array($request['limits']??null))throw new \InvalidArgumentException('Typed options and explicit host bounds required.');
-            $mode=null;if($engine==='AI_TRANSFORM'){$mode=$this->option($this->modeKey($shop,TransformationEngineContract::token($request['options']['mode']??null),TransformationEngineContract::token($request['options']['mode_version']??null)));if($mode instanceof WP_Error)return $mode;}
+            $mode=null;if($engine==='AI_TRANSFORM'){$mode=$this->option($this->modeKey($shop,TransformationEngineContract::token($request['options']['mode']??null),TransformationEngineContract::token($request['options']['mode_version']??null)));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode,$shop))return self::error('mode_audit_unavailable');}
             $request['options']=TransformationEngineContract::options($engine,$version,$request['options'],$mode);$request['limits']=TransformationEngineContract::limits($request['limits']);
             $manifest=TransformationFixtureManifest::normalize($rights);if($manifest['engine_id']!==$engine||$manifest['template_id']!==$request['template_id'])throw new \InvalidArgumentException('Fixture, engine and frozen template must agree.');
             if($engine==='AI_TRANSFORM'&&(($manifest['mode']??null)!==$mode['mode']||$manifest['evidence_kind']!==$mode['evidence_kind']||!hash_equals($mode['fixture_manifest_sha256'],hash('sha256',Validator::canonicalJson($manifest)))))return self::error('mode_fixture_conflict');
@@ -108,16 +112,17 @@ final class TransformationWorkflow
     }
     public function read(string $shop,string $key):array|WP_Error
     {
-        $gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;$job=$this->load($shop,$key);if($job instanceof WP_Error)return $job;if($job===null)return self::error('not_found');
+        $actor=get_current_user_id();$gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;$job=$this->load($shop,$key);if($job instanceof WP_Error)return $job;if($job===null)return self::error('not_found');
+        if($job['request']['engine_id']==='AI_TRANSFORM'){$o=$job['request']['options'];$mode=$this->option($this->modeKey($shop,$o['mode'],$o['mode_version']));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode,$shop)||hash('sha256',Validator::canonicalJson($mode))!==$o['mode_sha256'])return self::error('mode_drift');}
         $personalization=$this->personalization($shop,$job['request'],$job['rights']);if($personalization instanceof WP_Error)return $personalization;
         $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;if(isset($job['rights']['visual_fixture'])){$bound=TransformationVisualContract::bind($job['rights']['visual_fixture'],$job);if($bound instanceof WP_Error)return $bound;}
         if(isset($job['visual_review']['print_mockup'])){$mockup=$job['visual_review']['print_mockup'];$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($mockup['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;}
         foreach(['source','result'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
-        return $job;
+        $gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:$job;
     }
     public function artifact(string $shop,string $key,string $which):array|WP_Error
     {
-        if(!in_array($which,['source','result'],true))return self::error('artifact_kind_invalid');$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');return ['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
+        if(!in_array($which,['source','result'],true))return self::error('artifact_kind_invalid');$actor=get_current_user_id();$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');$gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
     }
     private function transition(string $shop,string $key,string $from,string $to,callable $evidence):array|WP_Error
     {
@@ -125,18 +130,54 @@ final class TransformationWorkflow
     }
     private function gate(string $shop,string $key):true|WP_Error
     {
-        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');if(!in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true)||!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/D',$key))return self::error('scope_invalid');return true;
+        if(!current_user_can('manage_digiforge_pod')||get_current_user_id()<1)return self::error('reviewer_required');if(!in_array($shop,['digital','personalized_pod','standard_pod','jewelry'],true)||!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/D',$key))return self::error('scope_invalid');
+        $access=ShopAccess::authorize($shop,'manage_digiforge_pod');if($access instanceof WP_Error)return $access;
+        global $wpdb;$wpdb->last_error='';$active=$wpdb->get_var('SELECT @@session.in_transaction');
+        if(QueryEvidence::failed()||!in_array((string)$active,['0','1'],true))return self::error('transaction_evidence_unavailable');
+        if((string)$active==='1'){$locked=(new ShopAccessRepository())->lockCurrent($shop);if($locked instanceof WP_Error)return $locked;return ShopAccess::authorize($shop,'manage_digiforge_pod');}return true;
     }
     private function run(string $shop,string $key,callable $work):array|WP_Error
     {
-        $gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;global $wpdb;$lock='df-transform-'.substr(hash('sha256',$shop.'|'.$key),0,48);$wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));if($wpdb->last_error!==''||(string)$acquired!=='1')return self::error('busy');
-        try{$result=$work();}catch(\InvalidArgumentException){$result=self::error('contract_evidence_invalid');}catch(\Throwable){$result=self::error('persistence_uncertain');}finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$uncertain=$wpdb->last_error!==''||(string)$released!=='1';}
+        $actor=get_current_user_id();$gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;global $wpdb;$lock='df-transform-'.substr(hash('sha256',$shop.'|'.$key),0,48);$wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));if(QueryEvidence::failed()||(string)$acquired!=='1')return self::error('busy');
+        try{$result=$this->transaction($shop,$key,$actor,$work);}catch(\Throwable){$result=self::error('persistence_uncertain');}finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$uncertain=QueryEvidence::failed()||(string)$released!=='1';}
         if($uncertain)$result=self::error('lock_release_uncertain');if($result instanceof WP_Error)Logger::write('transformation_blocked',['code'=>$result->get_error_code()],'transformation_attempt',hash('sha256',$shop.'|'.$key));return $result;
+    }
+    private function currentGate(string $shop,string $key,int $actor):true|WP_Error
+    {
+        if($actor<1||get_current_user_id()!==$actor)return self::error('actor_changed');
+        $gate=$this->gate($shop,$key);return get_current_user_id()!==$actor?self::error('actor_changed'):$gate;
+    }
+    private function transaction(string $shop,string $key,int $actor,callable $work):array|WP_Error
+    {
+        global $wpdb;$wpdb->last_error='';$engines=$wpdb->get_col($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (%s,%s)',$wpdb->options,Tables::audit_log()));
+        if(QueryEvidence::failed()||!is_array($engines)||count($engines)!==2||array_filter($engines,static fn($v)=>strtoupper((string)$v)!=='INNODB'))return self::error('transactional_storage_required');
+        $wpdb->last_error='';$inTransaction=$wpdb->get_var('SELECT @@session.in_transaction');
+        if(QueryEvidence::failed()||!in_array((string)$inTransaction,['0','1'],true))return self::error('transaction_unavailable');
+        $active=(string)$inTransaction==='1';$savepoint='df_transform_'.bin2hex(random_bytes(8));$started=false;
+        $rollback=static function()use($wpdb,$active,$savepoint):bool{
+            $wpdb->last_error='';$ok=$wpdb->query($active?'ROLLBACK TO SAVEPOINT '.$savepoint:'ROLLBACK')!==false&&!QueryEvidence::failed();
+            if($active){$wpdb->last_error='';$released=$wpdb->query('RELEASE SAVEPOINT '.$savepoint);$ok=$ok&&$released!==false&&!QueryEvidence::failed();}return $ok;
+        };
+        try{
+            $wpdb->last_error='';if($wpdb->query($active?'SAVEPOINT '.$savepoint:'START TRANSACTION')===false||QueryEvidence::failed())return self::error('transaction_unavailable');$started=true;
+            try{$locked=(new ShopAccessRepository())->lockCurrent($shop);$gate=$this->currentGate($shop,$key,$actor);$result=$locked instanceof WP_Error?$locked:($gate instanceof WP_Error?$gate:$work());if(!($result instanceof WP_Error)){$gate=$this->currentGate($shop,$key,$actor);if($gate instanceof WP_Error)$result=$gate;}}
+            catch(\InvalidArgumentException){$result=self::error('contract_evidence_invalid');}catch(\Throwable){$result=self::error('persistence_uncertain');}
+            if($result instanceof WP_Error){$ok=$rollback();$started=false;return $ok?$result:self::error('rollback_uncertain');}
+            $wpdb->last_error='';if($wpdb->query($active?'RELEASE SAVEPOINT '.$savepoint:'COMMIT')===false||QueryEvidence::failed())return self::error('commit_uncertain');$started=false;return $result;
+        }finally{if($started)$rollback();}
+    }
+
+    private function auditedMode(array $mode,string $shop):bool
+    {
+        if(($mode['shop_key']??null)!==$shop||!is_int($mode['reviewed_by']??null)||$mode['reviewed_by']<1)return false;
+        global $wpdb;$hash=hash('sha256',Validator::canonicalJson($mode));$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT actor_id,context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s LIMIT 2','transformation_mode_registered','transformation_mode',$hash),ARRAY_A);
+        if(QueryEvidence::failed()||!is_array($rows)||count($rows)!==1||(int)$rows[0]['actor_id']!==$mode['reviewed_by'])return false;
+        $context=json_decode($rows[0]['context'],true);return is_array($context)&&($context['mode_sha256']??null)===$hash;
     }
     private function context(string $shop,array $request):array|WP_Error
     {
-        global $wpdb;$table=Tables::product_versions();$scope=ProductEvidenceScope::forTable($table,$shop);$wpdb->last_error='';$owned=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE id=%d AND ',$request['product_version_id']).$scope);if($wpdb->last_error!==''||(string)$owned!=='1')return self::error('product_scope_conflict');
-        $wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_production_templates().' WHERE template_id=%s AND template_version=%d',$request['template_id'],$request['template_version']),ARRAY_A);if($wpdb->last_error!==''||!is_array($row)||$row['template_status']!=='VALIDATED')return self::error('template_evidence_required');$row['variant_ids']=json_decode($row['variant_ids'],true);$row['print_areas']=json_decode($row['print_areas'],true);
+        global $wpdb;$table=Tables::product_versions();$scope=ProductEvidenceScope::forTable($table,$shop);$wpdb->last_error='';$owned=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE id=%d AND ',$request['product_version_id']).$scope);if(QueryEvidence::failed()||(string)$owned!=='1')return self::error('product_scope_conflict');
+        $wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_production_templates().' WHERE template_id=%s AND template_version=%d',$request['template_id'],$request['template_version']),ARRAY_A);if(QueryEvidence::failed()||!is_array($row)||$row['template_status']!=='VALIDATED')return self::error('template_evidence_required');$row['variant_ids']=json_decode($row['variant_ids'],true);$row['print_areas']=json_decode($row['print_areas'],true);
         try{$template=ProductionTemplateContract::normalize($row);}catch(\InvalidArgumentException){return self::error('template_evidence_invalid');}if($template['fingerprint']!==$row['fingerprint']||$template['fingerprint']!==$request['template_sha256']||$template['personalization_engine']!==$request['engine_id'])return self::error('template_drift');$owner=(new TemplateCycleRepository())->assertOwner($shop,$template['fingerprint']);return $owner instanceof WP_Error?$owner:$template;
     }
     private function rights(array $manifest):true|WP_Error
@@ -168,14 +209,14 @@ final class TransformationWorkflow
         if($manifest['evidence_kind']==='SYNTHETIC_TEST_ONLY')return true;
         $id=$request['personalization_submission_id']??null;if(!is_int($id)||$id<1)return self::error('stored_personalization_required');
         global $wpdb;$scope=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT ps.*,s.field_definitions,s.state schema_state,s.approved_by schema_reviewer,s.approved_at schema_reviewed_at FROM ".Tables::personalization_submissions()." ps INNER JOIN ".Tables::order_line_items()." li ON li.id=ps.order_line_item_id AND li.product_version_id=%d AND li.validation_status='VALIDATED' INNER JOIN ".Tables::orders()." o ON o.id=li.order_id AND ".$scope." AND BINARY o.environment=BINARY ps.environment AND BINARY li.environment=BINARY ps.environment INNER JOIN ".Tables::personalization_schemas()." s ON s.id=ps.personalization_schema_id AND s.product_version_id=li.product_version_id WHERE ps.id=%d AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL",$request['product_version_id'],$id),ARRAY_A);
-        if($wpdb->last_error!==''||!is_array($row)||$row['schema_state']!=='APPROVED'||(int)$row['schema_reviewer']<1||$row['schema_reviewed_at']===null||strlen($row['canonical_payload'])>65536||strlen($row['field_definitions'])>65536||!hash_equals($request['personalization_sha256'],$row['payload_hash'])||!hash_equals($row['payload_hash'],hash('sha256',$row['canonical_payload'])))return self::error('stored_personalization_conflict');
+        if(QueryEvidence::failed()||!is_array($row)||$row['schema_state']!=='APPROVED'||(int)$row['schema_reviewer']<1||$row['schema_reviewed_at']===null||strlen($row['canonical_payload'])>65536||strlen($row['field_definitions'])>65536||!hash_equals($request['personalization_sha256'],$row['payload_hash'])||!hash_equals($row['payload_hash'],hash('sha256',$row['canonical_payload'])))return self::error('stored_personalization_conflict');
         try{$payload=json_decode($row['canonical_payload'],true,16,JSON_THROW_ON_ERROR);$fields=json_decode($row['field_definitions'],true,16,JSON_THROW_ON_ERROR);if(!is_array($payload)||!is_array($fields)||Validator::personalizationJson($payload)!==$row['canonical_payload'])throw new \InvalidArgumentException();PersonalizationPayloadContract::validate($fields,$payload);}catch(\Throwable){return self::error('stored_personalization_conflict');}return true;
     }
     private function modeKey(string $shop,string $mode,string $version):string{return 'df_transform_mode_'.hash('sha256',$shop.'|'.$mode.'|'.$version);}
     private function prefix(string $shop,string $key):string{return 'df_transform_job_'.hash('sha256',$shop.'|'.$key).'_';}
     private function load(string $shop,string $key):array|WP_Error|null
     {
-        global $wpdb;$prefix=$this->prefix($shop,$key);$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT option_name,option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s ORDER BY option_name LIMIT 11',$wpdb->esc_like($prefix).'%'),ARRAY_A);if($wpdb->last_error!==''||!is_array($rows)||count($rows)>10)return self::error('journal_unavailable');$previous=null;
+        global $wpdb;$prefix=$this->prefix($shop,$key);$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT option_name,option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s ORDER BY option_name LIMIT 11',$wpdb->esc_like($prefix).'%'),ARRAY_A);if(QueryEvidence::failed()||!is_array($rows)||count($rows)>10)return self::error('journal_unavailable');$previous=null;
         foreach($rows as $i=>$row){$record=json_decode($row['option_value'],true);if(!is_array($record)||$row['option_name']!==$prefix.sprintf('%02d',$i)||($record['shop_key']??null)!==$shop||($record['sequence']??null)!==$i||($record['previous_event_sha256']??null)!==($previous['event_sha256']??'ROOT'))return self::error('journal_integrity');$hash=$record['event_sha256']??'';unset($record['event_sha256']);if(!hash_equals($hash,hash('sha256',Validator::canonicalJson($record))))return self::error('journal_integrity');$record['event_sha256']=$hash;$audit=$this->audited($record);if($audit instanceof WP_Error)return $audit;$previous=$record;}return $previous;
     }
     private function append(string $shop,string $key,?array $old,array $record):array|WP_Error
@@ -185,11 +226,11 @@ final class TransformationWorkflow
     private function audited(array $record):true|WP_Error
     {
         global $wpdb;$wpdb->last_error='';$contexts=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s AND context LIKE %s LIMIT 2','transformation_state_recorded','transformation_job',$record['job_hash'],'%'.$wpdb->esc_like($record['event_sha256']).'%'));
-        if($wpdb->last_error!==''||!is_array($contexts)||count($contexts)!==1)return self::error('audit_persistence_uncertain');$context=json_decode($contexts[0],true);return is_array($context)&&($context['event_sha256']??null)===$record['event_sha256']&&($context['state']??null)===$record['state']&&($context['sequence']??null)===$record['sequence']?true:self::error('audit_persistence_uncertain');
+        if(QueryEvidence::failed()||!is_array($contexts)||count($contexts)!==1)return self::error('audit_persistence_uncertain');$context=json_decode($contexts[0],true);return is_array($context)&&($context['event_sha256']??null)===$record['event_sha256']&&($context['state']??null)===$record['state']&&($context['sequence']??null)===$record['sequence']?true:self::error('audit_persistence_uncertain');
     }
     private function option(string $key):array|WP_Error|null
     {
-        global $wpdb;$wpdb->last_error='';$value=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$key));if($wpdb->last_error!=='')return self::error('evidence_unavailable');if($value===null)return null;$record=json_decode($value,true);return is_array($record)?$record:self::error('evidence_corrupt');
+        global $wpdb;$wpdb->last_error='';$value=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$key));if(QueryEvidence::failed())return self::error('evidence_unavailable');if($value===null)return null;$record=json_decode($value,true);return is_array($record)?$record:self::error('evidence_corrupt');
     }
     private function insert(string $key,array $record):array|WP_Error
     {
