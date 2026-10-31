@@ -1,0 +1,87 @@
+{
+  "schema": "digiforge-final-offline-qualification-v1",
+  "runtime_base_commit": "65f95d9d2723e6e268dd6420625dae97ab65fb5b",
+  "test_source_commit": "adc9139b357626178ae8495d903a8ae38243f138",
+  "scope": "ISOLATED_SYNTHETIC_OFFLINE_ONLY",
+  "focused_result": {
+    "tests": 10,
+    "assertions": 209,
+    "failures": 0,
+    "phpunit_elapsed_seconds": 35.985
+  },
+  "zip_regression_selection": {
+    "tests": 11,
+    "assertions": 151,
+    "failures": 0
+  },
+  "pet_measurement": {
+    "scope": "SYNTHETIC_TEST_ONLY",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "pixels": 1048576,
+    "limits": {
+      "max_execution_seconds": 10,
+      "max_input_bytes": 16777216,
+      "max_output_bytes": 16777216,
+      "max_pixels": 1048576,
+      "max_retries": 0,
+      "max_variants": 1
+    },
+    "elapsed_seconds": 30.894023366,
+    "stage_seconds": {
+      "prepare": 2.11006081,
+      "review": 4.571996802,
+      "render": 3.612372807,
+      "preview": 3.448150433
+    },
+    "before": {
+      "allocator_current_bytes": 73924608,
+      "allocator_peak_bytes": 73924608,
+      "process_rss_bytes": 95469568,
+      "process_rss_peak_bytes": 95469568
+    },
+    "after": {
+      "allocator_current_bytes": 73924608,
+      "allocator_peak_bytes": 92876800,
+      "process_rss_bytes": 97595392,
+      "process_rss_peak_bytes": 116326400
+    },
+    "php": "8.4.26",
+    "host_certified": false
+  },
+  "test_identities": [
+    {
+      "path": "tests/fixtures/customer-zip-worker.php",
+      "sha256": "fc4ed158c9bd19e4cb01b3c66604c2949fec3b2a82ab3b57e47f6d292ee4b0e0"
+    },
+    {
+      "path": "tests/wordpress/CustomerZipPublicationSafetyTest.php",
+      "sha256": "7750c918a26d571584057a5eaabda3df6c5ec644714aace7b97c123c7d22030f"
+    },
+    {
+      "path": "tests/wordpress/PetFullWorkerQualificationTest.php",
+      "sha256": "a764cfcf6a09641bfdf943d2804cfaf802223176980de57e069df20d999a54c0"
+    }
+  ],
+  "runtime_modified": false,
+  "acceptance_promoted": false,
+  "new_exact_head_hosted_audit_performed": false,
+  "prior_exact_head_audit": {
+    "number": 4838,
+    "sha": "65f95d9d2723e6e268dd6420625dae97ab65fb5b",
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/41233507865",
+    "result": "PASS_39_STEPS",
+    "scope": "EXACT_BASELINE_NOT_NEW_TEST_EVIDENCE_HEAD"
+  },
+  "limitations": [
+    "RSS high-water mark is cumulative including bootstrap; allocator peak reset before measured fixture.",
+    "Lifecycle measurement excludes bootstrap and includes fixture/source validation and API replays; not a pure render benchmark.",
+    "Uniform synthetic square and supplied matte only; no representative animal workload, supplier, artistic, commercial or host certification.",
+    "Workflow deadlines are tested by a scoped delayed journal read, not OS preemption.",
+    "No whole-worker10second or64MiB budget is certified."
+  ],
+  "production_actions_performed": false,
+  "provider_actions_performed": false
+}
