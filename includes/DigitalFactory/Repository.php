@@ -108,13 +108,50 @@ final class Repository {
         $validated = $this->validate_special_fields($type, $data, $input, false);
         if (is_wp_error($validated)) { return $validated; }
         $data = $validated;
+        // These IDs are retained by QA and customer-delivery evidence. Editing
+        // bytes or lineage must create a new row, never reinterpret an old ID.
+        $identity = match ($type) {
+            'digital_file_version' => ['digital_file_id', 'storage_reference', 'checksum_sha256', 'byte_size'],
+            'digital_package' => ['digital_product_id', 'product_version_id', 'manifest', 'checksum_sha256', 'byte_size'],
+            default => [],
+        };
+        $populate = [];
+        foreach ($identity as $field) {
+            if (!array_key_exists($field, $data)) { continue; }
+            $value = $data[$field];
+            if (in_array($field, self::STRUCTURED, true) && is_string($value)) { $value = json_decode($value, true); }
+            if (\DigiForge\Listings\Validator::canonicalJson([$value]) !== \DigiForge\Listings\Validator::canonicalJson([$current[$field] ?? null])) {
+                $default = array_key_exists($field, self::CREATE_DEFAULTS[$type]) ? self::CREATE_DEFAULTS[$type][$field] : false;
+                $stateField = $type === 'digital_package' ? 'generation_status' : 'status';
+                if ($default !== false && ($current[$field] ?? null) === $default && ($current[$stateField] ?? null) === 'PENDING') {
+                    $populate[$field] = $default;
+                    continue;
+                }
+                return $this->error('immutable_identity', 'Digital file versions and package contents are immutable; create a new record for edited bytes or lineage.', 409);
+            }
+            // Do not rewrite even unchanged identity columns during a status edit.
+            unset($data[$field]);
+        }
         $prospective = $data + $current;
         $required = $this->validate_required($definition, $prospective);
         if (is_wp_error($required)) { return $required; }
         $relationship = $this->validate_relationships($type, $prospective); if (is_wp_error($relationship)) { return $relationship; }
         $descendants = $this->validate_descendants($type, $id, $prospective); if (is_wp_error($descendants)) { return $descendants; }
         $data['updated_at'] = current_time('mysql', true); global $wpdb;
-        $wpdb->last_error = ''; $updated = $wpdb->update($this->table($type), $data, ['id' => $id]); if ($updated === false || !empty($wpdb->last_error)) { return $this->error('update_failed', 'Unable to update digital entity.', 503); }
+        $wpdb->last_error = '';
+        if ($populate !== []) {
+            // Placeholder population is one-time and cannot borrow QA recorded
+            // against the empty identity, including a concurrent QA insertion.
+            $sets = []; $where = [$wpdb->prepare('id=%d', $id)];
+            foreach ($data as $field => $value) { $sets[] = $wpdb->prepare('`' . $field . '`=%s', $value); }
+            foreach ($populate as $field => $value) { $where[] = $value === null ? '`' . $field . '` IS NULL' : $wpdb->prepare('`' . $field . '`=%s', $value); }
+            $stateField = $type === 'digital_package' ? 'generation_status' : 'status';
+            $where[] = '`' . $stateField . "`='PENDING'";
+            $where[] = $wpdb->prepare('NOT EXISTS (SELECT 1 FROM ' . Tables::digital_download_checks() . ' WHERE target_type=%s AND target_id=%d)', $type === 'digital_package' ? 'package' : 'file_version', $id);
+            $updated = $wpdb->query('UPDATE ' . $this->table($type) . ' SET ' . implode(',', $sets) . ' WHERE ' . implode(' AND ', $where));
+        } else { $wpdb->last_error = ''; $updated = $wpdb->update($this->table($type), $data, ['id' => $id]); }
+        if ($updated === false || !empty($wpdb->last_error)) { return $this->error('update_failed', 'Unable to update digital entity.', 503); }
+        if ($populate !== [] && $updated !== 1) { return $this->error('immutable_identity', 'Digital identity changed or already has QA; create a new record.', 409); }
         Logger::audit($type . '_updated', ['fields' => array_keys($data)], $type, (string) $id);
         return $this->find($type, $id) ?? $this->error('not_found', 'Digital entity not found.', 404);
     }
