@@ -15,7 +15,7 @@ final class CsvSourceStage
         if(!in_array($provider,['etsy','printify','gelato','openai'],true)||$asOf<1)self::invalid();
         EtsyNativeObservationStage::assertContext($context,$selected,hash('sha256',self::SCHEMA));
         if(!array_is_list($documents)||$documents===[]||count($documents)>EtsyNativeObservationStage::MAX_DOCUMENTS)self::invalid();
-        $sources=[];$seen=[];$rowsSeen=[];$bytes=0;$physical=0;$duplicates=0;$declared=0;$unknown=false;$conflict=false;
+        $sources=[];$seen=[];$references=[];$rowsSeen=[];$bytes=0;$physical=0;$duplicates=0;$declared=0;$unknown=false;$conflict=false;
         foreach($documents as$document){
             if(!is_array($document))self::invalid();self::exact($document,['raw','layout','declared_rows','capture']);
             $raw=$document['raw'];$layout=$document['layout'];$capture=$document['capture'];$expected=$document['declared_rows'];
@@ -37,6 +37,9 @@ final class CsvSourceStage
             if($capture['source_sha256']!==$hash||!is_string($capture['source_reference'])
                 ||preg_match('#^local://[A-Za-z0-9][A-Za-z0-9/_.:-]{0,230}$#D',$capture['source_reference'])!==1)self::invalid();
             foreach(explode('/',substr($capture['source_reference'],8))as$part)if(in_array($part,['.','..'],true))self::invalid();
+            $reference=$capture['source_reference'];
+            if(isset($references[$reference])&&!hash_equals($references[$reference],$hash))self::invalid();
+            $references[$reference]=$hash;
             DeclarationContract::timestamp($capture['observed_at']);if(strtotime($capture['observed_at'])>$asOf)self::invalid();
             if($expected!==null&&(!is_int($expected)||$expected<0||$expected>2147483647))self::invalid();
             $bom=str_starts_with($raw,"\xef\xbb\xbf");$table=self::rows($bom?substr($raw,3):$raw,$layout['delimiter']);
@@ -51,6 +54,7 @@ final class CsvSourceStage
             $duplicates+=$dupes;$control=$expected===null?'UNKNOWN':($expected===count($table)?'DECLARED_COUNTS_MATCH':'DECLARED_COUNTS_CONFLICT');
             $unknown=$unknown||$expected===null;$conflict=$conflict||$control==='DECLARED_COUNTS_CONFLICT';$declared+=$expected??0;
             $sources[]=['native_schema'=>'CSV_STRUCTURE_ONLY','observed_at'=>$capture['observed_at'],'raw_source_sha256'=>$hash,
+                'source_reference_sha256'=>hash('sha256',$reference),'capture_sha256'=>Validator::hash($capture),
                 'canonical_source_sha256'=>self::digest([$headers,$table]),'layout_sha256'=>self::digest(['delimiter'=>$layout['delimiter'],'headers'=>$headers]),'column_count'=>count($headers),
                 'data_rows'=>count($table),'declared_rows'=>$expected,'row_count_control'=>$control,'duplicate_rows'=>$dupes,
                 'formula_cells'=>$formula,'utf8_bom_present'=>$bom];
