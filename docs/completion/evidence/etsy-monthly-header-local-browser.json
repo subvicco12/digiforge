@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 311,
+  "requests": 498,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    768,
+    1280
+  ],
+  "business_tables_unchanged": 47,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "schema": "digiforge-etsy-monthly-header-local-browser-v1",
+  "baseline": "26d8d3ada076e5bcaa6ba1a4f5c4ffc3e6dc9c4e",
+  "recorded_at": "2026-10-31T02:40:20.263671+00:00",
+  "installed_site_acceptance": false,
+  "production_acceptance": false,
+  "source_sha256": {
+    "includes/Finance/EtsyMonthlyCsvStage.php": "723acea12e043ac5747d00e5ec731a27ff1a05ffc2cc09cefe075940caa8415e",
+    "includes/Finance/ObservedCsvHeaderStage.php": "7f0d333850e89f486d3c6fae60fa73e7b22b749924c57f1cdcda064cae07d821",
+    "includes/Finance/PrintifyOrderExportStage.php": "f467233c9375cb884bcaeef64bbfaf02096e421005d041194325e009fac92beb",
+    "includes/Finance/SourceAdmission.php": "18ef96e69550b44afba35b6d47dbc1a36bec76baf88e6b6d473d694523264ce3",
+    "includes/Portal/FinanceNativeSourceWorkflow.php": "381a6256b205eb8087905496e8021c6a4322ffc63f73ea6383951ad1a45b04fb",
+    "includes/Finance/contracts/etsy-monthly-header-v1.csv": "4b9711a954913dd223c23cde077a22900e836f45803a61442dc0484c81b74f11",
+    "tests/browser/authenticated-local-portal.cjs": "5ba8d45597032a4b8b8a377161da1f8cdfa77a301639a558491218706c90fabb"
+  }
+}

@@ -174,4 +174,45 @@ final class FinanceNativeSourceWorkflowTest extends WP_UnitTestCase
         ShopAccessFixture::reset();self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod'));wp_set_current_user(0);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod'));
     }
 
+    private function etsyCsvPayload(string $shop='digital',bool $body=false):array
+    {
+        $post=$this->payload($shop);$c=json_decode($post['context_json'],true);$c['source_contract_sha256']=DigiForge\Finance\EtsyMonthlyCsvStage::HEADER_SHA256;
+        $raw=file_get_contents(dirname(__DIR__,2).'/includes/Finance/contracts/etsy-monthly-header-v1.csv');
+        if($body)$raw.="unknown-date,UNKNOWN,PRIVATE_ETSY_CSV,private-info,UNKNOWN,0.00100,unknown,unknown,https://example.invalid/private\n";
+        $capture=array_intersect_key($c,array_flip(['shop_key','environment','business_id','store_id','external_shop_id']))+['observed_at'=>'2026-10-30T16:00:00Z','source_reference'=>'local://synthetic/etsy-monthly','source_sha256'=>hash('sha256',$raw)];
+        return array_replace($post,['provider'=>'etsy','source_format'=>'etsy_monthly_csv_v1','context_json'=>wp_json_encode($c),'documents_json'=>wp_json_encode([['raw'=>$raw,'capture'=>$capture,'declared_rows'=>null]])]);
+    }
+    public function testEtsyMonthlyHeaderCannotRecognizeAccountsOrCreateCustodyOrExternalOperations():void
+    {
+        global $wpdb;$before=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A);$http=0;
+        $network=static function($pre)use(&$http){++$http;return new WP_Error('offline_forbidden');};add_filter('pre_http_request',$network,PHP_INT_MAX);
+        try{foreach(['digital','personalized_pod']as$shop){$post=$this->etsyCsvPayload($shop,true);$r=FinanceNativeSourceWorkflow::processBrowser($post,$shop);self::assertIsArray($r);
+            self::assertSame('UNKNOWN',$r['original_file_custody']);self::assertSame('UNKNOWN',$r['settlement']);self::assertFalse($r['external_execution_authorized']);self::assertFalse($r['period_approval_authorized']);
+            self::assertWPError((new DigiForge\Finance\Repository())->importDeclaration($r));
+            $scope=json_decode($post['context_json'],true)+['installation_sha256'=>DigiForge\Finance\NativeEvidenceAccess::installation(),'binding_hash'=>str_repeat('a',64),'binding_revision'=>1];
+            self::assertWPError((new DigiForge\Finance\NativeEvidenceStore())->append(json_decode($post['documents_json'],true)[0],$scope));}}
+        finally{remove_filter('pre_http_request',$network,PHP_INT_MAX);}
+        self::assertSame(0,$http);self::assertSame($before,$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::finance_ledger(),ARRAY_A));
+    }
+    public function testEtsyMonthlyPortalRedactsValuesAndDistinguishesHeaderWitnessFromFullCustody():void
+    {
+        $post=$_POST;$server=$_SERVER;
+        try{$_POST=wp_slash($this->etsyCsvPayload('digital',true));$_SERVER['REQUEST_METHOD']='POST';$_SERVER['CONTENT_LENGTH']='2000';ob_start();FinanceNativeSourceWorkflow::render('digital');$html=ob_get_clean();}
+        finally{$_POST=$post;$_SERVER=$server;}
+        self::assertStringContainsString('OBSERVED_HEADER_MATCHED_UNVERIFIED_MONTHLY_CSV',$html);
+        self::assertStringContainsString('Original-file custody and monthly completeness remain UNKNOWN',$html);
+        self::assertStringNotContainsString('Observed Printify header only',$html);
+        foreach(['PRIVATE_ETSY_CSV','private-info','0.00100','example.invalid/private']as$value)self::assertStringNotContainsString($value,$html);
+        self::assertStringContainsString('value="etsy_monthly_csv_v1"',$html);
+        self::assertStringContainsString('name="documents_json" rows="8" maxlength="1048576" required></textarea>',$html);
+    }
+    public function testEtsyMonthlyProfileDeniesForeignShopProviderAndRevokedAuthority():void
+    {
+        $post=$this->etsyCsvPayload();self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'personalized_pod'));
+        $wrong=$post;$wrong['provider']='printify';self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($wrong,'digital'));
+        $missing=$post;unset($missing['provider']);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($missing,'digital'));
+        $bad=$post;$docs=json_decode($bad['documents_json'],true);$docs[0]['capture']['shop_key']='personalized_pod';$bad['documents_json']=wp_json_encode($docs);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($bad,'digital'));
+        ShopAccessFixture::reset();self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));wp_set_current_user(0);self::assertWPError(FinanceNativeSourceWorkflow::processBrowser($post,'digital'));
+    }
+
 }

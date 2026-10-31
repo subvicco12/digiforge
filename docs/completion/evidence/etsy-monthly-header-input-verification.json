@@ -1,0 +1,82 @@
+{
+  "schema": "digiforge-owner-supplied-etsy-monthly-header-v1",
+  "zip_bytes": 14245,
+  "zip_sha256": "79cfd7e699aa7491ef46ab22bca3cbbafcefa97ccd4700e5db83c30bb920845d",
+  "members": [
+    {
+      "name": "23_finance_acceptance_matrix.csv",
+      "bytes": 16973,
+      "sha256": "fdefc665d8dc9991a818547f3b035ba942db426f3dfb57dba1cb8838fd8b0325"
+    },
+    {
+      "name": "23_finance_acceptance_matrix.json",
+      "bytes": 21385,
+      "sha256": "5eee99c118e32b6be9983e37a1df5486015d5f811392177a4e5edf67434d40f4"
+    },
+    {
+      "name": "Codex_implementation_contracts.json",
+      "bytes": 2992,
+      "sha256": "24f4438002aca366025f01bc1ffbf5548d102892479e9b529a113004197998c9"
+    },
+    {
+      "name": "Etsy_header_evidence.json",
+      "bytes": 2396,
+      "sha256": "50a067932e5c1b04dad6454c5fdcff5c01c2eb3e3ac9b1d06b22fb2eb7f4343d"
+    },
+    {
+      "name": "Etsy_monthly_header_ONLY.csv",
+      "bytes": 73,
+      "sha256": "4b9711a954913dd223c23cde077a22900e836f45803a61442dc0484c81b74f11"
+    },
+    {
+      "name": "Final_Finance_Evidence_Closure.txt",
+      "bytes": 9448,
+      "sha256": "8142810d1f84b929abb26b09b298319c615c82bcd7cdc8d7a6e9760451d1fdeb"
+    },
+    {
+      "name": "SHA256_manifest.json",
+      "bytes": 1292,
+      "sha256": "6757492d8d3eddbb3a78a4ca9d3ab5104fafe2978a9ea5182b501b1057729890"
+    },
+    {
+      "name": "authenticated_billing_metadata.json",
+      "bytes": 1294,
+      "sha256": "ace06d3ca34888b74b8b00ea803a675cf17b371849d03873ac2f3a00074bab51"
+    },
+    {
+      "name": "official_billing_sources.json",
+      "bytes": 3594,
+      "sha256": "c65fc338119ec156e804d29f8a12b0c55cf4000e279f6032205c02796ad2087c"
+    },
+    {
+      "name": "validation_results.json",
+      "bytes": 273,
+      "sha256": "db9ed5674ca5e79f26438922b9ab90a49f532a2fd33edd1a4cf08dda8289db41"
+    }
+  ],
+  "manifest_entries_verified": 9,
+  "crc_verified": true,
+  "header_sha256": "4b9711a954913dd223c23cde077a22900e836f45803a61442dc0484c81b74f11",
+  "header_bytes": 73,
+  "header_names_in_order": [
+    "Date",
+    "Type",
+    "Title",
+    "Info",
+    "Currency",
+    "Amount",
+    "Fees & Taxes",
+    "Net",
+    "Tax Details"
+  ],
+  "bom_hex": "efbbbf",
+  "ending_hex": "0a",
+  "header_witness_rows": 0,
+  "original_private_file_hash": "UNKNOWN",
+  "original_private_file_custody": "UNKNOWN",
+  "source_completeness": "UNKNOWN",
+  "financial_semantics": "UNKNOWN",
+  "attached_instructions_executed": false,
+  "accounting_mappings_applied": false,
+  "acceptance_promoted": false
+}

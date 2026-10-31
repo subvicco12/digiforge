@@ -9,6 +9,7 @@ final class SourceAdmission
 {
     public static function preview(string $provider,array $documents,array $context,array $selected,int $asOf,string $format='native_json'):array|WP_Error
     {
+        if($format==='etsy_monthly_csv_v1')return EtsyMonthlyCsvStage::preview($provider,$documents,$context,$selected,$asOf);
         if($format==='printify_order_export_v1')return PrintifyOrderExportStage::preview($provider,$documents,$context,$selected,$asOf);
         if($format==='csv_structure')return CsvSourceStage::preview($provider,$documents,$context,$selected,$asOf);
         if($format!=='native_json')return new WP_Error('finance_source_format_invalid','Supported bounded source inspection format required.',['status'=>422]);

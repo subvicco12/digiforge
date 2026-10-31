@@ -32,3 +32,4 @@ phpunit.wordpress.catalog.xml.dist export-ignore
 
 # Exact owner-supplied observed Printify header bytes are a versioned source fingerprint.
 /includes/Finance/contracts/printify-order-export-header-v1.csv -text
+/includes/Finance/contracts/etsy-monthly-header-v1.csv -text

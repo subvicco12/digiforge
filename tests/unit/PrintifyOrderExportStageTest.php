@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use DigiForge\Finance\PrintifyOrderExportStage;
 use PHPUnit\Framework\TestCase;
-foreach(['ExactDecimal','DeclarationContract','EtsyFinancialSourceParser','EtsyNativeObservationStage','CsvSourceStage','PrintifyOrderExportStage','SourceAdmission']as$f){$p=dirname(__DIR__,2).'/includes/Finance/'.$f.'.php';if(is_file($p))require_once $p;}
+foreach(['ExactDecimal','DeclarationContract','EtsyFinancialSourceParser','EtsyNativeObservationStage','CsvSourceStage','ObservedCsvHeaderStage','PrintifyOrderExportStage','SourceAdmission']as$f){$p=dirname(__DIR__,2).'/includes/Finance/'.$f.'.php';if(is_file($p))require_once $p;}
 
 /** Only the header is authentic owner-supplied evidence; every appended row is synthetic and opaque. */
 final class PrintifyOrderExportStageTest extends TestCase
