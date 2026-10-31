@@ -117,6 +117,37 @@ final class FinanceCsvSourceStageTest extends TestCase
         self::assertSame($first['stage_hash'],$this->stage([$doc])['stage_hash']);
     }
 
+    public function testConflictingBytesCannotShareOneLocalSourceReference():void
+    {
+        $first=self::document();
+        $second=self::document("Fixture ID,Fixture Amount,Fixture Note\n002,1.0000,other\n");
+        $this->expectException(InvalidArgumentException::class);
+        $this->stage([$first,$second]);
+    }
+
+    public function testDistinctLocalReferencesCanStageDistinctSyntheticSources():void
+    {
+        $first=self::document();
+        $second=self::document("Fixture ID,Fixture Amount,Fixture Note\n002,1.0000,other\n");
+        $second['capture']['source_reference']='local://synthetic/second-original';
+        $packet=$this->stage([$first,$second]);
+        self::assertSame(2,$packet['population']['physical_rows']);
+        self::assertSame('UNKNOWN',$packet['source_completeness']);
+        self::assertFalse($packet['accounting_import_authorized']);
+        self::assertFalse($packet['durable_replay_protection']);
+    }
+
+    public function testExactCaptureReferenceIsBoundWithoutDisclosingIt():void
+    {
+        $document=self::document();$first=$this->stage([$document]);
+        $document['capture']['source_reference']='local://synthetic/PRIVATE_REFERENCE';
+        $second=$this->stage([$document]);
+        self::assertNotSame($first['stage_hash'],$second['stage_hash']);
+        self::assertStringNotContainsString('PRIVATE_REFERENCE',json_encode($second));
+        $document['capture']=array_reverse($document['capture'],true);
+        self::assertSame($second['stage_hash'],$this->stage([$document])['stage_hash']);
+    }
+
     public function testOtherProvidersHaveOnlyStructuralSupportAndNoNativeSchemaPromotion():void
     {
         foreach(['etsy','printify','gelato','openai']as$provider){$r=$this->stage([self::document()],null,null,$provider);self::assertSame('UNKNOWN',$r['provider_schema']);self::assertFalse($r['accounting_import_authorized']);}
