@@ -43,6 +43,11 @@ final class RasterArtworkCodec
         if(!$ended||!is_array($header))throw new \InvalidArgumentException('Incomplete PNG.');
         $channels=[0=>1,2=>3,4=>2,6=>4][$header['color']];$stride=$header['width']*$channels;$expected=($stride+1)*$header['height'];
         $raw=@gzuncompress($compressed,$expected+1);if(!is_string($raw)||strlen($raw)!==$expected)throw new \InvalidArgumentException('PNG pixel stream invalid or exceeds expansion bound.');
+        // gzuncompress accepts bytes after its first zlib stream. Supported PNG must
+        // consume the complete IDAT payload, not silently discard another stream.
+        $stream=inflate_init(ZLIB_ENCODING_DEFLATE);$checked=$stream===false?false:@inflate_add($stream,$compressed,ZLIB_FINISH);
+        if($stream===false||!is_string($checked)||$checked!==$raw||inflate_get_status($stream)!==ZLIB_STREAM_END||inflate_get_read_len($stream)!==strlen($compressed))throw new \InvalidArgumentException('PNG compressed payload has trailing or incomplete data.');
+        unset($checked,$stream);
         $rgba='';$previous=array_fill(0,$stride,0);$cursor=0;
         for($y=0;$y<$header['height'];$y++){
             $filter=ord($raw[$cursor++]);if($filter>4)throw new \InvalidArgumentException('PNG row filter invalid.');$row=[];

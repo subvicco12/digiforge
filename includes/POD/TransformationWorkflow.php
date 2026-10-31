@@ -75,6 +75,30 @@ final class TransformationWorkflow
             return $this->append($shop,$key,$job,array_replace($job,['prepared_input'=>$stored,'pet_input_preparation'=>$prepared['receipt']]));
         });
     }
+    /** Exact retained-result preview; no artist, resampling, mask or approval is executed. */
+    public function preparePetPreview(string $shop,string $key):array|WP_Error
+    {
+        return $this->run($shop,$key,function()use($shop,$key){
+            $started=hrtime(true);$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;
+            if($job['request']['engine_id']!=='PET_PORTRAIT'||$job['state']!=='GENERATED'||!isset($job['prepared_input']))return self::error('pet_preview_contract');
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('pet_preview_limit');
+            if(isset($job['preview']))return $job;
+            $receipt=$this->petPreviewEvidence($job);
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('pet_preview_limit');
+            return $this->append($shop,$key,$job,array_replace($job,['preview'=>$job['result'],'pet_preview'=>$receipt]));
+        });
+    }
+    private function petPreviewEvidence(array $job):array
+    {
+        $started=hrtime(true);$limits=TransformationEngineContract::limits($job['request']['limits']);
+        if($job['request']['engine_id']!=='PET_PORTRAIT'||!isset($job['pet_input_preparation'],$job['result'])||$job['result']['mime']!=='image/png')throw new \InvalidArgumentException('Prepared pet source and retained PNG result required.');
+        $path=AssetStorage::absolutePath($job['result']['storage_reference']);$bytes=$path===null?false:@file_get_contents($path,false,null,0,$limits['max_output_bytes']+1);
+        if(!is_string($bytes)||strlen($bytes)>$limits['max_output_bytes']||!hash_equals($job['result']['sha256'],hash('sha256',$bytes)))throw new \InvalidArgumentException('Retained preview source drifted or exceeds bounds.');
+        $pixels=RasterArtworkCodec::decode($bytes);
+        if($pixels['width_px']*$pixels['height_px']>$limits['max_pixels']||$pixels['width_px']!==$job['result']['width_px']||$pixels['height_px']!==$job['result']['height_px']||(hrtime(true)-$started)/1e9>$limits['max_execution_seconds'])throw new \InvalidArgumentException('Preview exceeds bounded stored-result geometry.');
+        $receipt=['version'=>'pet-retained-preview-v1','derivation'=>'EXACT_RETAINED_PNG_BYTES','job_sha256'=>$job['job_hash'],'source_sha256'=>$job['source']['sha256'],'prepared_receipt_sha256'=>$job['pet_input_preparation']['receipt_sha256'],'result_sha256'=>$job['result']['sha256'],'preview_sha256'=>hash('sha256',$bytes),'pixel_sha256'=>$pixels['pixel_sha256'],'attribution_sha256'=>hash('sha256',Validator::canonicalJson($job['attribution'])),'request_sha256'=>hash('sha256',Validator::canonicalJson($job['request'])),'template_sha256'=>$job['request']['template_sha256'],'personalization_sha256'=>$job['request']['personalization_sha256'],'width_px'=>$pixels['width_px'],'height_px'=>$pixels['height_px'],'artistic_transform_executed'=>false,'supplier_certified'=>false,'production_ready'=>false];
+        $receipt['receipt_sha256']=hash('sha256',Validator::canonicalJson($receipt));return $receipt;
+    }
     public function importResult(string $shop,string $key,string $path,array $attribution):array|WP_Error
     {
         return $this->run($shop,$key,function()use($shop,$key,$path,$attribution){
@@ -138,7 +162,7 @@ final class TransformationWorkflow
         $personalization=$this->personalization($shop,$job['request'],$job['rights']);if($personalization instanceof WP_Error)return $personalization;
         $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;if(isset($job['rights']['visual_fixture'])){$bound=TransformationVisualContract::bind($job['rights']['visual_fixture'],$job);if($bound instanceof WP_Error)return $bound;}
         if(isset($job['visual_review']['print_mockup'])){$mockup=$job['visual_review']['print_mockup'];$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($mockup['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;}
-        foreach(['source','result','prepared_input'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
+        foreach(['source','result','prepared_input','preview'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
         if(isset($job['prepared_input'])!==isset($job['pet_input_preparation']))return self::error('pet_preparation_evidence');
         if(isset($job['prepared_input'])){
             if($job['request']['engine_id']!=='PET_PORTRAIT'||$job['request']['options']['subject_count']!==1)return self::error('pet_preparation_contract');
@@ -148,11 +172,15 @@ final class TransformationWorkflow
             if(!is_string($original)||!is_string($prepared))return self::error('artifact_unavailable');
             try{PetSingleSubjectInput::verify($original,$prepared,$job['pet_input_preparation'],$job['request']['limits']);}catch(\Throwable){return self::error('pet_preparation_drift');}
         }
+        if(isset($job['preview'])!==isset($job['pet_preview']))return self::error('pet_preview_evidence');
+        if(isset($job['preview'])){
+            try{if(Validator::canonicalJson($job['preview'])!==Validator::canonicalJson($job['result']??[])||Validator::canonicalJson($job['pet_preview'])!==Validator::canonicalJson($this->petPreviewEvidence($job)))return self::error('pet_preview_drift');}catch(\Throwable){return self::error('pet_preview_drift');}
+        }
         $gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:$job;
     }
     public function artifact(string $shop,string $key,string $which):array|WP_Error
     {
-        if(!in_array($which,['source','result','prepared_input'],true))return self::error('artifact_kind_invalid');$actor=get_current_user_id();$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');$gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
+        if(!in_array($which,['source','result','prepared_input','preview'],true))return self::error('artifact_kind_invalid');$actor=get_current_user_id();$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');$gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
     }
     private function transition(string $shop,string $key,string $from,string $to,callable $evidence):array|WP_Error
     {

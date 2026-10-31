@@ -26,3 +26,23 @@ Requirement `NF-personalization-engine-coverage`: add bounded implementation/tes
 The package's ENGINE_CONTRACTS explicitly leaves photo/EXIF/ICC adaptation(T1), crop/mask/layout(T2), style execution(T3), multiple subjects(T4) and high resolution(T5) separately specified. No new composition semantics are authorized by a PROPOSED profile. To advance: provide exact reviewed style/configuration and representative licensed source/reference pairs, approved crop/mask/layout and text behavior if desired, independent artistic/linguistic review, and exact supplier/variant/placement geometry plus rights. No assumed DPI, safe area, bleed or full-size export is introduced.
 
 STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD. No provider transport, paid AI, new credential, production operation, order, publication, merge or deployment. Engineering: bounded technical pilot only. Artistic/commercial/operational release: NO-GO.
+
+## Retained-result preview stage — 2026-10-31 follow-up
+
+Parent63bab8f13c1e18ff195211d6db186c054f1a9ebe/audit4835. Reuses input preparation unchanged. The packet's ENGINE_CONTRACTS preview rule specifies deriving preview from the retained result, not making a second artistic output. Added `preparePetPreview(shop,key)` to the existing journal; no new API, table, queue or renderer framework.
+
+| Stage | Executable behavior and boundary |
+| --- | --- |
+| Original/input preparation | Existing protected original, bounded full PNG decode and lossless technical preparation; unchanged. |
+| Artistic result acquisition | Existing exact rights-bound stored-result import. No portrait generator, mask, crop, style or provider execution added. |
+| Review preview | New EXACT_RETAINED_PNG_BYTES derivation from that retained result, with a versioned immutable receipt. Reuses the same content-addressed artifact without copying/resampling. Requires PET, prior preparation and GENERATED state. |
+| Provenance/parity | Receipt binds job, original, preparation, request, template, personalization, attribution, result, preview and pixels. Reads rederive it and verify exact preview/result metadata. Current rights/template/source/authorization checks remain mandatory. |
+| Bounds | Existing1,048,576-pixel ceiling, lower job pixel/output/time limits and complete PNG validation. No requested dimensions, scale, DPI, bleed or supplier claim is synthesized. |
+| QA/review | Existing technical geometry QA and independent human review remain separate. Preview creation stays GENERATED and cannot request review before technical QA. Synthetic fixtures remain synthetic. |
+| Production/art | BLOCKED: exact approved creative configurations, licensed source/reference pairs, mask/layout specifications if needed, independent artistic/linguistic review and provider geometry/rights. |
+
+Reproduced malformed-input defect before editing: valid PNG chunks containing a valid zlib stream plus hidden trailing IDAT bytes were accepted by gzuncompress and silently discarded. Decoder now checks complete compressed-stream consumption and end status after its existing bounded decompression. Valid pixels/encodings and decoder metadata are unchanged; previously accepted malformed records now fail closed on reread. No input-preparation implementation was repeated.
+
+Behavioral regression coverage: malformed compressed payload; immutable exact preview parity and original preservation; preparation prerequisite; foreign shop/revocation/tampering; cancellation; independent database-connection lock contention; failed audit rollback and exact retry; production-sized result denial. The three new preview regressions first failed because the stage was absent; the malformed PNG regression first failed because invalid bytes were accepted. Canonical record equality avoids treating JSON object-key order as a content change.
+
+All prior acceptance classifications,21 proposed concept mappings,500 identities,20 waves and140 artistic blockers remain unchanged. No portrait art has been generated or certified. Final pushed SHA and terminal exact-head audit evidence are recorded on issue1209 after certification; this text does not attest to a future run. STOP ALL/external lock ON, automation OFF, RELEASE HOLD/NO-GO.

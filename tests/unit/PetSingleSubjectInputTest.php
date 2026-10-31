@@ -48,6 +48,12 @@ final class PetSingleSubjectInputTest extends TestCase
         $raw="\x89PNG\r\n\x1a\n".$chunk('IHDR',pack('NNCCCCC',2,1,8,0,0,0,0)).$chunk('IDAT',gzcompress("\x00\x00\xff",9)).$chunk('IEND','');$before=$raw;
         $p=PetSingleSubjectInput::prepare($raw,'image/png',1,self::limits());self::assertSame($before,$raw);self::assertNotSame($raw,$p['png']);self::assertSame("\x00\x00\x00\xff\xff\xff\xff\xff",DigiForge\POD\RasterArtworkCodec::decode($p['png'])['rgba']);self::assertTrue(PetSingleSubjectInput::verify($raw,$p['png'],$p['receipt'],self::limits()));
     }
+    public function testCompressedTrailingDataCannotBecomeAValidPreparedOrPreviewImage():void
+    {
+        $raw=self::fixture('synthetic/single_shape.png');$offset=8;$bad=substr($raw,0,8);
+        while($offset<strlen($raw)){$n=unpack('N',substr($raw,$offset,4))[1];$kind=substr($raw,$offset+4,4);$data=substr($raw,$offset+8,$n);if($kind==='IDAT')$data.='hidden trailing bytes';$bad.=pack('N',strlen($data)).$kind.$data.hash('crc32b',$kind.$data,true);$offset+=12+$n;}
+        $this->expectException(InvalidArgumentException::class);DigiForge\POD\RasterArtworkCodec::decode($bad);
+    }
     public function testTypedTextRetainsExistingSchemaBoundsAndDoesNotAcceptNewPromptFields():void
     {
         $fields=[['key'=>'name','type'=>'text','required'=>true,'max_length'=>5],['key'=>'caption','type'=>'text','max_length'=>8]];DigiForge\POD\PersonalizationPayloadContract::validate($fields,['name'=>"Zoé"]);self::assertTrue(true);
