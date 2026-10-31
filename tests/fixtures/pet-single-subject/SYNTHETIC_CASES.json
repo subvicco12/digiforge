@@ -1,0 +1,152 @@
+[
+  {
+    "id": "single_shape",
+    "file": "synthetic/single_shape.png",
+    "expected_codec": "ACCEPT",
+    "width": 256,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "3f35c7eb65feaf903377394ee46e3f3c8fcdf6afb1383334c4a95830cb6d166a",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "two_shapes",
+    "file": "synthetic/two_shapes.png",
+    "expected_codec": "ACCEPT",
+    "width": 256,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "7f11ea22229da1ca9f5800df9ef7f47dc892d57172437712b9b8590d91f95f6a",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "occluded",
+    "file": "synthetic/occluded.png",
+    "expected_codec": "ACCEPT",
+    "width": 256,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "7e84c2dd990aa7732e783de825ff20dd8784487248d6b232b69eee07256c81ca",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "edge_crop",
+    "file": "synthetic/edge_crop.png",
+    "expected_codec": "ACCEPT",
+    "width": 256,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "24ee359d9ca2b36fe0342029e7e065b2aee7e195c38634bf74ab123a03eb1ae6",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "wide",
+    "file": "synthetic/wide.png",
+    "expected_codec": "ACCEPT",
+    "width": 512,
+    "height": 128,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "ca8ae74cd9bd0bfed2509352dd229fc2d2609509ca92e113a5e529e4056d7a54",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "transparent",
+    "file": "synthetic/transparent.png",
+    "expected_codec": "ACCEPT",
+    "width": 128,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "2c5ee26b037a3a8df17675bdf56774a7578ca6670d9413985c82b3ede5bdd08c",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "pixel_boundary",
+    "file": "synthetic/pixel_boundary.png",
+    "expected_codec": "ACCEPT",
+    "width": 1024,
+    "height": 1024,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "7251245d4f82b60cb5efb750aab128591424ac370b67d20387d31893470c5b04",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "line_reference",
+    "file": "synthetic/line_reference.png",
+    "expected_codec": "ACCEPT",
+    "width": 256,
+    "height": 256,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "59476bed7b719bb2ebf0a521d879e4f7f6ddfffb82e961e3faa3cbd4cd906e2e",
+    "semantic_decision": "UNTESTED; codec acceptance is not subject recognition or visual acceptance"
+  },
+  {
+    "id": "truncated",
+    "file": "synthetic/truncated.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "ce5a210a078159b4faad45d72817e5f93f7eb7ab4178b45d0120552530e54c20",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "crc_corrupt",
+    "file": "synthetic/crc_corrupt.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "01926cfd93ee5a139eda8690e266a176dfd04674ca0964a97598887c1c8c1390",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "trailing_data",
+    "file": "synthetic/trailing_data.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "b890590d4899cd60926481e2c0b7490b7f9094d3817ea97b2abb0903a51b192f",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "ancillary_metadata",
+    "file": "synthetic/ancillary_metadata.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "90a0ac0109dc7f13db36105ae1a2f12c69306eea367cf10af81387c29997a9e1",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "profile_unsupported",
+    "file": "synthetic/profile_unsupported.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "14259f367febb4197bcc693882df4d57784df239e482bea7846cbda55172cea2",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "pixel_limit_header",
+    "file": "synthetic/pixel_limit_header.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "06cec51101d31c2c6dc9a82e4b74eb1395c363bf118639c951d9ee7f7ea26499",
+    "semantic_decision": "N/A"
+  },
+  {
+    "id": "invalid_pixel_stream",
+    "file": "synthetic/invalid_pixel_stream.bin",
+    "expected_codec": "REJECT",
+    "width": null,
+    "height": null,
+    "evidence_kind": "SYNTHETIC_TEST_ONLY",
+    "sha256": "536dae239281658e6fa07644f5b2a75eb0c0c4b7ee9b8470ca01e90133a4d3ca",
+    "semantic_decision": "N/A"
+  }
+]

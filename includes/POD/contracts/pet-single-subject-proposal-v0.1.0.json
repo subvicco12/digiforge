@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.1.0",
+  "engine": "PET_PORTRAIT",
+  "profile": "pet_single_subject",
+  "approval_state": "PROPOSED",
+  "catalog_ids": [
+    "DG2-046",
+    "DG2-047",
+    "DG2-049",
+    "DG2-050",
+    "DG2-071",
+    "DG2-072",
+    "DG2-076",
+    "DG2-077",
+    "DG2-080",
+    "DG2-081",
+    "DG2-096",
+    "DG2-097",
+    "DG2-100",
+    "DG2-101",
+    "DG2-187",
+    "DG2-188",
+    "DG2-463",
+    "DG2-471",
+    "DG2-476",
+    "DG2-479",
+    "DG2-486"
+  ],
+  "runtime_contract_version": "1.0.0",
+  "geometry_state": "MISSING",
+  "creative_contract": {
+    "style_id": null,
+    "algorithm_or_model_revision": null,
+    "prompt_sha256": null,
+    "rights_receipt_sha256": null
+  },
+  "fixtures_state": "MISSING"
+}

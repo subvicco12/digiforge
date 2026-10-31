@@ -1,0 +1,386 @@
+{
+  "archive_sha256": "30dcdc757b79b1191ae66aa49878fe0456d0f23151ec1ef2ac2b598eb05b49d2",
+  "archive_bytes": 72823,
+  "manifest_entries_verified": 70,
+  "schemas_metaschema_validated": 5,
+  "profiles_schema_validated": 29,
+  "profile_catalog_ids": [
+    "DG2-046",
+    "DG2-047",
+    "DG2-049",
+    "DG2-050",
+    "DG2-071",
+    "DG2-072",
+    "DG2-076",
+    "DG2-077",
+    "DG2-080",
+    "DG2-081",
+    "DG2-096",
+    "DG2-097",
+    "DG2-100",
+    "DG2-101",
+    "DG2-187",
+    "DG2-188",
+    "DG2-463",
+    "DG2-471",
+    "DG2-476",
+    "DG2-479",
+    "DG2-486"
+  ],
+  "catalog_mapping_state": "PROPOSED_REVIEW_REFERENCE_ONLY",
+  "licensed_artistic_pairs_supplied": 0,
+  "supplied_scripts_executed": false,
+  "schema_network_retrieval": false,
+  "entries": [
+    {
+      "path": "140_CONCEPT_MAPPING.csv",
+      "sha256": "afb4fa3537fe1a23d9a45af60088af2025f4b73f7165a1fc4d32094d6ad483f6",
+      "bytes": 122122
+    },
+    {
+      "path": "ACCEPTANCE_TEST_MATRIX.csv",
+      "sha256": "1c560b58a21aa1eeb56535f177c1e62f7be6df267fb907f91747efe6d4a585c2",
+      "bytes": 4552
+    },
+    {
+      "path": "CODEX_HANDOFF.md",
+      "sha256": "63957d340bb8c5ceccee0b1b2ab0402fd3ebcecc5528e190c2715211d40c5438",
+      "bytes": 5650
+    },
+    {
+      "path": "ENGINE_CONTRACTS.md",
+      "sha256": "0dd1b98f85b379110ffe8d29de80188290e9cded18d1718158a20e39ba6638dd",
+      "bytes": 20153
+    },
+    {
+      "path": "EXECUTED_FIXTURE_RESULTS.json",
+      "sha256": "6cfd1951b8098db3c93dc744638f67d335fb3127bc6cd5f37fbac8dddc1e2e08",
+      "bytes": 3983
+    },
+    {
+      "path": "GENERATE_SYNTHETIC_FIXTURES.py",
+      "sha256": "412ca45445bc769aa4ca8fa9c3e5ca64215b606b8584843b8a311ecadc453803",
+      "bytes": 2833
+    },
+    {
+      "path": "OWNER_PROFILE_DECISIONS.csv",
+      "sha256": "5b315fb0b1bd97760071c2dd4d3d37d06b68a4d1ff7988c6fad133774c8a182e",
+      "bytes": 6396
+    },
+    {
+      "path": "PACKET_VALIDATION.json",
+      "sha256": "c401c1bbf016221b7420e72c1d46f69297e11b6380f528de44fcefa5edeb9258",
+      "bytes": 621
+    },
+    {
+      "path": "PROPOSED_PROFILES.json",
+      "sha256": "dbd3b3ea22bc7ee5f0c7d8a334cd16822b2ec5b813ffb7243f185057b96740db",
+      "bytes": 8450
+    },
+    {
+      "path": "PROPOSED_PROMPT_REGISTER.csv",
+      "sha256": "04518949807eaf86699740e0e392c7396fe532643da8fb2f7d868b4fa8ee38fd",
+      "bytes": 718
+    },
+    {
+      "path": "README.md",
+      "sha256": "513887a300beb433659a9c093832e5660b056e569bb38d8994d7fdffaf334c16",
+      "bytes": 4490
+    },
+    {
+      "path": "REPRESENTATIVE_FIXTURE_REQUIREMENTS.csv",
+      "sha256": "c2516d42956e238fd309dda9244305329a8a8998388ac5ae3c9299ff9cc7082f",
+      "bytes": 88561
+    },
+    {
+      "path": "RIGHTS_PROVENANCE.csv",
+      "sha256": "0a02daed95589675008df6d195efe94aa6a2876eaa53a1e407b0d3d7a4e6fd2b",
+      "bytes": 906
+    },
+    {
+      "path": "SOURCE_REGISTER.csv",
+      "sha256": "f21b6e3f61c15267263697c24161f0dd94077c727ff2b0edf5908ef6b6a77c0e",
+      "bytes": 3569
+    },
+    {
+      "path": "SYNTHETIC_CASES.json",
+      "sha256": "a9c34837d32c5bad07e6343537218b4bb2dd7dccfdfb43bdca7583ffc72268e6",
+      "bytes": 5152
+    },
+    {
+      "path": "VISUAL_FIXTURES_MISSING_v1_1.csv",
+      "sha256": "f2964fac9e3c3ede1c994a984c6ce4aa7bd964ee2c38027e2afd8f4a745d77e5",
+      "bytes": 41508
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_architecture_illustration.json",
+      "sha256": "35c837e8afe9f633bbc377add65924c97c399e077a52032eca49cef5f42e5623",
+      "bytes": 427
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_birth_stats_illustration.json",
+      "sha256": "f643f20833937071754417a9a0b4fe0c3415251863d6f99b1ce7a6ee0b082356",
+      "bytes": 426
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_controlled_subject_illustration.json",
+      "sha256": "6d148efef33c8f835e262042c155202d84ae8c78cec224923c7011bc54119aef",
+      "bytes": 448
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_decorative_scene.json",
+      "sha256": "c4d58595e39572e799c64b2096be2151f2b08bc2b79900e9e2dd7fe722765a8a",
+      "bytes": 418
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_multi_subject_composition.json",
+      "sha256": "5b2d93d5db34cbd0540b244147067c924a4cfa561238b8e0cc7d7f774bde5ae1",
+      "bytes": 427
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_narrative_composition.json",
+      "sha256": "0d27eb0d0c9fb9b4447b9a06c880dea3ed620306365c3868d2a1c783c0519c42",
+      "bytes": 453
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_photo_restoration_new_mode.json",
+      "sha256": "c8eb87fdbefd288ea81e381c502f8b94d50cca8f51cb43522be55e1ba2b6e365",
+      "bytes": 428
+    },
+    {
+      "path": "profile_records/AI_TRANSFORM_typography_with_illustration.json",
+      "sha256": "8bf7fec3de8087d3b586a9890f8d3ab280652f341e080a06a8da74a608ac52c8",
+      "bytes": 430
+    },
+    {
+      "path": "profile_records/LINE_ART_house_contour.json",
+      "sha256": "ac4b3bcc0418c08fa6a36f10bd559c4e29de2b9d6fc517cafd721e4f0c9b068a",
+      "bytes": 411
+    },
+    {
+      "path": "profile_records/LINE_ART_human_contour.json",
+      "sha256": "d532eb7dbcf07d8c1912b0cb5b6e5a6012ac650bf4496427c2f3ce11bd2f2dca",
+      "bytes": 411
+    },
+    {
+      "path": "profile_records/LINE_ART_pet_contour.json",
+      "sha256": "b6ca9e1a6f914a0b57e09fbdac479cc4536297e4181b6ac2a6488a920bf31224",
+      "bytes": 484
+    },
+    {
+      "path": "profile_records/LINE_ART_pet_contour_stitched_look.json",
+      "sha256": "fea627af2c07855eca78e60678c9ced13a7b4c18abdad6175ff37ac8e6c5d454",
+      "bytes": 423
+    },
+    {
+      "path": "profile_records/LINE_ART_subject_ambiguous_contour.json",
+      "sha256": "e40ab2a30a8d53803ddde2b608433b904aff8309b94c7ab9fa71c159cb8f6d7c",
+      "bytes": 453
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_human_multi_subject.json",
+      "sha256": "b445c149b8c1d3b619bbf6fd476bd560cb7ef0989f96ce5b63f4ae107fb33b00",
+      "bytes": 556
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_human_portrait_context.json",
+      "sha256": "09631e164dfd0d39f607a7bc0e2ee5452de0b71005f482e9789862382c3f5500",
+      "bytes": 904
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_pet_multi_subject.json",
+      "sha256": "4a9e33c1ffc49ae8db812a4fd8b079e49855ab4c7d8c031752b4ab56009e6c3c",
+      "bytes": 464
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_pet_single_subject.json",
+      "sha256": "dc2219ecbee14e847c2c632382461c0dc14f9287d1dd51974f483c42d9899bd0",
+      "bytes": 720
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_pet_stitched_look.json",
+      "sha256": "2c2581fc29a983b66c161349b36a4a3c5b5d0ac548a55fcc7f2f609c2b6551c2",
+      "bytes": 419
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_photo_text_composition.json",
+      "sha256": "31dd03ae4b1602d1a98ef67c1bd2a735369f94e2c80c72fec7600c8d697771d0",
+      "bytes": 454
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_retro_portrait.json",
+      "sha256": "b255fba919485025c9000b71089ab5b057785eab01d1f9dd2742cd066cf9f6fa",
+      "bytes": 446
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_travel_composition.json",
+      "sha256": "f5f47ce1a80f5f7b18265c46b362fffef41b32f6d10161a2711a14649b2dd161",
+      "bytes": 450
+    },
+    {
+      "path": "profile_records/PET_PORTRAIT_typography_subject_ambiguous.json",
+      "sha256": "b6e3aa3644a57370cdcd0d8609748efea165a36cc501fa1a0f4c7952eb34d6b4",
+      "bytes": 430
+    },
+    {
+      "path": "profile_records/WATERCOLOR_architecture_painterly.json",
+      "sha256": "e6b26fde164f6abdcb5c08c6ccc2366c644ebe67ef08bbf9b3ed639ac5c13636",
+      "bytes": 437
+    },
+    {
+      "path": "profile_records/WATERCOLOR_birth_stats_painterly.json",
+      "sha256": "a41a7644128293b50b5d72c4466b3185470a0ec0be93947d2dd92af84f2afdc6",
+      "bytes": 436
+    },
+    {
+      "path": "profile_records/WATERCOLOR_family_composition_painterly.json",
+      "sha256": "377d428faf9beae39df89aeff406413ab4fcaa1ebb28fee3ad0d086b6505094f",
+      "bytes": 443
+    },
+    {
+      "path": "profile_records/WATERCOLOR_human_group_painterly.json",
+      "sha256": "e8f909b46e6ba6ca6e92813b5273fdaefe3ec54141adb70d017c4b813a45b622",
+      "bytes": 736
+    },
+    {
+      "path": "profile_records/WATERCOLOR_landscape_painterly.json",
+      "sha256": "de49da3d777f4ac97b6fedd6c099c015d0004d9218531444cdf0ddd6618dc25b",
+      "bytes": 434
+    },
+    {
+      "path": "profile_records/WATERCOLOR_pet_painterly.json",
+      "sha256": "2fca63611e71478b77235d8a3b0c1dfd425b795945697156b187856707708d9a",
+      "bytes": 488
+    },
+    {
+      "path": "profile_records/WATERCOLOR_photo_text_painterly.json",
+      "sha256": "0d3f7decc2c5904605172f2a519da86200d9c38017b6e203897e3608f65a7d71",
+      "bytes": 435
+    },
+    {
+      "path": "prompts/AI_TRANSFORM_PROPOSED_v0_1_0.txt",
+      "sha256": "033c01bb05b3a147edd9eee969741d961c70b932cd4f05d3118a2d820a17efe7",
+      "bytes": 863
+    },
+    {
+      "path": "prompts/LINE_ART_PROPOSED_v0_1_0.txt",
+      "sha256": "02b1a812b822eab2a0ddd092569f09b121ad461f51a58e4a6b82c64315dc6ffd",
+      "bytes": 748
+    },
+    {
+      "path": "prompts/PET_PORTRAIT_PROPOSED_v0_1_0.txt",
+      "sha256": "bbaddf9720acd657fe389c75ebdec7cd9237c87f023dd894d56db939aaed589a",
+      "bytes": 961
+    },
+    {
+      "path": "prompts/WATERCOLOR_PROPOSED_v0_1_0.txt",
+      "sha256": "59016725976a111d5be9f501b3216d47495273c1ddd0b41b159f41958246c125",
+      "bytes": 828
+    },
+    {
+      "path": "run_offline_fixture_checks.php",
+      "sha256": "d658476b88810f742a714a9831912fd8e9309a5713f231817463ff887320d91b",
+      "bytes": 3885
+    },
+    {
+      "path": "schemas/ai_transform_v0_1_0.schema.json",
+      "sha256": "2fdb117fa606598bf82d6ac3d75bc3a2b8925b6da2ecf124a734c5f9cc7018c9",
+      "bytes": 307
+    },
+    {
+      "path": "schemas/line_art_v0_1_0.schema.json",
+      "sha256": "ba8131d4fc2bee643cf8d30307c2413c517c637730353b705a7429bc1c135b0e",
+      "bytes": 299
+    },
+    {
+      "path": "schemas/pet_portrait_v0_1_0.schema.json",
+      "sha256": "c9047f6f200619c498a032967d4dc67f0f54f000213812591bb62f4ec5930f1c",
+      "bytes": 307
+    },
+    {
+      "path": "schemas/profile_proposal_v0_1_0.schema.json",
+      "sha256": "cb48c4da8af35277a7a950e4a0d59d987db49264ec86a7e0acfdc5a9a844049f",
+      "bytes": 2124
+    },
+    {
+      "path": "schemas/watercolor_v0_1_0.schema.json",
+      "sha256": "7bd52970b2a0ed9334d4c34308d71d94e6650a94bd5b8437168dab7a2b472167",
+      "bytes": 303
+    },
+    {
+      "path": "synthetic/ancillary_metadata.bin",
+      "sha256": "90a0ac0109dc7f13db36105ae1a2f12c69306eea367cf10af81387c29997a9e1",
+      "bytes": 1079
+    },
+    {
+      "path": "synthetic/crc_corrupt.bin",
+      "sha256": "01926cfd93ee5a139eda8690e266a176dfd04674ca0964a97598887c1c8c1390",
+      "bytes": 1055
+    },
+    {
+      "path": "synthetic/edge_crop.png",
+      "sha256": "24ee359d9ca2b36fe0342029e7e065b2aee7e195c38634bf74ab123a03eb1ae6",
+      "bytes": 1499
+    },
+    {
+      "path": "synthetic/invalid_pixel_stream.bin",
+      "sha256": "536dae239281658e6fa07644f5b2a75eb0c0c4b7ee9b8470ca01e90133a4d3ca",
+      "bytes": 66
+    },
+    {
+      "path": "synthetic/line_reference.png",
+      "sha256": "59476bed7b719bb2ebf0a521d879e4f7f6ddfffb82e961e3faa3cbd4cd906e2e",
+      "bytes": 1075
+    },
+    {
+      "path": "synthetic/occluded.png",
+      "sha256": "7e84c2dd990aa7732e783de825ff20dd8784487248d6b232b69eee07256c81ca",
+      "bytes": 888
+    },
+    {
+      "path": "synthetic/pixel_boundary.png",
+      "sha256": "7251245d4f82b60cb5efb750aab128591424ac370b67d20387d31893470c5b04",
+      "bytes": 7937
+    },
+    {
+      "path": "synthetic/pixel_limit_header.bin",
+      "sha256": "06cec51101d31c2c6dc9a82e4b74eb1395c363bf118639c951d9ee7f7ea26499",
+      "bytes": 65
+    },
+    {
+      "path": "synthetic/profile_unsupported.bin",
+      "sha256": "14259f367febb4197bcc693882df4d57784df239e482bea7846cbda55172cea2",
+      "bytes": 1085
+    },
+    {
+      "path": "synthetic/single_shape.png",
+      "sha256": "3f35c7eb65feaf903377394ee46e3f3c8fcdf6afb1383334c4a95830cb6d166a",
+      "bytes": 1055
+    },
+    {
+      "path": "synthetic/trailing_data.bin",
+      "sha256": "b890590d4899cd60926481e2c0b7490b7f9094d3817ea97b2abb0903a51b192f",
+      "bytes": 1056
+    },
+    {
+      "path": "synthetic/transparent.png",
+      "sha256": "2c5ee26b037a3a8df17675bdf56774a7578ca6670d9413985c82b3ede5bdd08c",
+      "bytes": 789
+    },
+    {
+      "path": "synthetic/truncated.bin",
+      "sha256": "ce5a210a078159b4faad45d72817e5f93f7eb7ab4178b45d0120552530e54c20",
+      "bytes": 1050
+    },
+    {
+      "path": "synthetic/two_shapes.png",
+      "sha256": "7f11ea22229da1ca9f5800df9ef7f47dc892d57172437712b9b8590d91f95f6a",
+      "bytes": 1354
+    },
+    {
+      "path": "synthetic/wide.png",
+      "sha256": "ca8ae74cd9bd0bfed2509352dd229fc2d2609509ca92e113a5e529e4056d7a54",
+      "bytes": 769
+    }
+  ]
+}

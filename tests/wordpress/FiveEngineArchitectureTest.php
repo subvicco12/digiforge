@@ -69,6 +69,28 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
         $source=DigiForge\ProductFactory\AssetStorage::absolutePath($job['source']['storage_reference']);self::assertNotNull($source);$original=file_get_contents($source);try{file_put_contents($source,'tampered');self::assertWPError($s->verifyInput('personalized_pod',$key));}finally{file_put_contents($source,$original);}
         global $wpdb;$wpdb->update(DigiForge\Database\Tables::pod_production_templates(),['template_status'=>'DRAFT'],['template_id'=>$request['template_id']]);self::assertWPError($s->verifyInput('personalized_pod',$key));self::assertSame('CANCELLED',$s->cancel('personalized_pod',$key)['state']);self::assertWPError($s->verifyInput('personalized_pod',$key));
     }
+    public function testPetInputPreparationIsImmutableTechnicalOnlyAndPreservesOriginal():void
+    {
+        self::assertTrue(method_exists(DigiForge\POD\TransformationWorkflow::class,'preparePetInput'),'Journal-bound pet preparation missing.');
+        [$r,$path,$rights]=$this->fixture();$service=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();$original=file_get_contents($path);self::assertNotWPError($service->create('personalized_pod',$key,$r,$path,$rights));self::assertNotWPError($service->verifyInput('personalized_pod',$key));
+        $job=$service->preparePetInput('personalized_pod',$key);self::assertNotWPError($job);self::assertSame('INPUT_VERIFIED',$job['state']);self::assertFalse($job['pet_input_preparation']['artistic_transform_executed']);self::assertFalse($job['production_ready']);self::assertSame(hash('sha256',$original),$job['source']['sha256']);self::assertSame($original,$service->artifact('personalized_pod',$key,'source')['bytes']);
+        self::assertSame(DigiForge\Orders\Validator::canonicalJson($job),DigiForge\Orders\Validator::canonicalJson($service->preparePetInput('personalized_pod',$key)));self::assertSame($job['prepared_input']['sha256'],$service->artifact('personalized_pod',$key,'prepared_input')['sha256']);self::assertWPError($service->technicalQa('personalized_pod',$key));self::assertWPError($service->requestReview('personalized_pod',$key));
+    }
+    public function testPetPreparationDeniesForeignRevokedMissingRightsAndChangedArtifacts():void
+    {
+        self::assertTrue(method_exists(DigiForge\POD\TransformationWorkflow::class,'preparePetInput'),'Journal-bound pet preparation missing.');
+        [$r,$path,$rights]=$this->fixture();$service=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();self::assertWPError($service->create('personalized_pod',wp_generate_uuid4(),$r,$path,[]));self::assertNotWPError($service->create('personalized_pod',$key,$r,$path,$rights));self::assertWPError($service->preparePetInput('personalized_pod',$key));self::assertNotWPError($service->verifyInput('personalized_pod',$key));$job=$service->preparePetInput('personalized_pod',$key);self::assertNotWPError($job);
+        self::assertWPError($service->preparePetInput('digital',$key));$stored=DigiForge\ProductFactory\AssetStorage::absolutePath($job['prepared_input']['storage_reference']);$bytes=file_get_contents($stored);try{file_put_contents($stored,$bytes.'drift');self::assertWPError($service->read('personalized_pod',$key));self::assertWPError($service->artifact('personalized_pod',$key,'prepared_input'));}finally{file_put_contents($stored,$bytes);}
+        ShopAccessFixture::reset();self::assertWPError($service->preparePetInput('personalized_pod',$key));self::assertWPError($service->artifact('personalized_pod',$key,'prepared_input'));
+    }
+    public function testPetPreparationAuditFailureRollsBackOnlyItsAttemptAndRetriesExactly():void
+    {
+        self::assertTrue(method_exists(DigiForge\POD\TransformationWorkflow::class,'preparePetInput'),'Journal-bound pet preparation missing.');
+        [$r,$path,$rights]=$this->fixture();$service=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();self::assertNotWPError($service->create('personalized_pod',$key,$r,$path,$rights));$before=$service->verifyInput('personalized_pod',$key);self::assertNotWPError($before);global $wpdb;
+        $filter=static fn($sql)=>str_starts_with($sql,'INSERT INTO `'.DigiForge\Database\Tables::audit_log().'`')&&str_contains($sql,'transformation_state_recorded')?str_replace(DigiForge\Database\Tables::audit_log(),DigiForge\Database\Tables::audit_log().'_missing',$sql):$sql;
+        $old=$wpdb->suppress_errors(true);add_filter('query',$filter);try{self::assertWPError($service->preparePetInput('personalized_pod',$key));}finally{remove_filter('query',$filter);$wpdb->suppress_errors($old);}
+        self::assertSame($before,$service->read('personalized_pod',$key));self::assertNotWPError($service->preparePetInput('personalized_pod',$key));
+    }
     private function authorizationMode():array
     {
         return ['mode'=>'synthetic-scope-'.wp_generate_uuid4(),'version'=>'1.0.0','prompt_revision'=>'test-only','prompt_sha256'=>str_repeat('a',64),'fixture_manifest_sha256'=>str_repeat('b',64),'input_fields'=>[['key'=>'subject','type'=>'text','max_length'=>20,'required'=>false]],'evidence_kind'=>'SYNTHETIC_TEST_ONLY'];

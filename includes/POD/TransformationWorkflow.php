@@ -54,6 +54,27 @@ final class TransformationWorkflow
         });
     }
     public function verifyInput(string $shop,string $key):array|WP_Error{return $this->transition($shop,$key,'DRAFT','INPUT_VERIFIED',static fn(array $job)=>[]);}
+    /** Optional technical input step; no new artistic request/profile fields or lifecycle promotion. */
+    public function preparePetInput(string $shop,string $key):array|WP_Error
+    {
+        return $this->run($shop,$key,function()use($shop,$key){
+            $started=hrtime(true);$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;
+            if($job['request']['engine_id']!=='PET_PORTRAIT'||$job['state']!=='INPUT_VERIFIED'||$job['request']['options']['subject_count']!==1)return self::error('pet_preparation_contract');
+            if(isset($job['prepared_input']))return $job;
+            $original=$this->artifact($shop,$key,'source');if($original instanceof WP_Error)return $original;
+            $prepared=PetSingleSubjectInput::prepare($original['bytes'],$original['mime'],1,$job['request']['limits']);
+            if($prepared['receipt']['source_sha256']!==$job['source']['sha256'])return self::error('source_fixture_conflict');
+            $temporary=tempnam(sys_get_temp_dir(),'df-pet-input-');if(!is_string($temporary))return self::error('preparation_unavailable');
+            try{
+                if(file_put_contents($temporary,$prepared['png'],LOCK_EX)!==strlen($prepared['png']))return self::error('preparation_unavailable');
+                $metadata=$this->inspect($temporary,$job['request']['limits'],'output');if($metadata instanceof WP_Error)return $metadata;
+                if($metadata['sha256']!==$prepared['receipt']['prepared_sha256'])return self::error('preparation_drift');
+                $stored=(new RenderArtifactStore())->retain($temporary,$metadata,$shop);if($stored instanceof WP_Error)return $stored;
+            }finally{if(is_file($temporary))unlink($temporary);}
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('local_artifact_capability_or_limit');
+            return $this->append($shop,$key,$job,array_replace($job,['prepared_input'=>$stored,'pet_input_preparation'=>$prepared['receipt']]));
+        });
+    }
     public function importResult(string $shop,string $key,string $path,array $attribution):array|WP_Error
     {
         return $this->run($shop,$key,function()use($shop,$key,$path,$attribution){
@@ -117,12 +138,21 @@ final class TransformationWorkflow
         $personalization=$this->personalization($shop,$job['request'],$job['rights']);if($personalization instanceof WP_Error)return $personalization;
         $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;if(isset($job['rights']['visual_fixture'])){$bound=TransformationVisualContract::bind($job['rights']['visual_fixture'],$job);if($bound instanceof WP_Error)return $bound;}
         if(isset($job['visual_review']['print_mockup'])){$mockup=$job['visual_review']['print_mockup'];$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($mockup['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;}
-        foreach(['source','result'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
+        foreach(['source','result','prepared_input'] as $field)if(isset($job[$field])){$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($job[$field]['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($job[$field]);if($verified instanceof WP_Error)return $verified;}
+        if(isset($job['prepared_input'])!==isset($job['pet_input_preparation']))return self::error('pet_preparation_evidence');
+        if(isset($job['prepared_input'])){
+            if($job['request']['engine_id']!=='PET_PORTRAIT'||$job['request']['options']['subject_count']!==1)return self::error('pet_preparation_contract');
+            $originalPath=AssetStorage::absolutePath($job['source']['storage_reference']);$preparedPath=AssetStorage::absolutePath($job['prepared_input']['storage_reference']);
+            if($originalPath===null||$preparedPath===null)return self::error('artifact_unavailable');
+            $original=@file_get_contents($originalPath,false,null,0,$job['request']['limits']['max_input_bytes']+1);$prepared=@file_get_contents($preparedPath,false,null,0,$job['request']['limits']['max_output_bytes']+1);
+            if(!is_string($original)||!is_string($prepared))return self::error('artifact_unavailable');
+            try{PetSingleSubjectInput::verify($original,$prepared,$job['pet_input_preparation'],$job['request']['limits']);}catch(\Throwable){return self::error('pet_preparation_drift');}
+        }
         $gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:$job;
     }
     public function artifact(string $shop,string $key,string $which):array|WP_Error
     {
-        if(!in_array($which,['source','result'],true))return self::error('artifact_kind_invalid');$actor=get_current_user_id();$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');$gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
+        if(!in_array($which,['source','result','prepared_input'],true))return self::error('artifact_kind_invalid');$actor=get_current_user_id();$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;if(!isset($job[$which]))return self::error('artifact_unavailable');$path=AssetStorage::absolutePath($job[$which]['storage_reference']);if($path===null)return self::error('artifact_unavailable');$bytes=@file_get_contents($path,false,null,0,16777217);if(!is_string($bytes)||!hash_equals($job[$which]['sha256'],hash('sha256',$bytes)))return self::error('artifact_changed');$gate=$this->currentGate($shop,$key,$actor);return $gate instanceof WP_Error?$gate:['bytes'=>$bytes,'mime'=>$job[$which]['mime'],'sha256'=>$job[$which]['sha256'],'production_ready'=>false];
     }
     private function transition(string $shop,string $key,string $from,string $to,callable $evidence):array|WP_Error
     {
