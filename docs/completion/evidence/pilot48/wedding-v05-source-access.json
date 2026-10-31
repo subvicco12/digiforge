@@ -1,0 +1,13 @@
+{
+  "direct_files_examined": 3195,
+  "zip_containers_examined": 265,
+  "docx_pdf_members_examined": 17,
+  "expected_hashes": [
+    "0a9fabc469d217827ef50f645324c5bbda34f897d969092d21582034eaf10168",
+    "ef8b759106936b6e63d0874d61cbc379c7dd36c35f0806f67adf38bbc6052f7f",
+    "41170901605d7148ecb61c8ae32e3c6ab1ba9f1095a16dfb3a60831fe274a56c",
+    "1420880bba0eeda13334269f9e6634dd54aa13fc312b4cedfe3e2d5ed504ef3e"
+  ],
+  "matches": [],
+  "source_content_exported": false
+}
