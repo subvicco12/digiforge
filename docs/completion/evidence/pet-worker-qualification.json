@@ -1,0 +1,105 @@
+{
+  "schema": "digiforge-pet-full-worker-qualification-v1",
+  "recorded_at_utc": "2026-10-31T20:40:38.584819+00:00",
+  "runtime_base_commit": "65f95d9d2723e6e268dd6420625dae97ab65fb5b",
+  "evidence_kind": "SYNTHETIC_TEST_ONLY",
+  "test_class": "PetFullWorkerQualificationTest",
+  "command": "PATH=/workspace/.onboarding/bin:$PATH WP_TESTS_DIR=/workspace/.onboarding/wordpress-develop/tests/phpunit vendor/bin/phpunit -c phpunit.wordpress.xml.dist --bootstrap /workspace/scratch/pilot48-pet/bootstrap.php --filter PetFullWorkerQualificationTest",
+  "database": "digiforge_tests_lane_pet",
+  "result": {
+    "tests": 4,
+    "assertions": 94,
+    "failures": 0,
+    "phpunit_test_seconds": 34.457,
+    "phpunit_allocator_peak_mib": 88.57
+  },
+  "measurement": {
+    "scope": "SYNTHETIC_TEST_ONLY",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "pixels": 1048576,
+    "limits": {
+      "max_execution_seconds": 10,
+      "max_input_bytes": 16777216,
+      "max_output_bytes": 16777216,
+      "max_pixels": 1048576,
+      "max_retries": 0,
+      "max_variants": 1
+    },
+    "elapsed_seconds": 31.313304659,
+    "stage_seconds": {
+      "prepare": 2.119126109,
+      "review": 4.379950403,
+      "render": 3.482604199,
+      "preview": 3.617219562
+    },
+    "before": {
+      "allocator_current_bytes": 71827456,
+      "allocator_peak_bytes": 71827456,
+      "process_rss_bytes": 94273536,
+      "process_rss_peak_bytes": 94273536
+    },
+    "after": {
+      "allocator_current_bytes": 76021760,
+      "allocator_peak_bytes": 92876800,
+      "process_rss_bytes": 99459072,
+      "process_rss_peak_bytes": 114139136
+    },
+    "php": "8.4.26",
+    "host_certified": false
+  },
+  "measurement_scope": {
+    "elapsed_seconds": "Starts after WordPress/test setup; includes synthetic fixture generation, prepare/review/render/preview, exact original-source and retained-preview verification and immutable API replays. Excludes process/bootstrap startup.",
+    "stage_seconds": "Wall time for each complete public workflow API, including journal/context/artifact validation.",
+    "allocator_peak": "Whole PHP worker allocated memory after peak reset before fixture construction; baseline includes loaded WordPress/plugin/test runner.",
+    "process_rss_peak": "Linux /proc/self/status VmHWM, cumulative process maximum including bootstrap. This recorded run selected only this four-test class. Earlier allocations when the test runs inside a full suite can raise VmHWM; this is not a per-stage delta or a host-capacity certificate.",
+    "fixture": "1024x1024 low-entropy synthetic white square with supplied eight-bit grayscale constant-128 matte; exact expected RGBA encoded through existing codec. No animal, segmentation, artist or supplier data."
+  },
+  "coverage": [
+    "full hard pixel boundary 1048576 and existing byte ceiling16777216",
+    "review->render->exact retained preview, unchanged original source PNG bytes/hash, and unchanged canonical journal replay",
+    "one-byte output bound fails preparation without result or GENERATED",
+    "explicit one-second review and render deadlines: one scoped journal SELECT delayed1.1seconds; attempt leaves immutable prior journal unchanged, no result, retry succeeds",
+    "cancellation denies render/preview with no result",
+    "revoked shop denies render/preview/source and leaves journal unchanged"
+  ],
+  "observations": {
+    "sum_of_four_stage_seconds": 13.598900273,
+    "all_four_stages_observed_below_explicit_ten_second_job_limit": true,
+    "entire_scenario_below_ten_seconds": false,
+    "allocator_peak_below_64_mib": false,
+    "rss_peak_below_64_mib": false
+  },
+  "qualification": {
+    "local_supported_technical_path": "PASS_FOR_THIS_SYNTHETIC_RUN",
+    "runtime_defect_reproduced": false,
+    "ten_second_end_to_end_budget_certified": false,
+    "sixty_four_mib_full_worker_budget_certified": false,
+    "host_capacity_certified": false,
+    "commercial_acceptance": false,
+    "supplier_certified": false,
+    "production_ready": false
+  },
+  "limitations": [
+    "Single local PHP8.4.26 worker and low-entropy square only; no concurrency or representative animal workload performance certification.",
+    "Measured full-worker memory exceeds64MiB before the raster work and at peak; scenario and sum of workflow stages exceed10seconds. Per-operation bounded results do not certify an end-to-end10second budget.",
+    "Injected deadlines exercise workflow rollback/gating, not OS CPU preemption or memory-limit enforcement.",
+    "No automatic retries, external calls, authentic v0.5 document, licensing, commercial/artistic acceptance, segmentation or supplier geometry inferred.",
+    "Existing hard caps, runtime code, historical compositor receipts and catalog acceptance states are unchanged."
+  ],
+  "implementation_identity": {
+    "workflow_sha256": "c159ce0268056a3fb605f41efc4e16ec3f729db01f6300976e8d591ad1d698ff",
+    "compositor_sha256": "e96131b0647fdd002d79b7bc8a473cbcac659aede32275ef78cc1343ce488159",
+    "input_preparation_sha256": "18820c74587ab16a6c12f33e4ef117924fc0a2b877f3947e5018fe192e1f4102",
+    "raster_codec_sha256": "15e690474e2582ae27e68ef143895c22cc65f4056f28a0f2b1084666a5d6e282",
+    "qualification_test_sha256": "a764cfcf6a09641bfdf943d2804cfaf802223176980de57e069df20d999a54c0"
+  },
+  "environment": {
+    "php": "8.4.26",
+    "process_memory_source": "Linux /proc/self/status VmRSS and VmHWM",
+    "worker": "WordPress PHPUnit single process, isolated uploads and disposable lane database",
+    "parallel_host_activity": "Root was independently running local ZIP tests; no isolated host-capacity measurement claimed."
+  }
+}
