@@ -25,7 +25,7 @@
   "new_transformation_workflow_coverage": "SEPARATE_WORDPRESS_TESTS_NOT_BROWSER_CREATION",
   "source_sha256": {
     "includes/Security/ShopAccessRepository.php": "e09a675c9eb2e7048be953c8df167ab77023d5648878d234ae36fc1880ce731d",
-    "includes/POD/TransformationWorkflow.php": "38c1df86060e48ed1bec210b8435e2ed54f2bde633136b488a74696e736ccdac",
+    "includes/POD/TransformationWorkflow.php": "b379afc3814711c717e809f4fe1258ab8add177ca4f82681b28713bbc85b2c58",
     "includes/Finance/SourceCompletenessReadModel.php": "d86b8e406deb7aeb98c32bff028f4b74f2f6250dff13671d104a891226c869ba",
     "tests/browser/authenticated-local-portal.cjs": "5ba8d45597032a4b8b8a377161da1f8cdfa77a301639a558491218706c90fabb"
   }

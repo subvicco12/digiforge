@@ -123,6 +123,13 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
         finally{$wpdb->query('ROLLBACK');$other->update($wpdb->options,['option_value'=>$original],['option_name'=>$name]);$other->close();$wpdb->query('START TRANSACTION');}
         self::assertWPError($result,'A stale repeatable-read snapshot exposed a job after concurrent ACL drift.');
     }
+    public function testAValidForeignShopModeReceiptCannotAuthorizeTheSelectedShop():void
+    {
+        [$r,$path,$rights]=$this->fixture('AI_TRANSFORM');$service=new DigiForge\POD\TransformationWorkflow();$mode=$this->syntheticMode($rights);ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod'],['manage_digiforge_pod']);
+        self::assertNotWPError($service->registerMode('personalized_pod',$mode));self::assertNotWPError($service->registerMode('digital',$mode));
+        global $wpdb;$foreign='df_transform_mode_'.hash('sha256','digital|'.$mode['mode'].'|'.$mode['version']);$selected='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$foreign));self::assertIsString($raw);$wpdb->update($wpdb->options,['option_value'=>$raw],['option_name'=>$selected]);
+        self::assertWPError($service->create('personalized_pod',wp_generate_uuid4(),$r,$path,$rights),'A genuine receipt from another shop cannot approve this shop mode.');
+    }
     public function testModeAuditFailureCannotLeaveAnUnauditedRegistration():void
     {
         $s=new DigiForge\POD\TransformationWorkflow();$mode=$this->authorizationMode();global $wpdb;$name='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);

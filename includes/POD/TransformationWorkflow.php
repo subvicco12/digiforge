@@ -26,7 +26,7 @@ final class TransformationWorkflow
             // Validate schema independently of required variable values.
             $fields=$mode['input_fields'];foreach($fields as &$field){if(!is_array($field))throw new \InvalidArgumentException('Typed mode fields required.');$field['required']=false;}unset($field);PersonalizationPayloadContract::validate($fields,[]);
             $name=$this->modeKey($shop,$mode['mode'],$mode['version']);$record=$mode+['shop_key'=>$shop,'reviewed_by'=>get_current_user_id()];$old=$this->option($name);if($old instanceof WP_Error)return $old;
-            if($old!==null)return Validator::canonicalJson($old)===Validator::canonicalJson($record)&&$this->auditedMode($old)?$old:self::error('immutable_mode_conflict');
+            if($old!==null)return Validator::canonicalJson($old)===Validator::canonicalJson($record)&&$this->auditedMode($old,$shop)?$old:self::error('immutable_mode_conflict');
             $saved=$this->insert($name,$record);if($saved instanceof WP_Error)return $saved;
             return Logger::write('transformation_mode_registered',['mode_sha256'=>hash('sha256',Validator::canonicalJson($record))],'transformation_mode',hash('sha256',Validator::canonicalJson($record)))?$saved:self::error('mode_audit_unavailable');
         });
@@ -39,7 +39,7 @@ final class TransformationWorkflow
             foreach(['product_version_id','template_version'] as $field)if(!is_int($request[$field]??null)||$request[$field]<1)throw new \InvalidArgumentException('Positive typed context/version required.');
             TransformationEngineContract::token($request['template_id']??null);foreach(['template_sha256','personalization_sha256'] as $field)TransformationEngineContract::hash($request[$field]??null);
             if(!is_array($request['options']??null)||!is_array($request['limits']??null))throw new \InvalidArgumentException('Typed options and explicit host bounds required.');
-            $mode=null;if($engine==='AI_TRANSFORM'){$mode=$this->option($this->modeKey($shop,TransformationEngineContract::token($request['options']['mode']??null),TransformationEngineContract::token($request['options']['mode_version']??null)));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode))return self::error('mode_audit_unavailable');}
+            $mode=null;if($engine==='AI_TRANSFORM'){$mode=$this->option($this->modeKey($shop,TransformationEngineContract::token($request['options']['mode']??null),TransformationEngineContract::token($request['options']['mode_version']??null)));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode,$shop))return self::error('mode_audit_unavailable');}
             $request['options']=TransformationEngineContract::options($engine,$version,$request['options'],$mode);$request['limits']=TransformationEngineContract::limits($request['limits']);
             $manifest=TransformationFixtureManifest::normalize($rights);if($manifest['engine_id']!==$engine||$manifest['template_id']!==$request['template_id'])throw new \InvalidArgumentException('Fixture, engine and frozen template must agree.');
             if($engine==='AI_TRANSFORM'&&(($manifest['mode']??null)!==$mode['mode']||$manifest['evidence_kind']!==$mode['evidence_kind']||!hash_equals($mode['fixture_manifest_sha256'],hash('sha256',Validator::canonicalJson($manifest)))))return self::error('mode_fixture_conflict');
@@ -113,7 +113,7 @@ final class TransformationWorkflow
     public function read(string $shop,string $key):array|WP_Error
     {
         $actor=get_current_user_id();$gate=$this->gate($shop,$key);if($gate instanceof WP_Error)return $gate;$job=$this->load($shop,$key);if($job instanceof WP_Error)return $job;if($job===null)return self::error('not_found');
-        if($job['request']['engine_id']==='AI_TRANSFORM'){$o=$job['request']['options'];$mode=$this->option($this->modeKey($shop,$o['mode'],$o['mode_version']));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode)||hash('sha256',Validator::canonicalJson($mode))!==$o['mode_sha256'])return self::error('mode_drift');}
+        if($job['request']['engine_id']==='AI_TRANSFORM'){$o=$job['request']['options'];$mode=$this->option($this->modeKey($shop,$o['mode'],$o['mode_version']));if($mode instanceof WP_Error)return $mode;if(!is_array($mode)||!$this->auditedMode($mode,$shop)||hash('sha256',Validator::canonicalJson($mode))!==$o['mode_sha256'])return self::error('mode_drift');}
         $personalization=$this->personalization($shop,$job['request'],$job['rights']);if($personalization instanceof WP_Error)return $personalization;
         $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;$rights=$this->rights($job['rights']);if($rights instanceof WP_Error)return $rights;if(isset($job['rights']['visual_fixture'])){$bound=TransformationVisualContract::bind($job['rights']['visual_fixture'],$job);if($bound instanceof WP_Error)return $bound;}
         if(isset($job['visual_review']['print_mockup'])){$mockup=$job['visual_review']['print_mockup'];$prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($mockup['storage_reference']??''),$prefix))return self::error('artifact_scope_conflict');$verified=(new RenderArtifactStore())->verify($mockup);if($verified instanceof WP_Error)return $verified;}
@@ -167,10 +167,11 @@ final class TransformationWorkflow
         }finally{if($started)$rollback();}
     }
 
-    private function auditedMode(array $mode):bool
+    private function auditedMode(array $mode,string $shop):bool
     {
+        if(($mode['shop_key']??null)!==$shop||!is_int($mode['reviewed_by']??null)||$mode['reviewed_by']<1)return false;
         global $wpdb;$hash=hash('sha256',Validator::canonicalJson($mode));$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT actor_id,context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s LIMIT 2','transformation_mode_registered','transformation_mode',$hash),ARRAY_A);
-        if(QueryEvidence::failed()||!is_array($rows)||count($rows)!==1||(int)$rows[0]['actor_id']!==($mode['reviewed_by']??null))return false;
+        if(QueryEvidence::failed()||!is_array($rows)||count($rows)!==1||(int)$rows[0]['actor_id']!==$mode['reviewed_by'])return false;
         $context=json_decode($rows[0]['context'],true);return is_array($context)&&($context['mode_sha256']??null)===$hash;
     }
     private function context(string $shop,array $request):array|WP_Error

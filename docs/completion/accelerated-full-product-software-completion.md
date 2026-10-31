@@ -27,7 +27,7 @@ The initial four transformation failures, missing-mode-audit failure, mode-drift
 | Portal/authorization | Explicit disposable shop grants, real WordPress services, native authenticated loopback browser | Local permissions and responsive views tested. No installed-site or real first-party mailbox/enrollment claim. |
 | Artistic generation | Reconciled existing source-derived catalog and visual pilot | 140 concepts remain genuinely unimplemented/contract-input-blocked for artistic generation. Import/review safety does not supply a transformation algorithm or quality approval. |
 
-Integrated selection passed 268 tests / 6,520 assertions before final transaction refinements; the affected final transformation/ACL selection passed 48 / 843. Full unit passed 1,946 / 10,413, one existing skip; configured legacy/static/standards and changed-runtime level-5 analysis passed. Final full WordPress/browser/offline/catalog/security/Action Scheduler/package and hosted audit results belong to the exact-head receipt, not a pending claim.
+Integrated selection passed 268 tests / 6,520 assertions before final transaction refinements; the affected final transformation/ACL selection passed 49 / 854. Full unit passed 1,946 / 10,413, one existing skip; configured legacy/static/standards and changed-runtime level-5 analysis passed. Final full WordPress/browser/offline/catalog/security/Action Scheduler/package and hosted audit results belong to the exact-head receipt, not a pending claim.
 
 The first integrated run used a reused disposable database and hit two retained listing quotas; both passed after resetting only `digiforge_tests`. An initial offline command omitted the local PHP PATH, causing subprocess prerequisites to fail; rerun uses the existing configured runtime, with no source/assertion weakening. Neither diagnostic is represented as a provider acceptance failure.
 
@@ -53,3 +53,13 @@ Remaining source-contract dependencies: paid POD/AI native schemas, attributable
 No additional reproducible supported P0/P1 defect was established in the other inspected/executed paths; this is bounded coverage, not proof that every Blueprint requirement is complete. Full-product engineering completion remains **NO-GO** while artistic adapters and accounting contracts are unimplemented/blocked. The bounded engineering candidate is subject to its exact-head audit. Operational/commercial release remains **NO-GO**.
 
 STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD. No production writes, live financial imports, provider mutations, privileged OWNER enrollment, payments, filing, orders, publishing, merges, deployment or activation.
+
+## Corrective certification pass
+
+Audit #4832 on `49c55dfa2c1d0d432b1a10f5587c70d3eeafdd42` failed in the offline gate: eleven package errors and three CLI assertions resulted from intentional OWNER dependency-drift protection. The packager reads committed Git blobs, so a pre-commit offline pass did not certify the subsequently committed ACL source. Historical failed evidence is retained at https://github.com/subvicco12/digiforge/actions/runs/41189757128.
+
+After reviewing the ACL changes, the dependency reference is pinned to that exact source commit and the existing `QueryEvidence` dependency is explicitly included. The private-capture inventory becomes 18 paths; the three payload hashes and immutable source commit remain unchanged. Tests continue to reject source drift, extras, fabricated approval and unsafe capture paths. This is dependency-review metadata, not production installation or rollback approval; raw preimages and restore evidence remain absent. The 22 narrow-package regressions pass without weakening safeguards.
+
+The same corrective pass first reproduced acceptance of a valid foreign-shop mode receipt copied into the selected registry. Exact selected-shop binding and a positive typed original reviewer are now mandatory even when the receipt hash is genuine. `testAValidForeignShopModeReceiptCannotAuthorizeTheSelectedShop` covers this independent source-substitution case.
+
+The preceding local full WordPress run passed 1,580 tests / 27,104 assertions with two existing skips; the final receipt-scope correction is covered by the 49-test focused suite and final exact-head full hosted suite. No earlier full run is relabeled as certification of changed code. Final audit/tests/artifacts are recorded in issue #1209 after completion.

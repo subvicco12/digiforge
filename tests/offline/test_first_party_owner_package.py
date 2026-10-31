@@ -27,6 +27,9 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
+    def test_current_shop_access_query_dependency_is_explicit(self):
+        self.assertIn('includes/Database/QueryEvidence.php', self.module().DEPENDENCIES)
+
     def capture(self, module, root):
         for name in module.DEPENDENCIES + module.PAYLOADS[1:]:
             target = root / name
@@ -43,7 +46,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             self.assertEqual('LOCAL_FILES_PRESENT_DEPENDENCIES_MATCH', result['capture_status'])
             for key in ['production_source_verified', 'deployment_authorized', 'rollback_tested', 'mailbox_possession_verified']:
                 self.assertFalse(result[key])
-            self.assertEqual(17, len(result['capture_files']))
+            self.assertEqual(18, len(result['capture_files']))
             self.assertEqual('ABSENT_IN_LOCAL_CAPTURE', result['capture_files'][0]['capture_state'])
             self.assertEqual(before, {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*') if p.is_file()})
             self.assertEqual(3, len(m.PAYLOADS))
@@ -152,7 +155,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
             self.assertEqual(2, result.returncode)
             self.assertNotIn(marker, result.stdout + result.stderr)
             report = json.loads(result.stdout)
-            self.assertEqual(17, len(report['capture_files']))
+            self.assertEqual(18, len(report['capture_files']))
             self.assertNotIn('wp-config.php', result.stdout)
             self.assertFalse(report['production_source_verified'])
 
@@ -193,7 +196,7 @@ class FirstPartyOwnerPackageTests(unittest.TestCase):
         m = self.module()
         blob, manifest = m.build()
         self.assertEqual('aa8b687501450f0e243c4aa9854e9089a44a76b5', manifest['source_commit'])
-        self.assertEqual('27a6d7bd180732f6de1c148abac8ecaf68694f62', manifest['dependency_reference_commit'])
+        self.assertEqual('49c55dfa2c1d0d432b1a10f5587c70d3eeafdd42', manifest['dependency_reference_commit'])
         with zipfile.ZipFile(io.BytesIO(blob)) as archive:
             for path in m.PAYLOADS:
                 self.assertEqual(m._source(path, m.SOURCE_COMMIT), archive.read(path))
