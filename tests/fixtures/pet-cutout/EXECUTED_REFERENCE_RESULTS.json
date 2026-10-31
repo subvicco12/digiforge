@@ -1,0 +1,102 @@
+{
+  "scope": "NEW_SYNTHETIC_MASK_COMPOSITION_REFERENCE_ONLY",
+  "checks": 22,
+  "failed": 0,
+  "results": [
+    {
+      "case": "opaque_rgb_retained",
+      "result": "PASS"
+    },
+    {
+      "case": "source_alpha_multiplied_with_mask",
+      "result": "PASS"
+    },
+    {
+      "case": "zero_alpha_rgb_canonical",
+      "result": "PASS"
+    },
+    {
+      "case": "mask_removes_background",
+      "result": "PASS"
+    },
+    {
+      "case": "transparent_canvas",
+      "result": "PASS"
+    },
+    {
+      "case": "retained_pixels_replay",
+      "result": "PASS"
+    },
+    {
+      "case": "preview_identity_uses_final",
+      "result": "PASS"
+    },
+    {
+      "case": "box_rounding_known_oracle",
+      "result": "PASS"
+    },
+    {
+      "case": "premultiplied_no_black_halo",
+      "result": "PASS"
+    },
+    {
+      "case": "preview_downsample_from_retained_final",
+      "result": "PASS"
+    },
+    {
+      "case": "mask_dimension_mismatch",
+      "result": "PASS"
+    },
+    {
+      "case": "crop_outside_image",
+      "result": "PASS"
+    },
+    {
+      "case": "subject_crop_clipping",
+      "result": "PASS"
+    },
+    {
+      "case": "placement_clipping",
+      "result": "PASS"
+    },
+    {
+      "case": "empty_mask",
+      "result": "PASS"
+    },
+    {
+      "case": "invalid_matte_depth",
+      "result": "PASS"
+    },
+    {
+      "case": "unapproved_text",
+      "result": "PASS"
+    },
+    {
+      "case": "float_scale_or_coordinates",
+      "result": "PASS"
+    },
+    {
+      "case": "unsupported_resampler",
+      "result": "PASS"
+    },
+    {
+      "case": "fractional_box_alignment",
+      "result": "PASS"
+    },
+    {
+      "case": "production_flag_not_authority",
+      "result": "PASS"
+    },
+    {
+      "case": "reference_work_limit",
+      "result": "PASS"
+    }
+  ],
+  "python_pixel_sha256": "d32170d7705d303d415e65e2d92064605d09fe465e157ca356a8ae38f685f6db",
+  "png_sha256": "c821283202634b978f4cb52675b81ccf0e9428f39203c0abfecb4a04fdbe7c84",
+  "source_preparer_tests_repeated": false,
+  "semantic_subject_detection": "NOT_EXECUTED",
+  "artistic_review": "NOT_EXECUTED",
+  "production_template": "MISSING",
+  "runtime_integration": "NOT_EXECUTED"
+}

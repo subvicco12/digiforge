@@ -75,6 +75,45 @@ final class TransformationWorkflow
             return $this->append($shop,$key,$job,array_replace($job,['prepared_input'=>$stored,'pet_input_preparation'=>$prepared['receipt']]));
         });
     }
+    /** Separate offline recipe envelope; never broadens the existing request/options contract. */
+    public function reviewPetComposition(string $shop,string $key,string $mattePath,array $parameters,array $annotation):array|WP_Error
+    {
+        return $this->run($shop,$key,function()use($shop,$key,$mattePath,$parameters,$annotation){
+            $started=hrtime(true);$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;
+            if($job['request']['engine_id']!=='PET_PORTRAIT'||$job['state']!=='INPUT_VERIFIED'||!isset($job['prepared_input']))return self::error('cutout_review_prerequisite');
+            $context=$this->context($shop,$job['request']);if($context instanceof WP_Error)return $context;if(count($context['print_areas'])!==1)return self::error('cutout_one_area_required');
+            $p=PetCutoutCompositor::parameters($parameters);$fields=['subject_selection','pose','tool','tool_version','history','border_contacts','critical_features'];TransformationEngineContract::exact($annotation,$fields);foreach($fields as $f)if(!is_string($annotation[$f]??null)||$annotation[$f]===''||strlen($annotation[$f])>1000||!preg_match('//u',$annotation[$f]))throw new \InvalidArgumentException('Explicit bounded selection, tool/history and critical-feature review required.');
+            $matte=$this->inspect($mattePath,$job['request']['limits'],'input');if($matte instanceof WP_Error)return $matte;$bytes=@file_get_contents($mattePath,false,null,0,$job['request']['limits']['max_input_bytes']+1);if(!is_string($bytes)||hash('sha256',$bytes)!==$matte['sha256'])return self::error('cutout_matte_drift');
+            PetCutoutCompositor::matte($bytes,$job['prepared_input']['width_px'],$job['prepared_input']['height_px'],$job['request']['limits']);
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('cutout_review_limit');
+            if(isset($job['pet_composition'])){$old=$job['pet_composition'];return $old['matte']['sha256']===$matte['sha256']&&$old['reviewed_by']===get_current_user_id()&&Validator::canonicalJson($old['parameters'])===Validator::canonicalJson($p)&&Validator::canonicalJson($old['annotation'])===Validator::canonicalJson($annotation)?$job:self::error('immutable_composition_conflict');}
+            $stored=(new RenderArtifactStore())->retain($mattePath,$matte,$shop);if($stored instanceof WP_Error)return $stored;
+            $e=['version'=>'pet-composition-review-v1','job_sha256'=>$job['job_hash'],'source_sha256'=>$job['source']['sha256'],'prepared_sha256'=>$job['prepared_input']['sha256'],'parameters'=>$p,'annotation'=>$annotation,'matte'=>$stored,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>$job['pet_composition']['reviewed_at']??gmdate('Y-m-d H:i:s'),'evidence_kind'=>$job['rights']['evidence_kind'],'semantic_subject_count'=>'UNKNOWN','independent_artistic_review'=>'NOT_ESTABLISHED','production_ready'=>false];$e['review_sha256']=hash('sha256',Validator::canonicalJson($e));
+            return $this->append($shop,$key,$job,array_replace($job,['pet_composition'=>$e]));
+        });
+    }
+    public function renderPetCutout(string $shop,string $key):array|WP_Error
+    {
+        return $this->run($shop,$key,function()use($shop,$key){
+            $started=hrtime(true);$job=$this->read($shop,$key);if($job instanceof WP_Error)return $job;
+            if($job['request']['engine_id']!=='PET_PORTRAIT'||!isset($job['pet_composition'])||!in_array($job['state'],['INPUT_VERIFIED','GENERATED'],true))return self::error('cutout_render_prerequisite');
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('cutout_render_limit');
+            if(isset($job['pet_render']))return $job;if($job['state']!=='INPUT_VERIFIED')return self::error('immutable_result_conflict');$render=$this->petCutoutEvidence($job);
+            if($render['receipt']['output_sha256']!==$job['rights']['result_asset_sha256'])return self::error('result_fixture_conflict');
+            $tmp=tempnam(sys_get_temp_dir(),'df-pet-cutout-');if(!is_string($tmp))return self::error('cutout_output_unavailable');
+            try{if(file_put_contents($tmp,$render['png'],LOCK_EX)!==strlen($render['png']))return self::error('cutout_output_unavailable');$metadata=$this->inspect($tmp,$job['request']['limits'],'output');if($metadata instanceof WP_Error)return $metadata;$stored=(new RenderArtifactStore())->retain($tmp,$metadata,$shop);if($stored instanceof WP_Error)return $stored;}finally{if(is_file($tmp))unlink($tmp);}
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('cutout_render_limit');
+            $attribution=['evidence_kind'=>$job['rights']['evidence_kind'],'provider'=>'offline_php','model'=>PetCutoutCompositor::ID,'prompt_version'=>'recipe-'.PetCutoutCompositor::VERSION,'config_sha256'=>$job['pet_composition']['review_sha256']];
+            return $this->append($shop,$key,$job,array_replace($job,['state'=>'GENERATED','result'=>$stored,'pet_render'=>$render['receipt'],'attribution'=>$attribution]));
+        });
+    }
+    private function petCutoutEvidence(array $job):array
+    {
+        $limits=$job['request']['limits'];$path=AssetStorage::absolutePath($job['prepared_input']['storage_reference']);$mattePath=AssetStorage::absolutePath($job['pet_composition']['matte']['storage_reference']);
+        $source=$path===null?false:@file_get_contents($path,false,null,0,$limits['max_output_bytes']+1);$matte=$mattePath===null?false:@file_get_contents($mattePath,false,null,0,$limits['max_input_bytes']+1);
+        if(!is_string($source)||!is_string($matte)||hash('sha256',$source)!==$job['prepared_input']['sha256']||hash('sha256',$matte)!==$job['pet_composition']['matte']['sha256'])throw new \InvalidArgumentException('Bounded reviewed source/matte changed.');
+        $r=PetCutoutCompositor::render($source,$matte,$job['pet_composition']['parameters'],$limits,$job['rights']['evidence_kind']==='SYNTHETIC_TEST_ONLY'?'SYNTHETIC_TEST_ONLY':'OFFLINE_TECHNICAL_ONLY');unset($r['receipt']['receipt_sha256']);$r['receipt']+=['job_sha256'=>$job['job_hash'],'original_source_sha256'=>$job['source']['sha256'],'preparation_receipt_sha256'=>$job['pet_input_preparation']['receipt_sha256'],'composition_review_sha256'=>$job['pet_composition']['review_sha256']];$r['receipt']['receipt_sha256']=hash('sha256',Validator::canonicalJson($r['receipt']));return $r;
+    }
     /** Exact retained-result preview; no artist, resampling, mask or approval is executed. */
     public function preparePetPreview(string $shop,string $key):array|WP_Error
     {
@@ -171,6 +210,14 @@ final class TransformationWorkflow
             $original=@file_get_contents($originalPath,false,null,0,$job['request']['limits']['max_input_bytes']+1);$prepared=@file_get_contents($preparedPath,false,null,0,$job['request']['limits']['max_output_bytes']+1);
             if(!is_string($original)||!is_string($prepared))return self::error('artifact_unavailable');
             try{PetSingleSubjectInput::verify($original,$prepared,$job['pet_input_preparation'],$job['request']['limits']);}catch(\Throwable){return self::error('pet_preparation_drift');}
+        }
+        if(isset($job['pet_composition'])){
+            $e=$job['pet_composition'];if(count($context['print_areas'])!==1)return self::error('cutout_one_area_required');if($job['request']['engine_id']!=='PET_PORTRAIT'||($e['version']??null)!=='pet-composition-review-v1'||!is_int($e['reviewed_by']??null)||$e['reviewed_by']<1)return self::error('cutout_review_drift');$reviewer=ShopAccess::authorize($shop,'manage_digiforge_pod',(int)($e['reviewed_by']??0));if($reviewer instanceof WP_Error)return $reviewer;
+            $prefix=AssetStorage::RELATIVE_ROOT.'/pod-render-artifacts/shop-'.$shop.'/';if(!str_starts_with((string)($e['matte']['storage_reference']??''),$prefix)||($e['job_sha256']??null)!==$job['job_hash']||($e['source_sha256']??null)!==$job['source']['sha256']||($e['prepared_sha256']??null)!==($job['prepared_input']['sha256']??null))return self::error('cutout_review_drift');
+            $verified=(new RenderArtifactStore())->verify($e['matte']);if($verified instanceof WP_Error)return $verified;$hash=$e['review_sha256'];unset($e['review_sha256']);if(!hash_equals($hash,hash('sha256',Validator::canonicalJson($e))))return self::error('cutout_review_drift');
+        }
+        if(isset($job['pet_render'])){
+            try{$render=$this->petCutoutEvidence($job);if(Validator::canonicalJson($render['receipt'])!==Validator::canonicalJson($job['pet_render'])||$render['receipt']['output_sha256']!==($job['result']['sha256']??null)||$render['receipt']['output_sha256']!==$job['rights']['result_asset_sha256'])return self::error('cutout_render_drift');}catch(\Throwable){return self::error('cutout_render_drift');}
         }
         if(isset($job['preview'])!==isset($job['pet_preview']))return self::error('pet_preview_evidence');
         if(isset($job['preview'])){

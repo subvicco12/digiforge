@@ -1,0 +1,101 @@
+{
+    "scope": "SYNTHETIC_OFFLINE_TECHNICAL_ONLY",
+    "php": "8.4.26",
+    "zlib": "1.3.1",
+    "receipt": {
+        "recipe_id": "PET_SOURCE_FAITHFUL_CUTOUT_001",
+        "recipe_version": "0.1.0",
+        "source_contract_sha256": "8dacaf17b27ce59bce0f630cf8db32cf96ffc70e337bafd5473aedbc8e765edc",
+        "recipe_sha256": "ddfa26665c6c7745b5b4d1ae7bdda0470c61b112b20118d1c6077d2250103dbf",
+        "prepared_sha256": "8b59e9127f0028760276136ea33222ac4c3ae62b0fea56c29d808ddf694fdaa8",
+        "matte_sha256": "8bc86c645f2aaea26380a73fae5d3daea5d70be678e6cba3e303ba4874d5ed13",
+        "parameters": {
+            "recipe_id": "PET_SOURCE_FAITHFUL_CUTOUT_001",
+            "recipe_version": "0.1.0",
+            "crop": [
+                0,
+                0,
+                2,
+                2
+            ],
+            "canvas": [
+                4,
+                4
+            ],
+            "placement": [
+                1,
+                1
+            ],
+            "reduction": 1
+        },
+        "parameters_sha256": "0d3eca61c384b90bd95f25bcec1983ab636888bd5bc457a92c25ab3943d811ae",
+        "output_sha256": "c821283202634b978f4cb52675b81ccf0e9428f39203c0abfecb4a04fdbe7c84",
+        "pixel_sha256": "d32170d7705d303d415e65e2d92064605d09fe465e157ca356a8ae38f685f6db",
+        "backend": {
+            "php": "8.4.26",
+            "zlib": "1.3.1",
+            "codec": "bounded-png-v1",
+            "implementation_sha256": "e96131b0647fdd002d79b7bc8a473cbcac659aede32275ef78cc1343ce488159"
+        },
+        "backend_sha256": "034a4863a0f56048c4d6799a7c51bc26e0f276e334fb696c517edc29ee232377",
+        "limits_sha256": "db3925f56adc65c9aa89ea82d5d177e21a8d159381f7dce5cd72689904834bf8",
+        "scope": "SYNTHETIC_TEST_ONLY",
+        "semantic_subject_count": "UNKNOWN",
+        "segmentation_executed": false,
+        "commercial_quality_certified": false,
+        "supplier_certified": false,
+        "production_ready": false,
+        "receipt_sha256": "76e63c08aef96e8349aa3d035249a452f2a163cd410d12088abdcb591f109745"
+    },
+    "preview": {
+        "version": "pet-final-preview-v1",
+        "final_sha256": "c821283202634b978f4cb52675b81ccf0e9428f39203c0abfecb4a04fdbe7c84",
+        "final_pixel_sha256": "d32170d7705d303d415e65e2d92064605d09fe465e157ca356a8ae38f685f6db",
+        "preview_sha256": "5518f1e069bd9d39f1c1d91f20e49e0f27a8986390e2a0be86c1ce98485bb612",
+        "preview_pixel_sha256": "7d3ea0266bf049dfb12ac3dd28c839735c77176a2c6ec159397edfd717838211",
+        "factor": 2,
+        "algorithm": "PREMULTIPLIED_INTEGER_BOX_0.1.0",
+        "parameters_sha256": "a78b03b402757be2c98ae18900374508fd80ca8be73522aa2e17898cc25e68ce",
+        "backend_sha256": "6162ec1e305138673b38a942336b8136a8f5417d55894e81cb5592ab2eca4604",
+        "source": "RETAINED_FINAL_PIXELS",
+        "production_ready": false,
+        "receipt_sha256": "b4a4954661bf4059fb5407c2a311831147f56e06f2982117b72f48577d47ba67"
+    },
+    "benchmarks": [
+        {
+            "source_pixels": 1048576,
+            "canvas_pixels": 1048576,
+            "factor": 1,
+            "seconds": 1.29585414,
+            "process_peak_allocated_bytes": 21049344,
+            "png_bytes": 5705,
+            "png_sha256": "1ed58429f130296ad7c356114eaaaf5db2e9b5a58d8cc5b3f04e32e41cb56e44"
+        },
+        {
+            "source_pixels": 1048576,
+            "canvas_pixels": 1048576,
+            "factor": 2,
+            "seconds": 1.194877692,
+            "process_peak_allocated_bytes": 21049344,
+            "png_bytes": 6269,
+            "png_sha256": "c82e560156adbb2001b9d8489f907a07564719dfff691ee4f6978d1669d06726"
+        },
+        {
+            "source_pixels": 1048576,
+            "canvas_pixels": 1048576,
+            "factor": 4,
+            "seconds": 0.99973526,
+            "process_peak_allocated_bytes": 21049344,
+            "png_bytes": 5085,
+            "png_sha256": "52212d8a48fb4974299f85725ee6a54f3160a0235c814eaf01553b5ce69c00d0"
+        }
+    ],
+    "ten_second_host_budget_certified": false,
+    "sixty_four_mib_worker_certified": false,
+    "benchmark_limit_seconds": 30,
+    "host_review_required": true,
+    "memory_measurement": "PHP allocated peak, cumulative process; not RSS or a WordPress worker certification",
+    "source_preserved": true,
+    "commercial_quality_certified": false,
+    "supplier_certified": false
+}
