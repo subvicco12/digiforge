@@ -68,7 +68,7 @@ final class SourceCompletenessReadModel
         $invalidOrderRows = 0;
         foreach ($orders as $row) {
             $rawId = is_array($row) ? ($row['id'] ?? null) : null;
-            if (!is_scalar($rawId) || !ctype_digit((string) $rawId) || (int) $rawId < 1) {
+            if (self::identity($rawId) === null) {
                 ++$invalidOrderRows;
                 continue;
             }
@@ -79,7 +79,7 @@ final class SourceCompletenessReadModel
         $invalidRevenueRows = 0;
         foreach ($revenue as $row) {
             $rawId = is_array($row) ? ($row['source_id'] ?? null) : null;
-            if (!is_scalar($rawId) || !ctype_digit((string) $rawId) || (int) $rawId < 1) {
+            if (self::identity($rawId) === null) {
                 ++$invalidRevenueRows;
                 continue;
             }
@@ -122,4 +122,14 @@ final class SourceCompletenessReadModel
             'external_execution_authorized' => false,
         ];
     }
+    /** Never let a float/boolean or an overflowing decimal collapse distinct stored identities. */
+    private static function identity(mixed $value): ?int
+    {
+        if(is_int($value))return $value>0?$value:null;
+        if(!is_string($value)||!ctype_digit($value))return null;
+        $digits=ltrim($value,'0');$maximum=(string)PHP_INT_MAX;
+        if($digits===''||strlen($digits)>strlen($maximum)||(strlen($digits)===strlen($maximum)&&strcmp($digits,$maximum)>0))return null;
+        return (int)$digits;
+    }
+
 }

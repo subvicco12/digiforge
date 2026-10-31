@@ -1,16 +1,28 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Security;
+use DigiForge\Database\QueryEvidence;
 
 /** Local explicit ACL ledger. No bootstrap, HTTP, activation, or provider authority. */
 final class ShopAccessRepository
 {
+    /** Lock the existing revocation snapshot before a caller's transaction takes any consistent reads. */
+    public function lockCurrent(string $shop):array|\WP_Error
+    {
+        if(!ShopAccessPolicy::validShop($shop))return self::error('shop');
+        global $wpdb;$wpdb->last_error='';$active=$wpdb->get_var('SELECT @@session.in_transaction');
+        if(QueryEvidence::failed()||(string)$active!=='1')return self::error('transaction',503);
+        $wpdb->last_error='';$value=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s FOR UPDATE',self::key($shop)));
+        if(QueryEvidence::failed()||!is_string($value))return self::error('lock',503);
+        $state=$this->read($shop);if($state instanceof \WP_Error)return $state;
+        return $state===json_decode($value,true)?$state:self::error('revision',409);
+    }
     public function read(string $shop): array|\WP_Error
     {
         if(!ShopAccessPolicy::validShop($shop))return self::error('shop');
         global $wpdb;$wpdb->last_error='';
         $value=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",self::key($shop)));
-        if($wpdb->last_error!=='')return self::error('read',503);
+        if(QueryEvidence::failed())return self::error('read',503);
         if($value===null){$state=['revision'=>0,'grants'=>[]];$proof=$this->verifyLifecycle($shop,$state);return $proof instanceof \WP_Error?$proof:$state;}
         if(!is_string($value)||strlen($value)>1048576)return self::error('corrupt');
         $state=json_decode($value,true);
@@ -24,11 +36,11 @@ final class ShopAccessRepository
         global $wpdb;$wpdb->last_error='';
         // Enumerate both sides: a missing audit must not hide a retained revocation event.
         $eventKeys=$wpdb->get_col($wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s AND CASE WHEN JSON_VALID(option_value) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(option_value,'$.shop'))=BINARY %s ELSE false END LIMIT 1001",$wpdb->esc_like('digiforge_shop_access_event_').'%',$shop));
-        if($wpdb->last_error!==''||!is_array($eventKeys))return self::error('lifecycle_event_read',503);
+        if(QueryEvidence::failed()||!is_array($eventKeys))return self::error('lifecycle_event_read',503);
         if(count($eventKeys)>1000||count($eventKeys)!==$state['revision'])return self::error('lifecycle_revision');
         $wpdb->last_error='';
         $rows=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,object_id,context FROM '.\DigiForge\Database\Tables::audit_log()." WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke') AND CASE WHEN JSON_VALID(context) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.shop'))=BINARY %s ELSE false END ORDER BY id ASC LIMIT 1001",$shop),ARRAY_A);
-        if($wpdb->last_error!==''||!is_array($rows))return self::error('lifecycle_read',503);
+        if(QueryEvidence::failed()||!is_array($rows))return self::error('lifecycle_read',503);
         if(count($rows)>1000||count($rows)!==$state['revision'])return self::error('lifecycle_revision');
         $grants=[];$revision=0;
         foreach($rows as $row){
@@ -38,7 +50,7 @@ final class ShopAccessRepository
             $eventId=hash('sha256',$shop.':'.$request);$wpdb->last_error='';
             if(!in_array('digiforge_shop_access_event_'.$eventId,$eventKeys,true))return self::error('lifecycle_event');
             $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",'digiforge_shop_access_event_'.$eventId));
-            if($wpdb->last_error!=='')return self::error('lifecycle_event_read',503);
+            if(QueryEvidence::failed())return self::error('lifecycle_event_read',503);
             if(!is_string($raw)||strlen($raw)>16384||json_decode($raw,true)!==$event)return self::error('lifecycle_event');
             if($action==='GRANT'){
                 if(isset($grants[$id])||$id!==$eventId||$grant['revoked']||$grant['grantor_id']!==$event['actor_id'])return self::error('lifecycle_grant');
@@ -57,13 +69,13 @@ final class ShopAccessRepository
     {
         global $wpdb;$wpdb->last_error='';
         $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",'digiforge_shop_access_event_'.$id));
-        if($wpdb->last_error!=='')return self::error('grant_evidence_read',503);
+        if(QueryEvidence::failed())return self::error('grant_evidence_read',503);
         if(!is_string($raw)||strlen($raw)>16384)return self::error('grant_evidence');
         $event=json_decode($raw,true);
         if(!is_array($event)||($event['action']??null)!=='GRANT'||($event['grant_id']??null)!==$id||($event['shop']??null)!==$grant['shop']||($event['actor_id']??null)!==$grant['grantor_id']||($event['grant']??null)!==$grant||!is_int($event['revision']??null)||$event['revision']<1||$event['revision']>$revision||!is_int($event['created_at']??null)||!is_string($event['request_id']??null)||!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$event['request_id'])||!hash_equals($id,hash('sha256',$grant['shop'].':'.$event['request_id'])))return self::error('grant_evidence');
         $wpdb->last_error='';
         $audit=$wpdb->get_var($wpdb->prepare('SELECT context FROM '.\DigiForge\Database\Tables::audit_log()." WHERE event_type='shop_access_grant' AND object_type='shop_access' AND object_id=%s AND actor_id=%d ORDER BY id DESC LIMIT 1",$id,$grant['grantor_id']));
-        if($wpdb->last_error!=='')return self::error('grant_audit_read',503);
+        if(QueryEvidence::failed())return self::error('grant_audit_read',503);
         if(!is_string($audit)||strlen($audit)>16384||json_decode($audit,true)!==$event)return self::error('grant_audit');
         return true;
     }
@@ -97,15 +109,15 @@ final class ShopAccessRepository
         global $wpdb;$wpdb->last_error='';
         foreach([$wpdb->options,\DigiForge\Database\Tables::audit_log()] as $table){
             $engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));
-            if($wpdb->last_error!==''||!is_string($engine)||strtoupper($engine)!=='INNODB')return self::error('transaction_storage',503);
+            if(QueryEvidence::failed()||!is_string($engine)||strtoupper($engine)!=='INNODB')return self::error('transaction_storage',503);
         }
-        if($wpdb->query('START TRANSACTION')===false||$wpdb->last_error!=='')return self::error('transaction',503);
+        if($wpdb->query('START TRANSACTION')===false||QueryEvidence::failed())return self::error('transaction',503);
         $fail=static function(\WP_Error $error)use($wpdb):\WP_Error{$wpdb->query('ROLLBACK');return $error;};
         $key=self::key($shop);
         $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options} (option_name,option_value,autoload) VALUES (%s,%s,'no')",$key,'{"revision":0,"grants":[]}'));
-        if($wpdb->last_error!=='')return $fail(self::error('write',503));
+        if(QueryEvidence::failed())return $fail(self::error('write',503));
         $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s FOR UPDATE",$key));
-        if($wpdb->last_error!=='')return $fail(self::error('lock',503));
+        if(QueryEvidence::failed())return $fail(self::error('lock',503));
         $state=$this->read($shop);if($state instanceof \WP_Error)return $fail($state);
         if($state['revision']!==$expectedRevision)return $fail(self::error('revision',409));
         if($revoke!==null){
@@ -128,13 +140,13 @@ final class ShopAccessRepository
         $event=['request_id'=>$requestId,'action'=>$revoke===null?'GRANT':'REVOKE','actor_id'=>$actor,'grant_id'=>$id,'shop'=>$shop,'revision'=>$expectedRevision+1,'grant'=>$grant,'created_at'=>time()];
         $eventKey='digiforge_shop_access_event_'.hash('sha256',$shop.':'.$requestId);
         $existingEvent=$wpdb->get_var($wpdb->prepare("SELECT option_id FROM {$wpdb->options} WHERE option_name=%s",$eventKey));
-        if($wpdb->last_error!=='')return $fail(self::error('read',503));
+        if(QueryEvidence::failed())return $fail(self::error('read',503));
         if($existingEvent!==null)return $fail(self::error('replay',409));
         if($wpdb->insert($wpdb->options,['option_name'=>$eventKey,'option_value'=>wp_json_encode($event),'autoload'=>'no'])!==1)return $fail(self::error('replay_or_write',409));
         if(!Logger::write('shop_access_'.strtolower($event['action']),$event,'shop_access',$id))return $fail(self::error('audit',503));
         $state['grants'][$id]=$grant;$state['revision']++;
-        if($wpdb->update($wpdb->options,['option_value'=>wp_json_encode($state)],['option_name'=>$key])!==1||$wpdb->last_error!=='')return $fail(self::error('write',503));
-        if($wpdb->query('COMMIT')===false||$wpdb->last_error!=='')return self::error('commit_uncertain',503);
+        if($wpdb->update($wpdb->options,['option_value'=>wp_json_encode($state)],['option_name'=>$key])!==1||QueryEvidence::failed())return $fail(self::error('write',503));
+        if($wpdb->query('COMMIT')===false||QueryEvidence::failed())return self::error('commit_uncertain',503);
         return ['grant_id'=>$id,'revision'=>$state['revision'],'shop'=>$shop,'action'=>$event['action'],'external_execution_authorized'=>false];
     }
     private static function key(string $shop): string{return 'digiforge_shop_access_state_'.$shop;}

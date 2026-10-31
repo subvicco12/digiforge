@@ -55,6 +55,13 @@ final class FinanceSourceCompletenessReadModelTest extends TestCase
             'covered revenue with costs unverified' => [[['id' => 7]], [['source_id' => 7]], 'REVENUE_COVERED_COSTS_UNVERIFIED', []],
             'unmatched revenue record' => [[['id' => 7]], [['source_id' => 7], ['source_id' => 8]], 'UNMATCHED_REVENUE_EVIDENCE', []],
             'duplicate revenue record' => [[['id' => 7]], [['source_id' => 7], ['source_id' => 7]], 'DUPLICATE_REVENUE_EVIDENCE', []],
+            'maximum exact integer identity' => [[['id' => (string)PHP_INT_MAX]], [['source_id' => (string)PHP_INT_MAX]], 'REVENUE_COVERED_COSTS_UNVERIFIED', []],
+            'overflow order identity' => [[['id' => (string)PHP_INT_MAX.'0']], [], 'INVALID_SOURCE_EVIDENCE', []],
+            'overflow revenue identity' => [[], [['source_id' => (string)PHP_INT_MAX.'0']], 'INVALID_SOURCE_EVIDENCE', []],
+            'boolean order identity' => [[['id' => true]], [], 'INVALID_SOURCE_EVIDENCE', []],
+            'boolean revenue identity' => [[], [['source_id' => true]], 'INVALID_SOURCE_EVIDENCE', []],
+            'float order identity' => [[['id' => 1.0]], [], 'INVALID_SOURCE_EVIDENCE', []],
+            'float revenue identity' => [[], [['source_id' => 1.0]], 'INVALID_SOURCE_EVIDENCE', []],
             'malformed order evidence' => [[['id' => 'invalid']], [], 'INVALID_SOURCE_EVIDENCE', []],
             'malformed revenue evidence' => [[], [['source_id' => 'invalid']], 'INVALID_SOURCE_EVIDENCE', []],
         ];

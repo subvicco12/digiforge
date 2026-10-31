@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "chromium_version": "154.0.8037.57",
+  "node_version": "v24.19.0",
+  "scope": "native_loopback_wordpress_login_and_portal_under_locks",
+  "checks": 311,
+  "requests": 498,
+  "blocked_requests": 0,
+  "widths": [
+    390,
+    768,
+    1280
+  ],
+  "business_tables_unchanged": 47,
+  "stop_all": true,
+  "external_locked": true,
+  "automation_armed": false,
+  "external_requests": 0,
+  "business_row_mutations": 0,
+  "fixture_bootstrap_ddl_statements": 0,
+  "consent_detail": "Browser proves locked denial; downstream expiry/replay/receipt-failure branches also retain native PortalResearchRunAcceptanceTest coverage. No installed-site or supplier certification.",
+  "schema": "digiforge-accelerated-full-product-browser-v1",
+  "baseline": "e4b6f11a8dd942103f00479e7dde8f4f524de26b",
+  "installed_site_acceptance": false,
+  "new_transformation_workflow_coverage": "SEPARATE_WORDPRESS_TESTS_NOT_BROWSER_CREATION",
+  "source_sha256": {
+    "includes/Security/ShopAccessRepository.php": "e09a675c9eb2e7048be953c8df167ab77023d5648878d234ae36fc1880ce731d",
+    "includes/POD/TransformationWorkflow.php": "38c1df86060e48ed1bec210b8435e2ed54f2bde633136b488a74696e736ccdac",
+    "includes/Finance/SourceCompletenessReadModel.php": "d86b8e406deb7aeb98c32bff028f4b74f2f6250dff13671d104a891226c869ba",
+    "tests/browser/authenticated-local-portal.cjs": "5ba8d45597032a4b8b8a377161da1f8cdfa77a301639a558491218706c90fabb"
+  }
+}

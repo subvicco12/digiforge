@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 
 /** Synthetic local fixtures exercise software only; no likeness, licensing or supplier certification. */
 final class FiveEngineArchitectureTest extends WP_UnitTestCase
@@ -16,7 +17,7 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
 
     private array $policiesBefore=[];
     private array $tableFloors=[];
-    protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();global $wpdb;$this->policiesBefore=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::shop_ai_policies(),ARRAY_A);foreach(['research_candidates','research_reviews','opportunities','product_families','products','product_versions','pod_production_templates','orders','order_line_items','personalization_schemas','personalization_submissions','integrations','audit_log','shop_ai_policies','shop_ai_usage'] as $method){$table=DigiForge\Database\Tables::{$method}();$this->tableFloors[$table]=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0) FROM '.$table);}$this->tableFloors[$wpdb->options]=(int)$wpdb->get_var('SELECT COALESCE(MAX(option_id),0) FROM '.$wpdb->options);DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+    protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();global $wpdb;$this->policiesBefore=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::shop_ai_policies(),ARRAY_A);foreach(['research_candidates','research_reviews','opportunities','product_families','products','product_versions','pod_production_templates','orders','order_line_items','personalization_schemas','personalization_submissions','integrations','audit_log','shop_ai_policies','shop_ai_usage'] as $method){$table=DigiForge\Database\Tables::{$method}();$this->tableFloors[$table]=(int)$wpdb->get_var('SELECT COALESCE(MAX(id),0) FROM '.$table);}$this->tableFloors[$wpdb->options]=(int)$wpdb->get_var('SELECT COALESCE(MAX(option_id),0) FROM '.$wpdb->options);DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod']);}
     private function fixture(string $engine='PET_PORTRAIT'):array
     {
         $r=new DigiForge\Research\Repository();$c=$r->createCandidate(['shop_key'=>'personalized_pod','title'=>'Synthetic engine '.wp_generate_uuid4()]);self::assertNotWPError($c);self::assertNotWPError($r->review((int)$c['id'],'APPROVED','Synthetic architecture fixture'));$o=$r->promote((int)$c['id']);self::assertNotWPError($o);
@@ -33,7 +34,7 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
     }
     private array $paths=[];
     protected function tearDown():void {global $wpdb;foreach($this->tableFloors as $table=>$floor){$wpdb->query('DELETE FROM '.$table.' WHERE '.($table===$wpdb->options?'option_id':'id').'>'.(int)$floor);}$table=DigiForge\Database\Tables::shop_ai_policies();$ids=array_column($this->policiesBefore,'id');$wpdb->query('DELETE FROM '.$table.($ids!==[]?' WHERE id NOT IN ('.implode(',',array_map('intval',$ids)).')':''));foreach($this->policiesBefore as $row){$id=$row['id'];unset($row['id']);$wpdb->update($table,$row,['id'=>$id]);}// Repository review/activation commits are real: persist removal of only this test's fixture IDs before the framework rollback.
-        $wpdb->query('COMMIT');foreach($this->paths as $path)if(is_file($path))unlink($path);parent::tearDown();}
+        $wpdb->query('COMMIT');foreach($this->paths as $path)if(is_file($path))unlink($path);ShopAccessFixture::reset();parent::tearDown();}
     public function testStrictEngineOptionsAndUnapprovedModesCannotBecomeGenericPrompts():void
     {
         foreach(['PET_PORTRAIT','WATERCOLOR','LINE_ART','VINTAGE_PORTRAIT'] as $engine){$o=DigiForge\POD\TransformationEngineContract::options($engine,'1.0.0',['style_reference'=>'synthetic-reference']);self::assertIsArray($o);}
@@ -67,6 +68,75 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
         [$request,$path,$rights]=$this->fixture();$s=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();$job=$s->create('personalized_pod',$key,$request,$path,$rights);self::assertNotWPError($job);$other=$request;$other['options']['style_reference']='different';self::assertWPError($s->create('personalized_pod',$key,$other,$path,$rights));
         $source=DigiForge\ProductFactory\AssetStorage::absolutePath($job['source']['storage_reference']);self::assertNotNull($source);$original=file_get_contents($source);try{file_put_contents($source,'tampered');self::assertWPError($s->verifyInput('personalized_pod',$key));}finally{file_put_contents($source,$original);}
         global $wpdb;$wpdb->update(DigiForge\Database\Tables::pod_production_templates(),['template_status'=>'DRAFT'],['template_id'=>$request['template_id']]);self::assertWPError($s->verifyInput('personalized_pod',$key));self::assertSame('CANCELLED',$s->cancel('personalized_pod',$key)['state']);self::assertWPError($s->verifyInput('personalized_pod',$key));
+    }
+    private function authorizationMode():array
+    {
+        return ['mode'=>'synthetic-scope-'.wp_generate_uuid4(),'version'=>'1.0.0','prompt_revision'=>'test-only','prompt_sha256'=>str_repeat('a',64),'fixture_manifest_sha256'=>str_repeat('b',64),'input_fields'=>[['key'=>'subject','type'=>'text','max_length'=>20,'required'=>false]],'evidence_kind'=>'SYNTHETIC_TEST_ONLY'];
+    }
+    public function testTransformationCapabilityAloneCannotRegisterAReviewedShopMode():void
+    {
+        ShopAccessFixture::reset();$mode=$this->authorizationMode();
+        self::assertWPError((new DigiForge\POD\TransformationWorkflow())->registerMode('personalized_pod',$mode));
+    }
+    public function testForeignActorCannotReadCancelOrDownloadAnotherShopTransformation():void
+    {
+        [$r,$path,$rights]=$this->fixture();$s=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();self::assertNotWPError($s->create('personalized_pod',$key,$r,$path,$rights));
+        $foreign=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($foreign);ShopAccessFixture::authorizeActor($foreign,['digital'],['manage_digiforge_pod']);
+        self::assertWPError($s->read('personalized_pod',$key));self::assertWPError($s->artifact('personalized_pod',$key,'source'));self::assertWPError($s->cancel('personalized_pod',$key));
+    }
+    public function testFailedTransformationAuditRollsBackJournalAndAllowsExactRetry():void
+    {
+        [$r,$path,$rights]=$this->fixture();$s=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();global $wpdb;
+        $prefix='df_transform_job_'.hash('sha256','personalized_pod|'.$key).'_';
+        $filter=static fn($sql)=>str_starts_with($sql,'INSERT INTO `'.DigiForge\Database\Tables::audit_log().'`')&&str_contains($sql,'transformation_state_recorded')?str_replace(DigiForge\Database\Tables::audit_log(),DigiForge\Database\Tables::audit_log().'_missing',$sql):$sql;
+        $old=$wpdb->suppress_errors(true);add_filter('query',$filter);try{self::assertWPError($s->create('personalized_pod',$key,$r,$path,$rights));}finally{remove_filter('query',$filter);$wpdb->suppress_errors($old);}
+        self::assertSame('0',(string)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$wpdb->options.' WHERE option_name LIKE %s',$wpdb->esc_like($prefix).'%')));
+        $job=$s->create('personalized_pod',$key,$r,$path,$rights);self::assertNotWPError($job);self::assertSame(0,$job['sequence']);self::assertNotWPError($s->read('personalized_pod',$key));
+    }
+    public function testChangedRegisteredModeInvalidatesAnExistingAiJob():void
+    {
+        [$r,$path,$rights]=$this->fixture('AI_TRANSFORM');$s=new DigiForge\POD\TransformationWorkflow();$mode=$this->syntheticMode($rights);self::assertNotWPError($s->registerMode('personalized_pod',$mode));$key=wp_generate_uuid4();self::assertNotWPError($s->create('personalized_pod',$key,$r,$path,$rights));
+        global $wpdb;$name='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);$stored=json_decode($wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name)),true);$stored['prompt_revision']='forged-revision';$wpdb->update($wpdb->options,['option_value'=>DigiForge\Orders\Validator::canonicalJson($stored)],['option_name'=>$name]);
+        self::assertWPError($s->read('personalized_pod',$key));self::assertWPError($s->verifyInput('personalized_pod',$key));
+    }
+    public function testTransformationSerializesWithTheExistingShopRevocationRow():void
+    {
+        self::assertSame('digiforge_tests',DB_NAME,'Only the disposable database permits concurrency injection.');
+        global $wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->suppress_errors(true);$other->query('SET SESSION innodb_lock_wait_timeout=1');
+        $mode=$this->authorizationMode();$name='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);$blocked=false;$attempted=false;
+        $filter=static function($sql)use($wpdb,$other,$name,&$blocked,&$attempted){if(!$attempted&&str_starts_with($sql,'INSERT INTO `'.$wpdb->options.'`')&&str_contains($sql,$name)){$attempted=true;$other->query('START TRANSACTION');$other->last_error='';$other->query($other->prepare('UPDATE '.$wpdb->options.' SET option_value=option_value WHERE option_name=%s','digiforge_shop_access_state_personalized_pod'));$blocked=$other->last_error!=='';$other->query('ROLLBACK');}return $sql;};
+        add_filter('query',$filter);try{$result=(new DigiForge\POD\TransformationWorkflow())->registerMode('personalized_pod',$mode);}finally{remove_filter('query',$filter);$other->query('ROLLBACK');$other->close();}
+        self::assertNotWPError($result);self::assertTrue($attempted);self::assertTrue($blocked,'Concurrent revocation writer was not serialized with mode persistence.');
+    }
+    public function testTransformationNeverCommitsItsCallersDisposableTransaction():void
+    {
+        global $wpdb;$key='df-test-caller-'.wp_generate_uuid4();$wpdb->query('START TRANSACTION');$wpdb->insert($wpdb->options,['option_name'=>$key,'option_value'=>'synthetic-caller','autoload'=>'no']);
+        self::assertNotWPError((new DigiForge\POD\TransformationWorkflow())->registerMode('personalized_pod',$this->authorizationMode()));
+        $wpdb->query('ROLLBACK');self::assertNull($wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$key)));$wpdb->query('START TRANSACTION');
+    }
+    public function testConcurrentAclDriftCannotBeHiddenByAnExistingReadSnapshot():void
+    {
+        self::assertSame('digiforge_tests',DB_NAME);[$r,$path,$rights]=$this->fixture();$service=new DigiForge\POD\TransformationWorkflow();$key=wp_generate_uuid4();self::assertNotWPError($service->create('personalized_pod',$key,$r,$path,$rights));
+        global $wpdb;$name='digiforge_shop_access_state_personalized_pod';$wpdb->query('COMMIT');$original=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name));$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->suppress_errors(true);
+        $wpdb->query('START TRANSACTION');self::assertTrue(DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_pod'));
+        try{$other->update($wpdb->options,['option_value'=>'{"revision":0,"grants":[]}'],['option_name'=>$name]);self::assertSame('',$other->last_error);$result=$service->read('personalized_pod',$key);}
+        finally{$wpdb->query('ROLLBACK');$other->update($wpdb->options,['option_value'=>$original],['option_name'=>$name]);$other->close();$wpdb->query('START TRANSACTION');}
+        self::assertWPError($result,'A stale repeatable-read snapshot exposed a job after concurrent ACL drift.');
+    }
+    public function testModeAuditFailureCannotLeaveAnUnauditedRegistration():void
+    {
+        $s=new DigiForge\POD\TransformationWorkflow();$mode=$this->authorizationMode();global $wpdb;$name='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);
+        $filter=static fn($sql)=>str_starts_with($sql,'INSERT INTO `'.DigiForge\Database\Tables::audit_log().'`')&&str_contains($sql,'transformation_mode_registered')?str_replace(DigiForge\Database\Tables::audit_log(),DigiForge\Database\Tables::audit_log().'_missing',$sql):$sql;
+        $old=$wpdb->suppress_errors(true);add_filter('query',$filter);try{$result=$s->registerMode('personalized_pod',$mode);}finally{remove_filter('query',$filter);$wpdb->suppress_errors($old);}
+        self::assertWPError($result);self::assertNull($wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name)));self::assertNotWPError($s->registerMode('personalized_pod',$mode));
+    }
+    public function testAuthorityLostDuringModeWriteCannotCommitOrReturnSuccess():void
+    {
+        $s=new DigiForge\POD\TransformationWorkflow();$mode=$this->authorizationMode();$mode['mode']='revoke-'.wp_generate_uuid4();global $wpdb;$actor=get_current_user_id();
+        $name='df_transform_mode_'.hash('sha256','personalized_pod|'.$mode['mode'].'|'.$mode['version']);$changed=false;
+        $filter=static function($sql)use(&$changed,$wpdb,$name){if(str_starts_with($sql,'INSERT INTO `'.$wpdb->options.'`')&&str_contains($sql,$name)){$changed=true;wp_set_current_user(0);}return $sql;};
+        add_filter('query',$filter);try{$result=$s->registerMode('personalized_pod',$mode);}finally{remove_filter('query',$filter);wp_set_current_user($actor);}
+        self::assertTrue($changed);self::assertWPError($result);self::assertNull($wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s',$name)));
     }
     private function syntheticMode(array $rights):array
     {
