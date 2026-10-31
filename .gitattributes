@@ -35,3 +35,4 @@ phpunit.wordpress.catalog.xml.dist export-ignore
 /includes/Finance/contracts/etsy-monthly-header-v1.csv -text
 
 /includes/POD/contracts/pet-single-subject-proposal-v0.1.0.json -text
+tests/fixtures/pet-single-subject/RIGHTS_PROVENANCE.csv -text
