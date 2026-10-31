@@ -144,6 +144,21 @@ final class FiveEngineArchitectureTest extends WP_UnitTestCase
         [$service,$key,$matte,$p,$a]=$this->cutoutJob(true);self::assertNotWPError($service->reviewPetComposition('personalized_pod',$key,$matte,$p,$a));$failure=$service->renderPetCutout('personalized_pod',$key);self::assertWPError($failure);self::assertSame('transformation_result_fixture_conflict',$failure->get_error_code());$before=$service->read('personalized_pod',$key);self::assertSame('INPUT_VERIFIED',$before['state']);self::assertArrayNotHasKey('result',$before);
         [$service,$key,$matte,$p,$a]=$this->cutoutJob();self::assertNotWPError($service->reviewPetComposition('personalized_pod',$key,$matte,$p,$a));$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$lock='df-transform-'.substr(hash('sha256','personalized_pod|'.$key),0,48);self::assertSame('1',(string)$other->get_var($other->prepare('SELECT GET_LOCK(%s,0)',$lock)));try{$busy=$service->renderPetCutout('personalized_pod',$key);self::assertWPError($busy);self::assertSame('transformation_busy',$busy->get_error_code());}finally{$other->get_var($other->prepare('SELECT RELEASE_LOCK(%s)',$lock));$other->close();}self::assertNotWPError($service->renderPetCutout('personalized_pod',$key));
     }
+    public function testCutoutInvalidCompositionCannotPoisonImmutableReview():void
+    {
+        [$service,$key,$matte,$p,$a]=$this->cutoutJob();
+        $before=$service->read('personalized_pod',$key);
+        foreach ([['placement'=>[1,0]],['crop'=>[0,0,1,4]],['crop'=>[0,0,3,4],'reduction'=>2],['canvas'=>[0,4]]] as $invalid) {
+            self::assertWPError($service->reviewPetComposition('personalized_pod',$key,$matte,array_replace($p,$invalid),$a));
+            self::assertSame($before,$service->read('personalized_pod',$key));
+        }
+        $review=$service->reviewPetComposition('personalized_pod',$key,$matte,$p,$a);
+        self::assertNotWPError($review);
+        self::assertSame($before['sequence']+1,$review['sequence']);
+        self::assertArrayNotHasKey('result',$review);
+        self::assertArrayNotHasKey('pet_render',$review);
+        self::assertNotWPError($service->renderPetCutout('personalized_pod',$key));
+    }
     public function testCutoutRejectsAmbiguousMultiplePrintAreas():void
     {
         [$service,$unused,$matte,$p,$a]=$this->cutoutJob();[$request,$source,$rights]=$this->fixture('PET_PORTRAIT',true);$key=wp_generate_uuid4();self::assertNotWPError($service->create('personalized_pod',$key,$request,$source,$rights));self::assertNotWPError($service->verifyInput('personalized_pod',$key));self::assertNotWPError($service->preparePetInput('personalized_pod',$key));self::assertWPError($service->reviewPetComposition('personalized_pod',$key,$matte,$p,$a));

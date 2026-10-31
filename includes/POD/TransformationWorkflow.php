@@ -87,6 +87,11 @@ final class TransformationWorkflow
             PetCutoutCompositor::matte($bytes,$job['prepared_input']['width_px'],$job['prepared_input']['height_px'],$job['request']['limits']);
             if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('cutout_review_limit');
             if(isset($job['pet_composition'])){$old=$job['pet_composition'];return $old['matte']['sha256']===$matte['sha256']&&$old['reviewed_by']===get_current_user_id()&&Validator::canonicalJson($old['parameters'])===Validator::canonicalJson($p)&&Validator::canonicalJson($old['annotation'])===Validator::canonicalJson($annotation)?$job:self::error('immutable_composition_conflict');}
+            // Validate the entire supplied-matte recipe before making this review immutable.
+            // Use the same bounded compositor as execution; never duplicate crop/support rules.
+            $prepared=$this->artifact($shop,$key,'prepared_input');if($prepared instanceof WP_Error)return $prepared;
+            PetCutoutCompositor::render($prepared['bytes'],$bytes,$p,$job['request']['limits'],$job['rights']['evidence_kind']==='SYNTHETIC_TEST_ONLY'?'SYNTHETIC_TEST_ONLY':'OFFLINE_TECHNICAL_ONLY');
+            if((hrtime(true)-$started)/1e9>$job['request']['limits']['max_execution_seconds'])return self::error('cutout_review_limit');
             $stored=(new RenderArtifactStore())->retain($mattePath,$matte,$shop);if($stored instanceof WP_Error)return $stored;
             $e=['version'=>'pet-composition-review-v1','job_sha256'=>$job['job_hash'],'source_sha256'=>$job['source']['sha256'],'prepared_sha256'=>$job['prepared_input']['sha256'],'parameters'=>$p,'annotation'=>$annotation,'matte'=>$stored,'reviewed_by'=>get_current_user_id(),'reviewed_at'=>$job['pet_composition']['reviewed_at']??gmdate('Y-m-d H:i:s'),'evidence_kind'=>$job['rights']['evidence_kind'],'semantic_subject_count'=>'UNKNOWN','independent_artistic_review'=>'NOT_ESTABLISHED','production_ready'=>false];$e['review_sha256']=hash('sha256',Validator::canonicalJson($e));
             return $this->append($shop,$key,$job,array_replace($job,['pet_composition'=>$e]));
