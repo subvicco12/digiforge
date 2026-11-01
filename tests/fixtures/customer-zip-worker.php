@@ -20,7 +20,7 @@ namespace {
     $c=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);
     $GLOBALS['df_zip_worker']=$c;
     putenv('WP_TESTS_SKIP_INSTALL=1');
-    define('UPLOADS',$c['uploads']);
+    if(is_string($c['uploads']))define('UPLOADS',$c['uploads']);
     require dirname(__DIR__,2).'/vendor/autoload.php';
     require dirname(__DIR__).'/wordpress/bootstrap.php';
     if(wp_get_environment_type()!=='local'||!str_starts_with(DB_NAME,'digiforge_tests'))throw new RuntimeException('Disposable local WordPress required.');

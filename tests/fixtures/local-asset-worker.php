@@ -12,7 +12,7 @@ namespace DigiForge\ProductFactory {
 }
 namespace {
     $c=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);$GLOBALS['df_local_asset_worker']=$c;
-    putenv('WP_TESTS_SKIP_INSTALL=1');define('UPLOADS',$c['uploads']);require dirname(__DIR__,2).'/vendor/autoload.php';require dirname(__DIR__).'/wordpress/bootstrap.php';
+    putenv('WP_TESTS_SKIP_INSTALL=1');if(is_string($c['uploads']))define('UPLOADS',$c['uploads']);require dirname(__DIR__,2).'/vendor/autoload.php';require dirname(__DIR__).'/wordpress/bootstrap.php';
     if(wp_get_environment_type()!=='local'||!str_starts_with(DB_NAME,'digiforge_tests'))throw new RuntimeException('Disposable WordPress required.');
     add_filter('pre_http_request',static fn()=>new WP_Error('test_outbound_denied','No outbound calls.'),PHP_INT_MAX);
     $r=(new \DigiForge\ProductFactory\LocalAssetProducer())->write($c['version'],'guide.txt','txt',$c['text']);

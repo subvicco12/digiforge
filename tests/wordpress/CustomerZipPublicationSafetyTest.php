@@ -35,7 +35,7 @@ final class CustomerZipPublicationSafetyTest extends WP_UnitTestCase
     private function start(int $version,array $assets,string $id,string $mode='pause',bool $disableLink=false):string
     {
         $base=$this->control.'/'.$id;$request=$base.'.json';
-        file_put_contents($request,json_encode(['version'=>$version,'assets'=>$assets,'control'=>$base,'mode'=>$mode,'uploads'=>UPLOADS],JSON_THROW_ON_ERROR));
+        file_put_contents($request,json_encode(['version'=>$version,'assets'=>$assets,'control'=>$base,'mode'=>$mode,'uploads'=>defined('UPLOADS')?UPLOADS:null],JSON_THROW_ON_ERROR));
         $command=[PHP_BINARY];if($disableLink){$command[]='-d';$command[]='disable_functions=link';}
         $command[]=dirname(__DIR__).'/fixtures/customer-zip-worker.php';$command[]=$request;
         $p=proc_open($command,[0=>['file','/dev/null','r'],1=>['file',$base.'.log','w'],2=>['file',$base.'.err','w']],$pipes);
