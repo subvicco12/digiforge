@@ -11,14 +11,29 @@ final class OperatorQueueReadModel {
   $wpdb->last_error='';
   $row=$wpdb->get_row($wpdb->prepare("SELECT id,job_type,state,attempts,max_attempts,last_error,next_attempt_at,lease_expires_at,created_at,updated_at FROM ".Tables::jobs()." WHERE id=%d AND state IN ('FAILED','BLOCKED','HUMAN_REVIEW','DEAD_LETTER')",$id),ARRAY_A);
   if(!is_array($row))return null;
-  return $row+['read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
+  return self::attentionMetadata($row);
  }
  /** @return list<array<string,mixed>> */
  public function recentAttention(int $limit=50, ?string &$queryState=null):array {
   global $wpdb;$limit=max(1,min(100,$limit));
   $sql="SELECT id,job_type,state,attempts,max_attempts,last_error,next_attempt_at,lease_expires_at,created_at,updated_at FROM ".Tables::jobs()." WHERE state IN ('FAILED','BLOCKED','HUMAN_REVIEW','DEAD_LETTER') ORDER BY id DESC LIMIT %d";
   $wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare($sql,$limit),ARRAY_A);if(!is_array($rows)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}$queryState='AVAILABLE';
-  return array_map(static function(array $r):array{$r['read_only']=true;$r['retry_permitted']=false;$r['external_execution_authorized']=false;return $r;},$rows);
+  return array_map(self::attentionMetadata(...),$rows);
+ }
+ /** Stored free-form failures may contain provider headers or private buyer data.
+  * Only the existing local recovery/rate-limit codes are display metadata.
+  * Redaction never rewrites history or authorizes a retry.
+  * @param array<string,mixed> $row
+  * @return array<string,mixed>
+  */
+ private static function attentionMetadata(array $row):array {
+  $error=$row['last_error']??null;
+  $known=is_string($error)&&in_array($error,['LEASE_EXPIRED','digiforge_launch_ai_rate_limited'],true);
+  $redacted=is_string($error)&&$error!==''&&!$known;
+  $row['last_error_sha256']=is_string($error)&&$error!==''?hash('sha256',$error):null;
+  $row['last_error_redacted']=$redacted;
+  if($redacted)$row['last_error']='REDACTED_ERROR_DETAIL';
+  return $row+['read_only'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];
  }
  /** Read-only reliability diagnostics. Detection never authorizes replay/retry. */
  public function diagnostics():array {

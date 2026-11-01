@@ -63,11 +63,12 @@ final class QueueOperatorJourneyAcceptanceTest extends WP_UnitTestCase
         $wpdb->update(DigiForge\Database\Tables::jobs(), ['state'=>'DEAD_LETTER','attempts'=>3,'last_error'=>'review <unsafe>'], ['id'=>$id]);
         $before = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.DigiForge\Database\Tables::jobs().' WHERE id=%d', $id), ARRAY_A);
         $html = $this->render('automation', $id);
-        foreach (['id="df-job-'.$id.'"', 'operator_journey', 'DEAD_LETTER', '<td>3/3</td>', 'review &lt;unsafe&gt;', 'df_job_id='.$id, 'Automatic retry from view', 'NO'] as $text) {
+        foreach (['id="df-job-'.$id.'"', 'operator_journey', 'DEAD_LETTER', '<td>3/3</td>', 'REDACTED_ERROR_DETAIL', 'df_job_id='.$id, 'Automatic retry from view', 'NO'] as $text) {
             self::assertStringContainsString($text, $html);
         }
         self::assertStringNotContainsString('name="retry"', $html);
         self::assertStringNotContainsString('review <unsafe>', $html);
+        self::assertStringNotContainsString('review &lt;unsafe&gt;', $html);
         self::assertSame($before, $wpdb->get_row($wpdb->prepare('SELECT * FROM '.DigiForge\Database\Tables::jobs().' WHERE id=%d', $id), ARRAY_A));
         self::assertTrue(DigiForge\Core\Settings::safety_locked());
         self::assertFalse(DigiForge\Core\Settings::get('automation_armed', false));
@@ -98,7 +99,7 @@ final class QueueOperatorJourneyAcceptanceTest extends WP_UnitTestCase
         self::assertIsInt($blocked); self::assertIsInt($failed);
         $wpdb->update(DigiForge\Database\Tables::jobs(), ['state'=>'FAILED','attempts'=>1,'last_error'=>'429 rate limit review'], ['id'=>$failed]);
         $html = $this->render('automation', $blocked);
-        foreach (['blocked_journey', 'failed_journey', 'BLOCKED', 'FAILED', '<td>1/3</td>', '429 rate limit review', 'RATE_LIMIT_EVIDENCE_REQUIRES_BACKOFF_REVIEW', 'df_job_id='.$blocked, 'df_job_id='.$failed, '<td>NO</td><td>NO</td>'] as $text) {
+        foreach (['blocked_journey', 'failed_journey', 'BLOCKED', 'FAILED', '<td>1/3</td>', 'REDACTED_ERROR_DETAIL', 'RATE_LIMIT_EVIDENCE_REQUIRES_BACKOFF_REVIEW', 'df_job_id='.$blocked, 'df_job_id='.$failed, '<td>NO</td><td>NO</td>'] as $text) {
             self::assertStringContainsString($text, $html);
         }
         self::assertStringNotContainsString('name="retry"', $html);
