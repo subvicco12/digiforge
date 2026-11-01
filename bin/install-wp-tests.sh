@@ -16,9 +16,17 @@ mkdir -p "${tests_dir}" "${core_dir}"
 curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 2 "https://wordpress.org/${wp_version}.tar.gz" |
   tar --strip-components=1 -xz -C "${core_dir}"
 
-timeout 120 svn export --force --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/includes/ "${tests_dir}/includes"
-timeout 120 svn export --force --quiet https://develop.svn.wordpress.org/trunk/tests/phpunit/data/ "${tests_dir}/data"
-curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 2 https://develop.svn.wordpress.org/trunk/wp-tests-config-sample.php --output "${tests_dir}/wp-tests-config.php"
+# Match PHPUnit fixtures to the installed WordPress core, never development trunk.
+# The latest stable tarball and trunk test library can have incompatible APIs.
+installed_version="$(php -r 'include $argv[1]; echo $wp_version;' "${core_dir}/wp-includes/version.php")"
+if [[ ! "${installed_version}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+  echo "Invalid installed WordPress version: ${installed_version}" >&2
+  exit 1
+fi
+tests_base="https://develop.svn.wordpress.org/tags/${installed_version}"
+timeout 120 svn export --force --quiet "${tests_base}/tests/phpunit/includes/" "${tests_dir}/includes"
+timeout 120 svn export --force --quiet "${tests_base}/tests/phpunit/data/" "${tests_dir}/data"
+curl --fail --silent --show-error --location --connect-timeout 15 --max-time 120 --retry 3 --retry-delay 2 "${tests_base}/wp-tests-config-sample.php" --output "${tests_dir}/wp-tests-config.php"
 
 sed -i "s/youremptytestdbnamehere/${database_name}/" "${tests_dir}/wp-tests-config.php"
 sed -i "s/yourusernamehere/${database_user}/" "${tests_dir}/wp-tests-config.php"
