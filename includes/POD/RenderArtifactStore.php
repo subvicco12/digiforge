@@ -19,8 +19,16 @@ final class RenderArtifactStore
         $reference=AssetStorage::RELATIVE_ROOT.$suffix.'/'.$metadata['sha256'].'.'.$extension;$target=$directory.'/'.$metadata['sha256'].'.'.$extension;
         if(is_link($target))return self::error('Artifact symlink is forbidden.');
         if(!is_file($target)){
+            if(!function_exists('link'))return self::error('Atomic artifact publication is unavailable.');
             $bytes=@file_get_contents($source,false,null,0,16777217);if(!is_string($bytes)||strlen($bytes)!==$metadata['bytes']||!hash_equals($metadata['sha256'],hash('sha256',$bytes)))return self::error('Source artifact changed before retention.');
-            $handle=@fopen($target,'x+b');if($handle!==false){try{$locked=flock($handle,LOCK_EX);if(!$locked||fwrite($handle,$bytes)!==strlen($bytes)||!fflush($handle))return self::error('Artifact write is uncertain.');}finally{fclose($handle);}}
+            $temporary=$target.'.tmp-'.bin2hex(random_bytes(8));$handle=@fopen($temporary,'x+b');
+            if($handle===false)return self::error('Artifact staging is unavailable.');
+            try{
+                try{$locked=flock($handle,LOCK_EX);if(!$locked||fwrite($handle,$bytes)!==strlen($bytes)||!fflush($handle))return self::error('Artifact write is uncertain.');}finally{fclose($handle);}
+                $checked=(new RenderArtifactVerifier())->readArtifact($temporary);if($checked instanceof WP_Error||$checked!==$metadata)return self::error('Staged artifact does not agree with its computed identity.');
+                // Same-directory atomic no-replace publication; an existing winner is verified below.
+                if(!@link($temporary,$target)&&!is_file($target))return self::error('Artifact publication is uncertain.');
+            }finally{if(is_file($temporary))@unlink($temporary);}
         }
         $path=AssetStorage::absolutePath($reference);if($path===null)return self::error('Retained artifact unavailable.');$confirmed=(new RenderArtifactVerifier())->readArtifact($path);if($confirmed instanceof WP_Error)return $confirmed;
         return $confirmed===$metadata?$metadata+['storage_reference'=>$reference]:self::error('Retained artifact does not agree with its computed identity.');
