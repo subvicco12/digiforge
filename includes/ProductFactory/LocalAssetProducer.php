@@ -33,30 +33,8 @@ final class LocalAssetProducer
             if (is_wp_error($bytes)) { return $bytes; }
         }
         if ($bytes === '' || strlen($bytes) > self::MAX_ASSET_BYTES) { return $this->error('invalid_asset_size', 'Generated asset is empty or too large.'); }
-        $uploads = wp_upload_dir();
-        if (! empty($uploads['error']) || empty($uploads['basedir'])) { return $this->error('upload_directory', 'WordPress uploads directory is unavailable.', 500); }
-        $relativeDir = AssetStorage::RELATIVE_ROOT . '/' . $productVersionId . ($storageVariant !== '' ? '/' . $storageVariant : '');
-        $directory = trailingslashit((string) $uploads['basedir']) . $relativeDir;
-        if (! wp_mkdir_p($directory)) { return $this->error('asset_directory', 'Unable to create DigiForge asset directory.', 500); }
-        $path = trailingslashit($directory) . $filename;
-        if (is_file($path)) {
-            $existingHash = hash_file('sha256', $path);
-            $newHash = hash('sha256', $bytes);
-            if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { return $this->metadata($path, $filename, $format, $relativeDir) + $evidence; }
-            return $this->error('asset_replay_conflict', 'Existing generated asset differs from replay payload.', 409);
-        }
-        $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
-        if (file_put_contents($temp, $bytes, LOCK_EX) !== strlen($bytes)) { @unlink($temp); return $this->error('asset_write', 'Unable to write generated asset.', 500); }
-        if (! @rename($temp, $path)) {
-            if (is_file($path)) {
-                $existingHash = hash_file('sha256', $path);
-                $newHash = hash_file('sha256', $temp);
-                if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, $format, $relativeDir) + $evidence; }
-            }
-            @unlink($temp);
-            return $this->error('asset_commit', 'Unable to finalize generated asset.', 500);
-        }
-        return $this->metadata($path, $filename, $format, $relativeDir) + $evidence;
+        $stored = $this->commitBytes($productVersionId, $filename, $format, $bytes, $storageVariant);
+        return is_wp_error($stored) ? $stored : $stored + $evidence;
     }
 
 
@@ -94,17 +72,24 @@ final class LocalAssetProducer
     {
         if (! AssetStorage::ensureProtectedRoot()) { return $this->error('asset_storage_protection', 'Protected DigiForge asset storage could not be established.', 500); }
         $uploads=wp_upload_dir(); if(!empty($uploads['error'])||empty($uploads['basedir']))return $this->error('upload_directory','WordPress uploads directory is unavailable.',500);
-        $relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant!==''?'/'.$storageVariant:''); $directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
+        $relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant !== '' ? '/' . $storageVariant : ''); $directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
         if(!wp_mkdir_p($directory))return $this->error('asset_directory','Unable to create DigiForge asset directory.',500);
-        $path=trailingslashit($directory).$filename; $newHash=hash('sha256',$bytes);
-        $lockPath=$path.'.lock'; $lock=@fopen($lockPath,'c'); if($lock===false||!flock($lock,LOCK_EX)){if(is_resource($lock))fclose($lock);return $this->error('asset_lock','Unable to lock generated asset.',500);}
+        $path=trailingslashit($directory).$filename; $newHash=hash('sha256', $bytes);
+        if(is_link($directory)||is_link($path))return $this->error('asset_directory','Generated asset paths must not be symlinks.',500);
+        if (is_file($path)){ $existingHash=hash_file('sha256',$path); if(is_string($existingHash)&&hash_equals($existingHash,$newHash))return $this->metadata($path,$filename,$format,$relativeDir); return $this->error('asset_replay_conflict','Existing generated asset differs from replay payload.',409); }
+        if(!function_exists('link'))return $this->error('asset_commit_capability','Atomic no-replace asset commit is unavailable on this host.',503);
+        $temp=$path.'.tmp-'.wp_generate_password(8,false,false);
         try {
-            if(is_file($path)){ $existingHash=hash_file('sha256',$path); if(is_string($existingHash)&&hash_equals($existingHash,$newHash))return $this->metadata($path,$filename,$format,$relativeDir); return $this->error('asset_replay_conflict','Existing generated asset differs from replay payload.',409); }
-            if(!function_exists('link'))return $this->error('asset_commit_capability','Atomic no-replace archive commit is unavailable on this host.',503);
-        $temp=$path.'.tmp-'.wp_generate_password(8,false,false); if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes)){@unlink($temp);return $this->error('asset_write','Unable to write generated asset.',500);}
-            if(!@rename($temp,$path)){@unlink($temp);return $this->error('asset_commit','Unable to finalize generated asset.',500);}
+            if(file_put_contents($temp,$bytes,LOCK_EX)!==strlen($bytes))return $this->error('asset_write','Unable to write generated asset.',500);
+            $written=hash_file('sha256', $temp);
+            if(!is_string($written)||!hash_equals($newHash,$written))return $this->error('asset_write','Generated asset readback differs from its source.',500);
+            if(!@link($temp,$path)){
+                if(!is_file($path))return $this->error('asset_commit','Unable to finalize generated asset atomically.',503);
+                $winner=is_link($path)?false:hash_file('sha256',$path);
+                if(!is_string($winner)||!hash_equals($newHash,$winner))return $this->error('asset_replay_conflict','Another generated asset owns this immutable output identity.',409);
+            }
             return $this->metadata($path,$filename,$format,$relativeDir);
-        } finally { flock($lock,LOCK_UN); fclose($lock); @unlink($lockPath); }
+        } finally { if(is_file($temp))@unlink($temp); }
     }
 
 
@@ -139,7 +124,7 @@ final class LocalAssetProducer
             $members[]=['name'=>$name,'sha256'=>$hash,'byte_size'=>$size,'source'=>$source];
         }
         $uploads=wp_upload_dir();if(!empty($uploads['error'])||empty($uploads['basedir']))return $this->error('upload_directory','WordPress uploads directory is unavailable.',500);
-        $storageVariant=sanitize_key($storageVariant);$relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant!==''?'/'.$storageVariant:'');$directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
+        $storageVariant=sanitize_key($storageVariant);$relativeDir=AssetStorage::RELATIVE_ROOT.'/'.$productVersionId.($storageVariant !== '' ? '/' . $storageVariant : '');$directory=trailingslashit((string)$uploads['basedir']).$relativeDir;
         if(!wp_mkdir_p($directory)||is_link($directory))return $this->error('asset_directory','Protected archive directory is unavailable.',500);
         $filename=$this->filename($filename,'zip');if($filename==='')return $this->error('invalid_filename','A safe ZIP filename is required.');$path=trailingslashit($directory).$filename;
         $publicMembers=array_map(static fn(array $m):array=>array_diff_key($m,['source'=>true]),$members);
