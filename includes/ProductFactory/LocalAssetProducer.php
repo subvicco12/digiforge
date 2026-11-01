@@ -85,13 +85,20 @@ final class LocalAssetProducer
             if(!is_string($written)||!hash_equals($newHash,$written))return $this->error('asset_write','Generated asset readback differs from its source.',500);
             if(!@link($temp,$path)){
                 if(!is_file($path))return $this->error('asset_commit','Unable to finalize generated asset atomically.',503);
-                $winner=is_link($path)?false:hash_file('sha256',$path);
-                if(!is_string($winner)||!hash_equals($newHash,$winner))return $this->error('asset_replay_conflict','Another generated asset owns this immutable output identity.',409);
+                $winner=$this->matchesGeneratedAsset($path,$newHash);
+                if(!$winner)return $this->error('asset_replay_conflict','Another generated asset owns this immutable output identity.',409);
             }
             return $this->metadata($path,$filename,$format,$relativeDir);
         } finally { if(is_file($temp))@unlink($temp); }
     }
 
+
+    /** Fresh path inspection after a competing publication; never follow a replacement symlink. */
+    private function matchesGeneratedAsset(string $path,string $expected):bool
+    {
+        clearstatcache(true,$path);if(is_link($path)||!is_file($path))return false;
+        $actual=hash_file('sha256',$path);return is_string($actual)&&hash_equals($expected,$actual);
+    }
 
     private function containsExternalSvgReference(string $svg): bool
     {
