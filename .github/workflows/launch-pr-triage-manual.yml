@@ -1,0 +1,62 @@
+name: DigiForge Launch PR Triage (manual, read-only)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: read
+
+concurrency:
+  group: digiforge-launch-triage-readonly
+  cancel-in-progress: false
+
+jobs:
+  launch-triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Gather open PR metadata without modifying repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p launch-triage
+          gh api --paginate "repos/${GH_REPO}/pulls?state=open&per_page=100" > launch-triage/pulls-pages.jsonl
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path("launch-triage/pulls-pages.jsonl").read_text()
+          decoder=json.JSONDecoder()
+          i=0; prs=[]
+          while i<len(src):
+              while i<len(src) and src[i].isspace(): i+=1
+              if i>=len(src): break
+              page,end=decoder.raw_decode(src,i)
+              if not isinstance(page,list): raise SystemExit("unexpected API response")
+              prs.extend(page); i=end
+          terms=("printify","personaliz","etsy","pod","render","mockup","portal","template","fulfill","launch","finance")
+          records=[]
+          for p in prs:
+              title=p.get("title","")
+              records.append({"number":p["number"],"title":title,"url":p["html_url"],"draft":p.get("draft"),"head_sha":p["head"]["sha"],"base":p["base"]["ref"],"updated_at":p.get("updated_at"),"launch_keyword_match":any(t in title.lower() for t in terms)})
+          records.sort(key=lambda x:(not x["launch_keyword_match"],-x["number"]))
+          Path("launch-triage/report.json").write_text(json.dumps({"total_open":len(records),"prs":records},indent=2)+"\n")
+          with Path("launch-triage/report.md").open("w") as f:
+              f.write("# Read-only DigiForge open PR inventory\n\n")
+              f.write("This is a title-based shortlist, not a merge or production-readiness audit.\n\n")
+              f.write(f"Total open PRs: {len(records)}\n\n")
+              f.write("| PR | Draft | Title | Exact head |\n|---|---|---|---|\n")
+              for x in records:
+                  title=x["title"].replace("|","\\|").replace("\n"," ")
+                  f.write(f'| [#{x["number"]}]({x["url"]}) | {x["draft"]} | {title} | `{x["head_sha"]}` |\n')
+          PY
+      - name: Upload read-only triage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digiforge-launch-pr-triage
+          path: launch-triage/report.*
+          retention-days: 7
