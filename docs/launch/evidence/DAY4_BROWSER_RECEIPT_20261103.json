@@ -1,0 +1,39 @@
+{
+  "classification": "SYNTHETIC_LOCAL_AUTHENTICATED_ACCEPTANCE",
+  "production_acceptance": false,
+  "fixtures": [
+    {
+      "fixture": "FL-03",
+      "package_hash": "f6fa349d7659b7bb81be102fbd812b9f64a57f7336a2a147d82c39e93df62c3b",
+      "held_export_bytes": 13544,
+      "download_headers_verified": true,
+      "bad_nonce_denied": true,
+      "anonymous_denied": true,
+      "viewports": [
+        390,
+        768,
+        1280
+      ]
+    },
+    {
+      "fixture": "FL-04",
+      "package_hash": "3e53515c1037ff4b1f2f4937532724ebbb1e51aa77ac9309bb20f058d5803bc1",
+      "held_export_bytes": 13190,
+      "download_headers_verified": true,
+      "bad_nonce_denied": true,
+      "anonymous_denied": true,
+      "viewports": [
+        390,
+        768,
+        1280
+      ]
+    }
+  ],
+  "blocked_external_requests": [],
+  "browser_errors": [],
+  "wordpress_version": "7.1.4",
+  "php_version": "8.4.27",
+  "fixture_scope": "Disposable loopback WordPress; not installed production acceptance",
+  "workflow_overflow_checks_passed": true,
+  "mail_and_wordpress_external_http_disabled": true
+}
