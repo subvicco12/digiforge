@@ -4,11 +4,14 @@
 
 | Ref | Verified SHA | State |
 | --- | --- | --- |
-| main | `0e15e4ccae430498c92a30ab1f8951171fa0ad13` | Current main; unchanged |
+| main at task start / API branch base | `0e15e4ccae430498c92a30ab1f8951171fa0ad13` | Verified before work |
+| latest observed main | `7f30ad6aa37f58eca5302710c5f4583cabc45dfa` | Advanced during task through separate factory PR #1254; not merged here |
 | API PR #1253 starting head | `c7d706e32396d81e0adc2f3552e9e4d106680293` | Existing draft/branch, 22 changed files against main |
 | shared PR #1242 | `fac3634615c72ffdb0fdbce8ef1fbd3ae3c9e4c0` | Existing draft; 916 changed files; historical base `844107ab9baf7e1303cd47708e9eab3bc700b348` |
 
 Source verification date: 2026-11-03. Final API SHA and exact-head audit are in PR #1253. No AGENTS.md was found. Existing dedicated workstream instructions remain binding. No edits, comments, grants, exceptions, migrations, merges or activation were made to #1242 or production.
+
+Diff receipts: #1242 has 916 changed files against its historical base, 920 against main at task start and 960 against latest observed main. The API starting head has 22 changes against its branch base and 62 differences against latest main because the separate factory changes are not incorporated. All ten retained main dependency files remain byte-identical across the main advance.
 
 The machine-readable [dependency manifest](printify-shared-dependency-manifest-v1.json) records exact selected SHA-256 values and Git blob IDs for every file below. **PENDING_SHARED_OWNER** is a diagnostic state, not permission to install, copy into the application, merge, deploy or execute. No shared source is vendored into #1253.
 
@@ -99,6 +102,8 @@ All original #1253 files are listed below. The current dependency task edits onl
 | `tests/unit/ProductIntelligenceTest.php` | Printify API / #1253 |
 | `tests/wordpress/PrintifyResearchTest.php` | Printify API / #1253 |
 | `tests/wordpress/ProductIntelligenceTest.php` | Printify API / #1253 |
+
+Main advanced through #1254 while this task ran. GitHub reports #1253 `mergeable_state=dirty`; the new main delta overlaps the API branch at `includes/Portal/Portal.php`. No merge/rebase or conflict resolution was performed because this is a cross-workstream surface. The branch package must not be deployed as a replacement for current main. Automatic PR CI does not run on the conflicted PR; the existing engineering audit is dispatched against the exact API branch SHA instead.
 
 Current task adds `PrintifyResearchDependencies.php`, the read-only checker, manifest, this matrix and focused tests; it adjusts only the existing API-owned gateway/panel/controls/batch wrappers. `assets/portal.css` and `includes/Portal/Portal.php` are the only starting changed-path overlaps. For later integration, preserve both scoped stylesheet additions and the API lane's two existing panel-registration/mount lines alongside the shared portal. Do not overwrite the full portal or cherry-pick unrelated factory work.
 

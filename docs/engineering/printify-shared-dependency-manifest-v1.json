@@ -2,9 +2,10 @@
   "schema": "digiforge-printify-shared-dependency-v1",
   "approval_status": "PENDING_SHARED_OWNER",
   "refs": {
-    "main": "0e15e4ccae430498c92a30ab1f8951171fa0ad13",
+    "main": "7f30ad6aa37f58eca5302710c5f4583cabc45dfa",
     "shared_1242": "fac3634615c72ffdb0fdbce8ef1fbd3ae3c9e4c0",
-    "api_1253_start": "c7d706e32396d81e0adc2f3552e9e4d106680293"
+    "api_1253_start": "c7d706e32396d81e0adc2f3552e9e4d106680293",
+    "api_branch_base_main": "0e15e4ccae430498c92a30ab1f8951171fa0ad13"
   },
   "policy": {
     "auto_fetch": false,
@@ -569,5 +570,18 @@
     "tests/offline/test_printify_dependencies.py",
     "tests/wordpress/PrintifyDependencyBoundaryTest.php",
     "includes/POD/PrintifyResearchBatch.php"
-  ]
+  ],
+  "diff_counts": {
+    "shared_vs_historical_base": 916,
+    "shared_vs_main_at_task_start": 920,
+    "shared_vs_current_main": 960,
+    "api_start_vs_branch_base": 22,
+    "api_start_vs_current_main": 62
+  },
+  "main_advance_boundary": {
+    "overlapping_path": "includes/Portal/Portal.php",
+    "github_mergeable_state": "dirty",
+    "resolution_performed": false,
+    "production_merge_authorized": false
+  }
 }
