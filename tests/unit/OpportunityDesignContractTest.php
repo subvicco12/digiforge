@@ -29,6 +29,7 @@ final class OpportunityDesignContractTest extends TestCase
   $x=$base;$x['artwork']['width_px']=1;$cases[]=[$x];
   $x=$base;$x['artwork']['safe_area_reviewed']=false;$cases[]=[$x];
   $x=$base;$x['approved_by']=99;$cases[]=[$x];
+  $x=$base;$x['artwork']['svg']='';$cases[]=[$x];
   return $cases;
  }
 }

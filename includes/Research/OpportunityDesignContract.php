@@ -49,7 +49,7 @@ final class OpportunityDesignContract
     private static function svg(array $art): void
     {
         $svg=$art['svg'] ?? null;
-        if (!is_string($svg) || strlen($svg)>262144 || str_contains($svg,'<!') || str_contains($svg,'<?')) self::invalid();
+        if (!is_string($svg) || $svg==='' || strlen($svg)>262144 || str_contains($svg,'<!') || str_contains($svg,'<?')) self::invalid();
         $doc=new \DOMDocument();
         $previous=libxml_use_internal_errors(true);
         try { $loaded=$doc->loadXML($svg, LIBXML_NONET); } finally { libxml_clear_errors(); libxml_use_internal_errors($previous); }

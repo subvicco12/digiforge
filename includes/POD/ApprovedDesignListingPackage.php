@@ -39,6 +39,11 @@ final class ApprovedDesignListingPackage
         self::jsonValues($evidence);
         Validator::structured($approvedDesign);
         Validator::structured($evidence);
+        foreach (['fixture', 'listing', 'native_fields', 'media', 'reviews', 'parity', 'economics'] as $field) {
+            if (isset($evidence[$field]) && !is_array($evidence[$field])) {
+                throw new InvalidArgumentException('Structured package evidence must contain arrays.');
+            }
+        }
         $envelope = $approvedDesign;
         $approvedDesign = self::laneADesign($shop, $envelope, $evidence['environment'] ?? null);
         if (
@@ -77,7 +82,7 @@ final class ApprovedDesignListingPackage
         $fixture = $evidence['fixture'] ?? [];
         $id = $fixture['fixture_id'] ?? null;
         $products = ['FL-02' => '6ae89ec108d860bc98040ca0', 'FL-04' => '6ae9913d9541969415088814'];
-        if (!isset($products[$id ?? '']) || ($fixture['printify_product_id'] ?? null) !== $products[$id]) {
+        if (!is_string($id) || !isset($products[$id]) || ($fixture['printify_product_id'] ?? null) !== $products[$id]) {
             throw new InvalidArgumentException('An exact FL-02 or FL-04 technical fixture is required.');
         }
         // These historical fixtures are technical anchors, never commercial approval.

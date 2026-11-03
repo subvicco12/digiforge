@@ -56,4 +56,36 @@ final class ApprovedDesignListingPackageWorkflowTest extends \WP_UnitTestCase
         self::assertWPError(ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$saved['version_hash'],$e));
         self::assertWPError(ApprovedDesignListingPackage::fromApprovedVersion('digital',$saved['version_hash'],$e));
     }
+
+    public function testMalformedEvidenceReturnsHeldValidationError(): void
+    {
+        $saved=$this->saved(true);
+        foreach (['fixture','native_fields','economics','reviews','parity','listing','media'] as $field) {
+            $e=$this->fixtures()->evidence(); $e[$field]='malformed';
+            $result=ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$saved['version_hash'],$e);
+            self::assertWPError($result);
+            self::assertSame(409,$result->get_error_data()['status']);
+            self::assertFalse($result->get_error_data()['external_execution_authorized']);
+        }
+    }
+
+    public function testOversizedApprovedArtworkFailsWithoutChangingSourceBytesOrApproval(): void
+    {
+        $saved=$this->saved(true);
+        $input=$saved['record']['input'];
+        $svg='<svg xmlns="http://www.w3.org/2000/svg" width="2418" height="3018"><text>'.str_repeat('é',40000).'</text></svg>';
+        $input['artwork']['svg']=$svg;
+        $repo=new \DigiForge\Research\OpportunityDesignRepository();
+        $version=$repo->save($input); self::assertIsArray($version);
+        $approved=$repo->decide('personalized_pod',$version['version_hash'],'APPROVE');
+        self::assertIsArray($approved);
+        $result=ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$version['version_hash'],$this->fixtures()->evidence());
+        self::assertWPError($result);
+        self::assertFalse($result->get_error_data()['external_execution_authorized']);
+        $unchanged=$repo->read('personalized_pod',$version['version_hash']);
+        self::assertSame($approved,$unchanged);
+        self::assertSame($svg,$unchanged['record']['input']['artwork']['svg']);
+        self::assertSame(hash('sha256',$svg),hash('sha256',$unchanged['record']['input']['artwork']['svg']));
+        self::assertTrue($unchanged['release_hold']);
+    }
 }

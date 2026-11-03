@@ -142,6 +142,10 @@ final class ApprovedDesignListingPackageTest extends TestCase
             case 'traversal': $e['media']=[['reference'=>'media/../secret','sha256'=>str_repeat('a',64)]]; break;
             case 'native': $e['native_fields']=[['question_type'=>'remote_execution']]; break;
             case 'media_mismatch': $e['media']=[['reference'=>'media/mockup.png','sha256'=>str_repeat('a',64),'design_sha256'=>str_repeat('b',64)]]; break;
+            case 'fixture_id_array': $e['fixture']['fixture_id']=[]; break;
+            case 'native_scalar': $e['native_fields']='malformed'; break;
+            case 'economics_scalar': $e['economics']='malformed'; break;
+            case 'fixture_scalar': $e['fixture']='malformed'; break;
         }
         $this->expectException(\InvalidArgumentException::class);
         ApprovedDesignListingPackage::compile('personalized_pod',$d,$e);
@@ -149,7 +153,7 @@ final class ApprovedDesignListingPackageTest extends TestCase
 
     public static function invalidEvidence(): array
     {
-        return array_map(static fn($s)=>[$s], ['environment','product','tags','html','nan','negative','traversal','native','media_mismatch']);
+        return array_map(static fn($s)=>[$s], ['environment','product','tags','html','nan','negative','traversal','native','media_mismatch','fixture_id_array','native_scalar','economics_scalar','fixture_scalar']);
     }
 
     public function testRejectedApprovalCannotBeRelabeledByHash(): void
