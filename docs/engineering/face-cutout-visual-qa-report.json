@@ -1,0 +1,152 @@
+{
+    "schema": 1,
+    "version": "cutout-pixel-qa-v1",
+    "scope": "OFFLINE_SOFTWARE_TEST_ONLY",
+    "distinct_real_subjects": 1,
+    "reviewed_reference_mattes": 0,
+    "accuracy": "NOT_MEASURABLE_WITHOUT_REVIEWED_REFERENCE",
+    "commercial_certified": false,
+    "supplier_certified": false,
+    "cases": [
+        {
+            "case": "human-cold-process",
+            "mask": {
+                "version": "cutout-pixel-qa-v1",
+                "artifact_sha256": "3aa43cb5313a968af4e47acb37bb4de542a805440d938147cac4cc3794c6360c",
+                "pixel_sha256": "7d05231908b46df5b2bd87faeb288fbef0f3dd24fac9852b360bee058f0b9bbf",
+                "width_px": 512,
+                "height_px": 512,
+                "visible_pixels": 20535,
+                "soft_alpha_pixels": 4728,
+                "boundary_pixels": 0,
+                "alpha_total_variation": 199284,
+                "foreground_bounds": {
+                    "x": 146,
+                    "y": 8,
+                    "width": 163,
+                    "height": 189
+                },
+                "reference": {
+                    "state": "MISSING",
+                    "sha256": null,
+                    "mean_absolute_alpha_error": null,
+                    "mean_squared_alpha_error": null,
+                    "alpha_iou_128": null
+                },
+                "critical_defects": [],
+                "state": "OPERATOR_REVIEW_REQUIRED",
+                "semantic_detail_evidence": "MISSING",
+                "print_resolution_evidence": "REQUIRES_APPROVED_PLACEMENT_GEOMETRY",
+                "commercial_certified": false,
+                "supplier_certified": false,
+                "external_execution_authorized": false
+            },
+            "styled": {
+                "version": "cutout-pixel-qa-v1",
+                "artifact_sha256": "760de38f9b115fb0b1551f650d33be39982a00cfa3ed6d917ad0fed52208afd6",
+                "pixel_sha256": "4185d6cce1ddc8cfe95ca19235f47fef8cc8c0082fba1d8fe9af253a7c189e22",
+                "width_px": 512,
+                "height_px": 512,
+                "visible_pixels": 20535,
+                "soft_alpha_pixels": 4728,
+                "boundary_pixels": 0,
+                "alpha_total_variation": 199284,
+                "foreground_bounds": {
+                    "x": 146,
+                    "y": 8,
+                    "width": 163,
+                    "height": 189
+                },
+                "reference": {
+                    "state": "MISSING",
+                    "sha256": null,
+                    "mean_absolute_alpha_error": null,
+                    "mean_squared_alpha_error": null,
+                    "alpha_iou_128": null
+                },
+                "critical_defects": [],
+                "state": "OPERATOR_REVIEW_REQUIRED",
+                "semantic_detail_evidence": "MISSING",
+                "print_resolution_evidence": "REQUIRES_APPROVED_PLACEMENT_GEOMETRY",
+                "commercial_certified": false,
+                "supplier_certified": false,
+                "external_execution_authorized": false
+            },
+            "preview_sha256": {
+                "light": "9eb794b296d8d9b23f17ffe0462ed867b6a8368b133f36d8a8e241eddb564b29",
+                "dark": "a5244adc1b3366d688f56d15990497f2558979cbeb1d63c6fc2aacc280c0752c"
+            },
+            "model_sha256": "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38"
+        },
+        {
+            "case": "human-warm-filesystem",
+            "mask": {
+                "version": "cutout-pixel-qa-v1",
+                "artifact_sha256": "3aa43cb5313a968af4e47acb37bb4de542a805440d938147cac4cc3794c6360c",
+                "pixel_sha256": "7d05231908b46df5b2bd87faeb288fbef0f3dd24fac9852b360bee058f0b9bbf",
+                "width_px": 512,
+                "height_px": 512,
+                "visible_pixels": 20535,
+                "soft_alpha_pixels": 4728,
+                "boundary_pixels": 0,
+                "alpha_total_variation": 199284,
+                "foreground_bounds": {
+                    "x": 146,
+                    "y": 8,
+                    "width": 163,
+                    "height": 189
+                },
+                "reference": {
+                    "state": "MISSING",
+                    "sha256": null,
+                    "mean_absolute_alpha_error": null,
+                    "mean_squared_alpha_error": null,
+                    "alpha_iou_128": null
+                },
+                "critical_defects": [],
+                "state": "OPERATOR_REVIEW_REQUIRED",
+                "semantic_detail_evidence": "MISSING",
+                "print_resolution_evidence": "REQUIRES_APPROVED_PLACEMENT_GEOMETRY",
+                "commercial_certified": false,
+                "supplier_certified": false,
+                "external_execution_authorized": false
+            },
+            "styled": {
+                "version": "cutout-pixel-qa-v1",
+                "artifact_sha256": "760de38f9b115fb0b1551f650d33be39982a00cfa3ed6d917ad0fed52208afd6",
+                "pixel_sha256": "4185d6cce1ddc8cfe95ca19235f47fef8cc8c0082fba1d8fe9af253a7c189e22",
+                "width_px": 512,
+                "height_px": 512,
+                "visible_pixels": 20535,
+                "soft_alpha_pixels": 4728,
+                "boundary_pixels": 0,
+                "alpha_total_variation": 199284,
+                "foreground_bounds": {
+                    "x": 146,
+                    "y": 8,
+                    "width": 163,
+                    "height": 189
+                },
+                "reference": {
+                    "state": "MISSING",
+                    "sha256": null,
+                    "mean_absolute_alpha_error": null,
+                    "mean_squared_alpha_error": null,
+                    "alpha_iou_128": null
+                },
+                "critical_defects": [],
+                "state": "OPERATOR_REVIEW_REQUIRED",
+                "semantic_detail_evidence": "MISSING",
+                "print_resolution_evidence": "REQUIRES_APPROVED_PLACEMENT_GEOMETRY",
+                "commercial_certified": false,
+                "supplier_certified": false,
+                "external_execution_authorized": false
+            },
+            "preview_sha256": {
+                "light": "9eb794b296d8d9b23f17ffe0462ed867b6a8368b133f36d8a8e241eddb564b29",
+                "dark": "a5244adc1b3366d688f56d15990497f2558979cbeb1d63c6fc2aacc280c0752c"
+            },
+            "model_sha256": "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38"
+        }
+    ]
+}

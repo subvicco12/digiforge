@@ -14,9 +14,9 @@ final class OperationalDepthReadModel {
   if($policyState==='UNAVAILABLE')$policies=[];
   return ['shop'=>$shop,'policies'=>$policies,'policies_query_state'=>$policyState,'cost'=>(new CostKpiReadModel())->snapshot($shop),'read_only'=>true,'external_execution_authorized'=>false];
  }
- public function fulfillmentProviders(int $limit=50, ?string &$queryState=null):array {
-  global $wpdb;$limit=max(1,min(100,$limit));$wpdb->last_error='';
-  $plans=$wpdb->get_results($wpdb->prepare('SELECT fp.id,fp.order_id,fp.plan_version,fp.provider,fp.payload_hash,fp.readiness_hash,fp.state,fp.approved_by,fp.approved_at,fp.environment,fp.updated_at,o.environment AS order_environment,o.state AS order_state FROM '.Tables::fulfillment_plans().' fp LEFT JOIN '.Tables::orders().' o ON o.id=fp.order_id ORDER BY fp.id DESC LIMIT %d',$limit),ARRAY_A);
+ public function fulfillmentProviders(int $limit=50, ?string &$queryState=null, ?string $shop=null):array {
+  global $wpdb;$limit=max(1,min(100,$limit));$where=$shop===null?'':' WHERE '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');$wpdb->last_error='';
+  $plans=$wpdb->get_results($wpdb->prepare('SELECT fp.id,fp.order_id,fp.plan_version,fp.provider,fp.payload_hash,fp.readiness_hash,fp.state,fp.approved_by,fp.approved_at,fp.environment,fp.updated_at,o.environment AS order_environment,o.state AS order_state FROM '.Tables::fulfillment_plans().' fp LEFT JOIN '.Tables::orders().' o ON o.id=fp.order_id'.$where.' ORDER BY fp.id DESC LIMIT %d',$limit),ARRAY_A);
   if(!is_array($plans)||!empty($wpdb->last_error)){$queryState='UNAVAILABLE';return [];}
   $queryState='AVAILABLE';
   $repo=new OrderRepository();$currentByOrder=[];

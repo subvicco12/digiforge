@@ -1,0 +1,118 @@
+{
+  "blueprint": {
+    "filename": "DigiForge_Ultimate_Master_Blueprint_v6.0_2026-09-27(1)(1).docx",
+    "sha256": "fe88023f6067151b562ecf1d867dda41b0555bceac1685566a206adba6b76125",
+    "paragraph_elements": 736,
+    "nonempty_source_anchors": 706,
+    "tables": 27
+  },
+  "workbook": {
+    "filename": "DigiForge_DigiCraftifyGoods_Master_500_v2_Research_Migration_Plan(1)(1).xlsx",
+    "sha256": "56639c9122985ac17b46685bb8b91e5d29f387f16fff715b3488e9b4c2380f6d",
+    "source_cells_sha256": "6f894770849460e31403c947ea0f38a96109ccdfbf10cd5f51462a43461ce4fc",
+    "sheets": {
+      "AI_Launch_Model": {
+        "last_physical_row": 18,
+        "populated_rows": 16,
+        "formulas": [
+          {
+            "cached_value": "0",
+            "cell": "G4",
+            "formula": "=$B$4"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H4",
+            "formula": "=F4*G4"
+          },
+          {
+            "cached_value": "0",
+            "cell": "G5",
+            "formula": "=$B$5"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H5",
+            "formula": "=F5*G5"
+          },
+          {
+            "cached_value": "0",
+            "cell": "G6",
+            "formula": "=$B$6"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H6",
+            "formula": "=F6*G6"
+          },
+          {
+            "cached_value": "0",
+            "cell": "G7",
+            "formula": "=$B$7"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H7",
+            "formula": "=F7*G7"
+          },
+          {
+            "cached_value": "0",
+            "cell": "G8",
+            "formula": "=$B$8"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H8",
+            "formula": "=F8*G8"
+          },
+          {
+            "cached_value": "0",
+            "cell": "G9",
+            "formula": "=$B$9"
+          },
+          {
+            "cached_value": "0",
+            "cell": "H9",
+            "formula": "=F9*G9"
+          },
+          {
+            "cached_value": "0",
+            "cell": "E12",
+            "formula": "=SUM(H4:H9)"
+          },
+          {
+            "cached_value": "SET BUDGET",
+            "cell": "E13",
+            "formula": "=IF($B$10=0,\"SET BUDGET\",IF(E12<=$B$10,\"WITHIN BUDGET\",\"OVER BUDGET\"))"
+          }
+        ]
+      },
+      "Executive_Summary": {
+        "last_physical_row": 11,
+        "populated_rows": 10,
+        "formulas": []
+      },
+      "Family_Rebalance": {
+        "last_physical_row": 25,
+        "populated_rows": 25,
+        "formulas": []
+      },
+      "Master_500_v2": {
+        "last_physical_row": 501,
+        "populated_rows": 501,
+        "formulas": []
+      },
+      "Research_Evidence": {
+        "last_physical_row": 9,
+        "populated_rows": 9,
+        "formulas": []
+      },
+      "Source_Migration_500": {
+        "last_physical_row": 501,
+        "populated_rows": 501,
+        "formulas": []
+      }
+    }
+  },
+  "approval_boundary": "Source documents are requirements evidence, not authorization for deployment, promotion or external operations. Current user safety restrictions supersede historical and embedded instructions."
+}

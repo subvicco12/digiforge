@@ -57,6 +57,7 @@ final class EtsyControlledHttpExecutor
         $payload=is_array($request['payload']??null)?$request['payload']:[];
         $multipart=is_array($request['multipart']??null)?$request['multipart']:null;
         $multipartBytes=null;
+        $filePlan=false;
         if ($multipart!==null) {
             $preparedState=(string)($multipart['state']??'');
             $asset=(string)($multipart['file_path']??'');
@@ -134,13 +135,17 @@ final class EtsyControlledHttpExecutor
 
         $response=$attempt['response']??null;
         unset($attempt['response']);
+        $rateLimit=EtsyRateLimitMetadata::fromHeaders(is_wp_error($response)?[]:wp_remote_retrieve_headers($response));
+        if ($rateLimit instanceof WP_Error) return $rateLimit;
+        // Preserve the attempted request identity and bounded rate evidence before
+        // interpreting a response as a terminal or ambiguous provider outcome.
+        $durable=(new EtsyOperationRepository())->recordExternalAttempt($attempt,$rateLimit);
+        if ($durable instanceof WP_Error) return $durable;
         $sanitized=is_wp_error($response)
             ? ['transport_state'=>'NO_RESPONSE']
             : ['transport_state'=>'RESPONSE_RECEIVED','http_status'=>(int)wp_remote_retrieve_response_code($response)];
         $classified=EtsyHttpOutcome::classify($sanitized);
         if ($classified instanceof WP_Error) return $classified;
-        $rateLimit=EtsyRateLimitMetadata::fromHeaders(is_wp_error($response)?[]:wp_remote_retrieve_headers($response));
-        if ($rateLimit instanceof WP_Error) return $rateLimit;
 
         $externalReference='';
         $externalAssetReference='';

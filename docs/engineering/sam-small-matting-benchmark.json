@@ -1,0 +1,268 @@
+{
+  "version": "sam2-small-cf8-experimental-v1",
+  "cold_process_note": "Every request starts a new sandbox/model; warm means filesystem cache, not a resident model. JIT precompilation is deployment preparation outside request bounds.",
+  "cases": [
+    {
+      "case": "human-cold-process",
+      "input_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+      "selection": {
+        "subjects": [
+          {
+            "x": 130,
+            "y": 2,
+            "width": 190,
+            "height": 220
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 222,
+            "y": 110
+          },
+          {
+            "x": 222,
+            "y": 45
+          }
+        ],
+        "trimap_width": 8
+      },
+      "reviewed_accuracy": null,
+      "reference_mask_status": "MISSING_REVIEWED_ALPHA",
+      "commercial_certified": false,
+      "supplier_certified": false,
+      "status": "REVIEW_REQUIRED",
+      "provenance": {
+        "external_execution_authorized": false,
+        "foreground_pixel_sha256": "a95dadf7926c520f64421add7af03601cca0b6333ca8d02b1670211b013eeb04",
+        "foreground_pixels": 20535,
+        "mask_pixel_sha256": "45075986ad0da7c82a20c66d956968022234a48e7cb500f37e09ab923a9830cf",
+        "model_sha256": "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38",
+        "removed_speck_pixels": 76,
+        "review_required": true,
+        "selection_boundary_contact": false,
+        "semantic_head_certified": false,
+        "soft_alpha_pixels": 4728,
+        "trimap_sha256": "948bfba502d9b0f16b9b9a6df584c662e954f1c8022eeb9e727a82f2147f3fe3",
+        "version": "sam2-small-cf8-experimental-v1",
+        "mask_rgba_sha256": "7d05231908b46df5b2bd87faeb288fbef0f3dd24fac9852b360bee058f0b9bbf",
+        "original_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+        "source_sha256": "7e6c69b949f139407e49b3c7e80b72d397ae5cd2602010a137cd366d8a00e544",
+        "mask_sha256": "3aa43cb5313a968af4e47acb37bb4de542a805440d938147cac4cc3794c6360c",
+        "worker_sha256": "d3de503c4540895cc720d0ce8f6dadd298f5baee8afb56315e72d6a197aa83e7",
+        "source_contract_sha256": "ac59286bb157a33afb41eba9ca7c71410c3e833bd6bd68e1f09da1ce4f52deb6",
+        "cache_manifest_sha256": "f8e7455c5bf06254036ccc87d516e082d6dd2dc50e2526bd83dcbe16474f5573",
+        "selection": {
+          "subjects": [
+            {
+              "x": 130,
+              "y": 2,
+              "width": 190,
+              "height": 220
+            }
+          ],
+          "selected": 0,
+          "foreground_points": [
+            {
+              "x": 222,
+              "y": 110
+            },
+            {
+              "x": 222,
+              "y": 45
+            }
+          ],
+          "trimap_width": 8
+        },
+        "experimental": true,
+        "certification": "NOT_CERTIFIED"
+      },
+      "wall_seconds": 11.148873609
+    },
+    {
+      "case": "human-warm-filesystem",
+      "input_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+      "selection": {
+        "subjects": [
+          {
+            "x": 130,
+            "y": 2,
+            "width": 190,
+            "height": 220
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 222,
+            "y": 110
+          },
+          {
+            "x": 222,
+            "y": 45
+          }
+        ],
+        "trimap_width": 8
+      },
+      "reviewed_accuracy": null,
+      "reference_mask_status": "MISSING_REVIEWED_ALPHA",
+      "commercial_certified": false,
+      "supplier_certified": false,
+      "status": "REVIEW_REQUIRED",
+      "provenance": {
+        "external_execution_authorized": false,
+        "foreground_pixel_sha256": "a95dadf7926c520f64421add7af03601cca0b6333ca8d02b1670211b013eeb04",
+        "foreground_pixels": 20535,
+        "mask_pixel_sha256": "45075986ad0da7c82a20c66d956968022234a48e7cb500f37e09ab923a9830cf",
+        "model_sha256": "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5dc4d38",
+        "removed_speck_pixels": 76,
+        "review_required": true,
+        "selection_boundary_contact": false,
+        "semantic_head_certified": false,
+        "soft_alpha_pixels": 4728,
+        "trimap_sha256": "948bfba502d9b0f16b9b9a6df584c662e954f1c8022eeb9e727a82f2147f3fe3",
+        "version": "sam2-small-cf8-experimental-v1",
+        "mask_rgba_sha256": "7d05231908b46df5b2bd87faeb288fbef0f3dd24fac9852b360bee058f0b9bbf",
+        "original_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+        "source_sha256": "7e6c69b949f139407e49b3c7e80b72d397ae5cd2602010a137cd366d8a00e544",
+        "mask_sha256": "3aa43cb5313a968af4e47acb37bb4de542a805440d938147cac4cc3794c6360c",
+        "worker_sha256": "d3de503c4540895cc720d0ce8f6dadd298f5baee8afb56315e72d6a197aa83e7",
+        "source_contract_sha256": "ac59286bb157a33afb41eba9ca7c71410c3e833bd6bd68e1f09da1ce4f52deb6",
+        "cache_manifest_sha256": "f8e7455c5bf06254036ccc87d516e082d6dd2dc50e2526bd83dcbe16474f5573",
+        "selection": {
+          "subjects": [
+            {
+              "x": 130,
+              "y": 2,
+              "width": 190,
+              "height": 220
+            }
+          ],
+          "selected": 0,
+          "foreground_points": [
+            {
+              "x": 222,
+              "y": 110
+            },
+            {
+              "x": 222,
+              "y": 45
+            }
+          ],
+          "trimap_width": 8
+        },
+        "experimental": true,
+        "certification": "NOT_CERTIFIED"
+      },
+      "exact_replay": true,
+      "wall_seconds": 10.328462108
+    },
+    {
+      "case": "clipped-cat",
+      "input_sha256": "fcc014b630787f6385dffc3041dac52d03c42bef657d8b7225d6d38459f1a38a",
+      "selection": {
+        "subjects": [
+          {
+            "x": 15,
+            "y": 5,
+            "width": 420,
+            "height": 285
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 220,
+            "y": 145
+          }
+        ],
+        "trimap_width": 8
+      },
+      "reviewed_accuracy": null,
+      "reference_mask_status": "MISSING_REVIEWED_ALPHA",
+      "commercial_certified": false,
+      "supplier_certified": false,
+      "status": "REJECTED",
+      "reason": "Experimental inference unavailable or unsafe; reviewed alpha fallback required.",
+      "wall_seconds": 9.369643915
+    },
+    {
+      "case": "unsupported-width",
+      "input_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+      "selection": {
+        "subjects": [
+          {
+            "x": 130,
+            "y": 2,
+            "width": 190,
+            "height": 220
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 222,
+            "y": 110
+          },
+          {
+            "x": 222,
+            "y": 45
+          }
+        ],
+        "trimap_width": 24
+      },
+      "reviewed_accuracy": null,
+      "reference_mask_status": "MISSING_REVIEWED_ALPHA",
+      "commercial_certified": false,
+      "supplier_certified": false,
+      "status": "REJECTED",
+      "reason": "Only the tested experimental trimap width is supported.",
+      "wall_seconds": 0.081584448
+    },
+    {
+      "case": "incomplete-jit-cache",
+      "input_sha256": "8206c30fca8b21f075f9018fda7a84e3988b33f092c4a9dad3ba383a4da5ccd9",
+      "selection": {
+        "subjects": [
+          {
+            "x": 130,
+            "y": 2,
+            "width": 190,
+            "height": 220
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 222,
+            "y": 110
+          },
+          {
+            "x": 222,
+            "y": 45
+          }
+        ],
+        "trimap_width": 8
+      },
+      "reviewed_accuracy": null,
+      "reference_mask_status": "MISSING_REVIEWED_ALPHA",
+      "commercial_certified": false,
+      "supplier_certified": false,
+      "status": "REJECTED",
+      "reason": "Experimental inference unavailable or unsafe; reviewed alpha fallback required.",
+      "wall_seconds": 15.898523613
+    }
+  ],
+  "worker_resource_sample": {
+    "worker_inference_seconds": 9.45605554600479,
+    "worker_peak_rss_kib": 1192996,
+    "worker_cpu_seconds": 9.547202,
+    "mask_sha256": "45075986ad0da7c82a20c66d956968022234a48e7cb500f37e09ab923a9830cf",
+    "soft_alpha_pixels": 4728
+  },
+  "worker_resource_sample_scope": "Separate same-input/hash bounded isolated infer call; process self CPU/RSS, not PHP launcher RAM. Same final unchanged worker.",
+  "worker_sha256": "d3de503c4540895cc720d0ce8f6dadd298f5baee8afb56315e72d6a197aa83e7",
+  "runtime_package_count": 25,
+  "reviewed_visual_accuracy": "NOT_MEASURED: approved reference alpha mattes missing",
+  "visual_observation": "Human face and soft hair perimeter visible on white/dark composites; not an approved artistic review. Cat fixture rejected for boundary safety; whisker restoration unverified."
+}

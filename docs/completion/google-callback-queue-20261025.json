@@ -1,0 +1,42 @@
+{
+  "recorded_at_utc": "2026-10-24T19:38:07.536771+00:00",
+  "baseline_sha": "d5a79aab5485c223390bc4d08242a276b0796e30",
+  "baseline_audit": {
+    "number": 4792,
+    "run_id": 40116165230,
+    "conclusion": "success"
+  },
+  "remaining_nonfinance_unverified": [
+    "BP-seam-panel-render",
+    "BP-ai-value-routing",
+    "BP-template-qa-spelling",
+    "BP-printify-shop-scope",
+    "BP-distinct-provider-shops",
+    "BP-etsy-shop-identity",
+    "BP-portal-4-provider-connections",
+    "BP-portal-7-mockups",
+    "BP-portal-7-supplier-readiness",
+    "BP-portal-11-production-authorization",
+    "BP-portal-17-conversion",
+    "BP-portal-17-defect-quality",
+    "BP-portal-17-supplier-performance",
+    "BP-portal-17-product-performance",
+    "BP-portal-17-shop-performance",
+    "BP-live-portal-normal-work",
+    "BP-secret-no-chat",
+    "BP-quality-feedback",
+    "BP-digital-semantic-content",
+    "BP-digital-semantic-visual",
+    "BP-digital-semantic-ip",
+    "BP-digital-semantic-policy"
+  ],
+  "newly_verified_criteria": [],
+  "google_provider_acceptance": "UNKNOWN",
+  "google_docs_buyer_compatibility": "UNKNOWN",
+  "word_buyer_compatibility": "UNKNOWN",
+  "stable_libreoffice": "Prior exact-file 25.2.3.2 evidence reused; not rerun",
+  "artwork_export_parity": "Prior evidence reused: exact decoded PNG on pages1/4, resized/JPEG on2/7/9; complete visual fidelity UNKNOWN",
+  "commercial_approval": false,
+  "production_authorized": false,
+  "finance_excluded": true
+}

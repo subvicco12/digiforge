@@ -36,6 +36,12 @@ final class EtsySentTransitionService
             return $this->error('operation_not_sendable','Only a NOT_SENT operation may be marked SENT.');
         }
 
+        $durable=$this->operations->recordExternalAttempt([
+            'operation_id'=>$operationId,'attempt_id'=>$attemptId,'attempted_at'=>$attemptedAt,
+            'adapter_invoked'=>true,'external_request_attempted'=>true,
+        ]);
+        if ($durable instanceof WP_Error) return $durable;
+
         $transitioned=$this->operations->transition($operationId,EtsyOperationLifecycle::SENT);
         if ($transitioned instanceof WP_Error) return $transitioned;
 

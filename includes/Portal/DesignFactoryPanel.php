@@ -55,7 +55,7 @@ final class DesignFactoryPanel
     }
     public function process(array $post): array|WP_Error
     {
-        if(($post['shop_key']??null)!=='personalized_pod'||!is_string($post['workflow_hash']??null)||get_current_user_id()<1||!current_user_can('manage_digiforge_pod')||!current_user_can('manage_digiforge_research'))return new WP_Error('design_factory_scope','Authenticated exact-shop selected concept required.');
+        if(!\DigiForge\Security\PersonalizedPodAccess::allows()||($post['shop_key']??null)!=='personalized_pod'||!is_string($post['workflow_hash']??null)||get_current_user_id()<1||!current_user_can('manage_digiforge_pod')||!current_user_can('manage_digiforge_research'))return new WP_Error('design_factory_scope','Authenticated exact-shop selected concept required.');
         $commercial=$post['workflow_hash'];$repo=new DesignFactoryRepository();$op=$post['operation']??null;$result=null;
         if($op==='design_approve_concept')$result=$repo->approveConcept('personalized_pod',$commercial,['sources_reviewed'=>($post['sources_reviewed']??null)==='1','buyer_intent_reviewed'=>($post['buyer_intent_reviewed']??null)==='1','gifting_occasion_reviewed'=>($post['gifting_occasion_reviewed']??null)==='1','note'=>$post['note']??null]);
         else {

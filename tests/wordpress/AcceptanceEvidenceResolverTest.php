@@ -1,0 +1,62 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/Support/ReviewedLocalFixture.php';
+use DigiForge\Portal\ReviewedAcceptanceContract as Contract;
+use DigiForge\Portal\ReviewedScopedPolicy as Policy;
+use DigiForge\Portal\AcceptanceEvidenceResolver as Resolver;
+final class AcceptanceEvidenceResolverTest extends WP_UnitTestCase {
+ private array $actors;
+ private string $key='sandbox:WORKFLOW:research:research';
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();$this->actors=ReviewedLocalFixture::actors('digital');}
+ private function policy(int $expires=0):array {$p=Policy::propose('digital',['environment'=>'sandbox','scope'=>'WORKFLOW','workflow'=>'research','capability'=>'research','enabled'=>false],time()-1,$expires?:time()+3600,wp_generate_uuid4(),0);self::assertNotWPError($p);wp_set_current_user($this->actors['reviewer']);$r=Policy::decide('digital',$this->key,$p['revision'],$p['proposal_hash'],'APPROVED',wp_generate_uuid4());self::assertNotWPError($r);wp_set_current_user($this->actors['author']);return $r;}
+ private function ref(array $p):array{return ['shop_key'=>'digital','reference'=>'local://reviewed-policy/v1/'.$this->key.'/'.$p['version'].'/'.$p['revision'],'sha256'=>$p['proposal_hash']];}
+ private function contract(array $refs,?array $formula=null,string $workflow='research'):array {$input=['version'=>1,'criterion'=>'BP-portal-17-conversion','scope'=>'resolver-fixture','workflow'=>$workflow,'definition'=>['numerator'=>'Synthetic events','denominator'=>'Synthetic population','population'=>'Synthetic only','attribution'=>'Exact local records','period_start'=>'2026-01-01T00:00:00Z','period_end'=>'2026-02-01T00:00:00Z','source_records'=>$refs,'formula_ref'=>$formula]];$p=Contract::propose('digital',$input,time()-1,time()+3600,wp_generate_uuid4(),0);self::assertNotWPError($p);wp_set_current_user($this->actors['reviewer']);$r=Contract::decide('digital',$input['criterion'],$input['scope'],$p['revision'],$p['proposal_hash'],'APPROVED',wp_generate_uuid4());self::assertNotWPError($r);wp_set_current_user($this->actors['author']);return $r;}
+ private function resolve(string $shop='digital',string $environment='sandbox'):array|WP_Error {return Resolver::resolve($shop,'BP-portal-17-conversion','resolver-fixture',$environment);}
+ public function testCanonicalReferenceResolvesReviewedLocalIdentityWithoutCertifyingEvidence():void {self::assertTrue(class_exists(Resolver::class),'The explicit local evidence resolver is missing.');$p=$this->policy();$ref=$this->ref($p);self::assertSame($ref,Resolver::policyReference('digital',$this->key));$this->contract([$ref]);$r=$this->resolve();self::assertNotWPError($r);self::assertSame('MATCHED_LOCAL_RECORDS',$r['resolution_state']);self::assertSame('UNKNOWN',$r['value_state']);self::assertSame('UNVERIFIED',$r['evidence_state']);self::assertSame(1,$r['matched_record_count']);self::assertSame($p['proposal_hash'],$r['references'][0]['sha256']);self::assertSame($p['version'],$r['references'][0]['record_version']);self::assertSame($p['revision'],$r['references'][0]['review_revision']);self::assertFalse($r['external_execution_authorized']);self::assertArrayNotHasKey('payload',$r['references'][0]);self::assertTrue(DigiForge\Core\Settings::safety_locked());}
+ public function testCrossShopDeferredAndAnonymousReadsDenyWithoutLeakingRecords():void {$p=$this->policy();$this->contract([$this->ref($p)]);foreach(['personalized_pod','standard_pod','jewelry']as $shop)self::assertWPError($this->resolve($shop));wp_set_current_user(0);self::assertWPError($this->resolve());}
+ public function testHashMismatchAndForeignEnvironmentStayUnknown():void {$p=$this->policy();$ref=$this->ref($p);$ref['sha256']=str_repeat('0',64);$this->contract([$ref]);$r=$this->resolve();self::assertSame('UNKNOWN',$r['resolution_state']);self::assertSame(0,$r['matched_record_count']);self::assertSame('UNVERIFIED',$r['evidence_state']);self::assertSame('UNKNOWN',$this->resolve('digital','production')['resolution_state']);}
+ public function testMissingAndUnsupportedReferencesAreNeverGuessed():void {$p=$this->policy();$ref=$this->ref($p);$ref['reference']='local://arbitrary/'.$p['proposal_hash'];$this->contract([$ref]);self::assertSame('UNSUPPORTED_REFERENCE',$this->resolve()['references'][0]['reason']);}
+ public function testRevocationImmediatelyInvalidatesPreviouslyMatchingReference():void {$p=$this->policy();$this->contract([$this->ref($p)]);self::assertSame(1,$this->resolve()['matched_record_count']);wp_set_current_user($this->actors['reviewer']);self::assertNotWPError(Policy::decide('digital',$this->key,$p['revision'],$p['proposal_hash'],'REVOKED',wp_generate_uuid4()));wp_set_current_user($this->actors['author']);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);self::assertWPError(Resolver::policyReference('digital',$this->key));}
+ public function testExpiredReviewNeverMatches():void {$p=$this->policy(time()+2);$this->contract([$this->ref($p)]);while(time()<$p['expires_at'])usleep(50000);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);}
+ public function testIdenticalReferencesAreDeduplicatedWithoutInflatingEvidence():void {$p=$this->policy();$ref=$this->ref($p);$this->contract([$ref],$ref);$r=$this->resolve();self::assertSame(1,$r['matched_record_count']);self::assertCount(1,$r['references']);self::assertSame(2,$r['references'][0]['occurrences']);}
+ public function testConflictingDuplicateHashesInvalidateReference():void {$p=$this->policy();$ref=$this->ref($p);$bad=$ref;$bad['sha256']=str_repeat('0',64);$this->contract([$ref],$bad);$r=$this->resolve();self::assertSame('UNKNOWN',$r['resolution_state']);self::assertSame(0,$r['matched_record_count']);self::assertSame('CONFLICTING_REFERENCE',$r['references'][0]['reason']);}
+ public function testStaleVersionNeverMatches():void {$p=$this->policy();$ref=$this->ref($p);$ref['reference']=str_replace('/1/2','/2/2',$ref['reference']);$this->contract([$ref]);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);}
+ public function testExactHashCannotCrossEnvironmentOrWorkflow():void {$p=$this->policy();$this->contract([$this->ref($p)],null,'product_factory');self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);}
+ public function testExactHashCannotCrossEnvironment():void {$p=$this->policy();$this->contract([$this->ref($p)]);self::assertSame('UNKNOWN',$this->resolve('digital','production')['resolution_state']);}
+ /** @dataProvider contractEnvironments */
+ public function testVersionTwoContractEnvironmentMustMatchResolution(string $contractEnvironment,string $expectedState):void {
+  $p=$this->policy();
+  $input=['version'=>2,'criterion'=>'BP-portal-17-conversion','scope'=>'resolver-fixture','workflow'=>'research','definition'=>[
+   'policy'=>DigiForge\Portal\ApprovedAcceptancePolicy::rules('BP-portal-17-conversion'),'environment'=>$contractEnvironment,
+   'subject'=>['scope'=>'SHOP','product_id'=>null,'product_version'=>null,'supplier_id'=>null],
+   'period_start'=>'2026-01-01T00:00:00Z','period_end'=>'2026-02-01T00:00:00Z','source_records'=>[$this->ref($p)],'observations'=>null,
+  ]];
+  $proposal=Contract::propose('digital',$input,time()-1,time()+3600,wp_generate_uuid4(),0);self::assertNotWPError($proposal);
+  wp_set_current_user($this->actors['reviewer']);
+  self::assertNotWPError(Contract::decide('digital',$input['criterion'],$input['scope'],$proposal['revision'],$proposal['proposal_hash'],'APPROVED',wp_generate_uuid4()));
+  wp_set_current_user($this->actors['author']);
+  $result=$this->resolve();self::assertNotWPError($result);
+  self::assertSame($expectedState,$result['resolution_state']);
+  self::assertSame($expectedState==='UNKNOWN'?0:1,$result['matched_record_count']);
+  self::assertSame('UNVERIFIED',$result['evidence_state']);
+  self::assertFalse($result['external_execution_authorized']);
+ }
+ public static function contractEnvironments():array {return ['matching'=>['sandbox','MATCHED_LOCAL_RECORDS'],'foreign'=>['production','UNKNOWN']];}
+ public function testMissingPolicyRecordAndParentReviewRemainUnknown():void {self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);$ref=['shop_key'=>'digital','reference'=>'local://reviewed-policy/v1/sandbox:SHOP::research/1/2','sha256'=>str_repeat('a',64)];$this->contract([$ref]);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);self::assertSame(0,$this->resolve()['matched_record_count']);}
+ public function testParentReviewRevocationDenies():void {$p=$this->policy();$parent=$this->contract([$this->ref($p)]);wp_set_current_user($this->actors['reviewer']);self::assertNotWPError(Contract::decide('digital','BP-portal-17-conversion','resolver-fixture',$parent['revision'],$parent['proposal_hash'],'REVOKED',wp_generate_uuid4()));wp_set_current_user($this->actors['author']);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);}
+ public function testReviewerAuthorityLossInvalidatesResolution():void {$p=$this->policy();$this->contract([$this->ref($p)]);(new WP_User($this->actors['reviewer']))->set_role('subscriber');self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);self::assertWPError(Resolver::policyReference('digital',$this->key));}
+ public function testSuccessfulResolutionDoesNotWriteReviewOrAuditRecords():void {$p=$this->policy();$this->contract([$this->ref($p)]);global $wpdb;$before=$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::audit_log().' ORDER BY id',ARRAY_A);$option=$wpdb->get_results("SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name LIKE 'digiforge_local_review_%' ORDER BY option_name",ARRAY_A);self::assertSame(1,$this->resolve()['matched_record_count']);self::assertSame($before,$wpdb->get_results('SELECT * FROM '.DigiForge\Database\Tables::audit_log().' ORDER BY id',ARRAY_A));self::assertSame($option,$wpdb->get_results("SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name LIKE 'digiforge_local_review_%' ORDER BY option_name",ARRAY_A));}
+ public function testDatabaseFailureIsUnknownWithoutSensitiveDiagnostics():void {$p=$this->policy();$this->contract([$this->ref($p)]);global $wpdb;$fault=static fn(string $sql):string=>str_starts_with(ltrim($sql),'SELECT')&&str_contains($sql,"'reviewed_local_evidence'")?'SELECT * FROM digiforge_synthetic_absent_evidence_table':$sql;$old=$wpdb->suppress_errors(true);add_filter('query',$fault);try{$r=$this->resolve();self::assertNotWPError($r);self::assertSame('UNKNOWN',$r['resolution_state']);self::assertSame([],$r['references']);self::assertStringNotContainsString('absent_evidence',wp_json_encode($r));}finally{remove_filter('query',$fault);$wpdb->suppress_errors($old);}}
+ public function testGenericSignedRecordCannotMasqueradeAsTypedPolicy():void {$p=DigiForge\Security\ReviewedLocalEvidence::propose('policy','digital',$this->key,['environment'=>'production','scope'=>'WORKFLOW','workflow'=>'research','capability'=>'research','enabled'=>false],time()-1,time()+3600,wp_generate_uuid4(),0);self::assertNotWPError($p);wp_set_current_user($this->actors['reviewer']);$a=DigiForge\Security\ReviewedLocalEvidence::decide('policy','digital',$this->key,$p['revision'],$p['proposal_hash'],'APPROVED',wp_generate_uuid4());self::assertNotWPError($a);wp_set_current_user($this->actors['author']);$this->contract([$this->ref($a)]);self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);self::assertWPError(Resolver::policyReference('digital',$this->key));}
+ public function testSignedHistoryLossFailsClosed():void {
+  $p=$this->policy();$this->contract([$this->ref($p)]);global $wpdb;
+  $stream=hash('sha256',DigiForge\Listings\Validator::canonicalJson(['policy','digital',$this->key]));
+  $events=$wpdb->get_col($wpdb->prepare('SELECT object_id FROM '.DigiForge\Database\Tables::audit_log()." WHERE object_type='reviewed_local_evidence' AND event_type='local_review_proposed' AND object_id=%s ORDER BY id LIMIT 1",$stream));self::assertCount(1,$events);
+  self::assertSame($stream,$events[0],'History-loss fault must target the current source policy.');
+  self::assertSame(1,$this->resolve()['matched_record_count']);
+  $option='digiforge_local_review_'.$events[0];
+  self::assertSame(1,$wpdb->delete($wpdb->options,['option_name'=>$option]));
+  self::assertNull($wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$option)));
+  self::assertSame('UNKNOWN',$this->resolve()['resolution_state']);
+ }
+}

@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "qa_version": "cutout-pixel-qa-v1",
+  "certified": false,
+  "fixtures": [
+    {
+      "id": "human-qa",
+      "species": "human",
+      "source": {
+        "status": "AVAILABLE",
+        "file": "astronaut-srgb.png",
+        "sha256": "2418889d0d83962d51facc3832b55cf1849690018a1e873d1c551146555cd02f"
+      },
+      "rights": {
+        "status": "AVAILABLE",
+        "file": "upstream-license-source.txt",
+        "sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+        "license": "Public domain; NASA photograph, upstream states no known copyright restrictions.",
+        "scope": "OFFLINE_SOFTWARE_TEST_ONLY"
+      },
+      "consent_status": "NOT_ESTABLISHED_FOR_CUSTOMER_USE",
+      "reference": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "reviewer": null,
+        "review_utc": null,
+        "review_evidence_file": null,
+        "review_evidence_sha256": null,
+        "rights_file": null,
+        "rights_sha256": null,
+        "details": []
+      },
+      "supplier_certification": "MISSING"
+    },
+    {
+      "id": "cat-qa",
+      "species": "cat",
+      "source": {
+        "status": "AVAILABLE",
+        "file": "chelsea-srgb.png",
+        "sha256": "9540e8d656047041ae92c8c19f8aeb2baa4ede5a17030470e8a1cfc7bb26182a"
+      },
+      "rights": {
+        "status": "AVAILABLE",
+        "file": "upstream-license-source.txt",
+        "sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+        "license": "CC0; photographer Stefan van der Walt, stated by upstream.",
+        "scope": "OFFLINE_SOFTWARE_TEST_ONLY"
+      },
+      "consent_status": "NOT_ESTABLISHED_FOR_CUSTOMER_USE",
+      "reference": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "reviewer": null,
+        "review_utc": null,
+        "review_evidence_file": null,
+        "review_evidence_sha256": null,
+        "rights_file": null,
+        "rights_sha256": null,
+        "details": []
+      },
+      "supplier_certification": "MISSING"
+    },
+    {
+      "id": "dog-qa",
+      "species": "dog",
+      "source": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null
+      },
+      "rights": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "license": null,
+        "scope": "OFFLINE_SOFTWARE_TEST_ONLY"
+      },
+      "consent_status": "NOT_ESTABLISHED_FOR_CUSTOMER_USE",
+      "reference": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "reviewer": null,
+        "review_utc": null,
+        "review_evidence_file": null,
+        "review_evidence_sha256": null,
+        "rights_file": null,
+        "rights_sha256": null,
+        "details": []
+      },
+      "supplier_certification": "MISSING"
+    },
+    {
+      "id": "multi_subject-qa",
+      "species": "multi_subject",
+      "source": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null
+      },
+      "rights": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "license": null,
+        "scope": "OFFLINE_SOFTWARE_TEST_ONLY"
+      },
+      "consent_status": "NOT_ESTABLISHED_FOR_CUSTOMER_USE",
+      "reference": {
+        "status": "MISSING",
+        "file": null,
+        "sha256": null,
+        "reviewer": null,
+        "review_utc": null,
+        "review_evidence_file": null,
+        "review_evidence_sha256": null,
+        "rights_file": null,
+        "rights_sha256": null,
+        "details": []
+      },
+      "supplier_certification": "MISSING"
+    }
+  ]
+}

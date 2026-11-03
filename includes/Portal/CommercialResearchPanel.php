@@ -13,7 +13,8 @@ final class CommercialResearchPanel
     public function register(): void {add_action('admin_post_'.self::ACTION,[$this,'submit']);}
     public function render(string $shop): void
     {
-        if($shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
+        if ($shop!=='personalized_pod') return;
+        if(!\DigiForge\Security\PersonalizedPodAccess::allows()||$shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
         $this->researchForm();
         echo '<details'.(isset($_GET['df_research_version'])?'':' open').'><summary>Import source-backed research JSON</summary>';
@@ -111,7 +112,7 @@ final class CommercialResearchPanel
     }
     public function process(array $post): array|WP_Error
     {
-        if(($post['shop_key']??null)!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return new WP_Error('commercial_scope','Authenticated personalized-POD reviewer required.');
+        if(!\DigiForge\Security\PersonalizedPodAccess::allows()||($post['shop_key']??null)!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return new WP_Error('commercial_scope','Authenticated personalized-POD reviewer required.');
         try {if(strlen(CommercialResearchContract::json($post))>(is_string($post['operation']??null)&&str_starts_with($post['operation'],'design_')?8500000:500000))throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
         if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel())->process($post);

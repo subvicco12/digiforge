@@ -1,0 +1,37 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/fixtures/ShopAccessFixture.php';
+use DigiForge\Database\Tables;
+use DigiForge\Portal\BusinessOwnershipReadModel;
+final class BusinessOwnershipPortalAcceptanceTest extends WP_UnitTestCase {
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();DigiForge\Core\Settings::protectProduction();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));}
+ private function fixture(string $shop,string $marker):array {
+  $research=new DigiForge\Research\Repository();$candidate=$research->createCandidate(['shop_key'=>$shop,'title'=>$marker]);self::assertNotWPError($candidate);self::assertNotWPError($research->review((int)$candidate['id'],'APPROVED','Synthetic local lineage only.'));$opportunity=$research->promote((int)$candidate['id']);self::assertNotWPError($opportunity);
+  $factory=new DigiForge\ProductFactory\Repository();$family=$factory->create('product_family',['opportunity_id'=>$opportunity['id'],'name'=>$marker]);self::assertNotWPError($family);$product=$factory->create('product',['product_family_id'=>$family['id'],'name'=>$marker]);self::assertNotWPError($product);$version=$factory->create('product_version',['product_id'=>$product['id'],'version_label'=>'v1']);self::assertNotWPError($version);
+  global $wpdb;$now=current_time('mysql',true);self::assertSame(1,$wpdb->insert(Tables::businesses(),['business_key'=>sanitize_key($marker),'display_name'=>$marker,'status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$business=(int)$wpdb->insert_id;
+  self::assertSame(1,$wpdb->insert(Tables::stores(),['business_id'=>$business,'store_key'=>sanitize_key($marker),'display_name'=>$marker,'channel'=>'etsy','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$store=(int)$wpdb->insert_id;
+  self::assertSame(1,$wpdb->insert(Tables::product_programs(),['business_id'=>$business,'store_id'=>$store,'program_key'=>'PERSONALIZED_POD','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$program=(int)$wpdb->insert_id;
+  self::assertSame(1,$wpdb->insert(Tables::pod_mappings(),['product_version_id'=>$version['id'],'production_plan_id'=>0,'provider'=>'printify','environment'=>'sandbox','provider_product_key'=>'fixture-product','provider_variant_key'=>'fixture-variant','mapping_version'=>'v1','state'=>'APPROVED','approved_by'=>get_current_user_id(),'approved_at'=>$now,'notes'=>'token-private-should-never-render','created_at'=>$now,'updated_at'=>$now]));$mapping=(int)$wpdb->insert_id;
+  self::assertSame(1,$wpdb->insert(Tables::pod_business_mappings(),['business_id'=>$business,'store_id'=>$store,'product_program_id'=>$program,'product_version_id'=>$version['id'],'provider_mapping_id'=>$mapping,'state'=>'APPROVED','approved_by'=>get_current_user_id(),'approved_at'=>$now,'created_at'=>$now,'updated_at'=>$now]));return ['ownership'=>(int)$wpdb->insert_id,'business'=>$business,'mapping'=>$mapping,'candidate'=>$candidate['id']];
+ }
+ public function testActualOwnershipProviderRowsScopeBeforeWindowAndNeverAuthorizeProduction():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod', 'standard_pod', 'jewelry'], ['manage_digiforge', 'manage_digiforge_pod']);
+  $http=[];$guard=static function($pre,$args,$url)use(&$http){$http[]=$url;return new WP_Error('offline_ownership','No HTTP permitted.');};add_filter('pre_http_request',$guard,10,3);$get=$_GET;
+  try{$a=$this->fixture('personalized_pod','personal-owned-'.wp_generate_uuid4());$b=$this->fixture('standard_pod','standard-owned-'.wp_generate_uuid4());$read=new BusinessOwnershipReadModel();
+   foreach(['personalized_pod'=>$a,'standard_pod'=>$b] as $shop=>$own){$result=$read->snapshot($shop,1);self::assertSame('AVAILABLE',$result['query_state']);self::assertCount(1,$result['items']);self::assertSame($own['ownership'],(int)$result['items'][0]['ownership_id']);self::assertSame($own['business'],(int)$result['items'][0]['business_id']);self::assertSame($own['mapping'],(int)$result['items'][0]['provider_mapping_id']);self::assertSame('printify',$result['items'][0]['provider']);self::assertSame('sandbox',$result['items'][0]['environment']);self::assertSame('APPROVED_LOCAL_EVIDENCE',$result['items'][0]['evidence_state']);self::assertSame('NOT_ESTABLISHED',$result['items'][0]['provider_connection_binding']);self::assertFalse($result['external_execution_authorized']);$_GET=['df_view'=>'businesses','df_shop'=>$shop];$html=(new DigiForge\Portal\Portal())->render();self::assertStringContainsString($result['items'][0]['business_name'],$html);self::assertStringNotContainsString('token-private-should-never-render',$html);}
+   global $wpdb;self::assertSame(1,$wpdb->update(Tables::businesses(),['status'=>'INACTIVE'],['id'=>$a['business']]));self::assertSame('INACTIVE_OWNERSHIP',$read->snapshot('personalized_pod')['items'][0]['evidence_state']);
+   self::assertSame([],$read->snapshot('jewelry')['items']);self::assertSame('SCOPE_INVALID',$read->snapshot('unexpected')['query_state']);self::assertSame([],$http);self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());
+  }finally{$_GET=$get;remove_filter('pre_http_request',$guard,10);}
+ }
+ public function testUnavailableReadAndUnauthorizedOperatorsCannotInferAnEmptyApprovedRegistry():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod', 'standard_pod', 'jewelry'], ['manage_digiforge', 'manage_digiforge_pod']);
+  global $wpdb;$table=Tables::pod_business_mappings();$fail=static fn(string $sql):string=>str_contains($sql,'FROM '.$table.' own')?'SELECT * FROM no_such_ownership_evidence_table':$sql;add_filter('query',$fail);
+  try{$r=(new BusinessOwnershipReadModel())->snapshot('all');self::assertSame('UNAVAILABLE',$r['query_state']);self::assertSame([],$r['items']);self::assertFalse($r['external_execution_authorized']);}finally{remove_filter('query',$fail);}
+  wp_set_current_user(self::factory()->user->create(['role'=>'subscriber']));self::assertSame('ACCESS_DENIED',(new BusinessOwnershipReadModel())->snapshot('all')['query_state']);wp_set_current_user(0);self::assertSame('ACCESS_DENIED',(new BusinessOwnershipReadModel())->snapshot('all')['query_state']);
+ }
+ public function testConflictingResearchAncestryAndOrphanedOwnershipNeverEnterSelectedShop():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital', 'personalized_pod', 'standard_pod', 'jewelry'], ['manage_digiforge', 'manage_digiforge_pod']);
+  $a=$this->fixture('personalized_pod','conflict-owned-'.wp_generate_uuid4());global $wpdb;$candidate=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::research_candidates().' WHERE id=%d',$a['candidate']),ARRAY_A);unset($candidate['id']);$candidate['score_inputs']=wp_json_encode(['shop_key'=>'standard_pod']);$candidate['fingerprint']=hash('sha256',wp_generate_uuid4());unset($candidate['idempotency_key']);self::assertSame(1,$wpdb->insert(Tables::research_candidates(),$candidate));self::assertNotContains($a['ownership'],array_map('intval',array_column((new BusinessOwnershipReadModel())->snapshot('personalized_pod')['items'],'ownership_id')));
+  self::assertSame(1,$wpdb->update(Tables::pod_business_mappings(),['store_id'=>2147483647],['id'=>$a['ownership']]));self::assertNotContains($a['ownership'],array_map('intval',array_column((new BusinessOwnershipReadModel())->snapshot('all')['items'],'ownership_id')));
+ }
+}

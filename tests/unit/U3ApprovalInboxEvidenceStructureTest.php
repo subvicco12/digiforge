@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
+require_once __DIR__.'/../../includes/Listings/EtsyStoredShopScope.php';
+require_once __DIR__.'/../../includes/Portal/ProductEvidenceScope.php';
+require_once __DIR__.'/../../includes/Security/ShopAccessPolicy.php';
 
 final class U3ApprovalInboxEvidenceStructureTest extends TestCase
 {
@@ -44,6 +47,8 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         $GLOBALS['wpdb'] = new class {
             public string $prefix = 'wp_';
             public string $query = '';
+            public string $last_error = '';
+            public function prepare(string $sql,mixed ...$args): string { return $sql; }
             public function get_var(string $query): int { $this->query = $query; return 217; }
         };
         try {
@@ -58,7 +63,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
             self::assertSame(3, substr_count($query, "decision='PENDING'"));
             self::assertStringContainsString("review_status NOT IN ('APPROVED','REJECTED')", $query);
             $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
-            self::assertStringContainsString('each group displays its most recent 50', $source);
+            self::assertStringContainsString('Each group displays its most recent 50', $source);
         } finally { $GLOBALS['wpdb'] = $previous; }
     }
 
@@ -70,6 +75,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         $GLOBALS['wpdb'] = new class {
             public string $prefix = 'wp_';
             public string $last_error = 'fixture unavailable';
+            public function prepare(string $sql,mixed ...$args): string { return $sql; }
             public function get_var(string $sql): ?string { return null; }
         };
         try {
@@ -104,6 +110,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         $GLOBALS['wpdb'] = new class {
             public string $prefix = 'wp_';
             public string $countQuery = '';
+            public string $last_error = '';
             public string $rowsQuery = '';
             public function get_var(string $query): int { $this->countQuery = $query; return 73; }
             public function get_results(string $query, mixed $format): array { $this->rowsQuery = $query; return []; }
@@ -126,7 +133,9 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
     public function testPendingReviewRowsRetainMissingSubjectsAndKeepWorkflowLinkInsideRow(): void
     {
         $source = file_get_contents(__DIR__ . '/../../includes/Portal/U3ApprovalInbox.php');
-        self::assertSame(3, substr_count($source, ' r LEFT JOIN '));
+        // Three review groups retain their subjects in both the preview and
+        // the separate, unbounded count query.
+        self::assertSame(6, substr_count($source, ' r LEFT JOIN '));
         self::assertStringContainsString('m.id AS subject_id', $source);
         self::assertStringContainsString('l.id AS subject_id', $source);
         self::assertStringContainsString('p.order_id AS subject_order_id', $source);
@@ -163,7 +172,8 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         }
         self::assertStringContainsString("'df_focus_id' => $" . 'reviewId', $inbox);
         self::assertStringContainsString('if ($reviewId < 1)', $inbox);
-        self::assertStringContainsString("$" . 'wpdb->prepare("SELECT * FROM {$table} WHERE id=%d", $focusId)', $portal);
+        self::assertStringContainsString('$record = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id=%d"', $portal);
+        self::assertStringContainsString('$scope=$this->evidenceScopeFilter($table);', $portal);
         self::assertStringContainsString('Requested evidence record is unavailable', $portal);
         self::assertStringContainsString('!in_array($focusId, array_map', $portal);
     }

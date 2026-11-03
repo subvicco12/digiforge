@@ -85,7 +85,7 @@ final class DesignFactoryRepository
         $date=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z',$p['generated_at'],new \DateTimeZone('UTC'));if(!$date||$date->format('Y-m-d\TH:i:s\Z')!==$p['generated_at']||$date->getTimestamp()>time())return self::error('Valid non-future provider timestamp required.');
         return $this->accept($shop,$specHash,$result['asset'],$p+['method'=>'PROVIDER_ARTWORK_UNREVIEWED','actor_id'=>get_current_user_id()]);
     }
-    public static function executionAllowed(): bool {return get_current_user_id()>0&&current_user_can('manage_digiforge_research')&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_ai')&&!Settings::safety_locked()&&Settings::is_enabled('ai')&&Settings::is_enabled('product_development');}
+    public static function executionAllowed(): bool {return \DigiForge\Security\PersonalizedPodAccess::allows(true)&&get_current_user_id()>0&&current_user_can('manage_digiforge_research')&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_ai')&&!Settings::safety_locked()&&Settings::is_enabled('ai')&&Settings::is_enabled('product_development');}
     private function accept(string $shop,string $hash,array $payload,array $provenance): array|WP_Error
     {
         $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;if($v['record']['kind']!=='SPEC_READY')return self::error('Start a specification/revision before artwork intake.');
@@ -171,7 +171,7 @@ final class DesignFactoryRepository
         return $this->read('personalized_pod',$hash);
     }
     private function stored(string $name): string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::error('Durable evidence unavailable.',503);}
-    private function access(string $shop): true|WP_Error {return $shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research')?true:self::error('Authenticated exact-shop design reviewer required.',403);}
+    private function access(string $shop): true|WP_Error {return \DigiForge\Security\PersonalizedPodAccess::allows()&&$shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research')?true:self::error('Authenticated exact-shop design reviewer required.',403);}
     private static function text(mixed $value,int $max=2000): bool {return is_string($value)&&trim($value)!==''&&strlen($value)<=$max&&preg_match('//u',$value)===1;}
     private static function error(string $message,int $status=409): WP_Error {return new WP_Error('design_factory_denied',$message,['status'=>$status,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
     private static function uncertain(string $hash): WP_Error {return new WP_Error('design_factory_review_uncertain','Review intent preserved; artwork approval not confirmed. Inspect the exact design before retry.',['status'=>409,'design_factory_hash'=>$hash,'retry_permitted'=>false,'external_execution_authorized'=>false]);}

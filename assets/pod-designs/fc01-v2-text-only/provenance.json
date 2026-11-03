@@ -1,0 +1,38 @@
+{
+    "fictional_sample_only": true,
+    "input": {
+        "shop_key": "personalized_pod",
+        "family_id": "FC01",
+        "version": 2,
+        "design_variant": "text-only-noto-serif-v1",
+        "spec_sha256": "551cad607cec07315d5335a768d8759685a9486039c62146003d149979740d8c",
+        "family_name": "Avery & Noël",
+        "established": "2016"
+    },
+    "identity": {
+        "family_id": "FC01",
+        "version": 2,
+        "design_variant": "text-only-noto-serif-v1",
+        "shop_key": "personalized_pod",
+        "spec_sha256": "551cad607cec07315d5335a768d8759685a9486039c62146003d149979740d8c",
+        "font_sha256": "c8f669ceb2c9c60ccf55198b305e08a997ffca79a38cc7eeb551e643cbe66505",
+        "license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+        "glyphs_sha256": "40db3af24bfca02ef9abc32fffbf69fe7fb1816c775443939854346c4ff83e75"
+    },
+    "renderer_sha256": "349fb0f6e9655fc9f90dd9e40a3bea8aebd0f7d0b91b0272aba051d5e48e6016",
+    "font_license": "SIL-OFL-1.1",
+    "artifacts": {
+        "sample-preview.svg": "4238e82633c55b03634b9cff08c0c6a7e28878499d065f9d1527440dd26e338e",
+        "sample-final.svg": "4238e82633c55b03634b9cff08c0c6a7e28878499d065f9d1527440dd26e338e",
+        "sample-preview.png": "f01e0a280f4477a6d35efb911d6354cf38ab14383d9094e6fb0c30134f0086b2",
+        "sample-final.png": "f01e0a280f4477a6d35efb911d6354cf38ab14383d9094e6fb0c30134f0086b2"
+    },
+    "proposed_review_locale": "en-US",
+    "locale_approved": false,
+    "artistic_review_state": "MISSING",
+    "linguistic_review_state": "MISSING",
+    "rights_certified": false,
+    "production_template_binding": "UNKNOWN",
+    "production_authorized": false,
+    "acceptance_state": "UNVERIFIED"
+}

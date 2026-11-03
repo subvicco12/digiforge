@@ -1,0 +1,100 @@
+{
+  "recorded_at_utc": "2026-10-24T17:06:32.093884+00:00",
+  "baseline_sha": "b4c5997d06be824a22e6c796571a7c982dea5942",
+  "new_criteria_verified": [],
+  "remaining_nonfinance_unverified": 22,
+  "artwork_observations": [
+    {
+      "file": "Wedding_Guide_v0_5_Letter_PAGINATION_CORRECTED.pdf",
+      "sha256": "ef8b759106936b6e63d0874d61cbc379c7dd36c35f0806f67adf38bbc6052f7f",
+      "inspection": "Poppler pdfimages -list",
+      "image_occurrences": 5,
+      "soft_masks": 5,
+      "pages_with_images": [
+        1,
+        2,
+        4,
+        7,
+        9
+      ],
+      "source_png_dimensions": [
+        1600,
+        680
+      ],
+      "exported_image_dimensions": [
+        [
+          1600,
+          680
+        ],
+        [
+          1381,
+          587
+        ],
+        [
+          1600,
+          680
+        ],
+        [
+          1441,
+          612
+        ],
+        [
+          959,
+          408
+        ]
+      ],
+      "finding": "Artwork embedded in both exports; three occurrences are JPEG/resampled. Exact RGBA pixel parity is NOT established. Presence is not visual approval.",
+      "artwork_export_parity": "UNKNOWN"
+    },
+    {
+      "file": "Wedding_Guide_v0_5_Botanical_A4.pdf",
+      "sha256": "1420880bba0eeda13334269f9e6634dd54aa13fc312b4cedfe3e2d5ed504ef3e",
+      "inspection": "Poppler pdfimages -list",
+      "image_occurrences": 5,
+      "soft_masks": 5,
+      "pages_with_images": [
+        1,
+        2,
+        4,
+        7,
+        9
+      ],
+      "source_png_dimensions": [
+        1600,
+        680
+      ],
+      "exported_image_dimensions": [
+        [
+          1600,
+          680
+        ],
+        [
+          1381,
+          587
+        ],
+        [
+          1600,
+          680
+        ],
+        [
+          1441,
+          612
+        ],
+        [
+          959,
+          408
+        ]
+      ],
+      "finding": "Artwork embedded in both exports; three occurrences are JPEG/resampled. Exact RGBA pixel parity is NOT established. Presence is not visual approval.",
+      "artwork_export_parity": "UNKNOWN"
+    }
+  ],
+  "buyer_editability": {
+    "stable_libreoffice": "Prior exact-file 25.2.3.2 evidence reused, not rerun",
+    "ordinary_buyer_interactive": "UNKNOWN",
+    "google_docs": "UNKNOWN",
+    "microsoft_word": "UNKNOWN"
+  },
+  "commercial_approval": false,
+  "production_authorized": false
+}

@@ -3,9 +3,9 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 final class MasterCatalogV2AcceptanceContractTest extends TestCase {
  public function testV24IsAdditiveAndBootedOnActivationAndNormalUpgrade():void{
-  $plan=(string)file_get_contents(__DIR__.'/../../includes/Database/MigrationPlan.php');self::assertStringContainsString('LATEST = 24',$plan);
+  $plan=(string)file_get_contents(__DIR__.'/../../includes/Database/MigrationPlan.php');self::assertStringContainsString('LATEST = 25',$plan);
   $schema=(string)file_get_contents(__DIR__.'/../../includes/Database/CatalogAcceptanceSchema.php');foreach(['VERSION=24','catalog_acceptance_evidence','UNIQUE KEY catalog_version','UNIQUE KEY acknowledgement_hash','CATALOG_ACCEPTANCE_SCHEMA_UPDATE_FAILED'] as $n)self::assertStringContainsString($n,$schema);
-  foreach(['Plugin.php','Activator.php'] as $f){$s=(string)file_get_contents(__DIR__.'/../../includes/Core/'.$f);self::assertStringContainsString('CatalogAcceptanceSchema::migrateIfNeeded()',$s);}
+  foreach(['Plugin.php','Activator.php'] as $f){$s=(string)file_get_contents(__DIR__.'/../../includes/Core/'.$f);self::assertStringContainsString('CatalogAcceptanceSchema::migrateIfNeeded()',$s);self::assertStringContainsString('EtsyOrderEventSchema::migrateIfNeeded()',$s);self::assertLessThan(strpos($s,'EtsyOrderEventSchema::migrateIfNeeded()'),strpos($s,'CatalogAcceptanceSchema::migrateIfNeeded()'));}
  }
  public function testAcceptanceIsExactImmutableAndNonAuthorizing():void{
   $s=(string)file_get_contents(__DIR__.'/../../includes/POD/MasterCatalogV2AcceptanceRepository.php');

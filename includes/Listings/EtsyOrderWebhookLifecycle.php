@@ -28,19 +28,23 @@ final class EtsyOrderWebhookLifecycle
         if($orderRef===''||$shopRef==='')return self::error('identity','Etsy webhook must contain bounded order and shop identities.');
 
         if($type==='ORDER.PAID'){
+            // Never turn a supplied invalid identity or currency-bearing amount into assumed USD.
+            foreach(array_merge([$payload],array_filter((array)($payload['line_items']??[]),'is_array'))as $money){if(array_key_exists('currency',$money)&&(!is_string($money['currency'])||!preg_match('/^[A-Z]{3}$/D',strtoupper(trim($money['currency'])))))return self::error('currency','Exact valid currency identity is required.');if(!array_key_exists('currency',$money)){foreach(['subtotal','shipping','tax','total','price']as $amount)if((array_key_exists($amount,$money)||array_key_exists($amount.'_amount',$money))&&(float)$this->amount($money,$amount)!==0.0)return self::error('currency','Nonzero original amounts require explicit currency identity.');}}
             $existing=$this->orders->findByExternalReference($orderRef,$shopRef);
             if($existing instanceof WP_Error)return $existing;
+            if($existing!==null&&(string)$existing['state']==='RECEIVED')return new WP_Error('digiforge_etsy_order_webhook_incomplete_order','Existing paid order intake is incomplete; reconcile persisted evidence before processing another paid event.',['status'=>409,'reconciliation_required'=>true,'external_execution_performed'=>false]);
             if($existing!==null)return ['state'=>'ETSY_ORDER_ALREADY_RECEIVED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'reconciliation'=>(new ReconciliationReadModel())->forOrder((int)$existing['id']),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
             $items=is_array($payload['line_items']??null)?$payload['line_items']:[];
             $prepared=[];$reviewRequired=$items===[];
             foreach(array_slice($items,0,100) as $index=>$item){
-                if(!is_array($item))continue;
+                if(!is_array($item)){$reviewRequired=true;continue;}
+                if(array_key_exists('personalization',$item)&&!is_array($item['personalization']))$reviewRequired=true;
                 $etsyListingId=$this->reference($item,['listing_id','listingId']);
                 $resolved=EtsyOrderListingResolver::resolve($etsyListingId,$shopRef);
                 if($resolved instanceof WP_Error)return $resolved;
                 if(!is_array($resolved)){$reviewRequired=true;continue;}
                 $listingId=(int)$resolved['listing_id'];$productVersionId=(int)$resolved['product_version_id'];
-                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($listingId,$productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
+                $isDigital=ApprovedPodMappingResolver::isDigital($productVersionId,$listingId);if($isDigital instanceof WP_Error){$reviewRequired=true;continue;}$providerMappingId=$isDigital?0:ApprovedPodMappingResolver::resolve($listingId,$productVersionId,'production');if($providerMappingId instanceof WP_Error){$reviewRequired=true;continue;}if(!$isDigital&&$providerMappingId>0){$ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping($providerMappingId);if($ownership instanceof WP_Error){$providerMappingId=0;$reviewRequired=true;}}elseif(!$isDigital){$reviewRequired=true;}
                 $prepared[]=['index'=>$index,'item'=>$item,'listing_id'=>$listingId,'product_version_id'=>$productVersionId,'provider_mapping_id'=>$providerMappingId];
             }
             $order=$this->orders->createOrder([
@@ -73,6 +77,7 @@ final class EtsyOrderWebhookLifecycle
             $state=(string)$existing['state'];
             if(in_array($state,['RECEIVED','VALIDATED','REVIEW_REQUIRED','ON_HOLD'],true)){
                 $result=$this->orders->transition('order',(int)$existing['id'],'REJECTED');
+                if($result instanceof WP_Error)return $result;
             } elseif($state==='APPROVED'){
                 $result=$this->orders->transition('order',(int)$existing['id'],'ON_HOLD');
                 if($result instanceof WP_Error)return $result;
@@ -81,7 +86,7 @@ final class EtsyOrderWebhookLifecycle
         }
 
         if(in_array($type,['ORDER.SHIPPED','ORDER.DELIVERED'],true)){
-            return ['state'=>'ETSY_ORDER_EVENT_RECORDED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'event_type'=>$type,'evidence'=>EtsyOrderEventEvidence::normalize($type,$payload),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
+            return ['state'=>'ETSY_ORDER_EVENT_RECORDED','event_id'=>$eventId,'order_id'=>(int)$existing['id'],'event_type'=>$type,'external_order_reference'=>(string)$existing['external_order_reference'],'shop_reference'=>(string)$existing['shop_reference'],'environment'=>(string)$existing['environment'],'evidence'=>EtsyOrderEventEvidence::normalize($type,$payload),'fulfillment_authorized'=>false,'external_execution_performed'=>false];
         }
         return self::error('event','Unsupported verified Etsy lifecycle event.');
     }
@@ -89,6 +94,12 @@ final class EtsyOrderWebhookLifecycle
     private function reference(array $p,array $keys): string {foreach($keys as $k){$v=$p[$k]??'';if(is_scalar($v)){$v=trim((string)$v);if($v!==''&&strlen($v)<=191)return sanitize_text_field($v);}}return '';}
     private function amount(array $p,string $key): float { $v=$p[$key.'_amount']??($p[$key]??0); return is_numeric($v)?max(0,min(999999999.99,(float)$v)):0.0; }
     private function currency(array $p): string { $v=strtoupper(trim((string)($p['currency']??'USD')));return preg_match('/^[A-Z]{3}$/',$v)?$v:'USD';}
-    private function personalized(array $p): bool {return !empty($p['personalization_required'])||!empty($p['personalization']);}
+    private function personalized(array $p): bool {
+        if(!empty($p['personalization_required'])||!empty($p['personalization']))return true;
+        foreach(is_array($p['line_items']??null)?$p['line_items']:[] as $item){
+            if(is_array($item)&&array_key_exists('personalization',$item)&&(!is_array($item['personalization'])||$item['personalization']!==[]))return true;
+        }
+        return false;
+    }
     private static function error(string $c,string $m): WP_Error{return new WP_Error('digiforge_etsy_order_webhook_'.$c,$m,['status'=>409]);}
 }
