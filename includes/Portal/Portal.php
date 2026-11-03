@@ -105,6 +105,7 @@ final class Portal
         (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
+        (new OpportunityDesignPanel())->register();
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
@@ -1051,6 +1052,7 @@ final class Portal
     {
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         (new ResearchRunWorkflow())->render($shop);
+        (new OpportunityDesignPanel())->render(ShopOperationsReadModel::normalize(is_string($_GET['df_shop'] ?? null) ? $_GET['df_shop'] : 'all'));
         echo '<section class="df-panel"><div class="df-panel-head"><h2>All research candidates</h2></div>';
         $this->candidateCards('', 50, true);
         echo '</section>';

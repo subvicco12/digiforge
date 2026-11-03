@@ -1,0 +1,67 @@
+{
+  "shop_key": "personalized_pod",
+  "environment": "test",
+  "fixture": {
+    "fixture_id": "FL-02",
+    "printify_product_id": "6ae89ec108d860bc98040ca0",
+    "etsy_listing_id": "4608699164",
+    "etsy_state": "Draft"
+  },
+  "listing": {
+    "title": "Personalized Christmas Family Name Mug",
+    "description": "REVIEW EXAMPLE ONLY. Original editable artwork and native personalization require human review. Supplier, mockups, shipping and processing are unverified; this is not an offer for sale.",
+    "tags": [
+      "christmas mug",
+      "family name mug",
+      "holiday keepsake",
+      "personalized mug",
+      "11 oz mug",
+      "ceramic gift",
+      "family gift",
+      "custom surname",
+      "holiday drinkware",
+      "winter gift",
+      "surname keepsake",
+      "christmas family",
+      "printed mug"
+    ],
+    "category": null,
+    "attributes": {}
+  },
+  "template": null,
+  "provider_binding": null,
+  "native_fields": [
+    {
+      "question_type": "text_input",
+      "question_text": "Names",
+      "required": true,
+      "max_allowed_characters": 30
+    }
+  ],
+  "media": [],
+  "reviews": {},
+  "parity": {},
+  "specification": {
+    "native_fields": [],
+    "shipping": {
+      "destination": "UNKNOWN",
+      "processing_min_days": null,
+      "processing_max_days": null,
+      "source_reference": null,
+      "source_sha256": null
+    }
+  },
+  "economics": {
+    "currency": "USD",
+    "sale_price": 24.28,
+    "base_cost": null,
+    "shipping_cost": null,
+    "seller_fees": null,
+    "ads_cost": null,
+    "fx_cost": null,
+    "refund_reserve": null,
+    "tax_cost": null
+  },
+  "example_classification": "TECHNICAL_REVIEW_INPUT_NOT_COMMERCIAL_APPROVAL",
+  "price_basis": "Unapproved operator proposal; all supplier and seller costs unknown"
+}

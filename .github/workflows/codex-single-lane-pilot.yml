@@ -1,0 +1,70 @@
+name: DigiForge Codex Single-Lane Pilot (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Approved bounded launch-engineering task (review only in pilot)"
+        required: true
+        type: choice
+        options:
+          - launch-pr-dependency-audit
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: digiforge-codex-single-lane
+  cancel-in-progress: false
+
+jobs:
+  codex-review:
+    if: github.ref == 'refs/heads/main' && github.actor == 'subvicco12'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      findings: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check API credential availability without exposing it
+        env:
+          CODEX_KEY_PRESENT: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: |
+          if [ "$CODEX_KEY_PRESENT" != "true" ]; then
+            echo "::error::OPENAI_API_KEY is not configured; no Codex run started"
+            exit 1
+          fi
+      - name: Run bounded Codex launch dependency audit
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":read-only"
+          safety-strategy: drop-sudo
+          prompt: |
+            You are a single, bounded, READ-ONLY engineering review lane for DigiForge.
+            Follow the First Launch Master Plan v1.1 and Ultimate Master Blueprint v6.0.
+            Identify the smallest safe route to launch 3-5 personalized Etsy POD listings.
+            Inspect only the checked-out repository. No network, credentials, external actions,
+            source modifications, branches, commits, merges, deployments, or production writes.
+            Focus on existing Printify geometry/personalization, Etsy listing mapping,
+            preview parity, manual production authorization, and PR integration boundaries.
+            Do not claim GitHub PR status or CI state that is not in the checkout.
+            Produce a concise ordered blocker list, file-level evidence, tests needed,
+            and next engineering patch recommendation. Preserve STOP ALL and external lock.
+
+  summary:
+    needs: codex-review
+    if: needs.codex-review.result == 'success'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Publish pilot findings in run summary
+        env:
+          FINDINGS: ${{ needs.codex-review.outputs.findings }}
+        run: |
+          printf '%s\n' '## DigiForge Codex pilot — read-only findings' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$FINDINGS" >> "$GITHUB_STEP_SUMMARY"
