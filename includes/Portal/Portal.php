@@ -1052,7 +1052,7 @@ final class Portal
     {
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         (new ResearchRunWorkflow())->render($shop);
-        (new OpportunityDesignPanel())->render(ShopOperationsReadModel::normalize(is_string($_GET['df_shop'] ?? null) ? $_GET['df_shop'] : 'all'));
+        if ($shop==='personalized_pod') (new OpportunityDesignPanel())->render($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><h2>All research candidates</h2></div>';
         $this->candidateCards('', 50, true);
         echo '</section>';

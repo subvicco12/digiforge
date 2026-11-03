@@ -11,6 +11,7 @@ final class OpportunityDesignPanel
     public function register(): void { (new CommercialResearchPanel())->register(); add_action('admin_post_'.self::ACTION,[$this,'submit']); }
     public function render(string $shop): void
     {
+        if ($shop!=='personalized_pod') return;
         (new CommercialResearchPanel())->render($shop);
         if (!\DigiForge\Security\PersonalizedPodAccess::allows() || $shop!=='personalized_pod' || !current_user_can('manage_digiforge_pod') || !current_user_can('manage_digiforge_research')) return;
         echo '<section class="df-panel"><h2>Opportunity → three briefs → editable artwork</h2><p>Manual source and artwork import. External automation unavailable. Source claims are unverified operator evidence. STOP ALL and RELEASE HOLD remain in force.</p><p>Import a JSON object with shop_key=personalized_pod, title, sources [{url, observed_at (UTC ISO timestamp), excerpt}], exactly three briefs [{audience, visual_direction, rationale}], and artwork {svg, width_px, height_px, dpi:300, selected_brief:1–3, native_layers:[], rights_note, safe_area_reviewed:true, font_license_reviewed:true, mockup_reviewed:true}. SVG supports local shapes and text only. Supplier geometry and printed output require separate verification. Edit and reimport to create a new immutable version.</p>';

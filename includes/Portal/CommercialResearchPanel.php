@@ -13,6 +13,7 @@ final class CommercialResearchPanel
     public function register(): void {add_action('admin_post_'.self::ACTION,[$this,'submit']);}
     public function render(string $shop): void
     {
+        if ($shop!=='personalized_pod') return;
         if(!\DigiForge\Security\PersonalizedPodAccess::allows()||$shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
         $this->researchForm();
