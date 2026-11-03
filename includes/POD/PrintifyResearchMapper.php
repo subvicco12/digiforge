@@ -55,7 +55,8 @@ final class PrintifyResearchMapper
                         if($first['currency']!==$additional['currency'])throw new \InvalidArgumentException('Shipping currency mismatch.');
                         $out['shipping'][]=$meta+['Variant ID'=>self::positiveCell($a['variantId']??null),'Service'=>$method,'Country / Zone'=>$country,'First Item Amount'=>(string)$first['amount'],'Additional Item Amount'=>(string)$additional['amount'],'Currency'=>$first['currency'],'Rate Units'=>'RAW_PROVIDER_AMOUNT_UNITS_UNVERIFIED','Handling From'=>self::cell($a['handlingTime']['from']??null),'Handling To'=>self::cell($a['handlingTime']['to']??null),'Tax Amount'=>null,'Evidence'=>'PROVIDER_QUOTE_UNVERIFIED'];}
                 }
-                if($r['kind']==='shipping')$gap('DESTINATION_RATES_MISSING','Service index links are not followed. Each method requires explicit grant scope.');break;
+                if($r['kind']==='shipping')$gap('DESTINATION_RATES_MISSING','Service index links are not followed. Each method requires explicit grant scope.');
+                elseif($resources===[])$gap('DESTINATION_QUOTES_EMPTY','No destination quotes were returned for this exact method; rates and destination coverage remain unknown.');break;
         }
         return $out;
     }

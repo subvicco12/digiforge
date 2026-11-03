@@ -15,7 +15,7 @@ No global REST registration, shared navigation, database migration, scheduler, p
 | Governed gateway | Reuses `targetShopForGrant`, `research` and `evidence`; requires existing ShopAccess, account binding and exact Shop 2 grant. Never reads credentials or calls HTTP directly |
 | Blueprint/provider/variant evidence | Maps immutable verified receipts into dated research rows; original concept lineage is retained |
 | Print areas | Retains pixel geometry and explicitly supplied DPI/bleed/safe-zone evidence; never certifies physical geometry |
-| Size guides | Maps ordered sizes/types/ranges with nullable bounds. Exact documented descriptor is `/v1/catalog/blueprints/{id}/size_guide.json`; older shared grant contract does not allow it, so current live collection is unavailable rather than bypassed |
+| Size guides | Maps ordered sizes/types/ranges with nullable bounds. Exact documented descriptor is `/v1/catalog/blueprints/{id}/size_guide.json`; approved shared-core contract supports it under the existing ten-request and grant-bound pipeline; runtime collection still needs separate authorization |
 | Shipping | Service indexes remain distinct from destination quotes. Raw amount/currency retained without invented units, conversion, costs or tax |
 | Resumable provider discovery | 1–100 blueprint IDs already present in the selected snapshot; one explicit step per invocation, existing grants at most ten requests each. No grant issuance, automatic retries, jobs or schedules |
 | Receipt ingestion | Server fetches an existing audited receipt by grant/request hashes; caller cannot submit an arbitrary provider response as a verified receipt |
@@ -63,10 +63,14 @@ Supplementary disposable WordPress tests exercised this gateway against #1242's 
 
 Mobile tests expand the new preparation controls at 390/768/1280px and verify disabled collection without the pipeline. Exact final test counts and hosted audit are recorded in PR #1253.
 
-Remaining production blockers: coordinate/integrate the shared governed pipeline and reviewed ownership dependencies; extend its size-guide grant scope under that lane's ownership; verify installed-site configuration and main-site binding; separately approve any actual grant/exception/internal runtime writes and live provider calls. Historical supplier gaps (including 84 provider-discovery gaps) have not been refreshed: no new provider facts, costs, tax, destination rates or certifications were fabricated.
+Remaining production blockers: owner-approved portal conflict resolution; verify installed shared-core schema, reviewed ownership, site configuration and main-site binding; separately approve any actual grant/exception/internal runtime writes and live provider calls. Historical supplier gaps (including 84 provider-discovery gaps) have not been refreshed: no new provider facts, costs, tax, destination rates or certifications were fabricated.
 
 STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD. No artwork/editor/mockup/listing/SEO/order/fulfillment/Finance work, production migration, merge, deployment or activation.
 
 ## Shared-dependency handoff
 
-The exact pinned dependency matrix, two composition probes, conditional global-admission mappings and smallest owner approval are in [PRINTIFY-SHARED-DEPENDENCY-MATRIX.md](engineering/PRINTIFY-SHARED-DEPENDENCY-MATRIX.md). API readiness now checks transitive methods and distinguishes narrow-core compatibility from unmapped cumulative guards. No shared implementation is copied or approved by that diagnostic.
+The exact pinned dependency matrix, two composition probes, conditional global-admission mappings and smallest owner approval are in [PRINTIFY-SHARED-DEPENDENCY-MATRIX.md](engineering/PRINTIFY-SHARED-DEPENDENCY-MATRIX.md). API readiness now checks transitive methods and distinguishes narrow-core compatibility from unmapped cumulative guards. The exact 16-file core at b859d0078c68e8bcdc6c0732983969e81d3c9abe is now consumed under explicit owner integration approval; diagnostics never confer runtime authority.
+
+## Final integration and installed-evidence handoff
+
+The [read-only acceptance package](engineering/printify-acceptance/README.md) contains exact source hashes, a two-line Portal.php owner proposal, installed-schema/ownership/account/shop checks and an unobserved evidence template. It does not execute WordPress, migrate schema, issue approvals or contact Printify. Empty shipping-method responses produce an explicit DESTINATION_QUOTES_EMPTY gap; rates and destination coverage remain unknown.
