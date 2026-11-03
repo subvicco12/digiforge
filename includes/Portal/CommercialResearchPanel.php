@@ -16,6 +16,8 @@ final class CommercialResearchPanel
         if($shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
         $this->researchForm();
+        echo '<details'.(isset($_GET['df_research_version'])?'':' open').'><summary>Import source-backed research JSON</summary>';
+        $this->form('research_import');echo '<p>Paste a research object with shop_key, title, product_family and 1–10 sources (id, kind, url, observed_at, excerpt, provenance). Work imports remain unverified evidence; no concept selection or approval is imported. Source dates and limitations are preserved exactly. Import the separate scores/concepts response after opening the saved workflow.</p><label>Research JSON<textarea name="research_json" rows="8" maxlength="200000" required></textarea></label><button class="df-button">Import research evidence</button></form></details>';
         $this->form('inspect');$this->field('workflow_hash','Open saved research version (SHA-256)');echo '<button class="df-button">Open workflow</button></form>';
         $hash=$_GET['df_research_version']??null;
         if(!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash)){echo '</section>';return;}
@@ -89,10 +91,23 @@ final class CommercialResearchPanel
     public function submit(): never
     {
         check_admin_referer(self::ACTION);$result=$this->process(wp_unslash($_POST));$args=['df_view'=>'research','df_shop'=>'personalized_pod'];
+        if(is_array($result)&&is_string($result['package_export']??null)&&is_string($result['package_hash']??null)){
+            nocache_headers();header('Content-Type: application/json; charset=UTF-8');header('X-Content-Type-Options: nosniff');
+            header('Content-Disposition: attachment; filename="digiforge-held-package-'.$result['package_hash'].'.json"');
+            echo $result['package_export'];exit;
+        }
         if($result instanceof WP_Error){$args+=['df_message'=>$result->get_error_message(),'df_error'=>'1'];$data=$result->get_error_data();if(is_array($data)&&is_string($data['review_intent_hash']??null))$args['df_research_version']=$data['review_intent_hash'];}else $args+=['df_research_version'=>$result['hash'],'df_message'=>'Immutable research/design evidence saved. Release remains held.'];
         $factoryHash=$result instanceof WP_Error?($result->get_error_data()['design_factory_hash']??null):($result['design_factory_hash']??null);
         if(is_string($factoryHash)&&preg_match('/^[a-f0-9]{64}$/D',$factoryHash)){$args['df_factory_version']=$factoryHash;if($result instanceof WP_Error&&is_string($_POST['workflow_hash']??null))$args['df_research_version']=wp_unslash($_POST['workflow_hash']);}
-        $return=$_POST['return_url']??null;$return=is_string($return)?wp_validate_redirect(wp_unslash($return),home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#df-commercial-research');exit;
+        if(is_array($result)&&is_string($result['package_hash']??null))$args['df_package_version']=$result['package_hash'];
+        if($result instanceof WP_Error&&is_string($_POST['operation']??null)&&str_starts_with($_POST['operation'],'package_')){
+            foreach(['workflow_hash'=>'df_research_version','factory_hash'=>'df_factory_version','package_hash'=>'df_package_version']as $field=>$arg)
+                if(is_string($_POST[$field]??null)&&preg_match('/^[a-f0-9]{64}$/D',$_POST[$field]))$args[$arg]=$_POST[$field];
+        }
+        $anchor='df-commercial-research';$operation=$_POST['operation']??null;
+        if(is_string($operation)&&str_starts_with($operation,'design_'))$anchor='df-design-factory';
+        if(is_string($operation)&&str_starts_with($operation,'package_'))$anchor='df-product-package';
+        $return=$_POST['return_url']??null;$return=is_string($return)?wp_validate_redirect(wp_unslash($return),home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#'.$anchor);exit;
     }
     public function process(array $post): array|WP_Error
     {
@@ -100,6 +115,13 @@ final class CommercialResearchPanel
         try {if(strlen(CommercialResearchContract::json($post))>(is_string($post['operation']??null)&&str_starts_with($post['operation'],'design_')?8500000:500000))throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
         if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel())->process($post);
+        if(is_string($op)&&str_starts_with($op,'package_'))return (new ProductPackagePanel())->process($post);
+        if($op==='research_import'){
+            $raw=$post['research_json']??null;
+            if(!is_string($raw)||strlen($raw)>200000)return new WP_Error('commercial_input','Research JSON must fit 200000 bytes.');
+            try{$research=json_decode($raw,true,32,JSON_THROW_ON_ERROR);}catch(\Throwable){return new WP_Error('commercial_input','Valid research JSON object required.');}
+            return is_array($research)?$repo->create($research):new WP_Error('commercial_input','Research object required.');
+        }
         if($op==='research'||$op==='revise_research'){
             $sources=$post['sources']??null;if(!is_array($sources))return new WP_Error('commercial_input','Source evidence required.');
             $sources=array_values(array_filter($sources,static fn($s):bool=>!is_array($s)||($s['url']??'')!==''||($s['excerpt']??'')!==''||($s['observed_at']??'')!==''||($s['provenance']??'')!==''));
