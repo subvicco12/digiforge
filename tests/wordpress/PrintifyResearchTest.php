@@ -83,7 +83,11 @@ final class PrintifyResearchWordPressTest extends WP_UnitTestCase
     {
         $controller=new \DigiForge\REST\PrintifyResearchController();$r=new WP_REST_Request('GET','/digiforge/v1/shops/personalized_pod/printify-research/readiness');self::assertWPError($controller->permission($r));
         $r->set_header('X-WP-Nonce',wp_create_nonce('wp_rest'));self::assertTrue($controller->permission($r));self::assertInstanceOf(WP_REST_Response::class,$controller->readiness($r));
-        wp_get_current_user()->remove_cap('manage_digiforge_connections');self::assertWPError($controller->permission($r));
+        $post=new WP_REST_Request('POST','/digiforge/v1/shops/personalized_pod/printify-research/batches/'.str_repeat('a',64).'/step');$post->set_header('X-WP-Nonce',wp_create_nonce('wp_rest'));$post->set_header('Content-Type','application/json');$post->set_url_params(['sha'=>str_repeat('a',64)]);$post->set_body(wp_json_encode(['grant_sha256'=>str_repeat('b',64),'confirm_catalog_get'=>false]));
+        $denied=$controller->step($post);self::assertWPError($denied);self::assertSame('pod_research_explicit_collection_required',$denied->get_error_code());
+        $role=get_role('administrator');$inherited=$role->has_cap('manage_digiforge_connections');$role->add_cap('manage_digiforge_connections');
+        try{wp_get_current_user()->add_cap('manage_digiforge_connections',false);self::assertWPError($controller->permission($r));}
+        finally{if(!$inherited)$role->remove_cap('manage_digiforge_connections');}
         $controller->register();do_action('rest_api_init');$routes=rest_get_server()->get_routes();self::assertArrayHasKey('/digiforge/v1/shops/personalized_pod/printify-research/readiness',$routes);self::assertArrayNotHasKey('/digiforge/v1/shops/digital/printify-research/readiness',$routes);
     }
 }
