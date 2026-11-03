@@ -2,9 +2,13 @@
 
 Engineering preparation only. No production observation, installation, owner assertion, runtime grant or execution authority is supplied. STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD.
 
-## Pinned inputs and portal owner handoff
+## Approved portal integration
 
-Consumer starts at `f68e880a4cd30242f6e890c82973cd8146bdaca8` (audit #4863). PR #1253 and main have no new commits since that audit; observed main is `3758d1385f7d4a62947248822c1fe1c89ec9818e`. Approved shared core remains `b859d0078c68e8bcdc6c0732983969e81d3c9abe`: all 16 files match, and all ten protected files match the approved manifest, consumer baseline and current main. Final candidate SHA and exact-head audit are recorded in PR #1253.
+The user approved the exact two-line proposal on 2026-11-03. The review branch now combines main `3758d1385f7d4a62947248822c1fe1c89ec9818e` with consumer `c376a9de9fd0ed4297cc16f8cd3349742b7328d4`. Portal.php is exactly that main file plus the two approved lines; main registration/research hooks and factory files remain intact. This is review-branch source integration only, not a merge into main or production approval. Final combined SHA and CI are recorded in PR #1253.
+
+## Pinned inputs and historical portal owner handoff
+
+Consumer starts at `f68e880a4cd30242f6e890c82973cd8146bdaca8` (audit #4863). At the initial verification, PR #1253 and main had no new commits since that audit; observed main is `3758d1385f7d4a62947248822c1fe1c89ec9818e`. Approved shared core remains `b859d0078c68e8bcdc6c0732983969e81d3c9abe`: all 16 files match, and all ten protected files match the approved manifest, consumer baseline and current main. Final candidate SHA and exact-head audit are recorded in PR #1253.
 
 A non-applying Git merge-tree diagnostic identifies only `includes/Portal/Portal.php` as conflicted. The registration hunk at main line 92 selects between `OpportunityDesignPanel::register()` and `ProductIntelligencePanel::register()`. The API branch also mounts its panel at the beginning of `personalizedPodSummary()`; main's separate `OpportunityDesignPanel::render()` in `research()` must survive. Stylesheet changes auto-merge in the diagnostic; this lane does not approve or modify that combined result.
 
@@ -57,4 +61,4 @@ Focused tests exercise shared-contract to mapper composition for every endpoint 
 
 The earlier exact-head audit #4863 proves the prior branch package in CI. Repository v1.0.103 release requirements and any older installation receipt do **not** prove that this new 16-file core, API admission/mapper, or owner-resolved portal is installed. This session inspected no production filesystem/database or deployment journal. Installation and reviewed owner/account/shop binding remain UNOBSERVED; no production acceptance is claimed.
 
-Minimum next action: the designated portal/factory owner approves the two-line proposal and supplies the resulting combined source SHA for engineering validation. Separately, an authorized installation observer must supply a sanitized read-only evidence record covering the observations above, tied to the exact final artifact and timestamp. This is a request for evidence/owner coordination, not deployment or live execution authorization. Deployment, migrations and any future grant/exception/provider operation need their own distinct approval after these boundaries are resolved.
+Portal approval is now supplied and source integration is complete on the review branch. The combined exact-head test receipt is recorded in PR #1253; main remains unchanged. Separately, an authorized installation observer must supply a sanitized read-only evidence record covering the observations above, tied to the exact final artifact and timestamp. This is a request for evidence/owner coordination, not deployment or live execution authorization. Deployment, migrations and any future grant/exception/provider operation need their own distinct approval after these boundaries are resolved.

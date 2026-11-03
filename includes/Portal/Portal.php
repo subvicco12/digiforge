@@ -89,6 +89,7 @@ final class Portal
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
+        (new OpportunityDesignPanel())->register();
         (new ProductIntelligencePanel())->register();
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
@@ -773,6 +774,7 @@ final class Portal
 
     private function research(): void
     {
+        (new OpportunityDesignPanel())->render(ShopOperationsReadModel::normalize(is_string($_GET['df_shop'] ?? null) ? $_GET['df_shop'] : 'all'));
         echo '<section class="df-panel"><div class="df-panel-head"><h2>All research candidates</h2></div>';
         $this->candidateCards('', 50, true);
         echo '</section>';

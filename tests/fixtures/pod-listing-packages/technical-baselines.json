@@ -1,0 +1,38 @@
+{
+  "source": "docs/launch/PERSONALIZED_POD_FOUR_DAY_MVP_BLUEPRINT_20261103.md",
+  "observed_at": "2026-11-03",
+  "commercial_approval": false,
+  "FL-02": {
+    "fixture_id": "FL-02",
+    "printify_product_id": "6ae89ec108d860bc98040ca0",
+    "etsy_listing_id": "4608699164",
+    "etsy_state": "Draft",
+    "width_px": null,
+    "height_px": null,
+    "dpi": null,
+    "blueprint_id": null,
+    "provider_id": null,
+    "variant_ids": [],
+    "observed_mockup_count": 5,
+    "shipping_profile_id": "318895906583",
+    "processing_profile_id": "1528525201818",
+    "shipping_review": "UNVERIFIED",
+    "processing_review": "UNVERIFIED"
+  },
+  "FL-04": {
+    "fixture_id": "FL-04",
+    "printify_product_id": "6ae9913d9541969415088814",
+    "etsy_listing_id": null,
+    "etsy_state": "NOT_TRANSFERRED",
+    "width_px": 2418,
+    "height_px": 3018,
+    "dpi": 300,
+    "provider_label": "Today's Graphics",
+    "blueprint_id": null,
+    "provider_id": null,
+    "variant_ids": [],
+    "observed_mockup_count": 8,
+    "shipping_review": "UNVERIFIED",
+    "processing_review": "UNVERIFIED"
+  }
+}

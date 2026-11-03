@@ -4,7 +4,7 @@
 
 The owner explicitly authorized consumption of the exact 16-file narrow core at `b859d0078c68e8bcdc6c0732983969e81d3c9abe`, including the size-guide extension. All 16 source files are imported byte-identically; the ten retained files below match consumer baseline `6a32479e848e63149815d946044b77887642457b` and current main `3758d1385f7d4a62947248822c1fe1c89ec9818e`. The machine-readable manifest pins the selected source and installed hashes.
 
-The API-owned ProductIntelligencePanel registration adds the existing catalog controller and narrowly scoped API-owned shop admission beside the research controller. No cumulative global REST/admin guards, Plugin.php changes, migration hooks, or Portal.php resolution are included. Scope readiness does not establish database readiness, owner/account/shop assignment, grants, exceptions or runtime authority. No real credentials, catalog grants, exceptions or HTTP requests are used in validation. Synthetic WordPress fixtures exercise shop ACL assignments only. STOP ALL, external lock, automation OFF and RELEASE HOLD remain required.
+The API-owned ProductIntelligencePanel registration adds the existing catalog controller and narrowly scoped API-owned shop admission beside the research controller. No cumulative global REST/admin guards, Plugin.php changes or migration hooks are included. The later explicit portal approval permits only the two-line registration/mount resolution described below. Scope readiness does not establish database readiness, owner/account/shop assignment, grants, exceptions or runtime authority. No real credentials, catalog grants, exceptions or HTTP requests are used in validation. Synthetic WordPress fixtures exercise shop ACL assignments only. STOP ALL, external lock, automation OFF and RELEASE HOLD remain required.
 
 The following sections retain the historical pre-approval analysis. Their pending instructions were superseded only for the 16 approved source files. The cumulative branch remains excluded.
 
@@ -137,7 +137,7 @@ The read-only dependency probe checks the pinned source hashes and invokes no bo
 
 ## Remaining boundaries
 
-- Main has advanced to `3758d1385f7d4a62947248822c1fe1c89ec9818e`; its independent Portal.php conflict is not resolved here. The designated portal/factory owner must handle integration with main.
+- The user approved the exact two-line Portal.php proposal. Main `3758d1385f7d4a62947248822c1fe1c89ec9818e` is combined into the review branch; Portal.php equals main plus the two approved registration/mount lines. No merge into main or production action is authorized.
 - Source readiness does not verify installed schema, reviewed owner/provider connection, current shop assignment, live provider evidence or production readiness. No migrations or provisioning are authorized by this change.
 - Research/provider gaps remain gaps; no new live evidence is collected. Drive access/import limitations recorded by the existing workstream remain unchanged.
 - STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD. No merge, deployment, Finance activation, publishing, orders or live Printify authorization.

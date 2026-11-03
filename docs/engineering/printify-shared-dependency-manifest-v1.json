@@ -612,8 +612,10 @@
   "main_advance_boundary": {
     "overlapping_path": "includes/Portal/Portal.php",
     "github_mergeable_state": "dirty",
-    "resolution_performed": false,
-    "production_merge_authorized": false
+    "resolution_performed": true,
+    "production_merge_authorized": false,
+    "approval": "Explicit user portal-integration approval, 2026-11-03; exact two-line proposal",
+    "integration_main": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
   },
   "authorization": {
     "scope": "exact-16-file-source-integration-only",

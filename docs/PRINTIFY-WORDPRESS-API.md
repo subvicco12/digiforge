@@ -63,7 +63,7 @@ Supplementary disposable WordPress tests exercised this gateway against #1242's 
 
 Mobile tests expand the new preparation controls at 390/768/1280px and verify disabled collection without the pipeline. Exact final test counts and hosted audit are recorded in PR #1253.
 
-Remaining production blockers: owner-approved portal conflict resolution; verify installed shared-core schema, reviewed ownership, site configuration and main-site binding; separately approve any actual grant/exception/internal runtime writes and live provider calls. Historical supplier gaps (including 84 provider-discovery gaps) have not been refreshed: no new provider facts, costs, tax, destination rates or certifications were fabricated.
+The user-approved two-line portal integration is complete on the combined review branch. Remaining production blockers: verify installed shared-core schema, reviewed ownership, site configuration and main-site binding; separately approve any actual grant/exception/internal runtime writes and live provider calls. Historical supplier gaps (including 84 provider-discovery gaps) have not been refreshed: no new provider facts, costs, tax, destination rates or certifications were fabricated.
 
 STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD. No artwork/editor/mockup/listing/SEO/order/fulfillment/Finance work, production migration, merge, deployment or activation.
 

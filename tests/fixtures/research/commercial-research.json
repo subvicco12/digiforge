@@ -1,0 +1,26 @@
+{
+  "research": {
+    "shop_key": "personalized_pod",
+    "title": "Anniversary keepsake for couples",
+    "product_family": "mug",
+    "sources": [
+      {"id":"e1","kind":"etsy_competitor","url":"https://www.etsy.com/search?q=anniversary+mug","observed_at":"2026-11-03T12:00:00Z","excerpt":"SYNTHETIC TEST: personalized anniversary gift positioning; no sales claim.","provenance":"Synthetic fixture, replace with personally observed evidence"},
+      {"id":"b1","kind":"buyer_intent","url":"https://www.etsy.com/search?q=couple+keepsake","observed_at":"2026-11-03T12:00:00Z","excerpt":"SYNTHETIC TEST: gift recipient and occasion intent; no search-volume claim.","provenance":"Synthetic fixture"},
+      {"id":"g1","kind":"google_trend","url":"https://trends.google.com/trends/explore?q=anniversary","observed_at":"2026-11-03T12:00:00Z","excerpt":"SYNTHETIC TEST: trend context requires a real dated capture; no measured index asserted.","provenance":"Synthetic fixture"},
+      {"id":"s1","kind":"seasonal","url":"https://example.org/calendar","observed_at":"2026-11-03T12:00:00Z","excerpt":"SYNTHETIC TEST: anniversary is an evergreen occasion, not a verified demand spike.","provenance":"Synthetic fixture"}
+    ]
+  },
+  "response": {
+    "scores": {
+      "demand":{"rating":3,"rationale":"Qualitative buyer-intent hypothesis only.","source_ids":["b1","g1"]},
+      "competition":{"rating":4,"rationale":"Crowded positioning in this synthetic example.","source_ids":["e1"]},
+      "differentiation":{"rating":4,"rationale":"Explore a distinct visual mechanism for this recipient.","source_ids":["e1","b1"]},
+      "seasonal_urgency":{"rating":1,"rationale":"Evergreen occasion; timing is not verified.","source_ids":["s1"]}
+    },
+    "concepts": [
+      {"audience":"Couples celebrating a quiet milestone","visual_direction":"Two interlocking constellation rings","rationale":"A shared orbit expresses partnership without copying listing artwork.","source_ids":["b1","e1"],"composition":"Two asymmetric circular paths, stars outside the native name area","palette":"Midnight navy and warm ivory","personalization":"Names and anniversary date in separate native text fields","originality_note":"Draw new paths; no traced competitor motifs"},
+      {"audience":"Garden-loving partners","visual_direction":"Paired botanical initials","rationale":"A botanical frame gives a different recipient aesthetic.","source_ids":["e1","b1"],"composition":"Two original leaf branches framing a reserved monogram region","palette":"Sage and muted terracotta","personalization":"Initials and year in native text fields","originality_note":"Original botanical strokes; review font rights"},
+      {"audience":"Minimalist couples","visual_direction":"Typographic anniversary timeline","rationale":"A date-led editorial layout differentiates through hierarchy.","source_ids":["b1","s1"],"composition":"Three horizontal rules with generous spacing and an empty date region","palette":"Charcoal and copper","personalization":"Milestone year and names as native text fields","originality_note":"No copied slogans; licensed typography only"}
+    ]
+  }
+}
