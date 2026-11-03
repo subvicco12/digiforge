@@ -89,6 +89,7 @@ final class Portal
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
+        (new ProductIntelligencePanel())->register();
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
@@ -555,6 +556,7 @@ final class Portal
 
     private function personalizedPodSummary(): void
     {
+        (new ProductIntelligencePanel())->render($this->baseUrl());
         $m=PersonalizedCatalogReference::metadata();
         $v2Ingestion=(new MasterCatalogV2IngestionReadModel())->snapshot();
         $ops=(new ShopOperationsReadModel())->snapshot('personalized_pod');$catalog=(array)($ops['catalog']??[]);

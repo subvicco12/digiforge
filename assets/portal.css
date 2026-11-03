@@ -8,3 +8,16 @@
 @media(max-width:767px){.df-portal-shell{width:100vw;min-height:100vh;margin:0 0 0 50%;border:0;border-radius:0;grid-template-columns:1fr;overflow:visible}.df-portal-sidebar{position:relative;top:auto;height:auto;min-height:0;padding:12px 14px;gap:12px;overflow:visible}.df-brand{padding:0}.df-brand small{display:none}.df-nav{display:flex;flex-direction:row;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:3px;scrollbar-width:thin}.df-nav a{flex:0 0 auto;white-space:nowrap;min-height:44px;padding:9px 12px;background:#18223a}.df-sidebar-footer{display:none}.df-portal-main{padding:16px}.df-topbar{flex-direction:column;margin-bottom:16px}.df-topbar-status{justify-content:flex-start;max-width:none}.df-card-grid{grid-template-columns:1fr}.df-panel-grid,.df-integration-grid{grid-template-columns:1fr}.df-panel{padding:15px;border-radius:12px}.df-panel-head{flex-direction:column;gap:8px}.df-signal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.df-candidate-head{flex-direction:column}.df-score{text-align:left}.df-kv div{align-items:flex-start}.df-kv dd{max-width:58%;overflow-wrap:anywhere}.df-actions{position:sticky;bottom:0;background:rgba(255,255,255,.96);padding:10px 0 4px;z-index:4}.df-button{flex:1 1 140px}.df-table{min-width:620px}.df-review-form{max-width:none}}
 @media(max-width:479px){.df-portal-main{padding:12px}.df-topbar h1{font-size:28px}.df-signal-grid{grid-template-columns:1fr}.df-stat-card{padding:15px}.df-panel{padding:13px}.df-candidate{padding:14px}.df-score strong{font-size:26px}.df-pill{font-size:11px}.df-table{min-width:560px}}
 @media(prefers-reduced-motion:reduce){.df-portal-shell *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* Shop 2 evidence: wrap untrusted long identities and retain mobile readability. */
+.df-product-intelligence{min-width:0;overflow-wrap:anywhere}
+.df-product-intelligence code{white-space:normal;overflow-wrap:anywhere}
+.df-pi-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:16px 0}
+.df-pi-filters label{display:flex;flex:1 1 180px;flex-direction:column;gap:6px;min-width:0}
+.df-pi-filters select,.df-pi-filters input{width:100%;min-height:44px;box-sizing:border-box;max-width:100%}
+.df-pi-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:12px;margin:16px 0}
+.df-pi-card{border:1px solid var(--df-border,#dce2eb);border-radius:10px;padding:14px;min-width:0}
+.df-pi-card dl{margin:0}.df-pi-card dl>div{padding:5px 0}.df-pi-card dt{font-weight:600;font-size:.85rem}.df-pi-card dd{margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.df-product-intelligence summary{cursor:pointer;min-height:44px;padding:10px 0;box-sizing:border-box}
+.df-product-intelligence input[type=file]{display:block;max-width:100%;margin:10px 0}
+@media(max-width:600px){.df-pi-filters{display:grid;grid-template-columns:minmax(0,1fr)}.df-pi-cards{grid-template-columns:minmax(0,1fr)}.df-product-intelligence .df-button{min-height:44px}.df-product-intelligence .df-panel-head{flex-wrap:wrap}}
