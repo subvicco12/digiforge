@@ -1,0 +1,67 @@
+{
+  "shop_key": "personalized_pod",
+  "environment": "test",
+  "fixture": {
+    "fixture_id": "FL-03",
+    "printify_product_id": "6ae98d61eb5d7e24b80ca0a6",
+    "etsy_listing_id": null,
+    "etsy_state": "NOT_TRANSFERRED"
+  },
+  "listing": {
+    "title": "Personalized Anniversary Names and Date Mug",
+    "description": "REVIEW EXAMPLE ONLY. Original editable artwork and native personalization require human review. Supplier, mockups, shipping and processing are unverified; this is not an offer for sale.",
+    "tags": [
+      "anniversary mug",
+      "couple names mug",
+      "wedding date mug",
+      "personalized mug",
+      "11 oz mug",
+      "ceramic keepsake",
+      "couples gift",
+      "milestone gift",
+      "anniversary date",
+      "custom names",
+      "romantic gift",
+      "gift for couple",
+      "printed mug"
+    ],
+    "category": null,
+    "attributes": {}
+  },
+  "template": null,
+  "provider_binding": null,
+  "native_fields": [
+    {
+      "question_type": "text_input",
+      "question_text": "Names",
+      "required": true,
+      "max_allowed_characters": 30
+    }
+  ],
+  "media": [],
+  "reviews": {},
+  "parity": {},
+  "specification": {
+    "native_fields": [],
+    "shipping": {
+      "destination": "UNKNOWN",
+      "processing_min_days": null,
+      "processing_max_days": null,
+      "source_reference": null,
+      "source_sha256": null
+    }
+  },
+  "economics": {
+    "currency": "USD",
+    "sale_price": 25.28,
+    "base_cost": null,
+    "shipping_cost": null,
+    "seller_fees": null,
+    "ads_cost": null,
+    "fx_cost": null,
+    "refund_reserve": null,
+    "tax_cost": null
+  },
+  "example_classification": "TECHNICAL_REVIEW_INPUT_NOT_COMMERCIAL_APPROVAL",
+  "price_basis": "Unapproved operator proposal; all supplier and seller costs unknown"
+}

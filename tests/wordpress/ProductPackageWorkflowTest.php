@@ -10,11 +10,7 @@ final class ProductPackageWorkflowTest extends WP_UnitTestCase
 {
     private function evidence(string $id='FL-04'): array
     {
-        $f=new ApprovedDesignListingPackageTest('testTechnicalFixturesProduceHonestCompleteReviewArtifacts');
-        $e=$f->evidence();
-        if($id==='FL-03')$e['fixture']=['fixture_id'=>$id,'printify_product_id'=>'6ae98d61eb5d7e24b80ca0a6','etsy_listing_id'=>null,'etsy_state'=>'NOT_TRANSFERRED'];
-        if($id==='FL-02')$e=$f->evidence('FL-02');
-        return $e;
+        return json_decode(file_get_contents(__DIR__.'/../fixtures/product-packages/'.strtolower($id).'.json'),true);
     }
     private function approved(string $id='FL-04',bool $large=false): array
     {
@@ -40,6 +36,11 @@ final class ProductPackageWorkflowTest extends WP_UnitTestCase
         self::assertArrayNotHasKey('svg',$p['source_approval']['record']['input']['artwork']);
         self::assertSame($a['version_hash'],$p['source_approval']['version_hash']);
         self::assertFalse($p['external_execution_authorized']);
+        $repo=new ProductPackageRepository();$v=$repo->prepare('personalized_pod',$a['version_hash'],$this->evidence());self::assertIsArray($v);
+        self::assertIsArray($repo->decide('personalized_pod',$v['hash'],'APPROVE','Large reference test only'));
+        $export=$repo->export('personalized_pod',$v['hash']);self::assertIsString($export);
+        self::assertLessThanOrEqual(65536,strlen(wp_json_encode(json_decode($export,true))));
+        self::assertSame($svg,$repo->artwork('personalized_pod',$v['hash'])['bytes']);
         wp_set_current_user(0);
         self::assertWPError(ApprovedDesignListingPackage::fromApprovedAssetReference('personalized_pod',$a['version_hash'],$this->evidence()));
     }
@@ -88,5 +89,68 @@ final class ProductPackageWorkflowTest extends WP_UnitTestCase
         $receipt['etsy_state']='Active';self::assertWPError($repo->reconcile('personalized_pod',$p['hash'],$receipt));
         $receipt['etsy_state']='Draft';$receipt['etsy_listing_id']='999';
         self::assertWPError($repo->reconcile('personalized_pod',$p['hash'],$receipt));
+    }
+
+    public function testActualDayThreeCommercialMugAndPosterHandoff(): void
+    {
+        foreach(['FL-03'=>'mug','FL-04'=>'poster'] as $id=>$family){
+            $this->approved($id);
+            $fixture=json_decode(file_get_contents(__DIR__.'/../fixtures/research/commercial-research.json'),true);
+            $fixture['research']['product_family']=$family;
+            $research=new \DigiForge\Research\CommercialResearchRepository();
+            $v=$research->create($fixture['research']);self::assertIsArray($v);
+            $v=$research->importResponse('personalized_pod',$v['hash'],json_encode($fixture['response']),
+                ['method'=>'manual','provider'=>'human','model'=>'none','response_id'=>'test','generated_at'=>'2026-11-03T12:00:00Z']);
+            self::assertIsArray($v);$selected=$research->select('personalized_pod',$v['hash'],1);self::assertIsArray($selected);
+            $factory=new \DigiForge\Research\DesignFactoryRepository();
+            $a=$factory->approveConcept('personalized_pod',$selected['hash'],['sources_reviewed'=>true,'buyer_intent_reviewed'=>true,
+                'gifting_occasion_reviewed'=>true,'note'=>'Synthetic commercial criteria for integration test only']);self::assertIsArray($a);
+            $spec=$factory->prepare('personalized_pod',$a['hash'],$family==='mug'?'fl03_mug_11oz':'fl04_poster_8x10',
+                ['layout_notes'=>'Original paths around reserved native names','typography'=>'Licensed native text',
+                'font_license_reference'=>'Synthetic review reference','palette'=>['#123456','#ffffff'],
+                'native_regions'=>[['name'=>'names','kind'=>'text','x'=>500,'y'=>400,'width'=>1400,'height'=>300]],
+                'asset_requirements'=>['Original fixed shapes separated from text']]);self::assertIsArray($spec);
+            $asset=$factory->importArtwork('personalized_pod',$spec['hash'],['svg'=>file_get_contents(__DIR__.'/../fixtures/design-factory/'.$family.'-original.svg'),
+                'raster_uploads'=>[],'rights_note'=>'Synthetic original example','source_note'=>'Manual illustrative import']);self::assertIsArray($asset);
+            $repo=new ProductPackageRepository();
+            self::assertWPError($repo->prepareCommercial('personalized_pod',$asset['hash'],$this->evidence($id)));
+            $review=$factory->review('personalized_pod',$asset['hash'],'APPROVE',
+                array_fill_keys(\DigiForge\Research\DesignFactoryContract::REVIEW_CRITERIA,true),'Synthetic human criteria review');self::assertIsArray($review);
+            if($id==='FL-03')self::assertWPError($repo->prepareCommercial('personalized_pod',$review['hash'],$this->evidence('FL-02')));
+            $p=$repo->prepareCommercial('personalized_pod',$review['hash'],$this->evidence($id));self::assertIsArray($p);
+            self::assertSame($review['hash'],$p['record']['commercial_design_metadata']['design_hash']);
+            self::assertIsArray($repo->decide('personalized_pod',$p['hash'],'APPROVE','Held package review, synthetic only'));
+            $out=json_decode($repo->export('personalized_pod',$p['hash']),true);
+            self::assertTrue($out['commercial_design_review_confirmed']);self::assertFalse($out['commercial_approved']);
+            self::assertFalse($out['external_execution_authorized']);
+            $bytes=$repo->artwork('personalized_pod',$p['hash']);self::assertIsArray($bytes);
+            self::assertSame($p['record']['package']['design']['asset']['sha256'],hash('sha256',$bytes['bytes']));
+        }
+    }
+
+    public function testReferenceAllowsOnlyBoundedPublicSearchQueries(): void
+    {
+        $base=$this->approved();$repo=new OpportunityDesignRepository();
+        foreach(['q=anniversary+mug'=>true,'key=private'=>false,'q[]=mug'=>false,'q=mug&q=poster'=>false,'q=sk-private-value'=>false] as $query=>$allowed){
+            $in=$base['record']['input'];$in['sources'][0]['url']='https://example.org/search?'.$query;
+            $v=$repo->save($in);self::assertIsArray($v);$a=$repo->decide('personalized_pod',$v['version_hash'],'APPROVE');self::assertIsArray($a);
+            $result=ApprovedDesignListingPackage::fromApprovedAssetReference('personalized_pod',$v['version_hash'],$this->evidence());
+            if($allowed){self::assertIsArray($result);self::assertWPError(ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$v['version_hash'],$this->evidence()));}
+            else self::assertWPError($result);
+        }
+    }
+    public function testDecisionWriteFailureAndCorruptReceiptCannotAuthorizeExport(): void
+    {
+        $a=$this->approved();$repo=new ProductPackageRepository();$p=$repo->prepare('personalized_pod',$a['version_hash'],$this->evidence());self::assertIsArray($p);
+        $fault=static fn($q)=>str_contains($q,'INSERT INTO')&&str_contains($q,'digiforge_product_package_')&&str_contains($q,'_decision')?'SELECT 1 WHERE 0=1':$q;
+        add_filter('query',$fault);
+        try { self::assertWPError($repo->decide('personalized_pod',$p['hash'],'APPROVE','Write fault')); }
+        finally { remove_filter('query',$fault); }
+        self::assertWPError($repo->export('personalized_pod',$p['hash']));
+        self::assertNull($repo->read('personalized_pod',$p['hash'])['decision']);
+        self::assertIsArray($repo->decide('personalized_pod',$p['hash'],'APPROVE','Successful exact decision'));
+        update_option('digiforge_product_package_'.$p['hash'].'_decision','{}');
+        self::assertWPError($repo->read('personalized_pod',$p['hash']));
+        self::assertWPError($repo->export('personalized_pod',$p['hash']));
     }
 }

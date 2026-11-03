@@ -10,7 +10,7 @@ use InvalidArgumentException;
 /** Provider-side manual declarations supplement Etsy questions; never certify actual native behavior. */
 final class ProductPackageSpecification
 {
-    public static function normalize(array $input, array $layers): array
+    public static function normalize(array $input, array $layers, array $commercialRegions = []): array
     {
         Validator::structured($input);
         if (array_diff(array_keys($input), ['native_fields','shipping'])) {
@@ -20,6 +20,16 @@ final class ProductPackageSpecification
         $shipping = $input['shipping'] ?? [];
         if (!is_array($fields) || !array_is_list($fields) || count($fields) > 10 || !is_array($shipping)) {
             throw new InvalidArgumentException('Bounded native fields and shipping object required.');
+        }
+        $expectedKinds = [];
+        foreach ($commercialRegions as $region) {
+            if (
+                !is_array($region) || !is_string($region['name'] ?? null)
+                || !in_array($region['kind'] ?? null, ['text','image'], true)
+            ) {
+                throw new InvalidArgumentException('Exact commercial native regions required.');
+            }
+            $expectedKinds[$region['name']] = $region['kind'] === 'image' ? 'PHOTO' : 'TEXT';
         }
         $seen = [];
         $slots = [];
@@ -33,6 +43,9 @@ final class ProductPackageSpecification
                 throw new InvalidArgumentException('Exact unique approved native layer required.');
             }
             $seen[$field['layer']] = true;
+            if (isset($expectedKinds[$field['layer']]) && $field['type'] !== $expectedKinds[$field['layer']]) {
+                throw new InvalidArgumentException('Native type conflicts with approved commercial region.');
+            }
             $allowed = ['layer','type','provider_field_id','required'];
             if ($field['type'] === 'TEXT') {
                 $allowed[] = 'max_characters';

@@ -13,16 +13,45 @@ final class ProductPackageRepository
 {
     private const MAX_RECORD = 196608;
 
+    /** Resolve confirmed Day 3 commercial criteria on the server, never caller approval flags. */
+    public function prepareCommercial(string $shop, string $designHash, array $evidence, ?string $parent = null): array|WP_Error
+    {
+        $handoff = $this->commercial($shop, $designHash);
+        if ($handoff instanceof WP_Error) {
+            return $handoff;
+        }
+        if (isset($evidence['commercial_design_hash']) && $evidence['commercial_design_hash'] !== $designHash) {
+            return self::error('Commercial design hash conflict.');
+        }
+        $evidence['commercial_design_hash'] = $designHash;
+        return $this->prepare($shop, $handoff['artwork']['version_hash'], $evidence, $parent);
+    }
+
     public function prepare(string $shop, string $artworkHash, array $evidence, ?string $parent = null): array|WP_Error
     {
         $package = ApprovedDesignListingPackage::fromApprovedAssetReference($shop, $artworkHash, $evidence);
         if ($package instanceof WP_Error) {
             return $package;
         }
+        $commercial = null;
+        if (isset($evidence['commercial_design_hash'])) {
+            $handoff = $this->commercial($shop, $evidence['commercial_design_hash']);
+            if ($handoff instanceof WP_Error) {
+                return $handoff;
+            }
+            if ($handoff['artwork']['version_hash'] !== $artworkHash) {
+                return self::error('Commercial design and artwork approval differ.');
+            }
+            $commercial = $handoff['design_metadata'];
+            if (($commercial['geometry']['draft_reference'] ?? null) !== $package['provider']['product_id']) {
+                return self::error('Commercial profile and target product differ.');
+            }
+        }
         try {
             $specification = ProductPackageSpecification::normalize(
                 $evidence['specification'] ?? [],
-                $package['source_approval']['record']['input']['artwork']['native_layers']
+                $package['source_approval']['record']['input']['artwork']['native_layers'],
+                $commercial['specification']['layout']['native_regions'] ?? []
             );
         } catch (\Throwable) {
             return self::error('Valid text/photo/shipping specification required.');
@@ -41,6 +70,7 @@ final class ProductPackageRepository
         }
         $record = ['schema' => 'held-product-package-v1', 'shop_key' => $shop, 'artwork_version_hash' => $artworkHash,
             'parent_hash' => $parent, 'package' => $package, 'evidence' => $evidence, 'specification' => $specification,
+            'commercial_design_metadata' => $commercial,
             'created_by' => get_current_user_id(), 'created_at' => gmdate('c'),
             'release_hold' => true, 'external_execution_authorized' => false];
         $raw = Validator::canonicalJson($record);
@@ -85,10 +115,28 @@ final class ProductPackageRepository
         if (Validator::canonicalJson($current) !== Validator::canonicalJson($record['package'])) {
             return self::error('Approved artwork, provider or package evidence changed.');
         }
+        $commercial = null;
+        if (isset($record['evidence']['commercial_design_hash'])) {
+            $handoff = $this->commercial($shop, $record['evidence']['commercial_design_hash']);
+            if ($handoff instanceof WP_Error) {
+                return $handoff;
+            }
+            if ($handoff['artwork']['version_hash'] !== $record['artwork_version_hash']) {
+                return self::error('Commercial artwork source conflict.');
+            }
+            $commercial = $handoff['design_metadata'];
+            if (($commercial['geometry']['draft_reference'] ?? null) !== $current['provider']['product_id']) {
+                return self::error('Commercial profile and target product differ.');
+            }
+        }
+        if (Validator::canonicalJson($commercial ?? []) !== Validator::canonicalJson($record['commercial_design_metadata'] ?? [])) {
+            return self::error('Commercial design evidence changed.');
+        }
         try {
             $specification = ProductPackageSpecification::normalize(
                 $record['evidence']['specification'] ?? [],
-                $current['source_approval']['record']['input']['artwork']['native_layers']
+                $current['source_approval']['record']['input']['artwork']['native_layers'],
+                $commercial['specification']['layout']['native_regions'] ?? []
             );
             if (Validator::canonicalJson($specification) !== Validator::canonicalJson($record['specification'] ?? [])) {
                 return self::error('Native/shipping specification changed.');
@@ -171,15 +219,26 @@ final class ProductPackageRepository
         }
         $p = $v['record']['package'];
         // Keep the original assembly snapshot unchanged; the separate exact-hash decision resolves only local package review.
-        return Validator::canonicalJson(['schema' => 'printify-native-held-review-export-v1', 'shop_key' => $shop,
+        $export = ['schema' => 'printify-native-held-review-export-v1', 'shop_key' => $shop,
             'package_hash' => $hash, 'package' => $p, 'approval' => $v['decision'], 'specification' => $v['record']['specification'],
+            'commercial_design_metadata' => $v['record']['commercial_design_metadata'],
+            'commercial_design_review_confirmed' => $v['record']['commercial_design_metadata'] !== null,
             'remaining_gates' => array_values(array_unique(array_merge(
                 array_diff($p['blockers'], ['OWNER_PACKAGE_APPROVAL_REQUIRED']),
                 $v['record']['specification']['blockers']
             ))),
             'commercial_approved' => false, 'supplier_certified' => false, 'release_hold' => true,
             'external_execution_authorized' => false, 'external_execution_performed' => false,
-            'handoff' => 'MANUAL_PRINTIFY_NATIVE_AFTER_SEPARATE_EXACT_LIVE_AUTHORIZATION']);
+            'handoff' => 'MANUAL_PRINTIFY_NATIVE_AFTER_SEPARATE_EXACT_LIVE_AUTHORIZATION'];
+        if (!empty($v['record']['commercial_design_metadata']['raster_references'])) {
+            $export['remaining_gates'][] = 'SUPPLEMENTAL_RASTER_COMPOSITION_REVIEW_REQUIRED';
+        }
+        try {
+            Validator::structured($export);
+        } catch (\InvalidArgumentException) {
+            return self::error('Held export including sidecar metadata exceeds the 65536-byte budget.');
+        }
+        return Validator::canonicalJson($export);
     }
 
     /** Attachment bytes for an authenticated caller only; never an inline SVG/public URL. */
@@ -294,6 +353,28 @@ final class ProductPackageRepository
     {
         return $shop === 'personalized_pod' && get_current_user_id() > 0
             && current_user_can('manage_digiforge_pod') && current_user_can('manage_digiforge_research');
+    }
+
+    private function commercial(string $shop, mixed $hash): array|WP_Error
+    {
+        if (!$this->access($shop)) {
+            return self::error('Authenticated commercial reviewer required.', 403);
+        }
+        if (!is_string($hash) || !self::hash($hash) || !class_exists(\DigiForge\Research\DesignFactoryRepository::class)) {
+            return self::error('Confirmed Day 3 design handoff unavailable.');
+        }
+        $handoff = (new \DigiForge\Research\DesignFactoryRepository())->handoff($shop, $hash);
+        if ($handoff instanceof WP_Error) {
+            return $handoff;
+        }
+        if (
+            ($handoff['design_metadata']['design_hash'] ?? null) !== $hash
+            || ($handoff['design_metadata']['human_review']['decision'] ?? null) !== 'APPROVE'
+            || ($handoff['design_metadata']['release_hold'] ?? null) !== true
+        ) {
+            return self::error('Confirmed commercial review evidence required.');
+        }
+        return $handoff;
     }
     private function name(string $hash): string
     {

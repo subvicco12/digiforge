@@ -115,7 +115,7 @@ final class ApprovedDesignListingPackage
             throw new InvalidArgumentException('Design source provenance is required.');
         }
         foreach ($sources as $source) {
-            self::url($source['source_url'] ?? null);
+            self::url($source['source_url'] ?? null, $referenced);
             self::timestamp($source['observed_at'] ?? null);
         }
 
@@ -448,7 +448,7 @@ final class ApprovedDesignListingPackage
         }
     }
 
-    private static function url(mixed $value): void
+    private static function url(mixed $value, bool $allowPublicSearch = false): void
     {
         if (!is_string($value) || strlen($value) > 2048 || !filter_var($value, FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('Public source URL is required.');
@@ -456,9 +456,22 @@ final class ApprovedDesignListingPackage
         $parts = parse_url($value);
         if (
             ($parts['scheme'] ?? null) !== 'https' || isset($parts['user']) || isset($parts['pass'])
-            || isset($parts['query']) || isset($parts['fragment'])
+            || isset($parts['fragment'])
         ) {
             throw new InvalidArgumentException('Credential-free HTTPS source URL is required.');
+        }
+        if (isset($parts['query'])) {
+            // Day 2/3 records legitimately use public Etsy/Trends search URLs. Inline contract stays unchanged.
+            parse_str($parts['query'], $query);
+            if (
+                !$allowPublicSearch || count(explode('&', $parts['query'])) !== 1
+                || array_keys($query) !== ['q'] || !is_string($query['q']) || $query['q'] === ''
+                || mb_strlen($query['q'], 'UTF-8') > 200
+                || preg_match('/^[\p{L}\p{N} .+_-]+$/uD', $query['q']) !== 1
+                || preg_match('/[A-Za-z0-9_-]{24,}|^(?:sk-|gh[pousr]_|AKIA|Bearer\b)/i', $query['q'])
+            ) {
+                throw new InvalidArgumentException('Only bounded public q search provenance is accepted in referenced records.');
+            }
         }
     }
 }

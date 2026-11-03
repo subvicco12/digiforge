@@ -41,4 +41,11 @@ final class ProductPackageContractTest extends TestCase
         \DigiForge\POD\ProductPackageSpecification::normalize(['native_fields'=>[
             ['layer'=>'Foreign','type'=>'TEXT','provider_field_id'=>null,'max_characters'=>30,'required'=>true]]],['Name']);
     }
+    public function testCommercialImageRegionCannotBecomeText(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        \DigiForge\POD\ProductPackageSpecification::normalize(['native_fields'=>[
+            ['layer'=>'photo','type'=>'TEXT','provider_field_id'=>null,'max_characters'=>30,'required'=>true]]],['photo'],
+            [['name'=>'photo','kind'=>'image']]);
+    }
 }
