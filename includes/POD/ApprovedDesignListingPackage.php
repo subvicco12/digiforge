@@ -35,9 +35,41 @@ final class ApprovedDesignListingPackage
 
     public static function compile(string $shop, array $approvedDesign, array $evidence): array
     {
+        return self::assemble($shop, $approvedDesign, $evidence);
+    }
+
+    /** Explicit reference path; resolves existing protected durable storage, never caller bytes. */
+    public static function fromApprovedAssetReference(string $shop, string $versionHash, array $evidence): array|\WP_Error
+    {
+        $envelope = (new \DigiForge\Research\OpportunityDesignRepository())->read($shop, $versionHash);
+        if ($envelope instanceof \WP_Error) {
+            return $envelope;
+        }
+        try {
+            return self::assemble($shop, $envelope, $evidence, true);
+        } catch (InvalidArgumentException) {
+            return new \WP_Error(
+                'digiforge_package_reference_denied',
+                'Bounded approved artwork and exact review evidence are required.',
+                ['status' => 409, 'external_execution_authorized' => false]
+            );
+        }
+    }
+
+    private static function assemble(string $shop, array $approvedDesign, array $evidence, bool $referenced = false): array
+    {
         self::jsonValues($approvedDesign);
         self::jsonValues($evidence);
-        Validator::structured($approvedDesign);
+        if ($referenced) {
+            // Reuse the upstream durable-record bound only on this explicit server-resolved path.
+            Validator::rejectCredentials($approvedDesign);
+            $raw = wp_json_encode($approvedDesign['record'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if (!is_string($raw) || strlen($raw) > 400000) {
+                throw new InvalidArgumentException('Approved durable artwork record exceeds its bound.');
+            }
+        } else {
+            Validator::structured($approvedDesign);
+        }
         Validator::structured($evidence);
         foreach (['fixture', 'listing', 'native_fields', 'media', 'reviews', 'parity', 'economics'] as $field) {
             if (isset($evidence[$field]) && !is_array($evidence[$field])) {
@@ -45,7 +77,15 @@ final class ApprovedDesignListingPackage
             }
         }
         $envelope = $approvedDesign;
-        $approvedDesign = self::laneADesign($shop, $envelope, $evidence['environment'] ?? null);
+        $approvedDesign = self::laneADesign($shop, $envelope, $evidence['environment'] ?? null, $referenced);
+        if ($referenced) {
+            $svg = $envelope['record']['input']['artwork']['svg'];
+            unset($envelope['record']['input']['artwork']['svg']);
+            $envelope['representation'] = 'PROJECTED_RECORD_WITH_DURABLE_ARTWORK_REFERENCE';
+            $envelope['artwork_reference'] = ['scheme' => 'opportunity_design',
+                'shop_key' => $shop, 'version_hash' => $envelope['version_hash'],
+                'sha256' => hash('sha256', $svg), 'byte_length' => strlen($svg)];
+        }
         if (
             $shop !== 'personalized_pod' || ($approvedDesign['shop_key'] ?? null) !== $shop
             || ($evidence['shop_key'] ?? null) !== $shop
@@ -81,13 +121,17 @@ final class ApprovedDesignListingPackage
 
         $fixture = $evidence['fixture'] ?? [];
         $id = $fixture['fixture_id'] ?? null;
-        $products = ['FL-02' => '6ae89ec108d860bc98040ca0', 'FL-04' => '6ae9913d9541969415088814'];
+        $products = ['FL-02' => '6ae89ec108d860bc98040ca0', 'FL-03' => '6ae98d61eb5d7e24b80ca0a6',
+            'FL-04' => '6ae9913d9541969415088814'];
         if (!is_string($id) || !isset($products[$id]) || ($fixture['printify_product_id'] ?? null) !== $products[$id]) {
-            throw new InvalidArgumentException('An exact FL-02 or FL-04 technical fixture is required.');
+            throw new InvalidArgumentException('An exact FL-02, FL-03 or FL-04 technical fixture is required.');
         }
         // These historical fixtures are technical anchors, never commercial approval.
         if ($id === 'FL-04' && ($asset['width_px'] !== 2418 || $asset['height_px'] !== 3018)) {
             throw new InvalidArgumentException('FL-04 technical geometry differs from approved artwork.');
+        }
+        if ($id === 'FL-03' && ($asset['width_px'] !== 2475 || $asset['height_px'] !== 1155)) {
+            throw new InvalidArgumentException('FL-03 technical geometry differs from approved artwork.');
         }
         $blockers = ['OWNER_PACKAGE_APPROVAL_REQUIRED', 'SUPPLIER_CERTIFICATION_REQUIRED',
             'BUYER_PREVIEW_ACCEPTANCE_REQUIRED', 'LIVE_HANDOFF_SEPARATE_AUTHORITY_REQUIRED'];
@@ -254,7 +298,7 @@ final class ApprovedDesignListingPackage
     }
 
     /** Normalize exactly OpportunityDesignRepository::read() output; never client JSON. */
-    private static function laneADesign(string $shop, array $envelope, mixed $environment): array
+    private static function laneADesign(string $shop, array $envelope, mixed $environment, bool $referenced = false): array
     {
         $record = $envelope['record'] ?? null;
         $approval = $envelope['approval'] ?? null;
@@ -283,7 +327,7 @@ final class ApprovedDesignListingPackage
         $input = $record['input'];
         $artwork = $input['artwork'] ?? [];
         $svg = $artwork['svg'] ?? null;
-        if (!is_string($svg) || $svg === '' || strlen($svg) > 60000) {
+        if (!is_string($svg) || $svg === '' || strlen($svg) > ($referenced ? 262144 : 60000)) {
             throw new InvalidArgumentException('Immutable editable artwork bytes are required.');
         }
         $sources = [];
