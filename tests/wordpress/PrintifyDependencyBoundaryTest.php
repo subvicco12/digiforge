@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/PrintifyResearchAccessFixture.php';
 use DigiForge\POD\PrintifyResearchDependencies;
 use DigiForge\POD\PrintifyResearchGateway;
 use DigiForge\REST\PrintifyResearchController;
@@ -8,8 +9,9 @@ final class PrintifyDependencyBoundaryTest extends WP_UnitTestCase
 {
     public function setUp(): void
     {
-        parent::setUp();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
+        parent::setUp();PrintifyResearchAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));
         foreach(['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections'] as $cap)wp_get_current_user()->add_cap($cap);
+        PrintifyResearchAccessFixture::assign(get_current_user_id());
         (new PrintifyResearchController())->register();do_action('rest_api_init');
     }
     public function testFixedRoutesAndNonceAreRequiredWithoutIssuingAnyGrant(): void

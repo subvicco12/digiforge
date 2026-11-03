@@ -20,12 +20,12 @@ def git_bytes(repo, ref, path):
 
 
 def probe(repo, manifest, profile, php, api_root):
-    if manifest['approval_status']!='PENDING_SHARED_OWNER' or manifest['policy']['external_execution_authorized'] is not False:
+    if manifest['approval_status'] not in ('PENDING_SHARED_OWNER','OWNER_AUTHORIZED_NARROW_INTEGRATION') or manifest['policy']['external_execution_authorized'] is not False:
         raise ValueError('Diagnostic manifest cannot confer authority')
     with tempfile.TemporaryDirectory(prefix='df-printify-dependency-') as tmp:
         root=Path(tmp)
         for entry in manifest['runtime_files']:
-            ref=manifest['refs']['shared_1242'] if entry['consumption']=='owner-approved-shared-core' else manifest['refs']['main']
+            ref=manifest['refs'].get('shared_core',manifest['refs']['shared_1242']) if entry['consumption']=='owner-approved-shared-core' else manifest['refs']['main']
             data=git_bytes(repo,ref,entry['path'])
             if hashlib.sha256(data).hexdigest()!=entry['selected_sha256']:
                 raise ValueError('Pinned source mismatch: '+entry['path'])

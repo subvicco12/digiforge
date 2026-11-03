@@ -1,5 +1,14 @@
 # Printify API shared-dependency matrix and owner handoff
 
+## Current authorized integration — 2026-11-03
+
+The owner explicitly authorized consumption of the exact 16-file narrow core at `b859d0078c68e8bcdc6c0732983969e81d3c9abe`, including the size-guide extension. All 16 source files are imported byte-identically; the ten retained files below match consumer baseline `6a32479e848e63149815d946044b77887642457b` and current main `3758d1385f7d4a62947248822c1fe1c89ec9818e`. The machine-readable manifest pins the selected source and installed hashes.
+
+The API-owned ProductIntelligencePanel registration adds the existing catalog controller and narrowly scoped API-owned shop admission beside the research controller. No cumulative global REST/admin guards, Plugin.php changes, migration hooks, or Portal.php resolution are included. Scope readiness does not establish database readiness, owner/account/shop assignment, grants, exceptions or runtime authority. No real credentials, catalog grants, exceptions or HTTP requests are used in validation. Synthetic WordPress fixtures exercise shop ACL assignments only. STOP ALL, external lock, automation OFF and RELEASE HOLD remain required.
+
+The following sections retain the historical pre-approval analysis. Their pending instructions were superseded only for the 16 approved source files. The cumulative branch remains excluded.
+
+
 ## Verified immutable inputs
 
 | Ref | Verified SHA | State |
@@ -13,7 +22,7 @@ Source verification date: 2026-11-03. Final API SHA and exact-head audit are in 
 
 Diff receipts: #1242 has 916 changed files against its historical base, 920 against main at task start and 960 against latest observed main. The API starting head has 22 changes against its branch base and 62 differences against latest main because the separate factory changes are not incorporated. All ten retained main dependency files remain byte-identical across the main advance.
 
-The machine-readable [dependency manifest](printify-shared-dependency-manifest-v1.json) records exact selected SHA-256 values and Git blob IDs for every file below. **PENDING_SHARED_OWNER** is a diagnostic state, not permission to install, copy into the application, merge, deploy or execute. No shared source is vendored into #1253.
+The machine-readable [dependency manifest](printify-shared-dependency-manifest-v1.json) records exact selected SHA-256 values and Git blob IDs for every file below. The previous **PENDING_SHARED_OWNER** diagnostic state is superseded by **OWNER_AUTHORIZED_NARROW_INTEGRATION** for the exact pinned 16 files only. It never authorizes merges, deployment or execution.
 
 ## A. Shared core required for catalog consumption — 16 files
 
@@ -21,22 +30,22 @@ Owner: **shared dependency / #1242 lane**. Consume once from an owner-approved i
 
 | Exact path | Main delta | Required contract / responsibility | API lane action |
 | --- | --- | --- | --- |
-| `includes/Database/ProviderConnectionSchema.php` | absent | Existing connection evidence table definition/probe; no migration executed | Consume approved owner commit; do not edit/copy now |
-| `includes/Database/QueryEvidence.php` | absent | Fail-closed mutable database-error inspection | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyCatalogClient.php` | changed | Existing GET-only scoped transport; replaces the legacy client once | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyCatalogGetSafetyExceptionContract.php` | absent | Separate grant-bound exception contract; existing limits unchanged | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyCatalogReadContract.php` | absent | Exact GET scopes/envelope validation; size-guide extension belongs here | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyCatalogReadPolicy.php` | absent | Concrete reserved-attempt authorization; no callback grants | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyCatalogReadRepository.php` | absent | Grant/receipt lifecycle, reservations, immutable audits, quota and rate admission | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/PrintifyConnectionBoundary.php` | absent | Revalidates reviewed connection tuple before credential/dispatch access | Consume approved owner commit; do not edit/copy now |
-| `includes/POD/ScopedProviderConnection.php` | absent | DF-OWN-001 current reviewed integration/account/shop relationship | Consume approved owner commit; do not edit/copy now |
-| `includes/REST/PrintifyCatalogReadController.php` | absent | Existing authenticated grant/read/evidence routes; no new issuer in API lane | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/FirstPartyOwnerPolicy.php` | absent | Protected native OWNER identity alternative; no auto-provisioning | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/ReviewedLocalEvidence.php` | absent | Current independent review/revocation proof; no Finance path invoked | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/ShopAccess.php` | absent | Explicit assigned actor/shop/capability admission | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/ShopAccessAuthority.php` | absent | Independent OWNER/delegate authority verification | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/ShopAccessPolicy.php` | absent | Canonical shops and typed assignment vocabulary | Consume approved owner commit; do not edit/copy now |
-| `includes/Security/ShopAccessRepository.php` | absent | Assignment lifecycle, independent authority and durable audit proof | Consume approved owner commit; do not edit/copy now |
+| `includes/Database/ProviderConnectionSchema.php` | absent | Existing connection evidence table definition/probe; no migration executed | Consumed approved narrow core; retain exact bytes |
+| `includes/Database/QueryEvidence.php` | absent | Fail-closed mutable database-error inspection | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyCatalogClient.php` | changed | Existing GET-only scoped transport; replaces the legacy client once | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyCatalogGetSafetyExceptionContract.php` | absent | Separate grant-bound exception contract; existing limits unchanged | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyCatalogReadContract.php` | absent | Exact GET scopes/envelope validation; size-guide extension belongs here | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyCatalogReadPolicy.php` | absent | Concrete reserved-attempt authorization; no callback grants | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyCatalogReadRepository.php` | absent | Grant/receipt lifecycle, reservations, immutable audits, quota and rate admission | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/PrintifyConnectionBoundary.php` | absent | Revalidates reviewed connection tuple before credential/dispatch access | Consumed approved narrow core; retain exact bytes |
+| `includes/POD/ScopedProviderConnection.php` | absent | DF-OWN-001 current reviewed integration/account/shop relationship | Consumed approved narrow core; retain exact bytes |
+| `includes/REST/PrintifyCatalogReadController.php` | absent | Existing authenticated grant/read/evidence routes; no new issuer in API lane | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/FirstPartyOwnerPolicy.php` | absent | Protected native OWNER identity alternative; no auto-provisioning | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/ReviewedLocalEvidence.php` | absent | Current independent review/revocation proof; no Finance path invoked | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/ShopAccess.php` | absent | Explicit assigned actor/shop/capability admission | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/ShopAccessAuthority.php` | absent | Independent OWNER/delegate authority verification | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/ShopAccessPolicy.php` | absent | Canonical shops and typed assignment vocabulary | Consumed approved narrow core; retain exact bytes |
+| `includes/Security/ShopAccessRepository.php` | absent | Assignment lifecycle, independent authority and durable audit proof | Consumed approved narrow core; retain exact bytes |
 
 Consume the existing `PrintifyCatalogClient.php` once with its `scopedRead()` method. No additional client class is needed.
 
@@ -107,63 +116,28 @@ Main advanced through #1254 while this task ran. GitHub reports #1253 `mergeable
 
 Current task adds `PrintifyResearchDependencies.php`, the read-only checker, manifest, this matrix and focused tests; it adjusts only the existing API-owned gateway/panel/controls/batch wrappers. `assets/portal.css` and `includes/Portal/Portal.php` are the only starting changed-path overlaps. For later integration, preserve both scoped stylesheet additions and the API lane's two existing panel-registration/mount lines alongside the shared portal. Do not overwrite the full portal or cherry-pick unrelated factory work.
 
-## Smallest safe strategy
+## Selected integration and safety boundary
 
-**Preferred:** the shared owner publishes/designates one approved, immutable **narrow core dependency commit or artifact manifest** containing section A, using section B unchanged. The owner includes the size-guide contract extension below and identifies the minimal bootstrap/schema prerequisites. API code consumes the same classes once after that approval; no parallel auth system, client, tables or copied grant logic. Approval to consume source is distinct from merge, deployment, migration and live execution authorization, all still absent.
+Consume exactly the 16 approved files from `b859d0078c68e8bcdc6c0732983969e81d3c9abe`; do not edit their bytes. Retain all ten main files. No cumulative #1242 code or guard mappings are imported.
 
-This avoids the 916-file cumulative diff and its global admission collisions. API handlers already enforce fixed Shop 2 scope, WordPress nonce/capabilities and installed ShopAccess directly; ordinary global capabilities cannot substitute for an assignment. Scoped checks now fail closed on missing/broken authority implementations as well.
+The API-owned `PrintifyCatalogShopAdmission` attaches only to the imported catalog REST routes. It requires all four assigned Shop 2 research capabilities and a REST nonce before inspecting target identity. It resolves the exact existing grant or descriptor through the shared repository and requires `personalized_pod`, including for revocation. This supplies admission previously provided by the excluded global guard, without modifying the shared controller or installing a global policy. The original controller/repository continue to enforce owner permissions, body/query validation, grant/exception binding, reservations, audit, expiry and rate limits. Direct application consumers still require their own scope checks; registration does not create authority.
 
-**Alternative:** if the owner requires the cumulative #1242 candidate, the owner also supplies the section C REST capability/target and admin-action mappings with its full prerequisites. #1253 must not inject an exemption hook, change guard priority, redefine those shared classes or claim routes are ready because classes merely exist. Existing overlapping portal/CSS changes require the owner's integration review.
+The API-owned panel registration connects that admission, existing catalog controller and research controller. No Plugin.php or Portal.php edits, schema hooks, owner provisioning, catalog approvals or live collection are performed. Provider-discovery batches remain bounded to one explicitly submitted existing providers scope per step, with at most ten requests per grant. Size-guide GET is available under the same governed catalog pipeline; its receipts use the existing mapper/importer. Costs, tax, missing rates and geometry certification remain unknown unless separately evidenced.
 
-Neither strategy is executed by this task. Current approved application dependency remains unavailable.
-
-## Ready-to-send request to the #1242 owner
-
-Please designate the consumable immutable narrow catalog dependency from section A (with existing main section B), or explicitly select the cumulative strategy. Confirm packaging/bootstrap ownership and publish its reviewed source/hash manifest. In that owner-controlled dependency:
-
-1. Extend **only `PrintifyCatalogReadContract.php`** for request `{"kind":"size_guide","blueprint_id":<positive int>}` → **GET `/v1/catalog/blueprints/{id}/size_guide.json`**. `normalize()` must continue to use the exact endpoint allowlist, at most ten requests per grant and existing account/shop/expiry constraints. `select()` must validate bounded `sizes` and `types`, size/range order, nullable range bounds and source units. Empty `{"sizes":[],"types":[]}` is missing evidence, never certification. Reject extra URL/method fields, foreign scope, redirects and malformed/oversized envelopes. The generic scoped client/repository already delegate to endpoint/select; they need no alternate transport or grant-issuer rewrite for this extension.
-2. Preserve `PrintifyCatalogGetSafetyExceptionContract` unchanged: its delegation to grant normalization picks up the new exact kind without expanding exception lifetime, lock semantics or request limits.
-3. Add owner-lane contract tests for exact endpoint, empty/malformed guide, extra fields, invalid IDs, request ceiling11 denial, cross-shop/account denial and existing quota/reservation/audit/rate semantics. Existing API mapper tests already cover ordered size ranges/null bounds.
-4. **Only if cumulative guards are selected:** map the six exact REST method/path combinations and four exact form actions below. Preserve fixed Shop 2 targeting, per-cap assignments, nonce checks and all underlying grant/exception gates. No wildcard path/action exemptions. Proposed pure action descriptor returns `{"shop":"personalized_pod","caps":[...]}` and must agree with the actual guard.
-
-REST namespace base: `/digiforge/v1/shops/personalized_pod/printify-research`.
-
-| Method | Exact relative path | Capabilities |
-| --- | --- | --- |
-| GET | `/readiness` | manage_digiforge + manage_digiforge_pod + manage_digiforge_research + manage_digiforge_connections |
-| GET | `/snapshots/{64-lowercase-hex}` | Same four |
-| POST | `/receipts` | Same four |
-| POST | `/batches` | Same four |
-| GET | `/batches/{64-lowercase-hex}` | Same four |
-| POST | `/batches/{64-lowercase-hex}/step` | Same four; explicit confirmation and existing grant still required |
-
-| Exact admin-post action | Assigned Shop 2 capabilities; handler nonce still mandatory |
-| --- | --- |
-| `digiforge_pod_intelligence_import` | manage_digiforge + manage_digiforge_pod + manage_digiforge_research |
-| `digiforge_pod_intelligence_export` | manage_digiforge + manage_digiforge_pod |
-| `digiforge_pod_research_prepare` | All four REST capabilities |
-| `digiforge_pod_research_step` | All four REST capabilities; explicit confirmation and existing grant still required |
-
-This owner request is prepared in **#1253 only**. No message/comment or change was posted to #1242, and no owner approval is presumed.
-
-## Read-only composition evidence and reproduction
+## Reproduction
 
 ```sh
 python3 bin/check-printify-shared-dependency.py --repository . --profile narrow-core --php php
-python3 bin/check-printify-shared-dependency.py --repository . --profile cumulative-admission --php php
+python3 -m unittest discover -s tests/offline -p 'test_*.py'
+composer test
+WP_TESTS_DIR=/path/to/wordpress-tests-lib composer test:wordpress
 ```
 
-Requires the exact manifest Git objects already present locally; the tool never fetches or installs anything. It checks each source SHA-256, materializes class definitions only in a temporary test directory, and loads the API-owned diagnostic adapter against those pinned definitions. It never loads `Plugin.php`, registers hooks, calls schema migration/provisioning methods, creates grants/exceptions, reads credentials or contacts providers. PHP harness network entry points are tripwires; unauthenticated collection must deny. This is interface/admission compatibility, **not database readiness, signed ownership, provider or release acceptance**.
+The read-only dependency probe checks the pinned source hashes and invokes no bootstrap, database schema, grants, exceptions, credentials or HTTP. `OWNER_AUTHORIZED_NARROW_INTEGRATION` records source-consumption permission only; all runtime/release policy booleans remain false. Offline tests also verify the installed 26 file hashes. WordPress tests use explicit synthetic signed shop ACL fixtures, never a provider credential or catalog grant/exception. REST denial tests cover unassigned administrators, foreign shop assignments, missing/invalid nonces, unsupported shop paths, forged reservations and privileged revocation denial before target access. Existing batch interruption/resume, receipt integrity, quota-denial and export tests remain in place.
 
-Observed at the pinned heads:
+## Remaining boundaries
 
-| Composition | Core methods | REST target/admission | Portal admission | Size-guide scope | Denied operation |
-| --- | --- | --- | --- | --- | --- |
-| Narrow core definitions + unchanged main dependencies | Compatible | Own fixed handlers, no cumulative global guards installed | Own assigned-capability handlers | Unsupported in shared pin | Unauthenticated collect → pod_research_account |
-| Same core + current cumulative admission definitions | Compatible | All six routes unmapped / fixed target false | Four actions unmapped | Unsupported | Collect stops at pod_research_pipeline_unavailable |
-
-Both probes reported zero HTTP calls, grants, exceptions and production writes. Focused tests additionally cover absent/partial dependencies, exact source pins/path safety, retained baseline files, nonce denial, foreign-shop/extra-suffix404, scoped capability denial, and no catalog option mutations. No shared source bytes changed.
-
-**Remaining approval:** the #1242 owner must designate/approve the narrow shared dependency and size-guide contract change; if choosing cumulative integration, also approve/implement its admission mappings. No production authorization is requested or implied. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.
-
-Local receipt: Composer legacy/unit/static/standards PASS (1,175 tests / 7,418 assertions); offline70 PASS; focused WordPress18 /79 PASS; mobile24 checks PASS at390/768/1280px. The usual local MariaDB11.8 baseline migration diagnostic remains unchanged; hosted exact-head CI is the final repository check. Review verified that admin-post handlers already delegate through Batch::allowed to all four assigned capabilities; the new common wrapper preserves that behavior and adds denial on partial/malformed authority rather than a second policy.
+- Main has advanced to `3758d1385f7d4a62947248822c1fe1c89ec9818e`; its independent Portal.php conflict is not resolved here. The designated portal/factory owner must handle integration with main.
+- Source readiness does not verify installed schema, reviewed owner/provider connection, current shop assignment, live provider evidence or production readiness. No migrations or provisioning are authorized by this change.
+- Research/provider gaps remain gaps; no new live evidence is collected. Drive access/import limitations recorded by the existing workstream remain unchanged.
+- STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD. No merge, deployment, Finance activation, publishing, orders or live Printify authorization.

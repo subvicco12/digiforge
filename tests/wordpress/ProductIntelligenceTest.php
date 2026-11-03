@@ -1,12 +1,14 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/PrintifyResearchAccessFixture.php';
 use DigiForge\POD\ProductIntelligence;
 use DigiForge\POD\ProductIntelligenceRepository;
 use DigiForge\Portal\ProductIntelligencePanel;
 
 final class ProductIntelligenceWordPressTest extends WP_UnitTestCase
 {
+    public function setUp(): void {parent::setUp();PrintifyResearchAccessFixture::reset();}
     private function packet(): array
     {
         $rows=[['V2 ID'=>'DG2-001','Source DG ID'=>'DG-001','Physical Product'=>'PP-001','Concept'=>'<script>bad()</script>','Price USD'=>null]];
@@ -34,13 +36,14 @@ final class ProductIntelligenceWordPressTest extends WP_UnitTestCase
         wp_set_current_user(0);self::assertFalse(ProductIntelligencePanel::canRead());
         $user=self::factory()->user->create(['role'=>'subscriber']);wp_set_current_user($user);
         $u=wp_get_current_user();$u->add_cap('manage_digiforge_pod');self::assertFalse(ProductIntelligencePanel::canRead());
-        $u->add_cap('manage_digiforge');self::assertTrue(ProductIntelligencePanel::canRead());self::assertFalse(ProductIntelligencePanel::canImport());
-        $u->add_cap('manage_digiforge_research');self::assertTrue(ProductIntelligencePanel::canImport());
+        $u->add_cap('manage_digiforge');self::assertFalse(ProductIntelligencePanel::canRead());PrintifyResearchAccessFixture::assign($user,'personalized_pod',['manage_digiforge','manage_digiforge_pod']);self::assertTrue(ProductIntelligencePanel::canRead());self::assertFalse(ProductIntelligencePanel::canImport());
+        $u->add_cap('manage_digiforge_research');self::assertFalse(ProductIntelligencePanel::canImport());PrintifyResearchAccessFixture::reset();PrintifyResearchAccessFixture::assign($user,'personalized_pod',['manage_digiforge','manage_digiforge_pod','manage_digiforge_research']);self::assertTrue(ProductIntelligencePanel::canImport());
     }
     public function testPanelMasksForeignShopAndEscapesResearchHtml(): void
     {
         $user=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($user);
         $u=wp_get_current_user();foreach(['manage_digiforge','manage_digiforge_pod'] as $cap)$u->add_cap($cap);
+        PrintifyResearchAccessFixture::assign($user,'personalized_pod',['manage_digiforge','manage_digiforge_pod']);
         $saved=(new ProductIntelligenceRepository())->import($this->packet());$_GET=['df_shop'=>'digital','df_pi_snapshot'=>$saved['snapshot_id']];
         ob_start();(new ProductIntelligencePanel())->render('/portal/');$foreign=ob_get_clean();self::assertStringNotContainsString('DG2-001',$foreign);
         $_GET['df_shop']='personalized_pod';ob_start();(new ProductIntelligencePanel())->render('/portal/');$html=ob_get_clean();

@@ -20,7 +20,14 @@ try {
   if(await controls.count()){
    await controls.click();
    assert(await page.getByLabel('Blueprint IDs from this snapshot (comma-separated)').isVisible());checks++;
-   assert(await page.getByRole('button',{name:'Collect / resume one step'}).isDisabled());checks++;
+   const collect=page.getByRole('button',{name:'Collect / resume one step'});
+   if(await collect.isEnabled()){
+    const form=collect.locator('..');
+    assert.equal(await form.evaluate(el=>el.checkValidity()),false);
+    assert(await page.getByLabel('Existing approved grant SHA-256').getAttribute('required')!==null);
+    assert.equal(await page.getByRole('checkbox',{name:'Explicitly request one governed catalog step'}).isChecked(),false);
+   }else assert(await collect.isDisabled());
+   checks++;
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));checks++;
   }
   await page.screenshot({path:path.replace(/\.html$/,`-${width}.png`),fullPage:true});

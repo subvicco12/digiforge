@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/PrintifyResearchAccessFixture.php';
 use DigiForge\POD\PrintifyResearchBatch;
 use DigiForge\POD\PrintifyResearchGateway;
 use DigiForge\POD\PrintifyResearchReader;
@@ -26,8 +27,9 @@ final class PrintifyResearchWordPressTest extends WP_UnitTestCase
     private string $snapshot;
     public function setUp(): void
     {
-        parent::setUp();$id=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($id);
+        parent::setUp();PrintifyResearchAccessFixture::reset();$id=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($id);
         foreach(['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections'] as $cap)wp_get_current_user()->add_cap($cap);
+        PrintifyResearchAccessFixture::assign($id);
         $rows=[['V2 ID'=>'DG2-001','Source DG ID'=>'DG-001','Physical Product'=>'PP-001']];$coverage=[['Blueprint ID'=>'5'],['Blueprint ID'=>'6']];
         $packet=['schema_version'=>1,'shop_key'=>'personalized_pod','business_key'=>'digicraftifygoods','catalog_key'=>'digicraftifygoods-master-500-v2','sources'=>[['id'=>'fixture','name'=>'offline.csv','sha256'=>str_repeat('e',64),'modified_at'=>'2026-11-03T00:00:00Z']],'sections'=>['concepts'=>['source_id'=>'fixture','sheet'=>'concepts','rows'=>$rows,'rows_sha256'=>ProductIntelligence::rowsHash($rows)],'coverage'=>['source_id'=>'fixture','sheet'=>'coverage','rows'=>$coverage,'rows_sha256'=>ProductIntelligence::rowsHash($coverage)]]];
         $saved=(new ProductIntelligenceRepository())->import($packet);self::assertFalse(is_wp_error($saved));$this->snapshot=$saved['snapshot_id'];

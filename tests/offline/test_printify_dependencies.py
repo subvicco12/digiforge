@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -8,9 +9,10 @@ ROOT=Path(__file__).resolve().parents[2]
 MANIFEST=ROOT/'docs/engineering/printify-shared-dependency-manifest-v1.json'
 
 class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
-    def test_manifest_is_an_unapproved_diagnostic_not_an_import_permit(self):
+    def test_source_integration_authorization_never_grants_runtime_authority(self):
         manifest=json.loads(MANIFEST.read_text())
-        self.assertEqual('PENDING_SHARED_OWNER',manifest['approval_status'])
+        self.assertEqual('OWNER_AUTHORIZED_NARROW_INTEGRATION',manifest['approval_status'])
+        self.assertEqual('b859d0078c68e8bcdc6c0732983969e81d3c9abe',manifest['refs']['shared_core'])
         self.assertFalse(any(manifest['policy'].values()))
         self.assertEqual(16,sum(x['consumption']=='owner-approved-shared-core' for x in manifest['runtime_files']))
         for ref in manifest['refs'].values(): self.assertRegex(ref,r'^[a-f0-9]{40}$')
@@ -18,6 +20,7 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
             self.assertTrue(row['path'].startswith('includes/'))
             self.assertNotIn('..',Path(row['path']).parts)
             self.assertRegex(row['selected_sha256'],r'^[a-f0-9]{64}$')
+            self.assertEqual(row['selected_sha256'],hashlib.sha256((ROOT/row['path']).read_bytes()).hexdigest(),row['path'])
 
     def test_unrelated_shared_deltas_and_overlapping_surfaces_remain_owned_elsewhere(self):
         manifest=json.loads(MANIFEST.read_text())

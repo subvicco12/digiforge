@@ -1,11 +1,13 @@
 {
   "schema": "digiforge-printify-shared-dependency-v1",
-  "approval_status": "PENDING_SHARED_OWNER",
+  "approval_status": "OWNER_AUTHORIZED_NARROW_INTEGRATION",
   "refs": {
-    "main": "7f30ad6aa37f58eca5302710c5f4583cabc45dfa",
+    "main": "3758d1385f7d4a62947248822c1fe1c89ec9818e",
     "shared_1242": "fac3634615c72ffdb0fdbce8ef1fbd3ae3c9e4c0",
     "api_1253_start": "c7d706e32396d81e0adc2f3552e9e4d106680293",
-    "api_branch_base_main": "0e15e4ccae430498c92a30ab1f8951171fa0ad13"
+    "api_branch_base_main": "0e15e4ccae430498c92a30ab1f8951171fa0ad13",
+    "shared_core": "b859d0078c68e8bcdc6c0732983969e81d3c9abe",
+    "consumer_baseline": "6a32479e848e63149815d946044b77887642457b"
   },
   "policy": {
     "auto_fetch": false,
@@ -24,7 +26,8 @@
       "main_blob": "c0edf01bd518434cfd2b46f052a21d7a2fc8dc4d",
       "shared_blob": "c0edf01bd518434cfd2b46f052a21d7a2fc8dc4d",
       "selected_sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Core/Config.php",
@@ -34,7 +37,8 @@
       "main_blob": "505b804090ad26683ec6d840d8b1b1bae90367b6",
       "shared_blob": "505b804090ad26683ec6d840d8b1b1bae90367b6",
       "selected_sha256": "b73b3c0d29b1b56054b2ac4e3143e93e63bbb6d63258d55b84b1ef3b68c2aa77",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Core/Settings.php",
@@ -47,7 +51,8 @@
       "depends_on": [
         "includes/Core/Config.php",
         "includes/Database/Tables.php"
-      ]
+      ],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Database/ProviderConnectionSchema.php",
@@ -57,7 +62,8 @@
       "main_blob": null,
       "shared_blob": "5aa45d891db63c13ece9a90784b37aeaad737539",
       "selected_sha256": "e87f3e4d80d3aa1dcec9ad61c585fb15b5786785ac1f05ace13e546716f7ef57",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Database/QueryEvidence.php",
@@ -67,7 +73,8 @@
       "main_blob": null,
       "shared_blob": "4982176df475b921d3df5811a7f50e2c41cf774d",
       "selected_sha256": "d9e3de2a05482724697b3db422a907f3722f9ed0f216a36aa75dca8c7c362ce8",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Database/Tables.php",
@@ -77,7 +84,8 @@
       "main_blob": "46ddd1759e446e48acfb2f844752fc86dd636838",
       "shared_blob": "f89027555dd3c05107b312f34f07fed9f26c1b85",
       "selected_sha256": "c33f7277ecff3eb701835d0c56132987f6a96d7b136e96c70ca5ec1a2da6830b",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Integrations/CredentialVault.php",
@@ -87,7 +95,8 @@
       "main_blob": "bf8cb4eb45449cf89ccd8677c93ce3198b83e392",
       "shared_blob": "9a8a196718ed0e39623463f886b9daaa416688a0",
       "selected_sha256": "37525dc10b8b11688ca5aadb528fe97fee66aee94b549498ec6a91af9a3d850c",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Integrations/ProviderCatalog.php",
@@ -97,7 +106,8 @@
       "main_blob": "db6b27c3f99b20828a67692e18afd19053b49b83",
       "shared_blob": "db6b27c3f99b20828a67692e18afd19053b49b83",
       "selected_sha256": "845ea0d7e5b17ab21b494b2a81a9d29f560de0b528250845c51b2d358e44486e",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Integrations/Repository.php",
@@ -112,7 +122,8 @@
         "includes/Integrations/CredentialVault.php",
         "includes/Integrations/ProviderCatalog.php",
         "includes/Security/Logger.php"
-      ]
+      ],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Listings/Validator.php",
@@ -122,7 +133,8 @@
       "main_blob": "8ce9fa2b506eac9420d3819e6480b70e9ae40e82",
       "shared_blob": "8ce9fa2b506eac9420d3819e6480b70e9ae40e82",
       "selected_sha256": "1aae6f9080a49146aaaf482209936706b5e8bb571281dcddbe565a991d226311",
-      "depends_on": []
+      "depends_on": [],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/POD/BusinessScope.php",
@@ -134,7 +146,8 @@
       "selected_sha256": "17eda8a944d9a2652c04f30575803b3b19f46a7587ace4f3276fed1b3011622d",
       "depends_on": [
         "includes/Database/Tables.php"
-      ]
+      ],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/POD/PrintifyCatalogClient.php",
@@ -148,7 +161,8 @@
         "includes/POD/PrintifyCatalogReadContract.php",
         "includes/POD/PrintifyCatalogReadPolicy.php",
         "includes/POD/PrintifyConnectionBoundary.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
@@ -160,7 +174,8 @@
       "selected_sha256": "b2c8afb6aa66ae0ead678b442244b6dbfacacf02e894688f4dc896137751f406",
       "depends_on": [
         "includes/POD/PrintifyCatalogReadContract.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/PrintifyCatalogReadContract.php",
@@ -169,10 +184,11 @@
       "main_state": "absent",
       "main_blob": null,
       "shared_blob": "c0f80225aebda4a5528a90faae086a30125a2264",
-      "selected_sha256": "f65e05f6b2c631ecf171b0b6687c313bd5e82ceb87ef161557e2e3823ddeaf3b",
+      "selected_sha256": "1440f008f6a3048661c184f4dffd144e5e5bc2aeb74f32b2e1cafdd72742da7d",
       "depends_on": [
         "includes/Security/Logger.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/PrintifyCatalogReadPolicy.php",
@@ -185,7 +201,8 @@
       "depends_on": [
         "includes/Core/Settings.php",
         "includes/POD/PrintifyCatalogReadRepository.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/PrintifyCatalogReadRepository.php",
@@ -209,7 +226,8 @@
         "includes/Security/Logger.php",
         "includes/Security/ShopAccess.php",
         "includes/Security/ShopAccessPolicy.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/PrintifyConnectionBoundary.php",
@@ -226,7 +244,8 @@
         "includes/Listings/Validator.php",
         "includes/POD/ScopedProviderConnection.php",
         "includes/Security/ReviewedLocalEvidence.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/POD/ScopedProviderConnection.php",
@@ -244,7 +263,8 @@
         "includes/POD/BusinessScope.php",
         "includes/Security/ReviewedLocalEvidence.php",
         "includes/Security/ShopAccess.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/REST/PrintifyCatalogReadController.php",
@@ -256,7 +276,8 @@
       "selected_sha256": "001635ec4ee17fdd0c185a9adcfbe498ced34ccf5d0e6ccc25d018434edb4b8d",
       "depends_on": [
         "includes/POD/PrintifyCatalogReadRepository.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/FirstPartyOwnerPolicy.php",
@@ -269,7 +290,8 @@
       "depends_on": [
         "includes/Core/Capabilities.php",
         "includes/Security/ShopAccessPolicy.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/Logger.php",
@@ -281,7 +303,8 @@
       "selected_sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844",
       "depends_on": [
         "includes/Database/Tables.php"
-      ]
+      ],
+      "selected_ref": "3758d1385f7d4a62947248822c1fe1c89ec9818e"
     },
     {
       "path": "includes/Security/ReviewedLocalEvidence.php",
@@ -298,7 +321,8 @@
         "includes/Security/Logger.php",
         "includes/Security/ShopAccess.php",
         "includes/Security/ShopAccessPolicy.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/ShopAccess.php",
@@ -312,7 +336,8 @@
         "includes/Security/Logger.php",
         "includes/Security/ShopAccessPolicy.php",
         "includes/Security/ShopAccessRepository.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/ShopAccessAuthority.php",
@@ -325,7 +350,8 @@
       "depends_on": [
         "includes/Security/FirstPartyOwnerPolicy.php",
         "includes/Security/ShopAccessPolicy.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/ShopAccessPolicy.php",
@@ -337,7 +363,8 @@
       "selected_sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63",
       "depends_on": [
         "includes/Core/Capabilities.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     },
     {
       "path": "includes/Security/ShopAccessRepository.php",
@@ -352,7 +379,8 @@
         "includes/Security/Logger.php",
         "includes/Security/ShopAccessAuthority.php",
         "includes/Security/ShopAccessPolicy.php"
-      ]
+      ],
+      "selected_ref": "b859d0078c68e8bcdc6c0732983969e81d3c9abe"
     }
   ],
   "conditional_integration_surfaces": [
@@ -555,9 +583,9 @@
     },
     "endpoint": "/v1/catalog/blueprints/1/size_guide.json",
     "max_requests_per_grant": 10,
-    "status": "NOT_IMPLEMENTED_IN_SHARED_PIN"
+    "status": "IMPLEMENTED_IN_APPROVED_SHARED_CORE"
   },
-  "preferred_strategy": "Shared owner publishes an approved immutable narrow core commit/manifest; consume it once after approval. Do not copy the full cumulative candidate or modify global guards in this lane.",
+  "preferred_strategy": "Consume exactly the 16 source files from refs.shared_core; retain the ten main files byte-identically. Cumulative #1242 changes are excluded.",
   "api_lane_extension_files": [
     "includes/POD/PrintifyResearchDependencies.php",
     "includes/POD/PrintifyResearchGateway.php",
@@ -569,7 +597,10 @@
     "tests/unit/PrintifyResearchDependencyTest.php",
     "tests/offline/test_printify_dependencies.py",
     "tests/wordpress/PrintifyDependencyBoundaryTest.php",
-    "includes/POD/PrintifyResearchBatch.php"
+    "includes/POD/PrintifyResearchBatch.php",
+    "includes/REST/PrintifyCatalogShopAdmission.php",
+    "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+    "tests/wordpress/fixtures/PrintifyResearchAccessFixture.php"
   ],
   "diff_counts": {
     "shared_vs_historical_base": 916,
@@ -583,5 +614,11 @@
     "github_mergeable_state": "dirty",
     "resolution_performed": false,
     "production_merge_authorized": false
+  },
+  "authorization": {
+    "scope": "exact-16-file-source-integration-only",
+    "source": "Explicit owner direction in this session, 2026-11-03",
+    "strategy": "narrow-core",
+    "production_authorization": false
   }
 }
