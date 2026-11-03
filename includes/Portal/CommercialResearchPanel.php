@@ -28,8 +28,9 @@ final class CommercialResearchPanel
         if($r['stage']==='RESEARCH_READY')$this->conceptIntake($r,$hash);
         if(is_array($r['response']))$this->conceptCards($r,$hash);
         if($r['stage']==='DESIGN_SELECTED'){
-            echo '<h3>Artwork prompt for selected concept '.esc_html((string)$r['selected_concept']).'</h3><textarea readonly rows="8">'.esc_textarea($r['design_prompt']).'</textarea><p>Use your authorized art tool or create original SVG source manually. No image provider is called here. Import the actual editable artwork below.</p>';
-            $this->artworkForm($hash);
+            (new DesignFactoryPanel())->render($shop,$hash);
+            echo '<h3>Artwork prompt for selected concept '.esc_html((string)$r['selected_concept']).'</h3><textarea readonly rows="8">'.esc_textarea($r['design_prompt']).'</textarea><p>Use your authorized art tool or create original SVG source manually. This prompt is not artwork. Use the approved-concept workflow above for actual editable artwork intake.</p>';
+            echo '<p>New concept artwork intake uses the approved-concept Design Factory above. Existing historical artwork evidence remains inspectable.</p>';
         }
         if(is_array($v['artwork'])){
             $a=$v['artwork'];if($r['stage']==='REVIEW_SUBMITTED'&&$a['approval']===null)echo '<p>Review intent and rationale saved; artwork decision is not confirmed. Inspect the exact records before any retry.</p>';echo '<h3>Immutable artwork review</h3><p>Editable asset reference: <code>'.esc_html($a['version_hash']).'</code> · '.esc_html($a['approval']['state']??'PENDING_REVIEW').'</p><p>Originality/licensing reviewer: '.esc_html((string)$r['review']['reviewed_by']).' · '.esc_html($r['review']['note']).'</p><textarea readonly rows="6">'.esc_textarea($a['record']['input']['artwork']['svg']).'</textarea><p>Supplier geometry and print output remain unverified. This approval cannot authorize provider execution.</p>';
@@ -78,14 +79,6 @@ final class CommercialResearchPanel
         echo '<p>Concept provenance: '.esc_html($r['provenance']['method'].' · '.$r['provenance']['provider'].' · '.$r['provenance']['model'].' · '.$r['provenance']['generated_at']).' (imported declarations are unverified).</p>';
         foreach($response['concepts']as $index=>$concept){echo '<article class="df-candidate"><h4>'.esc_html((string)($index+1).'. '.$concept['visual_direction']).'</h4>';foreach($concept as $key=>$value)echo '<p><strong>'.esc_html($key).':</strong> '.esc_html(is_array($value)?implode(', ',$value):$value).'</p>';if($r['stage']==='CONCEPTS_READY'){$this->form('select',$hash);echo '<input type="hidden" name="concept" value="'.esc_attr((string)($index+1)).'"><button class="df-button">Select this direction</button></form>';}echo '</article>';}
     }
-    private function artworkForm(string $hash): void
-    {
-        $this->form('artwork',$hash);echo '<h3>4. Import finished editable source</h3><label>Original SVG source<textarea name="svg" rows="10" maxlength="262144" required></textarea></label>';
-        $this->field('width_px','Width in pixels');$this->field('height_px','Height in pixels');echo '<p>DPI: 300. Geometry must be checked against the exact supplier template separately.</p>';
-        $this->field('native_layers','Native text/photo layer names, comma separated',false);$this->field('rights_note','Artwork/font rights evidence');$this->field('review_note','Originality and licensing review evidence');
-        foreach(['originality_reviewed'=>'Originality checked; no traced competitor artwork','licensing_reviewed'=>'Licensing and font rights checked','safe_area_reviewed'=>'Safe area manually reviewed','font_license_reviewed'=>'Font license reviewed','mockup_reviewed'=>'Mockup visually reviewed']as $key=>$label)$this->check($key,$label);
-        echo '<button class="df-button">Attach reviewed artwork as new immutable asset</button></form>';
-    }
     private function form(string $operation,?string $hash=null): void
     {
         echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="'.esc_attr(self::ACTION).'"><input type="hidden" name="shop_key" value="personalized_pod"><input type="hidden" name="operation" value="'.esc_attr($operation).'"><input type="hidden" name="return_url" value="'.esc_attr($this->baseUrl()).'">';if($hash!==null)echo '<input type="hidden" name="workflow_hash" value="'.esc_attr($hash).'">';wp_nonce_field(self::ACTION);
@@ -97,13 +90,16 @@ final class CommercialResearchPanel
     {
         check_admin_referer(self::ACTION);$result=$this->process(wp_unslash($_POST));$args=['df_view'=>'research','df_shop'=>'personalized_pod'];
         if($result instanceof WP_Error){$args+=['df_message'=>$result->get_error_message(),'df_error'=>'1'];$data=$result->get_error_data();if(is_array($data)&&is_string($data['review_intent_hash']??null))$args['df_research_version']=$data['review_intent_hash'];}else $args+=['df_research_version'=>$result['hash'],'df_message'=>'Immutable research/design evidence saved. Release remains held.'];
+        $factoryHash=$result instanceof WP_Error?($result->get_error_data()['design_factory_hash']??null):($result['design_factory_hash']??null);
+        if(is_string($factoryHash)&&preg_match('/^[a-f0-9]{64}$/D',$factoryHash)){$args['df_factory_version']=$factoryHash;if($result instanceof WP_Error&&is_string($_POST['workflow_hash']??null))$args['df_research_version']=wp_unslash($_POST['workflow_hash']);}
         $return=$_POST['return_url']??null;$return=is_string($return)?wp_validate_redirect(wp_unslash($return),home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#df-commercial-research');exit;
     }
     public function process(array $post): array|WP_Error
     {
         if(($post['shop_key']??null)!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return new WP_Error('commercial_scope','Authenticated personalized-POD reviewer required.');
-        try {if(strlen(CommercialResearchContract::json($post))>500000)throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
+        try {if(strlen(CommercialResearchContract::json($post))>(is_string($post['operation']??null)&&str_starts_with($post['operation'],'design_')?8500000:500000))throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
+        if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel())->process($post);
         if($op==='research'||$op==='revise_research'){
             $sources=$post['sources']??null;if(!is_array($sources))return new WP_Error('commercial_input','Source evidence required.');
             $sources=array_values(array_filter($sources,static fn($s):bool=>!is_array($s)||($s['url']??'')!==''||($s['excerpt']??'')!==''||($s['observed_at']??'')!==''||($s['provenance']??'')!==''));
@@ -124,13 +120,7 @@ final class CommercialResearchPanel
         if($op==='revise'&&is_string($post['note']??null))return $repo->revise('personalized_pod',$hash,$post['note']);
         if($op==='reuse'&&is_string($post['product_family']??null)&&is_string($post['title']??null))return $repo->reuse('personalized_pod',$hash,$post['product_family'],$post['title']);
         if($op==='decide'&&($post['confirm']??null)==='1'&&is_string($post['decision']??null)&&is_string($post['note']??null))return $repo->decide('personalized_pod',$hash,$post['decision'],$post['note']);
-        if($op==='artwork'){
-            foreach(['width_px','height_px']as $key)if(!is_string($post[$key]??null)||!preg_match('/^[1-9][0-9]{0,4}$/D',$post[$key]))return new WP_Error('commercial_input','Exact positive pixel dimensions required.');
-            if(!is_string($post['native_layers']??''))return new WP_Error('commercial_input','Native layer names required.');
-            $art=['svg'=>$post['svg']??null,'width_px'=>(int)$post['width_px'],'height_px'=>(int)$post['height_px'],'dpi'=>300,'native_layers'=>array_values(array_filter(array_map('trim',explode(',',$post['native_layers']??'')),static fn($v):bool=>$v!=='')),'rights_note'=>$post['rights_note']??null];
-            foreach(['safe_area_reviewed','font_license_reviewed','mockup_reviewed']as $key)$art[$key]=($post[$key]??null)==='1';
-            return $repo->attach('personalized_pod',$hash,$art,['originality_reviewed'=>($post['originality_reviewed']??null)==='1','licensing_reviewed'=>($post['licensing_reviewed']??null)==='1','note'=>$post['review_note']??null]);
-        }
+        if($op==='artwork')return new WP_Error('commercial_design_gate','New selected-concept artwork must use approved source concept, detailed design specification and human quality review in the Design Factory.');
         return new WP_Error('commercial_input','Valid stage operation and explicit confirmation required.');
     }
 }
