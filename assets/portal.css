@@ -21,3 +21,4 @@
 .df-product-intelligence summary{cursor:pointer;min-height:44px;padding:10px 0;box-sizing:border-box}
 .df-product-intelligence input[type=file]{display:block;max-width:100%;margin:10px 0}
 @media(max-width:600px){.df-pi-filters{display:grid;grid-template-columns:minmax(0,1fr)}.df-pi-cards{grid-template-columns:minmax(0,1fr)}.df-product-intelligence .df-button{min-height:44px}.df-product-intelligence .df-panel-head{flex-wrap:wrap}}
+.df-product-intelligence input[type=checkbox]{width:auto;min-height:auto}

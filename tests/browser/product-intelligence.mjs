@@ -16,6 +16,13 @@ try {
   assert(await page.getByLabel('Evidence section').isVisible());checks++;
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Page overflows at ${width}px`);checks++;
   assert(await page.locator('.df-pi-card').count()>0);checks++;
+  const controls=page.getByText('Prepare or resume provider discovery',{exact:true});
+  if(await controls.count()){
+   await controls.click();
+   assert(await page.getByLabel('Blueprint IDs from this snapshot (comma-separated)').isVisible());checks++;
+   assert(await page.getByRole('button',{name:'Collect / resume one step'}).isDisabled());checks++;
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));checks++;
+  }
   await page.screenshot({path:path.replace(/\.html$/,`-${width}.png`),fullPage:true});
   await page.close();
  }

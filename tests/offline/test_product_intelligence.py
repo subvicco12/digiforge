@@ -54,6 +54,11 @@ class ProductIntelligenceImportTest(unittest.TestCase):
                 for n,v in entries.items(): z.writestr(n,v)
             self.assertIsNone(m.read_xlsx(p,'concepts')[0]['B'])
 
+    def test_exported_packet_integrity_is_verified_before_xlsx(self):
+        m=self.load()
+        packet={'schema_version':1,'shop_key':'personalized_pod','business_key':'digicraftifygoods','catalog_key':'digicraftifygoods-master-500-v2','sources':[{'id':'s','sha256':'a'*64,'modified_at':'2026-11-03T00:00:00Z'}],'sections':{'concepts':{'source_id':'s','sheet':'concepts','rows':[{'V2 ID':'DG2-001'}],'rows_sha256':'b'*64}}}
+        with self.assertRaises(ValueError): m.validate_packet(packet)
+
     def test_xlsx_export_uses_literal_strings(self):
         m=self.load()
         import zipfile

@@ -113,10 +113,35 @@ def convert(manifest):
     return packet
 
 
+def validate_packet(packet):
+    """Verify a bounded WordPress research export before local conversion."""
+    allowed={'concepts','lineage','matches','candidates','blueprints','shortlist','providers','variants','print_areas','size_guides','shipping','costs','gaps','coverage','batches','source_lineage'}
+    if packet.get('schema_version') != 1 or packet.get('shop_key') != 'personalized_pod' or packet.get('business_key') != 'digicraftifygoods' or packet.get('catalog_key') != 'digicraftifygoods-master-500-v2':
+        raise ValueError('Exact Shop 2 research packet required')
+    if len(json.dumps(packet).encode()) > MAX_BYTES or len(packet.get('sources',[])) > 200:
+        raise ValueError('Packet exceeds bounds')
+    sources={source['id']: source for source in packet['sources']}
+    count=0
+    for name,section in packet['sections'].items():
+        rows=section['rows'];count+=len(rows)
+        if name not in allowed or section['source_id'] not in sources or count > 50000 or rows_hash(rows) != section['rows_sha256']:
+            raise ValueError('Section provenance or integrity mismatch')
+        for row in rows:
+            if row.get('_source_id',section['source_id']) not in sources:
+                raise ValueError('Row source unavailable')
+    packet.update(production_authority=False,finance_authority=False,external_execution_authorized=False,approval_status='UNREVIEWED')
+    return packet
+
+
 def export_xlsx(packet, path):
     # All cells are literal inline strings, including formula-looking research text.
     from xml.sax.saxutils import escape
     sheets = list(packet['sections'].items())
+    if any(not re.fullmatch(r'[a-z_]{1,31}', name) for name,_ in sheets):
+        raise ValueError('Unsafe export section name')
+    if packet.get('sources'):
+        sheets.append(('_sources',{'rows':packet['sources']}))
+        sheets.append(('_bindings',{'rows':[{'section':name,'source_id':section['source_id'],'sheet':section['sheet'],'rows_sha256':section['rows_sha256']} for name,section in packet['sections'].items()]}))
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
         overrides = ''.join(f'<Override PartName="/xl/worksheets/sheet{i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' for i in range(1,len(sheets)+1))
         z.writestr('[Content_Types].xml', f'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>{overrides}</Types>')
@@ -135,9 +160,11 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('manifest',type=Path)
     parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--packet',action='store_true',help='Input is an exported research JSON packet, not a source manifest')
     parser.add_argument('--xlsx',type=Path,help='Optional local literal-cell XLSX export')
     args=parser.parse_args()
-    packet=convert(json.loads(args.manifest.read_text()))
+    input_data=json.loads(args.manifest.read_text())
+    packet=validate_packet(input_data) if args.packet else convert(input_data)
     args.output.write_text(json.dumps(packet,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     if args.xlsx: export_xlsx(packet,args.xlsx)
     print(json.dumps({'sections':{k:len(v['rows']) for k,v in packet['sections'].items()},'production_authority':False}))

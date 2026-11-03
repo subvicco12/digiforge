@@ -22,7 +22,7 @@ final class ProductIntelligence
         }
         if (strlen(json_encode($packet, JSON_THROW_ON_ERROR)) > self::MAX_BYTES) throw new \InvalidArgumentException('Snapshot exceeds 16 MiB.');
         $sources = [];
-        if (!is_array($packet['sources'] ?? null) || count($packet['sources']) > 50) throw new \InvalidArgumentException('Bounded source manifest required.');
+        if (!is_array($packet['sources'] ?? null) || count($packet['sources']) > 200) throw new \InvalidArgumentException('Bounded source manifest required.');
         foreach ($packet['sources'] as $source) {
             if (!is_array($source) || !is_string($source['id'] ?? null) || $source['id'] === '' || isset($sources[$source['id']]) || !is_string($source['name'] ?? null) || !preg_match('/^[a-f0-9]{64}$/D', (string)($source['sha256'] ?? '')) || !is_string($source['modified_at'] ?? null) || strtotime($source['modified_at']) === false) throw new \InvalidArgumentException('Source ID, hash and timestamp required.');
             $sources[$source['id']] = $source;
@@ -34,6 +34,7 @@ final class ProductIntelligence
             $rows = $section['rows'];$count += count($rows);
             if ($count > 50000) throw new \InvalidArgumentException('Snapshot row limit exceeded.');
             foreach ($rows as $row) {
+                if (isset($row['_source_id']) && (!is_string($row['_source_id']) || !isset($sources[$row['_source_id']]))) throw new \InvalidArgumentException('Unknown row source binding.');
                 if (!is_array($row) || count($row) > 64 || $row === []) throw new \InvalidArgumentException('Bounded named cells required.');
                 foreach ($row as $column => $cell) {
                     if (!is_string($column) || strlen($column) > 120 || (!is_null($cell) && !is_string($cell)) || (is_string($cell) && strlen($cell) > 65536)) throw new \InvalidArgumentException('Cells must be strings or explicit null.');
@@ -84,6 +85,16 @@ final class ProductIntelligence
         fputcsv($stream,array_map($safe,array_keys($columns)),',','"','');
         foreach ($rows as $row) fputcsv($stream,array_map(static fn($key)=>$safe($row[$key]??null),array_keys($columns)),',','"','');
         rewind($stream);$csv=stream_get_contents($stream);fclose($stream);return $csv===false?'':$csv;
+    }
+
+    public static function exportRows(array $packet,string $section,string $snapshot): array
+    {
+        $sources=[];foreach($packet['sources'] as $source)$sources[$source['id']]=$source;
+        $binding=$packet['sections'][$section];$out=[];
+        foreach($binding['rows'] as $row){$source=$sources[$row['_source_id']??$binding['source_id']];
+            $out[]=['_snapshot_id'=>$snapshot,'_section'=>$section,'_source_id'=>$source['id'],'_source_sha256'=>$source['sha256'],'_source_modified_at'=>$source['modified_at'],'_sheet'=>$row['_source_sheet']??$binding['sheet'],'_approval_status'=>'UNREVIEWED']+$row;
+        }
+        return $out;
     }
 
     public static function batch(array $ids, int $limit=10): array
