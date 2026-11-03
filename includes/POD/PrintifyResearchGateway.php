@@ -8,10 +8,7 @@ final class PrintifyResearchGateway implements PrintifyResearchReader
 {
     public static function readiness(): array
     {
-        $missing=[];foreach([PrintifyCatalogReadRepository::class,PrintifyCatalogReadPolicy::class,PrintifyCatalogReadContract::class,\DigiForge\Security\ShopAccess::class] as $class)if(!class_exists($class))$missing[]=substr($class,strrpos($class,'\\')+1);
-        $supported=$missing===[]&&method_exists(PrintifyCatalogReadRepository::class,'research')&&method_exists(PrintifyCatalogReadRepository::class,'targetShopForGrant');
-        $sizes=false;if($supported)try{$sizes=PrintifyCatalogReadContract::endpoint(['kind'=>'size_guide','blueprint_id'=>1])==='/v1/catalog/blueprints/1/size_guide.json';}catch(\Throwable){}
-        return ['pipeline_state'=>$supported?'GOVERNED_PIPELINE_PRESENT':'GOVERNED_PIPELINE_UNAVAILABLE','missing_dependencies'=>$missing,'size_guide_grant_scope_supported'=>$sizes,'max_requests_per_grant'=>10,'automatic_retry'=>false,'external_execution_authorized'=>false,'readiness_is_not_authorization'=>true];
+        return PrintifyResearchDependencies::inspect();
     }
     public function describe(string $grant): array|WP_Error
     {

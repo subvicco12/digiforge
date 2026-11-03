@@ -66,3 +66,7 @@ Mobile tests expand the new preparation controls at 390/768/1280px and verify di
 Remaining production blockers: coordinate/integrate the shared governed pipeline and reviewed ownership dependencies; extend its size-guide grant scope under that lane's ownership; verify installed-site configuration and main-site binding; separately approve any actual grant/exception/internal runtime writes and live provider calls. Historical supplier gaps (including 84 provider-discovery gaps) have not been refreshed: no new provider facts, costs, tax, destination rates or certifications were fabricated.
 
 STOP ALL ON; external safety lock ON; automation OFF; RELEASE HOLD. No artwork/editor/mockup/listing/SEO/order/fulfillment/Finance work, production migration, merge, deployment or activation.
+
+## Shared-dependency handoff
+
+The exact pinned dependency matrix, two composition probes, conditional global-admission mappings and smallest owner approval are in [PRINTIFY-SHARED-DEPENDENCY-MATRIX.md](engineering/PRINTIFY-SHARED-DEPENDENCY-MATRIX.md). API readiness now checks transitive methods and distinguishes narrow-core compatibility from unmapped cumulative guards. No shared implementation is copied or approved by that diagnostic.

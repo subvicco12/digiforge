@@ -102,8 +102,7 @@ final class PrintifyResearchBatch
         if(!is_user_logged_in())return false;
         foreach(['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections'] as $cap){
             if(!current_user_can($cap))return false;
-            if(class_exists(\DigiForge\Security\ShopAccess::class)&&is_wp_error(\DigiForge\Security\ShopAccess::authorize('personalized_pod',$cap)))return false;
         }
-        return true;
+        return PrintifyResearchDependencies::assigned(['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections']);
     }
 }

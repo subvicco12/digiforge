@@ -1,0 +1,573 @@
+{
+  "schema": "digiforge-printify-shared-dependency-v1",
+  "approval_status": "PENDING_SHARED_OWNER",
+  "refs": {
+    "main": "0e15e4ccae430498c92a30ab1f8951171fa0ad13",
+    "shared_1242": "fac3634615c72ffdb0fdbce8ef1fbd3ae3c9e4c0",
+    "api_1253_start": "c7d706e32396d81e0adc2f3552e9e4d106680293"
+  },
+  "policy": {
+    "auto_fetch": false,
+    "auto_copy": false,
+    "merge_authorized": false,
+    "deployment_authorized": false,
+    "grant_or_exception_authorized": false,
+    "external_execution_authorized": false
+  },
+  "runtime_files": [
+    {
+      "path": "includes/Core/Capabilities.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "c0edf01bd518434cfd2b46f052a21d7a2fc8dc4d",
+      "shared_blob": "c0edf01bd518434cfd2b46f052a21d7a2fc8dc4d",
+      "selected_sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Core/Config.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "505b804090ad26683ec6d840d8b1b1bae90367b6",
+      "shared_blob": "505b804090ad26683ec6d840d8b1b1bae90367b6",
+      "selected_sha256": "b73b3c0d29b1b56054b2ac4e3143e93e63bbb6d63258d55b84b1ef3b68c2aa77",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Core/Settings.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "ad3f41276b2b2d21ee9d2948bceaad5461d30258",
+      "shared_blob": "ad3f41276b2b2d21ee9d2948bceaad5461d30258",
+      "selected_sha256": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862",
+      "depends_on": [
+        "includes/Core/Config.php",
+        "includes/Database/Tables.php"
+      ]
+    },
+    {
+      "path": "includes/Database/ProviderConnectionSchema.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "5aa45d891db63c13ece9a90784b37aeaad737539",
+      "selected_sha256": "e87f3e4d80d3aa1dcec9ad61c585fb15b5786785ac1f05ace13e546716f7ef57",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Database/QueryEvidence.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "4982176df475b921d3df5811a7f50e2c41cf774d",
+      "selected_sha256": "d9e3de2a05482724697b3db422a907f3722f9ed0f216a36aa75dca8c7c362ce8",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Database/Tables.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "changed",
+      "main_blob": "46ddd1759e446e48acfb2f844752fc86dd636838",
+      "shared_blob": "f89027555dd3c05107b312f34f07fed9f26c1b85",
+      "selected_sha256": "c33f7277ecff3eb701835d0c56132987f6a96d7b136e96c70ca5ec1a2da6830b",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Integrations/CredentialVault.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "changed",
+      "main_blob": "bf8cb4eb45449cf89ccd8677c93ce3198b83e392",
+      "shared_blob": "9a8a196718ed0e39623463f886b9daaa416688a0",
+      "selected_sha256": "37525dc10b8b11688ca5aadb528fe97fee66aee94b549498ec6a91af9a3d850c",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Integrations/ProviderCatalog.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "db6b27c3f99b20828a67692e18afd19053b49b83",
+      "shared_blob": "db6b27c3f99b20828a67692e18afd19053b49b83",
+      "selected_sha256": "845ea0d7e5b17ab21b494b2a81a9d29f560de0b528250845c51b2d358e44486e",
+      "depends_on": []
+    },
+    {
+      "path": "includes/Integrations/Repository.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "6ece3eda73b58eb3e51c4cfb33bcc2c1c9f08ec1",
+      "shared_blob": "6ece3eda73b58eb3e51c4cfb33bcc2c1c9f08ec1",
+      "selected_sha256": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415",
+      "depends_on": [
+        "includes/Database/Tables.php",
+        "includes/Integrations/CredentialVault.php",
+        "includes/Integrations/ProviderCatalog.php",
+        "includes/Security/Logger.php"
+      ]
+    },
+    {
+      "path": "includes/Listings/Validator.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "8ce9fa2b506eac9420d3819e6480b70e9ae40e82",
+      "shared_blob": "8ce9fa2b506eac9420d3819e6480b70e9ae40e82",
+      "selected_sha256": "1aae6f9080a49146aaaf482209936706b5e8bb571281dcddbe565a991d226311",
+      "depends_on": []
+    },
+    {
+      "path": "includes/POD/BusinessScope.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "80aa8f9dc0a9dd1a39886c89ce4467c3def15e27",
+      "shared_blob": "80aa8f9dc0a9dd1a39886c89ce4467c3def15e27",
+      "selected_sha256": "17eda8a944d9a2652c04f30575803b3b19f46a7587ace4f3276fed1b3011622d",
+      "depends_on": [
+        "includes/Database/Tables.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogClient.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "changed",
+      "main_blob": "aaf951256334c00005c5b14be297d806f9768568",
+      "shared_blob": "e4b9a0109f170428368999a05b6247ef25a2b3d5",
+      "selected_sha256": "86632726dc0efdd05de68ba3ed704264d55cb88c530aaad8be6f55c71f2be668",
+      "depends_on": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadPolicy.php",
+        "includes/POD/PrintifyConnectionBoundary.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "299ff284ffdd67e05eaedbe6dd7e02560eac5792",
+      "selected_sha256": "b2c8afb6aa66ae0ead678b442244b6dbfacacf02e894688f4dc896137751f406",
+      "depends_on": [
+        "includes/POD/PrintifyCatalogReadContract.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadContract.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "c0f80225aebda4a5528a90faae086a30125a2264",
+      "selected_sha256": "f65e05f6b2c631ecf171b0b6687c313bd5e82ceb87ef161557e2e3823ddeaf3b",
+      "depends_on": [
+        "includes/Security/Logger.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadPolicy.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "793a21173750c0c6251dc93d1df48415a3606c74",
+      "selected_sha256": "db156ea09dbee2d90281c16d0983049803ccba0ea1a5ad65325eb5508ea3488a",
+      "depends_on": [
+        "includes/Core/Settings.php",
+        "includes/POD/PrintifyCatalogReadRepository.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadRepository.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "8a339e96d93545b547c40daa09598a47fd576580",
+      "selected_sha256": "4b22541b1a2edb647588e70e631e6d14911ad6adb23d98f61572e8b088080810",
+      "depends_on": [
+        "includes/Core/Settings.php",
+        "includes/Database/Tables.php",
+        "includes/Integrations/CredentialVault.php",
+        "includes/Integrations/Repository.php",
+        "includes/POD/BusinessScope.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyConnectionBoundary.php",
+        "includes/POD/ScopedProviderConnection.php",
+        "includes/Security/Logger.php",
+        "includes/Security/ShopAccess.php",
+        "includes/Security/ShopAccessPolicy.php"
+      ]
+    },
+    {
+      "path": "includes/POD/PrintifyConnectionBoundary.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "bf0a562f01e432b543556d322cbeb5ef5aea4fdc",
+      "selected_sha256": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81",
+      "depends_on": [
+        "includes/Core/Settings.php",
+        "includes/Integrations/CredentialVault.php",
+        "includes/Integrations/Repository.php",
+        "includes/Listings/Validator.php",
+        "includes/POD/ScopedProviderConnection.php",
+        "includes/Security/ReviewedLocalEvidence.php"
+      ]
+    },
+    {
+      "path": "includes/POD/ScopedProviderConnection.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "84c76a459e5cb49117a438f7884d66a0e3b43cb7",
+      "selected_sha256": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811",
+      "depends_on": [
+        "includes/Database/ProviderConnectionSchema.php",
+        "includes/Database/Tables.php",
+        "includes/Integrations/Repository.php",
+        "includes/Listings/Validator.php",
+        "includes/POD/BusinessScope.php",
+        "includes/Security/ReviewedLocalEvidence.php",
+        "includes/Security/ShopAccess.php"
+      ]
+    },
+    {
+      "path": "includes/REST/PrintifyCatalogReadController.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "669c762612334a7832f0d3f7c703634d3ebfb03e",
+      "selected_sha256": "001635ec4ee17fdd0c185a9adcfbe498ced34ccf5d0e6ccc25d018434edb4b8d",
+      "depends_on": [
+        "includes/POD/PrintifyCatalogReadRepository.php"
+      ]
+    },
+    {
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "57c470bb959edcafb693296eaf51ef6162597ce7",
+      "selected_sha256": "9b308fb2f1b0b6f01dcd42cdc3ba7813a4c26c2aeaeda080b6fdce70b3739416",
+      "depends_on": [
+        "includes/Core/Capabilities.php",
+        "includes/Security/ShopAccessPolicy.php"
+      ]
+    },
+    {
+      "path": "includes/Security/Logger.php",
+      "owner": "existing-main-maintainer",
+      "consumption": "retain-main-unchanged",
+      "main_state": "identical",
+      "main_blob": "46be4968d2266a901b8fb096cfdf522c7b06cdc4",
+      "shared_blob": "46be4968d2266a901b8fb096cfdf522c7b06cdc4",
+      "selected_sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844",
+      "depends_on": [
+        "includes/Database/Tables.php"
+      ]
+    },
+    {
+      "path": "includes/Security/ReviewedLocalEvidence.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "42f54995b6f823b175e687912efff2d8e5b10df7",
+      "selected_sha256": "9b1acf6263bd3bb7b40f78ee56c8100f74dbb63436bf7eb2bca14c12fb3bad51",
+      "depends_on": [
+        "includes/Database/QueryEvidence.php",
+        "includes/Database/Tables.php",
+        "includes/Listings/Validator.php",
+        "includes/Security/Logger.php",
+        "includes/Security/ShopAccess.php",
+        "includes/Security/ShopAccessPolicy.php"
+      ]
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "2f3731ccf650202b0d512ac300e0e43a705ce48b",
+      "selected_sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
+      "depends_on": [
+        "includes/Security/Logger.php",
+        "includes/Security/ShopAccessPolicy.php",
+        "includes/Security/ShopAccessRepository.php"
+      ]
+    },
+    {
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "005430637c248e514aa8e18c0f5c5b8622ce4fdc",
+      "selected_sha256": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0",
+      "depends_on": [
+        "includes/Security/FirstPartyOwnerPolicy.php",
+        "includes/Security/ShopAccessPolicy.php"
+      ]
+    },
+    {
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "7c0b49bdb03bf2bbeb5d569b33b8c2220c56dad4",
+      "selected_sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63",
+      "depends_on": [
+        "includes/Core/Capabilities.php"
+      ]
+    },
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "owner": "shared-1242",
+      "consumption": "owner-approved-shared-core",
+      "main_state": "absent",
+      "main_blob": null,
+      "shared_blob": "1a4f4de41f5e38d6f1da7079c7cc25b5624348d0",
+      "selected_sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
+      "depends_on": [
+        "includes/Database/Tables.php",
+        "includes/Security/Logger.php",
+        "includes/Security/ShopAccessAuthority.php",
+        "includes/Security/ShopAccessPolicy.php"
+      ]
+    }
+  ],
+  "conditional_integration_surfaces": [
+    {
+      "path": "includes/Security/ShopAccessRestGuard.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "ae7f4683ed0dc35dc18440088acf8cc1a7b384d4",
+      "shared_sha256": "98e70882e7a274808c1f02a0b131e39f60c5512d4465d6d5803a8ad7dc0169bd"
+    },
+    {
+      "path": "includes/Security/ShopAccessTargetScope.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "8c0ac29047082c5ba0d3366fc8d15aa0e39226cf",
+      "shared_sha256": "8f613f92113f67f4a50bf214094b8e94da09df89415866ea86fc966af00ccfe4"
+    },
+    {
+      "path": "includes/Security/ShopAccessAdminGuard.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "8a82b6db196d3050e2eb543a33cb478847813ddb",
+      "shared_sha256": "33cd18754c22907a3a40ad3cd9a2d4c61f135bf8d0a9530a60dd220a20a79209"
+    },
+    {
+      "path": "includes/Portal/ReviewConfirmation.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "a0472d649c04cbe042bb74c8759fa1a0267447b9",
+      "shared_sha256": "e8df4b9f7323d21838d0cc542e91a6b8caad755e9590df646379a9d655fea3be"
+    },
+    {
+      "path": "includes/Portal/ProductEvidenceScope.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "6a01c954e53c19a59703ab8184f6ce4db8f5c771",
+      "shared_sha256": "1ac58974050cfe536d5b54bcfd6d80eaf179f009c80e41272083f15d2dab92b6"
+    },
+    {
+      "path": "includes/Listings/EtsyStoredShopScope.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "da7efc2b9c6007f27c921738207e87d83e55890e",
+      "shared_sha256": "60783c55161a6647ad9a6e0278cba3cfe0c4bc0c62300cf66c60d3901c44f827"
+    },
+    {
+      "path": "includes/Core/Plugin.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "921c49bca52521d8275c79ecfb8cb219a98a82be",
+      "shared_sha256": "f0c660f17252211ba919124baf58cf165c0c033560770198e311302e7586e083"
+    },
+    {
+      "path": "includes/REST/ShopAccessController.php",
+      "owner": "shared-1242",
+      "consumption": "conditional-shared-owner-packaging",
+      "shared_blob": "bada3cc9cd9a35a80b3cf74e82179dba98e618a2",
+      "shared_sha256": "e5e795dba25e1aec63eced77e92f1610ba596f749d712b74642e73b1289aa438"
+    }
+  ],
+  "api_lane_files": [
+    {
+      "path": "assets/portal.css",
+      "owner": "coordinated-shared-surface",
+      "api_start_blob": "20bdc0727511876a09c771784e1bfa0ceb71c772",
+      "overlaps_1242": true
+    },
+    {
+      "path": "bin/product-intelligence.py",
+      "owner": "printify-api-1253",
+      "api_start_blob": "bcb0c89e5e6ab95fa5511d1d8858d25eb4234de8",
+      "overlaps_1242": false
+    },
+    {
+      "path": "docs/PRINTIFY-PRODUCT-INTELLIGENCE.md",
+      "owner": "printify-api-1253",
+      "api_start_blob": "23f71a9a85aa5e10ab43d553c874cc450a26beb4",
+      "overlaps_1242": false
+    },
+    {
+      "path": "docs/PRINTIFY-WORDPRESS-API.md",
+      "owner": "printify-api-1253",
+      "api_start_blob": "720c8ea2fdb232f14d128742d1e3c4bc9ba911f6",
+      "overlaps_1242": false
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-03-product-intelligence.md",
+      "owner": "printify-api-1253",
+      "api_start_blob": "fc87ad94795cfe2a3f217b989e70acf1eaa9a169",
+      "overlaps_1242": false
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-03-product-intelligence-design.md",
+      "owner": "printify-api-1253",
+      "api_start_blob": "99108a03c3f10268b6fb71c17f30042d27b7be94",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/PrintifyResearchBatch.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "8c98baedcfb23652882eb929cceb639128fffa8f",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/PrintifyResearchGateway.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "394182b3b38bfb28baf08bdbd78c77e52c1988ef",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/PrintifyResearchMapper.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "97f6db83a1a4fd7a75d72ce8be9fa8b41bec4960",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/PrintifyResearchReader.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "de06399c78f4ec8184ecca2c0e9e2f3d1840856d",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/ProductIntelligence.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "921f3191848c45146f520d334c56a37374f5bd2d",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/POD/ProductIntelligenceRepository.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "e1f55121b19be585697dd2779fcd4c51e094098d",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/Portal/Portal.php",
+      "owner": "coordinated-shared-surface",
+      "api_start_blob": "5ce866352cdd35f53861de909c4b1b7272251643",
+      "overlaps_1242": true
+    },
+    {
+      "path": "includes/Portal/PrintifyResearchControls.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "ae8c76b46f3879b54633b02f24e0a0a225b8403a",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/Portal/ProductIntelligencePanel.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "aa20a8475286b2e1a3b8982263e6578082c19523",
+      "overlaps_1242": false
+    },
+    {
+      "path": "includes/REST/PrintifyResearchController.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "7b06d457a722bf2a117d202bfdf61094d8cfa7d2",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/browser/product-intelligence.mjs",
+      "owner": "printify-api-1253",
+      "api_start_blob": "1b36db2273873db3532bc5f6f0e4cfc12517bd81",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/offline/test_product_intelligence.py",
+      "owner": "printify-api-1253",
+      "api_start_blob": "5a3829866eff88f83e6b5bd04e2b3f98d88d5583",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/unit/PrintifyResearchMappingTest.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "1b03b18653e34ccf7f8c623b785ced3bce8d5da7",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/unit/ProductIntelligenceTest.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "324241afd71339fb7b1bb340991929e493ec241d",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/wordpress/PrintifyResearchTest.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "cd167b66725d56745d150a2b995dac84d5d33def",
+      "overlaps_1242": false
+    },
+    {
+      "path": "tests/wordpress/ProductIntelligenceTest.php",
+      "owner": "printify-api-1253",
+      "api_start_blob": "f34a119f173fdabeb1ac6b98c45f4e42e3e772f3",
+      "overlaps_1242": false
+    }
+  ],
+  "size_guide_owner_change": {
+    "path": "includes/POD/PrintifyCatalogReadContract.php",
+    "request": {
+      "kind": "size_guide",
+      "blueprint_id": 1
+    },
+    "endpoint": "/v1/catalog/blueprints/1/size_guide.json",
+    "max_requests_per_grant": 10,
+    "status": "NOT_IMPLEMENTED_IN_SHARED_PIN"
+  },
+  "preferred_strategy": "Shared owner publishes an approved immutable narrow core commit/manifest; consume it once after approval. Do not copy the full cumulative candidate or modify global guards in this lane.",
+  "api_lane_extension_files": [
+    "includes/POD/PrintifyResearchDependencies.php",
+    "includes/POD/PrintifyResearchGateway.php",
+    "includes/Portal/PrintifyResearchControls.php",
+    "includes/Portal/ProductIntelligencePanel.php",
+    "bin/check-printify-shared-dependency.py",
+    "docs/engineering/PRINTIFY-SHARED-DEPENDENCY-MATRIX.md",
+    "docs/engineering/printify-shared-dependency-manifest-v1.json",
+    "tests/unit/PrintifyResearchDependencyTest.php",
+    "tests/offline/test_printify_dependencies.py",
+    "tests/wordpress/PrintifyDependencyBoundaryTest.php",
+    "includes/POD/PrintifyResearchBatch.php"
+  ]
+}

@@ -10,11 +10,13 @@ final class ProductIntelligencePanel
 {
     public static function canRead(): bool
     {
-        return is_user_logged_in() && current_user_can('manage_digiforge') && current_user_can('manage_digiforge_pod');
+        if(!is_user_logged_in() || !current_user_can('manage_digiforge') || !current_user_can('manage_digiforge_pod'))return false;
+        return \DigiForge\POD\PrintifyResearchDependencies::assigned(['manage_digiforge','manage_digiforge_pod']);
     }
     public static function canImport(): bool
     {
-        return self::canRead() && current_user_can('manage_digiforge_research');
+        return self::canRead() && current_user_can('manage_digiforge_research')
+            && \DigiForge\POD\PrintifyResearchDependencies::assigned(['manage_digiforge_research']);
     }
     public function register(): void
     {
@@ -63,6 +65,7 @@ final class ProductIntelligencePanel
         $pipeline=\DigiForge\POD\PrintifyResearchGateway::readiness();
         echo '<details><summary>WordPress catalog API readiness</summary><p>'.esc_html($pipeline['pipeline_state']).'</p><p>Existing grant ceiling: 10 requests. Batches advance one explicitly authorized provider-discovery step at a time. No scheduler or automatic retries. Readiness is not execution authority.</p>';
         if($pipeline['missing_dependencies']!==[])echo '<p>Required governed dependencies: '.esc_html(implode(', ',$pipeline['missing_dependencies'])).'. Collection fails closed until the existing pipeline is integrated.</p>';
+        echo '<p>REST admission: '.(empty($pipeline['shared_global_guards_present'])?'OWN SCOPED HANDLER':(!empty($pipeline['rest_admission_mapped'])?'MAPPED':'OWNER MAPPING REQUIRED')).' · Fixed Shop 2 target: '.(!empty($pipeline['fixed_shop_target_mapped'])?'MAPPED':'OWNER MAPPING REQUIRED').' · Portal form admission: '.(empty($pipeline['shared_admin_guard_present'])?'OWN SCOPED HANDLER':(!empty($pipeline['admin_action_scope_verified'])?'VERIFIED CONTRACT':'OWNER MAPPING REQUIRED')).'</p>';
         echo '<p>Size-guide grant scope: '.($pipeline['size_guide_grant_scope_supported']?'SUPPORTED':'NOT AVAILABLE — retained source import remains supported').'</p></details>';
         echo '<p>Costs, shipping and geometry remain source evidence. Missing values are unknown; pixel placeholders do not certify physical templates. Finance, publishing and production are not activated.</p>';
         if(isset($_GET['df_pi_batch'])&&\DigiForge\POD\PrintifyResearchBatch::allowed()){
