@@ -22,6 +22,11 @@ final class ProductIntelligencePanel
     {
         (new \DigiForge\REST\PrintifyCatalogShopAdmission())->register();
         (new \DigiForge\REST\PrintifyCatalogReadController())->register();
+        $this->registerFeatureOnly();
+    }
+    /** Feature overlay reuses the installed catalog route registration. */
+    public function registerFeatureOnly(): void
+    {
         (new \DigiForge\REST\PrintifyResearchController())->register();
         (new PrintifyResearchControls())->register();
         add_action('admin_post_digiforge_pod_intelligence_import',[$this,'import']);
