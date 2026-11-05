@@ -1,4 +1,6 @@
-# Proposed exact-artifact audit — approval required before dispatch
+# Proposed independent-review artifact audit — approval required before dispatch
+
+A separate owner-attested alternative is described in [OWNER-ATTESTED.md](OWNER-ATTESTED.md). Its reduced independence must be explicitly accepted; it does not remove the controls of this independent-review mode.
 
 Owner authority: subvicco12, designated in the Codex Cloud session; audit-admission permission https://github.com/subvicco12/digiforge/pull/1253#issuecomment-6660934684 . Implementation stays on PR1253. No artifact workflow has been dispatched, no independent PASS issued, and the existing source audit/allowlist is unchanged.
 

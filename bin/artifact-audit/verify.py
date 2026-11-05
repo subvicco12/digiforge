@@ -38,6 +38,16 @@ def approved(config, actor, author, approvals, name):
     return accepted
 
 
+def owner_attestation(attestation, source_sha, intake_run, intake_artifact):
+    expected = {'artifact_sha256': DIGEST, 'audit_source_sha': source_sha,
+                'intake_run_id': intake_run, 'intake_artifact_id': intake_artifact,
+                'accept_reduced_independence': True, 'approve_controls': True,
+                'drive_client_sha256': 'b4d7ce286d8ada27278b169213b48e1bd526a754d2bceaaa5eb1db5b4b6c7458'}
+    if attestation != expected or attestation.get('accept_reduced_independence') is not True or attestation.get('approve_controls') is not True:
+        raise ValueError('Explicit owner controls/reduced-independence attestation must bind source, digest and intake')
+    return True
+
+
 def verify(source, manifest, output):
     raw = pathlib.Path(source).read_bytes()
     if len(raw) != 3060845 or hashlib.sha256(raw).hexdigest() != DIGEST:

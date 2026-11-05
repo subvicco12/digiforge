@@ -10,6 +10,20 @@ on:
       - 'phase-**'
       - 'feature/**'
   workflow_dispatch:
+    inputs:
+      owner_artifact_audit:
+        description: Owner-attested exact-ZIP audit, requires approved PR1253 JSON attestation
+        type: boolean
+        default: false
+      intake_run_id:
+        type: string
+        default: ''
+      intake_artifact_id:
+        type: string
+        default: ''
+      owner_attestation_comment_id:
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -19,7 +33,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  owner-attested-artifact-audit:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.owner_artifact_audit }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/printify-owner-attested-artifact-audit.yml
+    with:
+      intake_run_id: ${{ inputs.intake_run_id }}
+      intake_artifact_id: ${{ inputs.intake_artifact_id }}
+      owner_attestation_comment_id: ${{ inputs.owner_attestation_comment_id }}
   engineering-safety-audit:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.owner_artifact_audit }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:

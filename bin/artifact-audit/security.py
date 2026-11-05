@@ -36,4 +36,4 @@ for path in root.rglob('*.php'):
         findings.append({'path': str(path.relative_to(root)), 'kind': 'high_confidence_secret'})
 if findings:
     raise ValueError('Credential scan findings require review: ' + json.dumps(findings))
-print(json.dumps({'http_gate': 'PASS', 'secret_gate': 'PASS', 'drive_client_sha256': expected, 'policy_scope': 'Exact pinned file and single sender line only; independent protected review required'}))
+print(json.dumps({'http_gate': 'PASS', 'secret_gate': 'PASS', 'drive_client_sha256': expected, 'policy_scope': 'Exact pinned file and single sender line only; Mode-specific approval required; no independent human review implied'}))

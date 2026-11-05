@@ -1,11 +1,12 @@
 """Trusted-runner controls. No package code is imported here."""
 import json
+import hashlib
 import os
 import pathlib
 import subprocess
 import sys
 import zipfile
-from verify import reviewers, approved
+from verify import reviewers, approved, owner_attestation
 
 
 def api(path):
@@ -15,7 +16,18 @@ def api(path):
 if os.environ.get('GITHUB_RUN_ATTEMPT') != '1':
     raise ValueError('Fresh dispatch required; prior-attempt approvals cannot be reused')
 
-if sys.argv[1] == 'environments':
+if sys.argv[1] == 'owner-attestation':
+    comment_id, run_id, artifact_id = sys.argv[2:5]
+    if not all(value.isdecimal() for value in [comment_id, run_id, artifact_id]):
+        raise ValueError('Numeric comment/run/artifact IDs required')
+    if os.environ.get('GITHUB_ACTOR') != 'subvicco12' or os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch':
+        raise ValueError('Explicit owner manual dispatch required')
+    comment = api('issues/comments/' + comment_id)
+    if comment['user']['login'] != 'subvicco12' or comment['user']['type'] != 'User' or not comment['issue_url'].endswith('/issues/1253'):
+        raise ValueError('Owner-authored attestation on PR1253 required')
+    owner_attestation(json.loads(comment['body']), os.environ['GITHUB_SHA'], run_id, artifact_id)
+    print(json.dumps({'attestation_comment_id': comment_id, 'comment_url': comment['html_url'], 'comment_body': comment['body'], 'comment_body_sha256': hashlib.sha256(comment['body'].encode()).hexdigest(), 'comment_updated_at': comment.get('updated_at'), 'audit_mode': 'OWNER_ATTESTED_AUTOMATED', 'independent_human_review': False}))
+elif sys.argv[1] == 'environments':
     author = api('pulls/1253')['user']['login']
     for name in ['printify-artifact-intake', 'printify-artifact-acceptance']:
         users = reviewers(api('environments/' + name), os.environ['GITHUB_ACTOR'])
