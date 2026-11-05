@@ -10,7 +10,7 @@ The owner expressly authorizes preparation of this alternative subject to approp
 
 ## Minimal alternative
 
-The existing registered `digiforge-foundation-audit.yml` gains optional manual-dispatch inputs. All normal PR/push source-audit behavior and global HTTP/secret policy remain intact. A manual `owner_artifact_audit=true` dispatch calls the new separate reusable workflow at the selected branch commit. It requires contents/actions/pull-request **read** permissions only, and does not need either protected environment or any protected-environment self-approval. This is a distinct owner-attested mode, not a bypass route to a claimed independent PASS.
+The existing registered `digiforge-foundation-audit.yml` gains optional manual-dispatch inputs. Normal PR/push source-audit execution remains intact. The current narrow inherited-Drive policy correction is documented in [DRIVE-CLIENT-POLICY-RESOLUTION.md](DRIVE-CLIENT-POLICY-RESOLUTION.md); all prior HTTP assertions and secret checks remain, with only exact reviewed composition admission added. A manual `owner_artifact_audit=true` dispatch calls the new separate reusable workflow at the selected branch commit. It requires contents/actions/pull-request **read** permissions only, and does not need either protected environment or any protected-environment self-approval. This is a distinct owner-attested mode, not a bypass route to a claimed independent PASS.
 
 Before any candidate download/build/execution, it requires a genuine owner-authored comment on PR1253. The entire comment body must be this strict JSON object (replace placeholders only after controls and intake are approved):
 

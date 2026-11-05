@@ -12,6 +12,8 @@ A maintainer-approved successful **same-repository Actions run** must supply an 
 
 Authenticated metadata validation, wrapper size bounds and strict one-member unwrap precede fixed-size/SHA256 validation. The plugin digest is checked before any plugin extraction. All members, permissions, paths and hashes are checked before writing; target must be new. No symlinks, traversal, duplicate or unexpected member or executable permission is allowed.
 
+The inherited Drive classification is resolved for this proposed policy by [DRIVE-CLIENT-POLICY-RESOLUTION.md](DRIVE-CLIENT-POLICY-RESOLUTION.md); its exact transport/gate/composition admission is shared by source and artifact scans. Historical statements below describe the original proposal and do not replace that resolution.
+
 ## Required protection and independent acceptance
 
 Configure environments `printify-artifact-intake` and `printify-artifact-acceptance` with **named User reviewers**, prevent_self_review=true, can_admins_bypass=false; Team-only/mixed policies and unknown/absent API evidence fail closed. Reviewers must exclude both dispatch actor and PR author. Current repository has only subvicco12 listed; a genuinely independent authorized reviewer/service user must be provisioned and designated, not impersonated by Codex. No GitHub self-approval is used.
