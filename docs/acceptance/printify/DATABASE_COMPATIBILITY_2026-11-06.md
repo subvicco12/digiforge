@@ -54,3 +54,11 @@ The Drive test initially lacked default rows in the new synthetic fixture; seedi
 | Installation | BLOCKED | After recovery and release gates, approve installation separately; preserve all safety controls |
 
 Do not install until these gates pass. Once separately authorized: verify the download checksum, take the accepted checkpoint, use WordPress Plugins → Add New → Upload Plugin and inspect the replacement comparison for `digiforge/digiforge.php` version 1.0.103.2. Stop on any schema/source drift or unreviewed migration. Installation can boot migration code and is not authorized by this engineering task. Recovery must restore the matching files and database, not merely switch ZIP versions. No merge, production deployment, live API request, grant or activation is authorized. STOP ALL ON, external safety lock ON, automation OFF and RELEASE HOLD remain required.
+
+## Final exact-package receipt
+
+Candidate: **DigiForge 1.0.103.2**, 3,062,782 bytes. SHA-256: `800a29e7bca92bcf76804747d4a23f15329b38606649d570df25e1f109fe7677`.
+
+Correction/builder commit: `c46175e3a7246efc8edba02360e708d668f51797`. This commit, the pinned parent ZIP and baseline jointly establish provenance. Subsequent test/documentation commits do not alter this package. Every ZIP member was independently verified against the full manifest and the tested candidate, checked for unsafe paths, modes, unexpected private files and high-confidence secret signatures, then freshly extracted. The schema, installed-lineage WordPress, rate-ledger and inherited HTTP/secret-policy checks were rerun against those extracted bytes and passed. PHP lint and pure contract checks were reused only after all 692 payload files proved byte-identical to the tested staging tree. See `DATABASE_CANDIDATE_RECEIPT_2026-11-06.json` for digest-bound results and test-log checksums.
+
+Local exact-package qualification: **PASS with one obsolete pipeline skip**. Full production installation: **BLOCKED**. Hosted exact-ZIP audit: **NOT RUN**. Source CI is separately recorded on PR #1253 and must not be represented as ZIP certification. First source CI run `42153297671` exposed two pre-existing literal-spacing contract assertions; their numeric checks were preserved with whitespace-tolerant assertions. No candidate bytes changed for that test correction.
