@@ -14,21 +14,17 @@ final class Authentication {
  private static function failure(string $code='login_failed',int $status=403):\WP_Error{return new \WP_Error('digiforge_portal_'.$code,'Unable to sign in. Check your details or try again later.',['status'=>$status]);}
  public static function process(array $p):array|\WP_Error {
   $challenge=$_COOKIE[self::challengeName()]??null;if(!is_string($challenge)||!is_string($p['challenge']??null)||preg_match('/^[a-f0-9]{64}$/D',$challenge)!==1||!hash_equals($challenge,$p['challenge']))return self::failure();
-  if(!is_string($p['_wpnonce']??null)||!wp_verify_nonce($p['_wpnonce'],self::ACTION)||!is_string($p['login']??null)||!is_string($p['password']??null)||strlen($p['login'])>254||strlen($p['password'])>4096||$p['login']===''||$p['password']==='')return self::failure();
-  $ip=is_string($_SERVER['REMOTE_ADDR']??null)?$_SERVER['REMOTE_ADDR']:'unknown';if(!Limiter::reserve('login_ip:'.$ip,30)||!Limiter::reserve('login_actor:'.$ip.':'.strtolower(trim($p['login'])),5))return self::failure('login_throttled',429);
-  $capture=static function($cookie){$_COOKIE[LOGGED_IN_COOKIE]=$cookie;};add_action('set_logged_in_cookie',$capture);try{$user=wp_signon(['user_login'=>trim($p['login']),'user_password'=>$p['password'],'remember'=>false],is_ssl());}finally{remove_action('set_logged_in_cookie',$capture);}if(is_wp_error($user))return self::failure();wp_set_current_user($user->ID);
-  // wp_signon owns the native cookie. Also make it available during this same request.
-  if(wp_get_session_token()===''){return ['actor_id'=>$user->ID,'return_to'=>self::loginUrl(self::safeReturn($p['return_to']??'')),'continue_required'=>true];}
-  if(!\DigiForge\Security\Logger::write('portal_login',['actor_id'=>$user->ID],'portal_auth',(string)$user->ID))return self::failure('login_audit',503);$r=self::continueTo($p['return_to']??'');if(is_wp_error($r))return $r;return ['actor_id'=>$user->ID]+$r;
+  if(!is_string($p['_wpnonce']??null)||!wp_verify_nonce($p['_wpnonce'],self::ACTION)||strlen((string)wp_json_encode($p))>8192||isset($p['password']))return self::failure();
+  return EmailAuthentication::process($p);
  }
  public static function continueTo(mixed $return):array|\WP_Error{$url=self::safeReturn($return);$q=[];parse_str(wp_parse_url($url,PHP_URL_QUERY)??'',$q);$s=Store::read(get_current_user_id());if(is_wp_error($s))return $s;if(is_array($s)&&!$s['enabled']&&($q['df_view']??null)==='invitation')return ['return_to'=>$url,'invitation_pending'=>true];$r=Session::start();return is_wp_error($r)?$r:['return_to'=>$url];}
  public static function render():string {
-  $return=self::safeReturn($_GET['redirect_to']??'');$html='<main class="df-access-card"><h1>DigiForge sign in</h1><p>Use your existing WordPress account. Shop access requires a separate reviewed assignment.</p>';
+  $return=self::safeReturn($_GET['redirect_to']??'');$html='<main class="df-access-card"><h1>DigiForge sign in</h1><p>Sign in with a verification code sent to your existing WordPress account email. Shop access requires a separate reviewed assignment.</p>';
   if(isset($_GET['df_result']))$html.='<p role="alert">Unable to complete that request. Check your access or try again later.</p>';
   $action=is_user_logged_in()?'digiforge_portal_continue':self::ACTION;$html.='<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.esc_attr($action).'"><input type="hidden" name="return_to" value="'.esc_attr($return).'">';
   if(!is_user_logged_in())$html.='<input type="hidden" name="challenge" value="'.esc_attr(self::browserChallenge()).'">';
-  if(!is_user_logged_in())$html.='<label>Username or email<input name="login" autocomplete="username" required maxlength="254"></label><label>Password<input type="password" name="password" autocomplete="current-password" required maxlength="4096"></label>';
-  $html.='<button type="submit">'.(is_user_logged_in()?'Continue to DigiForge':'Sign in').'</button></form><p><a href="'.esc_url(wp_lostpassword_url(self::loginUrl($return))).'">Reset your WordPress password</a></p>';
+  if(!is_user_logged_in())$html.='<label>Email address<input type="email" name="email" autocomplete="email" required maxlength="254"></label>';
+  $html.='<button type="submit">'.(is_user_logged_in()?'Continue to DigiForge':'Email my sign-in code').'</button></form><p><a href="'.esc_url(wp_lostpassword_url(self::loginUrl($return))).'">Reset your WordPress password</a></p>';
   if(is_user_logged_in())$html.='<p><a href="'.esc_url(wp_logout_url(self::loginUrl())).'">Sign out</a></p>';return $html.'</main>';
  }
 }
