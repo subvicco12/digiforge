@@ -18,7 +18,7 @@ final class Panel {
   }if(count($keys)>100)$h.='<p>Latest 100 profiles shown. Do not infer that this is a complete site inventory.</p>';return $h.'</section>';
  }
  public static function bootstrap():string {
-  $shop=self::shop();if($shop==='personalized_pod'&&Store::read(get_current_user_id())===null)return OwnerBootstrap::render();$readiness=OwnerReadiness::inspect($shop);$a=Owner::signed(get_current_user_id(),$shop);$u=wp_get_current_user();$h='<section class="df-access-card"><h1>Primary Owner enrollment</h1><p>Intended owner: '.esc_html(Owner::EMAIL).'. Email or WordPress ID alone grants no authority. The trusted host must provision independently reviewed Ed25519 authority first.</p>';
+  $shop=self::shop();$profile=Store::read(get_current_user_id());if($shop==='personalized_pod'&&($profile===null||(is_array($profile)&&($profile['bootstrap_pending']??false)===true)))return OwnerBootstrap::render();$readiness=OwnerReadiness::inspect($shop);$a=Owner::signed(get_current_user_id(),$shop);$u=wp_get_current_user();$h='<section class="df-access-card"><h1>Primary Owner enrollment</h1><p>Intended owner: '.esc_html(Owner::EMAIL).'. Email or WordPress ID alone grants no authority. The trusted host must provision independently reviewed Ed25519 authority first.</p>';
   $h.='<p role="status"><strong>'.esc_html($readiness['state']).'</strong>: '.esc_html(OwnerReadiness::message($readiness['state'])).'</p>';
   if(is_wp_error($a))return $h.'<p role="alert">Independent signed OWNER scope is unavailable for your current WordPress identity and this shop. Ask the trusted authority custodian to verify the existing account and restore approved authority. This page cannot create it.</p></section>';
   $repo=new \DigiForge\Security\ShopAccessRepository();$state=$repo->read($shop);if(is_wp_error($state))return $h.'<p>Grant evidence unavailable.</p></section>';
@@ -28,7 +28,7 @@ final class Panel {
  public static function process(string $action,array $p):array|\WP_Error {
   if(($p['confirm']??null)!=='CONFIRM_DIGIFORGE_ONLY'||!is_string($p['shop']??null)||!\DigiForge\Security\ShopAccessPolicy::validShop($p['shop'])||!is_string($p['request_id']??null))return Policy::error('confirmation');$shop=$p['shop'];
   if($action==='digiforge_portal_owner_enroll'){
-   if($shop==='personalized_pod'&&Store::read(get_current_user_id())===null)return Policy::error('owner_bootstrap_required');
+   if($shop==='personalized_pod'){$profile=Store::read(get_current_user_id());if(is_wp_error($profile)||$profile===null||($profile['bootstrap_pending']??false)===true)return Policy::error('owner_bootstrap_required');}
    if(!is_string($p['wp_role']??null)||!is_array($p['caps']??null)||!is_string($p['approval']??null)||!is_string($p['revision']??null)||!ctype_digit($p['revision']))return Policy::error('typed');$a=Owner::signed(get_current_user_id(),$shop);if(is_wp_error($a))return $a;return Owner::enroll($shop,$p['wp_role'],$p['caps'],min(time()+3600,$a['record']['expires_at']),$p['approval'],(int)$p['revision'],$p['request_id']);
   }
   if(Owner::require($shop)!==true||!is_string($p['role']??null))return Policy::error('owner');
