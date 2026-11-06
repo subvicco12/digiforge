@@ -1,0 +1,195 @@
+{
+  "schema": "digiforge-printify-installation-source-evidence-v1",
+  "scope": "offline-source-comparison-only",
+  "audited_start": "f68e880a4cd30242f6e890c82973cd8146bdaca8",
+  "observed_main": "3758d1385f7d4a62947248822c1fe1c89ec9818e",
+  "approved_shared_core": "b859d0078c68e8bcdc6c0732983969e81d3c9abe",
+  "production_observed": false,
+  "files": [
+    {
+      "path": "includes/Core/Capabilities.php",
+      "role": "retain-main-unchanged",
+      "sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e"
+    },
+    {
+      "path": "includes/Core/Config.php",
+      "role": "retain-main-unchanged",
+      "sha256": "b73b3c0d29b1b56054b2ac4e3143e93e63bbb6d63258d55b84b1ef3b68c2aa77"
+    },
+    {
+      "path": "includes/Core/Settings.php",
+      "role": "retain-main-unchanged",
+      "sha256": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862"
+    },
+    {
+      "path": "includes/Database/ProviderConnectionSchema.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "e87f3e4d80d3aa1dcec9ad61c585fb15b5786785ac1f05ace13e546716f7ef57"
+    },
+    {
+      "path": "includes/Database/QueryEvidence.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "d9e3de2a05482724697b3db422a907f3722f9ed0f216a36aa75dca8c7c362ce8"
+    },
+    {
+      "path": "includes/Database/Tables.php",
+      "role": "retain-main-unchanged",
+      "sha256": "c33f7277ecff3eb701835d0c56132987f6a96d7b136e96c70ca5ec1a2da6830b"
+    },
+    {
+      "path": "includes/Integrations/CredentialVault.php",
+      "role": "retain-main-unchanged",
+      "sha256": "37525dc10b8b11688ca5aadb528fe97fee66aee94b549498ec6a91af9a3d850c"
+    },
+    {
+      "path": "includes/Integrations/ProviderCatalog.php",
+      "role": "retain-main-unchanged",
+      "sha256": "845ea0d7e5b17ab21b494b2a81a9d29f560de0b528250845c51b2d358e44486e"
+    },
+    {
+      "path": "includes/Integrations/Repository.php",
+      "role": "retain-main-unchanged",
+      "sha256": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415"
+    },
+    {
+      "path": "includes/Listings/Validator.php",
+      "role": "retain-main-unchanged",
+      "sha256": "1aae6f9080a49146aaaf482209936706b5e8bb571281dcddbe565a991d226311"
+    },
+    {
+      "path": "includes/POD/BusinessScope.php",
+      "role": "retain-main-unchanged",
+      "sha256": "17eda8a944d9a2652c04f30575803b3b19f46a7587ace4f3276fed1b3011622d"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogClient.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "86632726dc0efdd05de68ba3ed704264d55cb88c530aaad8be6f55c71f2be668"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "b2c8afb6aa66ae0ead678b442244b6dbfacacf02e894688f4dc896137751f406"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadContract.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "1440f008f6a3048661c184f4dffd144e5e5bc2aeb74f32b2e1cafdd72742da7d"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadPolicy.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "db156ea09dbee2d90281c16d0983049803ccba0ea1a5ad65325eb5508ea3488a"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadRepository.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "4b22541b1a2edb647588e70e631e6d14911ad6adb23d98f61572e8b088080810"
+    },
+    {
+      "path": "includes/POD/PrintifyConnectionBoundary.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81"
+    },
+    {
+      "path": "includes/POD/ScopedProviderConnection.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811"
+    },
+    {
+      "path": "includes/REST/PrintifyCatalogReadController.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "001635ec4ee17fdd0c185a9adcfbe498ced34ccf5d0e6ccc25d018434edb4b8d"
+    },
+    {
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "9b308fb2f1b0b6f01dcd42cdc3ba7813a4c26c2aeaeda080b6fdce70b3739416"
+    },
+    {
+      "path": "includes/Security/Logger.php",
+      "role": "retain-main-unchanged",
+      "sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844"
+    },
+    {
+      "path": "includes/Security/ReviewedLocalEvidence.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "9b1acf6263bd3bb7b40f78ee56c8100f74dbb63436bf7eb2bca14c12fb3bad51"
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f"
+    },
+    {
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0"
+    },
+    {
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63"
+    },
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "role": "owner-approved-shared-core",
+      "sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f"
+    },
+    {
+      "path": "includes/POD/PrintifyResearchMapper.php",
+      "role": "api-lane",
+      "sha256": "1aeeb1fbfd92c3013f9cf5009c4e9e93eb78229bb222c2ec7695fb01345ebcb5"
+    },
+    {
+      "path": "includes/POD/PrintifyResearchGateway.php",
+      "role": "api-lane",
+      "sha256": "7fe9faa985ae4b6d3f8f77b6306699d051cd3c44498e2ef5050ee5b5e937408a"
+    },
+    {
+      "path": "includes/POD/PrintifyResearchDependencies.php",
+      "role": "api-lane",
+      "sha256": "72da9c8453591608f9f8e04e8a57bc4dfcc5da3ae57afe296b19f33e2f1bfc8a"
+    },
+    {
+      "path": "includes/POD/PrintifyResearchBatch.php",
+      "role": "api-lane",
+      "sha256": "f33bb41a93860347346819a58d854570d45c46999cc5f2e88b8cc2ce5f2100a6"
+    },
+    {
+      "path": "includes/POD/PrintifyResearchReader.php",
+      "role": "api-lane",
+      "sha256": "5cf7f5b40ee63288827335b398ee5ac5c28794fd691a44092ec7eb4dc84d5d10"
+    },
+    {
+      "path": "includes/POD/ProductIntelligence.php",
+      "role": "api-lane",
+      "sha256": "ac76240cc9f3b4be547e245981a005ba7131ffb4b4e1662c063ef98bb8768031"
+    },
+    {
+      "path": "includes/POD/ProductIntelligenceRepository.php",
+      "role": "api-lane",
+      "sha256": "69f0a7acda761f6c4f33a59470614a7f1fb81d48c3096604bbb82d4012b4221c"
+    },
+    {
+      "path": "includes/REST/PrintifyResearchController.php",
+      "role": "api-lane",
+      "sha256": "ad034f11759f88977a81b8c28fc9109441a58745ef83cfbb0a4813e2b22d9fc4"
+    },
+    {
+      "path": "includes/REST/PrintifyCatalogShopAdmission.php",
+      "role": "api-lane",
+      "sha256": "d0d968996609f783d2a458c1b08966f8dd94a9bf8c0f00c1ce82a828871d2ade"
+    },
+    {
+      "path": "includes/Portal/ProductIntelligencePanel.php",
+      "role": "api-lane",
+      "sha256": "becd93993335cf37d7179762e30672bc035d41fc0f897b603efc9edcbe8853e1"
+    },
+    {
+      "path": "includes/Portal/PrintifyResearchControls.php",
+      "role": "api-lane",
+      "sha256": "5f4e6531682ee4237d92ea4f39a287ed2336468c15ab8702c8f36e6da47df218"
+    }
+  ]
+}
