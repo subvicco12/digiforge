@@ -13,7 +13,7 @@ function add_filter(...$args): void {global $hooks;$hooks++;throw new RuntimeExc
 function wp_remote_get(...$args): void {global $http;$http++;throw new RuntimeException('HTTP forbidden');}
 function wp_remote_request(...$args): void {global $http;$http++;throw new RuntimeException('HTTP forbidden');}
 spl_autoload_register(static function(string $class)use($mode):void {
-    if(!str_starts_with($class,'DigiForge\\')||($mode==='missing-owner'&&$class==='DigiForge\\Security\\FirstPartyOwnerPolicy'))return;
+    if(!str_starts_with($class,'DigiForge\\')||($mode==='missing-owner'&&$class==='DigiForge\\Security\\ShopAccessAuthority'))return;
     $path=dirname(__DIR__,2).'/includes/'.str_replace('\\','/',substr($class,10)).'.php';if(is_file($path))require_once $path;
 });
 $report=\DigiForge\POD\PrintifyResearchDependencies::inspect();

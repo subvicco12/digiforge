@@ -29,6 +29,7 @@ final class ProductIntelligencePanel
     {
         (new \DigiForge\REST\PrintifyResearchController())->register();
         (new PrintifyResearchControls())->register();
+        (new Shop2ProductWorkflowPanel())->register();
         add_action('admin_post_digiforge_pod_intelligence_import',[$this,'import']);
         add_action('admin_post_digiforge_pod_intelligence_export',[$this,'export']);
     }
@@ -88,6 +89,7 @@ final class ProductIntelligencePanel
             else foreach($batch['items'] as $item)echo '<p>Blueprint '.esc_html((string)$item['blueprint_id']).' · '.esc_html($item['state']).'</p>';
             echo '</details>';
         }
+        (new Shop2ProductWorkflowPanel())->render($baseUrl);
         $repo=new ProductIntelligenceRepository();$recent=$repo->recent();
         if(is_wp_error($recent)){echo '<div class="df-notice df-notice-error">'.esc_html($recent->get_error_message()).'</div></section>';return;}
         $id=isset($_GET['df_pi_snapshot'])?sanitize_text_field(wp_unslash((string)$_GET['df_pi_snapshot'])):($recent['items'][0]['snapshot_id']??'');

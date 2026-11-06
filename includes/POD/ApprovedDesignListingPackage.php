@@ -460,6 +460,7 @@ final class ApprovedDesignListingPackage
         ) {
             throw new InvalidArgumentException('Credential-free HTTPS source URL is required.');
         }
+        if ($allowPublicSearch && class_exists(Shop2ProductWorkflow::class) && Shop2ProductWorkflow::snapshotReference($value)) return;
         if (isset($parts['query'])) {
             // Day 2/3 records legitimately use public Etsy/Trends search URLs. Inline contract stays unchanged.
             parse_str($parts['query'], $query);

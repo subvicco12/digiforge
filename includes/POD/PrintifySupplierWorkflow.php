@@ -6,7 +6,7 @@ final class PrintifySupplierWorkflow {
  public static function review(array $packet,int $blueprint,int $provider,int $variant):array {
   foreach([$blueprint,$provider,$variant] as $id)if($id<1||$id>2147483647)throw new \InvalidArgumentException('Positive bounded supplier identifiers required.');
   $packet=ProductIntelligence::validate($packet);$evidence=[];$sources=array_column($packet['sources'],null,'id');
-  $fields=['variants'=>['Title','SKU','Available','Options','Raw Cost Evidence','Currency','Production Cost','Tax Amount','Cost Status'],'print_areas'=>['Print Area','Width PX','Height PX','DPI','Bleed','Safe Zone','Geometry Status'],'size_guides'=>['Size / Variant','Measurement','Value','Unit','Range To','Evidence'],'shipping'=>['Variant ID','Service','Country / Zone','First Item Amount','Additional Item Amount','Currency','Rate Units','Handling From','Handling To','Evidence']];
+  $fields=['variants'=>['Title','SKU','Available','Options','Raw Cost Evidence','Currency','Production Cost','Tax Amount','Cost Status'],'print_areas'=>['Print Area','Width PX','Height PX','DPI','Bleed','Safe Zone','Decoration','Geometry Status'],'size_guides'=>['Size / Variant','Measurement','Value','Unit','Range To','Evidence'],'shipping'=>['Variant ID','Service','Country / Zone','First Item Amount','Additional Item Amount','Currency','Rate Units','Handling From','Handling To','Evidence']];
   foreach($fields as $section=>$columns){$evidence[$section]=[];foreach($packet['sections'][$section]['rows']??[] as $row){
    if(($row['Blueprint ID']??null)!==(string)$blueprint)continue;
    if($section!=='size_guides'&&($row['Provider ID']??null)!==(string)$provider)continue;

@@ -55,10 +55,17 @@ final class DesignFactoryContract
         return $svg;
     }
     /** Strict PNG decoder: bounded bytes/pixels, complete CRC-checked chunks, actual zlib rows and density. */
-    public static function raster(string $bytes,array $spec): array
+    public static function raster(string $bytes,array $spec): array { return self::png($bytes,$spec,true); }
+    /** Byte-verified manual mockup, without inventing a print DPI. */
+    public static function mockup(string $bytes):array {
+        if(strlen($bytes)<33)self::invalid();$h=unpack('Nwidth/Nheight',substr($bytes,16,8));
+        if($h['width']<1||$h['height']<1||$h['width']>4000||$h['height']>4000)self::invalid();
+        $r=self::png($bytes,['geometry'=>['width_px'=>$h['width'],'height_px'=>$h['height']]],false);$r['role']='MANUALLY_IMPORTED_MOCKUP_UNVERIFIED';return $r;
+    }
+    private static function png(string $bytes,array $spec,bool $requireDpi): array
     {
         if(strlen($bytes)>2097152||substr($bytes,0,8)!=="\x89PNG\r\n\x1a\n")self::invalid();
-        $offset=8;$chunks=0;$header=null;$compressed='';$density=false;$ended=false;$idat=false;$idatEnded=false;$colorMetadata=[];
+        $offset=8;$chunks=0;$header=null;$compressed='';$density=false;$ended=false;$idat=false;$idatEnded=false;$colorMetadata=[];$dpi=null;
         while($offset<strlen($bytes)){
             if(++$chunks>256||$offset+12>strlen($bytes))self::invalid();
             $length=unpack('N',substr($bytes,$offset,4))[1];$type=substr($bytes,$offset+4,4);
@@ -70,7 +77,7 @@ final class DesignFactoryContract
                 if($header!==null||$length!==13)self::invalid();$header=unpack('Nwidth/Nheight/Cdepth/Ccolor/Ccompression/Cfilter/Cinterlace',$data);
                 if($header['width']!==$spec['geometry']['width_px']||$header['height']!==$spec['geometry']['height_px']||$header['depth']!==8||!in_array($header['color'],[0,2,4,6],true)||$header['compression']!==0||$header['filter']!==0||$header['interlace']!==0)self::invalid();
             }elseif($type==='pHYs'){
-                if($density||$idat||$length!==9)self::invalid();$d=unpack('Nx/Ny/Cunit',$data);if($d['unit']!==1||abs($d['x']*.0254-300)>.05||abs($d['y']*.0254-300)>.05)self::invalid();$density=true;
+                if($density||$idat||$length!==9)self::invalid();$d=unpack('Nx/Ny/Cunit',$data);if($requireDpi&&($d['unit']!==1||abs($d['x']*.0254-300)>.05||abs($d['y']*.0254-300)>.05))self::invalid();$dpi=$d['unit']===1&&$d['x']===$d['y']?round($d['x']*.0254,2):null;$density=true;
             }elseif($type==='IDAT'){
                 if($idatEnded||$length===0)self::invalid();$idat=true;$compressed.=$data;
             }elseif($type==='IEND'){
@@ -83,7 +90,7 @@ final class DesignFactoryContract
             }else self::invalid();
             if($idat&&$type!=='IDAT')$idatEnded=true;
         }
-        if(!$ended||!$density||!is_array($header))self::invalid();
+        if(!$ended||($requireDpi&&!$density)||!is_array($header))self::invalid();
         if(isset($colorMetadata['sRGB'])&&((isset($colorMetadata['gAMA'])&&$colorMetadata['gAMA']!==45455)||(isset($colorMetadata['cHRM'])&&$colorMetadata['cHRM']!==[31270,32900,64000,33000,30000,60000,15000,6000])))self::invalid();
         $channels=[0=>1,2=>3,4=>2,6=>4][$header['color']];$rowBytes=$header['width']*$channels+1;$expected=$rowBytes*$header['height'];
         if($expected>40000000)self::invalid();
@@ -93,7 +100,7 @@ final class DesignFactoryContract
         $decoded=@inflate_add($inflate,$compressed,ZLIB_FINISH);unset($decoded);
         if(inflate_get_status($inflate)!==ZLIB_STREAM_END||inflate_get_read_len($inflate)!==strlen($compressed))self::invalid();
         for($i=0;$i<$header['height'];++$i)if(ord($raw[$i*$rowBytes])>4)self::invalid();
-        return ['sha256'=>hash('sha256',$bytes),'mime_type'=>'image/png','width_px'=>$header['width'],'height_px'=>$header['height'],'dpi'=>300,'byte_count'=>strlen($bytes),'editable'=>false,'role'=>'SUPPLEMENTAL_NOT_IN_VECTOR_HANDOFF'];
+        return ['sha256'=>hash('sha256',$bytes),'mime_type'=>'image/png','width_px'=>$header['width'],'height_px'=>$header['height'],'dpi'=>$requireDpi?300:$dpi,'byte_count'=>strlen($bytes),'editable'=>false,'role'=>'SUPPLEMENTAL_NOT_IN_VECTOR_HANDOFF'];
     }
     public static function review(array $criteria,bool $approval): void
     {
