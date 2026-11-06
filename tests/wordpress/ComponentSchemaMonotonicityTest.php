@@ -5,15 +5,30 @@ use DigiForge\Database\{CatalogAcceptanceSchema,ScopedPolicySchema,Tables};
 /** Synthetic fixture only; no production SQL/records are embedded in these tests. */
 final class ComponentSchemaMonotonicityTest extends WP_UnitTestCase
 {
+    private array $originalMarkers = [];
+    protected function setUp(): void {
+        parent::setUp();global $wpdb;
+        foreach(['digiforge_db_schema_version','digiforge_db_version'] as $key)$this->originalMarkers[$key]=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$key));
+    }
+    protected function tearDown(): void {
+        try{parent::tearDown();}finally{
+            // DDL commits are real: restore the fixture's original lineage, not hardcoded 25.
+            wp_cache_flush();foreach($this->originalMarkers as $key=>$value){if($value===null)delete_option($key);else update_option($key,$value,false);}wp_cache_flush();
+        }
+    }
     private function marker(): string {global $wpdb;return (string)$wpdb->get_var("SELECT option_value FROM {$wpdb->options} WHERE option_name='digiforge_db_schema_version'");}
     private function version(string $value): void {update_option('digiforge_db_schema_version',$value,false);update_option('digiforge_db_version','23',false);}
     private function temporary(string $table,callable $case): void {
-        global $wpdb;$backup=$table.'_preimage';self::assertNotFalse($wpdb->query("RENAME TABLE `$table` TO `$backup`"));
-        try{$case($table,$backup);}finally{$wpdb->query("DROP TABLE IF EXISTS `$table`");$wpdb->query("RENAME TABLE `$backup` TO `$table`");$this->version('25');$wpdb->query('START TRANSACTION');}
+        global $wpdb;$backup=$table.'_preimage';
+        // MariaDB 10 information_schema does not expose session TEMPORARY tables.
+        // Use real disposable DDL with explicit cleanup to test physical schema inspection.
+        remove_filter('query',[$this,'_create_temporary_tables']);remove_filter('query',[$this,'_drop_temporary_tables']);
+        self::assertNotFalse($wpdb->query("RENAME TABLE `$table` TO `$backup`"));
+        try{$case($table,$backup);}finally{$wpdb->query("DROP TABLE IF EXISTS `$table`");$wpdb->query("RENAME TABLE `$backup` TO `$table`");$this->version('25');$wpdb->query('START TRANSACTION');add_filter('query',[$this,'_create_temporary_tables']);add_filter('query',[$this,'_drop_temporary_tables']);}
     }
     public function testMissingComponentTablesCannotRewindGlobal25OrLegacy23(): void {
         foreach([[ScopedPolicySchema::class,Tables::scoped_capability_policies()],[CatalogAcceptanceSchema::class,Tables::catalog_acceptance_evidence()]] as [$class,$table]){
-            $this->version('25');$this->temporary($table,function()use($class){self::assertTrue($class::migrateIfNeeded());self::assertSame('25',$this->marker());self::assertSame('23',get_option('digiforge_db_version'));});
+            $this->version('25');$this->temporary($table,function()use($class){self::assertTrue($class::migrateIfNeeded(),$class.' '.wp_json_encode(get_option('digiforge_last_migration_failure')));self::assertSame('25',$this->marker());self::assertSame('23',get_option('digiforge_db_version'));});
         }
     }
     public function testIncompleteColumnsDenyWithoutRepairOrMarkerAdvance(): void {

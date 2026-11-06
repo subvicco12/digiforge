@@ -28,7 +28,7 @@
   },
   "tests": {
     "zip-schema.log": {
-      "sha256": "9b1e344c4bdc4d25f20c9136739f690260747b9e55317b75177aa8845ade5559",
+      "sha256": "5c48704f4518276fdfbe46bd0998c27a705582c1af82a933519e1deb275f1df1",
       "tests": 12,
       "assertions": 54,
       "skipped": 0
@@ -58,5 +58,11 @@
   "http_secret_policy": "PASS",
   "full_site_restore": "UNVERIFIED",
   "release_acceptance_for_new_digest": "REQUIRED",
-  "production_drift_since_snapshot": "UNVERIFIED"
+  "production_drift_since_snapshot": "UNVERIFIED",
+  "additional_source_migration_regression": {
+    "tests": 47,
+    "assertions": 415,
+    "result": "PASS",
+    "log_sha256": "18dd27918646ce3b0af9d0cad70f6e65139cbb01bc0ee58c898693ec534af56e"
+  }
 }
