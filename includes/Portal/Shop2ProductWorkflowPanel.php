@@ -7,7 +7,7 @@ use WP_Error;
 /** A scoped local adapter over the existing artwork and package workflow. No supplier transport. */
 final class Shop2ProductWorkflowPanel {
  public const ACTION='digiforge_shop2_product_workflow';
- private const OPS=['revise_research','revise','mockup_import','inspect','concepts','select','design_approve_concept','design_prepare','design_import','design_review','design_inspect','design_revise','package_bundle','package_prepare','package_inspect','package_decide','package_export'];
+ private const OPS=['provider_prepare','provider_inspect','provider_authorize','provider_execute','provider_receipt','etsy_draft_prepare','revise_research','revise','mockup_import','inspect','concepts','select','design_approve_concept','design_prepare','design_import','design_review','design_inspect','design_revise','package_bundle','package_prepare','package_inspect','package_decide','package_export'];
  public function register():void{add_action('admin_post_'.self::ACTION,[$this,'submit']);}
  public function process(array $post):array|WP_Error {
   $op=$post['operation']??null;
@@ -21,6 +21,7 @@ final class Shop2ProductWorkflowPanel {
   }
   if(!in_array($op,self::OPS,true)||!is_string($post['supplier_workflow_hash']??null)||!is_string($post['workflow_hash']??null))return Shop2ProductWorkflow::error('Exact local operation and supplier/research versions required.');
   $link=$repo->read($post['supplier_workflow_hash']);if(is_wp_error($link))return $link;$valid=$repo->context($link,$post['workflow_hash']);if(is_wp_error($valid))return $valid;
+  if(str_starts_with($op,'provider_')||$op==='etsy_draft_prepare')return (new Shop2ProviderProductPanel())->process($post,$link);
   if($op==='revise_research'){
    $root=(new \DigiForge\Research\CommercialResearchRepository())->read('personalized_pod',$link['record']['research_root']);if(is_wp_error($root))return $root;
    if(($post['product_family']??null)!==$link['record']['family']||!is_array($post['sources']??null))return Shop2ProductWorkflow::error('Preserve supplier-bound family and source evidence.');
@@ -57,7 +58,7 @@ final class Shop2ProductWorkflowPanel {
  }
  public function render(string $baseUrl):void {
   if(!Shop2ProductWorkflow::access()||(isset($_GET['df_shop'])&&$_GET['df_shop']!=='personalized_pod'))return;
-  echo '<section class="df-panel" id="df-shop2-workflow"><h2>Shop 2 · Supplier → Artwork → Held Etsy package</h2><p>Offline mug/poster workflow. No product creation, image upload, supplier mutation or Etsy draft is submitted. Native personalization and supplier mockups require dashboard setup and imported evidence. Catalog pixels never certify physical templates.</p>';
+  echo '<section class="df-panel" id="df-shop2-workflow"><h2>Shop 2 · Supplier → Artwork → Held Etsy package</h2><p>Offline mug/poster workflow. No product creation, image upload, supplier mutation or Etsy draft is submitted. Native layer creation remains manual where no API is documented; supported personalization and preview operations are connected below under separate authorization. Catalog pixels never certify physical templates.</p>';
   if(isset($_GET['df_workflow_error']))echo '<p role="alert">'.esc_html(is_string($_GET['df_workflow_error'])?$_GET['df_workflow_error']:'Operation blocked.').'</p>';
   $hash=$_GET['df_supplier_workflow']??null;
   if(!is_string($hash)||$hash===''){
@@ -67,14 +68,14 @@ final class Shop2ProductWorkflowPanel {
   }
   $repo=new Shop2ProductWorkflow();$link=$repo->read($hash);if(is_wp_error($link)){echo '<p>'.esc_html($link->get_error_message()).'</p></section>';return;}
   $research=$_GET['df_research_version']??$link['record']['research_root'];if(!is_string($research)||is_wp_error($repo->context($link,$research))){echo '<p>Research does not belong to this supplier selection.</p></section>';return;}
-  echo '<p>Selected '.esc_html($link['record']['concept_id'].' · blueprint '.$link['record']['blueprint_id'].' · provider '.$link['record']['provider_id'].' · variant '.$link['record']['variant_id']).'</p><h3>Native personalization and mockups</h3><p>Import original SVG through the existing design workflow. Reserve native text/photo layers; declare limits and provider field references in the package specification. Configure native fields and create/download provider mockups manually in Printify, then record artwork-bound media references/checksums. Missing evidence remains a release gate. No simulated API or generated mockup is supplied.</p>';
+  echo '<p>Selected '.esc_html($link['record']['concept_id'].' · blueprint '.$link['record']['blueprint_id'].' · provider '.$link['record']['provider_id'].' · variant '.$link['record']['variant_id']).'</p><h3>Native personalization and mockups</h3><p>Import original SVG through the existing design workflow. Reserve native text/photo layers; declare limits and provider field references in the package specification. Configure native field layouts in the provider editor where required. Use the connected options, personalization and preview-task APIs below where enabled, or import manual mockup files. Missing evidence remains a release gate. No simulated API or generated mockup is supplied.</p>';
   $saved=$_GET;$_GET['df_research_version']=$research;ob_start();try{(new CommercialResearchPanel())->render('personalized_pod',$repo->template($link),true,true);$html=ob_get_clean();}catch(\Throwable $e){ob_end_clean();throw $e;}finally{$_GET=$saved;}
   $hidden='<input type="hidden" name="supplier_workflow_hash" value="'.esc_attr($hash).'">'.wp_nonce_field(self::ACTION,'_df_workflow_nonce',false,false);
   $html=str_replace('name="action" value="digiforge_commercial_research"','name="action" value="'.self::ACTION.'"',$html);
   $html=str_replace('</form>',$hidden.'</form>',$html);$html=str_replace('df_view=research','df_view=pod_personalized',$html);
   // Preserve the supplier linkage on history links; no protected content is fetched here.
   $html=preg_replace_callback('/href="([^"]*)"/',static function($m)use($hash){$url=html_entity_decode($m[1],ENT_QUOTES,'UTF-8');if(str_contains($url,'df_research_version='))return 'href="'.esc_url(add_query_arg('df_supplier_workflow',$hash,$url)).'"';return $m[0];},$html);
-  echo $html;$this->bundleForm($link,$research,$baseUrl);$this->mockups($link,$research,$baseUrl);echo '<p>For a package import, supply an exact selected-supplier DRAFT template with explicit placement, decoration and catalog-matching pixels. This workflow never assigns VALIDATED status. The existing historical FL-03/FL-04 product IDs are technical anchors, not a newly created Printify product.</p></section>';
+  echo $html;$this->bundleForm($link,$research,$baseUrl);$this->mockups($link,$research,$baseUrl);(new Shop2ProviderProductPanel())->render($link,$research,$baseUrl);echo '<p>For a package import, supply an exact selected-supplier DRAFT template with explicit placement, decoration and catalog-matching pixels. This workflow never assigns VALIDATED status. The existing historical FL-03/FL-04 product IDs are technical anchors, not a newly created Printify product.</p></section>';
  }
  private function bundleForm(array $link,string $research,string $baseUrl):void {
   $package=$_GET['df_package_version']??null;$design=$_GET['df_factory_version']??null;if(!is_string($package)||!is_string($design)||!Shop2ProductWorkflow::access(true))return;
@@ -93,10 +94,11 @@ final class Shop2ProductWorkflowPanel {
   $post=wp_unslash($_POST);
   if(($post['operation']??null)==='mockup_import'){$f=$_FILES['mockup_png']??[];if(($f['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||!is_string($f['tmp_name']??null)||!is_uploaded_file($f['tmp_name'])||filesize($f['tmp_name'])>2097152)wp_die('Bounded PNG upload required.','',['response'=>400]);$post['png_base64']=base64_encode((string)file_get_contents($f['tmp_name'],false,null,0,2097153));}
   $r=$this->process($post);
+  if(is_array($r)&&is_string($r['provider_export']??null)){nocache_headers();header('Content-Type: application/json; charset=utf-8');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-etsy-draft-plan.json"');echo $r['provider_export'];exit;}
   if(is_array($r)&&is_string($r['package_bundle']??null)){nocache_headers();header('Content-Type: application/zip');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-held-review-'.$r['package_hash'].'.zip"');echo $r['package_bundle'];exit;}
   if(is_array($r)&&is_string($r['package_export']??null)){nocache_headers();header('Content-Type: application/json; charset=utf-8');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-held-etsy-package-'.$r['package_hash'].'.json"');echo $r['package_export'];exit;}
   $args=['df_view'=>'pod_personalized','df_shop'=>'personalized_pod'];if(is_wp_error($r)){$args['df_workflow_error']=$r->get_error_message();$r=$post;}
-  foreach(['supplier_workflow_hash'=>'df_supplier_workflow','hash'=>'df_research_version','design_factory_hash'=>'df_factory_version','package_hash'=>'df_package_version'] as $key=>$q)if(is_string($r[$key]??null)&&preg_match('/^[a-f0-9]{64}$/D',$r[$key]))$args[$q]=$r[$key];
+  foreach(['supplier_workflow_hash'=>'df_supplier_workflow','hash'=>'df_research_version','design_factory_hash'=>'df_factory_version','package_hash'=>'df_package_version','provider_plan_hash'=>'df_provider_plan','provider_authorization_hash'=>'df_provider_authorization','provider_receipt_hash'=>'df_provider_receipt'] as $key=>$q)if(is_string($r[$key]??null)&&preg_match('/^[a-f0-9]{64}$/D',$r[$key]))$args[$q]=$r[$key];
   if(!isset($args['df_research_version'])&&is_string($post['workflow_hash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$post['workflow_hash']))$args['df_research_version']=$post['workflow_hash'];
   if(!isset($args['df_factory_version'])&&is_string($post['factory_hash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$post['factory_hash']))$args['df_factory_version']=$post['factory_hash'];
   $return=is_string($post['return_url']??null)?wp_validate_redirect($post['return_url'],home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#df-shop2-workflow');exit;

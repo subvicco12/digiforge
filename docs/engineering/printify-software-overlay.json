@@ -14,5 +14,9 @@
   "includes/POD/PrintifyResearchDependencies.php": {
     "installed_sha256": "7e174858adcc498402371eeb72805a1c1c784ccc444aa43e3f6c444278f677e2",
     "candidate_sha256": "8854221e4e49a4cba69c5362befec42d8d1ceeb3039249d7bdd031daac8cdcdd"
+  },
+  "includes/POD/ScopedProviderConnection.php": {
+    "installed_sha256": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811",
+    "candidate_sha256": "e48d64e7d1bf2f08c50cb0228ab76b082ae3d7c7dc085ec58fb5fac8d494b5cf"
   }
 }

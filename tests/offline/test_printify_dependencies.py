@@ -43,6 +43,16 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                     self.assertEqual(1,text.count(hunk['reviewed_text']))
                     text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
                 data=text.encode()
+            if row['path']=='includes/POD/ScopedProviderConnection.php':
+                overlay=json.loads((ROOT/'docs/engineering/printify-product-scope-overlay.json').read_text())
+                self.assertFalse(overlay['external_authority_granted'])
+                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
+                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
+                text=data.decode()
+                for hunk in overlay['hunks']:
+                    self.assertEqual(1,text.count(hunk['reviewed_text']))
+                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
+                data=text.encode()
             if row['path']=='includes/Security/ShopAccessAuthority.php':
                 # Explicit Ed25519-only restoration; original shared-core pin is retained.
                 receipt=json.loads((ROOT/'docs/engineering/portal-access/installed-security-restorations.json').read_text())[0]
