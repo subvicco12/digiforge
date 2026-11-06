@@ -61,7 +61,7 @@ def main():
     expected_guard = original[MODIFIED[2]].replace(admission, admission + addition)
     if expected_guard != (ROOT / MODIFIED[2]).read_bytes():
         raise ValueError('Shared admin guard has an unreviewed delta')
-    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.7') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
+    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.8') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
     if expected_header != (ROOT / 'digiforge.php').read_bytes():
         raise ValueError('Plugin bootstrap has an unreviewed delta')
     # Native ACL source was previously byte-identical to this installed-lineage file.
@@ -88,7 +88,7 @@ def main():
     payload[TRANSPORT] = original[TRANSPORT].replace(anchor, PRODUCT_METHOD + anchor, 1)
     assert payload[TRANSPORT].replace(PRODUCT_METHOD, b'', 1) == original[TRANSPORT]
     args.output.mkdir(parents=True, exist_ok=True)
-    target = args.output / 'digiforge-1.0.103.7-consolidated-update.zip'
+    target = args.output / 'digiforge-1.0.103.8-consolidated-update.zip'
     records = []
     with zipfile.ZipFile(target, 'w') as archive:
         for rel, raw in sorted(payload.items()):
@@ -106,7 +106,7 @@ def main():
         assert z.testzip() is None
         for r in records:
             assert sha(z.read(r['path'])) == r['sha256']
-    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.7', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
+    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.8', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
     (args.output / 'preservation-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (args.output / (target.name + '.sha256')).write_text(manifest['sha256'] + '  ' + target.name + '\n')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'files'}, indent=2))
