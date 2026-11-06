@@ -49,4 +49,8 @@ final class PortalEmailAuthenticationTest extends WP_UnitTestCase {
   try{self::assertWPError($this->verify($r,$code));self::assertSame(0,get_current_user_id());}finally{remove_filter('query',$race);}
  }
 
+ public function testExistingWordPressSessionCanReverifyEmailAndRotatesItsToken():void {
+  $id=PortalAccessFixture::owner();$old=wp_get_session_token();self::assertStringContainsString('name="email"',Authentication::render());$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));self::assertTrue(EmailAuthentication::recent($id));self::assertNotSame($old,wp_get_session_token());self::assertFalse(WP_Session_Tokens::get_instance($id)->verify($old));
+ }
+
 }

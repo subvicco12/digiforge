@@ -21,10 +21,10 @@ final class Authentication {
  public static function render():string {
   $return=self::safeReturn($_GET['redirect_to']??'');$html='<main class="df-access-card"><h1>DigiForge sign in</h1><p>Sign in with a verification code sent to your existing WordPress account email. Shop access requires a separate reviewed assignment.</p>';
   if(isset($_GET['df_result']))$html.='<p role="alert">Unable to complete that request. Check your access or try again later.</p>';
-  $action=is_user_logged_in()?'digiforge_portal_continue':self::ACTION;$html.='<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.esc_attr($action).'"><input type="hidden" name="return_to" value="'.esc_attr($return).'">';
-  if(!is_user_logged_in())$html.='<input type="hidden" name="challenge" value="'.esc_attr(self::browserChallenge()).'">';
-  if(!is_user_logged_in())$html.='<label>Email address<input type="email" name="email" autocomplete="email" required maxlength="254"></label>';
-  $html.='<button type="submit">'.(is_user_logged_in()?'Continue to DigiForge':'Email my sign-in code').'</button></form><p><a href="'.esc_url(wp_lostpassword_url(self::loginUrl($return))).'">Reset your WordPress password</a></p>';
+  $emailFlow=!is_user_logged_in()||!EmailAuthentication::recent(get_current_user_id());$action=$emailFlow?self::ACTION:'digiforge_portal_continue';$html.='<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.esc_attr($action).'"><input type="hidden" name="return_to" value="'.esc_attr($return).'">';
+  if($emailFlow)$html.='<input type="hidden" name="challenge" value="'.esc_attr(self::browserChallenge()).'">';
+  if($emailFlow)$html.='<label>Email address<input type="email" name="email" autocomplete="email" required maxlength="254"></label>';
+  $html.='<button type="submit">'.($emailFlow?'Email my sign-in code':'Continue to DigiForge').'</button></form><p><a href="'.esc_url(wp_lostpassword_url(self::loginUrl($return))).'">Reset your WordPress password</a></p>';
   if(is_user_logged_in())$html.='<p><a href="'.esc_url(wp_logout_url(self::loginUrl())).'">Sign out</a></p>';return $html.'</main>';
  }
 }
