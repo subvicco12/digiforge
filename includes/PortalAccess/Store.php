@@ -44,10 +44,15 @@ final class Store {
   }finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
  }
  public static function change(int $actor,string $role,array $shops,bool $enabled,int $revision,string $request):array|\WP_Error {
-  $old=self::read($actor);if(is_wp_error($old))return $old;if($revision+($enabled?2:1)>1000)return Policy::error('history_capacity',409);if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
-  foreach(array_unique(array_merge(array_keys($shops),array_keys($old['shops']??[]))) as $shop){if(!is_string($shop)||Owner::require($shop)!==true)return Policy::error('owner');}
-  foreach($shops as $shop=>$modules){if($modules===[]&&$old!==null)continue;if(!is_array($modules))return Policy::error('typed');$caps=Policy::permissions($role,$modules);if(is_wp_error($caps))return $caps;foreach($caps as $cap)if(!user_can($actor,$cap))return Policy::error('ordinary_capability');$scopes[$shop]=$caps;}
-  if($enabled&&$scopes===[])return Policy::error('empty_scope');
+  $old=self::read($actor);if(is_wp_error($old))return $old;if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
+  $ownerShops=array_values(array_unique(array_merge(array_keys($shops),array_keys($old['shops']??[]))));
+  if($ownerShops===[])$ownerShops=$old['managed_shops']??[];if($ownerShops===[])return Policy::error('empty_scope');
+  foreach($ownerShops as $shop){if(!is_string($shop)||Owner::require($shop)!==true)return Policy::error('owner');}
+  foreach($shops as $shop=>$modules){if(!is_array($modules))return Policy::error('typed');$caps=Policy::permissions($role,$modules,$old!==null);if(is_wp_error($caps))return $caps;if($caps===[])continue;foreach($caps as $cap)if(!user_can($actor,$cap))return Policy::error('ordinary_capability');$scopes[$shop]=$caps;}
+  // Removing the final module is an audited deny-all change, even when the
+  // form's enable selector remains selected. It never issues a native grant.
+  if($scopes===[])$enabled=false;
+  if($revision+($enabled?2:1)>1000)return Policy::error('history_capacity',409);
   // Commit a restrictive snapshot before creating any native grant. Interrupted work
   // leaves the actor disabled, never an unmanaged legacy actor with a new grant.
   $next=['actor_id'=>$actor,'role'=>$role,'enabled'=>false,'revision'=>$revision+1,'generation'=>($old['generation']??0)+1,'shops'=>$scopes,'managed_shops'=>array_values(array_unique(array_merge($old['managed_shops']??[],array_keys($old['shops']??[]),array_keys($shops))))];

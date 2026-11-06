@@ -5,24 +5,17 @@ namespace DigiForge\PortalAccess;
 final class Guard {
  public function register():void{add_filter('rest_request_before_callbacks',[$this,'rest'],-100,3);add_action('all',[$this,'action'],-100);add_action('admin_init',[$this,'page'],-100);}
  public function rest(mixed $result,array $handler,\WP_REST_Request $request):mixed {
-  if(is_wp_error($result)||strncasecmp($request->get_route(),'/digiforge/v1/',14)!==0||get_current_user_id()<1)return $result;if(substr($request->get_route(),0,14)!=='/digiforge/v1/')return Policy::error('noncanonical_route');$s=Store::read(get_current_user_id());if($s===null)return $result;if(is_wp_error($s)||!Session::valid($s))return Policy::error('session');
-  $needed=self::modules($request->get_route());if($needed!==[]){$allowed=[];foreach($s['shops'] as $shop=>$caps)if(array_diff($needed,$caps)===[])$allowed[]=$shop;$target=$request->get_param('shop')??$request->get_param('shop_key');if($allowed===[]||(is_string($target)&&!in_array($target,$allowed,true))||(str_starts_with($request->get_route(),'/digiforge/v1/shops/personalized_pod/')&&!in_array('personalized_pod',$allowed,true)))return Policy::error('module_scope');}
+  if(is_wp_error($result)||strncasecmp($request->get_route(),'/digiforge/v1/',14)!==0)return $result;
+  if(substr($request->get_route(),0,14)!=='/digiforge/v1/')return Policy::error('noncanonical_route');
+  $s=get_current_user_id()>0?Store::read(get_current_user_id()):null;
+  if(is_wp_error($s)||($s!==null&&(!Session::valid($s)||!$s['enabled'])))return Policy::error('session');
+  $decision=RestPolicy::admit($request,$handler,$s);if($decision!==true)return $decision;
+  if($s===null)return $result;
   if($s['role']==='Viewer'){
    $route=$request->get_route();$safe=preg_match('#^/digiforge/v1/(products|product-families|product-versions|opportunities)(/[1-9][0-9]*)?$#D',$route)===1||in_array($route,['/digiforge/v1/research/sources','/digiforge/v1/research/candidates','/digiforge/v1/research/observations'],true)||preg_match('#^/digiforge/v1/shops/personalized_pod/printify-research/(readiness|snapshots/[a-f0-9]{64})$#D',$route)===1;
    if($request->get_method()!=='GET'||!$safe)return Policy::error('viewer_read_only');
   }
   if(str_starts_with($request->get_route(),'/digiforge/v1/shop-access/')&&$s['role']!=='Primary Owner')return Policy::error('owner');return $result;
- }
- private static function modules(string $route):array {
-  $p=substr($route,14);return match(true){
-   preg_match('#^(products|product-families|product-versions|opportunities)(/|$)#D',$p)===1=>['manage_digiforge_products'],
-   str_starts_with($p,'shops/personalized_pod/printify-research/')=>['manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections'],
-   str_starts_with($p,'printify/')=>['manage_digiforge_pod','manage_digiforge_connections'],
-   str_starts_with($p,'research')=>['manage_digiforge_research'],str_starts_with($p,'digital')=>['manage_digiforge_digital'],
-   str_starts_with($p,'orders')=>['manage_digiforge_orders'],str_starts_with($p,'listings')=>['manage_digiforge_listings'],
-   str_starts_with($p,'production')=>['manage_digiforge_production'],str_starts_with($p,'integrations')=>['manage_digiforge_connections'],
-   str_starts_with($p,'pod/')=>['manage_digiforge_pod'],str_starts_with($p,'ai/')=>['manage_digiforge_ai'],
-   str_starts_with($p,'finance/')=>['manage_digiforge_finance'],default=>[]};
  }
  public function allowAction(string $action):bool {
   // These handlers only authenticate, verify a subject-bound invitation, or bootstrap

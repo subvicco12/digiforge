@@ -37,6 +37,14 @@ final class PrintifyResearchDependencies
             ['method'=>'POST','route'=>$base.'/batches/'.$sha.'/step'],
         ];
     }
+    public static function matchesRoute(string $route,string $method): bool
+    {
+        foreach(self::routes() as $known){
+            $pattern='#^'.str_replace(str_repeat('a',64),'[a-f0-9]{64}',preg_quote($known['route'],'#')).'$#D';
+            if($method===$known['method']&&preg_match($pattern,$route)===1)return true;
+        }
+        return false;
+    }
     public static function actions(): array
     {
         return [

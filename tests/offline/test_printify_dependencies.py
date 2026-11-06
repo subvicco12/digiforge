@@ -32,6 +32,13 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                     self.assertEqual(1,text.count(hunk['reviewed_text']))
                     text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
                 data=text.encode()
+            if row['path']=='includes/Security/ShopAccessAuthority.php':
+                # Explicit Ed25519-only restoration; original shared-core pin is retained.
+                receipt=json.loads((ROOT/'docs/engineering/portal-access/installed-security-restorations.json').read_text())[0]
+                self.assertEqual(row['path'],receipt['path'])
+                self.assertEqual(row['selected_sha256'],receipt['reviewed_source_sha256'])
+                self.assertEqual(receipt['installed_1032_sha256'],hashlib.sha256(data).hexdigest())
+                continue
             self.assertEqual(row['selected_sha256'],hashlib.sha256(data).hexdigest(),row['path'])
 
     def test_unrelated_shared_deltas_and_overlapping_surfaces_remain_owned_elsewhere(self):
