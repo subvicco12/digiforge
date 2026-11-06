@@ -13,4 +13,17 @@ final class PortalAuthenticationTest extends WP_UnitTestCase {
 
  public function testPendingInviteCanLoginToAcceptanceWithoutReceivingPortalSession():void{$this->ready();PortalAccessFixture::enroll();$id=self::factory()->user->create(['user_login'=>'pending_login_fixture','user_pass'=>'syntheticPendingPass123!','role'=>'administrator']);$invite=\DigiForge\PortalAccess\Invitations::create($id,'Viewer','personalized_pod',['research'],time()+600,wp_generate_uuid4());self::assertNotWPError($invite);wp_set_current_user(0);$_COOKIE=[];$url=add_query_arg('df_view','invitation',home_url('/'));$r=Authentication::process(['login'=>'pending_login_fixture','password'=>'syntheticPendingPass123!','challenge'=>Authentication::browserChallenge(),'_wpnonce'=>wp_create_nonce(Authentication::ACTION),'return_to'=>$url]);self::assertNotWPError($r);self::assertSame($url,$r['return_to']);self::assertFalse(Session::valid(Store::read($id)));self::assertNotWPError(\DigiForge\PortalAccess\Invitations::accept($invite['token'],wp_generate_uuid4()));self::assertTrue(Session::valid(Store::read($id)));}
 
+ public function testWordPressLogoutDestroysNativeTokenAndPortalSession():void {
+  $id=PortalAccessFixture::enroll();$token=wp_get_session_token();self::assertTrue(WP_Session_Tokens::get_instance($id)->verify($token));self::assertTrue(Session::valid(Store::read($id)));
+  $query=[];parse_str((string)wp_parse_url(html_entity_decode(wp_logout_url(Authentication::loginUrl()),ENT_QUOTES,'UTF-8'),PHP_URL_QUERY),$query);self::assertNotFalse(wp_verify_nonce($query['_wpnonce'],'log-out'));
+  wp_logout();self::assertSame(0,get_current_user_id());self::assertFalse(WP_Session_Tokens::get_instance($id)->verify($token));self::assertArrayNotHasKey(Session::name(),$_COOKIE);self::assertFalse(Session::valid(Store::read($id)));
+ }
+ public function testWordPressRecoveryProducesValidResetKeyWithoutSendingEmailOrGrantingAuthority():void {
+  $id=self::factory()->user->create(['user_login'=>'portal_recovery_fixture','user_email'=>'recovery@example.invalid','role'=>'subscriber']);$key=null;$mail=0;
+  $capture=static function($login,$value)use(&$key){if($login==='portal_recovery_fixture')$key=$value;};$deny=static function($pre,$attributes)use(&$mail){$mail++;return true;};
+  add_action('retrieve_password_key',$capture,10,2);add_filter('pre_wp_mail',$deny,PHP_INT_MAX,2);
+  try{self::assertTrue(retrieve_password('portal_recovery_fixture'));self::assertSame(1,$mail);self::assertIsString($key);$user=check_password_reset_key($key,'portal_recovery_fixture');self::assertInstanceOf(WP_User::class,$user);self::assertSame($id,$user->ID);self::assertNull(Store::read($id));}
+  finally{remove_action('retrieve_password_key',$capture,10);remove_filter('pre_wp_mail',$deny,PHP_INT_MAX);$key=null;}
+ }
+
 }
