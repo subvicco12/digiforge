@@ -44,12 +44,13 @@ final class Store {
   }finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
  }
  public static function change(int $actor,string $role,array $shops,bool $enabled,int $revision,string $request):array|\WP_Error {
-  $old=self::read($actor);if(is_wp_error($old))return $old;if($actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||!$shops||count($shops)>4)return Policy::error('target');$scopes=[];
+  $old=self::read($actor);if(is_wp_error($old))return $old;if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
   foreach(array_unique(array_merge(array_keys($shops),array_keys($old['shops']??[]))) as $shop){if(!is_string($shop)||Owner::require($shop)!==true)return Policy::error('owner');}
-  foreach($shops as $shop=>$modules){if(!is_array($modules))return Policy::error('typed');$caps=Policy::permissions($role,$modules);if(is_wp_error($caps))return $caps;foreach($caps as $cap)if(!user_can($actor,$cap))return Policy::error('ordinary_capability');$scopes[$shop]=$caps;}
+  foreach($shops as $shop=>$modules){if($modules===[]&&$old!==null)continue;if(!is_array($modules))return Policy::error('typed');$caps=Policy::permissions($role,$modules);if(is_wp_error($caps))return $caps;foreach($caps as $cap)if(!user_can($actor,$cap))return Policy::error('ordinary_capability');$scopes[$shop]=$caps;}
+  if($enabled&&$scopes===[])return Policy::error('empty_scope');
   // Commit a restrictive snapshot before creating any native grant. Interrupted work
   // leaves the actor disabled, never an unmanaged legacy actor with a new grant.
-  $next=['actor_id'=>$actor,'role'=>$role,'enabled'=>false,'revision'=>$revision+1,'generation'=>($old['generation']??0)+1,'shops'=>$scopes];
+  $next=['actor_id'=>$actor,'role'=>$role,'enabled'=>false,'revision'=>$revision+1,'generation'=>($old['generation']??0)+1,'shops'=>$scopes,'managed_shops'=>array_values(array_unique(array_merge($old['managed_shops']??[],array_keys($old['shops']??[]),array_keys($shops))))];
   $saved=self::save($next,$revision,$request);if(is_wp_error($saved)||!$enabled)return $saved;
   $r=self::grantNative($actor,$scopes);if(is_wp_error($r))return $r;
   $next['enabled']=true;$next['revision']++;$next['generation']++;
@@ -57,7 +58,7 @@ final class Store {
  }
  /** Creates native scoped evidence only in the already authenticated signed owner's context. */
  public static function grantNative(int $actor,array $scopes):true|\WP_Error {
-  $user=get_userdata($actor);if(!$user)return Policy::error('target');foreach($scopes as $shop=>$caps){if(Owner::require($shop)!==true)return Policy::error('owner');$role=null;foreach($user->roles as $r){$wpRole=get_role($r);if($wpRole&&array_diff($caps,array_keys(array_filter($wpRole->capabilities)))===[]){$role=$r;break;}}if($role===null)return Policy::error('ordinary_role');$a=\DigiForge\Security\ShopAccessRepository::authorityFor(get_current_user_id(),$shop,$caps,time()+60);if(is_wp_error($a))return $a;$expiry=min(time()+3600,$a['record']['expires_at']);$repo=new ShopAccessRepository();$state=$repo->read($shop);if(is_wp_error($state))return $state;$r=$repo->grant($actor,$shop,$role,$caps,$expiry,wp_generate_uuid4(),$state['revision']);if(is_wp_error($r))return $r;}return true;
+  $user=get_userdata($actor);if(!$user)return Policy::error('target');foreach($scopes as $shop=>$caps){if(Owner::require($shop)!==true)return Policy::error('owner');foreach($caps as $cap)if(!self::permits(get_current_user_id(),$shop,$cap))return Policy::error('owner_scope');$role=null;foreach($user->roles as $r){$wpRole=get_role($r);if($wpRole&&array_diff($caps,array_keys(array_filter($wpRole->capabilities)))===[]){$role=$r;break;}}if($role===null)return Policy::error('ordinary_role');$a=\DigiForge\Security\ShopAccessRepository::authorityFor(get_current_user_id(),$shop,$caps,time()+60);if(is_wp_error($a))return $a;$expiry=min(time()+3600,$a['record']['expires_at']);$repo=new ShopAccessRepository();$state=$repo->read($shop);if(is_wp_error($state))return $state;$r=$repo->grant($actor,$shop,$role,$caps,$expiry,wp_generate_uuid4(),$state['revision']);if(is_wp_error($r))return $r;}return true;
  }
  public static function permits(int $actor,string $shop,string $cap):bool {
   $s=self::read($actor);if($s===null)return true;if(is_wp_error($s)||!$s['enabled']||!in_array($cap,$s['shops'][$shop]??[],true))return false;return $actor!==get_current_user_id()||Session::valid($s);

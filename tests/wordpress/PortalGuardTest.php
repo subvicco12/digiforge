@@ -1,0 +1,11 @@
+<?php
+use DigiForge\PortalAccess\{Guard,Store,Session,Feature};
+require_once __DIR__.'/fixtures/PortalAccessFixture.php';
+final class PortalGuardTest extends WP_UnitTestCase {
+ protected function setUp():void{parent::setUp();PortalAccessFixture::reset();}
+ private function viewer():int{self::assertTrue(class_exists(Guard::class),'Server-side profile guard is not implemented');PortalAccessFixture::enroll();$id=self::factory()->user->create(['role'=>'administrator']);Store::change($id,'Viewer',['personalized_pod'=>['research','personalized_pod']],true,0,wp_generate_uuid4());PortalAccessFixture::login($id);Session::start();return $id;}
+ public function testViewerCannotWriteOrUseUnsafeReadEndpoints():void{$this->viewer();$g=new Guard();foreach([['POST','/digiforge/v1/orders'],['HEAD','/digiforge/v1/products'],['GET','/digiforge/v1/printify/catalog-read/preview'],['POST','/digiforge/v1/shop-access/grants'],['GET','/digiforge/v1/unknown']] as [$verb,$route])self::assertWPError($g->rest(null,[],new WP_REST_Request($verb,$route)));self::assertFalse($g->allowAction('digiforge_portal_access'));self::assertFalse($g->allowAction('digiforge_portal_users'));}
+ public function testViewerKnownReadStillRequiresNativeShopScope():void{$this->viewer();self::assertNull((new Guard())->rest(null,[],new WP_REST_Request('GET','/digiforge/v1/products')));self::assertTrue(\DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge'));self::assertWPError(\DigiForge\Security\ShopAccess::authorize('digital','manage_digiforge'));}
+ public function testManagedUserWithoutPortalSessionCannotEnterProtectedCallbacks():void{$id=$this->viewer();unset($_COOKIE[Session::name()]);self::assertWPError((new Guard())->rest(null,[],new WP_REST_Request('GET','/digiforge/v1/products')));$r=(new Feature())->before(false,'digiforge_admin_portal',[],[]);self::assertStringContainsString('session expired',$r);self::assertTrue(is_user_logged_in());}
+ public function testRestrictedLandingAlwaysShowsNonceLogoutWithoutProtectedContent():void{self::assertTrue(class_exists(Feature::class));PortalAccessFixture::owner();$r=(new Feature())->after('<p>No assigned workflows</p>','digiforge_admin_portal',[],[]);self::assertStringContainsString('action=logout',$r);self::assertStringContainsString('_wpnonce',$r);}
+}
