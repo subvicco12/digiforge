@@ -19,8 +19,9 @@ final class Authentication {
   $capture=static function($cookie){$_COOKIE[LOGGED_IN_COOKIE]=$cookie;};add_action('set_logged_in_cookie',$capture);try{$user=wp_signon(['user_login'=>trim($p['login']),'user_password'=>$p['password'],'remember'=>false],is_ssl());}finally{remove_action('set_logged_in_cookie',$capture);}if(is_wp_error($user))return self::failure();wp_set_current_user($user->ID);
   // wp_signon owns the native cookie. Also make it available during this same request.
   if(wp_get_session_token()===''){return ['actor_id'=>$user->ID,'return_to'=>self::loginUrl(self::safeReturn($p['return_to']??'')),'continue_required'=>true];}
-  if(!\DigiForge\Security\Logger::write('portal_login',['actor_id'=>$user->ID],'portal_auth',(string)$user->ID))return self::failure('login_audit',503);$r=Session::start();if(is_wp_error($r))return $r;return ['actor_id'=>$user->ID,'return_to'=>self::safeReturn($p['return_to']??'')];
+  if(!\DigiForge\Security\Logger::write('portal_login',['actor_id'=>$user->ID],'portal_auth',(string)$user->ID))return self::failure('login_audit',503);$r=self::continueTo($p['return_to']??'');if(is_wp_error($r))return $r;return ['actor_id'=>$user->ID]+$r;
  }
+ public static function continueTo(mixed $return):array|\WP_Error{$url=self::safeReturn($return);$q=[];parse_str(wp_parse_url($url,PHP_URL_QUERY)??'',$q);$s=Store::read(get_current_user_id());if(is_wp_error($s))return $s;if(is_array($s)&&!$s['enabled']&&($q['df_view']??null)==='invitation')return ['return_to'=>$url,'invitation_pending'=>true];$r=Session::start();return is_wp_error($r)?$r:['return_to'=>$url];}
  public static function render():string {
   $return=self::safeReturn($_GET['redirect_to']??'');$html='<main class="df-access-card"><h1>DigiForge sign in</h1><p>Use your existing WordPress account. Shop access requires a separate reviewed assignment.</p>';
   if(isset($_GET['df_result']))$html.='<p role="alert">Unable to complete that request. Check your access or try again later.</p>';

@@ -20,7 +20,19 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
             self.assertTrue(row['path'].startswith('includes/'))
             self.assertNotIn('..',Path(row['path']).parts)
             self.assertRegex(row['selected_sha256'],r'^[a-f0-9]{64}$')
-            self.assertEqual(row['selected_sha256'],hashlib.sha256((ROOT/row['path']).read_bytes()).hexdigest(),row['path'])
+            data=(ROOT/row['path']).read_bytes()
+            if row['path']=='includes/Security/ShopAccess.php':
+                overlay=json.loads((ROOT/'docs/engineering/portal-access/native-acl-overlay.json').read_text())
+                self.assertEqual('OWNER_APPROVED_ISSUE_1257_RESTRICTIVE_CONSUMER_OVERLAY',overlay['authorization'])
+                self.assertFalse(overlay['signature_verifier_modified']);self.assertFalse(overlay['new_authority_granted'])
+                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
+                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
+                text=data.decode()
+                for hunk in overlay['hunks']:
+                    self.assertEqual(1,text.count(hunk['reviewed_text']))
+                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
+                data=text.encode()
+            self.assertEqual(row['selected_sha256'],hashlib.sha256(data).hexdigest(),row['path'])
 
     def test_unrelated_shared_deltas_and_overlapping_surfaces_remain_owned_elsewhere(self):
         manifest=json.loads(MANIFEST.read_text())

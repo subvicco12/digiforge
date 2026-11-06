@@ -27,7 +27,7 @@ final class Store {
  public static function hash(array $s):string{return hash('sha256',(string)wp_json_encode($s));}
  /** @internal Persist only after domain authorization; one transaction binds snapshot/event/audit. */
  public static function save(array $next,int $revision,string $request,?callable $extra=null):array|\WP_Error {
-  global $wpdb;if(!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$request)||!self::shape($next,$next['actor_id']??0))return Policy::error('typed');
+  global $wpdb;if($revision>=1000)return Policy::error('history_capacity',409);if(!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$request)||!self::shape($next,$next['actor_id']??0))return Policy::error('typed');
   foreach([$wpdb->options,\DigiForge\Database\Tables::audit_log()] as $t){$wpdb->last_error='';$engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$t));if($wpdb->last_error!==''||strtoupper((string)$engine)!=='INNODB')return Policy::error('storage',503);}
   if($wpdb->query('START TRANSACTION')===false)return Policy::error('transaction',503);
   $fail=static function($e)use($wpdb){$wpdb->query('ROLLBACK');return $e;};$actor=$next['actor_id'];
@@ -44,7 +44,7 @@ final class Store {
   }finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
  }
  public static function change(int $actor,string $role,array $shops,bool $enabled,int $revision,string $request):array|\WP_Error {
-  $old=self::read($actor);if(is_wp_error($old))return $old;if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
+  $old=self::read($actor);if(is_wp_error($old))return $old;if($revision+($enabled?2:1)>1000)return Policy::error('history_capacity',409);if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
   foreach(array_unique(array_merge(array_keys($shops),array_keys($old['shops']??[]))) as $shop){if(!is_string($shop)||Owner::require($shop)!==true)return Policy::error('owner');}
   foreach($shops as $shop=>$modules){if($modules===[]&&$old!==null)continue;if(!is_array($modules))return Policy::error('typed');$caps=Policy::permissions($role,$modules);if(is_wp_error($caps))return $caps;foreach($caps as $cap)if(!user_can($actor,$cap))return Policy::error('ordinary_capability');$scopes[$shop]=$caps;}
   if($enabled&&$scopes===[])return Policy::error('empty_scope');

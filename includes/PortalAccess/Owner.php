@@ -14,7 +14,7 @@ final class Owner {
  }
  public static function require(string $shop):true|\WP_Error{return self::forActor(get_current_user_id(),$shop);}
  public static function enroll(string $shop,string $role,array $caps,int $expiry,string $approval,int $revision,string $request):array|\WP_Error {
-  $id=get_current_user_id();$a=self::signed($id,$shop);if(is_wp_error($a)||!in_array('manage_digiforge_settings',$caps,true)||!in_array('manage_digiforge',$caps,true))return Policy::error('owner');$old=Store::read($id);if(is_wp_error($old)||($old!==null&&$old['role']!=='Primary Owner'))return Policy::error('owner');
+  $id=get_current_user_id();$a=self::signed($id,$shop);if(is_wp_error($a)||!in_array('manage_digiforge_settings',$caps,true)||!in_array('manage_digiforge',$caps,true))return Policy::error('owner');$old=Store::read($id);if(is_wp_error($old)||($old!==null&&($old['role']!=='Primary Owner'||$old['revision']>=1000)))return Policy::error('owner');
   $repo=new ShopAccessRepository();$r=$repo->enrollOwner($shop,$role,$caps,$expiry,$approval,$request,$revision);if(is_wp_error($r))return $r;$shops=$old['shops']??[];$shops[$shop]=$caps;$hashes=$old['authority_hashes']??[];$hashes[$shop]=$a['hash'];
   $saved=Store::save(['actor_id'=>$id,'role'=>'Primary Owner','enabled'=>true,'revision'=>($old['revision']??0)+1,'generation'=>($old['generation']??0)+1,'shops'=>$shops,'authority_hashes'=>$hashes],$old['revision']??0,$request);
   if(!is_wp_error($saved)){Session::start();}return $saved;

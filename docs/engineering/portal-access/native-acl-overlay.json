@@ -1,0 +1,19 @@
+{
+  "path": "includes/Security/ShopAccess.php",
+  "authorization": "OWNER_APPROVED_ISSUE_1257_RESTRICTIVE_CONSUMER_OVERLAY",
+  "baseline_source_sha": "6e521719d925c75f27aed5ccdd47048cc1e5a15d",
+  "baseline_sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
+  "overlay_sha256": "7a78497d461acf2b248612d9c91126aefe977f670039cea624c3d1aa448f1735",
+  "signature_verifier_modified": false,
+  "new_authority_granted": false,
+  "hunks": [
+    {
+      "baseline_text": "",
+      "reviewed_text": "        if(class_exists(\\DigiForge\\PortalAccess\\Store::class)&&!\\DigiForge\\PortalAccess\\Store::permits($actor,$shop,$cap)){if(!Logger::write('portal_scope_denied',['actor_id'=>$actor,'shop'=>$shop,'capability'=>$cap],'portal_access',$shop))return new \\WP_Error('digiforge_portal_audit','DigiForge denial audit unavailable.',['status'=>503]);return new \\WP_Error('digiforge_portal_scope','DigiForge access is disabled, expired or outside your assigned scope.',['status'=>403]);}\n"
+    },
+    {
+      "baseline_text": "                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if($valid)return true;\n",
+      "reviewed_text": "                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap)||(class_exists(\\DigiForge\\PortalAccess\\Store::class)&&!\\DigiForge\\PortalAccess\\Store::permits($grant['grantor_id'],$shop,$assignedCap)))$valid=false;}if($valid)return true;\n"
+    }
+  ]
+}

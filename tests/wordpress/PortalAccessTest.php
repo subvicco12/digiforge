@@ -3,6 +3,7 @@ use DigiForge\PortalAccess\{Policy,Store,Owner,Session,Invitations};
 require_once __DIR__.'/fixtures/PortalAccessFixture.php';
 final class PortalAccessTest extends WP_UnitTestCase {
  protected function setUp():void{parent::setUp();PortalAccessFixture::reset();}
+ protected function tearDown():void{global $wpdb;$wpdb->query('COMMIT');PortalAccessFixture::reset();$wpdb->query('COMMIT');$wpdb->query('START TRANSACTION');parent::tearDown();}
  private function ready():void{self::assertTrue(class_exists(Policy::class),'Portal access policy is not implemented');}
  public function testRoleCeilingsRejectUnknownModulesAndPrimaryOwnerAssignments():void{$this->ready();self::assertWPError(Policy::permissions('Primary Owner',['research']));self::assertWPError(Policy::permissions('Operator',['settings']));self::assertWPError(Policy::permissions('Viewer',['bogus']));self::assertContains('manage_digiforge_research',Policy::permissions('Viewer',['research']));}
  public function testEmailAndWordPressAdministratorAreNotOwnerAuthority():void{$this->ready();PortalAccessFixture::owner();self::assertWPError(Owner::require('personalized_pod'));}
