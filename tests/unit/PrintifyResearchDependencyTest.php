@@ -17,7 +17,8 @@ final class PrintifyResearchDependencyTest extends TestCase
         self::assertContains('scopedRead',$r['DigiForge\\POD\\PrintifyCatalogClient']);
         self::assertContains('verified',$r['DigiForge\\POD\\ScopedProviderConnection']);
         self::assertContains('approved',$r['DigiForge\\Security\\ReviewedLocalEvidence']);
-        self::assertContains('records',$r['DigiForge\\Security\\FirstPartyOwnerPolicy']);
+        self::assertContains('records',$r['DigiForge\\Security\\ShopAccessAuthority']);
+        self::assertArrayNotHasKey('DigiForge\\Security\\FirstPartyOwnerPolicy',$r);
     }
     /**
      * @runInSeparateProcess
@@ -36,6 +37,6 @@ final class PrintifyResearchDependencyTest extends TestCase
     {
         $routes=PrintifyResearchDependencies::routes();self::assertCount(6,$routes);
         foreach($routes as $route){self::assertStringStartsWith('/digiforge/v1/shops/personalized_pod/printify-research',$route['route']);self::assertContains($route['method'],['GET','POST']);}
-        self::assertCount(4,PrintifyResearchDependencies::actions());
+        self::assertCount(5,PrintifyResearchDependencies::actions());
     }
 }

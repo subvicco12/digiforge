@@ -29,6 +29,7 @@ final class ProductIntelligencePanel
     {
         (new \DigiForge\REST\PrintifyResearchController())->register();
         (new PrintifyResearchControls())->register();
+        (new Shop2ProductWorkflowPanel())->register();
         add_action('admin_post_digiforge_pod_intelligence_import',[$this,'import']);
         add_action('admin_post_digiforge_pod_intelligence_export',[$this,'export']);
     }
@@ -50,6 +51,7 @@ final class ProductIntelligencePanel
     public function export(): void
     {
         if (!self::canRead())wp_die('Forbidden', '', ['response'=>403]);
+        if (($_SERVER['REQUEST_METHOD']??'')!=='GET')wp_die('GET required.', '', ['response'=>405]);
         check_admin_referer('digiforge_pod_intelligence_export');
         if (($_GET['shop_key']??'')!=='personalized_pod')wp_die('Shop 2 scope required.', '', ['response'=>400]);
         $id=sanitize_text_field(wp_unslash((string)($_GET['snapshot']??'')));$section=sanitize_key((string)($_GET['section']??''));
@@ -57,6 +59,11 @@ final class ProductIntelligencePanel
         if (is_wp_error($packet)||!in_array($section,ProductIntelligence::SECTIONS,true)||!isset($packet['sections'][$section]))wp_die('Research export unavailable.', '', ['response'=>503]);
         $format=$_GET['format']??'csv';
         if($format==='json'){nocache_headers();header('Content-Type: application/json; charset=utf-8');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-research-'.substr($id,0,12).'.json"');echo json_encode($packet,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);exit;}
+        if($format==='xlsx'){
+            try{$bytes=\DigiForge\POD\ProductIntelligenceXlsx::export(ProductIntelligence::exportRows($packet,$section,$id));}
+            catch(\InvalidArgumentException){wp_die('Section cannot be exported safely as XLSX.', '', ['response'=>400]);}
+            nocache_headers();header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-'.$section.'-'.substr($id,0,12).'.xlsx"');echo $bytes;exit;
+        }
         if($format!=='csv')wp_die('Unsupported export format.', '', ['response'=>400]);
         nocache_headers();header('Content-Type: text/csv; charset=utf-8');header('X-Content-Type-Options: nosniff');
         header('Content-Disposition: attachment; filename="shop2-'.$section.'-'.substr($id,0,12).'.csv"');
@@ -82,6 +89,7 @@ final class ProductIntelligencePanel
             else foreach($batch['items'] as $item)echo '<p>Blueprint '.esc_html((string)$item['blueprint_id']).' · '.esc_html($item['state']).'</p>';
             echo '</details>';
         }
+        (new Shop2ProductWorkflowPanel())->render($baseUrl);
         $repo=new ProductIntelligenceRepository();$recent=$repo->recent();
         if(is_wp_error($recent)){echo '<div class="df-notice df-notice-error">'.esc_html($recent->get_error_message()).'</div></section>';return;}
         $id=isset($_GET['df_pi_snapshot'])?sanitize_text_field(wp_unslash((string)$_GET['df_pi_snapshot'])):($recent['items'][0]['snapshot_id']??'');
@@ -103,8 +111,11 @@ final class ProductIntelligencePanel
             echo '<p>Section source: '.esc_html($packet['sections'][$section]['source_id']).' · Worksheet/report: '.esc_html($packet['sections'][$section]['sheet']).'</p></details>';
             $url=wp_nonce_url(add_query_arg(['action'=>'digiforge_pod_intelligence_export','shop_key'=>'personalized_pod','snapshot'=>$id,'section'=>$section],admin_url('admin-post.php')),'digiforge_pod_intelligence_export');
             $jsonUrl=add_query_arg('format','json',$url);
+            $xlsxUrl=add_query_arg('format','xlsx',$url);
             (new PrintifyResearchControls())->render($id,$pipeline);
-            echo '<p><a class="df-button" href="'.esc_url($url).'">Export section CSV</a> <a class="df-button" href="'.esc_url($jsonUrl).'">Export research JSON</a> · XLSX export available with the offline converter.</p><p>'.esc_html((string)$page['total']).' matching rows · Page '.(int)$page['page'].' / '.(int)$page['pages'].'</p><div class="df-pi-cards">';
+            echo '<p><a class="df-button" href="'.esc_url($url).'">Export section CSV</a> <a class="df-button" href="'.esc_url($xlsxUrl).'">Export section XLSX</a> <a class="df-button" href="'.esc_url($jsonUrl).'">Export research JSON</a></p>';
+            (new PrintifySupplierWorkflowPanel())->render($packet,$id,$baseUrl);
+            echo '<p>'.esc_html((string)$page['total']).' matching rows · Page '.(int)$page['page'].' / '.(int)$page['pages'].'</p><div class="df-pi-cards">';
             foreach($page['rows'] as $row){echo '<article class="df-pi-card"><dl>';foreach($row as $key=>$value)echo '<div><dt>'.esc_html($key).'</dt><dd>'.($value===null?'<span class="df-muted">UNKNOWN / MISSING</span>':esc_html($value)).'</dd></div>';echo '</dl></article>';}
             echo '</div><nav aria-label="Research evidence pages" class="df-actions">';
             foreach(['Previous'=>-1,'Next'=>1] as $label=>$offset){$n=$page['page']+$offset;if($n<1||$n>$page['pages'])continue;$link=add_query_arg(['df_view'=>'pod_personalized','df_shop'=>'personalized_pod','df_pi_snapshot'=>$id,'df_pi_section'=>$section,'df_pi_query'=>$query,'df_pi_page'=>$n],$baseUrl);echo '<a class="df-button" href="'.esc_url($link).'#df-product-intelligence">'.esc_html($label).'</a>';}

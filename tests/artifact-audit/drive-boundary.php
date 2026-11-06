@@ -12,4 +12,4 @@ foreach(['Cookie'=>'session=x','Authorization'=>"Bearer value\r\nInjected: true"
 $gate=new class implements \DigiForge\DigitalFactory\DriveGoogleGate {public function now():int{return 0;}public function owns(array $b):bool{return false;}public function allows(array $b):bool{return false;}};
 try{(new Http($gate))->exchange([],$url,$args);check(false);}catch(RuntimeException $e){check($e->getMessage()==='Google dispatch blocked.');}
 check($calls===0);
-echo json_encode(['artifact_sha256'=>'aba29f64dd0a874635098492c4073012d219a404c676e2b237a346c6495b43e1','checks'=>$checks,'failed'=>0,'transport_calls'=>$calls,'scope'=>'Offline pure transport validation and denied gate; not approved production runtime authority'])."\n";
+echo json_encode(['artifact_sha256'=>(getenv('EXACT_ARTIFACT_SHA256')?:'aba29f64dd0a874635098492c4073012d219a404c676e2b237a346c6495b43e1'),'checks'=>$checks,'failed'=>0,'transport_calls'=>$calls,'scope'=>'Offline pure transport validation and denied gate; not approved production runtime authority'])."\n";

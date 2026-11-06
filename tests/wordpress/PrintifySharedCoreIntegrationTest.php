@@ -5,12 +5,12 @@ require_once __DIR__.'/fixtures/PrintifyResearchAccessFixture.php';
 final class PrintifySharedCoreIntegrationTest extends WP_UnitTestCase
 {
     public function setUp(): void {parent::setUp();PrintifyResearchAccessFixture::reset();(new \DigiForge\Portal\ProductIntelligencePanel())->register();}
-    public function testPanelRegistersCatalogAndResearchRoutesWithoutCumulativeGuards(): void
+    public function testPanelRegistersCatalogAndResearchRoutesWithRestoredInstalledSecurityGuard(): void
     {
         do_action('rest_api_init');$routes=rest_get_server()->get_routes();
         self::assertArrayHasKey('/digiforge/v1/printify/catalog-read/grants',$routes);
         self::assertArrayHasKey('/digiforge/v1/shops/personalized_pod/printify-research/readiness',$routes);
-        self::assertFalse(class_exists(\DigiForge\Security\ShopAccessRestGuard::class));
+        self::assertTrue(class_exists(\DigiForge\Security\ShopAccessRestGuard::class));
         $report=\DigiForge\POD\PrintifyResearchDependencies::inspect();
         self::assertTrue($report['integration_ready']);self::assertTrue($report['size_guide_grant_scope_supported']);self::assertFalse($report['external_execution_authorized']);
     }

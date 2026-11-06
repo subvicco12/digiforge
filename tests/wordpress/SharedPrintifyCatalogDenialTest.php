@@ -28,8 +28,10 @@ final class SharedPrintifyCatalogDenialTest extends WP_UnitTestCase
         wp_set_current_user(0);
         $controller=new \DigiForge\REST\PrintifyCatalogReadController();
         self::assertWPError($controller->canRead(new WP_REST_Request('GET','/')));
-        $result=\DigiForge\POD\PrintifyCatalogReadPolicy::authorizeReserved([],['kind'=>'size_guide','blueprint_id'=>5],'noncredential-test-value',false);
+        foreach([['kind'=>'size_guide','blueprint_id'=>5],['kind'=>'blueprints']] as $scope){
+        $result=\DigiForge\POD\PrintifyCatalogReadPolicy::authorizeReserved([],$scope,'noncredential-test-value',false);
         self::assertWPError($result);
         self::assertSame('catalog_read_reserved_scope',$result->get_error_code());
+        }
     }
 }
