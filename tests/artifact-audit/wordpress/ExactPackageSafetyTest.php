@@ -8,7 +8,7 @@ final class ExactPackageSafetyTest extends WP_UnitTestCase {
   self::assertFalse(\DigiForge\Core\Settings::get('automation_armed',false));
   self::assertTrue(\DigiForge\Core\Settings::safety_locked());
   foreach(['printify','etsy_publish','order_automation','gst_automation'] as $switch)self::assertFalse(\DigiForge\Core\Settings::is_enabled($switch));
-  self::assertSame('23',DIGIFORGE_DB_VERSION);self::assertSame('1.0.103.1',DIGIFORGE_VERSION);
+  self::assertSame('23',DIGIFORGE_DB_VERSION);self::assertSame(getenv('EXACT_PLUGIN_VERSION')?:'1.0.103.1',DIGIFORGE_VERSION);
  }
  public function testActualInstalledPortalMountPreservesSafetyOptionsAndNoEgress():void{
   $id=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($id);$caps=['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections'];foreach($caps as $cap)wp_get_current_user()->add_cap($cap);PrintifyResearchAccessFixture::assign($id,'personalized_pod',$caps);
