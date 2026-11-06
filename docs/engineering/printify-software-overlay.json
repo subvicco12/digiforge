@@ -1,0 +1,14 @@
+{
+  "includes/POD/PrintifyCatalogReadContract.php": {
+    "installed_sha256": "aee0b7dcc428f1f005db92b95842f84af5b86c6fc574c711f616d12927a50526",
+    "candidate_sha256": "783708d7a97f0e00ac1765ea33e186d4aaeca9b4b60d690a8962067546facd46"
+  },
+  "includes/POD/PrintifyResearchMapper.php": {
+    "installed_sha256": "1aeeb1fbfd92c3013f9cf5009c4e9e93eb78229bb222c2ec7695fb01345ebcb5",
+    "candidate_sha256": "c370f90cefbb298665ba45778b1f0ef5e5dfd34eb6f015520bdef8db79f32d66"
+  },
+  "includes/Portal/ProductIntelligencePanel.php": {
+    "installed_sha256": "6a76513aff52c9fa070f8fbf6e97b4e31a217518e336af1fa7b4c1f765ddf4e3",
+    "candidate_sha256": "09b450ece23d2a55bae0bb0236720cb89affee96672b00f8de738e2bb244aefd"
+  }
+}

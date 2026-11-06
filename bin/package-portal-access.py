@@ -9,7 +9,9 @@ import zipfile
 
 BASE_DIGEST = '800a29e7bca92bcf76804747d4a23f15329b38606649d570df25e1f109fe7677'
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-RUNTIME = ['includes/PortalAccess/' + n + '.php' for n in ['Authentication', 'Feature', 'Guard', 'Invitations', 'Limiter', 'Owner', 'Panel', 'Policy', 'Session', 'Store', 'RestPolicy', 'RestRoutes']] + ['assets/portal-access.css', 'assets/portal-access.js']
+RUNTIME = ['includes/PortalAccess/' + n + '.php' for n in ['Authentication', 'Feature', 'Guard', 'Invitations', 'Limiter', 'Owner', 'Panel', 'Policy', 'Session', 'Store', 'RestPolicy', 'RestRoutes', 'OwnerReadiness']] + ['assets/portal-access.css', 'assets/portal-access.js']
+RUNTIME += ['includes/POD/ProductIntelligenceXlsx.php', 'includes/POD/PrintifySupplierWorkflow.php', 'includes/Portal/PrintifySupplierWorkflowPanel.php']
+API_OVERLAY = ['includes/POD/PrintifyCatalogReadContract.php', 'includes/POD/PrintifyResearchMapper.php', 'includes/Portal/ProductIntelligencePanel.php']
 PRESERVED_SECURITY = ['includes/Security/ShopAccessAuthority.php', 'includes/Security/ShopAccessRestGuard.php', 'includes/Security/ShopAccessTargetScope.php', 'includes/Portal/ProductEvidenceScope.php', 'includes/Listings/EtsyStoredShopScope.php']
 MODIFIED = ['digiforge.php', 'includes/Security/ShopAccess.php', 'includes/Security/ShopAccessAdminGuard.php']
 
@@ -38,7 +40,7 @@ def main():
                 raise ValueError('Duplicate base member')
             original[rel] = z.read(i)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    for rel in RUNTIME + MODIFIED + PRESERVED_SECURITY + ['bin/package-portal-access.py']:
+    for rel in RUNTIME + MODIFIED + API_OVERLAY + PRESERVED_SECURITY + ['bin/package-portal-access.py', 'docs/engineering/printify-software-overlay.json']:
         if subprocess.check_output(['git', 'show', head + ':' + rel], cwd=ROOT) != (ROOT / rel).read_bytes():
             raise ValueError('Uncommitted overlay or builder: ' + rel)
     for rel in PRESERVED_SECURITY:
@@ -55,7 +57,7 @@ def main():
     expected_guard = original[MODIFIED[2]].replace(admission, admission + addition)
     if expected_guard != (ROOT / MODIFIED[2]).read_bytes():
         raise ValueError('Shared admin guard has an unreviewed delta')
-    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.4') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
+    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.5') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
     if expected_header != (ROOT / 'digiforge.php').read_bytes():
         raise ValueError('Plugin bootstrap has an unreviewed delta')
     # Native ACL source was previously byte-identical to this installed-lineage file.
@@ -64,8 +66,16 @@ def main():
         raise ValueError('Native ACL baseline identity changed')
     for rel in MODIFIED:
         payload[rel] = (ROOT / rel).read_bytes()
+    overlay = json.loads((ROOT / 'docs/engineering/printify-software-overlay.json').read_text())
+    if set(overlay) != set(API_OVERLAY):
+        raise ValueError('Exact API overlay inventory required')
+    for rel in API_OVERLAY:
+        raw = (ROOT / rel).read_bytes()
+        if sha(original[rel]) != overlay[rel]['installed_sha256'] or sha(raw) != overlay[rel]['candidate_sha256']:
+            raise ValueError('API overlay preimage or reviewed candidate mismatch: ' + rel)
+        payload[rel] = raw
     args.output.mkdir(parents=True, exist_ok=True)
-    target = args.output / 'digiforge-1.0.103.4-portal-access-update.zip'
+    target = args.output / 'digiforge-1.0.103.5-consolidated-update.zip'
     records = []
     with zipfile.ZipFile(target, 'w') as archive:
         for rel, raw in sorted(payload.items()):
@@ -75,15 +85,15 @@ def main():
             i.external_attr = (stat.S_IFREG | 0o644) << 16
             i.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(i, raw, compresslevel=9)
-            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
+            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
     counts = {a: sum(r['action'] == a for r in records) for a in ['RETAIN_IDENTICAL', 'MODIFY_REVIEWED', 'ADD']}
-    if counts != {'RETAIN_IDENTICAL': 689, 'MODIFY_REVIEWED': 3, 'ADD': 14} or len(records) != 706 or not original.keys() <= payload.keys():
+    if counts != {'RETAIN_IDENTICAL': 686, 'MODIFY_REVIEWED': 6, 'ADD': 18} or len(records) != 710 or not original.keys() <= payload.keys():
         raise ValueError('Preservation contract violated')
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
         for r in records:
             assert sha(z.read(r['path'])) == r['sha256']
-    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.4', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
+    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.5', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
     (args.output / 'preservation-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (args.output / (target.name + '.sha256')).write_text(manifest['sha256'] + '  ' + target.name + '\n')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'files'}, indent=2))

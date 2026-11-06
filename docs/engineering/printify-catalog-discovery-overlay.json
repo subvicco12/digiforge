@@ -1,0 +1,26 @@
+{
+  "path": "includes/POD/PrintifyCatalogReadContract.php",
+  "authorization": "OWNER_AUTHORIZED_OFFLINE_CATALOG_DISCOVERY_EXTENSION",
+  "baseline_sha256": "1440f008f6a3048661c184f4dffd144e5e5bc2aeb74f32b2e1cafdd72742da7d",
+  "overlay_sha256": "783708d7a97f0e00ac1765ea33e186d4aaeca9b4b60d690a8962067546facd46",
+  "max_requests_per_grant": 10,
+  "only_new_scope": {
+    "kind": "blueprints"
+  },
+  "only_new_endpoint": "GET /v1/catalog/blueprints.json",
+  "grants_issued": false,
+  "hunks": [
+    {
+      "baseline_text": "$keys=match($kind){'blueprint'",
+      "reviewed_text": "$keys=match($kind){'blueprints'=>['kind'],'blueprint'"
+    },
+    {
+      "baseline_text": "  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];",
+      "reviewed_text": "  if($kind==='blueprints')return '/v1/catalog/blueprints.json';\n  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];"
+    },
+    {
+      "baseline_text": "  if($r['kind']==='providers'){self::records($data);return $data;}",
+      "reviewed_text": "  if(in_array($r['kind'],['blueprints','providers'],true)){self::records($data);return $data;}"
+    }
+  ]
+}

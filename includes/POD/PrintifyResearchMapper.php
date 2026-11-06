@@ -8,9 +8,10 @@ final class PrintifyResearchMapper
     public static function endpoint(array $request): string
     {
         $kind=$request['kind']??'';
-        $keys=match($kind){'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants','shipping'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET evidence.')};
+        $keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants','shipping'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET evidence.')};
         if(count($request)!==count($keys)||array_diff(array_keys($request),$keys))throw new \InvalidArgumentException('Exact catalog request fields required.');
         foreach($request as $key=>$value)if(!in_array($key,['kind','method'],true)&&(!is_int($value)||$value<1||$value>2147483647))throw new \InvalidArgumentException('Positive bounded identifiers required.');
+        if($kind==='blueprints')return '/v1/catalog/blueprints.json';
         $base='/v1/catalog/blueprints/'.$request['blueprint_id'];
         return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','variants','variant'=>$base.'/print_providers/'.$request['provider_id'].'/variants.json','shipping'=>'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping.json','shipping_method'=>in_array($request['method'],['standard','priority','express','economy'],true)?'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping/'.$request['method'].'.json':throw new \InvalidArgumentException('Unsupported shipping method.')};
     }
@@ -22,10 +23,13 @@ final class PrintifyResearchMapper
         foreach(['sha256','grant_sha256','request_sha256','response_sha256'] as $key)if(!is_string($receipt[$key]??null)||!preg_match('/^[a-f0-9]{64}$/D',$receipt[$key]))throw new \InvalidArgumentException('Receipt provenance hashes required.');
         if(!is_int($receipt['integration_id']??null)||$receipt['integration_id']<1||!is_string($receipt['environment']??null)||!is_string($receipt['observed_at']??null)||strtotime($receipt['observed_at'])===false)throw new \InvalidArgumentException('Observation identity required.');
         self::safe($receipt['data']);
-        $meta=['Blueprint ID'=>(string)$r['blueprint_id'],'Provider ID'=>isset($r['provider_id'])?(string)$r['provider_id']:null,'_source_id'=>'printify:'.$receipt['sha256'],'_receipt_sha256'=>$receipt['sha256'],'_grant_sha256'=>$receipt['grant_sha256'],'_request_sha256'=>$receipt['request_sha256'],'_response_sha256'=>$receipt['response_sha256'],'_endpoint'=>$receipt['endpoint_path'],'_observed_at'=>$receipt['observed_at'],'_integration_id'=>(string)$receipt['integration_id'],'_environment'=>$receipt['environment'],'_approval_status'=>'UNREVIEWED','_source_sheet'=>'Printify catalog API','Freshness'=>'DATED_OBSERVATION_REVALIDATE_BEFORE_USE'];
+        $meta=['Blueprint ID'=>isset($r['blueprint_id'])?(string)$r['blueprint_id']:null,'Provider ID'=>isset($r['provider_id'])?(string)$r['provider_id']:null,'_source_id'=>'printify:'.$receipt['sha256'],'_receipt_sha256'=>$receipt['sha256'],'_grant_sha256'=>$receipt['grant_sha256'],'_request_sha256'=>$receipt['request_sha256'],'_response_sha256'=>$receipt['response_sha256'],'_endpoint'=>$receipt['endpoint_path'],'_observed_at'=>$receipt['observed_at'],'_integration_id'=>(string)$receipt['integration_id'],'_environment'=>$receipt['environment'],'_approval_status'=>'UNREVIEWED','_source_sheet'=>'Printify catalog API','Freshness'=>'DATED_OBSERVATION_REVALIDATE_BEFORE_USE'];
         $out=array_fill_keys(['blueprints','providers','variants','print_areas','size_guides','shipping','gaps'],[]);$data=$receipt['data'];
         $gap=static function(string $code,string $detail)use(&$out,$meta):void{$out['gaps'][]=$meta+['Gap'=>$code,'Evidence'=>$detail,'Status'=>'OPEN'];};
         switch($r['kind']){
+            case 'blueprints':
+                self::records($data);foreach($data as $blueprint)$out['blueprints'][]=array_replace($meta,['Blueprint ID'=>(string)$blueprint['id'],'Title'=>self::cell($blueprint['title']??null),'Brand'=>self::cell($blueprint['brand']??null),'Model'=>self::cell($blueprint['model']??null)]);
+                if($data===[])$gap('CATALOG_INDEX_EMPTY','No blueprint records were returned for this observation.');break;
             case 'blueprint':
                 if(($data['id']??null)!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');
                 $out['blueprints'][]=$meta+['Title'=>self::cell($data['title']??null),'Brand'=>self::cell($data['brand']??null),'Model'=>self::cell($data['model']??null)];

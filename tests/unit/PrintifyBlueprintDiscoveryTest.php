@@ -1,0 +1,12 @@
+<?php
+namespace DigiForge\Tests;
+use PHPUnit\Framework\TestCase;
+use DigiForge\POD\{PrintifyCatalogReadContract,PrintifyResearchMapper};
+require_once __DIR__.'/../../includes/POD/PrintifyCatalogReadContract.php';
+require_once __DIR__.'/../../includes/POD/PrintifyResearchMapper.php';
+final class PrintifyBlueprintDiscoveryTest extends TestCase {
+ public function testCatalogIndexHasAnExactExplicitGetScope():void{self::assertSame('/v1/catalog/blueprints.json',PrintifyCatalogReadContract::endpoint(['kind'=>'blueprints']));self::assertSame('/v1/catalog/blueprints.json',PrintifyResearchMapper::endpoint(['kind'=>'blueprints']));}
+ public function testCatalogIndexPreservesActualBlueprintIdentities():void{$data=[['id'=>5,'title'=>'Mug','brand'=>null],['id'=>7,'title'=>'Poster']];self::assertSame($data,PrintifyCatalogReadContract::select($data,['kind'=>'blueprints']));$r=['request'=>['kind'=>'blueprints'],'endpoint_path'=>'/v1/catalog/blueprints.json','observed_at'=>'2026-11-06T00:00:00Z','response_sha256'=>str_repeat('a',64),'sha256'=>str_repeat('b',64),'grant_sha256'=>str_repeat('c',64),'request_sha256'=>str_repeat('d',64),'integration_id'=>7,'environment'=>'test','scope'=>['product_program'=>'PERSONALIZED_POD'],'data'=>$data];$mapped=PrintifyResearchMapper::map($r);self::assertSame('5',$mapped['blueprints'][0]['Blueprint ID']);self::assertSame('7',$mapped['blueprints'][1]['Blueprint ID']);self::assertNull($mapped['blueprints'][0]['Brand']);}
+ public function testCatalogIndexCannotBecomeAnArbitraryUrlOrUnboundedGrant():void{foreach([['kind'=>'blueprints','url'=>'https://evil.test'],['kind'=>'blueprints','blueprint_id'=>1],['kind'=>'shops'],['kind'=>'products']] as $r){try{PrintifyCatalogReadContract::endpoint($r);self::fail('Unsupported scope accepted');}catch(\InvalidArgumentException){self::assertTrue(true);}}$g=['capability'=>'printify.catalog.read','integration_id'=>1,'account_id'=>2,'business_id'=>'digicraftifygoods','store_id'=>'shop2','product_program'=>'PERSONALIZED_POD','expires_at'=>gmdate('Y-m-d\TH:i:s\Z',time()+600),'max_requests'=>10,'requests'=>[['kind'=>'blueprints']]];self::assertSame(10,PrintifyCatalogReadContract::normalize($g,time())['max_requests']);$g['max_requests']=11;$this->expectException(\InvalidArgumentException::class);PrintifyCatalogReadContract::normalize($g,time());}
+ public function testAmbiguousBlueprintIndexIsRejected():void{$this->expectException(\InvalidArgumentException::class);PrintifyCatalogReadContract::select([['id'=>1],['id'=>1]],['kind'=>'blueprints']);}
+}
