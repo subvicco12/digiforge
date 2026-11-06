@@ -21,6 +21,9 @@ final class OwnerBootstrap {
   // never an automatic retry or an alternate authority mechanism.
   global $wpdb;if($wpdb->insert($wpdb->options,['option_name'=>self::KEY,'option_value'=>wp_json_encode(['actor_id'=>1,'claimed_at'=>time(),'request_id'=>$request,'authority_hash'=>$authority['hash']]),'autoload'=>'no'])!==1)return Policy::error('owner_bootstrap_consumed');
   if(!\DigiForge\Security\Logger::write('portal_owner_bootstrap_claimed',['actor_id'=>1,'authority_hash'=>$authority['hash'],'request_id'=>$request],'portal_auth','1'))return Policy::error('owner_bootstrap_audit',503);
+  // Persist deny-by-default before native grants: interrupted activation must
+  // never fall back to an unmanaged legacy profile with a newly created grant.
+  $pending=Store::save(['actor_id'=>1,'role'=>'Primary Owner','enabled'=>false,'revision'=>1,'generation'=>1,'shops'=>['personalized_pod'=>$caps],'authority_hashes'=>['personalized_pod'=>$authority['hash']]],0,hash('sha256',$request.':pending'));if(is_wp_error($pending))return $pending;
   return Owner::enroll('personalized_pod',$role,$caps,min(time()+3600,$authority['record']['expires_at']),$authority['record']['source_approval_hash'],$state['revision'],$request);
  }
  public static function render():string {

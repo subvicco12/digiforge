@@ -53,4 +53,13 @@ final class PortalEmailAuthenticationTest extends WP_UnitTestCase {
   $id=PortalAccessFixture::owner();$old=wp_get_session_token();self::assertStringContainsString('name="email"',Authentication::render());$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));self::assertTrue(EmailAuthentication::recent($id));self::assertNotSame($old,wp_get_session_token());self::assertFalse(WP_Session_Tokens::get_instance($id)->verify($old));
  }
 
+ public function testInterruptedOwnerActivationLeavesADisabledAuditedProfile():void {
+  if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE',home_url('/'));
+  if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256',hash('sha256',str_repeat('a',64)));
+  $existing=get_user_by('email',Owner::EMAIL);if($existing&&$existing->ID!==1)wp_update_user(['ID'=>$existing->ID,'user_email'=>'old-interrupt-owner@example.invalid']);wp_update_user(['ID'=>1,'user_email'=>Owner::EMAIL]);$u=get_userdata(1);$u->set_role('administrator');foreach(\DigiForge\Core\Capabilities::ALL as $c)$u->add_cap($c);PortalAccessFixture::sign(1);wp_set_current_user(0);$_COOKIE=[];$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));
+  global $wpdb;$prior=$wpdb->suppress_errors(true);$deny=static function($sql){return (str_starts_with($sql,'UPDATE')||str_starts_with($sql,'INSERT'))&&str_contains($sql,'digiforge_portal_profile_1')&&str_contains($sql,'true')? 'UPDATE nonexistent_owner_activation_fixture SET value=1':$sql;};add_filter('query',$deny);
+  try{$result=OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4());}finally{remove_filter('query',$deny);$wpdb->suppress_errors($prior);}
+  self::assertWPError($result);$profile=Store::read(1);self::assertIsArray($profile);self::assertFalse($profile['enabled']);self::assertWPError(Owner::require('personalized_pod'));self::assertWPError(\DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_settings',1));self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));
+ }
+
 }
