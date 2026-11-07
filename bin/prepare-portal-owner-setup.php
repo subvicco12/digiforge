@@ -2,6 +2,13 @@
 declare(strict_types=1);
 /** Trusted offline operator only; never bootstraps WordPress or provisions production. */
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
+// P0 SAFETY HOLD (2026-11-07): this helper emits Shop 2-only OWNER authority.
+// Global Primary Owner enrollment is required instead. Do not generate keys,
+// enrollment codes or authority files until the signed global-owner model,
+// its verification and regression tests have been independently accepted.
+// This guard intentionally precedes getopt(), mkdir() and key generation.
+fwrite(STDERR, "DigiForge owner setup BLOCKED: obsolete Shop 2-only authority helper. Global-owner implementation and audit required.\\n");
+exit(78);
 $args=getopt('',['output:','approval:','expires:','site:']);
 $site=is_string($args['site']??null)?parse_url($args['site']):false;
 if(!is_array($site)||($site['scheme']??null)!=='https'||empty($site['host'])||isset($site['user'])||isset($site['pass'])||isset($site['query'])||isset($site['fragment'])||!str_ends_with($args['site'],'/')||!is_string($args['output']??null)||!str_starts_with($args['output'],'/')||file_exists($args['output'])||!is_string($args['approval']??null)||preg_match('/^[a-f0-9]{64}$/D',$args['approval'])!==1||!is_string($args['expires']??null)||!ctype_digit($args['expires'])||(int)$args['expires']<=time()||(int)$args['expires']>time()+86400*30||!function_exists('sodium_crypto_sign_keypair')){fwrite(STDERR,"Use --site=https://your-site/ --output=/new/private/directory --approval=64_lowercase_hex --expires=UTC_epoch_within_30_days. Existing paths are refused.\n");exit(1);}
