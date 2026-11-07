@@ -71,9 +71,9 @@ final class ShopAccessRepository
     {
         return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>$subject,'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt],null),$shop,'GRANT');
     }
-    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision): array|\WP_Error
+    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision,?string $globalClaimHash=null): array|\WP_Error
     {
-        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval],null),$shop,'OWNER_ENROLL');
+        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval,'global_claim_hash'=>$globalClaimHash],null),$shop,'OWNER_ENROLL');
     }
     public function revoke(string $shop,string $grantId,string $requestId,int $expectedRevision): array|\WP_Error
     {
@@ -94,6 +94,12 @@ final class ShopAccessRepository
     {
         $actor=get_current_user_id();
         if($actor<1||!ShopAccessPolicy::validShop($shop)||!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$requestId)||$expectedRevision<0||!user_can($actor,'manage_digiforge_settings'))return self::error('permission');
+        // Explicit global authority may not enter through a legacy owner/delegate
+        // handler before the reviewed global workflow establishes its audited profile.
+        $authorities=ShopAccessAuthority::records();if($authorities instanceof \WP_Error)return $authorities;
+        foreach($authorities as $a){if($a['actor_id']===$actor&&$a['authority']==='OWNER'&&($a['owner_scope']??null)==='GLOBAL_PRIMARY_OWNER'){
+            if(!class_exists(\DigiForge\PortalAccess\OwnerBootstrap::class)||!\DigiForge\PortalAccess\OwnerBootstrap::nativeMutationAllowed($shop,$requestId,$input,$revoke))return self::error('global_workflow_required');break;
+        }}
         global $wpdb;$wpdb->last_error='';
         foreach([$wpdb->options,\DigiForge\Database\Tables::audit_log()] as $table){
             $engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));

@@ -74,7 +74,7 @@ final class RestPolicy {
  }
  private static function ownerAdmission(\WP_REST_Request $r,?array $profile):true|\WP_Error {
   if($profile===null)return true; // Native signed OWNER/DELEGATE callback remains mandatory.
-  if($profile['role']!=='Primary Owner')return Policy::error('owner');
+  if(!in_array($profile['role'],['Primary Owner',GlobalOwnerAuthority::ROLE],true))return Policy::error('owner');
   if($r->get_route()==='/digiforge/v1/shop-access/shops')return true; // allowedShops applies the overlay.
   $body=$r->get_method()==='GET'?$r->get_query_params():$r->get_json_params();
   if(!is_array($body)||strlen((string)$r->get_body())>16384)return Policy::error('owner_scope');

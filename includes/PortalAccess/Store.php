@@ -21,7 +21,8 @@ final class Store {
   return $decoded[count($decoded)-1]['state']===$state?$state:Policy::error('profile_evidence',503);
  }
  private static function shape(mixed $s,int $actor):bool {
-  if(!is_array($s)||($s['actor_id']??null)!==$actor||!in_array($s['role']??null,['Primary Owner','Admin','Operator','Viewer'],true)||!is_bool($s['enabled']??null)||!is_int($s['revision']??null)||$s['revision']<1||!is_int($s['generation']??null)||$s['generation']<1||!is_array($s['shops']??null)||count($s['shops'])>4)return false;
+  if(!is_array($s)||($s['actor_id']??null)!==$actor||!in_array($s['role']??null,['Primary Owner',GlobalOwnerAuthority::ROLE,'Admin','Operator','Viewer'],true)||!is_bool($s['enabled']??null)||!is_int($s['revision']??null)||$s['revision']<1||!is_int($s['generation']??null)||$s['generation']<1||!is_array($s['shops']??null)||count($s['shops'])>4)return false;
+  if($s['role']===GlobalOwnerAuthority::ROLE){if($actor!==1||array_keys($s['shops'])!==ShopAccessPolicy::canonicalShops()||!is_string($s['global_authority_hash']??null)||preg_match('/^[a-f0-9]{64}$/D',$s['global_authority_hash'])!==1||!is_array($s['global_grants']??null)||($s['enabled']&&array_keys($s['global_grants'])!==ShopAccessPolicy::canonicalShops()))return false;}
   foreach($s['shops'] as $shop=>$caps){if(!is_string($shop)||!ShopAccessPolicy::validShop($shop)||!is_array($caps)||!array_is_list($caps)||!$caps||count($caps)>32||count(array_unique($caps,SORT_REGULAR))!==count($caps))return false;foreach($caps as $c)if(!is_string($c)||!in_array($c,\DigiForge\Core\Capabilities::ALL,true))return false;}return true;
  }
  public static function hash(array $s):string{return hash('sha256',(string)wp_json_encode($s));}
@@ -41,10 +42,10 @@ final class Store {
    if($wpdb->insert($wpdb->options,['option_name'=>$key,'option_value'=>wp_json_encode($e),'autoload'=>'no'])!==1||$wpdb->insert($wpdb->options,['option_name'=>'digiforge_portal_request_'.hash('sha256',$actor.':'.$request),'option_value'=>(string)$next['revision'],'autoload'=>'no'])!==1||!Logger::write('portal_profile_changed',$e,'portal_access_profile',(string)$actor))return $fail(Policy::error('audit',503));
    $ok=$old===null?$wpdb->insert($wpdb->options,['option_name'=>self::key($actor),'option_value'=>wp_json_encode($next),'autoload'=>'no']):$wpdb->update($wpdb->options,['option_value'=>wp_json_encode($next)],['option_name'=>self::key($actor)]);
    if($ok!==1||($extra!==null&&$extra()!==true)||$wpdb->query('COMMIT')===false)return $fail(Policy::error('write',503));return $next;
-  }finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
+  }catch(\Throwable){return $fail(Policy::error('write_exception',503));}finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
  }
  public static function change(int $actor,string $role,array $shops,bool $enabled,int $revision,string $request):array|\WP_Error {
-  $old=self::read($actor);if(is_wp_error($old))return $old;if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||($old['role']??null)==='Primary Owner'||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
+  $old=self::read($actor);if(is_wp_error($old))return $old;if(!in_array($role,['Admin','Operator','Viewer'],true)||$actor<1||!get_userdata($actor)||in_array($old['role']??null,['Primary Owner',GlobalOwnerAuthority::ROLE],true)||($old['revision']??0)!==$revision||count($shops)>4)return Policy::error('target');$scopes=[];
   $ownerShops=array_values(array_unique(array_merge(array_keys($shops),array_keys($old['shops']??[]))));
   if($ownerShops===[])$ownerShops=$old['managed_shops']??[];if($ownerShops===[])return Policy::error('empty_scope');
   foreach($ownerShops as $shop){if(!is_string($shop)||Owner::require($shop)!==true)return Policy::error('owner');}
@@ -65,7 +66,10 @@ final class Store {
  public static function grantNative(int $actor,array $scopes):true|\WP_Error {
   $user=get_userdata($actor);if(!$user)return Policy::error('target');foreach($scopes as $shop=>$caps){if(Owner::require($shop)!==true)return Policy::error('owner');foreach($caps as $cap)if(!self::permits(get_current_user_id(),$shop,$cap))return Policy::error('owner_scope');$role=null;foreach($user->roles as $r){$wpRole=get_role($r);if($wpRole&&array_diff($caps,array_keys(array_filter($wpRole->capabilities)))===[]){$role=$r;break;}}if($role===null)return Policy::error('ordinary_role');$a=\DigiForge\Security\ShopAccessRepository::authorityFor(get_current_user_id(),$shop,$caps,time()+60);if(is_wp_error($a))return $a;$expiry=min(time()+3600,$a['record']['expires_at']);$repo=new ShopAccessRepository();$state=$repo->read($shop);if(is_wp_error($state))return $state;$r=$repo->grant($actor,$shop,$role,$caps,$expiry,wp_generate_uuid4(),$state['revision']);if(is_wp_error($r))return $r;}return true;
  }
- public static function permits(int $actor,string $shop,string $cap):bool {
-  $s=self::read($actor);if($s===null)return true;if(is_wp_error($s)||!$s['enabled']||!in_array($cap,$s['shops'][$shop]??[],true))return false;return $actor!==get_current_user_id()||Session::valid($s);
+ public static function permits(int $actor,string $shop,string $cap):bool{return self::permitsAll($actor,$shop,[$cap]);}
+ public static function permitsAll(int $actor,string $shop,array $caps):bool {
+  $s=self::read($actor);if($s===null)return true;if(is_wp_error($s)||!$s['enabled']||array_diff($caps,$s['shops'][$shop]??[])!==[])return false;
+  if($actor===get_current_user_id())return Session::valid($s);
+  return $s['role']!==GlobalOwnerAuthority::ROLE||GlobalOwnerAuthority::active($s);
  }
 }

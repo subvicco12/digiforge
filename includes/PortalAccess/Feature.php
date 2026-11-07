@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace DigiForge\PortalAccess;
 final class Feature {
- public const ACTIONS=['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_users','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll','digiforge_portal_owner_bootstrap'];
+ public const ACTIONS=['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_users','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll','digiforge_portal_owner_bootstrap','digiforge_portal_owner_recover','digiforge_portal_owner_renew'];
  private static bool $registered=false;
  public function register():void {
   if(self::$registered)return;self::$registered=true;add_action('template_redirect',[$this,'route'],-20);add_filter('pre_do_shortcode_tag',[$this,'before'],0,4);add_filter('do_shortcode_tag',[$this,'after'],100,4);
@@ -36,7 +36,8 @@ final class Feature {
   if(!in_array($action,self::ACTIONS,true)||!is_user_logged_in()||!is_string($p['_wpnonce']??null)||!wp_verify_nonce($p['_wpnonce'],$action)||strlen((string)wp_json_encode($p))>16384)return Policy::error('confirmation');
   if($action==='digiforge_portal_continue'){return Authentication::continueTo($p['return_to']??'');}
   if($action==='digiforge_portal_invitation_accept')return is_string($p['invite']??null)&&is_string($p['request_id']??null)?Invitations::accept($p['invite'],$p['request_id']):Policy::error('typed');
-  if($action==='digiforge_portal_owner_bootstrap')return ($p['confirm']??null)==='CONFIRM_DIGIFORGE_ONLY'&&($p['shop']??null)==='personalized_pod'&&is_string($p['code']??null)&&is_string($p['request_id']??null)?OwnerBootstrap::enroll($p['code'],$p['request_id']):Policy::error('confirmation');
+  if($action==='digiforge_portal_owner_renew')return ($p['confirm']??null)==='CONFIRM_DIGIFORGE_ONLY'&&($p['scope']??null)===GlobalOwnerAuthority::SCOPE&&is_string($p['request_id']??null)?OwnerBootstrap::renew($p['request_id']):Policy::error('confirmation');
+  if(in_array($action,['digiforge_portal_owner_bootstrap','digiforge_portal_owner_recover'],true))return ($p['confirm']??null)==='CONFIRM_DIGIFORGE_ONLY'&&($p['scope']??null)===GlobalOwnerAuthority::SCOPE&&is_string($p['code']??null)&&is_string($p['request_id']??null)?($action==='digiforge_portal_owner_recover'?OwnerBootstrap::recover($p['code'],$p['request_id']):OwnerBootstrap::enroll($p['code'],$p['request_id'])):Policy::error('confirmation');
   return Panel::process($action,$p);
  }
 }

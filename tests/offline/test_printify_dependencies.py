@@ -32,6 +32,17 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                     self.assertEqual(1,text.count(hunk['reviewed_text']))
                     text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
                 data=text.encode()
+            if row['path']=='includes/Security/ShopAccessRepository.php':
+                overlay=json.loads((ROOT/'docs/engineering/portal-access/global-owner-native-overlay.json').read_text())
+                self.assertEqual('OWNER_APPROVED_GLOBAL_PRIMARY_OWNER_REPAIR',overlay['authorization'])
+                self.assertFalse(overlay['signature_verifier_modified']);self.assertFalse(overlay['runtime_authority_provisioned'])
+                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
+                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
+                text=data.decode()
+                for hunk in overlay['hunks']:
+                    self.assertEqual(1,text.count(hunk['reviewed_text']))
+                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
+                data=text.encode()
             if row['path']=='includes/POD/PrintifyCatalogReadContract.php':
                 overlay=json.loads((ROOT/'docs/engineering/printify-catalog-discovery-overlay.json').read_text())
                 self.assertEqual(10,overlay['max_requests_per_grant'])

@@ -1,0 +1,23 @@
+{
+  "path": "includes/Security/ShopAccessRepository.php",
+  "authorization": "OWNER_APPROVED_GLOBAL_PRIMARY_OWNER_REPAIR",
+  "baseline_source_sha": "99d18f0c6fa9c07f4e8ba0681279a62f75364bd7",
+  "baseline_sha256": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
+  "overlay_sha256": "7cb655d6ad89422035a92437c2c2a6c56fdf3d8488348a59d20debdfa5efd6d3",
+  "signature_verifier_modified": false,
+  "runtime_authority_provisioned": false,
+  "hunks": [
+    {
+      "baseline_text": "    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision): array|\\WP_Error\n",
+      "reviewed_text": "    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision,?string $globalClaimHash=null): array|\\WP_Error\n"
+    },
+    {
+      "baseline_text": "        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval],null),$shop,'OWNER_ENROLL');\n",
+      "reviewed_text": "        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval,'global_claim_hash'=>$globalClaimHash],null),$shop,'OWNER_ENROLL');\n"
+    },
+    {
+      "baseline_text": "",
+      "reviewed_text": "        // Explicit global authority may not enter through a legacy owner/delegate\n        // handler before the reviewed global workflow establishes its audited profile.\n        $authorities=ShopAccessAuthority::records();if($authorities instanceof \\WP_Error)return $authorities;\n        foreach($authorities as $a){if($a['actor_id']===$actor&&$a['authority']==='OWNER'&&($a['owner_scope']??null)==='GLOBAL_PRIMARY_OWNER'){\n            if(!class_exists(\\DigiForge\\PortalAccess\\OwnerBootstrap::class)||!\\DigiForge\\PortalAccess\\OwnerBootstrap::nativeMutationAllowed($shop,$requestId,$input,$revoke))return self::error('global_workflow_required');break;\n        }}\n"
+    }
+  ]
+}

@@ -16,7 +16,7 @@ final class ShopAccess
             $proof=$repository->verifyGrantEvidence($id,$grant,$state['revision']);if($proof instanceof \WP_Error){$failure=$proof;break;}
             $authority=ShopAccessRepository::authorityFor($grant['grantor_id'],$shop,$grant['caps'],$grant['expires_at'],null,$grant['authority_hash']);
             if(!($authority instanceof \WP_Error)&&hash_equals($grant['authority_hash'],$authority['hash'])&&user_can($grant['grantor_id'],'manage_digiforge_settings')){
-                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap)||(class_exists(\DigiForge\PortalAccess\Store::class)&&!\DigiForge\PortalAccess\Store::permits($grant['grantor_id'],$shop,$assignedCap)))$valid=false;}if($valid)return true;
+                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if(class_exists(\DigiForge\PortalAccess\Store::class)&&!\DigiForge\PortalAccess\Store::permitsAll($grant['grantor_id'],$shop,$grant['caps']))$valid=false;if($valid)return true;
             }
         }}
         if(!Logger::write('shop_access_denied',['actor_id'=>$actor,'shop'=>$shop,'capability'=>$cap,'privileged_actor'=>$ordinary],'shop_access',$shop))return new \WP_Error('digiforge_shop_access_audit','Shop denial audit unavailable.',['status'=>503]);

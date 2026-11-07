@@ -3,7 +3,7 @@
   "authorization": "OWNER_APPROVED_ISSUE_1257_RESTRICTIVE_CONSUMER_OVERLAY",
   "baseline_source_sha": "6e521719d925c75f27aed5ccdd47048cc1e5a15d",
   "baseline_sha256": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
-  "overlay_sha256": "7a78497d461acf2b248612d9c91126aefe977f670039cea624c3d1aa448f1735",
+  "overlay_sha256": "8be00b0389317c9ac3881c9c581c1ced40a4e172b12bcef5df8100d3677bee85",
   "signature_verifier_modified": false,
   "new_authority_granted": false,
   "hunks": [
@@ -13,7 +13,8 @@
     },
     {
       "baseline_text": "                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if($valid)return true;\n",
-      "reviewed_text": "                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap)||(class_exists(\\DigiForge\\PortalAccess\\Store::class)&&!\\DigiForge\\PortalAccess\\Store::permits($grant['grantor_id'],$shop,$assignedCap)))$valid=false;}if($valid)return true;\n"
+      "reviewed_text": "                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if(class_exists(\\DigiForge\\PortalAccess\\Store::class)&&!\\DigiForge\\PortalAccess\\Store::permitsAll($grant['grantor_id'],$shop,$grant['caps']))$valid=false;if($valid)return true;\n"
     }
-  ]
+  ],
+  "global_owner_repair": "Owner-approved global Primary Owner repair: bulk restriction checks retain live revocation and per-capability native checks; no runtime authority provisioned."
 }

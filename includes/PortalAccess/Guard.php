@@ -15,15 +15,15 @@ final class Guard {
    $route=$request->get_route();$safe=preg_match('#^/digiforge/v1/(products|product-families|product-versions|opportunities)(/[1-9][0-9]*)?$#D',$route)===1||in_array($route,['/digiforge/v1/research/sources','/digiforge/v1/research/candidates','/digiforge/v1/research/observations'],true)||preg_match('#^/digiforge/v1/shops/personalized_pod/printify-research/(readiness|snapshots/[a-f0-9]{64})$#D',$route)===1;
    if($request->get_method()!=='GET'||!$safe)return Policy::error('viewer_read_only');
   }
-  if(str_starts_with($request->get_route(),'/digiforge/v1/shop-access/')&&$s['role']!=='Primary Owner')return Policy::error('owner');return $result;
+  if(str_starts_with($request->get_route(),'/digiforge/v1/shop-access/')&&!in_array($s['role'],['Primary Owner',GlobalOwnerAuthority::ROLE],true))return Policy::error('owner');return $result;
  }
  public function allowAction(string $action):bool {
   // These handlers only authenticate, verify a subject-bound invitation, or bootstrap
   // reviewed signed authority. They independently validate nonce and exact inputs.
-  if(in_array($action,['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll'],true))return true;
+  if(in_array($action,['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll','digiforge_portal_owner_bootstrap','digiforge_portal_owner_recover','digiforge_portal_owner_renew'],true))return true;
   $s=Store::read(get_current_user_id());if($s===null)return true;if(is_wp_error($s)||!Session::valid($s)||$s['role']==='Viewer')return false;
   if(str_starts_with($action,'digiforge_finance_')&&!self::has($s,'manage_digiforge_finance'))return false;
-  if(in_array($action,['digiforge_portal_users','digiforge_portal_access'],true)&&$s['role']!=='Primary Owner')return false;return true;
+  if(in_array($action,['digiforge_portal_users','digiforge_portal_access'],true)&&!in_array($s['role'],['Primary Owner',GlobalOwnerAuthority::ROLE],true))return false;return true;
  }
  public function action(string $hook):void{if(!str_starts_with($hook,'admin_post_digiforge_')&&!str_starts_with($hook,'admin_post_nopriv_digiforge_'))return;$a=substr($hook,str_starts_with($hook,'admin_post_nopriv_')?18:11);if(!$this->allowAction($a))$this->deny();}
  private static function has(array $s,string $cap):bool{foreach($s['shops'] as $caps)if(in_array($cap,$caps,true))return true;return false;}

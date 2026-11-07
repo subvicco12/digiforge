@@ -34,13 +34,13 @@ final class PortalEmailAuthenticationTest extends WP_UnitTestCase {
  public function testVerifiedEmailLogoutInvalidatesBothSessions():void {
   $id=self::factory()->user->create(['user_email'=>'logout-email@example.invalid']);$r=$this->request('logout-email@example.invalid');self::assertNotWPError($this->verify($r,$this->code()));$token=wp_get_session_token();self::assertTrue(EmailAuthentication::recent($id));wp_logout();self::assertSame(0,get_current_user_id());self::assertFalse(WP_Session_Tokens::get_instance($id)->verify($token));self::assertFalse(EmailAuthentication::recent($id));self::assertArrayNotHasKey(Session::name(),$_COOKIE);
  }
- public function testOneTimeEnrollmentRequiresFreshEmailAndUnmodifiedSignedAuthority():void {
+ public function testLegacyShopAuthorityCannotBecomeGlobalEvenWithEmailAndSetupCode():void {
   if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE',home_url('/'));
   if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256',hash('sha256',str_repeat('a',64)));
   $existing=get_user_by('email',Owner::EMAIL);if($existing&&$existing->ID!==1)wp_update_user(['ID'=>$existing->ID,'user_email'=>'prior-owner-fixture@example.invalid']);wp_update_user(['ID'=>1,'user_email'=>Owner::EMAIL]);$u=get_userdata(1);$u->set_role('administrator');foreach(\DigiForge\Core\Capabilities::ALL as $c)$u->add_cap($c);PortalAccessFixture::sign(1);PortalAccessFixture::login(1);
   self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));wp_set_current_user(0);$_COOKIE=[];$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));self::assertSame(1,get_current_user_id());
   self::assertWPError(OwnerBootstrap::enroll(str_repeat('b',64),wp_generate_uuid4()));PortalAccessFixture::sign(1,time()-1);self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));PortalAccessFixture::sign(1);$records=\DigiForge\Security\ShopAccessAuthority::records();$conflict=$records[0];$conflict['actor_id']=999;SyntheticShopAuthority::write([$records[0],$conflict]);self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));PortalAccessFixture::sign(1);
-  $r=OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4());self::assertNotWPError($r);self::assertSame('Primary Owner',$r['role']);self::assertTrue(Owner::require('personalized_pod'));self::assertWPError(Owner::require('digital'));self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));
+  $r=OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4());self::assertWPError($r);self::assertNull(Store::read(1));self::assertWPError(Owner::require('personalized_pod'));self::assertWPError(Owner::require('digital'));self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));
  }
 
  public function testCompetingTokenConsumptionCannotIssueASession():void {
@@ -54,9 +54,10 @@ final class PortalEmailAuthenticationTest extends WP_UnitTestCase {
  }
 
  public function testInterruptedOwnerActivationLeavesADisabledAuditedProfile():void {
+  if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SCOPE'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SCOPE','GLOBAL_PRIMARY_OWNER');
   if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE',home_url('/'));
   if(!defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256'))define('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256',hash('sha256',str_repeat('a',64)));
-  $existing=get_user_by('email',Owner::EMAIL);if($existing&&$existing->ID!==1)wp_update_user(['ID'=>$existing->ID,'user_email'=>'old-interrupt-owner@example.invalid']);wp_update_user(['ID'=>1,'user_email'=>Owner::EMAIL]);$u=get_userdata(1);$u->set_role('administrator');foreach(\DigiForge\Core\Capabilities::ALL as $c)$u->add_cap($c);PortalAccessFixture::sign(1);wp_set_current_user(0);$_COOKIE=[];$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));
+  $existing=get_user_by('email',Owner::EMAIL);if($existing&&$existing->ID!==1)wp_update_user(['ID'=>$existing->ID,'user_email'=>'old-interrupt-owner@example.invalid']);wp_update_user(['ID'=>1,'user_email'=>Owner::EMAIL]);$u=get_userdata(1);$u->set_role('administrator');foreach(\DigiForge\Core\Capabilities::ALL as $c)$u->add_cap($c);SyntheticShopAuthority::write(\DigiForge\PortalAccess\GlobalOwnerAuthority::draft(home_url('/'),time()+3600,hash('sha256','synthetic-global')));wp_set_current_user(0);$_COOKIE=[];$r=$this->request(Owner::EMAIL);self::assertNotWPError($this->verify($r,$this->code()));
   global $wpdb;$prior=$wpdb->suppress_errors(true);$deny=static function($sql){return (str_starts_with($sql,'UPDATE')||str_starts_with($sql,'INSERT'))&&str_contains($sql,'digiforge_portal_profile_1')&&str_contains(str_replace(chr(92),'',$sql),'"enabled":true')? 'UPDATE nonexistent_owner_activation_fixture SET value=1':$sql;};add_filter('query',$deny);
   try{$result=OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4());}finally{remove_filter('query',$deny);$wpdb->suppress_errors($prior);}
   self::assertWPError($result);$profile=Store::read(1);self::assertIsArray($profile);self::assertFalse($profile['enabled']);self::assertWPError(Owner::require('personalized_pod'));self::assertWPError(\DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_settings',1));self::assertWPError(OwnerBootstrap::enroll(str_repeat('a',64),wp_generate_uuid4()));

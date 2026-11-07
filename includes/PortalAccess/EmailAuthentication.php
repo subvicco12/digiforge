@@ -16,7 +16,7 @@ final class EmailAuthentication {
   if(!is_string($p['email']??null)||strlen($p['email'])>254||!is_email($p['email']))return self::error();$email=strtolower(trim($p['email']));
   if(!Limiter::reserve('email_send_ip:'.$ip,10)||!Limiter::reserve('email_send_account:'.$email,3)||!Limiter::reserve('email_send_global',100))return self::error(429);
   $selector=bin2hex(random_bytes(24));$result=['selector'=>$selector,'verification_required'=>true,'return_to'=>Authentication::safeReturn($p['return_to']??'')];$user=get_user_by('email',$email);if(!$user)return $result;
-  $profile=Store::read($user->ID);if(is_wp_error($profile)||(is_array($profile)&&!$profile['enabled']&&!self::invitationReturn($result['return_to'])))return $result;
+  $profile=Store::read($user->ID);if(is_wp_error($profile)||(is_array($profile)&&!$profile['enabled']&&!self::invitationReturn($result['return_to'])&&!Authentication::ownerSetupReturn($profile,$result['return_to'])))return $result;
   $code=str_pad((string)random_int(0,99999999),8,'0',STR_PAD_LEFT);$state=['actor'=>$user->ID,'identity'=>self::identity($user),'browser'=>self::browser(),'generation'=>$profile['generation']??0,'expires'=>time()+600,'attempts'=>0,'code'=>hash_hmac('sha256',$selector.':'.$code,wp_salt('auth')),'return_to'=>$result['return_to']];
   global $wpdb;$key=self::key($selector);if($wpdb->insert($wpdb->options,['option_name'=>$key,'option_value'=>wp_json_encode($state),'autoload'=>'no'])!==1)return self::error(503);
   // No code, email or selector goes into logs or URL query strings. A mail failure
@@ -38,7 +38,7 @@ final class EmailAuthentication {
   // readers cannot both verify one challenge or evade its five-attempt budget.
   $next=$s;$next['attempts']++;$encoded=(string)wp_json_encode($next);if($wpdb->update($wpdb->options,['option_value'=>$encoded],['option_name'=>$key,'option_value'=>$raw])!==1)return self::error();
   if(!is_string($s['code']??null)||!hash_equals($s['code'],hash_hmac('sha256',$p['selector'].':'.$p['code'],wp_salt('auth'))))return self::error();
-  $user=get_userdata($s['actor']);$profile=Store::read($s['actor']);if(!$user||!is_string($s['identity']??null)||!hash_equals($s['identity'],self::identity($user))||is_wp_error($profile)||(is_array($profile)&&!$profile['enabled']&&!self::invitationReturn($s['return_to']??''))||($s['generation']??null)!==($profile['generation']??0))return self::error();
+  $user=get_userdata($s['actor']);$profile=Store::read($s['actor']);if(!$user||!is_string($s['identity']??null)||!hash_equals($s['identity'],self::identity($user))||is_wp_error($profile)||(is_array($profile)&&!$profile['enabled']&&!self::invitationReturn($s['return_to']??'')&&!Authentication::ownerSetupReturn($profile,$s['return_to']??''))||($s['generation']??null)!==($profile['generation']??0))return self::error();
   $allowed=apply_filters('wp_authenticate_user',$user,'');if(is_wp_error($allowed)||!($allowed instanceof \WP_User)||$allowed->ID!==$user->ID||(is_multisite()&&is_user_spammy($user)))return self::error();
   // Consume before any session can exist, and fail closed on audit/storage error.
   if($wpdb->delete($wpdb->options,['option_name'=>$key,'option_value'=>$encoded])!==1||!\DigiForge\Security\Logger::write('portal_email_verified',['actor_id'=>$user->ID],'portal_auth',(string)$user->ID))return self::error(503);

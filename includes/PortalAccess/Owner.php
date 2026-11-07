@@ -10,7 +10,7 @@ final class Owner {
   $a=ShopAccessRepository::authorityFor($actor,$shop,['manage_digiforge_settings'],time()+1);return !is_wp_error($a)&&$a['record']['authority']==='OWNER'?$a:Policy::error('owner');
  }
  public static function forActor(int $actor,string $shop):true|\WP_Error {
-  $s=Store::read($actor);$a=self::signed($actor,$shop);if(is_wp_error($s)||$s===null||!$s['enabled']||$s['role']!=='Primary Owner'||is_wp_error($a)||($s['authority_hashes'][$shop]??null)!==$a['hash']||ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)!==true)return Policy::error('owner');return true;
+  $s=Store::read($actor);if(is_array($s)&&$s['role']===GlobalOwnerAuthority::ROLE)return GlobalOwnerAuthority::active($s)&&ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)===true?true:Policy::error('global_owner');$a=self::signed($actor,$shop);if(is_wp_error($s)||$s===null||!$s['enabled']||$s['role']!=='Primary Owner'||is_wp_error($a)||($s['authority_hashes'][$shop]??null)!==$a['hash']||ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)!==true)return Policy::error('owner');return true;
  }
  public static function require(string $shop):true|\WP_Error{return self::forActor(get_current_user_id(),$shop);}
  public static function enroll(string $shop,string $role,array $caps,int $expiry,string $approval,int $revision,string $request):array|\WP_Error {
