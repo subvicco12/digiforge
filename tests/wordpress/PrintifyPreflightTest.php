@@ -26,10 +26,13 @@ final class PrintifyPreflightTest extends WP_UnitTestCase
   self::assertTrue(is_wp_error($stale));self::assertSame('production_preflight_not_current',$stale->get_error_code());
  }
  public function testProductionPermitConsumptionIsOneTimeFingerprintBoundAndExpirySafe():void{
-  $now=current_time('timestamp',true);$fp=hash('sha256','provider-payload');$nonce='consume_nonce_12345678901234567890';
+  $fp=hash('sha256','provider-payload');$nonce='consume_nonce_12345678901234567890';
   $approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>hash('sha256','preflight')];
   global $wpdb;$seedNow=current_time('mysql',true);$packageId=$this->seedReadyPackage($seedNow,991,'61:62');$packageHash=(string)$wpdb->get_var($wpdb->prepare('SELECT package_hash FROM '.DigiForge\Database\Tables::pod_authorization_packages().' WHERE id=%d',$packageId));$permit=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),$nonce,300,$fp);self::assertFalse(is_wp_error($permit));$permit['package_id']=$packageId;$permit['package_hash']=$packageHash;
-  $consumer=new DigiForge\POD\ProductionExecutionPermitConsumer();$first=$consumer->consume($permit,$fp,get_current_user_id(),$now);
+  // Use the permit clock, not a timestamp captured before potentially slow SQL setup.
+  $now=(int)$permit['authorization']['issued_at'];$consumer=new DigiForge\POD\ProductionExecutionPermitConsumer();
+  $early=$consumer->consume($permit,$fp,get_current_user_id(),$now-1);self::assertTrue(is_wp_error($early));self::assertSame('production_permit_expired',$early->get_error_code());
+  $first=$consumer->consume($permit,$fp,get_current_user_id(),$now);
   self::assertFalse(is_wp_error($first));self::assertTrue($first['nonce_consumed']);self::assertFalse($first['external_execution_performed']);
   $replay=$consumer->consume($permit,$fp,get_current_user_id(),$now);self::assertTrue(is_wp_error($replay));self::assertSame('digiforge_execution_replay',$replay->get_error_code());
   $mismatch=DigiForge\POD\ExecutionAuthorization::issue($approval,'PROVIDER_ORDER_SUBMIT',get_current_user_id(),'consume_nonce_abcdefghijklmnopqrstuvwxyz',300,$fp);self::assertFalse(is_wp_error($mismatch));$mismatch['package_id']=$packageId;$mismatch['package_hash']=$packageHash;
