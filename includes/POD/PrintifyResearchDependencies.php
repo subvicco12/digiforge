@@ -19,7 +19,6 @@ final class PrintifyResearchDependencies
             \DigiForge\Security\ShopAccessPolicy::class=>['validShop','canonicalShops'],
             \DigiForge\Security\ShopAccessRepository::class=>['read','verifyGrantEvidence','authorityFor'],
             \DigiForge\Security\ShopAccessAuthority::class=>['records'],
-            \DigiForge\Security\FirstPartyOwnerPolicy::class=>['records'],
             \DigiForge\Security\ReviewedLocalEvidence::class=>['read','approved'],
             \DigiForge\Database\ProviderConnectionSchema::class=>['table'],
             \DigiForge\Database\QueryEvidence::class=>['failed'],
@@ -37,9 +36,19 @@ final class PrintifyResearchDependencies
             ['method'=>'POST','route'=>$base.'/batches/'.$sha.'/step'],
         ];
     }
+    /** Exact research URL and verb allowlist; no unknown actions or other shops. */
+    public static function matchesRoute(string $route,string $method): bool
+    {
+        foreach(self::routes() as $known){
+            $pattern='#^'.str_replace(str_repeat('a',64),'[a-f0-9]{64}',preg_quote($known['route'],'#')).'$#D';
+            if($method===$known['method']&&preg_match($pattern,$route)===1)return true;
+        }
+        return false;
+    }
     public static function actions(): array
     {
         return [
+            'digiforge_shop2_product_workflow'=>['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_products'],
             'digiforge_pod_intelligence_import'=>['manage_digiforge','manage_digiforge_pod','manage_digiforge_research'],
             'digiforge_pod_intelligence_export'=>['manage_digiforge','manage_digiforge_pod'],
             'digiforge_pod_research_prepare'=>self::caps(),

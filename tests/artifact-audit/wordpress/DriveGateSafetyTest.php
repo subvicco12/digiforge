@@ -11,6 +11,9 @@ final class DriveGateSafetyTest extends WP_UnitTestCase
     public function testRealStopAndLockControlsDenyBeforeTransport(): void
     {
         if(!class_exists(DriveWordPressGoogleGate::class))$this->markTestSkipped('No inherited Drive transport in this source profile.');
+        // Fresh disposable fixtures boot without WordPress activation; initialize
+        // real settings rows so UPDATE/open-ledger assertions test the gate.
+        Settings::ensure_defaults();
         if(!defined('DIGIFORGE_GOOGLE_EXECUTION_UNTIL'))define('DIGIFORGE_GOOGLE_EXECUTION_UNTIL',time()+800);
         if(!defined('DIGIFORGE_GOOGLE_EXECUTION_INSTALLATION'))define('DIGIFORGE_GOOGLE_EXECUTION_INSTALLATION',hash('sha256',site_url()));
         global $wpdb;$table=Tables::settings();

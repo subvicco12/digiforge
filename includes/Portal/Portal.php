@@ -537,6 +537,9 @@ final class Portal
 
     private function automationOperations(): void
     {
+        $scheduled=(new \DigiForge\Queue\ScheduledTaskReadModel())->snapshot();
+        echo (new SchedulerDependencyPanel())->render($scheduled);
+        echo '<p>Action Scheduler evidence: '.esc_html((string)($scheduled['query_state']['action_scheduler']??'UNAVAILABLE')).' | WP cron evidence: '.esc_html((string)($scheduled['query_state']['wp_cron']??'UNAVAILABLE')).'</p>';
         $health=(new \DigiForge\Observability\HealthMonitor())->snapshot();$q=(array)($health['queue']??[]);$queue=(array)($q['recovery']??[]);$states=(array)($queue['states']??[]);$queueRead=new OperatorQueueReadModel();$attentionState=null;$idempotencyState=null;$items=$queueRead->recentAttention(50,$attentionState);$diagnostics=$queueRead->diagnostics();$recoveryEvidence=$queueRead->recoveryEvidence(25);$recoveryClass=$queueRead->recoveryClassification();$idempotency=$queueRead->unresolvedIdempotency(25,$idempotencyState);
         $jobFocus=isset($_GET['df_job_id'])?absint(wp_unslash($_GET['df_job_id'])):0;
         $focusedJob=$jobFocus>0?$queueRead->attentionById($jobFocus):null;

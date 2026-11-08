@@ -20,7 +20,8 @@ final class PrintifyCatalogReadContract {
   return $g;
  }
  public static function endpoint(array $r):string {
-  $kind=$r['kind']??null;$keys=match($kind){'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping'=>['kind','blueprint_id','provider_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if(!in_array($k,['kind','method'],true))self::positive($v);if($kind==='shipping_method')self::shippingMethod($r['method']);
+  $kind=$r['kind']??null;$keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping'=>['kind','blueprint_id','provider_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if(!in_array($k,['kind','method'],true))self::positive($v);if($kind==='shipping_method')self::shippingMethod($r['method']);
+  if($kind==='blueprints')return '/v1/catalog/blueprints.json';
   $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','shipping'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping.json','shipping_method'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping/'.$r['method'].'.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
  }
  /** Validate endpoint-specific envelopes before accepting even draft evidence. */
@@ -32,7 +33,7 @@ final class PrintifyCatalogReadContract {
   if($r['kind']==='blueprint'){
    self::record($data);if($data['id']!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');return $data;
   }
-  if($r['kind']==='providers'){self::records($data);return $data;}
+  if(in_array($r['kind'],['blueprints','providers'],true)){self::records($data);return $data;}
   $variants=$data['variants']??null;if(!is_array($variants))throw new \InvalidArgumentException('Variant response missing.');
   self::records($variants);if($r['kind']==='variants')return $data;
   $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];

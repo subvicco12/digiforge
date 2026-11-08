@@ -71,9 +71,9 @@ final class ShopAccessRepository
     {
         return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>$subject,'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt],null),$shop,'GRANT');
     }
-    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision): array|\WP_Error
+    public function enrollOwner(string $shop,string $role,array $caps,int $expiresAt,string $approval,string $requestId,int $expectedRevision,?string $globalClaimHash=null): array|\WP_Error
     {
-        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval],null),$shop,'OWNER_ENROLL');
+        return $this->auditDenial($this->mutate($shop,$requestId,$expectedRevision,['subject'=>get_current_user_id(),'role'=>$role,'caps'=>$caps,'expires_at'=>$expiresAt,'owner_approval'=>$approval,'global_claim_hash'=>$globalClaimHash],null),$shop,'OWNER_ENROLL');
     }
     public function revoke(string $shop,string $grantId,string $requestId,int $expectedRevision): array|\WP_Error
     {
@@ -86,14 +86,25 @@ final class ShopAccessRepository
     }
     public static function authorityFor(int $actor,string $shop,array $caps,int $expiry,?string $ownerApproval=null,?string $expectedHash=null): array|\WP_Error
     {
-        $records=ShopAccessAuthority::records();if($records instanceof \WP_Error)return $records;
-        foreach($records as $record){if($expectedHash!==null&&!hash_equals($expectedHash,hash('sha256',(string)wp_json_encode($record))))continue;if($ownerApproval!==null&&(($record['authority']??null)!=='OWNER'||!hash_equals($record['source_approval_hash'],$ownerApproval)))continue;if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
+        $records=null;
+        if($actor===1&&class_exists(\DigiForge\PortalAccess\ServerOwnerApproval::class)){$global=\DigiForge\PortalAccess\GlobalOwnerAuthority::current();if(is_wp_error($global))return $global;$records=array_column($global['records'],'record');}else{$records=ShopAccessAuthority::records();}
+        if($records instanceof \WP_Error)return $records;
+        foreach($records as $record){if($actor!==1&&($record['authority']??null)==='OWNER'&&class_exists(\DigiForge\PortalAccess\ServerOwnerApproval::class))continue;if($expectedHash!==null&&!hash_equals($expectedHash,hash('sha256',(string)wp_json_encode($record))))continue;if($ownerApproval!==null&&(($record['authority']??null)!=='OWNER'||!hash_equals($record['source_approval_hash'],$ownerApproval)))continue;if($record['actor_id']!==$actor||$record['shop']!==$shop||$record['expires_at']<$expiry||$record['expires_at']<=time()||array_diff($caps,$record['caps'])!==[])continue;return ['record'=>$record,'hash'=>hash('sha256',(string)wp_json_encode($record))];}
         return self::error('authority');
     }
     private function mutate(string $shop,string $requestId,int $expectedRevision,array $input,?string $revoke): array|\WP_Error
     {
         $actor=get_current_user_id();
+        if($actor!==1&&isset($input['owner_approval'])&&class_exists(\DigiForge\PortalAccess\ServerOwnerApproval::class))return self::error('global_owner_only');
         if($actor<1||!ShopAccessPolicy::validShop($shop)||!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$requestId)||$expectedRevision<0||!user_can($actor,'manage_digiforge_settings'))return self::error('permission');
+        // Explicit global authority may not enter through a legacy owner/delegate
+        // handler before the reviewed global workflow establishes its audited profile.
+        $authorities=null;
+        if($actor===1&&class_exists(\DigiForge\PortalAccess\ServerOwnerApproval::class)){$global=\DigiForge\PortalAccess\GlobalOwnerAuthority::current();if(is_wp_error($global))return $global;$authorities=array_column($global['records'],'record');}else{$authorities=ShopAccessAuthority::records();}
+        if($authorities instanceof \WP_Error)return $authorities;
+        foreach($authorities as $a){if($a['actor_id']===$actor&&$a['authority']==='OWNER'&&($a['owner_scope']??null)==='GLOBAL_PRIMARY_OWNER'){
+            if(!class_exists(\DigiForge\PortalAccess\OwnerBootstrap::class)||!\DigiForge\PortalAccess\OwnerBootstrap::nativeMutationAllowed($shop,$requestId,$input,$revoke))return self::error('global_workflow_required');break;
+        }}
         global $wpdb;$wpdb->last_error='';
         foreach([$wpdb->options,\DigiForge\Database\Tables::audit_log()] as $table){
             $engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));

@@ -14,7 +14,7 @@ use WP_Error;
 final class ScopedProviderConnection
 {
  private const CAPABILITY='printify.catalog.read';
- private const CAPABILITIES=[self::CAPABILITY,'printify.connection.read','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'];
+ private const CAPABILITIES=[self::CAPABILITY,'printify.product.prepare','printify.connection.read','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'];
  private const FIELDS=['integration_id','capability','source_sha256','evidence_reference','observed_at'];
  public function propose(string $shop,array $input,int $effectiveAt,int $expiresAt,string $requestId,int $revision):array|WP_Error {
   if(count($input)!==count(self::FIELDS)||array_diff(array_keys($input),self::FIELDS))return self::error('invalid_input');

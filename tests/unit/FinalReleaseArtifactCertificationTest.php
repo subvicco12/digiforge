@@ -46,13 +46,13 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
     public function testReleaseDocumentationMatchesCurrentPluginMetadata(): void
     {
         $plugin = (string) file_get_contents(dirname(__DIR__, 2) . '/digiforge.php');
-        $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/final-readiness-completion.md');
+        $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/releases/V1.0.103.17_PORTAL_ACCESS_READINESS.md');
 
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.103';", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.103.17';", $plugin);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';", $plugin);
-        self::assertStringContainsString('Plugin release: 1.0.103.', $readiness);
-        self::assertStringContainsString('Core plugin database version: v23; additive catalog acceptance schema: v24.', $readiness);
-        self::assertStringContainsString('READY_LOCKED', $readiness);
+        self::assertStringContainsString('Plugin release: 1.0.103.17.', $readiness);
+        self::assertStringContainsString('Core plugin database constant: v23; no new migration.', $readiness);
+        self::assertStringContainsString('RELEASE HOLD', $readiness);
     }
 
  public function testReleaseCandidateEvidenceGateIsFailClosed():void{

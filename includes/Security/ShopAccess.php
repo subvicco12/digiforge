@@ -7,6 +7,7 @@ final class ShopAccess
     public static function authorize(string $shop,string $cap,int $actorId=0): true|\WP_Error
     {
         $actor=$actorId===0?get_current_user_id():$actorId;
+        if(class_exists(\DigiForge\PortalAccess\Store::class)&&!\DigiForge\PortalAccess\Store::permits($actor,$shop,$cap)){if(!Logger::write('portal_scope_denied',['actor_id'=>$actor,'shop'=>$shop,'capability'=>$cap],'portal_access',$shop))return new \WP_Error('digiforge_portal_audit','DigiForge denial audit unavailable.',['status'=>503]);return new \WP_Error('digiforge_portal_scope','DigiForge access is disabled, expired or outside your assigned scope.',['status'=>403]);}
         $ordinary=$actor>0&&user_can($actor,$cap);
         $repository=new ShopAccessRepository();$state=$repository->read($shop);$failure=null;
         if(!($state instanceof \WP_Error)&&$ordinary){foreach($state['grants'] as $id=>$grant){
@@ -15,7 +16,7 @@ final class ShopAccess
             $proof=$repository->verifyGrantEvidence($id,$grant,$state['revision']);if($proof instanceof \WP_Error){$failure=$proof;break;}
             $authority=ShopAccessRepository::authorityFor($grant['grantor_id'],$shop,$grant['caps'],$grant['expires_at'],null,$grant['authority_hash']);
             if(!($authority instanceof \WP_Error)&&hash_equals($grant['authority_hash'],$authority['hash'])&&user_can($grant['grantor_id'],'manage_digiforge_settings')){
-                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if($valid)return true;
+                $valid=true;foreach($grant['caps'] as $assignedCap){if(!user_can($grant['grantor_id'],$assignedCap))$valid=false;}if(class_exists(\DigiForge\PortalAccess\Store::class)&&!\DigiForge\PortalAccess\Store::permitsAll($grant['grantor_id'],$shop,$grant['caps']))$valid=false;if($valid)return true;
             }
         }}
         if(!Logger::write('shop_access_denied',['actor_id'=>$actor,'shop'=>$shop,'capability'=>$cap,'privileged_actor'=>$ordinary],'shop_access',$shop))return new \WP_Error('digiforge_shop_access_audit','Shop denial audit unavailable.',['status'=>503]);
