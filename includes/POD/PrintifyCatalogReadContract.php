@@ -20,15 +20,16 @@ final class PrintifyCatalogReadContract {
   return $g;
  }
  public static function endpoint(array $r):string {
-  $kind=$r['kind']??null;$keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping'=>['kind','blueprint_id','provider_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if(!in_array($k,['kind','method'],true))self::positive($v);if($kind==='shipping_method')self::shippingMethod($r['method']);
+  $kind=$r['kind']??null;$keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'provider','variants'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping'=>['kind','blueprint_id','provider_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET operation.')};self::exact($r,$keys);foreach($r as $k=>$v)if(!in_array($k,['kind','method'],true))self::positive($v);if($kind==='shipping_method')self::shippingMethod($r['method']);
   if($kind==='blueprints')return '/v1/catalog/blueprints.json';
-  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','shipping'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping.json','shipping_method'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping/'.$r['method'].'.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
+  $base='/v1/catalog/blueprints/'.$r['blueprint_id'];return match($kind){'blueprint'=>$base.'.json','provider'=>$base.'/print_providers/'.$r['provider_id'].'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','shipping'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping.json','shipping_method'=>'/v2/catalog/blueprints/'.$r['blueprint_id'].'/print_providers/'.$r['provider_id'].'/shipping/'.$r['method'].'.json',default=>$base.'/print_providers/'.$r['provider_id'].'/variants.json'};
  }
  /** Validate endpoint-specific envelopes before accepting even draft evidence. */
  public static function select(array $data,array $r):array {
   self::endpoint($r);
   if((array_key_exists('next_page_url',$data)&&$data['next_page_url']!==null)||(isset($data['last_page'])&&$data['last_page']!==1))throw new \InvalidArgumentException('Catalog pagination is unsupported; partial evidence denied.');
   if(in_array($r['kind'],['shipping','shipping_method'],true)){self::shipping($data,$r);return $data;}
+  if($r['kind']==='provider'){self::provider($data);if($data['id']!==$r['provider_id'])throw new \InvalidArgumentException('Provider identity mismatch.');return $data;}
   if($r['kind']==='size_guide'){self::sizeGuide($data);return $data;}
   if($r['kind']==='blueprint'){
    self::record($data);if($data['id']!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');return $data;
@@ -37,6 +38,17 @@ final class PrintifyCatalogReadContract {
   $variants=$data['variants']??null;if(!is_array($variants))throw new \InvalidArgumentException('Variant response missing.');
   self::records($variants);if($r['kind']==='variants')return $data;
   $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];
+ }
+ /** Blueprint-specific provider evidence from the official v1 object. */
+ private static function provider(array $data):void {
+  self::exact($data,['id','title','decoration_methods','production_time']);self::record($data);
+  if(!is_string($data['title'])||$data['title']==='')throw new \InvalidArgumentException('Provider title required.');
+  $methods=$data['decoration_methods'];
+  if(!is_array($methods)||!array_is_list($methods)||count($methods)>50||count(array_unique($methods,SORT_REGULAR))!==count($methods))throw new \InvalidArgumentException('Bounded decoration methods required.');
+  foreach($methods as $method)if(!is_string($method)||preg_match('/^[a-z][a-z0-9_]{0,63}$/D',$method)!==1)throw new \InvalidArgumentException('Invalid decoration method.');
+  $time=$data['production_time'];if($time===null)return;
+  if(!is_array($time))throw new \InvalidArgumentException('Invalid production time.');self::exact($time,['average','unit']);
+  if((!is_int($time['average'])&&!is_float($time['average']))||!is_finite((float)$time['average'])||$time['average']<0||$time['average']>10000||$time['unit']!=='business_days')throw new \InvalidArgumentException('Invalid production time.');
  }
  /** Ordered source measurements only; no inferred dimensions or certification. */
  private static function sizeGuide(array $data):void {

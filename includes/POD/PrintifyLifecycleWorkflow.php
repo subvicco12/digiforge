@@ -16,7 +16,7 @@ final class PrintifyLifecycleWorkflow
  private static function error(string $reason):WP_Error{return new WP_Error('printify_lifecycle_'.$reason,'Printify lifecycle admission blocked: '.$reason.'.',['status'=>409,'retry_permitted'=>false]);}
  private static function access(string $shop,string $op):bool{
   if(!in_array($shop,['personalized_pod','standard_pod'],true))return false;
-  $caps=['manage_digiforge_connections'];if(in_array($op,['SHIPPING_QUOTE','ORDER_CANCEL'],true))$caps[]='manage_digiforge_orders';
+  $caps=['manage_digiforge_connections'];if(in_array($op,['SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL'],true))$caps[]='manage_digiforge_orders';
   foreach($caps as $cap)if(!current_user_can($cap)||ShopAccess::authorize($shop,$cap)!==true)return false;return true;
  }
  private function save(string $kind,array $record):array|WP_Error{
@@ -31,13 +31,16 @@ final class PrintifyLifecycleWorkflow
   try{$raw=CredentialVault::decrypt($cipher,'printify-lifecycle:'.$kind.':'.$hash);if(!hash_equals($hash,hash('sha256',$raw)))return self::error('integrity');$r=json_decode($raw,true,32,JSON_THROW_ON_ERROR);if(!is_array($r)||!is_string($r['seal']??null))return self::error('seal');$seal=$r['seal'];unset($r['seal']);if(!hash_equals($seal,hash_hmac('sha256',Validator::canonicalJson($r),wp_salt('auth')))||!self::access((string)($r['shop_key']??''),(string)($r['operation']??'')))return self::error('access');return $r;}catch(\Throwable){return self::error('integrity');}
  }
  public function prepare(string $shop,int $integration,string $operation,array $input,string $readReceipt=''):array|WP_Error{
-  if(!self::access($shop,$operation)||!in_array($operation,['SHIPPING_QUOTE','ORDER_CANCEL','WEBHOOK_READ','WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true))return self::error('access_or_operation');
+  if(!self::access($shop,$operation)||!in_array($operation,['SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','WEBHOOK_READ','WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true))return self::error('access_or_operation');
   $scope=PrintifyConnectionBoundary::context($shop,$integration,self::CAPABILITY);if(is_wp_error($scope))return $scope;
   $i=(new \DigiForge\Integrations\Repository())->find($integration);if(is_wp_error($i)||!is_array($i)||($i['provider']??null)!=='printify'||($i['config']['shop_key']??null)!==$shop||!is_string($i['config']['shop_id']??null))return self::error('integration');
   try{$request=PrintifyLifecycleRequest::prepare($operation,$i['config']['shop_id'],$input);if(isset($input['binding'])){$entry=PrintifyWebhookRequest::binding($input['binding']);if($entry['shop_key']!==$shop||$entry['integration_id']!==$integration||(string)$entry['provider_shop_id']!==$i['config']['shop_id'])return self::error('webhook_scope');}}catch(\Throwable){return self::error('contract');}
   $reference=null;
-  if($operation==='ORDER_CANCEL'){
-   $r=(new PrintifyApiReadWorkflow())->receipt($readReceipt);if(is_wp_error($r)||$r['status']!=='SUCCEEDED'||$r['operation']!=='ORDER_READ'||$r['shop_key']!==$shop||$r['integration_id']!==$integration||($r['data']['id']??null)!==($input['order_id']??null)||!in_array($r['data']['status']??null,['on-hold','payment-not-received'],true)||strtotime($r['observed_at'])<time()-300)return self::error('fresh_cancelable_order_evidence');
+  if(in_array($operation,['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)){
+   $r=(new PrintifyApiReadWorkflow())->receipt($readReceipt);if(is_wp_error($r)||$r['status']!=='SUCCEEDED'||$r['operation']!=='ORDER_READ'||$r['shop_key']!==$shop||$r['integration_id']!==$integration||($r['data']['id']??null)!==($input['order_id']??null)||!in_array($r['data']['status']??null,$operation==='ORDER_CANCEL'?['on-hold','payment-not-received']:['pending','on-hold','payment-not-received','has-issues','source-check-failed'],true)||strtotime($r['observed_at'])<time()-300)return self::error('fresh_cancelable_order_evidence');
+   $readScope=PrintifyConnectionBoundary::context($shop,$integration,PrintifyApiReadWorkflow::CAPABILITY);if(is_wp_error($readScope))return $readScope;
+   if(($r['provider_shop_id']??null)!==$i['config']['shop_id']||($r['connection_binding_hash']??null)!==$readScope['binding_hash']||($r['external_account_hash']??null)!==hash('sha256',$scope['external_account_reference'])||strtotime($r['observed_at'])>time())return self::error('cancel_scope');
+   if($operation==='LINE_ITEM_CANCEL'){$matches=array_values(array_filter($r['data']['line_items']??[],static fn($line)=>($line['id']??null)===$input['line_item_id']));if(count($matches)!==1||!in_array($matches[0]['status']??null,['pending','on-hold','payment-not-received','has-issues','source-check-failed'],true))return self::error('fresh_cancelable_line_evidence');}
    $reference=['receipt_hash'=>$readReceipt,'observed_at'=>$r['observed_at'],'status'=>$r['data']['status']];
   }
   $saved=$this->save('plan',['schema'=>'printify-lifecycle-v1','shop_key'=>$shop,'integration_id'=>$integration,'provider_shop_id'=>$i['config']['shop_id'],'operation'=>$operation,'input'=>$input,'request'=>$request,'connection_scope'=>$scope,'reference'=>$reference,'intent_id'=>bin2hex(random_bytes(8)),'created_by'=>get_current_user_id(),'created_at'=>time()]);
@@ -51,7 +54,7 @@ final class PrintifyLifecycleWorkflow
   if(Settings::safety_locked()||Settings::get('stop_all',true)!==false||Settings::get('printify_activation_authorized',false)!==true||!Settings::is_enabled('printify'))return self::error('locked');
   if(!self::access($p['shop_key'],$p['operation'])||Owner::require($p['shop_key'])!==true)return self::error('owner');
   $bound=PrintifyConnectionBoundary::runtime($p['integration_id'],self::CAPABILITY,$p['connection_scope'],$p['provider_shop_id']);if(is_wp_error($bound))return $bound;
-  if($p['operation']==='ORDER_CANCEL'&&strtotime($p['reference']['observed_at']??'')<time()-300)return self::error('stale_order');
+  if(in_array($p['operation'],['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)&&strtotime($p['reference']['observed_at']??'')<time()-300)return self::error('stale_order');
   $policy=ReviewedLocalEvidence::approved('policy',$p['shop_key'],'printify-lifecycle:'.$hash);$expected=$this->approvalPayload($hash);if(is_wp_error($policy)||is_wp_error($expected)||Validator::canonicalJson($policy['payload']??[])!==Validator::canonicalJson($expected))return self::error('exact_approval');return $policy;
  }
  public function authorize(string $hash):array|WP_Error{
@@ -76,10 +79,10 @@ final class PrintifyLifecycleWorkflow
    $status=is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response);$headers=is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')];$observed=PrintifyAccountQuota::observe($p['connection_scope'],$status,$headers,$correlation);$classification=PrintifyApiOutcome::classify($status,$headers,1,$request['method']);
    if(is_wp_error($observed)||is_wp_error($response)||$this->current($hash,$p) instanceof WP_Error)return ['status'=>'UNKNOWN','category'=>'EVIDENCE_UNAVAILABLE','data'=>null];
    if($classification['category']!=='SUCCESS')return ['status'=>$classification['category']==='DEFINITIVE_ERROR'?'FAILED':'UNKNOWN','category'=>$classification['category'],'data'=>null,'http_status'=>$status];
-   try{$raw=(string)wp_remote_retrieve_body($response);if(strlen($raw)>1048576)throw new \LengthException();$data=json_decode($raw,true,32,JSON_THROW_ON_ERROR);if(!is_array($data)||PrintifyCatalogReadContract::containsProtectedMaterial($data,$token))throw new \UnexpectedValueException();$projected=PrintifyLifecycleEvidence::project($request,$data);return ['status'=>'SUCCEEDED','category'=>'SUCCESS','data'=>$projected,'response_sha256'=>hash('sha256',$raw)];}catch(\Throwable){return ['status'=>'UNKNOWN','category'=>'RESPONSE_REJECTED','data'=>null];}
+   try{$raw=(string)wp_remote_retrieve_body($response);if(strlen($raw)>1048576)throw new \LengthException();if($request['operation']==='LINE_ITEM_CANCEL')return ['status'=>'SUCCEEDED','category'=>'SUCCESS','data'=>PrintifyLifecycleEvidence::emptyCancellation($request,$status,$raw),'response_sha256'=>hash('sha256',$raw)];$data=json_decode($raw,true,32,JSON_THROW_ON_ERROR);if(!is_array($data)||PrintifyCatalogReadContract::containsProtectedMaterial($data,$token))throw new \UnexpectedValueException();$projected=PrintifyLifecycleEvidence::project($request,$data);return ['status'=>'SUCCEEDED','category'=>'SUCCESS','data'=>$projected,'response_sha256'=>hash('sha256',$raw)];}catch(\Throwable){return ['status'=>'UNKNOWN','category'=>'RESPONSE_REJECTED','data'=>null];}
   },$p['connection_scope']);
   if(is_wp_error($result)){if(!$attempted)return $result;$result=['status'=>'UNKNOWN','category'=>'CREDENTIAL_EVIDENCE_CHANGED','data'=>null];}
-  $r=$this->save('receipt',$result+['shop_key'=>$p['shop_key'],'operation'=>$p['operation'],'plan_hash'=>$hash,'integration_id'=>$p['integration_id'],'provider_shop_id'=>$p['provider_shop_id'],'external_account_hash'=>hash('sha256',$p['connection_scope']['external_account_reference']),'connection_binding_hash'=>$p['connection_scope']['binding_hash'],'network_request_attempted'=>$attempted,'observed_at'=>gmdate('c'),'retry_permitted'=>false]);
+  $r=$this->save('receipt',$result+['shop_key'=>$p['shop_key'],'operation'=>$p['operation'],'plan_hash'=>$hash,'integration_id'=>$p['integration_id'],'provider_shop_id'=>$p['provider_shop_id'],'external_account_hash'=>hash('sha256',$p['connection_scope']['external_account_reference']),'connection_binding_hash'=>$p['connection_scope']['binding_hash'],'network_request_attempted'=>$attempted,'request_fingerprint'=>$request['fingerprint'],'reconciliation_identity'=>array_intersect_key($p['input'],array_flip(['order_id','line_item_id'])),'observed_at'=>gmdate('c'),'retry_permitted'=>false]);
   if(is_wp_error($r)||!Logger::write('printify_lifecycle_receipt',['plan_hash'=>$hash,'receipt_hash'=>is_wp_error($r)?null:$r['hash'],'status'=>$result['status']],'printify_lifecycle',$hash))return self::error('receipt_unknown');return $r;
  }
  /** Reconcile immutable supplier observations locally; never changes claims or grants retry authority. */
@@ -99,6 +102,7 @@ final class PrintifyLifecycleWorkflow
    elseif(count($matches)===1&&$matches[0]['url']===($p['request']['body']['url']??null))$disposition='CONFIRMED_BY_READBACK';
    elseif(count($matches)>1)$disposition='AMBIGUOUS_DUPLICATE';
   }elseif($r['operation']==='ORDER_CANCEL'&&$read['operation']==='ORDER_READ'&&($read['data']['id']??null)===($p['input']['order_id']??null)&&($read['data']['status']??null)==='canceled')$disposition='CONFIRMED_BY_READBACK';
+  if($r['operation']==='LINE_ITEM_CANCEL'&&$read['operation']==='ORDER_READ'&&($read['data']['id']??null)===$p['input']['order_id']){$matches=array_values(array_filter($read['data']['line_items']??[],static fn($line)=>($line['id']??null)===$p['input']['line_item_id']));if(count($matches)===1&&($matches[0]['status']??null)==='canceled')$disposition='CONFIRMED_BY_READBACK';}
   $e=['shop_key'=>$r['shop_key'],'operation'=>$r['operation'],'receipt_hash'=>$receiptHash,'readback_hash'=>$readbackHash,'disposition'=>$disposition,'webhook_secret_live_verified'=>false,'retry_authorized'=>false,'observed_at'=>gmdate('c')];$saved=$this->save('reconciliation',$e);return !is_wp_error($saved)&&Logger::write('printify_lifecycle_reconciled',['receipt_hash'=>$receiptHash,'readback_hash'=>$readbackHash,'disposition'=>$disposition],'printify_lifecycle',$r['plan_hash'])?$saved:self::error('reconciliation_audit');
  }
 }

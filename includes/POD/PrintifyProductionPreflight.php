@@ -33,6 +33,18 @@ final class PrintifyProductionPreflight
   if(is_array($template)){
    $variantParts=explode(':',(string)($mapping['provider_variant_key']??''));$providerId=(int)($variantParts[0]??0);$variantId=(int)($variantParts[1]??0);$templateVariants=json_decode((string)$template['variant_ids'],true);
    if($providerId!==(int)$template['provider_id']||$variantId<1||!is_array($templateVariants)||!in_array($variantId,array_map('intval',$templateVariants),true))$blockers[]='PRINTIFY_ROUTE_TEMPLATE_MISMATCH';
+   // Revalidate immutable geometry against current exact supplier bytes on every preflight.
+   $current=$template;$current['variant_ids']=$templateVariants;$current['print_areas']=json_decode((string)$template['print_areas'],true);
+   try{$normalized=ProductionTemplateContract::normalize($current);if(!hash_equals((string)$template['fingerprint'],$normalized['fingerprint']))$blockers[]='PRINTIFY_TEMPLATE_PROVENANCE_INVALID';$currentCheck=(new ProductionTemplateRepository())->assertCurrentCatalogSnapshot($current);if(is_wp_error($currentCheck))$blockers[]='PRINTIFY_TEMPLATE_PROVENANCE_STALE';}
+   catch(\Throwable){$blockers[]='PRINTIFY_TEMPLATE_PROVENANCE_INVALID';}
+   $wpdb->last_error='';$mappedAreas=$wpdb->get_results($wpdb->prepare("SELECT placement,width_value,height_value,unit FROM ".Tables::pod_print_areas()." WHERE provider_mapping_id=%d AND state='APPROVED'",(int)$package['provider_mapping_id']),ARRAY_A);
+   if($wpdb->last_error!==''||!is_array($mappedAreas))return new WP_Error('printify_preflight_evidence_unavailable','Current mapped print-area evidence is unavailable.',['status'=>503,'external_execution_authorized'=>false]);
+   $expectedAreas=$current['print_areas'];$seen=[];$matches=is_array($expectedAreas)&&count($mappedAreas)===count($expectedAreas);
+   foreach($mappedAreas as $mapped){$position=strtolower((string)$mapped['placement']);$found=false;if(isset($seen[$position]))$matches=false;$seen[$position]=true;
+    foreach(is_array($expectedAreas)?$expectedAreas:[] as $area)if(is_array($area)&&$position===($area['position']??null)&&$mapped['unit']==='px'&&is_numeric($mapped['width_value'])&&is_numeric($mapped['height_value'])&&(float)$mapped['width_value']===(float)($area['width_px']??0)&&(float)$mapped['height_value']===(float)($area['height_px']??0))$found=true;
+    if(!$found)$matches=false;
+   }
+   if(!$matches)$blockers[]='PRINTIFY_MAPPED_GEOMETRY_MISMATCH';
   }
   $ownership=(new BusinessScopeRepository())->assertActiveOwnershipForMapping((int)$package['provider_mapping_id']);
   if(is_wp_error($ownership))return $ownership;

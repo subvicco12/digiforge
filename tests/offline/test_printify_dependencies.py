@@ -21,6 +21,19 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
             self.assertNotIn('..',Path(row['path']).parts)
             self.assertRegex(row['selected_sha256'],r'^[a-f0-9]{64}$')
             data=(ROOT/row['path']).read_bytes()
+            qualification=json.loads((ROOT/'docs/engineering/printify-api-qualification-overlay.json').read_text())
+            self.assertEqual('OWNER_FINAL_API_QUALIFICATION_PR1260',qualification['authorization'])
+            self.assertFalse(qualification['runtime_authority_provisioned'])
+            self.assertFalse(qualification['grant_limits_changed'])
+            for delta in qualification['files']:
+                if delta['path'] != row['path']: continue
+                self.assertEqual(delta['overlay_sha256'],hashlib.sha256(data).hexdigest())
+                text=data.decode()
+                for hunk in reversed(delta['hunks']):
+                    self.assertEqual(1,text.count(hunk['reviewed_text']))
+                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
+                data=text.encode()
+                self.assertEqual(delta['baseline_sha256'],hashlib.sha256(data).hexdigest())
             completion=json.loads((ROOT/'docs/engineering/printify-api-completion-overlay.json').read_text())
             self.assertEqual('OWNER_API_SOFTWARE_COMPLETION_PR1260',completion['authorization'])
             self.assertFalse(completion['runtime_authority_provisioned'])

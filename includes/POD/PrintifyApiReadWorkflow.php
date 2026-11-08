@@ -15,7 +15,7 @@ final class PrintifyApiReadWorkflow
     {
         if (!in_array($shop, ['personalized_pod','standard_pod'], true)) { return false; }
         $caps = ['manage_digiforge_connections'];
-        if (in_array($operation, ['PRODUCT_READ','PRODUCTS_READ'], true)) { $caps[] = 'manage_digiforge_products'; }
+        if (in_array($operation, ['PRODUCT_READ','PRODUCT_GPSR_READ','PRODUCTS_READ'], true)) { $caps[] = 'manage_digiforge_products'; }
         if (in_array($operation, ['ORDER_READ','ORDERS_READ'], true)) { $caps[] = 'manage_digiforge_orders'; }
         if (in_array($operation, ['PROVIDERS_READ','PROVIDER_READ'], true)) { $caps[] = 'manage_digiforge_pod'; }
         foreach ($caps as $cap) { if (!current_user_can($cap) || ShopAccess::authorize($shop, $cap) !== true) { return false; } }

@@ -15,7 +15,7 @@ final class PrintifyApiRequest
             'PROVIDER_READ' => ['provider_id'],
             'PRODUCTS_READ','ORDERS_READ' => ['page','limit'],
             'ORDER_READ' => ['order_id'],
-            'PRODUCT_READ' => ['product_id','blueprint_id','provider_id','variant_ids'],
+            'PRODUCT_READ','PRODUCT_GPSR_READ' => ['product_id','blueprint_id','provider_id','variant_ids'],
             'PRODUCT_PUBLISH' => ['product_id','title','description','images','variants','tags','keyFeatures','shipping_template'],
             default => null,
         };
@@ -27,9 +27,10 @@ final class PrintifyApiRequest
             case 'SHOPS_READ': $endpoint = '/v1/shops.json'; $scope = 'shops.read'; break;
             case 'PROVIDERS_READ': $endpoint = '/v1/catalog/print_providers.json'; $scope = 'print_providers.read'; break;
             case 'PROVIDER_READ': $endpoint = '/v1/catalog/print_providers/' . self::positive($input['provider_id'] ?? null) . '.json'; $scope = 'print_providers.read'; break;
+            case 'PRODUCT_GPSR_READ':
             case 'PRODUCT_READ':
                 self::productSelection($input);
-                $endpoint = $root . '/products/' . self::id($input['product_id'] ?? null) . '.json'; $scope = 'products.read';
+                $endpoint = $root . '/products/' . self::id($input['product_id'] ?? null) . ($operation === 'PRODUCT_GPSR_READ' ? '/gpsr.json' : '.json'); $scope = 'products.read';
                 break;
             case 'PRODUCTS_READ':
             case 'ORDERS_READ':
@@ -59,7 +60,7 @@ final class PrintifyApiRequest
                 return PrintifyProductRequest::prepare($operation, $shop, $input);
         }
         $material = ['operation'=>$operation,'provider_shop_id'=>$shop,'method'=>$method,'endpoint'=>$endpoint,'body'=>$body,'required_scope'=>$scope];
-        if ($operation === 'PRODUCT_READ') { $material['input'] = $input; }
+        if (in_array($operation, ['PRODUCT_READ','PRODUCT_GPSR_READ'], true)) { $material['input'] = $input; }
         return $material + ['fingerprint'=>hash('sha256', \DigiForge\Listings\Validator::canonicalJson($material)), 'external_execution_authorized'=>false];
     }
 

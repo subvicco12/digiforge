@@ -8,12 +8,12 @@ final class PrintifyResearchMapper
     public static function endpoint(array $request): string
     {
         $kind=$request['kind']??'';
-        $keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'variants','shipping'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET evidence.')};
+        $keys=match($kind){'blueprints'=>['kind'],'blueprint','providers','size_guide'=>['kind','blueprint_id'],'provider','variants','shipping'=>['kind','blueprint_id','provider_id'],'variant'=>['kind','blueprint_id','provider_id','variant_id'],'shipping_method'=>['kind','blueprint_id','provider_id','method'],default=>throw new \InvalidArgumentException('Unsupported catalog GET evidence.')};
         if(count($request)!==count($keys)||array_diff(array_keys($request),$keys))throw new \InvalidArgumentException('Exact catalog request fields required.');
         foreach($request as $key=>$value)if(!in_array($key,['kind','method'],true)&&(!is_int($value)||$value<1||$value>2147483647))throw new \InvalidArgumentException('Positive bounded identifiers required.');
         if($kind==='blueprints')return '/v1/catalog/blueprints.json';
         $base='/v1/catalog/blueprints/'.$request['blueprint_id'];
-        return match($kind){'blueprint'=>$base.'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','variants','variant'=>$base.'/print_providers/'.$request['provider_id'].'/variants.json','shipping'=>'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping.json','shipping_method'=>in_array($request['method'],['standard','priority','express','economy'],true)?'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping/'.$request['method'].'.json':throw new \InvalidArgumentException('Unsupported shipping method.')};
+        return match($kind){'blueprint'=>$base.'.json','provider'=>$base.'/print_providers/'.$request['provider_id'].'.json','providers'=>$base.'/print_providers.json','size_guide'=>$base.'/size_guide.json','variants','variant'=>$base.'/print_providers/'.$request['provider_id'].'/variants.json','shipping'=>'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping.json','shipping_method'=>in_array($request['method'],['standard','priority','express','economy'],true)?'/v2/catalog/blueprints/'.$request['blueprint_id'].'/print_providers/'.$request['provider_id'].'/shipping/'.$request['method'].'.json':throw new \InvalidArgumentException('Unsupported shipping method.')};
     }
 
     public static function map(array $receipt): array
@@ -34,6 +34,9 @@ final class PrintifyResearchMapper
                 if(($data['id']??null)!==$r['blueprint_id'])throw new \InvalidArgumentException('Blueprint identity mismatch.');
                 $out['blueprints'][]=$meta+['Title'=>self::cell($data['title']??null),'Brand'=>self::cell($data['brand']??null),'Model'=>self::cell($data['model']??null)];
                 if(isset($data['size_guide'])&&is_array($data['size_guide']))self::sizes($data['size_guide'],$meta,$out);else $gap('SIZE_GUIDE_MISSING','A separately scoped size_guide GET or retained source import is required.');break;
+            case 'provider':
+                PrintifyCatalogReadContract::select($data,$r);
+                $out['providers'][]=$meta+['Provider Name'=>self::cell($data['title']),'Location'=>null,'Production Time'=>self::cell($data['production_time']),'Decoration Methods'=>self::cell($data['decoration_methods']),'Availability'=>'UNVERIFIED'];break;
             case 'providers':
                 self::records($data);
                 foreach($data as $provider)$out['providers'][]=array_replace($meta,['Provider ID'=>(string)$provider['id'],'Provider Name'=>self::cell($provider['title']??null),'Location'=>self::cell($provider['location']??null),'Production Time'=>self::cell($provider['production_time']??null),'Availability'=>'UNVERIFIED']);

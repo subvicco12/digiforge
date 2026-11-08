@@ -13,6 +13,10 @@ final class PrintifyLifecycleRequest
    if(array_keys($input)!==['order']||!is_array($input['order']))throw new \InvalidArgumentException('Exact quote order required.');
    PrintifyOrderEvidence::validate($input['order']);
    $material=['operation'=>$operation,'method'=>'POST','endpoint'=>'/v1/shops/'.$shop.'/orders/shipping.json','body'=>['line_items'=>$input['order']['line_items'],'address_to'=>$input['order']['address_to']],'required_scope'=>'orders.write'];
+  }elseif($operation==='LINE_ITEM_CANCEL'){
+   if(count($input)!==2||array_diff(array_keys($input),['order_id','line_item_id']))throw new \InvalidArgumentException('Exact order and line required.');
+   foreach(['order_id','line_item_id'] as $key)if(!is_string($input[$key]??null)||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$input[$key]))throw new \InvalidArgumentException('Exact order and line required.');
+   $material=['operation'=>$operation,'method'=>'POST','endpoint'=>'/v1/shops/'.$shop.'/orders/'.$input['order_id'].'/line_items/'.$input['line_item_id'].'/cancel.json','body'=>[],'required_scope'=>'orders.write'];
   }elseif($operation==='ORDER_CANCEL'){
    if(array_keys($input)!==['order_id']||!is_string($input['order_id'])||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$input['order_id']))throw new \InvalidArgumentException('Exact order required.');
    $material=['operation'=>$operation,'method'=>'POST','endpoint'=>'/v1/shops/'.$shop.'/orders/'.$input['order_id'].'/cancel.json','body'=>[],'required_scope'=>'orders.write'];

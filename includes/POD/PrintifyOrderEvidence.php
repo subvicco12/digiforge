@@ -7,17 +7,21 @@ final class PrintifyOrderEvidence
 {
     private const STATES = ['pending','on-hold','sending-to-production','in-production','canceled','fulfilled','partially-fulfilled','payment-not-received','has-issues','cost-calculation','unfulfillable','sending_to_production_delegate','sending_to_production_delegate_sync','source-check-failed'];
 
-    public static function validate(array $body): void
+    public static function validate(array $body, array $nativeEvidence = []): void
     {
         self::text($body['external_id'] ?? null, 128);
         $allowed = ['external_id','label','line_items','shipping_method','is_printify_express','is_economy_shipping','send_shipping_notification','address_to'];
         if (array_diff(array_keys($body), $allowed)) { throw new \InvalidArgumentException('Unsupported order fields.'); }
         if (!is_array($body['line_items'] ?? null) || !array_is_list($body['line_items']) || count($body['line_items']) < 1 || count($body['line_items']) > 100) { throw new \InvalidArgumentException('Bounded order lines required.'); }
-        foreach ($body['line_items'] as $line) {
-            if (!is_array($line) || array_diff(array_keys($line), ['product_id','variant_id','quantity','external_id'])) { throw new \InvalidArgumentException('Only existing mapped products supported.'); }
+        foreach ($body['line_items'] as $index => $line) {
+            if (!is_array($line) || array_diff(array_keys($line), ['product_id','variant_id','quantity','external_id','personalisation'])) { throw new \InvalidArgumentException('Only existing mapped products supported.'); }
             if (!is_string($line['product_id'] ?? null) || !preg_match('/^[A-Za-z0-9_-]{1,160}$/D', $line['product_id'])) { throw new \InvalidArgumentException('Existing product required.'); }
             foreach (['variant_id','quantity'] as $field) {
                 if (!is_int($line[$field] ?? null) || $line[$field] < 1 || ($field === 'quantity' && $line[$field] > 1000)) { throw new \InvalidArgumentException('Invalid variant or quantity.'); }
+            }
+            if (array_key_exists('personalisation', $line)) {
+                PrintifyNativeOrderEvidence::configuration($line['personalisation']);
+                if (!in_array($index, array_column($nativeEvidence, 'line_index'), true)) { throw new \InvalidArgumentException('Resolved native configuration required.'); }
             }
             if (isset($line['external_id'])) { self::text($line['external_id'], 128); }
         }
@@ -39,10 +43,11 @@ final class PrintifyOrderEvidence
     {
         if (!preg_match('/^[A-Za-z0-9_-]{1,160}$/D', $expectedId) || ($order['id'] ?? null) !== $expectedId || !in_array($order['status'] ?? null, self::STATES, true)) { throw new \InvalidArgumentException('Order identity or status mismatch.'); }
         if (!is_array($order['line_items'] ?? null) || !array_is_list($order['line_items']) || count($order['line_items']) > 100) { throw new \InvalidArgumentException('Malformed order lines.'); }
-        $lines = [];
+        $lines = []; $seenLineIds = [];
         foreach ($order['line_items'] as $line) {
             if (!is_array($line) || !is_string($line['product_id'] ?? null) || !is_int($line['variant_id'] ?? null) || $line['variant_id'] < 1 || !is_int($line['quantity'] ?? null) || $line['quantity'] < 1) { throw new \InvalidArgumentException('Malformed order line evidence.'); }
-            $row=array_intersect_key($line,array_flip(['product_id','variant_id','quantity']));if(isset($line['status'])){if(!is_string($line['status'])||strlen($line['status'])>80)throw new \InvalidArgumentException('Malformed fulfillment status.');$row['status']=in_array($line['status'],self::STATES,true)?$line['status']:'UNRECOGNIZED_PROVIDER_STATE';}foreach(['cost','shipping_cost'] as $money){$row[$money]=self::amount($line[$money]??null);}$lines[]=$row;
+            if(array_key_exists('id',$line)){if(!is_string($line['id'])||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$line['id'])||isset($seenLineIds[$line['id']]))throw new \InvalidArgumentException('Invalid or duplicate line identity.');$seenLineIds[$line['id']]=true;}
+            $row=array_intersect_key($line,array_flip(['id','product_id','variant_id','quantity']));if(isset($line['status'])){if(!is_string($line['status'])||strlen($line['status'])>80)throw new \InvalidArgumentException('Malformed fulfillment status.');$row['status']=in_array($line['status'],self::STATES,true)?$line['status']:'UNRECOGNIZED_PROVIDER_STATE';}foreach(['cost','shipping_cost'] as $money){$row[$money]=self::amount($line[$money]??null);}$lines[]=$row;
         }
         $shipments = [];
         if (!is_array($order['shipments'] ?? []) || !array_is_list($order['shipments'] ?? []) || count($order['shipments'] ?? []) > 100) { throw new \InvalidArgumentException('Malformed shipments.'); }

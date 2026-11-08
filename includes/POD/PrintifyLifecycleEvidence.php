@@ -4,6 +4,12 @@ namespace DigiForge\POD;
 /** Strict, private-data-minimizing lifecycle responses. */
 final class PrintifyLifecycleEvidence
 {
+ /** A 204 acknowledges acceptance only; final state needs an exact ORDER_READ. */
+ public static function emptyCancellation(array $request,int $status,string $raw):array{
+  if(($request['operation']??null)!=='LINE_ITEM_CANCEL'||$status!==204||$raw!=='')throw new \InvalidArgumentException('Invalid line cancellation acknowledgement.');
+  if(!preg_match('#/orders/([^/]+)/line_items/([^/]+)/cancel\.json$#D',$request['endpoint'],$m))throw new \InvalidArgumentException('Invalid cancellation identity.');
+  return ['order_id'=>$m[1],'line_item_id'=>$m[2],'cancellation_accepted'=>true,'cancellation_confirmed'=>false];
+ }
  public static function project(array $request,array $data):array {
   $op=$request['operation'];
   if($op==='SHIPPING_QUOTE'){

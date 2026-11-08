@@ -1,3 +1,5 @@
+> Current qualification: [.21 fixture reconciliation and interface handoff](QUALIFICATION-1.0.103.21.md), [operation ledger](operations-1.0.103.21.json). Historical .19/.20 evidence below remains preserved.
+
 > Historical .19 qualification. Superseded by [the .20 operation ledger](OPERATIONS-1.0.103.20.md); retain this record as previous evidence.
 
 # API-only acceptance ledger — 2026-11-08

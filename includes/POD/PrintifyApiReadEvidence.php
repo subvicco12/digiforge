@@ -7,6 +7,10 @@ final class PrintifyApiReadEvidence
 {
     public static function project(string $operation, array $data, string $shop, array $input): array
     {
+        if ($operation === 'PRODUCT_GPSR_READ') {
+            PrintifyApiRequest::prepare($operation, $shop, $input);
+            return self::gpsr($data, $shop, $input);
+        }
         if ($operation === 'PRODUCT_READ') {
             PrintifyApiRequest::prepare($operation, $shop, $input);
             return self::product($data, $shop, $input);
@@ -55,7 +59,22 @@ final class PrintifyApiReadEvidence
     }
     public static function supported(string $operation): bool
     {
-        return in_array($operation, ['PRODUCTS_READ','PRODUCT_READ','SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','ORDER_READ','ORDERS_READ'], true);
+        return in_array($operation, ['PRODUCTS_READ','PRODUCT_READ','PRODUCT_GPSR_READ','SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','ORDER_READ','ORDERS_READ'], true);
+    }
+    /** Source text only. GPSR does not contain response identities or certify compliance. */
+    private static function gpsr(array $data, string $shop, array $input): array
+    {
+        self::bounded($data); self::rows($data, 100); $rows=[]; $seen=[];
+        foreach ($data as $row) {
+            if (!is_array($row) || count($row)!==2 || array_diff(array_keys($row), ['title','text'])) self::bad();
+            foreach (['title'=>300,'text'=>10000] as $key=>$max) {
+                $value=$row[$key]??null;
+                if (!is_string($value) || strlen($value)>$max || preg_match('//u',$value)!==1 || preg_match('/[<>\\x00-\\x1f\\x7f]/',$value) || preg_match('~(?:https?://|www\\.|javascript:|data:|file:)~i',$value)) self::bad();
+            }
+            if ($row['title']==='' || isset($seen[$row['title']])) self::bad();
+            $seen[$row['title']]=true; $rows[]=$row;
+        }
+        return ['provider_shop_id'=>$shop,'product_id'=>$input['product_id'],'blueprint_id'=>$input['blueprint_id'],'provider_id'=>$input['provider_id'],'variant_ids'=>$input['variant_ids'],'gpsr'=>$rows,'supplier_certified'=>null];
     }
     private static function product(array $data, string $shop, ?array $expected): array
     {
