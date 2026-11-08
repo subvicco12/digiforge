@@ -16,7 +16,7 @@ class ActionSchedulerReadinessTest(unittest.TestCase):
     def test_upstream_393_query_contract(self):
         root = Path(__file__).resolve().parents[2]
         prefix = os.environ.get('DIGIFORGE_PHP_COMMAND', 'php').split()
-        for scenario in ('associative','positional','empty','exception','missing-methods','wrong-hook','bad-args'):
+        for scenario in ('associative','positional','empty','exception','missing-methods','wrong-hook','bad-args','legacy-dispatch','stage-legacy','stage-current','stage-unauthorized'):
             with self.subTest(scenario=scenario):
                 result = subprocess.run(prefix + [str(Path(os.environ.get('DIGIFORGE_PHP_ROOT', str(root))) / 'tests/fixtures/action-scheduler-393-query.php'), scenario], text=True, capture_output=True)
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
