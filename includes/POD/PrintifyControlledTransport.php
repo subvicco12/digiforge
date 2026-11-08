@@ -18,15 +18,17 @@ final class PrintifyControlledTransport{
   $claimed=PrintifyDispatchClaim::claim($permit,$request);if(is_wp_error($claimed))return $claimed;
   $identity=(string)($request['reconciliation_identity']['external_reference']??'');$intent=PrintifyOperationClaim::claim($request['connection_scope'],$request['action'],$identity,$request['request_fingerprint']);if(is_wp_error($intent))return $intent;
   $sender=$this->sender;$attempted=false;
-  $out=(new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit,&$attempted){
+  $out=(new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit,$payload,&$attempted){
    $args=['method'=>'POST','headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json;charset=utf-8','Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyApi'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577];
    if($request['body']!==[])$args['body']=wp_json_encode($request['body']);
    $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
    $quotaScope=is_array($request['connection_scope'])?$request['connection_scope']:[];$correlation='mutation:'.$permit['authorization_hash'];$quota=PrintifyAccountQuota::reserve($quotaScope,'/v1'.$request['endpoint'],'POST',$correlation);if(is_wp_error($quota))return $quota;
+   $dependency=self::nativeDependencies($permit,$payload,$request);if(is_wp_error($dependency))return $dependency;
    $attempted=true;try{$response=$sender('https://api.printify.com/v1'.$request['endpoint'],$args);}catch(\Throwable){PrintifyAccountQuota::observe($quotaScope,0,[],$correlation);$token='';return self::unknown($permit,$request,'transport_exception');}$token='';
    $quotaObserved=PrintifyAccountQuota::observe($quotaScope,is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response),is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')],$correlation);if(is_wp_error($quotaObserved))return self::unknown($permit,$request,'quota_evidence_unknown');
    if(is_wp_error($response))return self::unknown($permit,$request,'transport_error');
    $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return new WP_Error('printify_connection_dispatch_unknown','Ownership changed after dispatch; reconciliation is required.',['status'=>409,'network_request_attempted'=>true,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']]);
+   $dependency=self::nativeDependencies($permit,$payload,$request);if(is_wp_error($dependency))return self::unknown($permit,$request,'native_dependency_changed');
    $status=(int)wp_remote_retrieve_response_code($response);
    if($status>=200&&$status<300){
     try{$external=self::acknowledgedId((string)wp_remote_retrieve_body($response),(string)$request['existing_external_reference']);}catch(\Throwable){return self::unknown($permit,$request,'invalid_order_acknowledgement');}
@@ -45,6 +47,13 @@ final class PrintifyControlledTransport{
   $data=json_decode($raw,true,32,JSON_THROW_ON_ERROR);
   if(!is_array($data)||!is_string($data['id']??null)||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$data['id'])||($expected!==''&&!hash_equals($expected,$data['id'])))throw new \InvalidArgumentException('Order acknowledgement mismatch.');
   return $data['id'];
+ }
+ /** Native references remain current dependencies, not a second source of execution authority. */
+ private static function nativeDependencies(array $permit,array $payload,array $request):true|WP_Error {
+  if(empty($request['reconciliation_identity']['native_configuration_references']))return true;
+  $current=PrintifyMutationRequest::prepare($permit,$payload);
+  if(is_wp_error($current)||!hash_equals($request['request_fingerprint'],(string)($current['request_fingerprint']??'')))return new WP_Error('printify_native_dependency_not_current','Native configuration ownership or approved package changed; dispatch remains blocked.',['status'=>409,'network_request_attempted'=>false,'retry_permitted'=>false]);
+  return true;
  }
  /** Retain only pinned recovery evidence; provider error text may contain protected material. */
  private static function unknown(array $permit,array $request,string $code):array{

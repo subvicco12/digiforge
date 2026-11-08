@@ -926,12 +926,13 @@
         "tests/unit/PrintifyNativeOrderEvidenceTest.php",
         "tests/wordpress/PrintifyNativeOrderBoundaryTest.php",
         "tests/unit/PrintifyOrderAckLineCancellationTest.php",
-        "tests/wordpress/PrintifyNativeOrderResolutionTest.php"
+        "tests/wordpress/PrintifyNativeOrderResolutionTest.php",
+        "tests/unit/PrintifyNativeTransportTimingTest.php"
       ],
       "status": "OFFLINE_VERIFIED",
       "live_write_status": "LIVE_WRITE_UNTESTED",
       "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
-      "qualification_note": ""
+      "qualification_note": "Native product/package dependencies re-resolve before/after HTTP; before revocation denies, in-flight invalidation becomes UNKNOWN. Actual sealed/audited configuration roundtrip verified offline."
     },
     {
       "operation": "PROVIDER_PRODUCTION_AUTHORIZE",
