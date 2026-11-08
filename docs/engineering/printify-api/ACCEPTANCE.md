@@ -42,3 +42,7 @@ No schema migration is introduced: new immutable records use existing wp_options
 ## Installation and rollback gates
 
 Do not install under RELEASE HOLD. Require separate owner installation approval, current installed-file comparison to .17 preservation baseline, database compatibility and approved recovery evidence. Keep STOP ALL/external lock/automation settings unchanged. No owner enrollment or credential changes are needed for this candidate. Rollback requires the separately approved consistent checkpoint; this mission does not qualify recovery.
+
+## Qualified source reconciliation
+
+The repository lagged the qualified installed-lineage transport. PrintifyDispatchClaim, PrintifyScopedCredentialRetriever, PrintifyLiveTransportInterlock and the matching PrintifyReconciliationLookup consumer are imported byte-identically from the exact .17 package above. MutationRequest and ControlledTransport retain that same qualified implementation plus only the documented strict-order/header/read-entry edits. The composed ZIP already contained these stronger contracts; this reconciliation changes source consistency, not package bytes. Their imported SHA-256 values are independently verifiable against the pinned .17 archive. No additional transport, credential or provider operation is admitted.

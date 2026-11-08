@@ -49,7 +49,7 @@ def main():
                 raise ValueError('Duplicate member')
             original[rel] = archive.read(info)
     head = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    changed = ADDITIONS + ['digiforge.php','includes/POD/PrintifyControlledTransport.php','includes/POD/PrintifyMutationRequest.php','includes/POD/PrintifyProductPipeline.php','bin/package-printify-api.py']
+    changed = ADDITIONS + ['digiforge.php','includes/POD/PrintifyControlledTransport.php','includes/POD/PrintifyMutationRequest.php','includes/POD/PrintifyProductPipeline.php','bin/package-printify-api.py','includes/POD/PrintifyDispatchClaim.php','includes/POD/PrintifyLiveTransportInterlock.php','includes/POD/PrintifyScopedCredentialRetriever.php','includes/POD/PrintifyReconciliationLookup.php']
     for rel in changed:
         if subprocess.check_output(['git','show',head+':'+rel],cwd=ROOT) != (ROOT/rel).read_bytes():
             raise ValueError('Uncommitted packaging input: '+rel)
@@ -69,8 +69,7 @@ def main():
     if payload[rel] != (ROOT/rel).read_bytes():
         raise ValueError('Product pipeline has unrelated changes')
     rel = 'includes/POD/PrintifyMutationRequest.php'
-    source_pre = subprocess.check_output(['git','show',BASE_SOURCE+':'+rel],cwd=ROOT)
-    if once(source_pre,ORDER_ANCHOR,ORDER_CHECK+ORDER_ANCHOR) != (ROOT/rel).read_bytes():
+    if once(original[rel],ORDER_ANCHOR,ORDER_CHECK+ORDER_ANCHOR) != (ROOT/rel).read_bytes():
         raise ValueError('Unreviewed order validation delta')
     payload[rel] = once(original[rel],ORDER_ANCHOR,ORDER_CHECK+ORDER_ANCHOR)
     rel = 'includes/POD/PrintifyControlledTransport.php'
@@ -78,10 +77,13 @@ def main():
         raw = once(raw,HEADER_PRE,HEADER_POST)
         raw = once(raw,b"'redirection'=>0,'sslverify'=>true]",b"'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048576]")
         return once(raw,b' public function execute(array $permit',READ_METHOD+b' public function execute(array $permit')
-    source_pre = subprocess.check_output(['git','show',BASE_SOURCE+':'+rel],cwd=ROOT)
-    if transport(source_pre) != (ROOT/rel).read_bytes():
+    if transport(original[rel]) != (ROOT/rel).read_bytes():
         raise ValueError('Unreviewed transport delta')
     payload[rel] = transport(original[rel])
+    for name in ['PrintifyDispatchClaim','PrintifyLiveTransportInterlock','PrintifyScopedCredentialRetriever','PrintifyReconciliationLookup']:
+        rel='includes/POD/'+name+'.php'
+        if original[rel] != (ROOT/rel).read_bytes():
+            raise ValueError('Qualified inherited security contract changed: '+rel)
     # Installed dispatch claims and connection-scope checks are retained byte-for-byte by reversible edits.
     args.output.mkdir(parents=True,exist_ok=True)
     target = args.output/'digiforge-1.0.103.19-printify-api-update.zip'
