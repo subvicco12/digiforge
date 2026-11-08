@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__.'/SyntheticShopAuthority.php';
 
-/** Explicit synthetic shop ACL only. No catalog grant, exception, credential or HTTP. */
+/** Explicit synthetic delegated shop ACL only. No catalog grant, exception, credential or HTTP. */
 final class PrintifyResearchAccessFixture
 {
     public static function reset(): void
@@ -22,7 +22,7 @@ final class PrintifyResearchAccessFixture
         $owner=wp_insert_user(['user_login'=>'df_printify_owner_'.wp_generate_uuid4(),'user_pass'=>wp_generate_password(32),'role'=>'administrator']);
         if(is_wp_error($owner))throw new RuntimeException('Synthetic owner unavailable.');
         $ownerUser=get_userdata($owner);foreach(array_merge($caps,['manage_digiforge_settings']) as $cap)$ownerUser->add_cap($cap);
-        self::write([['actor_id'=>$owner,'shop'=>$shop,'caps'=>$caps,'expires_at'=>time()+3600,'source_approval_hash'=>hash('sha256','Synthetic Printify test authority '.$owner),'authority'=>'OWNER']]);
+        self::write([['actor_id'=>$owner,'shop'=>$shop,'caps'=>$caps,'expires_at'=>time()+3600,'source_approval_hash'=>hash('sha256','Synthetic Printify test authority '.$owner),'authority'=>'DELEGATE']]);
         $prior=get_current_user_id();wp_set_current_user($owner);
         try{
             $repo=new \DigiForge\Security\ShopAccessRepository();$state=$repo->read($shop);
