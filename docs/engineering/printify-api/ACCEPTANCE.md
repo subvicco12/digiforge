@@ -50,3 +50,5 @@ The repository lagged the qualified installed-lineage transport. PrintifyDispatc
 ## Legacy catalog boundary corrections
 
 Legacy direct sync methods lacked the governed catalog grant contract. They now fail before credentials/network and direct callers to the existing catalog-read grant pipeline. This does not disable that governed pipeline. The legacy catalog normalizer no longer substitutes USD/zero for missing monetary evidence: its non-null storage rejects the import; research snapshots retain unknown values separately. These narrow overlays are applied to installed files rather than replacing their stronger implementations.
+
+Read plans and receipt access independently require native and exact-shop module capabilities: connections for every operation, orders for order evidence, POD for provider discovery. Connection permission alone cannot expose order receipts. These checks run again on authorization and immediately before credential use.

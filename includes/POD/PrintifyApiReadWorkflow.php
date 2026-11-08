@@ -11,9 +11,14 @@ use WP_Error;
 final class PrintifyApiReadWorkflow
 {
     public const CAPABILITY = 'printify.connection.read';
-    private static function access(string $shop): bool
+    private static function access(string $shop, string $operation = ''): bool
     {
-        return in_array($shop, ['personalized_pod','standard_pod'], true) && current_user_can('manage_digiforge_connections') && ShopAccess::authorize($shop, 'manage_digiforge_connections') === true;
+        if (!in_array($shop, ['personalized_pod','standard_pod'], true)) { return false; }
+        $caps = ['manage_digiforge_connections'];
+        if (in_array($operation, ['ORDER_READ','ORDERS_READ'], true)) { $caps[] = 'manage_digiforge_orders'; }
+        if (in_array($operation, ['PROVIDERS_READ','PROVIDER_READ'], true)) { $caps[] = 'manage_digiforge_pod'; }
+        foreach ($caps as $cap) { if (!current_user_can($cap) || ShopAccess::authorize($shop, $cap) !== true) { return false; } }
+        return true;
     }
     private static function error(string $reason): WP_Error
     {
@@ -37,12 +42,12 @@ final class PrintifyApiReadWorkflow
         $record = json_decode($raw, true);
         if (!is_array($record) || !is_string($record['seal'] ?? null)) { return self::error('seal'); }
         $seal = $record['seal']; unset($record['seal']);
-        if (!hash_equals($seal, hash_hmac('sha256', Validator::canonicalJson($record), wp_salt('auth'))) || !self::access((string)($record['shop_key'] ?? ''))) { return self::error('access'); }
+        if (!hash_equals($seal, hash_hmac('sha256', Validator::canonicalJson($record), wp_salt('auth'))) || !self::access((string)($record['shop_key'] ?? ''), (string)($record['operation'] ?? $record['request']['operation'] ?? ''))) { return self::error('access'); }
         return $record;
     }
     public function prepare(string $shop, int $integration, string $operation, array $input): array|WP_Error
     {
-        if (!self::access($shop) || !PrintifyApiReadEvidence::supported($operation)) { return self::error('access_or_operation'); }
+        if (!self::access($shop, $operation) || !PrintifyApiReadEvidence::supported($operation)) { return self::error('access_or_operation'); }
         $binding = PrintifyConnectionBoundary::context($shop, $integration, self::CAPABILITY);
         if (is_wp_error($binding)) { return $binding; }
         $i = (new \DigiForge\Integrations\Repository())->find($integration);
@@ -58,7 +63,7 @@ final class PrintifyApiReadWorkflow
     private function current(string $hash, array $plan): true|WP_Error
     {
         if (Settings::safety_locked() || Settings::get('stop_all', true) !== false || Settings::get('printify_activation_authorized', false) !== true || !Settings::is_enabled('printify')) { return self::error('locked'); }
-        if (!self::access($plan['shop_key']) || Owner::require($plan['shop_key']) !== true) { return self::error('owner'); }
+        if (!self::access($plan['shop_key'], $plan['request']['operation']) || Owner::require($plan['shop_key']) !== true) { return self::error('owner'); }
         $binding = PrintifyConnectionBoundary::runtime($plan['integration_id'], self::CAPABILITY, $plan['connection_scope'], $plan['provider_shop_id']);
         if (is_wp_error($binding)) { return $binding; }
         $policy = ReviewedLocalEvidence::approved('policy', $plan['shop_key'], 'printify-api-read:' . $hash);

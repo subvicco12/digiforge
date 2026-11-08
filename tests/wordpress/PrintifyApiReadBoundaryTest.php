@@ -40,4 +40,9 @@ final class PrintifyApiReadBoundaryTest extends WP_UnitTestCase
   foreach([$service->syncBlueprint(1,1),$service->syncProviderVariants(1,1,1)] as $r){self::assertWPError($r);self::assertSame('digiforge_printify_governed_catalog_required',$r->get_error_code());}
   self::assertSame(0,$calls);
  }
+ public function testConnectionPermissionDoesNotGrantOrderModuleAccess():void{
+  PortalAccessFixture::enroll();$user=wp_get_current_user();$user->add_cap('manage_digiforge_orders',false);
+  try{$r=(new DigiForge\POD\PrintifyApiReadWorkflow())->prepare('personalized_pod',1,'ORDER_READ',['order_id'=>'o1']);self::assertWPError($r);self::assertSame('printify_api_read_access_or_operation',$r->get_error_code());}
+  finally{$user->add_cap('manage_digiforge_orders',true);}
+ }
 }
