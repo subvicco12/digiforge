@@ -52,4 +52,15 @@ final class GlobalPrimaryOwnerTest extends WP_UnitTestCase {
   $s=$this->enroll();global $wpdb;$wpdb->delete($wpdb->options,['option_name'=>DigiForge\PortalAccess\ServerOwnerApproval::KEY]);self::assertWPError(GlobalOwnerAuthority::current());self::assertFalse(Session::valid($s));self::assertWPError(OwnerBootstrap::enroll('',wp_generate_uuid4()));
  }
 
+ public function testFreshEmailLoginRenewsOnlyExpiredUnrevokedNativeAssignments():void {
+  $profile=$this->enroll();global $wpdb;$repo=new ShopAccessRepository();$state=$repo->read('digital');$id=$profile['global_grants']['digital'];$state['grants'][$id]['expires_at']=time()-1;
+  $key='digiforge_shop_access_event_'.$id;$event=json_decode($wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$key)),true);$event['grant']=$state['grants'][$id];$event['created_at']=time()-3601;$raw=wp_json_encode($event);
+  $wpdb->update($wpdb->options,['option_value'=>$raw],['option_name'=>$key]);$wpdb->update($wpdb->options,['option_value'=>wp_json_encode($state)],['option_name'=>'digiforge_shop_access_state_digital']);$wpdb->update(DigiForge\Database\Tables::audit_log(),['context'=>$raw],['object_type'=>'shop_access','event_type'=>'shop_access_grant','object_id'=>$id],['%s'],['%s','%s','%s']);
+  self::assertFalse(GlobalOwnerAuthority::active($profile));self::assertTrue(GlobalOwnerAuthority::active($profile,true));$this->email();$r=Authentication::continueTo(home_url('/'));self::assertNotWPError($r);
+  $next=Store::read(1);self::assertSame($profile['global_authority_hash'],$next['global_authority_hash']);self::assertSame($profile['generation']+2,$next['generation']);self::assertSame($profile['shops'],$next['shops']);self::assertTrue(Session::valid($next));foreach(ShopAccessPolicy::canonicalShops() as $shop)self::assertTrue(ShopAccess::authorize($shop,'manage_digiforge'));
+ }
+ public function testFreshEmailCannotRenewRevokedOwnerViaNormalLogin():void {
+  $p=$this->enroll();$repo=new ShopAccessRepository();$n=$repo->read('digital');self::assertNotWPError($repo->revoke('digital',$p['global_grants']['digital'],wp_generate_uuid4(),$n['revision']));$this->email();self::assertWPError(Authentication::continueTo(home_url('/')));self::assertSame($p['revision'],Store::read(1)['revision']);self::assertFalse(Session::valid(Store::read(1)));
+ }
+
 }
