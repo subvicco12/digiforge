@@ -102,7 +102,7 @@ def main():
             archive.writestr(i, raw, compresslevel=9)
             records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
     counts = {a: sum(r['action'] == a for r in records) for a in ['RETAIN_IDENTICAL', 'MODIFY_REVIEWED', 'ADD']}
-    if counts != {'RETAIN_IDENTICAL': 682, 'MODIFY_REVIEWED': 10, 'ADD': 46} or len(records) != 738 or not original.keys() <= payload.keys():
+    if counts != {'RETAIN_IDENTICAL': 682, 'MODIFY_REVIEWED': 10, 'ADD': 47} or len(records) != 739 or not original.keys() <= payload.keys():
         raise ValueError('Preservation contract violated')
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
