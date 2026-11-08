@@ -91,6 +91,13 @@ final class PrintifyCatalogReadRepository {
   return true;
  }
  /** Authoritative grant admission; no caller-supplied authorization callback. */
+ public function quotaContext(array $authority):array|WP_Error {
+  if(!self::reader()||!is_string($authority['grant_sha256']??null))return self::error('account_scope',403);
+  $g=$this->grant($authority['grant_sha256']);if($g instanceof WP_Error)return $g;
+  $assigned=$this->assigned($g);if($assigned instanceof WP_Error)return $assigned;
+  $permission=$this->readPermission($authority['grant_sha256'],$g);if($permission instanceof WP_Error)return $permission;
+  return PrintifyConnectionBoundary::context($g['binding']['shop_key'],$g['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);
+ }
  public function authorizeReservedAttempt(array $authority,array $request,string $token,bool $consume):true|WP_Error {
   if(count($authority)!==3||array_diff(array_keys($authority),['grant_sha256','request_index','request_sha256'])||!is_string($authority['grant_sha256']??null)||!is_int($authority['request_index']??null)||!is_string($authority['request_sha256']??null))return self::error('reserved_scope',403);
   $sha=$authority['grant_sha256'];$index=$authority['request_index'];$key=$authority['request_sha256'];

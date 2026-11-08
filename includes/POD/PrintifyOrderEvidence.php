@@ -32,7 +32,7 @@ final class PrintifyOrderEvidence
             if (!array_key_exists($field, $address) || !is_string($address[$field]) || strlen($address[$field]) > 255 || preg_match('/[\x00-\x1F\x7F]/', $address[$field])) { throw new \InvalidArgumentException('Bounded explicit address fields required.'); }
         }
         foreach (['first_name','last_name','address1','city','zip'] as $field) { self::text($address[$field], 255); }
-        if (!preg_match('/^[A-Z]{2}$/D', $address['country']) || !filter_var($address['email'], FILTER_VALIDATE_EMAIL)) { throw new \InvalidArgumentException('Invalid destination country or email.'); }
+        if (!in_array($address['country'], explode(' ', 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'), true) || !filter_var($address['email'], FILTER_VALIDATE_EMAIL)) { throw new \InvalidArgumentException('Invalid destination country or email.'); }
     }
 
     public static function project(array $order, string $expectedId): array
@@ -42,7 +42,7 @@ final class PrintifyOrderEvidence
         $lines = [];
         foreach ($order['line_items'] as $line) {
             if (!is_array($line) || !is_string($line['product_id'] ?? null) || !is_int($line['variant_id'] ?? null) || $line['variant_id'] < 1 || !is_int($line['quantity'] ?? null) || $line['quantity'] < 1) { throw new \InvalidArgumentException('Malformed order line evidence.'); }
-            $lines[] = array_intersect_key($line, array_flip(['product_id','variant_id','quantity']));
+            $row=array_intersect_key($line,array_flip(['product_id','variant_id','quantity']));if(isset($line['status'])){if(!is_string($line['status'])||strlen($line['status'])>80)throw new \InvalidArgumentException('Malformed fulfillment status.');$row['status']=in_array($line['status'],self::STATES,true)?$line['status']:'UNRECOGNIZED_PROVIDER_STATE';}foreach(['cost','shipping_cost'] as $money){$row[$money]=self::amount($line[$money]??null);}$lines[]=$row;
         }
         $shipments = [];
         if (!is_array($order['shipments'] ?? []) || !array_is_list($order['shipments'] ?? []) || count($order['shipments'] ?? []) > 100) { throw new \InvalidArgumentException('Malformed shipments.'); }
@@ -56,7 +56,9 @@ final class PrintifyOrderEvidence
             if ($delivered !== null && (!is_string($delivered) || strlen($delivered) > 40 || !preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D', $delivered) || strtotime($delivered) === false)) { throw new \InvalidArgumentException('Invalid delivery timestamp.'); }
             $shipments[] = ['carrier'=>$shipment['carrier'],'tracking_hash'=>hash('sha256',$shipment['number']),'url_observed'=>true,'delivered_at'=>$delivered];
         }
-        return ['id'=>$expectedId,'status'=>$order['status'],'line_items'=>$lines,'shipments'=>$shipments,'cost'=>self::amount($order['total_price'] ?? null),'shipping_cost'=>self::amount($order['total_shipping'] ?? null),'production_certified'=>false];
+        $external=$order['external_id']??null;if($external!==null)self::text($external,128);
+        $sent=$order['sent_to_production_at']??null;if($sent!==null&&(!is_string($sent)||strlen($sent)>40||!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D',$sent)||strtotime($sent)===false))throw new \InvalidArgumentException('Invalid production timestamp.');
+        return ['id'=>$expectedId,'external_id'=>$external,'sent_to_production_at'=>$sent,'status'=>$order['status'],'line_items'=>$lines,'shipments'=>$shipments,'cost'=>self::amount($order['total_price'] ?? null),'shipping_cost'=>self::amount($order['total_shipping'] ?? null),'production_certified'=>false];
     }
     private static function amount(mixed $value): ?int
     {

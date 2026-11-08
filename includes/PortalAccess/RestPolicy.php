@@ -25,7 +25,8 @@ final class RestPolicy {
  /** Exact independent boundaries retain their own authentication; no general prefix exemption. */
  public static function independent(\WP_REST_Request $r):bool {
   $route=$r->get_route();$method=$r->get_method();
-  return ($method==='POST'&&$route==='/digiforge/v1/etsy/webhook')||
+  return ($method==='POST'&&preg_match('#^/digiforge/v1/printify/webhooks/ingress/[a-f0-9]{32}$#D',$route)===1)||
+   ($method==='POST'&&$route==='/digiforge/v1/etsy/webhook')||
    ($method==='GET'&&in_array($route,['/digiforge/v1/health','/digiforge/v1/recovery/verification-snapshot'],true))||
    ($method==='GET'&&preg_match('#^/digiforge/v1/recovery/evidence/database-backup/marker/[a-f0-9]{64}$#D',$route)===1)||
    (preg_match('#^/digiforge/v1/customer-editor/[A-Za-z0-9_-]{1,80}/(view|upload|fields|approve)$#D',$route,$m)===1&&$method===($m[1]==='view'?'GET':'POST'));

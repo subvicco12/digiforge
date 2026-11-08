@@ -16,6 +16,7 @@ final class ShopAccessRestGuard
         $route=$request->get_route();
         if (!str_starts_with($route, '/digiforge/v1/')) return $result;
         // Exact independently authenticated boundaries, not general provider/customer access.
+        if ($request->get_method()==='POST' && preg_match('#^/digiforge/v1/printify/webhooks/ingress/[a-f0-9]{32}$#D',$route)===1) return $result;
         if ($request->get_method()==='POST' && $route==='/digiforge/v1/etsy/webhook') return $result;
         if ($request->get_method()==='GET' && in_array($route, [
             '/digiforge/v1/health', '/digiforge/v1/recovery/verification-snapshot',

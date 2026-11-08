@@ -5,6 +5,10 @@ namespace DigiForge\POD;
 final class PrintifyProductResponse {
  public static function project(array $plan,array $data):array {
   $op=$plan['request']['operation'];$body=$plan['request']['body'];$options=$plan['options'];
+  if(in_array($op,['PRODUCT_PUBLISH','PRODUCT_DELETE','PRODUCT_UNPUBLISH_NOTIFY','PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED'],true)){
+   if($data!==[])self::bad();preg_match('#/products/([^/.]+)#',$plan['request']['endpoint'],$match);
+   return ['id'=>$match[1]??'', 'request_acknowledged'=>true,'operation'=>$op,'external_listing_state_verified'=>false,'publication_state'=>$op==='PRODUCT_PUBLISH'?'PENDING_READBACK':($op==='PRODUCT_UNPUBLISH_NOTIFY'?'NOTIFICATION_ONLY':($op==='PRODUCT_DELETE'?'DELETE_ACKNOWLEDGED':'CHANNEL_STATUS_ACKNOWLEDGED'))];
+  }
   if(in_array($op,['IMAGE_UPLOAD','IMAGE_READ'],true)){
    self::id($data['id']??null);foreach(['width','height','size'] as $k)if(!is_int($data[$k]??null)||$data[$k]<1)self::bad();
    if($op==='IMAGE_UPLOAD'){$bytes=base64_decode($body['contents'],true);$h=unpack('Nwidth/Nheight',substr($bytes,16,8));if($data['width']!==$h['width']||$data['height']!==$h['height']||$data['size']!==strlen($bytes)||($data['mime_type']??null)!=='image/png')self::bad();}

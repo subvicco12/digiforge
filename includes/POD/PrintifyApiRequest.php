@@ -15,6 +15,7 @@ final class PrintifyApiRequest
             'PROVIDER_READ' => ['provider_id'],
             'PRODUCTS_READ','ORDERS_READ' => ['page','limit'],
             'ORDER_READ' => ['order_id'],
+            'PRODUCT_READ' => ['product_id','blueprint_id','provider_id','variant_ids'],
             'PRODUCT_PUBLISH' => ['product_id','title','description','images','variants','tags','keyFeatures','shipping_template'],
             default => null,
         };
@@ -26,9 +27,14 @@ final class PrintifyApiRequest
             case 'SHOPS_READ': $endpoint = '/v1/shops.json'; $scope = 'shops.read'; break;
             case 'PROVIDERS_READ': $endpoint = '/v1/catalog/print_providers.json'; $scope = 'print_providers.read'; break;
             case 'PROVIDER_READ': $endpoint = '/v1/catalog/print_providers/' . self::positive($input['provider_id'] ?? null) . '.json'; $scope = 'print_providers.read'; break;
+            case 'PRODUCT_READ':
+                self::productSelection($input);
+                $endpoint = $root . '/products/' . self::id($input['product_id'] ?? null) . '.json'; $scope = 'products.read';
+                break;
             case 'PRODUCTS_READ':
             case 'ORDERS_READ':
                 $orders = $operation === 'ORDERS_READ';
+                if (!$orders && ((array_key_exists('page',$input) && !is_int($input['page'])) || (array_key_exists('limit',$input) && !is_int($input['limit'])) || ($input['page'] ?? 1) > 2147483647)) { throw new \InvalidArgumentException('Strict bounded pagination required.'); }
                 $page = self::positive($input['page'] ?? 1);
                 $limit = self::positive($input['limit'] ?? 10);
                 if ((int)$limit > 10) { throw new \InvalidArgumentException('Bounded pagination required.'); }
@@ -53,7 +59,8 @@ final class PrintifyApiRequest
                 return PrintifyProductRequest::prepare($operation, $shop, $input);
         }
         $material = ['operation'=>$operation,'provider_shop_id'=>$shop,'method'=>$method,'endpoint'=>$endpoint,'body'=>$body,'required_scope'=>$scope];
-        return $material + ['fingerprint'=>hash('sha256', json_encode($material, JSON_THROW_ON_ERROR)), 'external_execution_authorized'=>false];
+        if ($operation === 'PRODUCT_READ') { $material['input'] = $input; }
+        return $material + ['fingerprint'=>hash('sha256', \DigiForge\Listings\Validator::canonicalJson($material)), 'external_execution_authorized'=>false];
     }
 
     public static function mapping(string $shop, string $externalShop, array $otherMappings): array
@@ -64,6 +71,15 @@ final class PrintifyApiRequest
             if ($key !== $shop && (string)$value === $externalShop) { throw new \InvalidArgumentException('Provider shop already assigned to another DigiForge shop.'); }
         }
         return ['shop_key'=>$shop,'provider'=>'printify','provider_shop_id'=>$externalShop,'execution_authorized'=>false];
+    }
+
+    private static function productSelection(array $input): void
+    {
+        if (array_diff(['product_id','blueprint_id','provider_id','variant_ids'], array_keys($input))) { throw new \InvalidArgumentException('Approved product selection required.'); }
+        foreach (['blueprint_id','provider_id'] as $key) { if (!is_int($input[$key]) || $input[$key] < 1 || $input[$key] > 2147483647) { throw new \InvalidArgumentException('Approved catalog identity required.'); } }
+        $ids = $input['variant_ids'];
+        if (!is_array($ids) || !array_is_list($ids) || !$ids || count($ids)>1000 || count(array_unique($ids, SORT_REGULAR))!==count($ids)) { throw new \InvalidArgumentException('Approved variants required.'); }
+        foreach ($ids as $id) { if (!is_int($id) || $id<1 || $id>2147483647) { throw new \InvalidArgumentException('Approved variant identity required.'); } }
     }
 
     private static function positive(mixed $value): string

@@ -4,6 +4,7 @@ namespace DigiForge\PortalAccess;
 /** Reviewed union of source and exact installed 1.0.103.2 registrations. No prefix admissions. */
 final class RestRoutes {
  public const ENTRIES = [
+  ['/digiforge/v1/printify/webhooks/ingress/(?P<binding>[a-f0-9]{32})', 'POST', 'DigiForge\\REST\\PrintifyWebhookController::receive', 'DigiForge\\REST\\PrintifyWebhookController::permission'],
   ['/digiforge/v1/activations', 'GET', 'DigiForge\\REST\\Controller::activations', 'DigiForge\\REST\\Controller::can_manage'],
   ['/digiforge/v1/activations/(?P<capability>gelato|etsy-publish|order-automation|gst-automation)', 'POST', 'DigiForge\\REST\\Controller::activate_remaining', 'DigiForge\\REST\\Controller::can_manage'],
   ['/digiforge/v1/activations/etsy-draft', 'POST', 'DigiForge\\REST\\Controller::activate_etsy_draft', 'DigiForge\\REST\\Controller::can_manage'],

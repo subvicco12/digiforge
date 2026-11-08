@@ -47,6 +47,23 @@ final class PrintifyProductRequest
                 if (isset($body['print_areas']) && !isset($body['variants'])) self::invalid();
                 $method = 'PUT'; $endpoint = $prefix.'/'.$input['product_id'].'.json'; $scope = 'products.write';
                 break;
+            case 'PRODUCT_PUBLISH_SUCCEEDED':
+                self::keys($input,['product_id','external']);self::id($input['product_id']);if(!is_array($input['external']))self::invalid();self::keys($input['external'],['id','handle']);self::id($input['external']['id']);self::text($input['external']['handle'],2048);
+                $url=parse_url($input['external']['handle']);if(!is_array($url)||($url['scheme']??null)!=='https'||!isset($url['host'])||isset($url['user'])||isset($url['pass'])||isset($url['fragment']))self::invalid();
+                $body=['external'=>$input['external']];$method='POST';$endpoint=$prefix.'/'.$input['product_id'].'/publishing_succeeded.json';$scope='products.write';break;
+            case 'PRODUCT_PUBLISH_FAILED':
+                self::keys($input,['product_id','reason']);self::id($input['product_id']);if(!in_array($input['reason'],['CHANNEL_REJECTED','CHANNEL_TIMEOUT','HUMAN_REJECTED'],true))self::invalid();
+                $body=['reason'=>$input['reason']];$method='POST';$endpoint=$prefix.'/'.$input['product_id'].'/publishing_failed.json';$scope='products.write';break;
+            case 'PRODUCT_PUBLISH':
+                self::keys($input, ['product_id','publish_fields']); self::id($input['product_id']);
+                if (!is_array($input['publish_fields']) || $input['publish_fields'] === [] || array_diff(array_keys($input['publish_fields']), ['title','description','images','variants','tags','keyFeatures','shipping_template'])) self::invalid();
+                foreach ($input['publish_fields'] as $value) if (!is_bool($value)) self::invalid();
+                if (!in_array(true, $input['publish_fields'], true)) self::invalid();
+                $body=$input['publish_fields'];$method='POST';$endpoint=$prefix.'/'.$input['product_id'].'/publish.json';$scope='products.write';break;
+            case 'PRODUCT_UNPUBLISH_NOTIFY':
+            case 'PRODUCT_DELETE':
+                self::keys($input, ['product_id']);self::id($input['product_id']);
+                $method=$operation==='PRODUCT_DELETE'?'DELETE':'POST';$endpoint=$prefix.'/'.$input['product_id'].($operation==='PRODUCT_DELETE'?'.json':'/unpublish.json');$scope='products.write';break;
             case 'PRODUCT_READ':
             case 'PERSONALIZATION_OPTIONS':
                 self::keys($input, ['product_id']); self::id($input['product_id']);

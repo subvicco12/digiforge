@@ -15,6 +15,7 @@ final class PrintifyApiReadWorkflow
     {
         if (!in_array($shop, ['personalized_pod','standard_pod'], true)) { return false; }
         $caps = ['manage_digiforge_connections'];
+        if (in_array($operation, ['PRODUCT_READ','PRODUCTS_READ'], true)) { $caps[] = 'manage_digiforge_products'; }
         if (in_array($operation, ['ORDER_READ','ORDERS_READ'], true)) { $caps[] = 'manage_digiforge_orders'; }
         if (in_array($operation, ['PROVIDERS_READ','PROVIDER_READ'], true)) { $caps[] = 'manage_digiforge_pod'; }
         foreach ($caps as $cap) { if (!current_user_can($cap) || ShopAccess::authorize($shop, $cap) !== true) { return false; } }
@@ -53,12 +54,13 @@ final class PrintifyApiReadWorkflow
         $i = (new \DigiForge\Integrations\Repository())->find($integration);
         if (is_wp_error($i) || !is_array($i) || ($i['provider'] ?? null) !== 'printify' || ($i['config']['shop_key'] ?? null) !== $shop || !is_string($i['config']['shop_id'] ?? null)) { return self::error('integration'); }
         try { $request = PrintifyApiRequest::prepare($operation, $i['config']['shop_id'], $input); } catch (\Throwable) { return self::error('contract'); }
-        return $this->save('plan', ['schema'=>'printify-api-read-v1','shop_key'=>$shop,'integration_id'=>$integration,'provider_shop_id'=>$i['config']['shop_id'],'connection_scope'=>$binding,'request'=>$request,'input'=>$input,'created_by'=>get_current_user_id(),'created_at'=>time()]);
+        return $this->save('plan', ['schema'=>'printify-api-read-v1','shop_key'=>$shop,'integration_id'=>$integration,'provider_shop_id'=>$i['config']['shop_id'],'connection_scope'=>$binding,'request'=>$request,'input'=>$input,'intent_id'=>bin2hex(random_bytes(8)),'created_by'=>get_current_user_id(),'created_at'=>time()]);
     }
+    public function plan(string $hash):array|WP_Error { return $this->load('plan',$hash); }
     public function approvalPayload(string $hash): array|WP_Error
     {
         $plan = $this->load('plan', $hash); if (is_wp_error($plan)) { return $plan; }
-        return ['purpose'=>'printify-api-read-v1','plan_hash'=>$hash,'request_fingerprint'=>$plan['request']['fingerprint'],'connection_binding_hash'=>$plan['connection_scope']['binding_hash'],'max_requests'=>1,'required_scope'=>$plan['request']['required_scope']];
+        return ['purpose'=>'printify-api-read-v1','plan_hash'=>$hash,'request_fingerprint'=>$plan['request']['fingerprint'],'connection_binding_hash'=>$plan['connection_scope']['binding_hash'],'max_requests'=>3,'required_scope'=>$plan['request']['required_scope']];
     }
     private function current(string $hash, array $plan): true|WP_Error
     {
@@ -68,7 +70,7 @@ final class PrintifyApiReadWorkflow
         if (is_wp_error($binding)) { return $binding; }
         $policy = ReviewedLocalEvidence::approved('policy', $plan['shop_key'], 'printify-api-read:' . $hash);
         $expected = $this->approvalPayload($hash);
-        if (is_wp_error($policy) || is_wp_error($expected) || Validator::canonicalJson($policy['payload'] ?? null) !== Validator::canonicalJson($expected)) { return self::error('approval'); }
+        if (is_wp_error($policy) || is_wp_error($expected) || Validator::canonicalJson($policy['payload'] ?? []) !== Validator::canonicalJson($expected)) { return self::error('approval'); }
         return true;
     }
     public function authorize(string $hash): array|WP_Error
@@ -100,18 +102,28 @@ final class PrintifyApiReadWorkflow
         // Claim before sending. Any interruption remains consumed, requiring a new reviewed plan.
         if (!add_option('digiforge_api_read_claim_' . $hash, $authorization, '', false)) { return self::error('consumed'); }
         $nonce = ExecutionNonceLedger::consume($auth['nonce'], $authorization, get_current_user_id()); if (is_wp_error($nonce)) { return $nonce; }
-        $account = hash('sha256', (string)$plan['connection_scope']['external_account_reference'] . '|' . $plan['connection_scope']['business_id']);
-        $slot = false;
-        for ($n = 0; $n < 10; $n++) { if (add_option('digiforge_api_read_rate_' . $account . '_' . intdiv(time(), 60) . '_' . $n, time(), '', false)) { $slot = true; break; } }
-        if (!$slot || !Logger::write('printify_api_read_reserved', ['plan_sha256'=>$hash,'authorization_sha256'=>$authorization,'max_requests'=>1], 'printify_api', $hash)) { return self::error('rate_or_audit'); }
+        if (!Logger::write('printify_api_read_reserved', ['plan_sha256'=>$hash,'authorization_sha256'=>$authorization,'max_requests'=>3], 'printify_api', $hash)) { return self::error('audit'); }
         $attempted = false;
         $result = (new PrintifyScopedCredentialRetriever())->consume($plan['integration_id'], function (string $token) use ($hash, $plan, $request, $sender, &$attempted) {
             $current = $this->current($hash, $plan); if (is_wp_error($current)) { return $current; }
             $material = PrintifyConnectionBoundary::material($plan['integration_id'], $token); if (is_wp_error($material)) { return $material; }
             $durable = PrintifyProductPipeline::durableDispatchSession(); if (is_wp_error($durable)) { return $durable; }
-            $attempted = true;
-            try { $response = $sender('https://api.printify.com' . $request['endpoint'], ['method'=>'GET','timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048576,'headers'=>['Authorization'=>'Bearer ' . $token,'User-Agent'=>'DigiForge/PrintifyApi','Accept'=>'application/json']]);
-                if (is_wp_error($response) || (int)wp_remote_retrieve_response_code($response) !== 200) { return ['status'=>'UNKNOWN','data'=>null]; }
+            $response = null;
+            for ($attempt=1; $attempt<=3; $attempt++) {
+                if($attempt>1)usleep(100000*($attempt-1));
+                $fresh=$this->current($hash,$plan);if(is_wp_error($fresh))return $fresh;
+                $correlation=$hash.':'.$attempt;$quota=PrintifyAccountQuota::reserve($plan['connection_scope'],$request['endpoint'],'GET',$correlation);if(is_wp_error($quota))return $quota;
+                $attempted=true;
+                try{$response=$sender('https://api.printify.com'.$request['endpoint'],['method'=>'GET','timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577,'headers'=>['Authorization'=>'Bearer '.$token,'User-Agent'=>'DigiForge/PrintifyApi','Accept'=>'application/json']]);}catch(\Throwable){$response=new WP_Error('printify_transport_unknown');}
+                $status=is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response);$headers=is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')];
+                $observed=PrintifyAccountQuota::observe($plan['connection_scope'],$status,$headers,$correlation);if(is_wp_error($observed))return ['status'=>'UNKNOWN','data'=>null];
+                $outcome=PrintifyApiOutcome::classify($status,$headers,$attempt,'GET');
+                if($outcome['category']==='SUCCESS')break;
+                // No sleeping worker or ignored cooldown: a positive Retry-After always stops this invocation.
+                if(!$outcome['retry_permitted']||$outcome['category']==='RATE_LIMITED'||$headers['retry-after']!=='')return ['status'=>$outcome['category']==='DEFINITIVE_ERROR'?'FAILED':'UNKNOWN','data'=>null,'reason_code'=>$outcome['reason_code'],'retry_after'=>$outcome['bounded_retry_after']];
+            }
+            try {
+                if (is_wp_error($response) || (int)wp_remote_retrieve_response_code($response)!==200) { return ['status'=>'UNKNOWN','data'=>null]; }
                 $raw = (string)wp_remote_retrieve_body($response);
                 if (strlen($raw) > 1048576) { return ['status'=>'RESPONSE_REJECTED','data'=>null]; }
                 $decoded = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
@@ -123,7 +135,9 @@ final class PrintifyApiReadWorkflow
         }, $plan['connection_scope']);
         $status = is_wp_error($result) ? 'UNKNOWN' : ($result['status'] ?? 'UNKNOWN');
         $data = is_wp_error($result) ? null : ($result['data'] ?? null);
-        $receipt = $this->save('receipt', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'integration_id'=>$plan['integration_id'],'connection_binding_hash'=>$plan['connection_scope']['binding_hash'],'operation'=>$request['operation'],'status'=>$status,'data'=>$data,'network_request_attempted'=>$attempted,'observed_at'=>gmdate('c')]);
+        $reason = is_wp_error($result) ? 'ADMISSION_OR_EVIDENCE' : ($result['reason_code'] ?? ($result['status'] ?? 'UNKNOWN'));
+        $retryAfter = is_wp_error($result) ? null : ($result['retry_after'] ?? null);
+        $receipt = $this->save('receipt', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'integration_id'=>$plan['integration_id'],'connection_binding_hash'=>$plan['connection_scope']['binding_hash'],'operation'=>$request['operation'],'endpoint_path'=>$request['endpoint'],'request_fingerprint'=>$request['fingerprint'],'provider_shop_id'=>$plan['provider_shop_id'],'external_account_hash'=>hash('sha256',$plan['connection_scope']['external_account_reference']),'status'=>$status,'data'=>$data,'response_sha256'=>is_wp_error($result)?null:($result['response_sha256']??null),'reason_code'=>$reason,'retry_after'=>$retryAfter,'network_request_attempted'=>$attempted,'observed_at'=>gmdate('c')]);
         if (is_wp_error($receipt) || !Logger::write('printify_api_read_receipt', ['plan_sha256'=>$hash,'status'=>$status,'receipt_sha256'=>is_wp_error($receipt)?null:$receipt['hash']], 'printify_api', $hash)) { return self::error('receipt_audit'); }
         return $receipt;
     }

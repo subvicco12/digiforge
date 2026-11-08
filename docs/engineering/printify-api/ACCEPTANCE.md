@@ -1,3 +1,5 @@
+> Historical .19 qualification. Superseded by [the .20 operation ledger](OPERATIONS-1.0.103.20.md); retain this record as previous evidence.
+
 # API-only acceptance ledger — 2026-11-08
 
 This candidate starts at qualified portal source e957ba096751dc34254cdbcbefed13b625f5e507. Printify PR1253 remains 6e521719d925c75f27aed5ccdd47048cc1e5a15d. POD PR1259 remains a597365c3ffbab022671553675a59a8783931e02. No PR is merged and no POD source is imported. Production installation is unauthorized.
