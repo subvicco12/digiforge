@@ -34,7 +34,7 @@ final class LegacyOperatorsCompatibilityTest extends WP_UnitTestCase {
   PortalAccessFixture::enroll();self::assertNotWPError(DigiForge\PortalAccess\OwnerBootstrap::revoke(wp_generate_uuid4()));self::assertStringContainsString('unavailable or expired',(new ShopAccessPanel())->render());
  }
  public function testOwnerSelectedShopAndSchedulerDetailsStayReadOnly():void {
-  PortalAccessFixture::enroll();$_GET=['df_shop'=>'digital'];$h=(new ShopAccessPanel())->render();self::assertStringContainsString('df_shop=digital',$h);self::assertStringNotContainsString('df_shop=jewelry',$h);$_GET=['df_view'=>'automation','df_shop'=>'all'];$h=(new DigiForge\PortalAccess\Feature())->after('Existing task evidence','digiforge_admin_portal',[],[]);self::assertStringContainsString('Action Scheduler dependency',$h);self::assertStringContainsString('Optional dependency',$h);self::assertSame(2,Store::read(1)['revision']);
+  PortalAccessFixture::enroll();$_GET=['df_shop'=>'digital'];$h=(new ShopAccessPanel())->render();self::assertStringContainsString('df_shop=digital',$h);self::assertStringNotContainsString('df_shop=jewelry',$h);$_GET=['df_view'=>'automation','df_shop'=>'all'];$h=(new DigiForge\PortalAccess\Feature())->after('Existing task evidence','digiforge_admin_portal',[],[]);self::assertStringNotContainsString('Action Scheduler dependency',$h);self::assertStringContainsString('Existing task evidence',$h);self::assertSame(2,Store::read(1)['revision']);
  }
 
  public function testExpiredUnrevokedNativeAssignmentShowsRenewalGuidanceNotSignedRootWarning():void {

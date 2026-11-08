@@ -1,0 +1,9 @@
+{
+  "path": "includes/Portal/Portal.php",
+  "authorization": "OWNER_APPROVED_TARGETED_10314_ACTUAL_AUTOMATION_RENDERER",
+  "baseline_sha256": "0f2b72343b0aa34df5e8c5c5f708c748702f0ae467bba69fae56dcc12e7c1d8b",
+  "candidate_sha256": "6abe9c05e5c74d1984f5ced9ebefa3a194878d7bc6d362cc1ea182853930a9c3",
+  "anchor": "$scheduled=(new \\DigiForge\\Queue\\ScheduledTaskReadModel())->snapshot();",
+  "addition": "\n        echo (new \\DigiForge\\Portal\\SchedulerDependencyPanel())->render($scheduled);",
+  "authentication_or_execution_change": false
+}

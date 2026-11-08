@@ -7,7 +7,7 @@ final class Authentication {
  public static function browserChallenge():string {
   $key=self::challengeName();$value=$_COOKIE[$key]??null;if(!is_string($value)||preg_match('/^[a-f0-9]{64}$/D',$value)!==1){$value=bin2hex(random_bytes(32));$_COOKIE[$key]=$value;if(!headers_sent())setcookie($key,$value,['expires'=>time()+900,'path'=>'/','secure'=>is_ssl(),'httponly'=>true,'samesite'=>'Lax']);}return $value;
  }
- public static function loginUrl(string $return=''):string{return add_query_arg(['df_auth'=>'login','redirect_to'=>self::safeReturn($return)],home_url('/'));}
+ public static function loginUrl(string $return=''):string{return add_query_arg(['df_auth'=>'login','redirect_to'=>rawurlencode(self::safeReturn($return))],home_url('/'));}
  public static function safeReturn(mixed $url):string {
   if(!is_string($url)||strlen($url)>2048||str_starts_with($url,'//')||str_contains($url,"\r")||str_contains($url,"\n"))return home_url('/');$url=wp_validate_redirect($url,home_url('/'));$u=wp_parse_url($url);$h=wp_parse_url(home_url('/'));if(!$u||isset($u['user'])||isset($u['pass'])||($u['host']??'')!==($h['host']??'')||($u['scheme']??'')!==($h['scheme']??'')||($u['port']??null)!==($h['port']??null))return home_url('/');return remove_query_arg(['df_auth','df_result'],$url);
  }
