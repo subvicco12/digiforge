@@ -49,6 +49,7 @@ final class PrintifyApiBoundaryTest extends TestCase
         foreach (['SHOPS_READ'=>'/v1/shops.json','PROVIDERS_READ'=>'/v1/catalog/print_providers.json','PROVIDER_READ'=>'/v1/catalog/print_providers/7.json','PRODUCTS_READ'=>'/v1/shops/12/products.json?page=1&limit=10','ORDERS_READ'=>'/v1/shops/12/orders.json?page=1&limit=10','ORDER_READ'=>'/v1/shops/12/orders/order_1.json','WEBHOOKS_READ'=>'/v1/shops/12/webhooks.json'] as $op=>$endpoint) {
             $request=PrintifyApiRequest::prepare($op,'12',$op==='PROVIDER_READ'?['provider_id'=>7]:($op==='ORDER_READ'?['order_id'=>'order_1']:[]));
             self::assertSame($endpoint,$request['endpoint']);self::assertSame('GET',$request['method']);self::assertFalse($request['external_execution_authorized']);
+            if(in_array($op,['PROVIDERS_READ','PROVIDER_READ'],true)){self::assertSame('print_providers.read',$request['required_scope']);}
             self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/D',$request['fingerprint']);
         }
     }

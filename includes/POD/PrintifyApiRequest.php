@@ -24,8 +24,8 @@ final class PrintifyApiRequest
         $method = 'GET';
         switch ($operation) {
             case 'SHOPS_READ': $endpoint = '/v1/shops.json'; $scope = 'shops.read'; break;
-            case 'PROVIDERS_READ': $endpoint = '/v1/catalog/print_providers.json'; $scope = 'catalog.read'; break;
-            case 'PROVIDER_READ': $endpoint = '/v1/catalog/print_providers/' . self::positive($input['provider_id'] ?? null) . '.json'; $scope = 'catalog.read'; break;
+            case 'PROVIDERS_READ': $endpoint = '/v1/catalog/print_providers.json'; $scope = 'print_providers.read'; break;
+            case 'PROVIDER_READ': $endpoint = '/v1/catalog/print_providers/' . self::positive($input['provider_id'] ?? null) . '.json'; $scope = 'print_providers.read'; break;
             case 'PRODUCTS_READ':
             case 'ORDERS_READ':
                 $orders = $operation === 'ORDERS_READ';
