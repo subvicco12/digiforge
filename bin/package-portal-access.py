@@ -46,7 +46,7 @@ def main():
                 raise ValueError('Duplicate base member')
             original[rel] = z.read(i)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    for rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY + [TRANSPORT] + PRESERVED_SECURITY + ['bin/package-portal-access.py', 'docs/engineering/printify-software-overlay.json', 'docs/engineering/portal-access/native-acl-overlay.json', 'docs/engineering/portal-access/global-owner-native-overlay.json', 'docs/engineering/portal-access/legacy-queue-compatibility-overlay.json', 'docs/engineering/portal-access/automation-presentation-overlay.json']:
+    for rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY + [TRANSPORT] + PRESERVED_SECURITY + ['bin/package-portal-access.py', 'docs/engineering/printify-software-overlay.json', 'docs/engineering/portal-access/native-acl-overlay.json', 'docs/engineering/portal-access/global-owner-native-overlay.json', 'docs/engineering/portal-access/legacy-queue-compatibility-overlay.json', 'docs/engineering/portal-access/automation-presentation-overlay.json', 'docs/engineering/portal-access/launch-correlation-overlay.json', 'includes/REST/LaunchController.php']:
         if subprocess.check_output(['git', 'show', head + ':' + rel], cwd=ROOT) != (ROOT / rel).read_bytes():
             raise ValueError('Uncommitted overlay or builder: ' + rel)
     for rel in PRESERVED_SECURITY:
@@ -63,7 +63,7 @@ def main():
     expected_guard = original[MODIFIED[2]].replace(admission, admission + addition)
     if expected_guard != (ROOT / MODIFIED[2]).read_bytes():
         raise ValueError('Shared admin guard has an unreviewed delta')
-    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.15') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
+    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.16') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
     if expected_header != (ROOT / 'digiforge.php').read_bytes():
         raise ValueError('Plugin bootstrap has an unreviewed delta')
     # Native ACL source was previously byte-identical to this installed-lineage file.
@@ -98,6 +98,15 @@ def main():
         if restored.encode() != original[rel]:
             raise ValueError('Compatibility overlay does not preserve its baseline: ' + rel)
         payload[rel] = raw
+    correlation = json.loads((ROOT / 'docs/engineering/portal-access/launch-correlation-overlay.json').read_text())
+    launch = correlation['path']
+    pre = correlation['baseline_text'].encode()
+    post = correlation['candidate_text'].encode()
+    if sha(original[launch]) != correlation['baseline_sha256'] or original[launch].count(pre) != 1 or sha((ROOT / launch).read_bytes()) != correlation['source_sha256'] or (ROOT / launch).read_bytes().count(post) != 1:
+        raise ValueError('Launch correlation baseline/source mismatch')
+    payload[launch] = original[launch].replace(pre, post, 1)
+    if sha(payload[launch]) != correlation['candidate_sha256'] or payload[launch].replace(post, pre, 1) != original[launch]:
+        raise ValueError('Launch correlation preservation mismatch')
     presentation = json.loads((ROOT / 'docs/engineering/portal-access/automation-presentation-overlay.json').read_text())
     portal = 'includes/Portal/Portal.php'
     anchor = presentation['anchor'].encode()
@@ -119,7 +128,7 @@ def main():
     payload[TRANSPORT] = original[TRANSPORT].replace(anchor, PRODUCT_METHOD + anchor, 1)
     assert payload[TRANSPORT].replace(PRODUCT_METHOD, b'', 1) == original[TRANSPORT]
     args.output.mkdir(parents=True, exist_ok=True)
-    target = args.output / 'digiforge-1.0.103.15-consolidated-update.zip'
+    target = args.output / 'digiforge-1.0.103.16-consolidated-update.zip'
     records = []
     with zipfile.ZipFile(target, 'w') as archive:
         for rel, raw in sorted(payload.items()):
@@ -129,15 +138,15 @@ def main():
             i.external_attr = (stat.S_IFREG | 0o644) << 16
             i.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(i, raw, compresslevel=9)
-            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY else 'installed-baseline-plus-scheduler-presentation' if rel == portal else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
+            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY else 'installed-baseline-plus-correlation-evidence' if rel == launch else 'installed-baseline-plus-scheduler-presentation' if rel == portal else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
     counts = {a: sum(r['action'] == a for r in records) for a in ['RETAIN_IDENTICAL', 'MODIFY_REVIEWED', 'ADD']}
-    if counts != {'RETAIN_IDENTICAL': 678, 'MODIFY_REVIEWED': 14, 'ADD': 49} or len(records) != 741 or not original.keys() <= payload.keys():
+    if counts != {'RETAIN_IDENTICAL': 677, 'MODIFY_REVIEWED': 15, 'ADD': 49} or len(records) != 741 or not original.keys() <= payload.keys():
         raise ValueError('Preservation contract violated')
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
         for r in records:
             assert sha(z.read(r['path'])) == r['sha256']
-    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.15', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
+    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.16', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
     (args.output / 'preservation-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (args.output / (target.name + '.sha256')).write_text(manifest['sha256'] + '  ' + target.name + '\n')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'files'}, indent=2))

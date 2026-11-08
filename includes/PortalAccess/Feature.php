@@ -26,7 +26,7 @@ final class Feature {
  public function submit():never {
   $action=$_POST['action']??'';$p=wp_unslash($_POST);$result=($_SERVER['REQUEST_METHOD']??'')==='POST'?$this->process(is_string($action)?$action:'',$p):Policy::error('method');
   if(is_wp_error($result))$url=add_query_arg('df_result','blocked',Authentication::loginUrl(Authentication::safeReturn($p['return_to']??'')));else $url=$result['return_to']??add_query_arg(['df_view'=>'users','df_shop'=>is_string($p['shop']??null)?$p['shop']:'personalized_pod','df_result'=>'recorded'],home_url('/'));
-  if(!is_wp_error($result)&&($result['verification_required']??false)===true){nocache_headers();header('Referrer-Policy: no-referrer');header('X-Frame-Options: DENY');echo EmailAuthentication::verificationForm($result['selector']);exit;}
+  if(!is_wp_error($result)&&($result['verification_required']??false)===true){nocache_headers();header('Referrer-Policy: no-referrer');header('X-Frame-Options: DENY');echo EmailAuthentication::verificationForm($result['selector'],$result['return_to']);exit;}
   // Invitation credentials are shown once privately; never put them in a query string.
   if(!is_wp_error($result)&&isset($result['token'])){nocache_headers();echo self::accountBar().'<main class="df-access-card"><h1>Invitation prepared</h1><p>Deliver this single-use link privately to the intended existing account. No email was sent.</p><p><a href="'.esc_url(add_query_arg('df_view','invitation',home_url('/')).'#invite='.$result['token']).'">Private invitation link</a></p><p>If scripts are unavailable, sign in then paste this code on the invitation page: <code>'.esc_html($result['token']).'</code></p></main>';exit;}
   wp_safe_redirect($url);exit;
