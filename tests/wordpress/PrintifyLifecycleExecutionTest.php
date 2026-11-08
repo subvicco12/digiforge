@@ -9,6 +9,13 @@ use DigiForge\POD\PrintifyControlledTransport;
 final class PrintifyLifecycleExecutionTest extends WP_UnitTestCase
 {
  private PrintifyApiApprovalFixture $fixture;
+ public static function set_up_before_class():void {
+  parent::set_up_before_class();
+  // WP_UnitTestCase rewrites CREATE TABLE inside each test to TEMPORARY.
+  // Durable storage guards correctly reject temporary tables (not in information_schema).
+  // Install the existing test-only component schema before that per-test rewrite exists.
+  PrintifyApiApprovalFixture::checked(DigiForge\Database\ProviderConnectionSchema::migrateIfNeeded());
+ }
  protected function setUp():void {parent::setUp();$this->fixture=new PrintifyApiApprovalFixture();$this->fixture->boot();}
  protected function tearDown():void {try{$this->fixture->restore();}finally{parent::tearDown();}}
  private function planRead(string $operation='SHOPS_READ',array $input=[]):array {return PrintifyApiApprovalFixture::checked((new PrintifyApiReadWorkflow())->prepare('personalized_pod',$this->fixture->integration,$operation,$input));}
