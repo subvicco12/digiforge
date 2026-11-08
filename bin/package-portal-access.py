@@ -13,6 +13,8 @@ RUNTIME = ['includes/PortalAccess/' + n + '.php' for n in ['Authentication', 'Fe
 RUNTIME += ['includes/POD/ProductIntelligenceXlsx.php', 'includes/POD/PrintifySupplierWorkflow.php', 'includes/Portal/PrintifySupplierWorkflowPanel.php']
 RUNTIME += ['includes/Research/CommercialResearchContract.php', 'includes/Research/CommercialResearchRepository.php', 'includes/Research/DesignFactoryContract.php', 'includes/Research/DesignFactoryRepository.php', 'includes/Research/DesignFactoryUnavailableProvider.php', 'includes/Research/DesignGenerationProvider.php', 'includes/Research/GovernedResearchProvider.php', 'includes/Research/OpportunityDesignContract.php', 'includes/Research/OpportunityDesignRepository.php', 'includes/Research/ResearchProvider.php', 'includes/POD/ApprovedDesignListingPackage.php', 'includes/POD/ProductPackageRepository.php', 'includes/POD/ProductPackageSpecification.php', 'includes/POD/Shop2MockupRepository.php', 'includes/POD/Shop2ProductWorkflow.php', 'includes/POD/Shop2ReviewBundle.php', 'includes/Portal/CommercialResearchPanel.php', 'includes/Portal/DesignFactoryPanel.php', 'includes/Portal/ProductPackagePanel.php', 'includes/Portal/Shop2ProductWorkflowPanel.php']
 RUNTIME += ['includes/POD/PrintifyProductPipeline.php', 'includes/POD/PrintifyProductRequest.php', 'includes/POD/PrintifyProductResponse.php', 'includes/POD/Shop2EtsyDraftHandoff.php', 'includes/Portal/Shop2ProviderProductPanel.php']
+RUNTIME += ['includes/Queue/ActionSchedulerReadiness.php']
+COMPAT_OVERLAY = ['includes/Portal/ShopAccessPanel.php', 'includes/Queue/Scheduler.php', 'includes/Queue/ScheduledTaskReadModel.php']
 TRANSPORT = 'includes/POD/PrintifyControlledTransport.php'
 PRODUCT_METHOD = b' public function executeProduct(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyProductPipeline())->execute($planHash,$authorizationHash,$this->sender);}' + b'\n'
 API_OVERLAY = ['includes/POD/PrintifyCatalogReadContract.php', 'includes/POD/PrintifyResearchMapper.php', 'includes/Portal/ProductIntelligencePanel.php', 'includes/POD/PrintifyResearchDependencies.php', 'includes/POD/ScopedProviderConnection.php']
@@ -44,7 +46,7 @@ def main():
                 raise ValueError('Duplicate base member')
             original[rel] = z.read(i)
     head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-    for rel in RUNTIME + MODIFIED + API_OVERLAY + [TRANSPORT] + PRESERVED_SECURITY + ['bin/package-portal-access.py', 'docs/engineering/printify-software-overlay.json', 'docs/engineering/portal-access/native-acl-overlay.json', 'docs/engineering/portal-access/global-owner-native-overlay.json']:
+    for rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY + [TRANSPORT] + PRESERVED_SECURITY + ['bin/package-portal-access.py', 'docs/engineering/printify-software-overlay.json', 'docs/engineering/portal-access/native-acl-overlay.json', 'docs/engineering/portal-access/global-owner-native-overlay.json', 'docs/engineering/portal-access/legacy-queue-compatibility-overlay.json']:
         if subprocess.check_output(['git', 'show', head + ':' + rel], cwd=ROOT) != (ROOT / rel).read_bytes():
             raise ValueError('Uncommitted overlay or builder: ' + rel)
     for rel in PRESERVED_SECURITY:
@@ -61,7 +63,7 @@ def main():
     expected_guard = original[MODIFIED[2]].replace(admission, admission + addition)
     if expected_guard != (ROOT / MODIFIED[2]).read_bytes():
         raise ValueError('Shared admin guard has an unreviewed delta')
-    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.12') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
+    expected_header = original['digiforge.php'].replace(b'1.0.103.2', b'1.0.103.13') + b'\n(new \\DigiForge\\PortalAccess\\Feature())->register();\n'
     if expected_header != (ROOT / 'digiforge.php').read_bytes():
         raise ValueError('Plugin bootstrap has an unreviewed delta')
     # Native ACL source was previously byte-identical to this installed-lineage file.
@@ -80,6 +82,22 @@ def main():
         if sha(original[rel]) != overlay[rel]['installed_sha256'] or sha(raw) != overlay[rel]['candidate_sha256']:
             raise ValueError('API overlay preimage or reviewed candidate mismatch: ' + rel)
         payload[rel] = raw
+    compatibility = json.loads((ROOT / 'docs/engineering/portal-access/legacy-queue-compatibility-overlay.json').read_text())
+    if set(compatibility['files']) != set(COMPAT_OVERLAY):
+        raise ValueError('Exact compatibility overlay inventory required')
+    for rel in COMPAT_OVERLAY:
+        raw = (ROOT / rel).read_bytes()
+        receipt = compatibility['files'][rel]
+        if sha(original[rel]) != receipt['baseline_sha256'] or sha(raw) != receipt['candidate_sha256']:
+            raise ValueError('Compatibility baseline or candidate mismatch: ' + rel)
+        restored = raw.decode()
+        for hunk in receipt['hunks']:
+            if not hunk['candidate_text'] or restored.count(hunk['candidate_text']) != 1:
+                raise ValueError('Ambiguous compatibility overlay hunk: ' + rel)
+            restored = restored.replace(hunk['candidate_text'], hunk['baseline_text'], 1)
+        if restored.encode() != original[rel]:
+            raise ValueError('Compatibility overlay does not preserve its baseline: ' + rel)
+        payload[rel] = raw
     # Preserve the installed stronger order/dispatch implementation; add only the product entry.
     anchor = b' public function execute(array $permit'
     source_preimage = subprocess.check_output(['git', 'show', '1590246db06485adb4c83f2f0e6d117f599b1020:' + TRANSPORT], cwd=ROOT)
@@ -90,7 +108,7 @@ def main():
     payload[TRANSPORT] = original[TRANSPORT].replace(anchor, PRODUCT_METHOD + anchor, 1)
     assert payload[TRANSPORT].replace(PRODUCT_METHOD, b'', 1) == original[TRANSPORT]
     args.output.mkdir(parents=True, exist_ok=True)
-    target = args.output / 'digiforge-1.0.103.12-consolidated-update.zip'
+    target = args.output / 'digiforge-1.0.103.13-consolidated-update.zip'
     records = []
     with zipfile.ZipFile(target, 'w') as archive:
         for rel, raw in sorted(payload.items()):
@@ -100,15 +118,15 @@ def main():
             i.external_attr = (stat.S_IFREG | 0o644) << 16
             i.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(i, raw, compresslevel=9)
-            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
+            records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
     counts = {a: sum(r['action'] == a for r in records) for a in ['RETAIN_IDENTICAL', 'MODIFY_REVIEWED', 'ADD']}
-    if counts != {'RETAIN_IDENTICAL': 682, 'MODIFY_REVIEWED': 10, 'ADD': 47} or len(records) != 739 or not original.keys() <= payload.keys():
+    if counts != {'RETAIN_IDENTICAL': 679, 'MODIFY_REVIEWED': 13, 'ADD': 48} or len(records) != 740 or not original.keys() <= payload.keys():
         raise ValueError('Preservation contract violated')
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
         for r in records:
             assert sha(z.read(r['path'])) == r['sha256']
-    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.12', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
+    manifest = {'artifact': target.name, 'sha256': sha(target.read_bytes()), 'size': target.stat().st_size, 'version': '1.0.103.13', 'source_sha': head, 'base_sha256': BASE_DIGEST, 'composition_is_exact_checkout': False, 'counts': {**counts, 'DELETE': 0}, 'installation_authorized': False, 'schema_migration': 'NONE', 'restrictive_acl_sha256': sha(payload['includes/Security/ShopAccess.php']), 'authority_sha256': sha(payload['includes/Security/ShopAccessAuthority.php']), 'files': records}
     (args.output / 'preservation-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     (args.output / (target.name + '.sha256')).write_text(manifest['sha256'] + '  ' + target.name + '\n')
     print(json.dumps({k: v for k, v in manifest.items() if k != 'files'}, indent=2))
