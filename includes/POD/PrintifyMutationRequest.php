@@ -10,6 +10,7 @@ final class PrintifyMutationRequest{
   if($action==='PROVIDER_ORDER_SUBMIT'){
    $body=is_array($payload['order']??null)?$payload['order']:[];
    if($body===[]||trim((string)($body['external_id']??''))===''||!is_array($body['line_items']??null)||$body['line_items']===[]||!is_array($body['address_to']??null))return self::e('order','Bound order payload, external_id, line_items and address_to are required.');
+   try{PrintifyOrderEvidence::validate($body);}catch(\InvalidArgumentException){return self::e('order_contract','Order does not satisfy the supported existing-product contract.');}
    $endpoint='/shops/'.$shop.'/orders.json';$external='';
   }elseif($action==='PROVIDER_PRODUCTION_AUTHORIZE'){
    $order=trim((string)($payload['order_id']??''));if($order===''||preg_match('/^[A-Za-z0-9_-]{1,160}$/',$order)!==1)return self::e('order_id','Valid provider order identity is required.');

@@ -108,7 +108,7 @@ final class PrintifyProductPipeline {
   $attempted=false;
   $result=(new PrintifyScopedCredentialRetriever())->consume($p['integration_id'],function(string $token)use($hash,$p,$request,$sender,&$attempted){
    $fresh=$this->current($hash,$p);if(is_wp_error($fresh))return $fresh;$material=PrintifyConnectionBoundary::material($p['integration_id'],$token);if(is_wp_error($material))return $material;
-   $args=['method'=>$request['method'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048576,'headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json','Accept'=>'application/json']];if($request['body']!==[])$args['body']=json_encode($request['body'],JSON_THROW_ON_ERROR);
+   $args=['method'=>$request['method'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048576,'headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json','Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyApi']];if($request['body']!==[])$args['body']=json_encode($request['body'],JSON_THROW_ON_ERROR);
    $durable=self::durableDispatchSession();if(is_wp_error($durable))return $durable;
    $attempted=true;try{$response=$sender('https://api.printify.com'.$request['endpoint'],$args);}catch(\Throwable){return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];}
    if(is_wp_error($response))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];$code=(int)wp_remote_retrieve_response_code($response);$raw=(string)wp_remote_retrieve_body($response);$digest=hash('sha256',$raw);

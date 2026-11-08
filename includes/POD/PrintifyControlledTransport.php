@@ -6,6 +6,7 @@ use WP_Error;
 final class PrintifyControlledTransport{
  private $sender;public function __construct(?callable $sender=null){$this->sender=$sender??static fn(string $u,array $a)=>wp_remote_request($u,$a);}
  public function executeProduct(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyProductPipeline())->execute($planHash,$authorizationHash,$this->sender);}
+ public function executeApiRead(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyApiReadWorkflow())->execute($planHash,$authorizationHash,$this->sender);}
  public function execute(array $permit,array $payload):array|WP_Error{
   $request=PrintifyMutationRequest::prepare($permit,$payload);if(is_wp_error($request))return $request;
   $approvedFingerprint=strtolower(trim((string)($permit['request_fingerprint']??'')));
@@ -15,7 +16,7 @@ final class PrintifyControlledTransport{
   $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
   $sender=$this->sender;
   return (new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit){
-   $args=['method'=>'POST','headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json;charset=utf-8','Accept'=>'application/json'],'timeout'=>20,'redirection'=>0,'sslverify'=>true];
+   $args=['method'=>'POST','headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json;charset=utf-8','Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyApi'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048576];
    if($request['body']!==[])$args['body']=wp_json_encode($request['body']);
    $response=$sender('https://api.printify.com/v1'.$request['endpoint'],$args);$token='';
    if(is_wp_error($response)){$response->add_data(['network_request_attempted'=>true,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']]);return $response;}
