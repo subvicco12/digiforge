@@ -17,7 +17,7 @@ MissionB starts from qualified .16 source55cb4b6852d37942f75fb89fd8ca035ca5f4cfb
 |---|---|---|
 | Existing Printify catalog/product/transport, native ACL and credentials | PR1253 + qualified .16 installed-lineage composition | Retain byte-identical; consume existing contracts, no duplicate sender |
 | ScheduledTaskReadModel/SchedulerDependencyPanel | MissionA e957ba09 | Explicit reviewed exact two-file import + exact tests, pinned by preservation manifest |
-| ArtworkGeometryQa/PersonalizationPayloadContract | PR1256 d32fc91a | Selective pure validator import, byte-identical; no renderer/assets/migration/factory wholesale copy |
+| ArtworkGeometryQa/PersonalizationPayloadContract | PR1256 d32fc91a | Source-only pure validator import, byte-identical to PR1256 AND existing installed baseline; package preserves original bytes. No renderer/assets/migration/factory wholesale copy |
 | Portal.php/authentication/GlobalOwner/Operators | Installed .16/.17 lineage | No source edit or replacement |
 | ProductIntelligencePanel | Existing API lane | One registration call for new Shop2-only panel |
 | New Personalized* preparation/repository/panel files | MissionB | Exclusive new offline contracts, ledger and UI |
@@ -46,3 +46,5 @@ R4 art/layer/font files/qualified constraints/rights missing; actual provider ID
 3. Human review local proof, provider-native preview parity, qualified fonts and mockups; verify shipping/regions/fees/pricing and review copy.
 4. Reconcile existing external product IDs with separately authorized read-only provider calls, exact account/shop binding and current variants. Do not Save/create duplicates.
 5. Only after separate install/acceptance/activation grants use original controlled provider/draft pipelines. No publication/order/automation authority is created by this candidate.
+
+Packaging verification confirmed both imported validators already exist byte-identically in the installed-lineage .2/.16/.17 archives. They are preserved, not replaced or newly added at installation. Four new runtime files carry the proof/preparation boundary; ProductIntelligencePanel adds one registration.

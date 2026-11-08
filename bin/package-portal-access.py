@@ -14,12 +14,13 @@ RUNTIME += ['includes/POD/ProductIntelligenceXlsx.php', 'includes/POD/PrintifySu
 RUNTIME += ['includes/Research/CommercialResearchContract.php', 'includes/Research/CommercialResearchRepository.php', 'includes/Research/DesignFactoryContract.php', 'includes/Research/DesignFactoryRepository.php', 'includes/Research/DesignFactoryUnavailableProvider.php', 'includes/Research/DesignGenerationProvider.php', 'includes/Research/GovernedResearchProvider.php', 'includes/Research/OpportunityDesignContract.php', 'includes/Research/OpportunityDesignRepository.php', 'includes/Research/ResearchProvider.php', 'includes/POD/ApprovedDesignListingPackage.php', 'includes/POD/ProductPackageRepository.php', 'includes/POD/ProductPackageSpecification.php', 'includes/POD/Shop2MockupRepository.php', 'includes/POD/Shop2ProductWorkflow.php', 'includes/POD/Shop2ReviewBundle.php', 'includes/Portal/CommercialResearchPanel.php', 'includes/Portal/DesignFactoryPanel.php', 'includes/Portal/ProductPackagePanel.php', 'includes/Portal/Shop2ProductWorkflowPanel.php']
 RUNTIME += ['includes/POD/PrintifyProductPipeline.php', 'includes/POD/PrintifyProductRequest.php', 'includes/POD/PrintifyProductResponse.php', 'includes/POD/Shop2EtsyDraftHandoff.php', 'includes/Portal/Shop2ProviderProductPanel.php']
 RUNTIME += ['includes/Queue/ActionSchedulerReadiness.php', 'includes/Portal/SchedulerDependencyPanel.php']
-RUNTIME += ['includes/POD/PersonalizationPayloadContract.php','includes/POD/ArtworkGeometryQa.php','includes/POD/PersonalizedProductPreparation.php','includes/POD/PersonalizedProofRepository.php','includes/POD/PersonalizedPrintifyPreparation.php','includes/Portal/PersonalizedPreparationPanel.php']
+RUNTIME += ['includes/POD/PersonalizedProductPreparation.php','includes/POD/PersonalizedProofRepository.php','includes/POD/PersonalizedPrintifyPreparation.php','includes/Portal/PersonalizedPreparationPanel.php']
 COMPAT_OVERLAY = ['includes/Portal/ShopAccessPanel.php', 'includes/Queue/Scheduler.php', 'includes/Queue/ScheduledTaskReadModel.php']
 TRANSPORT = 'includes/POD/PrintifyControlledTransport.php'
 PRODUCT_METHOD = b' public function executeProduct(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyProductPipeline())->execute($planHash,$authorizationHash,$this->sender);}' + b'\n'
 API_OVERLAY = ['includes/POD/PrintifyCatalogReadContract.php', 'includes/POD/PrintifyResearchMapper.php', 'includes/Portal/ProductIntelligencePanel.php', 'includes/POD/PrintifyResearchDependencies.php', 'includes/POD/ScopedProviderConnection.php']
 PRESERVED_SECURITY = ['includes/Security/ShopAccessAuthority.php', 'includes/Security/ShopAccessRestGuard.php', 'includes/Security/ShopAccessTargetScope.php', 'includes/Portal/ProductEvidenceScope.php', 'includes/Listings/EtsyStoredShopScope.php']
+PRESERVED_SECURITY += ['includes/POD/PersonalizationPayloadContract.php','includes/POD/ArtworkGeometryQa.php']
 MODIFIED = ['digiforge.php', 'includes/Security/ShopAccess.php', 'includes/Security/ShopAccessAdminGuard.php', 'includes/Security/ShopAccessRepository.php']
 
 
@@ -148,7 +149,7 @@ def main():
             archive.writestr(i, raw, compresslevel=9)
             records.append({'path': name, 'size': len(raw), 'sha256': sha(raw), 'baseline_sha256': sha(original[rel]) if rel in original else None, 'origin': 'reviewed-feature-source' if rel in RUNTIME + MODIFIED + API_OVERLAY + COMPAT_OVERLAY else 'installed-baseline-plus-correlation-evidence' if rel == launch else 'installed-baseline-plus-scheduler-presentation' if rel == portal else 'installed-baseline-plus-additive-product-method' if rel == TRANSPORT else 'exact-installed-1032', 'source_sha256': sha((ROOT / rel).read_bytes()) if (ROOT / rel).is_file() else None, 'source_byte_identical': (ROOT / rel).is_file() and raw == (ROOT / rel).read_bytes(), 'action': 'ADD' if rel not in original else 'RETAIN_IDENTICAL' if raw == original[rel] else 'MODIFY_REVIEWED'})
     counts = {a: sum(r['action'] == a for r in records) for a in ['RETAIN_IDENTICAL', 'MODIFY_REVIEWED', 'ADD']}
-    if counts != {'RETAIN_IDENTICAL': 677, 'MODIFY_REVIEWED': 15, 'ADD': 55} or len(records) != 747 or not original.keys() <= payload.keys():
+    if counts != {'RETAIN_IDENTICAL': 677, 'MODIFY_REVIEWED': 15, 'ADD': 53} or len(records) != 745 or not original.keys() <= payload.keys():
         raise ValueError('Preservation contract violated')
     with zipfile.ZipFile(target) as z:
         assert z.testzip() is None
