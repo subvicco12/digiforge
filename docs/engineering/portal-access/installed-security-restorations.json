@@ -1,0 +1,32 @@
+[
+  {
+    "path": "includes/Security/ShopAccessAuthority.php",
+    "reviewed_source_sha256": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0",
+    "installed_1032_sha256": "024181d6e9795c0a1681e62ff10f80ffea692c6bab2a9debad37a12555161845",
+    "packaging": "RETAIN_INSTALLED_IDENTICAL"
+  },
+  {
+    "path": "includes/Security/ShopAccessRestGuard.php",
+    "reviewed_source_sha256": null,
+    "installed_1032_sha256": "8499baea80101e6a1a97205ff61332e955e5a13924273d3bd9a0c6f7cd6f38f9",
+    "packaging": "RETAIN_INSTALLED_IDENTICAL"
+  },
+  {
+    "path": "includes/Security/ShopAccessTargetScope.php",
+    "reviewed_source_sha256": null,
+    "installed_1032_sha256": "b1935bb754a49a9bd4fbf2e5dedb8d685bc608a78b8c883cb790d983b583eec1",
+    "packaging": "RETAIN_INSTALLED_IDENTICAL"
+  },
+  {
+    "path": "includes/Portal/ProductEvidenceScope.php",
+    "reviewed_source_sha256": null,
+    "installed_1032_sha256": "1ac58974050cfe536d5b54bcfd6d80eaf179f009c80e41272083f15d2dab92b6",
+    "packaging": "RETAIN_INSTALLED_IDENTICAL"
+  },
+  {
+    "path": "includes/Listings/EtsyStoredShopScope.php",
+    "reviewed_source_sha256": null,
+    "installed_1032_sha256": "60783c55161a6647ad9a6e0278cba3cfe0c4bc0c62300cf66c60d3901c44f827",
+    "packaging": "RETAIN_INSTALLED_IDENTICAL"
+  }
+]

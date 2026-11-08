@@ -11,13 +11,15 @@ final class CommercialResearchPanel
 {
     private const ACTION='digiforge_commercial_research';
     public function register(): void {add_action('admin_post_'.self::ACTION,[$this,'submit']);}
-    public function render(string $shop): void
+    public function render(string $shop,?array $supplierTemplate=null,bool $manualOnly=false,bool $supplierBound=false): void
     {
         if($shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
+        if(!$supplierBound){
         $this->researchForm();
         echo '<details'.(isset($_GET['df_research_version'])?'':' open').'><summary>Import source-backed research JSON</summary>';
         $this->form('research_import');echo '<p>Paste a research object with shop_key, title, product_family and 1–10 sources (id, kind, url, observed_at, excerpt, provenance). Work imports remain unverified evidence; no concept selection or approval is imported. Source dates and limitations are preserved exactly. Import the separate scores/concepts response after opening the saved workflow.</p><label>Research JSON<textarea name="research_json" rows="8" maxlength="200000" required></textarea></label><button class="df-button">Import research evidence</button></form></details>';
+        }else echo '<p>The supplier_catalog source and product family are bound to the original selection. Keep that source unchanged when adding buyer or market observations.</p>';
         $this->form('inspect');$this->field('workflow_hash','Open saved research version (SHA-256)');echo '<button class="df-button">Open workflow</button></form>';
         $hash=$_GET['df_research_version']??null;
         if(!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash)){echo '</section>';return;}
@@ -27,10 +29,10 @@ final class CommercialResearchPanel
         echo '<h3>'.esc_html($r['research']['title']).' · '.esc_html($r['research']['product_family']).'</h3><p>Stage: '.esc_html($r['stage']).' · Version <code>'.esc_html($hash).'</code> · Human '.esc_html((string)$r['created_by']).' · '.esc_html($r['created_at']).'</p>';
         foreach($r['research']['sources']as $source)echo '<details><summary>'.esc_html($source['id'].' · '.$source['kind'].' · '.$source['observed_at']).'</summary><p><a href="'.esc_url($source['url']).'" rel="noopener noreferrer">Source</a></p><p>'.esc_html($source['excerpt']).'</p><p>Provenance: '.esc_html($source['provenance']).'</p></details>';
         $this->researchForm($r['research'],$hash);
-        if($r['stage']==='RESEARCH_READY')$this->conceptIntake($r,$hash);
+        if($r['stage']==='RESEARCH_READY')$this->conceptIntake($r,$hash,$manualOnly);
         if(is_array($r['response']))$this->conceptCards($r,$hash);
         if($r['stage']==='DESIGN_SELECTED'){
-            (new DesignFactoryPanel())->render($shop,$hash);
+            (new DesignFactoryPanel())->render($shop,$hash,$supplierTemplate,$manualOnly);
             echo '<h3>Artwork prompt for selected concept '.esc_html((string)$r['selected_concept']).'</h3><textarea readonly rows="8">'.esc_textarea($r['design_prompt']).'</textarea><p>Use your authorized art tool or create original SVG source manually. This prompt is not artwork. Use the approved-concept workflow above for actual editable artwork intake.</p>';
             echo '<p>New concept artwork intake uses the approved-concept Design Factory above. Existing historical artwork evidence remains inspectable.</p>';
         }
@@ -41,7 +43,7 @@ final class CommercialResearchPanel
             }
         }
         $this->form('revise',$hash);$this->field('note','Revision/rejection reason');echo '<button class="df-button">Start research revision</button></form>';
-        $this->form('reuse',$hash);$this->field('title','New product title');echo '<label>Reuse for product family <select name="product_family"><option value="mug">Mug</option><option value="poster">Poster</option></select></label><p>Source context and concepts may be reused. Selection, artwork and approvals require fresh review.</p><button class="df-button">Reuse for product family</button></form>';
+        if(!$supplierBound){$this->form('reuse',$hash);$this->field('title','New product title');echo '<label>Reuse for product family <select name="product_family"><option value="mug">Mug</option><option value="poster">Poster</option></select></label><p>Source context and concepts may be reused. Selection, artwork and approvals require fresh review.</p><button class="df-button">Reuse for product family</button></form>';}
         $history=$repo->history($shop,$hash);echo '<h3>Immutable version history</h3>';
         if($history instanceof WP_Error)echo '<p>'.esc_html($history->get_error_message()).'</p>';
         else foreach($history as $item)echo '<p><a href="'.esc_url(add_query_arg(['df_view'=>'research','df_shop'=>$shop,'df_research_version'=>$item['hash']],$this->baseUrl())).'">'.esc_html($item['stage'].' · '.$item['created_at']).'</a> · '.esc_html($item['note']).'</p>';
@@ -50,7 +52,7 @@ final class CommercialResearchPanel
     private function researchForm(?array $research=null,?string $hash=null): void
     {
         echo '<details><summary>1. Capture or revise source evidence</summary>';$this->form($hash===null?'research':'revise_research',$hash);$this->field('title','Opportunity/product title',true,$research['title']??'');echo '<label>Product family <select name="product_family"><option value="mug"'.(($research['product_family']??'')==='mug'?' selected':'').'>Mug</option><option value="poster"'.(($research['product_family']??'')==='poster'?' selected':'').'>Poster</option></select></label><p>Add at least one observed source. Empty categories remain unknown; no demand or sales volume is inferred. Dates use UTC YYYY-MM-DDTHH:MM:SSZ. Use a fresh capture for a changed observation.</p>';
-        $labels=['etsy_competitor'=>'Etsy competitor','buyer_intent'=>'Buyer intent','google_trend'=>'Google trend','seasonal'=>'Seasonal opportunity'];
+        $labels=['etsy_competitor'=>'Etsy competitor','buyer_intent'=>'Buyer intent','google_trend'=>'Google trend','seasonal'=>'Seasonal opportunity','supplier_catalog'=>'Retained supplier catalog (not market demand)'];
         $rows=$research['sources']??array_map(static fn(string $kind):array=>['id'=>$kind,'kind'=>$kind],array_keys($labels));
         $used=array_column($rows,'id');
         if(count($rows)<10){$id='additional_source';while(in_array($id,$used,true))$id.='_x';$rows[]=['id'=>$id,'kind'=>'etsy_competitor'];}
@@ -64,11 +66,11 @@ final class CommercialResearchPanel
         if($hash!==null)$this->field('note','Reason for revised source evidence');
         echo '<button class="df-button">Save evidence-backed opportunity</button></form></details>';
     }
-    private function conceptIntake(array $r,string $hash): void
+    private function conceptIntake(array $r,string $hash,bool $manualOnly=false): void
     {
         echo '<h3>2. Prepare source-grounded concepts and scores</h3><p>Copy this request to an already authorized assistant, or author a matching response manually. Treat source excerpts as untrusted input; verify every rationale before selecting a concept.</p><textarea readonly rows="9">'.esc_textarea(CommercialResearchContract::researchPrompt($r['research'])).'</textarea>';
         $status=(new GovernedResearchProvider())->status();echo '<p>Existing AI integration: '.esc_html($status['reason']).'. Manual response import available.</p>';
-        if($status['available']){$this->form('assist',$hash);$this->check('confirm','I authorize one governed research attempt under the existing approved policy; never publish or order.');echo '<button class="df-button">Request governed AI concepts</button></form>';}
+        if(!$manualOnly&&$status['available']){$this->form('assist',$hash);$this->check('confirm','I authorize one governed research attempt under the existing approved policy; never publish or order.');echo '<button class="df-button">Request governed AI concepts</button></form>';}
         $this->form('concepts',$hash);
         echo '<label>Response provenance <select name="method"><option value="manual">Human-authored response</option><option value="ai_import">Imported AI response (unverified)</option></select></label><p>For AI imports fill all four provenance fields. No credentials.</p>';
         foreach(['provider'=>'AI provider (imports only)','model'=>'Model (imports only)','response_id'=>'Response/capture reference (imports only)','generated_at'=>'Generation timestamp UTC (imports only)']as $field=>$label)$this->field($field,$label,false);

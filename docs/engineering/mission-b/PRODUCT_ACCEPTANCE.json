@@ -1,0 +1,100 @@
+{
+  "schema": "mission-b-launch-evidence-v1",
+  "products": [
+    {
+      "fixture_id": "FL-03",
+      "existing_printify_product_id": "6ae98d61eb5d7e24b80ca0a6",
+      "provider_name_from_owner": "District Photo",
+      "canvas_px": [
+        2475,
+        1155
+      ],
+      "dpi": 300,
+      "native_limits_from_owner": [
+        13,
+        13,
+        18
+      ],
+      "qualified_r4_artwork": "MISSING_OWNER_CONFIRMED",
+      "layer_mapping": "UNKNOWN_REQUIRES_R4",
+      "safe_area_bleed_trim": "UNKNOWN_REQUIRES_AUTHORITATIVE_PROVIDER_EVIDENCE",
+      "provider_id": null,
+      "variant_ids": null,
+      "mockup_rights": "UNKNOWN",
+      "production_cost": null,
+      "shipping_rate": null,
+      "pricing": "HUMAN_DECISION_REQUIRED",
+      "proof_software": "TESTED_OFFLINE_SYNTHETIC_ONLY",
+      "actual_product_technical_qualification": "BLOCKED",
+      "commercial_status": "HUMAN_APPROVAL_REQUIRED",
+      "provider_status": "PROVIDER_UNVERIFIED",
+      "proposed_etsy_copy": {
+        "title": "Two Stems, One Date \u2014 Personalized Names and Date Mug",
+        "description": "Draft copy only: personalize the two names and date exactly as entered. Review spelling and date before approval. Native field limits are 13 / 13 / 18 characters. Product, preview, delivery, price and production details must be verified before publication.",
+        "tags": [
+          "anniversary gift",
+          "personalized mug",
+          "couple mug",
+          "names and date",
+          "wedding date mug",
+          "couples keepsake",
+          "11 oz mug",
+          "white coffee mug",
+          "custom name mug",
+          "date keepsake",
+          "wedding gift idea",
+          "romantic keepsake",
+          "two stems design"
+        ],
+        "status": "UNREVIEWED_PROPOSAL_NOT_MARKET_RESEARCH"
+      },
+      "external_execution_authorized": false
+    },
+    {
+      "fixture_id": "FL-04",
+      "existing_printify_product_id": "6ae9913d9541969415088814",
+      "provider_name_from_owner": "Today's Graphics",
+      "canvas_px": [
+        2418,
+        3018
+      ],
+      "dpi": 300,
+      "native_limits_from_owner": null,
+      "qualified_r4_artwork": "MISSING_OWNER_CONFIRMED",
+      "layer_mapping": "UNKNOWN_REQUIRES_R4",
+      "safe_area_bleed_trim": "UNKNOWN_REQUIRES_AUTHORITATIVE_PROVIDER_EVIDENCE",
+      "provider_id": null,
+      "variant_ids": null,
+      "mockup_rights": "UNKNOWN",
+      "production_cost": null,
+      "shipping_rate": null,
+      "pricing": "HUMAN_DECISION_REQUIRED",
+      "proof_software": "TESTED_OFFLINE_SYNTHETIC_ONLY",
+      "actual_product_technical_qualification": "BLOCKED",
+      "commercial_status": "HUMAN_APPROVAL_REQUIRED",
+      "provider_status": "PROVIDER_UNVERIFIED",
+      "proposed_etsy_copy": {
+        "title": "Our Shared Chapter \u2014 Personalized Names and Date Poster",
+        "description": "Draft copy only: personalize the approved text fields on the 8 x 10 matte poster. Field limits and exact layer assignments require the original qualified review package. Review spelling, layout, product and delivery details before publication.",
+        "tags": [
+          "anniversary poster",
+          "personalized print",
+          "couples wall art",
+          "names and date",
+          "shared chapter",
+          "8x10 poster",
+          "matte poster",
+          "wedding keepsake",
+          "custom text print",
+          "romantic wall art",
+          "date wall print",
+          "couple gift idea",
+          "story keepsake"
+        ],
+        "status": "UNREVIEWED_PROPOSAL_NOT_MARKET_RESEARCH"
+      },
+      "external_execution_authorized": false
+    }
+  ],
+  "publication_authorized": false
+}

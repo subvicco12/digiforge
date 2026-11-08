@@ -1,0 +1,10 @@
+--- a/includes/Portal/Portal.php
++++ b/includes/Portal/Portal.php
+@@ -92,2 +92,3 @@
+         (new OpportunityDesignPanel())->register();
++        (new ProductIntelligencePanel())->register();
+         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
+@@ -558,2 +559,3 @@
+     {
++        (new ProductIntelligencePanel())->render($this->baseUrl());
+         $m=PersonalizedCatalogReference::metadata();
