@@ -49,7 +49,7 @@ def main():
                 raise ValueError('Duplicate member')
             original[rel] = archive.read(info)
     head = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    changed = ADDITIONS + ['digiforge.php','includes/POD/PrintifyControlledTransport.php','includes/POD/PrintifyMutationRequest.php','includes/POD/PrintifyProductPipeline.php','bin/package-printify-api.py','includes/POD/PrintifyDispatchClaim.php','includes/POD/PrintifyLiveTransportInterlock.php','includes/POD/PrintifyScopedCredentialRetriever.php','includes/POD/PrintifyReconciliationLookup.php']
+    changed = ADDITIONS + ['digiforge.php','includes/POD/PrintifyControlledTransport.php','includes/POD/PrintifyMutationRequest.php','includes/POD/PrintifyProductPipeline.php','bin/package-printify-api.py','includes/POD/PrintifyDispatchClaim.php','includes/POD/PrintifyLiveTransportInterlock.php','includes/POD/PrintifyScopedCredentialRetriever.php','includes/POD/PrintifyReconciliationLookup.php','includes/POD/PrintifyCatalogContract.php','includes/POD/PrintifyCatalogSyncService.php']
     for rel in changed:
         if subprocess.check_output(['git','show',head+':'+rel],cwd=ROOT) != (ROOT/rel).read_bytes():
             raise ValueError('Uncommitted packaging input: '+rel)
@@ -84,6 +84,26 @@ def main():
         rel='includes/POD/'+name+'.php'
         if original[rel] != (ROOT/rel).read_bytes():
             raise ValueError('Qualified inherited security contract changed: '+rel)
+    rel='includes/POD/PrintifyCatalogContract.php'
+    anchor=b"        $currency = strtoupper(trim((string) ($input['currency'] ?? 'USD')));"
+    addition=b"        if (!isset($input['currency'], $input['base_cost'])) { throw new \\InvalidArgumentException('Explicit monetary evidence required; use research evidence storage for unknown costs.'); }\n"
+    payload[rel]=once(original[rel],anchor,addition+anchor)
+    source_pre=subprocess.check_output(['git','show',BASE_SOURCE+':'+rel],cwd=ROOT)
+    if once(source_pre,anchor,addition+anchor)!=(ROOT/rel).read_bytes():
+        raise ValueError('Unexpected catalog contract delta')
+    rel='includes/POD/PrintifyCatalogSyncService.php'
+    # Signature differs between installed and source lineage; patch each exact method opening.
+    source_pre=subprocess.check_output(['git','show',BASE_SOURCE+':'+rel],cwd=ROOT)
+    addition=b"        return new WP_Error('digiforge_printify_governed_catalog_required','Use the governed catalog-read grant pipeline; legacy direct sync is disabled.',['status'=>409,'network_request_attempted'=>false]);\n"
+    def retire(raw):
+        for method in [b'syncBlueprint',b'syncProviderVariants']:
+            start=raw.index(b'    public function '+method)
+            anchor=raw.index(b'    {\n',start)+len(b'    {\n')
+            raw=raw[:anchor]+addition+raw[anchor:]
+        return raw
+    if retire(source_pre)!=(ROOT/rel).read_bytes():
+        raise ValueError('Unexpected legacy sync delta')
+    payload[rel]=retire(original[rel])
     # Installed dispatch claims and connection-scope checks are retained byte-for-byte by reversible edits.
     args.output.mkdir(parents=True,exist_ok=True)
     target = args.output/'digiforge-1.0.103.19-printify-api-update.zip'
@@ -95,7 +115,7 @@ def main():
             archive.writestr(info,raw,compresslevel=9)
             records.append({'path':info.filename,'sha256':sha(raw),'size':len(raw),'baseline_sha256':sha(original[rel]) if rel in original else None,'action':'ADD' if rel not in original else 'RETAIN_IDENTICAL' if original[rel]==raw else 'MODIFY_REVIEWED','source_byte_identical':(ROOT/rel).is_file() and (ROOT/rel).read_bytes()==raw})
     counts={a:sum(r['action']==a for r in records) for a in ['ADD','MODIFY_REVIEWED','RETAIN_IDENTICAL']}
-    if counts != {'ADD':5,'MODIFY_REVIEWED':4,'RETAIN_IDENTICAL':737} or not original.keys()<=payload.keys():
+    if counts != {'ADD':5,'MODIFY_REVIEWED':6,'RETAIN_IDENTICAL':735} or not original.keys()<=payload.keys():
         raise ValueError('Preservation inventory mismatch')
     with zipfile.ZipFile(target) as archive:
         if archive.testzip() is not None or any(sha(archive.read(r['path']))!=r['sha256'] for r in records):

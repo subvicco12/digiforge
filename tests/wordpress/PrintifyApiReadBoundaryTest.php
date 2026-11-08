@@ -35,4 +35,9 @@ final class PrintifyApiReadBoundaryTest extends WP_UnitTestCase
   $saved=$method->invoke($workflow,'receipt',['shop_key'=>'personalized_pod','plan_hash'=>str_repeat('c',64),'status'=>'SUCCEEDED']);
   self::assertIsArray($saved);$r=$workflow->receipt($saved['hash']);self::assertWPError($r);self::assertSame('printify_api_read_receipt_audit',$r->get_error_code());
  }
+ public function testLegacyCatalogCannotBypassGovernedGrantPipeline():void{
+  $calls=0;$service=new DigiForge\POD\PrintifyCatalogSyncService(static function()use(&$calls){++$calls;throw new RuntimeException('No legacy transport');});
+  foreach([$service->syncBlueprint(1,1),$service->syncProviderVariants(1,1,1)] as $r){self::assertWPError($r);self::assertSame('digiforge_printify_governed_catalog_required',$r->get_error_code());}
+  self::assertSame(0,$calls);
+ }
 }

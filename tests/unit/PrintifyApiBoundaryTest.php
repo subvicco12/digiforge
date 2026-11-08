@@ -38,6 +38,12 @@ final class PrintifyApiBoundaryTest extends TestCase
         $order=['id'=>'o1','status'=>'fulfilled','line_items'=>[],'shipments'=>[['carrier'=>'Fixture','number'=>'fixture','url'=>'https://example.test/track','delivered_at'=>['email'=>'never-store']]]];
         $this->expectException(\InvalidArgumentException::class);PrintifyOrderEvidence::project($order,'o1');
     }
+    public function testMissingCatalogCostCannotBecomeUsdZero(): void
+    {
+        require_once __DIR__.'/../../includes/POD/PrintifyCatalogContract.php';
+        $this->expectException(\InvalidArgumentException::class);
+        \DigiForge\POD\PrintifyCatalogContract::normalizeCatalogVariant(['blueprint_id'=>1,'print_provider_id'=>2,'variant_id'=>3]);
+    }
     public function testOfficialReadContractsAreBoundedAndHaveNoAuthority(): void
     {
         foreach (['SHOPS_READ'=>'/v1/shops.json','PROVIDERS_READ'=>'/v1/catalog/print_providers.json','PROVIDER_READ'=>'/v1/catalog/print_providers/7.json','PRODUCTS_READ'=>'/v1/shops/12/products.json?page=1&limit=10','ORDERS_READ'=>'/v1/shops/12/orders.json?page=1&limit=10','ORDER_READ'=>'/v1/shops/12/orders/order_1.json','WEBHOOKS_READ'=>'/v1/shops/12/webhooks.json'] as $op=>$endpoint) {

@@ -35,7 +35,7 @@ Webhook verification alone is not safe ingress: the future intake must provision
 
 ## Installed-lineage composition
 
-The new complete API-only 1.0.103.19 archive uses the exact qualified .17 ZIP (SHA5303ef7eb5ede7dab770599f5cfd279022c77d3d8665a3d5ab1d2fce5ef83dac), not a wholesale source checkout. Five new PHP files, four reversible integration edits, zero deletions. The installed stronger dispatch-claim/connection-scope implementation is retained. All other .17 members including scheduler, owner and authentication remain identical. This candidate excludes .18/PR1259 POD additions. A later combined package must review API overlays against1259; never install this API-only archive over a newer combined lineage without reconciliation.
+The new complete API-only 1.0.103.19 archive uses the exact qualified .17 ZIP (SHA5303ef7eb5ede7dab770599f5cfd279022c77d3d8665a3d5ab1d2fce5ef83dac), not a wholesale source checkout. Five new PHP files, six reversible integration edits, zero deletions. The installed stronger dispatch-claim/connection-scope implementation is retained. All other .17 members including scheduler, owner and authentication remain identical. This candidate excludes .18/PR1259 POD additions. A later combined package must review API overlays against1259; never install this API-only archive over a newer combined lineage without reconciliation.
 
 No schema migration is introduced: new immutable records use existing wp_options; nonce/audit reuse existing tables. Dispatch requires autocommit, no outer transaction and InnoDB options/audit/nonce tables. Production observations are not repeated or claimed here. Source CI and exact-package local tests are distinct from a hosted exact-ZIP certification.
 
@@ -46,3 +46,7 @@ Do not install under RELEASE HOLD. Require separate owner installation approval,
 ## Qualified source reconciliation
 
 The repository lagged the qualified installed-lineage transport. PrintifyDispatchClaim, PrintifyScopedCredentialRetriever, PrintifyLiveTransportInterlock and the matching PrintifyReconciliationLookup consumer are imported byte-identically from the exact .17 package above. MutationRequest and ControlledTransport retain that same qualified implementation plus only the documented strict-order/header/read-entry edits. The composed ZIP already contained these stronger contracts; this reconciliation changes source consistency, not package bytes. Their imported SHA-256 values are independently verifiable against the pinned .17 archive. No additional transport, credential or provider operation is admitted.
+
+## Legacy catalog boundary corrections
+
+Legacy direct sync methods lacked the governed catalog grant contract. They now fail before credentials/network and direct callers to the existing catalog-read grant pipeline. This does not disable that governed pipeline. The legacy catalog normalizer no longer substitutes USD/zero for missing monetary evidence: its non-null storage rejects the import; research snapshots retain unknown values separately. These narrow overlays are applied to installed files rather than replacing their stronger implementations.
