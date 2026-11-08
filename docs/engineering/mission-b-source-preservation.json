@@ -1,0 +1,13 @@
+{
+  "mission_a_sha": "e957ba096751dc34254cdbcbefed13b625f5e507",
+  "consumer_base_sha": "55cb4b6852d37942f75fb89fd8ca035ca5f4cfb8",
+  "files": {
+    "includes/Queue/ScheduledTaskReadModel.php": "f098beab68e90281297fa360ede88a6f31b9341aa2a327e93d7b6438196dff92",
+    "includes/Portal/SchedulerDependencyPanel.php": "0f9e4b31b9cb2903b94dc919b81e10cbcabcff7838e0319cee0045e4d1fabf6c"
+  },
+  "pod_import_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+  "pod_pure_validators": {
+    "includes/POD/ArtworkGeometryQa.php": "23b5c748929d7e27676fca4fa17bf93d79c928834962f77fd07d3b5526a31a74",
+    "includes/POD/PersonalizationPayloadContract.php": "5fe11a0e42d2c7d3413677edbfdc55e563198c9c8fe848d4ac6b3e3c94a7f676"
+  }
+}

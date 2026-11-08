@@ -9,7 +9,7 @@
   },
   "includes/Portal/ProductIntelligencePanel.php": {
     "installed_sha256": "6a76513aff52c9fa070f8fbf6e97b4e31a217518e336af1fa7b4c1f765ddf4e3",
-    "candidate_sha256": "61a0520fbce9a3a97bf527a7f95dd1735693bc67ffb77945b92346ccc285de40"
+    "candidate_sha256": "972f7df6c146167352d6b1edc31603d7fa8fd15810e6afc8ec223ca8304711ff"
   },
   "includes/POD/PrintifyResearchDependencies.php": {
     "installed_sha256": "7e174858adcc498402371eeb72805a1c1c784ccc444aa43e3f6c444278f677e2",
