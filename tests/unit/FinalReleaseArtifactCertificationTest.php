@@ -46,11 +46,11 @@ final class FinalReleaseArtifactCertificationTest extends TestCase
     public function testReleaseDocumentationMatchesCurrentPluginMetadata(): void
     {
         $plugin = (string) file_get_contents(dirname(__DIR__, 2) . '/digiforge.php');
-        $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/releases/V1.0.103.10_PORTAL_ACCESS_READINESS.md');
+        $readiness = (string) file_get_contents(dirname(__DIR__, 2) . '/docs/releases/V1.0.103.11_PORTAL_ACCESS_READINESS.md');
 
-        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.103.10';", $plugin);
+        self::assertStringContainsString("const DIGIFORGE_VERSION = '1.0.103.11';", $plugin);
         self::assertStringContainsString("const DIGIFORGE_DB_VERSION = '23';", $plugin);
-        self::assertStringContainsString('Plugin release: 1.0.103.10.', $readiness);
+        self::assertStringContainsString('Plugin release: 1.0.103.11.', $readiness);
         self::assertStringContainsString('Core plugin database constant: v23; no new migration.', $readiness);
         self::assertStringContainsString('RELEASE HOLD', $readiness);
     }

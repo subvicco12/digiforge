@@ -25,7 +25,7 @@ final class PortalEmptyModulesTest extends WP_UnitTestCase {
   $owner=PortalAccessFixture::enroll();$id=self::factory()->user->create(['role'=>'administrator']);
   $s=Store::change($id,'Operator',['personalized_pod'=>['research']],true,0,wp_generate_uuid4());self::assertNotWPError($s);
   PortalAccessFixture::login($id);self::assertNotWPError(Session::start());$cookie=$_COOKIE[Session::name()];$wp=$_COOKIE[LOGGED_IN_COOKIE];$token=wp_get_session_token();$account=get_userdata($id)->to_array();
-  PortalAccessFixture::login($owner);self::assertNotWPError(Session::start());
+  PortalAccessFixture::login($owner);PortalAccessFixture::verifyEmail();self::assertNotWPError(Session::start());
   $repo=new \DigiForge\Security\ShopAccessRepository();$native=$repo->read('personalized_pod');
   $p=$this->payload($id,$s['revision']);$p['modules_present']='1';$r=Panel::process('digiforge_portal_users',$p);
   self::assertNotWPError($r);self::assertFalse($r['enabled']);self::assertSame([],$r['shops']);self::assertContains('personalized_pod',$r['managed_shops']);self::assertSame($s['revision']+1,$r['revision']);self::assertSame($s['generation']+1,$r['generation']);

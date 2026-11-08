@@ -10,13 +10,10 @@ final class Owner {
   $a=ShopAccessRepository::authorityFor($actor,$shop,['manage_digiforge_settings'],time()+1);return !is_wp_error($a)&&$a['record']['authority']==='OWNER'?$a:Policy::error('owner');
  }
  public static function forActor(int $actor,string $shop):true|\WP_Error {
-  $s=Store::read($actor);if(is_array($s)&&$s['role']===GlobalOwnerAuthority::ROLE)return GlobalOwnerAuthority::active($s)&&ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)===true?true:Policy::error('global_owner');$a=self::signed($actor,$shop);if(is_wp_error($s)||$s===null||!$s['enabled']||$s['role']!=='Primary Owner'||is_wp_error($a)||($s['authority_hashes'][$shop]??null)!==$a['hash']||ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)!==true)return Policy::error('owner');return true;
+  $s=Store::read($actor);if(is_array($s)&&$s['role']===GlobalOwnerAuthority::ROLE)return GlobalOwnerAuthority::active($s)&&ShopAccess::authorize($shop,'manage_digiforge_settings',$actor)===true?true:Policy::error('global_owner');return Policy::error('global_owner_required');
  }
- public static function require(string $shop):true|\WP_Error{return self::forActor(get_current_user_id(),$shop);}
+ public static function require(string $shop):true|\WP_Error{return EmailAuthentication::recent(get_current_user_id())?self::forActor(get_current_user_id(),$shop):Policy::error('fresh_email_required');}
  public static function enroll(string $shop,string $role,array $caps,int $expiry,string $approval,int $revision,string $request):array|\WP_Error {
-  $id=get_current_user_id();$a=self::signed($id,$shop);if(is_wp_error($a)||!in_array('manage_digiforge_settings',$caps,true)||!in_array('manage_digiforge',$caps,true))return Policy::error('owner');$old=Store::read($id);if(is_wp_error($old)||($old!==null&&($old['role']!=='Primary Owner'||$old['revision']>=1000)))return Policy::error('owner');
-  $repo=new ShopAccessRepository();$r=$repo->enrollOwner($shop,$role,$caps,$expiry,$approval,$request,$revision);if(is_wp_error($r))return $r;$shops=$old['shops']??[];$shops[$shop]=$caps;$hashes=$old['authority_hashes']??[];$hashes[$shop]=$a['hash'];
-  $saved=Store::save(['actor_id'=>$id,'role'=>'Primary Owner','enabled'=>true,'revision'=>($old['revision']??0)+1,'generation'=>($old['generation']??0)+1,'shops'=>$shops,'authority_hashes'=>$hashes],$old['revision']??0,$request);
-  if(!is_wp_error($saved)){Session::start();}return $saved;
+  return Policy::error('use_global_bootstrap');
  }
 }

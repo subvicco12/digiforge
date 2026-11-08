@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\PortalAccess;
 use DigiForge\Core\Capabilities;
 use DigiForge\Security\{ShopAccessAuthority,ShopAccessPolicy,ShopAccessRepository};
-/** Explicit global semantics layered over the unchanged Ed25519 trust verifier. */
+/** Database-backed global owner; legacy signed transports cannot authorize portal enrollment. */
 final class GlobalOwnerAuthority {
  public const ROLE='Global Primary Owner';
  public const SCOPE='GLOBAL_PRIMARY_OWNER';
@@ -14,8 +14,10 @@ final class GlobalOwnerAuthority {
   foreach(ShopAccessPolicy::canonicalShops() as $shop)$records[]=['actor_id'=>1,'shop'=>$shop,'caps'=>Capabilities::ALL,'expires_at'=>$expiry,'source_approval_hash'=>$approval,'authority'=>'OWNER','owner_scope'=>self::SCOPE,'subject_email'=>Owner::EMAIL,'site'=>$site,'global_authority_id'=>$set];
   return $records;
  }
- public static function current():array|\WP_Error {
-  $records=ShopAccessAuthority::records();return is_wp_error($records)?$records:self::resolve($records,home_url('/'),time());
+ public static function current(bool $allowExpired=false):array|\WP_Error {
+  $stored=ServerOwnerApproval::read($allowExpired);if($stored!==null)return $stored;
+  $profile=Store::read(1);if(is_wp_error($profile)||is_array($profile)&&$profile['role']===self::ROLE)return self::error('database_authority_missing');
+  $approval=ServerOwnerApproval::approval('ENROLL');return is_wp_error($approval)?$approval:self::resolve(ServerOwnerApproval::records($approval),home_url('/'),time());
  }
  /** Input is already signature-verified. This method supplies no signing or trust fallback. */
  public static function resolve(array $records,string $site,int $now):array|\WP_Error {
@@ -38,7 +40,7 @@ final class GlobalOwnerAuthority {
  /** Checks live authority and all four exact audited native grants without recursing into ShopAccess. */
  public static function active(array $profile,bool $allowExpired=false):bool {
   if(($profile['role']??null)!==self::ROLE||($profile['actor_id']??null)!==1||($profile['enabled']??false)!==true||($profile['bootstrap_pending']??false)===true)return false;
-  if(OwnerBootstrap::verifyClaim($profile)!==true)return false;
+  if(OwnerBootstrap::verifyClaim($profile)!==true||!ServerOwnerApproval::matchesClaim($profile['global_claim_hash']??''))return false;
   $u=get_userdata(1);if(!$u||strtolower($u->user_email)!==Owner::EMAIL||!user_can(1,'manage_options'))return false;
   $authority=self::current();if(is_wp_error($authority)||($profile['global_authority_hash']??null)!==$authority['hash']||array_keys($profile['shops']??[])!==ShopAccessPolicy::canonicalShops())return false;
   foreach(Capabilities::ALL as $cap)if(!user_can(1,$cap))return false;
@@ -52,5 +54,5 @@ final class GlobalOwnerAuthority {
   }
   return true;
  }
- public static function error(string $code):\WP_Error{return new \WP_Error('digiforge_global_owner_'.$code,'A current independently signed Global Primary Owner authority for all four shops is required.',['status'=>403]);}
+ public static function error(string $code):\WP_Error{return new \WP_Error('digiforge_global_owner_'.$code,'A current host-approved database Global Primary Owner assignment for all four shops is required.',['status'=>403]);}
 }

@@ -9,6 +9,7 @@ final class Guard {
   if(substr($request->get_route(),0,14)!=='/digiforge/v1/')return Policy::error('noncanonical_route');
   $s=get_current_user_id()>0?Store::read(get_current_user_id()):null;
   if(is_wp_error($s)||($s!==null&&(!Session::valid($s)||!$s['enabled'])))return Policy::error('session');
+  if(is_array($s)&&!in_array($request->get_method(),['GET','HEAD','OPTIONS'],true)&&!EmailAuthentication::recent(get_current_user_id()))return Policy::error('fresh_email_required');
   $decision=RestPolicy::admit($request,$handler,$s);if($decision!==true)return $decision;
   if($s===null)return $result;
   if($s['role']==='Viewer'){
@@ -20,8 +21,8 @@ final class Guard {
  public function allowAction(string $action):bool {
   // These handlers only authenticate, verify a subject-bound invitation, or bootstrap
   // reviewed signed authority. They independently validate nonce and exact inputs.
-  if(in_array($action,['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll','digiforge_portal_owner_bootstrap','digiforge_portal_owner_recover','digiforge_portal_owner_renew'],true))return true;
-  $s=Store::read(get_current_user_id());if($s===null)return true;if(is_wp_error($s)||!Session::valid($s)||$s['role']==='Viewer')return false;
+  if(in_array($action,['digiforge_portal_login','digiforge_portal_continue','digiforge_portal_invitation_accept','digiforge_portal_owner_enroll','digiforge_portal_owner_bootstrap','digiforge_portal_owner_recover','digiforge_portal_owner_renew','digiforge_portal_owner_revoke'],true))return true;
+  $s=Store::read(get_current_user_id());if($s===null)return true;if(is_wp_error($s)||!Session::valid($s)||!EmailAuthentication::recent(get_current_user_id())||$s['role']==='Viewer')return false;
   if(str_starts_with($action,'digiforge_finance_')&&!self::has($s,'manage_digiforge_finance'))return false;
   if(in_array($action,['digiforge_portal_users','digiforge_portal_access'],true)&&!in_array($s['role'],['Primary Owner',GlobalOwnerAuthority::ROLE],true))return false;return true;
  }

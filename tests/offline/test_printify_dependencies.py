@@ -34,7 +34,7 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                 data=text.encode()
             if row['path']=='includes/Security/ShopAccessRepository.php':
                 overlay=json.loads((ROOT/'docs/engineering/portal-access/global-owner-native-overlay.json').read_text())
-                self.assertEqual('OWNER_APPROVED_GLOBAL_PRIMARY_OWNER_REPAIR',overlay['authorization'])
+                self.assertEqual('OWNER_APPROVED_DATABASE_GLOBAL_PRIMARY_OWNER_REPLACEMENT',overlay['authorization'])
                 self.assertFalse(overlay['signature_verifier_modified']);self.assertFalse(overlay['runtime_authority_provisioned'])
                 self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
                 self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())

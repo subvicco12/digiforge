@@ -6,13 +6,17 @@ use DigiForge\Security\{ShopAccessPolicy,ShopAccessRepository,Logger};
 /** Explicit four-shop enrollment. No key generation, host changes or external authority. */
 final class OwnerBootstrap {
  public const KEY='digiforge_portal_global_owner_bootstrap_claim';
- public static function configured():bool{return defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SCOPE')&&DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SCOPE===GlobalOwnerAuthority::SCOPE&&defined('DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE')&&is_string(DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE)&&hash_equals(DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SITE,home_url('/'));}
+ public static function configured():bool{return !is_wp_error(ServerOwnerApproval::approval('ENROLL'));}
  public static function enroll(string $code,string $request):array|\WP_Error{return self::run($code,$request,'ENROLL');}
  public static function recover(string $code,string $request):array|\WP_Error{return self::run($code,$request,'RECOVER');}
+ public static function revoke(string $request):array|\WP_Error {
+  $s=Store::read(1);if(get_current_user_id()!==1||!EmailAuthentication::recent(1)||!is_array($s)||!Session::valid($s)||!GlobalOwnerAuthority::active($s))return Policy::error('owner_revocation');
+  $next=$s;$next['enabled']=false;$next['revision']++;$next['generation']++;return Store::save($next,$s['revision'],$request);
+ }
  public static function renew(string $request):array|\WP_Error{return self::run('',$request,'RENEW');}
  /** Non-mutating scope for a separate trusted recovery approval. Contains no setup secrets. */
  public static function recoveryPlan():array|\WP_Error {
-  $profile=Store::read(1);$a=GlobalOwnerAuthority::current();if(is_wp_error($profile)||!is_array($profile)||$profile['role']!==GlobalOwnerAuthority::ROLE||GlobalOwnerAuthority::active($profile)||is_wp_error($a))return Policy::error('global_recovery_state');
+  $profile=Store::read(1);$a=GlobalOwnerAuthority::current(true);if(is_wp_error($profile)||!is_array($profile)||$profile['role']!==GlobalOwnerAuthority::ROLE||GlobalOwnerAuthority::active($profile)||is_wp_error($a))return Policy::error('global_recovery_state');
   if(self::verifyClaim($profile)!==true)return Policy::error('global_recovery_claim');$claimHash=$profile['global_claim_hash'];
   $native=[];foreach(ShopAccessPolicy::canonicalShops() as $shop){$s=(new ShopAccessRepository())->read($shop);if(is_wp_error($s))return $s;$native[$shop]=hash('sha256',(string)wp_json_encode($s));}
   $scope=['site'=>home_url('/'),'actor_id'=>1,'profile_hash'=>Store::hash($profile),'authority_hash'=>$a['hash'],'claim_sha256'=>$claimHash,'native_state_hashes'=>$native];
@@ -27,19 +31,21 @@ final class OwnerBootstrap {
  /** Narrow native-repository admission; no public route can supply this staged claim context. */
  public static function nativeMutationAllowed(string $shop,string $request,array $input,?string $revoke):bool {
   if(get_current_user_id()!==1||!ShopAccessPolicy::validShop($shop))return false;$profile=Store::read(1);if(is_wp_error($profile)||!is_array($profile))return false;
-  if(!isset($input['owner_approval']))return GlobalOwnerAuthority::active($profile)&&Session::valid($profile);
+  if(!isset($input['owner_approval']))return EmailAuthentication::recent(1)&&GlobalOwnerAuthority::active($profile)&&Session::valid($profile);
   if($profile['role']!==GlobalOwnerAuthority::ROLE||$profile['enabled']||($profile['bootstrap_pending']??false)!==true||!EmailAuthentication::recent(1)||self::verifyClaim($profile)!==true||!is_string($input['global_claim_hash']??null)||!hash_equals($profile['global_claim_hash'],$input['global_claim_hash']))return false;
   $a=GlobalOwnerAuthority::current();if(is_wp_error($a)||$a['hash']!==$profile['global_authority_hash']||$input['owner_approval']!==$a['source_approval_hash']||($input['caps']??null)!==Capabilities::ALL||($input['subject']??null)!==1||!is_int($input['expires_at']??null)||$input['expires_at']<=time()||$input['expires_at']>min(time()+3600,$a['expires_at'])||$revoke!==null)return false;
   global $wpdb;$raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$profile['global_claim_key']));$claim=is_string($raw)?json_decode($raw,true):null;
   return is_array($claim)&&is_string($claim['request_id']??null)&&hash_equals(hash('sha256',$claim['request_id'].':global:'.$shop),$request);
  }
  private static function run(string $code,string $request,string $purpose):array|\WP_Error {
-  $recovery=$purpose==='RECOVER';$renew=$purpose==='RENEW';$actor=get_current_user_id();$u=get_userdata($actor);$hashName=$recovery?'DIGIFORGE_PORTAL_OWNER_RECOVERY_SHA256':'DIGIFORGE_PORTAL_OWNER_ENROLLMENT_SHA256';
-  if($actor!==1||!$u||strtolower($u->user_email)!==Owner::EMAIL||!user_can(1,'manage_options')||!EmailAuthentication::recent(1)||!self::configured()||preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$request)!==1||(!$renew&&(preg_match('/^[a-f0-9]{64}$/D',$code)!==1||!defined($hashName)||!is_string(constant($hashName))||preg_match('/^[a-f0-9]{64}$/D',constant($hashName))!==1)))return Policy::error('global_bootstrap');
-  if(!Limiter::reserve('global_owner_bootstrap:1',5)||(!$renew&&!hash_equals(constant($hashName),hash('sha256',$code))))return Policy::error('global_bootstrap');
-  $a=GlobalOwnerAuthority::current();if(is_wp_error($a))return $a;$old=Store::read(1);if(is_wp_error($old))return $old;
-  $scope=$a['hash'];
-  if($recovery){$plan=self::recoveryPlan();if(is_wp_error($plan)||!defined('DIGIFORGE_PORTAL_OWNER_RECOVERY_SCOPE_SHA256')||!is_string(DIGIFORGE_PORTAL_OWNER_RECOVERY_SCOPE_SHA256)||!hash_equals(DIGIFORGE_PORTAL_OWNER_RECOVERY_SCOPE_SHA256,$plan['scope_sha256']))return Policy::error('global_recovery_approval');$scope=$plan['scope_sha256'];}
+  $recovery=$purpose==='RECOVER';$renew=$purpose==='RENEW';$actor=get_current_user_id();$u=get_userdata($actor);
+  if($actor!==1||!$u||strtolower($u->user_email)!==Owner::EMAIL||!user_can(1,'manage_options')||!EmailAuthentication::recent(1)||preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$request)!==1||!Limiter::reserve('global_owner_bootstrap:1',5))return Policy::error('global_bootstrap');
+  $old=Store::read(1);if(is_wp_error($old))return $old;
+  $approval=null;
+  if($renew){$a=GlobalOwnerAuthority::current();}
+  else{$approval=ServerOwnerApproval::approval($recovery?'RECOVER':'ENROLL');if(is_wp_error($approval))return $approval;$a=GlobalOwnerAuthority::resolve(ServerOwnerApproval::records($approval),home_url('/'),time());}
+  if(is_wp_error($a))return $a;$scope=$a['hash'];
+  if($recovery){$plan=self::recoveryPlan();if(is_wp_error($plan)||($approval['recovery_scope_sha256']??null)!==$plan['scope_sha256'])return Policy::error('global_recovery_approval');$scope=$plan['scope_sha256'];}
   elseif($renew){if(!is_array($old)||!GlobalOwnerAuthority::active($old,true))return Policy::error('global_renewal_denied');$scope=Store::hash($old);}
   elseif($old!==null&&($old['role']!=='Primary Owner'||!$old['enabled']||($old['bootstrap_pending']??false)===true))return Policy::error('global_owner_exists_or_pending');
   if(($old['revision']??0)>997)return Policy::error('history_capacity');
@@ -54,9 +60,9 @@ final class OwnerBootstrap {
   $claimRaw=(string)wp_json_encode($claim);
   $pending=['actor_id'=>1,'role'=>GlobalOwnerAuthority::ROLE,'enabled'=>false,'bootstrap_pending'=>true,'revision'=>($old['revision']??0)+1,'generation'=>($old['generation']??0)+1,'shops'=>$shops,'authority_hashes'=>$hashes,'global_authority_hash'=>$a['hash'],'global_grants'=>[],'global_claim_key'=>$claimKey,'global_claim_hash'=>hash('sha256',$claimRaw)];
   // One transaction binds claim, claim audit, restrictive profile and its event.
-  $saved=Store::save($pending,$old['revision']??0,hash('sha256',$request.':global-pending'),static function()use($wpdb,$claimKey,$claimRaw,$claim,$states,$a,$old,$renew){
+  $saved=Store::save($pending,$old['revision']??0,hash('sha256',$request.':global-pending'),static function()use($wpdb,$claimKey,$claimRaw,$claim,$states,$a,$old,$renew,$approval,$recovery){
    foreach($states as $shop=>$expected){$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s FOR UPDATE",'digiforge_shop_access_state_'.$shop));$locked=$raw===null?['revision'=>0,'grants'=>[]]:(is_string($raw)?json_decode($raw,true):null);if($wpdb->last_error!==''||$locked!==$expected)return false;}
-   $current=GlobalOwnerAuthority::current();if(is_wp_error($current)||$current['hash']!==$a['hash']||($renew&&!GlobalOwnerAuthority::active($old,true)))return false;
+   if($renew){if(!GlobalOwnerAuthority::active($old,true)||!ServerOwnerApproval::renewClaim($old['global_claim_hash'],hash('sha256',$claimRaw)))return false;}else{$fresh=ServerOwnerApproval::approval($recovery?'RECOVER':'ENROLL');if(is_wp_error($fresh)||$fresh!==$approval||!ServerOwnerApproval::persist($approval,hash('sha256',$claimRaw),$recovery))return false;}
    return $wpdb->insert($wpdb->options,['option_name'=>$claimKey,'option_value'=>$claimRaw,'autoload'=>'no'])===1&&Logger::write('portal_global_owner_claimed',$claim,'portal_auth','1');
   });if(is_wp_error($saved))return $saved;
   $grants=[];$committed=[];$expiry=min(time()+3600,$a['expires_at']);
@@ -73,24 +79,27 @@ final class OwnerBootstrap {
   $started=Session::start();return is_wp_error($started)?$started:$saved;
  }
  public static function render():string {
-  $h='<section class="df-access-card"><h1>Global Primary Owner enrollment</h1><p>Platform administration covers Digital Products, Personalized POD, Standard POD and Personalized Jewelry. It never enables inactive shops or external execution. Verify your email and enter the one-time enrollment code supplied privately by the trusted setup operator. You do not handle signing keys.</p>';
+  $h='<section class="df-access-card"><h1>Global Primary Owner enrollment</h1><p>Platform administration covers Digital Products, Personalized POD, Standard POD and Personalized Jewelry. It never enables inactive shops or external execution. Verify your email and confirm the one-time enrollment approved by the trusted server operator. No signing keys or setup code are required.</p>';
   if(get_current_user_id()!==1||!get_userdata(1)||strtolower(get_userdata(1)->user_email)!==Owner::EMAIL)return $h.'<p role="alert">The verified existing primary-owner account #1 is required.</p></section>';
   $r=OwnerReadiness::inspect('personalized_pod');$h.='<p role="status">'.esc_html($r['state']).': '.esc_html(OwnerReadiness::message($r['state'])).'</p>';
-  if($r['state']==='GLOBAL_ENROLLED')return $h.'<p>Global administration is enrolled. User Management retains exact delegated shop/module scope.</p></section>';
+  if($r['state']==='GLOBAL_ENROLLED')return $h.'<p>Global administration is enrolled. User Management retains exact delegated shop/module scope.</p>'.self::revokeForm().'</section>';
   if(!EmailAuthentication::recent(1))return $h.'<a href="'.esc_url(Authentication::loginUrl(add_query_arg('df_view','owner',home_url('/')))).'">Verify email</a></section>';
   $profile=Store::read(1);if(is_array($profile)&&GlobalOwnerAuthority::active($profile,true))return $h.self::renewForm().'</section>';
   if(in_array($r['state'],['GLOBAL_ENROLLMENT_INTERRUPTED','GLOBAL_ACCESS_REVOKED_OR_EXPIRED'],true)){
    $plan=self::recoveryPlan();if(is_wp_error($plan))return $h.'<p>Recovery evidence unavailable. No automatic retry.</p></section>';
    $h.='<p>Trusted recovery approval must bind scope <code>'.esc_html($plan['scope_sha256']).'</code>. Ordinary enrollment cannot resume this claim.</p>';
-   if(!defined('DIGIFORGE_PORTAL_OWNER_RECOVERY_SCOPE_SHA256')||DIGIFORGE_PORTAL_OWNER_RECOVERY_SCOPE_SHA256!==$plan['scope_sha256']||!defined('DIGIFORGE_PORTAL_OWNER_RECOVERY_SHA256'))return $h.'</section>';
+   if(is_wp_error($approval=ServerOwnerApproval::approval('RECOVER'))||($approval['recovery_scope_sha256']??null)!==$plan['scope_sha256'])return $h.'</section>';
    return $h.self::form(true).'</section>';
   }
-  return $h.($r['state']==='GLOBAL_READY_TO_ENROLL'?self::form(false):'<p>Trusted host setup and a valid signed global authority are required. Email alone never grants ownership.</p>').'</section>';
+  return $h.($r['state']==='GLOBAL_READY_TO_ENROLL'?self::form(false):'<p>A current trusted server-side enrollment approval is required. Email alone never grants ownership.</p>').'</section>';
+ }
+ private static function revokeForm():string {
+  $action='digiforge_portal_owner_revoke';return '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.$action.'"><input type="hidden" name="scope" value="GLOBAL_PRIMARY_OWNER"><input type="hidden" name="request_id" value="'.esc_attr(wp_generate_uuid4()).'"><label><input type="checkbox" name="confirm" value="CONFIRM_DIGIFORGE_ONLY" required>Revoke global portal access. Host-approved recovery will be required.</label><button>Revoke my DigiForge access</button></form>';
  }
  private static function renewForm():string {
-  $action='digiforge_portal_owner_renew';return '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.$action.'"><input type="hidden" name="scope" value="GLOBAL_PRIMARY_OWNER"><input type="hidden" name="request_id" value="'.esc_attr(wp_generate_uuid4()).'"><label><input type="checkbox" name="confirm" value="CONFIRM_DIGIFORGE_ONLY" required>Renew bounded native assignments under the same current, unrevoked signed global authority.</label><button>Renew global administrative access</button></form>';
+  $action='digiforge_portal_owner_renew';return '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.$action.'"><input type="hidden" name="scope" value="GLOBAL_PRIMARY_OWNER"><input type="hidden" name="request_id" value="'.esc_attr(wp_generate_uuid4()).'"><label><input type="checkbox" name="confirm" value="CONFIRM_DIGIFORGE_ONLY" required>Renew bounded native assignments under the same current, unrevoked database authority.</label><button>Renew global administrative access</button></form>';
  }
  private static function form(bool $recovery):string {
-  $action=$recovery?'digiforge_portal_owner_recover':'digiforge_portal_owner_bootstrap';return '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.$action.'"><input type="hidden" name="scope" value="GLOBAL_PRIMARY_OWNER"><input type="hidden" name="request_id" value="'.esc_attr(wp_generate_uuid4()).'"><label>One-time '.($recovery?'recovery':'enrollment').' code<input type="password" name="code" maxlength="64" autocomplete="off" required></label><label><input type="checkbox" name="confirm" value="CONFIRM_DIGIFORGE_ONLY" required>I confirm global DigiForge administration only.</label><button>Confirm '.($recovery?'reviewed recovery':'global enrollment').'</button></form>';
+  $action=$recovery?'digiforge_portal_owner_recover':'digiforge_portal_owner_bootstrap';return '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">'.wp_nonce_field($action,'_wpnonce',true,false).'<input type="hidden" name="action" value="'.$action.'"><input type="hidden" name="scope" value="GLOBAL_PRIMARY_OWNER"><input type="hidden" name="request_id" value="'.esc_attr(wp_generate_uuid4()).'"><label><input type="checkbox" name="confirm" value="CONFIRM_DIGIFORGE_ONLY" required>I confirm global DigiForge administration only.</label><button>Confirm '.($recovery?'reviewed recovery':'global enrollment').'</button></form>';
  }
 }
