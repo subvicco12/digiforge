@@ -30,6 +30,11 @@ final class Settings
     {
         if (! Config::writable_setting($key) || ! Config::valid_value($key, $value)) { return false; }
         if ($type !== '' && $type !== Config::setting_type($key)) { return false; }
+        if ($key === 'stop_all' && $value === true) {
+            $revoked = \DigiForge\POD\PrintifyAcceptanceSafetyGeneration::terminate();
+            $stopped = self::persist($key, $value);
+            return $stopped && ! is_wp_error($revoked);
+        }
         return self::persist($key, $value);
     }
 
@@ -193,6 +198,10 @@ final class Settings
      */
     public static function protectProduction(): bool
     {
+        // Never commit caller work by starting a nested MySQL transaction.
+        if (is_wp_error(\DigiForge\POD\PrintifyProductPipeline::durableDispatchSession())) { return false; }
+        // Revoke before the settings transaction; repeated STOP ALL is an emergency event.
+        $revoked = \DigiForge\POD\PrintifyAcceptanceSafetyGeneration::terminate();
         global $wpdb;
         $engine = $wpdb->get_var($wpdb->prepare(
             'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
@@ -205,7 +214,7 @@ final class Settings
                 if (! self::persist($key, $value)) { throw new \RuntimeException('protection persistence failed'); }
             }
             if (false === $wpdb->query('COMMIT')) { throw new \RuntimeException('protection commit failed'); }
-            return true;
+            return ! is_wp_error($revoked);
         } catch (\Throwable $e) {
             $wpdb->query('ROLLBACK');
             return false;

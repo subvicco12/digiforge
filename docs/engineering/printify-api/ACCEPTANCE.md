@@ -1,3 +1,5 @@
+> Approved Revision1 offline implementation checkpoint: [source and blocked emergency-persistence requirement](APPROVED-REVISION1-IMPLEMENTATION-CHECKPOINT.md). No executable exception or new installation candidate.
+
 > Final .25 review and separate owner gates: [review package](FINAL-REVIEW-1.0.103.25.md).
 
 > Current .25 review: [exact clauses](GOVERNING-CLAUSE-RECONCILIATION.md), [DRAFT amendment](DIGIFORGE_PRINTIFY_GET_ONLY_SAFETY_AMENDMENT_PROPOSAL.md), [disabled-binding decision](SHOP2-BINDING-DECISION-PACKAGE.md). No adoption or executable exception.

@@ -5,7 +5,7 @@ use DigiForge\POD\{PrintifyAcceptanceBridge,PrintifyApiReadWorkflow,PrintifyCont
 final class PrintifyAcceptanceBridgeTest extends WP_UnitTestCase {
  private PrintifyApiApprovalFixture $f;
  public static function set_up_before_class():void {parent::set_up_before_class();PrintifyApiApprovalFixture::checked(\DigiForge\Database\ProviderConnectionSchema::migrateIfNeeded());}
- public function set_up():void{parent::set_up();$this->f=new PrintifyApiApprovalFixture();$this->f->boot();}
+ public function set_up():void{parent::set_up();$this->f=new PrintifyApiApprovalFixture();$this->f->boot();PrintifyApiApprovalFixture::checked(\DigiForge\POD\PrintifyAcceptanceSafetyGeneration::terminate());}
  public function tear_down():void{global $wpdb;$wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'df_acceptance_%'");$this->f->restore();parent::tear_down();}
  private function setupBridge():array {
   $w=new PrintifyApiReadWorkflow();$p=PrintifyApiApprovalFixture::checked($w->prepare('personalized_pod',$this->f->integration,'SHOPS_READ',[]));$auth=$this->f->approve($w,$p,'printify-api-read');$b=new PrintifyAcceptanceBridge();$s=PrintifyApiApprovalFixture::checked($b->prepare($this->f->integration,[['pipeline'=>'read','plan_hash'=>$p['hash']]]));return [$b,$s,$auth];
@@ -58,4 +58,7 @@ final class PrintifyAcceptanceBridgeTest extends WP_UnitTestCase {
   try{$r=wp_get_ability('digiforge/printify-acceptance-execute')->execute(['session_hash'=>$s['hash'],'slot'=>0,'authorization_hash'=>$a['hash']]);self::assertNotWPError($r);self::assertSame(1,$calls);self::assertSame('SCHEMA_ACCEPTED',$r['receipt']['compatibility']);self::assertStringNotContainsString('Private',json_encode($r));}finally{remove_filter('pre_http_request',$fake,10);}
  }
 
+ public function testEmergencyDuringInFlightResponseDiscardsCompatibilityAndPreventsReuse():void {
+  [$b,$s,$a]=$this->setupBridge();$this->f->approve($b,$s,'printify-acceptance');$calls=0;$t=new PrintifyControlledTransport(function()use(&$calls){$calls++;PrintifyApiApprovalFixture::checked(\DigiForge\POD\PrintifyAcceptanceSafetyGeneration::terminate());return PrintifyApiApprovalFixture::response([['id'=>12]]);});$r=$t->executeAcceptance($s['hash'],0,$a['hash']);self::assertNotWPError($r);self::assertSame('UNVERIFIED',$r['receipt']['compatibility']);self::assertSame('AUTHORITY_CHANGED_OUTCOME_UNKNOWN',$r['receipt']['reason']);self::assertWPError($b->authorize($s['hash']));self::assertWPError($t->executeAcceptance($s['hash'],0,$a['hash']));self::assertSame(1,$calls);
+ }
 }
