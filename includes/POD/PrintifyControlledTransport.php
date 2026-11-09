@@ -5,6 +5,7 @@ use WP_Error;
 /** No-retry controlled Printify mutation transport. */
 final class PrintifyControlledTransport{
  private $sender;public function __construct(?callable $sender=null){$this->sender=$sender??static fn(string $u,array $a)=>wp_remote_request($u,$a);}
+ public function executeAcceptance(string $session,int $slot,string $authorization):array|WP_Error{return (new PrintifyAcceptanceBridge())->execute($session,$slot,$authorization,$this->sender);}
  public function executeProduct(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyProductPipeline())->execute($planHash,$authorizationHash,$this->sender);}
  public function executeLifecycle(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyLifecycleWorkflow())->execute($planHash,$authorizationHash,$this->sender);}
  public function executeApiRead(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyApiReadWorkflow())->execute($planHash,$authorizationHash,$this->sender);}

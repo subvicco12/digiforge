@@ -1,0 +1,21 @@
+{
+  "schema": "printify-acceptance-binding-proposal-v1",
+  "status": "PROPOSAL_ONLY_NOT_APPROVED",
+  "shop_key": "personalized_pod",
+  "integration_id": 3,
+  "provider": "printify",
+  "provider_shop_id": "28930593",
+  "channel": "etsy",
+  "excluded_provider_shop_id": "28925875",
+  "account_reference": null,
+  "credential_association": "UNVERIFIED_ENCRYPTED_MATERIAL_PRESENCE_ONLY",
+  "account_evidence": "DASHBOARD_ONLY_NOT_API_AUTHENTICATION",
+  "source_report": "https://drive.google.com/file/d/1q02iJtQ2Ivf2cqb7Dt0pqn-Oc4jsNzms/view",
+  "provider_scope_evidence_rows": "ABSENT_IN_SUPPLIED_EVIDENCE",
+  "shop3_assignment": false,
+  "integration_enablement_authorized": false,
+  "binding_write_authorized": false,
+  "credential_access_authorized": false,
+  "execution_authorized": false,
+  "safety_policy_exception_authorized": false
+}

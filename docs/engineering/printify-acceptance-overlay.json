@@ -1,0 +1,19 @@
+{
+  "authorization": "OWNER_GET_ONLY_ACCEPTANCE_BRIDGE_PR1260",
+  "baseline_source_sha": "d6566caa84089aa31117f2f960ae85da723beb7c",
+  "runtime_authority_provisioned": false,
+  "grant_limits_changed": false,
+  "files": [
+    {
+      "path": "includes/POD/PrintifyCatalogReadRepository.php",
+      "baseline_sha256": "c6e76b9fce0f88aef7709342b2393dc12b7b2cf878b98f93b1d4a1555c0dedaa",
+      "overlay_sha256": "5dfff97ca0330bcacae3940bc14e2367483ea14107cbf2c69f88448c289f75f7",
+      "hunks": [
+        {
+          "baseline_text": "",
+          "reviewed_text": " /** Non-executing exact metadata for the acceptance overlay; no token or grant mutation. */\n public function acceptancePlan(string $sha,int $index):array|WP_Error {\n  $g=$this->grant($sha,false);if(is_wp_error($g)||!self::reader()||($g['grant']['account_id']??null)!==get_current_user_id()||!isset($g['grant']['requests'][$index])||$index<0)return self::error('acceptance_scope',403);\n  $assigned=$this->assigned($g);if(is_wp_error($assigned))return $assigned;\n  $scope=PrintifyConnectionBoundary::context($g['binding']['shop_key'],$g['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if(is_wp_error($scope))return $scope;\n  $r=$g['grant']['requests'][$index];$op=match($r['kind']){'blueprints'=>'BLUEPRINTS','blueprint'=>'BLUEPRINT','providers'=>'BLUEPRINT_PROVIDERS','provider'=>'BLUEPRINT_PROVIDER','variants'=>'VARIANTS','size_guide'=>'SIZE_GUIDE','shipping'=>'SHIPPING_METHODS','shipping_method'=>'REGIONAL_SHIPPING',default=>null};if($op===null)return self::error('acceptance_operation',403);\n  return ['request'=>['operation'=>$op,'method'=>'GET','endpoint'=>PrintifyCatalogReadContract::endpoint($r),'body'=>[]],'scope'=>$scope];\n }\n"
+        }
+      ]
+    }
+  ]
+}

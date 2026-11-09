@@ -91,6 +91,14 @@ final class PrintifyCatalogReadRepository {
   return true;
  }
  /** Authoritative grant admission; no caller-supplied authorization callback. */
+ /** Non-executing exact metadata for the acceptance overlay; no token or grant mutation. */
+ public function acceptancePlan(string $sha,int $index):array|WP_Error {
+  $g=$this->grant($sha,false);if(is_wp_error($g)||!self::reader()||($g['grant']['account_id']??null)!==get_current_user_id()||!isset($g['grant']['requests'][$index])||$index<0)return self::error('acceptance_scope',403);
+  $assigned=$this->assigned($g);if(is_wp_error($assigned))return $assigned;
+  $scope=PrintifyConnectionBoundary::context($g['binding']['shop_key'],$g['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if(is_wp_error($scope))return $scope;
+  $r=$g['grant']['requests'][$index];$op=match($r['kind']){'blueprints'=>'BLUEPRINTS','blueprint'=>'BLUEPRINT','providers'=>'BLUEPRINT_PROVIDERS','provider'=>'BLUEPRINT_PROVIDER','variants'=>'VARIANTS','size_guide'=>'SIZE_GUIDE','shipping'=>'SHIPPING_METHODS','shipping_method'=>'REGIONAL_SHIPPING',default=>null};if($op===null)return self::error('acceptance_operation',403);
+  return ['request'=>['operation'=>$op,'method'=>'GET','endpoint'=>PrintifyCatalogReadContract::endpoint($r),'body'=>[]],'scope'=>$scope];
+ }
  public function quotaContext(array $authority):array|WP_Error {
   if(!self::reader()||!is_string($authority['grant_sha256']??null))return self::error('account_scope',403);
   $g=$this->grant($authority['grant_sha256']);if($g instanceof WP_Error)return $g;
