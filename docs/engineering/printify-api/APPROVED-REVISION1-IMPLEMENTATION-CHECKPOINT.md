@@ -30,3 +30,7 @@ Once the emergency fence is proven, complete the independently certified, exact-
 IMPLEMENTED / OFFLINE_VERIFIED applies only to the tested foundation above. Full exception: BLOCKED, NOT SOFTWARE_COMPLETE. No version bump or installation ZIP is issued for an incomplete safety implementation. This source checkpoint is not a replacement for the qualified .25 artifact. Hosted source audit results must be recorded separately; passing source tests cannot close the failed-persistence requirement or certify a hosted exact ZIP.
 
 STOP ALL ON; external safety lock ON; automation OFF; activation unauthorized; RELEASE HOLD. No historical reservation22 retry. No owner, provider, Etsy or production changes. No installation authorization requested.
+
+## Exact shared-file preservation receipt
+
+Initial source audit failed the historical Settings.php byte pin after the explicitly requested parent-policy preparation. The original dependency manifest/hash remains unchanged. A separate exact three-hunk emergency-settings overlay records baseline and final hashes, removes only the reviewed hunks during preservation checking, then verifies the original pin. It permits no other Settings.php delta and adds no runtime authority. This follows the existing narrow reviewed overlay convention; no blanket allowlist, assertion removal or mutation admission.
