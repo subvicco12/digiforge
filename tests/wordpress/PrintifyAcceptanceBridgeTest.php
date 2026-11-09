@@ -4,6 +4,7 @@ require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
 use DigiForge\POD\{PrintifyAcceptanceBridge,PrintifyApiReadWorkflow,PrintifyControlledTransport};
 final class PrintifyAcceptanceBridgeTest extends WP_UnitTestCase {
  private PrintifyApiApprovalFixture $f;
+ public static function set_up_before_class():void {parent::set_up_before_class();PrintifyApiApprovalFixture::checked(\DigiForge\Database\ProviderConnectionSchema::migrateIfNeeded());}
  public function set_up():void{parent::set_up();$this->f=new PrintifyApiApprovalFixture();$this->f->boot();}
  public function tear_down():void{global $wpdb;$wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE 'df_acceptance_%'");$this->f->restore();parent::tear_down();}
  private function setupBridge():array {
@@ -49,7 +50,12 @@ final class PrintifyAcceptanceBridgeTest extends WP_UnitTestCase {
  }
 
  public function testRollingWindowExpiryAndSessionTargetLimit():void {
-  [$b,$s,$a]=$this->setupBridge();$this->f->approve($b,$s,'printify-acceptance');$load=new ReflectionMethod($b,'load');$session=$load->invoke($b,'session',$s['hash']);$key='df_acceptance_window_'.$session['account_sha256'];add_option($key,wp_json_encode([time()-59,time()-59,time()-59]),'',false);$calls=0;$t=new PrintifyControlledTransport(function()use(&$calls){$calls++;return PrintifyApiApprovalFixture::response([['id'=>12,'title'=>'Private','sales_channel'=>'etsy']]);});$r=$t->executeAcceptance($s['hash'],0,$a['hash']);self::assertWPError($r);self::assertSame('printify_acceptance_quota',$r->get_error_code());self::assertSame(0,$calls);update_option($key,wp_json_encode([time()-61,time()-61,time()-61]));self::assertNotWPError($t->executeAcceptance($s['hash'],0,$a['hash']));self::assertSame(1,$calls);self::assertWPError($b->prepare($this->f->integration,array_fill(0,11,$session['slots'][0]['target'])));
+  [$b,$s,$a]=$this->setupBridge();$this->f->approve($b,$s,'printify-acceptance');$load=new ReflectionMethod($b,'load');$session=$load->invoke($b,'session',$s['hash']);$key='df_acceptance_window_'.$session['account_sha256'];add_option($key,wp_json_encode([time()-30,time()-30,time()-30]),'',false);$calls=0;$t=new PrintifyControlledTransport(function()use(&$calls){$calls++;return PrintifyApiApprovalFixture::response([['id'=>12,'title'=>'Private','sales_channel'=>'etsy']]);});$r=$t->executeAcceptance($s['hash'],0,$a['hash']);self::assertWPError($r);self::assertSame('printify_acceptance_quota',$r->get_error_code());self::assertSame(0,$calls);update_option($key,wp_json_encode([time()-61,time()-61,time()-61]));self::assertNotWPError($t->executeAcceptance($s['hash'],0,$a['hash']));self::assertSame(1,$calls);self::assertWPError($b->prepare($this->f->integration,array_fill(0,11,$session['slots'][0]['target'])));
+ }
+
+ public function testAuthenticatedAbilityInvokesOnlyReviewedGet():void {
+  [$b,$s,$a]=$this->setupBridge();$this->f->approve($b,$s,'printify-acceptance');$calls=0;$fake=static function($pre,$args,$url)use(&$calls){if($url!=='https://api.printify.com/v1/shops.json')return $pre;$calls++;self::assertSame('GET',$args['method']);return PrintifyApiApprovalFixture::response([['id'=>12,'title'=>'Private','sales_channel'=>'etsy']]);};add_filter('pre_http_request',$fake,10,3);
+  try{$r=wp_get_ability('digiforge/printify-acceptance-execute')->execute(['session_hash'=>$s['hash'],'slot'=>0,'authorization_hash'=>$a['hash']]);self::assertNotWPError($r);self::assertSame(1,$calls);self::assertSame('SCHEMA_ACCEPTED',$r['receipt']['compatibility']);self::assertStringNotContainsString('Private',json_encode($r));}finally{remove_filter('pre_http_request',$fake,10);}
  }
 
 }
