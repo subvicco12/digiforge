@@ -1,3 +1,5 @@
+> Current emergency-fence correction: [protocol, fault matrix and qualification limits](DURABLE-EMERGENCY-FENCE-QUALIFICATION.md). Engineering-only; no live exception or installation authorization.
+
 > Approved Revision1 offline implementation checkpoint: [source and blocked emergency-persistence requirement](APPROVED-REVISION1-IMPLEMENTATION-CHECKPOINT.md). No executable exception or new installation candidate.
 
 > Final .25 review and separate owner gates: [review package](FINAL-REVIEW-1.0.103.25.md).

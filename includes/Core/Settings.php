@@ -260,6 +260,7 @@ final class Settings
     private static function persist(string $key, mixed $value): bool
     {
         if ($key === 'cleanup_on_uninstall') { return update_option('digiforge_cleanup_on_uninstall', (bool) $value, false); }
+        if ($key === 'stop_all' && $value === true && function_exists('do_action')) { do_action('digiforge_emergency_stop_all_requested'); }
         global $wpdb;
         return false !== $wpdb->query($wpdb->prepare(
             'INSERT INTO ' . Tables::settings() . ' (setting_key, setting_value, setting_type, updated_at) VALUES (%s,%s,%s,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), setting_type=VALUES(setting_type), updated_at=UTC_TIMESTAMP()',

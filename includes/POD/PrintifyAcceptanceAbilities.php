@@ -4,6 +4,7 @@ namespace DigiForge\POD;
 /** Optional core Abilities API surface. Does not register a public proxy or create authority. */
 final class PrintifyAcceptanceAbilities {
  public function register():void {
+  if(defined('DIGIFORGE_PRINTIFY_ACCEPTANCE_EMERGENCY_EVENTS')&&DIGIFORGE_PRINTIFY_ACCEPTANCE_EMERGENCY_EVENTS===true)(new PrintifyAcceptanceEmergencyEvents())->register();
   add_action('wp_abilities_api_categories_init',static function(){if(function_exists('wp_register_ability_category'))wp_register_ability_category('digiforge-acceptance',['label'=>'DigiForge acceptance','description'=>'Governed acceptance evidence, not provider activation.']);});
   add_action('wp_abilities_api_init',[$this,'abilities']);
  }

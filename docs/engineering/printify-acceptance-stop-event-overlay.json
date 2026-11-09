@@ -1,0 +1,15 @@
+{
+  "schema": "printify-acceptance-stop-request-hook-v1",
+  "baseline_source_sha": "c6ad45ddc2f53b94fbc4ef8d5645963d909b5a71",
+  "baseline_sha256": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862",
+  "overlay_sha256": "57244ec93325c95f9ce4b39f5ff57dfff961d5bca017953873033cdba8e3bc50",
+  "external_authority_granted": false,
+  "parent_return_semantics_changed": false,
+  "default_listener_enabled": false,
+  "hunks": [
+    {
+      "baseline_text": "        if ($key === 'cleanup_on_uninstall') { return update_option('digiforge_cleanup_on_uninstall', (bool) $value, false); }\n",
+      "reviewed_text": "        if ($key === 'cleanup_on_uninstall') { return update_option('digiforge_cleanup_on_uninstall', (bool) $value, false); }\n        if ($key === 'stop_all' && $value === true && function_exists('do_action')) { do_action('digiforge_emergency_stop_all_requested'); }\n"
+    }
+  ]
+}
