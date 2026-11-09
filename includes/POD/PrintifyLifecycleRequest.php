@@ -7,6 +7,13 @@ final class PrintifyLifecycleRequest
 {
  public static function prepare(string $operation,string $shop,array $input):array {
   if(!preg_match('/^[1-9][0-9]{0,18}$/D',$shop))throw new \InvalidArgumentException('Provider shop required.');
+  if(str_starts_with($operation,'SUPPORT_'))return PrintifySupportContract::prepare($operation,$shop,$input);
+  if(in_array($operation,['UPLOADS_READ','IMAGE_ARCHIVE'],true)){
+   $allowed=$operation==='UPLOADS_READ'?['page','limit','image_receipts']:['image_id','image_receipts'];
+   if(array_diff(array_keys($input),$allowed)||!is_array($input['image_receipts']??null)||!array_is_list($input['image_receipts'])||count($input['image_receipts'])<1||count($input['image_receipts'])>10)throw new \InvalidArgumentException('Exact owned image receipts required.');
+   foreach($input['image_receipts'] as $hash)if(!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash))throw new \InvalidArgumentException('Exact receipt hashes required.');
+   unset($input['image_receipts']);return PrintifyUploadContract::prepare($operation,$shop,$input);
+  }
   if(str_starts_with($operation,'WEBHOOK_')){
    $r=PrintifyWebhookRequest::prepare($operation,$shop,$input);$material=['operation'=>$operation,'method'=>$r['method'],'endpoint'=>$r['endpoint'],'body'=>$r['body'],'required_scope'=>$r['method']==='GET'?'webhooks.read':'webhooks.write','input'=>$r['input'],'secret_fingerprint'=>$r['secret_fingerprint']??null];
   }elseif($operation==='SHIPPING_QUOTE'){
