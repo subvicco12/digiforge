@@ -12,6 +12,7 @@
 /bin export-ignore
 /docs export-ignore
 /tests export-ignore
+/contracts export-ignore
 /composer.json export-ignore
 /composer.lock export-ignore
 /phpcs.xml.dist export-ignore
