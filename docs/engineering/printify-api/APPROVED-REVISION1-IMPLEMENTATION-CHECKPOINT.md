@@ -8,7 +8,7 @@ Starting source b7d60b0349e54f400fd4bc0ec781edbb7da4b518; existing PR1260 / feat
 
 - Pure `PrintifyAcceptanceOperationalPolicy` pins exact Revision1 digest, GET/capability, actor1, Shop2, integration3, production shop28930593 and requires certification, installation, independent review, operational approval, association, current generation, audit and300-second authority evidence. It requires business locks ON, automation/activation OFF, disabled integration and RELEASE HOLD. Caller-supplied evidence returns only eligibility, never credential or execution authorization. No runtime path trusts these booleans.
 - `PrintifyAcceptanceSafetyGeneration` uses existing InnoDB options/audit tables, uncached direct reads, sealed random generations, unique audit anchors and atomic compare/exchange. Successful repeated emergency events rotate even while STOP ALL stays true. Concurrent CAS losers deny. Missing, tampered, unaudited, transactional or non-durable evidence denies.
-- `Settings::set(stop_all,true)` and protectProduction invoke emergency invalidation. Setting STOP ALL still attempts to persist even if generation fails, returning failure rather than acknowledging a successful emergency event. protectProduction refuses caller-owned transactions before START TRANSACTION so it cannot implicitly commit caller work. No other setting or native permission is loosened.
+- The attempted Settings emergency hook was withdrawn after complete regression testing demonstrated incompatible caller-transaction behavior. Settings.php is restored byte-identically to the qualified baseline. The generation primitive is NOT wired to production emergency controls. Parent settings and their release behavior are unchanged.
 - Existing bridge sessions and independent approval payloads bind the generation. Current checks run before entering the upstream credential boundary, inside the physical sender guard and after response. Changed in-flight authority produces UNVERIFIED / AUTHORITY_CHANGED_OUTCOME_UNKNOWN; no automatic retry and no slot restoration. This strengthens the existing normally governed bridge; it does not admit disabled-integration execution.
 
 ## BLOCKED — failed emergency persistence
@@ -31,6 +31,8 @@ IMPLEMENTED / OFFLINE_VERIFIED applies only to the tested foundation above. Full
 
 STOP ALL ON; external safety lock ON; automation OFF; activation unauthorized; RELEASE HOLD. No historical reservation22 retry. No owner, provider, Etsy or production changes. No installation authorization requested.
 
-## Exact shared-file preservation receipt
+## Complete-suite regression correction
 
-Initial source audit failed the historical Settings.php byte pin after the explicitly requested parent-policy preparation. The original dependency manifest/hash remains unchanged. A separate exact three-hunk emergency-settings overlay records baseline and final hashes, removes only the reviewed hunks during preservation checking, then verifies the original pin. It permits no other Settings.php delta and adds no runtime authority. This follows the existing narrow reviewed overlay convention; no blanket allowlist, assertion removal or mutation admission.
+Audit42639672450 found four regressions after the attempted Settings hook (FinalConvergenceScenario, GlobalPrimaryOwner, HostingerRecoveryTransport, PortalAccess). That hook and its temporary preservation overlay were withdrawn. The original Settings.php pin and offline preservation checker are restored unchanged, not weakened. Generation tests invoke the isolated emergency primitive explicitly; they do not claim that a real STOP ALL action currently rotates the generation. Full exception and emergency-control integration remain BLOCKED.
+
+The new audit-failure fixture also clears its synthetic persisted/static Logger failure state during teardown so later authentication/invitation tests do not inherit it. This is fixture isolation, not suppression of a production audit failure.
