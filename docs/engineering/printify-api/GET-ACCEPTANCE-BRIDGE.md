@@ -1,3 +1,5 @@
+> .24 update: [final policy, binding and connector qualification](FINAL-ACCEPTANCE-1.0.103.24.md). The earlier tool-capability observation below is historical; current inventory advertises WPVibe execution and WP Agent REST writes, without proving installed owner-session compatibility.
+
 # Governed Printify GET acceptance bridge — .23
 
 Baseline d6566caa84089aa31117f2f960ae85da723beb7c (.22), PR1260. This is offline infrastructure qualification. No production, credentials, bindings, keys, owner permissions, grants, exceptions, provider settings or historical reservation22 are modified. No live API request ran. No schema migration.

@@ -1,0 +1,18 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
+use DigiForge\POD\{PrintifyAcceptanceAbilities,PrintifyAcceptanceReadiness};
+final class PrintifyAcceptanceReadinessTest extends WP_UnitTestCase {
+ private PrintifyApiApprovalFixture $f;
+ public static function set_up_before_class():void {parent::set_up_before_class();PrintifyApiApprovalFixture::checked(\DigiForge\Database\ProviderConnectionSchema::migrateIfNeeded());}
+ public function set_up():void {parent::set_up();$this->f=new PrintifyApiApprovalFixture();$this->f->boot();}
+ public function tear_down():void {$this->f->restore();parent::tear_down();}
+ public function testCoreDiscoveryAndOwnerReadinessNeverDispatchOrWriteAudit():void {
+  $this->f->setting('stop_all',true);$this->f->setting('automation_armed',false);$this->f->setting('activation_authorized',false);
+  global $wpdb;$before=(int)$wpdb->get_var('SELECT COUNT(*) FROM '.\DigiForge\Database\Tables::audit_log());$calls=0;$tripwire=static function()use(&$calls){$calls++;return new WP_Error('no_http');};add_filter('pre_http_request',$tripwire,1,3);
+  try{$ability=wp_get_ability('digiforge/printify-acceptance-readiness');self::assertNotNull($ability);$r=$ability->execute([]);self::assertNotWPError($r);self::assertSame('BLOCKED_AUTHORITY',$r['status']);self::assertSame(0,$r['provider_requests']);self::assertTrue($r['interface']['registered']['execute']);self::assertTrue($r['interface']['registered']['readiness']);self::assertFalse($r['runtime_execution_authorized']);self::assertSame('STOP_ALL',$r['policy']['reason']);self::assertSame('BLOCKED_TOOL',$r['interface']['connector_status']);self::assertStringNotContainsString('Bearer',json_encode($r));self::assertStringNotContainsString('ciphertext',json_encode($r));self::assertSame(0,$calls);self::assertSame($before,(int)$wpdb->get_var('SELECT COUNT(*) FROM '.\DigiForge\Database\Tables::audit_log()));}finally{remove_filter('pre_http_request',$tripwire,1);}
+ }
+ public function testAnonymousAndDelegatedAdminCannotDiagnose():void {wp_set_current_user(0);$r=PrintifyAcceptanceAbilities::permission();self::assertWPError($r);self::assertSame('AUTHENTICATION',$r->get_error_data()['stage']);wp_set_current_user($this->f->reviewer);$r=PrintifyAcceptanceReadiness::snapshot();self::assertWPError($r);self::assertSame('OWNER_AUTHORITY',$r->get_error_data()['stage']);}
+ public function testFreshEmailAndStrictInputRemainRequired():void {$manager=WP_Session_Tokens::get_instance(1);$token=wp_get_session_token();$original=$manager->get($token);$expired=$original;$expired['digiforge_email_verified_at']=time()-601;$manager->update($token,$expired);try{$r=PrintifyAcceptanceAbilities::permission();self::assertWPError($r);self::assertSame('FRESH_EMAIL',$r->get_error_data()['stage']);}finally{$manager->update($token,$original);}self::assertWPError((new PrintifyAcceptanceAbilities())->invoke('readiness',['url'=>'https://evil.test']));}
+ public function testNativeCapabilityLossDeniesReadiness():void {$u=wp_get_current_user();$u->add_cap('manage_digiforge_connections',false);try{self::assertWPError(PrintifyAcceptanceReadiness::snapshot());}finally{$u->add_cap('manage_digiforge_connections',true);}}
+}

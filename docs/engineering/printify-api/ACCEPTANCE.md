@@ -1,3 +1,5 @@
+> Current .24 acceptance preparation: [policy/binding/interface report](FINAL-ACCEPTANCE-1.0.103.24.md), [operation ledger](operations-1.0.103.24.json). No policy exception adopted.
+
 > Current qualification: [.22 uploads/support and integration handoff](QUALIFICATION-1.0.103.22.md), [47-operation ledger](operations-1.0.103.22.json). Historical qualifications below remain preserved.
 
 > Previous qualification: [.21 fixture reconciliation and interface handoff](QUALIFICATION-1.0.103.21.md), [operation ledger](operations-1.0.103.21.json). Historical .19/.20 evidence below remains preserved.

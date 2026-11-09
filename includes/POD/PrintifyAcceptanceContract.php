@@ -23,6 +23,13 @@ final class PrintifyAcceptanceContract {
   $template=str_replace([$root,$n,$id,'(?:standard|priority|express|economy)','[1-3]','(?:[1-9]|10)','\\?'],['/v1/shops/{shop}','{id}','{id}','{method}','{page}','{limit}','?'],$rules[$op]);
   return ['operation'=>$op,'method'=>'GET','api_version'=>str_starts_with($path,'/v2/')?'v2':'v1','endpoint_template'=>$template,'endpoint_sha256'=>hash('sha256',$path),'page'=>$page];
  }
+ /** Existing server sender only. Reject missing, zero, negative and injected transport options. */
+ public static function transport(string $path,string $url,array $args):void {
+  if($url!=='https://api.printify.com'.$path||array_diff(array_keys($args),['method','timeout','redirection','sslverify','reject_unsafe_urls','limit_response_size','headers'])||($args['method']??null)!=='GET'||($args['redirection']??null)!==0||($args['sslverify']??null)!==true||($args['reject_unsafe_urls']??null)!==true)throw new \InvalidArgumentException('Fixed HTTPS GET transport required');
+  foreach(['timeout'=>20,'limit_response_size'=>1048577] as $k=>$max)if(!is_int($args[$k]??null)||$args[$k]<1||$args[$k]>$max)throw new \InvalidArgumentException('Positive bounded transport limits required');
+  $headers=$args['headers']??null;if(!is_array($headers)||array_diff(array_keys($headers),['Authorization','User-Agent','Accept','Content-Type'])||!is_string($headers['Authorization']??null)||!str_starts_with($headers['Authorization'],'Bearer ')||strlen($headers['Authorization'])<8||!is_string($headers['User-Agent']??null)||$headers['User-Agent']===''||($headers['Accept']??null)!=='application/json')throw new \InvalidArgumentException('Server headers required');
+  foreach($headers as $v)if(!is_string($v)||strlen($v)>8200||preg_match('/[\x00-\x1f\x7f]/',$v))throw new \InvalidArgumentException('Header injection denied');
+ }
  public static function observations(mixed $data):array {
   if(!is_array($data))return ['container'=>'none'];$fields=[];
   foreach(['id','data','variants','print_areas','size_guide','shipping','status','line_items','current_page','last_page','per_page','support_requests','support_request','subscriptions','production_time','tracking','images','blueprint_id','print_provider_id'] as $key){$fields[$key]=array_key_exists($key,$data)?get_debug_type($data[$key]):'absent';}
