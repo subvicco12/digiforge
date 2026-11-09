@@ -1,3 +1,7 @@
+> Final .25 review and separate owner gates: [review package](FINAL-REVIEW-1.0.103.25.md).
+
+> Current .25 review: [exact clauses](GOVERNING-CLAUSE-RECONCILIATION.md), [DRAFT amendment](DIGIFORGE_PRINTIFY_GET_ONLY_SAFETY_AMENDMENT_PROPOSAL.md), [disabled-binding decision](SHOP2-BINDING-DECISION-PACKAGE.md). No adoption or executable exception.
+
 > Current .24 acceptance preparation: [policy/binding/interface report](FINAL-ACCEPTANCE-1.0.103.24.md), [operation ledger](operations-1.0.103.24.json). No policy exception adopted.
 
 > Current qualification: [.22 uploads/support and integration handoff](QUALIFICATION-1.0.103.22.md), [47-operation ledger](operations-1.0.103.22.json). Historical qualifications below remain preserved.
