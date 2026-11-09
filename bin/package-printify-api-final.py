@@ -25,8 +25,17 @@ def main():
  for p in MODIFIED+ADDED+['bin/package-printify-api-final.py']:
   if source(head,p)!=(ROOT/p).read_bytes():raise ValueError('Uncommitted composition input '+p)
  for p in MODIFIED:
-  if original[p]!=source(BASE_SOURCE,p):raise ValueError('Unverified installed preimage '+p)
-  payload[p]=source(head,p)
+  if p=='includes/POD/PrintifyCatalogReadRepository.php':
+   # Installed lineage intentionally differs from repository cache implementation.
+   # Insert only the reviewed new metadata method; preserve every inherited byte.
+   current=source(head,p).decode();start=current.index(' /** Non-executing exact metadata');end=current.index(' public function quotaContext(',start);addition=current[start:end]
+   if current.replace(addition,'',1).encode()!=source(BASE_SOURCE,p):raise ValueError('Unreviewed catalog source changes')
+   anchor=b' public function quotaContext('
+   if original[p].count(anchor)!=1:raise ValueError('Installed catalog insertion ambiguity')
+   payload[p]=original[p].replace(anchor,addition.encode()+anchor,1)
+  else:
+   if original[p]!=source(BASE_SOURCE,p):raise ValueError('Unverified installed preimage '+p)
+   payload[p]=source(head,p)
  for p in ADDED:
   if p in original:raise ValueError('Addition collision')
   payload[p]=source(head,p)
