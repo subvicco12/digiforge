@@ -1,3 +1,4 @@
+import { operatorPlan } from "../stage-a-caller/operator-plan.mjs";
 import assert from "node:assert/strict";
 import { stageFixture } from "./stage-a-support.mjs";
 import { LocalSqliteStorage } from "./support.mjs";
@@ -113,10 +114,15 @@ assert.equal(
   "DENIED",
 );
 assert.equal(steps, 0);
-const r = await flow.run(
-  { payload: request, instanceId: "stage-a-" + request.request_id },
-  step,
-);
+const { build, ...operatorInput } = request;
+const plan = operatorPlan({ account_id: "a".repeat(32), ...operatorInput });
+// Official REST params is a JSON-encoded payload string. Hosted decoding remains unverified.
+const plannedEvent = {
+  payload: JSON.parse(plan.body.params),
+  instanceId: plan.body.instance_id,
+};
+assert.deepEqual(plannedEvent.payload, request);
+const r = await flow.run(plannedEvent, step);
 assert.equal(r.status, "COMPLETED");
 assert.equal(targetCalls, 1);
 const replay = await flow.run(
