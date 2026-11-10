@@ -91,6 +91,20 @@ jobs:
           done < <(find . -name '*.php' -not -path './.git/*' -not -path './vendor/*' -print0)
           exit "$status"
 
+      - name: Set up Node 24 for isolated dispatcher contracts
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+
+      - name: Offline Worker SQLite and recovery contracts
+        shell: bash
+        run: |
+          set -e
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find contracts/cloudflare-dispatcher -name '*.mjs' -print0)
+          node --test --test-isolation=none contracts/cloudflare-dispatcher/test/*.test.mjs
+
       - name: Legacy and unit tests
         run: composer test
 
