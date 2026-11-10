@@ -1,3 +1,26 @@
+# 2026-11-10 execution setup qualification
+
+Current setup: 35 mock tests pass; full offline 132 tests pass with one existing
+skip; PHP unit 1,575 tests / 8,758 assertions pass. Configured static/standards and
+HTTP/secret gates pass. The mock suite covers including exact new environment/secret/ref,
+literal client pin, no legacy-token environment fallback, separate initial-creation
+and update/deletion restrictions, and isolated two-file root/hash verification.
+The earlier 2026-11-09 qualification below is historical evidence for c44bafcd.
+
+Remote protection installation was denied HTTP403. No remote execution branch or
+ruleset was created. Environment restrictions/admin-bypass flag were read and
+verified; secret-name metadata, detailed protection, Actions and billing reads
+were403. One repository collaborator (subvicco12, administrator/push) was observed.
+A separate review caught unrestricted initial branch creation in the first draft;
+that proposal was corrected to require an exact-owner creation rule plus separate
+no-bypass update/deletion freeze. Final automated re-review found no remaining
+important findings, while remote enforcement remains SECURITY_BLOCKED.
+
+No credential values, Cloudflare API requests, manual workflow dispatch or provider
+operations were used. No runtime/plugin files or schema were changed.
+
+---
+
 # Offline qualification and review
 
 This profile was not dispatched. No Cloudflare token was accessed and no account

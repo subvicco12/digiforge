@@ -12,18 +12,18 @@ concurrency:
 
 jobs:
   inventory:
-    # SECURITY_BLOCKED: no qualified protected path or environment-only token exists.
+    # SECURITY_BLOCKED: branch protection and credential scope remain unqualified.
     # Removing this literal requires a NEW separately reviewed/approved revision.
     if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: digiforge-cloudflare-readonly-inventory
+    environment: cloudflare-inventory-readonly
     steps:
       - name: Verify approved revision before retrieving any client code
         env:
           EXECUTION_APPROVAL: ${{ vars.DIGIFORGE_CF_EXECUTION_APPROVAL }}
           APPROVED_SHA: ${{ vars.DIGIFORGE_CF_INVENTORY_APPROVED_SHA }}
-          APPROVED_CLIENT_SHA256: ${{ vars.DIGIFORGE_CF_CLIENT_SHA256 }}
+          APPROVED_CLIENT_SHA256: 7427adfcce90601c325ab7a75d6e7faede694a9863c89e3cd85e45fe12274de2
           WORKFLOW_REF: ${{ github.workflow_ref }}
           WORKFLOW_SHA: ${{ github.workflow_sha }}
           CURRENT_SHA: ${{ github.sha }}
@@ -39,7 +39,7 @@ jobs:
           try:
               sha = os.environ['APPROVED_SHA']
               expected = os.environ['APPROVED_CLIENT_SHA256']
-              branch = 'refs/heads/security/cloudflare-inventory-reviewed'
+              branch = 'refs/heads/cloudflare-inventory-execution'
               workflow = 'subvicco12/digiforge/.github/workflows/cloudflare-account-inventory.yml@' + branch
               assert os.environ['EXECUTION_APPROVAL'] == 'OWNER_APPROVED_METADATA_ONLY_V1'
               assert re.fullmatch(r'[a-f0-9]{40}', sha) and re.fullmatch(r'[a-f0-9]{64}', expected)
@@ -71,8 +71,8 @@ jobs:
 
       - name: Execute only bounded checksum-verified GET metadata client
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          APPROVED_CLIENT_SHA256: ${{ vars.DIGIFORGE_CF_CLIENT_SHA256 }}
+          CLOUDFLARE_READONLY_API_TOKEN: ${{ secrets.CLOUDFLARE_READONLY_API_TOKEN }}
+          APPROVED_CLIENT_SHA256: 7427adfcce90601c325ab7a75d6e7faede694a9863c89e3cd85e45fe12274de2
           DIGIFORGE_CF_ACCOUNT_ID: ${{ vars.DIGIFORGE_CF_ACCOUNT_ID }}
         shell: bash
         run: |

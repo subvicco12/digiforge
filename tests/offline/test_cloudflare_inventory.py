@@ -131,8 +131,8 @@ class CloudflareInventoryTest(unittest.TestCase):
         w=(ROOT/'.github/workflows/cloudflare-account-inventory.yml').read_text()
         self.assertIn('workflow_dispatch:',w);self.assertIn('if: ${{ false }}',w)
         self.assertNotIn('pull_request:',w);self.assertNotIn('schedule:',w);self.assertNotIn('push:',w)
-        self.assertIn('contents: read',w);self.assertEqual(1,w.count('secrets.CLOUDFLARE_API_TOKEN'))
-        self.assertIn('digiforge-cloudflare-readonly-inventory',w);self.assertIn('github.workflow_sha',w)
+        self.assertIn('contents: read',w);self.assertEqual(1,w.count('secrets.CLOUDFLARE_READONLY_API_TOKEN'))
+        self.assertIn('cloudflare-inventory-readonly',w);self.assertIn('github.workflow_sha',w)
         self.assertNotIn('actions/checkout@',w);self.assertNotIn('wrangler',w.lower())
 
     def test_expired_timestamp_rejects_active_status(self):
@@ -149,7 +149,7 @@ class CloudflareInventoryTest(unittest.TestCase):
             with self.assertRaises(ValueError):self.m.write_report(root,{'state':'OK'})
     def test_main_does_not_log_secret_or_exception(self):
         import io
-        with tempfile.TemporaryDirectory() as tmp, patch.dict(self.m.os.environ,{'CLOUDFLARE_API_TOKEN':TOKEN,'RUNNER_TEMP':tmp},clear=True), patch.object(self.m,'inventory',side_effect=OSError(TOKEN)), patch('sys.stdout',new_callable=io.StringIO) as output:
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(self.m.os.environ,{'CLOUDFLARE_READONLY_API_TOKEN':TOKEN,'RUNNER_TEMP':tmp},clear=True), patch.object(self.m,'inventory',side_effect=OSError(TOKEN)), patch('sys.stdout',new_callable=io.StringIO) as output:
             self.assertEqual(1,self.m.main());self.assertNotIn(TOKEN,output.getvalue());self.assertEqual('INVENTORY_FAILED_SAFE\n',output.getvalue())
     def test_main_missing_secret_never_calls_transport(self):
         with patch.dict(self.m.os.environ,{},clear=True), patch.object(self.m,'HttpsTransport') as transport, patch('sys.stdout'):
@@ -179,3 +179,37 @@ class CloudflareInventoryTest(unittest.TestCase):
             with patch.dict(self.m.os.environ,{'RUNNER_TEMP':tmp,'APPROVED_CLIENT_SHA256':real_hash(trusted).hexdigest()},clear=True),patch('hashlib.sha256',side_effect=replace_after_read),patch('sys.stdout',new_callable=io.StringIO) as output:
                 exec(compile(program,'workflow-test','exec'),{})
                 self.assertEqual('TRUSTED_BYTES_ONLY\n',output.getvalue())
+
+    def test_execution_branch_environment_and_literal_client_pin(self):
+        import hashlib,re
+        workflow=(ROOT/'.github/workflows/cloudflare-account-inventory.yml').read_text()
+        self.assertIn("branch = 'refs/heads/cloudflare-inventory-execution'",workflow)
+        self.assertNotIn('CLOUDFLARE_API_TOKEN',workflow+CLIENT.read_text())
+        self.assertEqual([hashlib.sha256(CLIENT.read_bytes()).hexdigest()]*2,re.findall(r'APPROVED_CLIENT_SHA256: ([a-f0-9]{64})',workflow))
+    def test_initial_creation_and_update_controls_are_separate(self):
+        p=ROOT/'docs/engineering/cloudflare-inventory/execution-branch-proposal'
+        freeze=json.loads((p/'required-ruleset.json').read_text())
+        creation=json.loads((p/'required-creation-ruleset.json').read_text())
+        lock=json.loads((p/'post-bootstrap-creation-lock.json').read_text())
+        self.assertEqual([],freeze['bypass_actors'])
+        self.assertEqual({'update','deletion'},{r['type'] for r in freeze['rules']})
+        self.assertEqual([{'type':'creation'}],creation['rules'])
+        self.assertEqual([{'actor_id':320672644,'actor_type':'User','bypass_mode':'always'}],creation['bypass_actors'])
+        self.assertEqual([],lock['bypass_actors'])
+        for rules in (freeze,creation,lock):
+            self.assertEqual('active',rules['enforcement'])
+            self.assertEqual(['refs/heads/cloudflare-inventory-execution'],rules['conditions']['ref_name']['include'])
+    def test_isolated_proposal_has_only_verified_workflow_and_client(self):
+        import hashlib
+        p=ROOT/'docs/engineering/cloudflare-inventory/execution-branch-proposal'
+        manifest=json.loads((p/'manifest.json').read_text())
+        self.assertFalse(manifest['remote_branch_created'])
+        files={str(f.relative_to(p/'files')) for f in (p/'files').rglob('*') if f.is_file()}
+        self.assertEqual({'.github/workflows/cloudflare-account-inventory.yml','bin/cloudflare-inventory/client.py'},files)
+        for path in files:
+            data=(ROOT/path).read_bytes();self.assertEqual(data,(p/'files'/path).read_bytes());self.assertEqual(hashlib.sha256(data).hexdigest(),manifest['files'][path]['sha256'])
+        raw=(p/'proposed-root-commit.txt').read_bytes()
+        self.assertEqual(hashlib.sha1(b'commit '+str(len(raw)).encode()+b'\0'+raw).hexdigest(),manifest['proposed_local_root_commit'])
+    def test_legacy_token_environment_variable_is_not_a_fallback(self):
+        with patch.dict(self.m.os.environ,{'CLOUDFLARE_API_TOKEN':TOKEN},clear=True),patch.object(self.m,'HttpsTransport') as transport,patch('sys.stdout'):
+            self.assertEqual(1,self.m.main());transport.assert_not_called()

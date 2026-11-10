@@ -218,7 +218,7 @@ def write_report(temp, report):
 
 def main():
     try:
-        token = os.environ.pop('CLOUDFLARE_API_TOKEN', '')
+        token = os.environ.pop('CLOUDFLARE_READONLY_API_TOKEN', '')
         account = os.environ.get('DIGIFORGE_CF_ACCOUNT_ID') or None
         if account is not None and not ID.fullmatch(account):
             raise ValueError('ACCOUNT_DENIED')
