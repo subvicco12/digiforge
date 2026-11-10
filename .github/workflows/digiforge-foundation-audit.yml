@@ -105,6 +105,7 @@ jobs:
           done < <(find contracts/cloudflare-dispatcher -name '*.mjs' -print0)
           node --test --test-isolation=none contracts/cloudflare-dispatcher/test/*.test.mjs
           python3 contracts/cloudflare-dispatcher/stage-a/build_bundle.py --output build/stage-a-synthetic-source.zip
+          python3 contracts/cloudflare-dispatcher/stage-a-caller/build_bundle.py --output build/stage-a-private-caller-source.zip
 
       - name: Legacy and unit tests
         run: composer test

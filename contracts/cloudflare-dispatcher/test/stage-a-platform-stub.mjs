@@ -6,3 +6,5 @@ export class WorkerEntrypoint {
   }
 }
 export class DurableObject extends WorkerEntrypoint {}
+
+export class WorkflowEntrypoint extends WorkerEntrypoint {}

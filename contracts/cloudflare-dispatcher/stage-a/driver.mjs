@@ -24,6 +24,11 @@ export async function runStageAStep(service) {
   } finally {
     clearTimeout(timer);
   }
+  validateStageAReceipt(r);
+  return r;
+}
+
+export function validateStageAReceipt(r, expectedBuild = null) {
   keys(r, [
     "case_id",
     "result",
@@ -59,5 +64,6 @@ export async function runStageAStep(service) {
         : "VERIFIED_SYNTHETIC"),
     "COUNTEREXAMPLE_CLASSIFICATION",
   );
+  if(expectedBuild!==null)insist(r.build===expectedBuild,"APPROVED_BUILD_MISMATCH");
   return r;
 }
