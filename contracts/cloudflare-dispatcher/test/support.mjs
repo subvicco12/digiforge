@@ -222,6 +222,7 @@ export async function fixture({ startup = true } = {}) {
     witness,
     root,
     custody,
+    syntheticFetch,
     provider,
     calls,
     clock,
@@ -291,21 +292,21 @@ export async function fixture({ startup = true } = {}) {
   };
   f.dispatch = async (s, i, o = {}) =>
     runtime.dispatch(await f.message(s, i, o));
-  f.stop = async () =>
-    runtime.emergency({
-      authority: await sign(stop.privateKey, "stop-v1", {
-        version: 1,
-        protocol: "printify-independent-stop-v1",
-        authority: c.authority,
-        epoch: c.epoch,
-        actor: 1,
-        nonce: crypto.randomUUID().replaceAll("-", ""),
-        owner_proof: "f".repeat(64),
-        review: "b".repeat(64),
-        issued_at: clock.now,
-        expires_at: clock.now + 60,
-      }),
-    });
+  f.stopMessage = async () => ({
+    authority: await sign(stop.privateKey, "stop-v1", {
+      version: 1,
+      protocol: "printify-independent-stop-v1",
+      authority: c.authority,
+      epoch: c.epoch,
+      actor: 1,
+      nonce: crypto.randomUUID().replaceAll("-", ""),
+      owner_proof: "f".repeat(64),
+      review: "b".repeat(64),
+      issued_at: clock.now,
+      expires_at: clock.now + 60,
+    }),
+  });
+  f.stop = async () => runtime.emergency(await f.stopMessage());
   f.verifyReceipt = async (e) => {
     await verify(e, "receipt-v1", receipt.publicKey);
     return true;

@@ -202,3 +202,7 @@ benchmarked at its bounded history limit before any capacity claim.
 No installation-ready WordPress ZIP is produced. Inventory remains disabled;
 execution branch unpublished; live acceptance, credential custody and deployment
 remain unauthorized. STOP ALL/external lock ON, automation OFF, RELEASE HOLD.
+
+## Independent authority security extension
+
+See [SECURITY-COMPLETION.md](SECURITY-COMPLETION.md) for the signed client/service, independent SQL reference journal, deployment floor, credential-custody admission and conditional rollback tests. This extends offline software only; it does not establish a qualified independent authority or change production status.
