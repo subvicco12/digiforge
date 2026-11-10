@@ -11,7 +11,7 @@ def build(root, output):
     source = {}
     for p in paths:
         b = subprocess.check_output(['git','show',sha+':'+p],cwd=root)
-        if (root/p).read_bytes() != b: raise ValueError('UNCOMMITTED_SOURCE:'+p)
+        if (root/p).read_bytes().replace(b'\r\n', b'\n') != b.replace(b'\r\n', b'\n'): raise ValueError('UNCOMMITTED_SOURCE:'+p)
         source[p] = b
     config = json.loads(source[PREFIX+'stage-a-caller/wrangler.template.json'])
     runtime = config['rules'][0]['globs']
