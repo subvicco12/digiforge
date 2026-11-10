@@ -1,0 +1,16 @@
+{
+  "runtime_npm_dependencies": [],
+  "runtime_platform_module": "cloudflare:workers",
+  "compatibility_date": "2026-11-10",
+  "build": "Python 3 standard library; deterministic ZIP_STORED; no JavaScript bundling or transpilation",
+  "offline_test_runtime": "Node.js 24 with native SQLite; PHP 8.3 for three preserved parity tests",
+  "deployment_cli": {
+    "name": "wrangler",
+    "version": "4.150.0",
+    "npm_integrity": "sha512-Mf3MiCoGXszX965MtKcOSe8whSyFBL2qpCp+DiSwH94+0FNYveSPQPVRRlMAMH8lkln8PECcSW1do6hnelwPZA==",
+    "transitive_lock": "deploy-tools/package-lock.json",
+    "status": "LOCK_GENERATED_ONLY_NOT_INSTALLED_OR_EXECUTED"
+  },
+  "credentials": "NONE",
+  "hosted_runtime_validation": "HOSTED_NOT_EXECUTED"
+}

@@ -27,8 +27,8 @@ import worker from "../worker.mjs";
 import { SyntheticWitness } from "../synthetic-witness.mjs";
 
 export class LocalSqliteStorage {
-  constructor() {
-    this.db = new DatabaseSync(":memory:");
+  constructor(filename = ":memory:") {
+    this.db = new DatabaseSync(filename);
     this.available = true;
     this.loseAck = false;
     this.sql = {
