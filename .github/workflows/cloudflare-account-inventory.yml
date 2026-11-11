@@ -1,0 +1,10 @@
+name: DigiForge Cloudflare Inventory Registration (DISABLED)
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  registration_only:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo REGISTRATION_ONLY_NO_CREDENTIALS_NO_NETWORK
