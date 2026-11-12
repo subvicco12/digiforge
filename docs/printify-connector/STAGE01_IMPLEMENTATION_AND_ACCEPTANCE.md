@@ -39,8 +39,8 @@ Native pilot admission is ONLY integration3, personalized_pod/localShop2/provide
 | SHIPPING_READ | GET /v2/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/shipping[/{standard,priority,express,economy}].json | Official JSON:API methods/regions, explicit handling time and money; no invented values |
 | PRODUCTS_READ | GET /v1/shops/{shop_id}/products.json | Bounded shop product page |
 | PRODUCT_READ | GET /v1/shops/{shop_id}/products/{product_id}.json | Options/variants/placement metadata; no asset URLs |
-| ORDERS_READ | GET /v1/shops/{shop_id}/orders.json | IDs/status/counts, no buyer PII |
-| ORDER_READ | GET /v1/shops/{shop_id}/orders/{order_id}.json | Exact order, PII/tracking redacted |
+| ORDERS_READ | GET /v1/shops/{shop_id}/orders.json | IDs/status/non-personal line-item mappings, no buyer PII |
+| ORDER_READ | GET /v1/shops/{shop_id}/orders/{order_id}.json | Exact order and product/variant/provider/quantity mapping, PII/tracking redacted |
 | UPLOADS_READ | GET /v1/uploads.json | Only receipt-owned asset references |
 | UPLOAD_READ | GET /v1/uploads/{image_id}.json | Exact receipt-owned metadata; no download URL |
 
@@ -54,7 +54,7 @@ STOP ALL and external safety lock continue to supersede every read. Existing Cor
 
 ## Verification evidence
 
-- Full unit suite:1263tests/7726assertions PASS, including28 connector tests/207assertions.
+- Full unit suite:1264tests/7734assertions PASS, including29 connector tests/215assertions.
 - Full WordPress suite:251tests/2360assertions PASS. Four connector tests exercise actual WordPress hooks, current-user scope, existing HTTP API through an isolated synthetic interceptor, privacy projection and real MariaDB/InnoDB budget persistence/replay/limits.
 - Initial full WP run: one existing overlapping-worker readiness assertion failed because the child process did not inherit the custom isolated DB config. Mounting the SAME config at the standard library path corrected only the fixture; fresh empty DB full rerun passed without test/source suppression.
 - Existing offline suite:61PASS. Configured PHPStan level8 (six-file baseline) and PHPCS PASS. New modules/companion lint PASS. Existing unit bootstrap undefined-$brief warning and inherited dynamic-property deprecations remain disclosed; expected negative SQL/audit diagnostics are synthetic.

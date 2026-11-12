@@ -11,7 +11,7 @@
     "includes/Connector/Printify/ProviderResult.php": "e542965addb85a902969bab5410b9657b53f8c11f4150b8f063e5926094a5e8a",
     "includes/Connector/Printify/ReadBudget.php": "f130cb27702a96219cc1e5df84cbf5ef3a40b4ab42ed9fe73ee8c365bddecc9c",
     "includes/Connector/Printify/ReadConnector.php": "5f6e33dd9a6ac696d625e374971c02b0cd2187c4c90afbc3a6e9c072fcc26816",
-    "includes/Connector/Printify/ReadProjection.php": "2ed43378f9e7bc60479019e63bcfa6204222ac3ff6b804d72bd82cd93aded32f",
+    "includes/Connector/Printify/ReadProjection.php": "9f932c6e6b4b098f9ae04182fbce572d803c5847efb6ccc9a00e057bc3d4d6f3",
     "includes/Connector/Printify/ShopBinding.php": "dff77d51a25fdb32b4bf517da8438eee47fecfc54849ff72265503e9b4ad93b1",
     "includes/POD/PrintifyConnectorReadContract.php": "3ca477a6830bfa8eefae0011c383ebae52ae110a6027a10fede3d78489a4bef7"
   },

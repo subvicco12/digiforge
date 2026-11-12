@@ -26,7 +26,7 @@ final class ReadProjection {
    if(isset($row['print_areas'])){$out['print_areas']=self::printAreas($row['print_areas']);}
    if(isset($row['placeholders'])){$out['placeholders']=self::geometry($row['placeholders']);}
    // Do not imply personalization assets, artwork rights, costs or provider certification.
-   if(in_array($op,['ORDER_READ','ORDERS_READ'],true)){$out['line_item_count']=isset($row['line_items'])&&is_array($row['line_items'])?count($row['line_items']):null;$out['shipment_count']=isset($row['shipments'])&&is_array($row['shipments'])?count($row['shipments']):null;}
+   if(in_array($op,['ORDER_READ','ORDERS_READ'],true)){$out['line_item_count']=isset($row['line_items'])&&is_array($row['line_items'])?count($row['line_items']):null;if(isset($row['line_items']))$out['line_items']=self::orderLines($row['line_items']);$out['shipment_count']=isset($row['shipments'])&&is_array($row['shipments'])?count($row['shipments']):null;}
    $items[]=$out;
   }
   $pagination=null;
@@ -34,6 +34,14 @@ final class ReadProjection {
   return ['items'=>$items,'pagination'=>$pagination];
  }
  private static function text(mixed $v):string{if(!is_string($v)||strlen($v)>512||preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/',$v))throw new \InvalidArgumentException('Bounded metadata required.');return $v;}
+ private static function orderLines(mixed $rows):array {
+  if(!is_array($rows)||!array_is_list($rows)||count($rows)>1000)throw new \InvalidArgumentException('Order line mapping malformed.');$out=[];
+  foreach($rows as $row){if(!is_array($row)||!is_int($row['variant_id']??null)||$row['variant_id']<1||!is_int($row['quantity']??null)||$row['quantity']<1)throw new \InvalidArgumentException('Observed variant and quantity required.');$line=['variant_id'=>$row['variant_id'],'quantity'=>$row['quantity']];
+   if(isset($row['product_id'])){if(!is_string($row['product_id'])||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$row['product_id']))throw new \InvalidArgumentException('Order product reference malformed.');$line['product_id']=$row['product_id'];}
+   foreach(['blueprint_id','print_provider_id'] as $key)if(isset($row[$key])){if(!is_int($row[$key])||$row[$key]<1)throw new \InvalidArgumentException('Order provider identity malformed.');$line[$key]=$row[$key];}
+   if(isset($row['status']))$line['status']=self::text($row['status']);$out[]=$line;
+  }return $out;
+ }
  private static function variants(mixed $v):array{if(!is_array($v)||!array_is_list($v)||count($v)>2000)throw new \InvalidArgumentException('Variants malformed.');$out=[];foreach($v as $r){if(!is_array($r)||!is_int($r['id']??null)||$r['id']<1)throw new \InvalidArgumentException('Variant identity required.');$n=['id'=>$r['id']];foreach(['is_enabled','is_available'] as $k)if(isset($r[$k])){if(!is_bool($r[$k]))throw new \InvalidArgumentException('Variant flag malformed.');$n[$k]=$r[$k];}if(isset($r['options']))$n['options']=self::options($r['options']);if(isset($r['placeholders']))$n['placeholders']=self::geometry($r['placeholders']);$out[]=$n;}return $out;}
  private static function options(mixed $v):array {
   if(!is_array($v)||count($v)>100)throw new \InvalidArgumentException('Options malformed.');$out=[];
