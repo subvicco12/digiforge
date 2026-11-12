@@ -9,6 +9,12 @@ final class PrintifyConnectorIntegrationTest extends WP_UnitTestCase {
   DigiForgePrintifyConnector\Plugin::register();DigiForgePrintifyConnector\Plugin::boot();DigiForgePrintifyConnector\Plugin::boot();
   self::assertSame('INTERFACE_AVAILABLE_AUTHORITY_UNVERIFIED',DigiForgePrintifyConnector\Plugin::status()['state']);self::assertInstanceOf(DigiForge\Connector\Printify\ConnectorInterface::class,DigiForgePrintifyConnector\Plugin::connector());self::assertSame($before,rest_get_server()->get_routes());self::assertSame($cron,_get_cron_array());self::assertSame(0,$calls);remove_filter('pre_http_request',$filter,1);
  }
+ public function testPreparationRemainsInertUnderWordPressSafetyLocks():void {
+  require_once dirname(__DIR__,2).'/companion/digiforge-printify-connector/digiforge-printify-connector.php';
+  $before=_get_cron_array();$routes=rest_get_server()->get_routes();$calls=0;
+  $filter=static function($pre)use(&$calls){$calls++;return new WP_Error('no_network');};add_filter('pre_http_request',$filter,1);
+  try{$service=DigiForgePrintifyConnector\Plugin::preparation();self::assertFalse($service->status()['live_dispatch_available']);self::assertFalse($service->status()['credentials_owned']);self::assertSame($before,_get_cron_array());self::assertSame($routes,rest_get_server()->get_routes());self::assertSame(0,$calls);self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));}finally{remove_filter('pre_http_request',$filter,1);}
+ }
  public function testRealNativeHostPreservesStopAndNeverReadsVault():void {
   $actor=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($actor);$http=0;$filter=static function($pre)use(&$http){$http++;return new WP_Error('no_network');};add_filter('pre_http_request',$filter,1);
   $service=Bridge::connect('1.0.0');self::assertNotWPError($service);self::assertWPError($service->read(new ExternalOperationIntent($actor,'personalized_pod',3,'SHOPS_READ',[],bin2hex(random_bytes(16)))));self::assertSame(0,$http);self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));remove_filter('pre_http_request',$filter,1);
