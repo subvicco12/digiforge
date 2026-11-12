@@ -8,6 +8,7 @@ final class LaunchCandidateEvidenceContractTest extends TestCase {
   self::assertStringContainsString("'candidate_evidence_unavailable'",$s);
   self::assertStringContainsString('$queryResult === false',$s);
   self::assertStringContainsString('$wpdb->flush();',$s);
-  self::assertSame(3,substr_count($s,'if (is_wp_error($candidate)) return $candidate;'));
+  // Selected deep research adds a fourth guarded candidate read.
+  self::assertSame(4,substr_count($s,'if (is_wp_error($candidate)) return $candidate;'));
  }
 }

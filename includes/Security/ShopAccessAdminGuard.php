@@ -35,6 +35,10 @@ final class ShopAccessAdminGuard
         $action=substr($hook,str_starts_with($hook,'admin_post_nopriv_')?18:11);
         // Exact feature handlers enforce WP authentication, nonce and independent authority.
         if(class_exists(\DigiForge\PortalAccess\Feature::class)&&in_array($action,\DigiForge\PortalAccess\Feature::ACTIONS,true))return;
+        if (in_array($action,['digiforge_opportunity_design','digiforge_commercial_research'],true)) {
+            if (!PersonalizedPodAccess::allows()) $this->deny('personalized_pod_assignment_required');
+            return;
+        }
         $scope=self::scopeForAction($action);
         if($scope!==null){
             foreach($scope['caps'] as $cap)if(ShopAccess::authorize($scope['shop'],$cap)!==true)$this->deny('feature_shop_assignment_required');

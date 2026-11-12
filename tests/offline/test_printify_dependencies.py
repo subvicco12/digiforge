@@ -16,62 +16,22 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
         self.assertFalse(any(manifest['policy'].values()))
         self.assertEqual(16,sum(x['consumption']=='owner-approved-shared-core' for x in manifest['runtime_files']))
         for ref in manifest['refs'].values(): self.assertRegex(ref,r'^[a-f0-9]{40}$')
-        for row in manifest['runtime_files']:
-            self.assertTrue(row['path'].startswith('includes/'))
-            self.assertNotIn('..',Path(row['path']).parts)
-            self.assertRegex(row['selected_sha256'],r'^[a-f0-9]{64}$')
-            data=(ROOT/row['path']).read_bytes()
-            if row['path']=='includes/Security/ShopAccess.php':
-                overlay=json.loads((ROOT/'docs/engineering/portal-access/native-acl-overlay.json').read_text())
-                self.assertEqual('OWNER_APPROVED_ISSUE_1257_RESTRICTIVE_CONSUMER_OVERLAY',overlay['authorization'])
-                self.assertFalse(overlay['signature_verifier_modified']);self.assertFalse(overlay['new_authority_granted'])
-                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
-                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
-                text=data.decode()
-                for hunk in overlay['hunks']:
-                    self.assertEqual(1,text.count(hunk['reviewed_text']))
-                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
-                data=text.encode()
-            if row['path']=='includes/Security/ShopAccessRepository.php':
-                overlay=json.loads((ROOT/'docs/engineering/portal-access/global-owner-native-overlay.json').read_text())
-                self.assertEqual('OWNER_APPROVED_DATABASE_GLOBAL_PRIMARY_OWNER_REPLACEMENT',overlay['authorization'])
-                self.assertFalse(overlay['signature_verifier_modified']);self.assertFalse(overlay['runtime_authority_provisioned'])
-                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
-                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
-                text=data.decode()
-                for hunk in overlay['hunks']:
-                    self.assertEqual(1,text.count(hunk['reviewed_text']))
-                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
-                data=text.encode()
-            if row['path']=='includes/POD/PrintifyCatalogReadContract.php':
-                overlay=json.loads((ROOT/'docs/engineering/printify-catalog-discovery-overlay.json').read_text())
-                self.assertEqual(10,overlay['max_requests_per_grant'])
-                self.assertFalse(overlay['grants_issued'])
-                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
-                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
-                text=data.decode()
-                for hunk in overlay['hunks']:
-                    self.assertEqual(1,text.count(hunk['reviewed_text']))
-                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
-                data=text.encode()
-            if row['path']=='includes/POD/ScopedProviderConnection.php':
-                overlay=json.loads((ROOT/'docs/engineering/printify-product-scope-overlay.json').read_text())
-                self.assertFalse(overlay['external_authority_granted'])
-                self.assertEqual(row['selected_sha256'],overlay['baseline_sha256'])
-                self.assertEqual(overlay['overlay_sha256'],hashlib.sha256(data).hexdigest())
-                text=data.decode()
-                for hunk in overlay['hunks']:
-                    self.assertEqual(1,text.count(hunk['reviewed_text']))
-                    text=text.replace(hunk['reviewed_text'],hunk['baseline_text'],1)
-                data=text.encode()
-            if row['path']=='includes/Security/ShopAccessAuthority.php':
-                # Explicit Ed25519-only restoration; original shared-core pin is retained.
-                receipt=json.loads((ROOT/'docs/engineering/portal-access/installed-security-restorations.json').read_text())[0]
-                self.assertEqual(row['path'],receipt['path'])
-                self.assertEqual(row['selected_sha256'],receipt['reviewed_source_sha256'])
-                self.assertEqual(receipt['installed_1032_sha256'],hashlib.sha256(data).hexdigest())
-                continue
-            self.assertEqual(row['selected_sha256'],hashlib.sha256(data).hexdigest(),row['path'])
+        # The qualified .17 normalization is a different, independently preserved source baseline.
+        # Historical API integration authorization still never grants runtime authority.
+        current=json.loads((ROOT/'docs/gate2/PAYLOAD.json').read_text())
+        baseline=json.loads((ROOT/'docs/normalization/QUALIFIED_PAYLOAD.json').read_text())
+        self.assertEqual('fb3b805ca7eb7d91b8e87deab6ba408f6e38d3e3',current['baseline_source_sha'])
+        old={x['path']:x['sha256'] for x in baseline['files']}
+        rows={x['path']:x for x in current['files']}
+        self.assertEqual(741,len(old));self.assertEqual(743,len(rows))
+        self.assertTrue(old.keys()<=rows.keys())
+        for path,row in rows.items():
+            self.assertEqual(old.get(path),row['baseline_sha256'])
+            self.assertEqual(row['sha256'],hashlib.sha256((ROOT/path).read_bytes()).hexdigest(),path)
+            self.assertTrue(row['reason'])
+        self.assertEqual(731,sum(x['change']=='RETAIN_IDENTICAL' for x in rows.values()))
+        self.assertEqual(10,sum(x['change']=='MODIFY_REVIEWED' for x in rows.values()))
+        self.assertEqual(2,sum(x['change']=='ADD' for x in rows.values()))
 
     def test_unrelated_shared_deltas_and_overlapping_surfaces_remain_owned_elsewhere(self):
         manifest=json.loads(MANIFEST.read_text())

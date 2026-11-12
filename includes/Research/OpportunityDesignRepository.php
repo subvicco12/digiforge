@@ -51,7 +51,7 @@ final class OpportunityDesignRepository
 
     private function access(mixed $shop): true|WP_Error
     {
-        if ($shop!=='personalized_pod' || get_current_user_id()<1 || !current_user_can('manage_digiforge_pod') || !current_user_can('manage_digiforge_research')) return self::error('Authenticated Personalized POD research/artwork reviewer required.',403);
+        if ($shop!=='personalized_pod' || !\DigiForge\Security\PersonalizedPodAccess::allows() || get_current_user_id()<1 || !current_user_can('manage_digiforge_pod') || !current_user_can('manage_digiforge_research')) return self::error('Authenticated Personalized POD research/artwork reviewer required.',403);
         return true;
     }
     private function name(string $hash): string { return 'digiforge_opportunity_personalized_pod_'.$hash; }

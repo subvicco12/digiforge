@@ -7,5 +7,5 @@ if [[ "${output_arg}" = /* ]]; then
 else
   output_dir="${repo_root}/${output_arg}"
 fi
-# Normalized .17 is an explicit qualified-payload baseline, not a cumulative archive.
-exec python3 "${repo_root}/bin/package-normalized-10317.py" --output "${output_dir}"
+# Gate2 uses an explicit preservation delta, not a cumulative source archive.
+exec python3 "${repo_root}/bin/package-gate2-pod.py" --output "${output_dir}"

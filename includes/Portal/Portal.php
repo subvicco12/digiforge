@@ -105,6 +105,7 @@ final class Portal
         (new PrintifyProductIntelligenceFeature())->register();
         (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
+        (new OpportunityDesignPanel())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
@@ -1054,6 +1055,7 @@ final class Portal
     {
         $shop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);
         (new ResearchRunWorkflow())->render($shop);
+        if ($shop==='personalized_pod') (new OpportunityDesignPanel())->render($shop);
         echo '<section class="df-panel"><div class="df-panel-head"><h2>All research candidates</h2></div>';
         $this->candidateCards('', 50, true);
         echo '</section>';
