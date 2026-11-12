@@ -1,17 +1,14 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/SyntheticShopAuthority.php';
+require_once __DIR__.'/ShopAccessFixture.php';
 
 /** Explicit synthetic delegated shop ACL only. No catalog grant, exception, credential or HTTP. */
 final class PrintifyResearchAccessFixture
 {
     public static function reset(): void
     {
-        global $wpdb;
-        // Fixture-created ACL commits must not leak between WordPress test transactions.
-        $wpdb->delete(\DigiForge\Database\Tables::audit_log(),['object_type'=>'shop_access','event_type'=>'shop_access_grant']);
-        foreach(['digiforge_shop_access_state_','digiforge_shop_access_event_'] as $prefix)$wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",$wpdb->esc_like($prefix).'%'));
-        SyntheticShopAuthority::clear();
+        ShopAccessFixture::reset();
     }
     private static function write(array $records): void { SyntheticShopAuthority::write($records); }
     public static function assign(int $actor,string $shop='personalized_pod',array $caps=['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections']): void

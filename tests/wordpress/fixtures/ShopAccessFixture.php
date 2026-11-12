@@ -20,9 +20,11 @@ final class ShopAccessFixture
             $event=json_decode((string)$row['context'],true);$grant=$event['grant']??null;
             if(!is_array($event)||!is_array($grant)||!is_int($grant['grantor_id']??null)||!DigiForge\Security\ShopAccessPolicy::validShop($event['shop']??''))continue;
             $synthetic=hash('sha256','Synthetic independent authority '.$grant['grantor_id'].':'.$event['shop']);
+            $research=hash('sha256','Synthetic Printify test authority '.$grant['grantor_id']);
             $source=$grant['source_approval_hash']??null;
             $native=is_string($source)&&class_exists('ServerOwnerApprovalFixture',false)&&ServerOwnerApprovalFixture::ownsApproval($source);
-            if($source!==$synthetic&&!$native)continue;
+            $shared=is_string($source)&&class_exists('SyntheticShopAuthority',false)&&SyntheticShopAuthority::ownsApproval($source);
+            if($source!==$synthetic&&$source!==$research&&!$native&&!$shared)continue;
             $wpdb->delete($table,['id'=>$row['id'],'context'=>$row['context']]);
             if($wpdb->last_error!=='')throw new RuntimeException('Synthetic ACL audit reset failed.');
         }

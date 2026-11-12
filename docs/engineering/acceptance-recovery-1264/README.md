@@ -11,7 +11,7 @@ The reported run contained 1762 tests, 199 errors and 29 failures. Its two proof
 
 | Group | Reported count | Cause and correction |
 | --- | ---: | --- |
-| Authority fixtures | 198 errors | Native global-owner audit proofs survived legacy option cleanup. Delete only synthetic approval provenance issued by the fixture; retain business and denial audit evidence. |
+| Authority fixtures | 198 errors | Native global-owner and custom research approval proofs survived legacy option cleanup. Track every approval issued by the shared synthetic signer, plus host-fixture approvals and exact historical fixture hashes; retain business/denial audits and unowned lifecycle corruption. |
 | Registered MVP admission | 1 error, 1 failure | Recovered guard omitted the two exact Personalized POD admin actions. Restore their existing signed shop admission; handler nonce/capability checks remain. |
 | REST contracts | 8 failures | Overlay preempted authentication, malformed-scope and finance denial response contracts. Restore401/400/error identity while retaining exact route, native capability, scope and denial-audit checks. |
 | Artwork review fixtures | 3 failures | Two earlier proof fixtures and one full mug/poster workflow reviewed a specification hash instead of the imported artwork hash. Review the exact imported asset; do not relax human review. |
@@ -23,7 +23,7 @@ The reported run contained 1762 tests, 199 errors and 29 failures. Its two proof
 | Owner enrollment | 8 failures | Positive per-shop ENROLL assertions described a deliberately retired handler. Exercise verified-email/host-approved four-shop global enrollment, all capabilities, exact scoped delegation, replay, revocation, audit rollback and holds; explicitly deny legacy enrollment. |
 | Mockup fixture | 1 failure | Appeared after failed shared fixture setup. Fresh sequential supplier-switch acceptance passes, preserving reviewed geometry, placement and immutable history. No mockup runtime rule was relaxed. |
 
-Further errors previously hidden behind the authority cascade were incompatible legacy consumer assertions and durable-session fixture setup. Positive provider-response tests now use real independently reviewed plans; catalog tests enter and restore a genuine durable local session. No runtime transaction protection is bypassed. Concurrent recovery workers now inherit the parent WordPress config and PHP config, so both contend on the same local database. Each PHPUnit process uses an isolated upload root: immutable custody correctly rejects files intentionally tampered by an earlier run under recycled test IDs. Runtime custody rules are unchanged. Catalog boundary coverage now checks both locked-default denial and governed denial under query-only synthetic enabled observations, while retaining the original zero-send assertions and actual hold posture.
+Further errors previously hidden behind the authority cascade were incompatible legacy consumer assertions and durable-session fixture setup. A late full-suite transition exposed the additional custom research signer: the shared signer registry now covers that provenance, and the research reset delegates common narrow cleanup. Foreign listing assertions compare whole cells so Listing #1 cannot be confused with Listing #10; scope and pending-count assertions are unchanged. Positive provider-response tests now use real independently reviewed plans; catalog tests enter and restore a genuine durable local session. No runtime transaction protection is bypassed. Concurrent recovery workers now inherit the parent WordPress config and PHP config, so both contend on the same local database. Each PHPUnit process uses an isolated upload root: immutable custody correctly rejects files intentionally tampered by an earlier run under recycled test IDs. Runtime custody rules are unchanged. Catalog boundary coverage now checks both locked-default denial and governed denial under query-only synthetic enabled observations, while retaining the original zero-send assertions and actual hold posture.
 
 ## Completed evidence
 
@@ -31,6 +31,8 @@ Further errors previously hidden behind the authority cascade were incompatible 
 - Catalog WordPress:48 tests, zero errors/failures (production-mode local suite). All moved response tests remain included in the catalog configuration.
 - Signed admission/owner focused group:71 tests,1527 assertions passed.
 - Fresh sequential consumer, FL03/FL04 held-package and supplier-switch group:19 tests,2544 assertions passed.
+- Shared signer/research-to-product transition plus exact four-shop listing identity group:22 tests,393 assertions passed. Unowned lifecycle proofs remain and still deny reads; audit preservation markers are unique per case.
+- Late rendering/migration/supplier window:341 tests, zero errors; one brittle listing-ID prefix assertion was identified and corrected, then the focused22-test group passed. All render and supplier-switch tests in that window passed.
 - Retained document custody/listing, raw catalog boundary and STOP ALL regression:34 tests,652 assertions passed with process-isolated uploads.
 - Concurrent durable claim regression:1 test,17 assertions passed, including exactly one winner and persisted UNKNOWN.
 - Offline acceptance:198 tests passed, using the pinned cutout runtime.

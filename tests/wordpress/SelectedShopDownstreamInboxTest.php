@@ -53,7 +53,7 @@ final class SelectedShopDownstreamInboxTest extends WP_UnitTestCase
         $marker='Inbox '.wp_generate_uuid4();$ids=[];
         foreach($shops as $shop)$ids[$shop]=$this->listing($shop,$marker.' '.$shop);
         $newestJewelry=0;for($i=0;$i<55;$i++)$newestJewelry=$this->listing('jewelry',$marker.' foreign '.$i);
-        foreach($shops as $shop){$html=$this->inbox($shop);self::assertStringContainsString('Consolidated approval gates',$html);if($shop==='jewelry'){self::assertStringNotContainsString('Listing #'.$this->listingId($ids[$shop]).'</td>',$html);self::assertStringContainsString('Listing #'.$this->listingId($newestJewelry).'</td>',$html);}else self::assertStringContainsString('Listing #'.$this->listingId($ids[$shop]).'</td>',$html);self::assertStringContainsString('df_shop='.$shop,$html);foreach($shops as $other)if($other!==$shop)self::assertStringNotContainsString('Listing #'.$this->listingId($ids[$other]),$html);}
+        foreach($shops as $shop){$html=$this->inbox($shop);self::assertStringContainsString('Consolidated approval gates',$html);if($shop==='jewelry'){self::assertStringNotContainsString('Listing #'.$this->listingId($ids[$shop]).'</td>',$html);self::assertStringContainsString('Listing #'.$this->listingId($newestJewelry).'</td>',$html);}else self::assertStringContainsString('Listing #'.$this->listingId($ids[$shop]).'</td>',$html);self::assertStringContainsString('df_shop='.$shop,$html);foreach($shops as $other)if($other!==$shop)self::assertStringNotContainsString('Listing #'.$this->listingId($ids[$other]).'</td>',$html);}
         self::assertSame($before['digital']+1,$this->pendingCount($this->inbox('digital')));
         $jewelry=$this->inbox('jewelry');self::assertSame($before['jewelry']+56,$this->pendingCount($jewelry));self::assertStringContainsString('most recent 50',$jewelry);
     }
@@ -116,7 +116,7 @@ final class SelectedShopDownstreamInboxTest extends WP_UnitTestCase
         $unknown=$this->listing('unassigned','Unknown '.wp_generate_uuid4());
         $foreign=$this->listing('personalized_pod','Foreign '.wp_generate_uuid4());
         $html=$this->inbox('digital');self::assertStringContainsString('Listing #'.$this->listingId($known),$html);
-        foreach([$unknown,$foreign] as $id)self::assertStringNotContainsString('Listing #'.$this->listingId($id),$html);
+        foreach([$unknown,$foreign] as $id)self::assertStringNotContainsString('Listing #'.$this->listingId($id).'</td>',$html);
         self::assertSame($before+1,$this->pendingCount($html));
         self::assertStringNotContainsString('Consolidated approval gates',$this->inbox('personalized_pod'));
         self::assertStringNotContainsString('Consolidated approval gates',$this->inbox('all'));
