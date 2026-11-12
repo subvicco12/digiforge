@@ -97,6 +97,9 @@ jobs:
       - name: Legacy and unit tests
         run: composer test
 
+      - name: Native Printify pinned companion boundary tests
+        run: vendor/bin/phpunit --no-configuration --bootstrap tests/native-printify/bootstrap.php tests/native-printify
+
       - name: Experimental matting boundary static analysis
         run: vendor/bin/phpstan analyse --level=0 --no-progress includes/POD/ExperimentalMattingPipeline.php includes/POD/OfflineCutoutPipeline.php includes/POD/RasterArtworkCodec.php includes/POD/CutoutVisualQa.php
 

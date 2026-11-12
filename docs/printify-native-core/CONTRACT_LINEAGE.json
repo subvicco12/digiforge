@@ -1,0 +1,96 @@
+{
+  "companion_sha": "a7dca70902f755c38f04aa7793040a8253a3056d",
+  "core_base": "702a4d078555ac9cb75fd115357db5387281c74a",
+  "files": [
+    {
+      "path": "tests/fixtures/native-printify-companion/MutationCoreInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/MutationCoreInterface.php",
+      "sha256": "78a2040293ca672fc47920d24f980b08fe24f2c9ef294a807f9fe699cfa4b077",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/MutationInspectionCoreInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/MutationInspectionCoreInterface.php",
+      "sha256": "c465d62d7f5df34773f73c92b637766e0c660f423dc6084c55df7f3e0015c13a",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/MutationIntent.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/MutationIntent.php",
+      "sha256": "68f26d1451bf6134d59d0ab2ed1ac156171d1c57f405513c903f796ac75a3052",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/NativeCorePortInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/NativeCorePortInterface.php",
+      "sha256": "75a295f7603ce9343a817b3e1745bcf307774c768d6d3dbbb6f212f26f709b6b",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/NativePortAdapter.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/NativePortAdapter.php",
+      "sha256": "ad308aa1e040d5b2e2c8cab8078dac1a5a8ab92b42072c9dd1646d43f70fd983",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/NativePortSchema.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/NativePortSchema.php",
+      "sha256": "1b6509a6a7b5b8e15643b29bcd8d00d956271fb6b3971b826d5460eddc52e023",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/OperationsCoreInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/OperationsCoreInterface.php",
+      "sha256": "1da97a7aa3c4e7bf9242435b0426a2fd4e03f8dc6a7454f5995816ecfe1ffd89",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/PublishingCoreInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/PublishingCoreInterface.php",
+      "sha256": "cac00f0c4a7978f7be57e53c4e9637ab8af765a6e79c58895d191b63abcf697b",
+      "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/WorkflowCoreInterface.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/WorkflowCoreInterface.php",
+      "sha256": "51e4e5991943bab4af4c66c23d2f600fa8240a3036c18dfc5cea2acfbefe973d",
+      "identical": true
+    },
+    {
+      "path": "includes/Connector/Printify/ConnectorInterface.php",
+      "upstream_path": "includes/Connector/Printify/ConnectorInterface.php",
+      "sha256": "1d93e9b4320bff38e32dcd193abeef045d08261e24164faa1572e0d215f689a4",
+      "identical": true
+    },
+    {
+      "path": "includes/Connector/Printify/CredentialReference.php",
+      "upstream_path": "includes/Connector/Printify/CredentialReference.php",
+      "sha256": "a00fb1cc5543d3f8793b65a46cded2f119c82b4244863c5f7b3812baad159a66",
+      "identical": true
+    },
+    {
+      "path": "includes/Connector/Printify/ExternalOperationIntent.php",
+      "upstream_path": "includes/Connector/Printify/ExternalOperationIntent.php",
+      "sha256": "d95ca1988ce561235985837e216d449872d5afe5d22391c9f96c89cd7e85f64a",
+      "identical": true
+    },
+    {
+      "path": "includes/Connector/Printify/ProviderResult.php",
+      "upstream_path": "includes/Connector/Printify/ProviderResult.php",
+      "sha256": "e542965addb85a902969bab5410b9657b53f8c11f4150b8f063e5926094a5e8a",
+      "identical": true
+    },
+    {
+      "path": "includes/Connector/Printify/ShopBinding.php",
+      "upstream_path": "includes/Connector/Printify/ShopBinding.php",
+      "sha256": "dff77d51a25fdb32b4bf517da8438eee47fecfc54849ff72265503e9b4ad93b1",
+      "identical": true
+    },
+    {
+      "path": "includes/POD/PrintifyConnectorReadContract.php",
+      "upstream_path": "includes/POD/PrintifyConnectorReadContract.php",
+      "sha256": "3ca477a6830bfa8eefae0011c383ebae52ae110a6027a10fede3d78489a4bef7",
+      "identical": true
+    }
+  ]
+}
