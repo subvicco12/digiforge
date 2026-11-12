@@ -9,3 +9,8 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local offline-test artifacts and container-only dependency link.
+__pycache__/
+*.py[cod]
+/vendor

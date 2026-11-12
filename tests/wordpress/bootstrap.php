@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Isolated acceptance never permits unmocked external provider HTTP.
+if (! defined('WP_HTTP_BLOCK_EXTERNAL')) { define('WP_HTTP_BLOCK_EXTERNAL', true); }
+
 $testsDirectory = getenv('WP_TESTS_DIR');
 if (! is_string($testsDirectory) || $testsDirectory === '') {
     throw new RuntimeException('Set WP_TESTS_DIR to the WordPress PHPUnit test-library directory.');
@@ -20,3 +23,5 @@ tests_add_filter('muplugins_loaded', static function (): void {
 });
 
 require rtrim($testsDirectory, '/\\') . '/includes/bootstrap.php';
+
+require_once __DIR__.'/Support/PrintifyTemplateFixture.php';

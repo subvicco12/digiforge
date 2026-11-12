@@ -10,7 +10,7 @@ use WP_Error;
 /** Operator controls over existing held services. Uses the existing nonce-protected portal action. */
 final class ProductPackagePanel
 {
-    public function render(string $shop, string $workflow, string $design): void
+    public function render(string $shop, string $workflow, string $design, ?array $supplierTemplate=null): void
     {
         if (!$this->access($shop)) return;
         $handoff=$this->context($shop,$workflow,$design);
@@ -27,6 +27,7 @@ final class ProductPackagePanel
         echo '<button class="df-button">Inspect held package</button></form>';
         $e=$current['record']['evidence']??$this->template($handoff);
         if ($e instanceof WP_Error) {$this->message($e);echo '</section>';return;}
+        if($current===null&&$supplierTemplate!==null)$e['template']=$supplierTemplate;
         echo '<details'.($current===null?' open':'').'><summary>Create or revise product evidence</summary>';
         $this->form('package_prepare',$workflow,$design);
         if ($current!==null) echo '<input type="hidden" name="parent_hash" value="'.esc_attr($current['hash']).'">';
@@ -157,7 +158,7 @@ final class ProductPackagePanel
     private function check(string $label): void
     { echo '<p><label><input type="checkbox" name="confirm" value="1" required> '.esc_html($label).'</label></p>'; }
     private function message(WP_Error $e): void { echo '<p>'.esc_html($e->get_error_message()).'</p>'; }
-    private function access(string $shop): bool { return $shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research'); }
+    private function access(string $shop): bool { return $shop==='personalized_pod'&&\DigiForge\Security\PersonalizedPodAccess::allows()&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research'); }
     private function baseUrl(): string { $id=get_queried_object_id();$url=$id>0?get_permalink($id):home_url('/');return is_string($url)?$url:home_url('/'); }
     private function error(string $message): WP_Error { return new WP_Error('product_package_portal_denied',$message,['status'=>409,'release_hold'=>true,'external_execution_authorized'=>false]); }
 }

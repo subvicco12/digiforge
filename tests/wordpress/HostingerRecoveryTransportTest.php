@@ -374,8 +374,9 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         $name='digiforge_recovery_claim_'.hash('sha256',wp_generate_uuid4());
         $worker=$directory.'/worker.php';
         $bootstrap=var_export(__DIR__.'/bootstrap.php',true);
+        $fixtureConfig=defined('WP_TESTS_CONFIG_FILE_PATH')?'define("WP_TESTS_CONFIG_FILE_PATH",'.var_export(WP_TESTS_CONFIG_FILE_PATH,true).'); ':'';
         $autoload=var_export(dirname(__DIR__,2).'/vendor/autoload.php',true);
-        file_put_contents($worker, '<?php putenv("WP_TESTS_SKIP_INSTALL=1"); require '.$autoload.'; require '.$bootstrap.'; file_put_contents($argv[2].".ready", "1"); $deadline=microtime(true)+10; while (!file_exists($argv[3])) { if(microtime(true)>$deadline)exit(2); usleep(10000); } $ok=\\DigiForge\\Operations\\RecoveryDispatchLedger::insert($argv[1],["worker"=>$argv[2],"state"=>"UNKNOWN"]); file_put_contents($argv[2],$ok?"1":"0");');
+        file_put_contents($worker, '<?php putenv("WP_TESTS_SKIP_INSTALL=1"); '.$fixtureConfig.'require '.$autoload.'; require '.$bootstrap.'; file_put_contents($argv[2].".ready", "1"); $deadline=microtime(true)+10; while (!file_exists($argv[3])) { if(microtime(true)>$deadline)exit(2); usleep(10000); } $ok=\\DigiForge\\Operations\\RecoveryDispatchLedger::insert($argv[1],["worker"=>$argv[2],"state"=>"UNKNOWN"]); file_put_contents($argv[2],$ok?"1":"0");');
         $processes=[];
         try {
             for($i=0;$i<2;++$i){

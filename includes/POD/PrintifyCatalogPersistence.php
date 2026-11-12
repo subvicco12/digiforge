@@ -22,7 +22,7 @@ final class PrintifyCatalogPersistence
             $data['state']=(string)($existing['state']??'DRAFT');
             if(!$materialChanged){
                 // observed_at is freshness evidence, not a material supplier change.
-                $freshness=['observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$wpdb->last_error='';$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);
+                $freshness=['attributes'=>$data['attributes'],'observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$wpdb->last_error='';$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);
                 $wpdb->last_error='';$fresh=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$existing['id']),ARRAY_A);return (!empty($wpdb->last_error)||!is_array($fresh)?new WP_Error('digiforge_printify_catalog_confirmation','Catalog persistence confirmation is unavailable.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]):$fresh+['catalog_change_detected'=>false,'idempotent'=>true]);
             }
             $wpdb->last_error='';$ok=$wpdb->update($table,$data,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog evidence could not be updated.',['status'=>500]);$wpdb->last_error='';$fresh=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$existing['id']),ARRAY_A);return (!empty($wpdb->last_error)||!is_array($fresh)?new WP_Error('digiforge_printify_catalog_confirmation','Catalog persistence confirmation is unavailable.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]):$fresh+['catalog_change_detected'=>true,'idempotent'=>false]);
@@ -40,7 +40,7 @@ final class PrintifyCatalogPersistence
     private function persistExisting(array $existing,array $data): array|WP_Error
     {
         global $wpdb;$table=Tables::pod_catalog();$data['state']=(string)($existing['state']??'DRAFT');
-        if(!$this->materialChanged($existing,$data)){$freshness=['observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$wpdb->last_error='';$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);$wpdb->last_error='';$fresh=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$existing['id']),ARRAY_A);return (is_array($fresh)?$fresh:$existing)+['catalog_change_detected'=>false,'idempotent'=>true];}
+        if(!$this->materialChanged($existing,$data)){$freshness=['attributes'=>$data['attributes'],'observed_at'=>$data['observed_at']??null,'updated_at'=>$data['updated_at']];$wpdb->last_error='';$ok=$wpdb->update($table,$freshness,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog observation timestamp could not be updated.',['status'=>500]);$wpdb->last_error='';$fresh=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$existing['id']),ARRAY_A);return (is_array($fresh)?$fresh:$existing)+['catalog_change_detected'=>false,'idempotent'=>true];}
         $wpdb->last_error='';$ok=$wpdb->update($table,$data,['id'=>(int)$existing['id']]);if($ok===false||!empty($wpdb->last_error))return new WP_Error('digiforge_printify_catalog_update','Catalog evidence could not be updated.',['status'=>500]);return $data+['id'=>(int)$existing['id'],'catalog_change_detected'=>true,'idempotent'=>false];
     }
 
@@ -51,6 +51,12 @@ final class PrintifyCatalogPersistence
 
     private function materialChanged(array $existing,array $incoming): bool
     {
-        foreach(['title','variant_label','attributes','currency','base_cost','shipping_profile','availability_state','source_revision'] as $field){if((string)($existing[$field]??'')!==(string)($incoming[$field]??''))return true;}return false;
+        foreach(['title','variant_label','currency','base_cost','shipping_profile','availability_state','source_revision'] as $field){if((string)($existing[$field]??'')!==(string)($incoming[$field]??''))return true;}
+        return $this->comparableAttributes($existing['attributes']??'')!==$this->comparableAttributes($incoming['attributes']??'');
+    }
+
+    private function comparableAttributes(mixed $value): string
+    {
+        if(is_string($value))$value=json_decode($value,true);if(!is_array($value))return (string)$value;$evidence=$value['_digiforge_source_evidence']??null;if(is_array($evidence)){unset($evidence['response_sha256'],$evidence['observed_at']);$value['_digiforge_source_evidence']=$evidence;}return (string)wp_json_encode($value,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     }
 }

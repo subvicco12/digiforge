@@ -40,7 +40,7 @@ final class FrontendAdminPortalStructureTest extends TestCase
         self::assertStringContainsString('Listing / Publish Approval', $portal);
         self::assertStringContainsString("\$value === null ? 'UNAVAILABLE'", $portal);
         self::assertStringContainsString("\$wpdb->last_error = ''", $portal);
-        self::assertStringContainsString("return \$wpdb->last_error !== '' ? null : (int) \$value;", $portal);
+        self::assertStringContainsString("return \$wpdb->last_error !== '' || !is_numeric(\$value) ? null : (int) \$value;", $portal);
         self::assertStringNotContainsString("{ return 0; }", $portal);
         self::assertGreaterThanOrEqual(6, substr_count($portal, "\$wpdb->last_error = ''"));
         self::assertStringContainsString("\$pendingAvailable=is_array(\$pending)&&empty(\$wpdb->last_error)", $portal);

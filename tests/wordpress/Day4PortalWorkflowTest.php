@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 use DigiForge\Portal\CommercialResearchPanel;
 use DigiForge\Portal\DesignFactoryPanel;
 use DigiForge\POD\ProductPackageRepository;
@@ -12,7 +13,7 @@ final class Day4PortalWorkflowTest extends WP_UnitTestCase
     {
         parent::setUp();$id=self::factory()->user->create();$u=new WP_User($id);
         foreach(['manage_digiforge','manage_digiforge_pod','manage_digiforge_research'] as $cap)$u->add_cap($cap);
-        wp_set_current_user($id);
+        wp_set_current_user($id);DigiForge\Core\Activator::activate();ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research']);
     }
     private function action(array $post): array
     {
@@ -77,6 +78,15 @@ final class Day4PortalWorkflowTest extends WP_UnitTestCase
             self::assertNull((new ProductPackageRepository())->read('personalized_pod',$next['package_hash'])['decision']);
         }self::assertSame(0,$calls);}finally{remove_filter('pre_http_request',$deny);}
     }
+    public function testAuthorityRevocationBlocksExistingDesignPackageAndExport(): void
+    {
+        $context=$this->approvedDesign('mug');$p=$this->prepare($context,'fl-03');
+        $this->action($context+['operation'=>'package_decide','package_hash'=>$p['package_hash'],'decision'=>'APPROVE','note'=>'Synthetic held approval','confirm'=>'1']);
+        ShopAccessFixture::provision([]);
+        self::assertWPError((new ProductPackageRepository())->read('personalized_pod',$p['package_hash']));
+        self::assertWPError((new DigiForge\Research\DesignFactoryRepository())->handoff('personalized_pod',$context['factory_hash']));
+        self::assertWPError((new CommercialResearchPanel())->process($context+['shop_key'=>'personalized_pod','operation'=>'package_export','package_hash'=>$p['package_hash'],'confirm'=>'1']));
+    }
     public function testWorkImportIsBoundedAndCannotAssertApproval(): void
     {
         $f=json_decode(file_get_contents(__DIR__.'/../fixtures/research/commercial-research.json'),true)['research'];
@@ -97,7 +107,7 @@ final class Day4PortalWorkflowTest extends WP_UnitTestCase
         $post=$a+['operation'=>'package_decide','package_hash'=>$p['package_hash'],'decision'=>'APPROVE','note'=>'No confirmation','shop_key'=>'personalized_pod'];
         self::assertWPError((new CommercialResearchPanel())->process($post));
         $post['shop_key']='digital';self::assertWPError((new CommercialResearchPanel())->process($post));
-        $post['shop_key']='personalized_pod';wp_get_current_user()->remove_cap('manage_digiforge_pod');self::assertWPError((new CommercialResearchPanel())->process($post));
+        $post['shop_key']='personalized_pod';wp_get_current_user()->add_cap('manage_digiforge_pod',false);self::assertWPError((new CommercialResearchPanel())->process($post));
         wp_set_current_user(0);self::assertWPError((new CommercialResearchPanel())->process($post));
     }
     public function testActualPostHandlerRejectsMissingNonceBeforeAnyOperation(): void
