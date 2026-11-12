@@ -23,7 +23,7 @@ The reported run contained 1762 tests, 199 errors and 29 failures. Its two proof
 | Owner enrollment | 8 failures | Positive per-shop ENROLL assertions described a deliberately retired handler. Exercise verified-email/host-approved four-shop global enrollment, all capabilities, exact scoped delegation, replay, revocation, audit rollback and holds; explicitly deny legacy enrollment. |
 | Mockup fixture | 1 failure | Appeared after failed shared fixture setup. Fresh sequential supplier-switch acceptance passes, preserving reviewed geometry, placement and immutable history. No mockup runtime rule was relaxed. |
 
-Further errors previously hidden behind the authority cascade were incompatible legacy consumer assertions and durable-session fixture setup. Positive provider-response tests now use real independently reviewed plans; catalog tests enter and restore a genuine durable local session. No runtime transaction protection is bypassed. Concurrent recovery workers now inherit the parent WordPress config and PHP config, so both contend on the same local database.
+Further errors previously hidden behind the authority cascade were incompatible legacy consumer assertions and durable-session fixture setup. Positive provider-response tests now use real independently reviewed plans; catalog tests enter and restore a genuine durable local session. No runtime transaction protection is bypassed. Concurrent recovery workers now inherit the parent WordPress config and PHP config, so both contend on the same local database. Each PHPUnit process uses an isolated upload root: immutable custody correctly rejects files intentionally tampered by an earlier run under recycled test IDs. Runtime custody rules are unchanged. Catalog boundary coverage now checks both locked-default denial and governed denial under query-only synthetic enabled observations, while retaining the original zero-send assertions and actual hold posture.
 
 ## Completed evidence
 
@@ -31,6 +31,7 @@ Further errors previously hidden behind the authority cascade were incompatible 
 - Catalog WordPress:48 tests, zero errors/failures (production-mode local suite). All moved response tests remain included in the catalog configuration.
 - Signed admission/owner focused group:71 tests,1527 assertions passed.
 - Fresh sequential consumer, FL03/FL04 held-package and supplier-switch group:19 tests,2544 assertions passed.
+- Retained document custody/listing, raw catalog boundary and STOP ALL regression:34 tests,652 assertions passed with process-isolated uploads.
 - Concurrent durable claim regression:1 test,17 assertions passed, including exactly one winner and persisted UNKNOWN.
 - Offline acceptance:198 tests passed, using the pinned cutout runtime.
 - Security:14 tests passed, including genuine-new-credential, wrong-object/location, duplicate-member and suppression-immunity cases.

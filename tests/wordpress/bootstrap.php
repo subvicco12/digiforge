@@ -19,5 +19,10 @@ tests_add_filter('muplugins_loaded', static function (): void {
     require dirname(__DIR__, 2) . '/digiforge.php';
 });
 
+// Retained custody is intentionally immutable. A fresh database must never reuse
+// bytes deliberately tampered by a previous PHPUnit process with recycled IDs.
+$GLOBALS['wp_tests_options']['upload_path'] ??= sys_get_temp_dir()
+    . '/digiforge-wp-uploads-' . getmypid() . '-' . bin2hex(random_bytes(8));
+
 require rtrim($testsDirectory, '/\\') . '/includes/bootstrap.php';
 require_once __DIR__ . '/Support/PrintifyTemplateFixture.php';
