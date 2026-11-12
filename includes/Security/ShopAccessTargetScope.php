@@ -12,6 +12,11 @@ final class ShopAccessTargetScope
     public static function forRequest(\WP_REST_Request $request, array $allowed): string|false|\WP_Error
     {
         $route=$request->get_route();$id=$request->get_param('id');$table=null;
+        if(\DigiForge\POD\PrintifyResearchDependencies::matchesRoute($route,$request->get_method())){
+            if(!in_array('personalized_pod',$allowed,true))return self::error();
+            foreach(['shop','shop_key'] as $field){$claim=$request->get_param($field);if($claim!==null&&$claim!=='personalized_pod')return self::error();}
+            return 'personalized_pod';
+        }
         if (str_starts_with($route,'/digiforge/v1/printify/catalog-read/')) {
             $catalog=new \DigiForge\POD\PrintifyCatalogReadRepository();
             if($route==='/digiforge/v1/printify/catalog-read/grants'&&$request->get_method()==='POST'){

@@ -28,26 +28,15 @@ final class ShopAccessFixture
             $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",$wpdb->esc_like($prefix).'%'));
             if($wpdb->last_error!=='')throw new RuntimeException('Synthetic ACL reset failed.');
         }
-        if(self::$secret!==null)self::provision([]);
-        else self::$authorities=[];
+        self::provision([]);
     }
     public static function provision(array $authorities): void
     {
         self::$authorities=$authorities;
-        if(self::$secret===null){
-            $keys=sodium_crypto_sign_keypair();self::$secret=sodium_crypto_sign_secretkey($keys);
-            self::$path=tempnam(sys_get_temp_dir(),'df-shop-authority-');
-            if(self::$path===false)throw new RuntimeException('Synthetic authority file unavailable.');
-            if(defined('DIGIFORGE_SHOP_ACCESS_TRUST_KEY')||defined('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE'))throw new RuntimeException('Refusing to overwrite configured independent authority.');
-            define('DIGIFORGE_SHOP_ACCESS_TRUST_KEY',base64_encode(sodium_crypto_sign_publickey($keys)));
-            define('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE',self::$path);
-            register_shutdown_function(static function():void{if(self::$path!==null)@unlink(self::$path);if(self::$secret!==null)sodium_memzero(self::$secret);});
-        }
-        $json=(string)wp_json_encode(['version'=>1,'authorities'=>$authorities]);
-        $envelope=wp_json_encode(['manifest'=>$json,'signature'=>base64_encode(sodium_crypto_sign_detached($json,self::$secret))]);
-        if(file_put_contents(self::$path,$envelope,LOCK_EX)===false)throw new RuntimeException('Synthetic authority write failed.');
+        require_once __DIR__.'/SyntheticShopAuthority.php';
+        SyntheticShopAuthority::write($authorities);
     }
-    public static function authority(int $owner,string $shop,array $caps,int $expiry=0,string $kind='OWNER'): array
+    public static function authority(int $owner,string $shop,array $caps,int $expiry=0,string $kind='DELEGATE'): array
     {
         return ['actor_id'=>$owner,'shop'=>$shop,'caps'=>$caps,'expires_at'=>$expiry?:time()+3600,'source_approval_hash'=>hash('sha256','Synthetic independent authority '.$owner.':'.$shop),'authority'=>$kind];
     }
@@ -79,6 +68,6 @@ final class ShopAccessFixture
     public static function grant(int $owner,int $subject,string $shop,array $caps,string $role='administrator'): array
     {
         $prior=get_current_user_id();wp_set_current_user($owner);
-        try{$repo=new DigiForge\Security\ShopAccessRepository();$state=$repo->read($shop);if($state instanceof WP_Error)throw new RuntimeException($state->get_error_message());$result=$repo->grant($subject,$shop,$role,$caps,time()+600,str_replace('-','_',wp_generate_uuid4()),$state['revision']);if($result instanceof WP_Error)throw new RuntimeException($result->get_error_code());return $result;}finally{wp_set_current_user($prior);}
+        try{$repo=new DigiForge\Security\ShopAccessRepository();$state=$repo->read($shop);if($state instanceof WP_Error)throw new RuntimeException($state->get_error_code());$result=$repo->grant($subject,$shop,$role,$caps,time()+600,str_replace('-','_',wp_generate_uuid4()),$state['revision']);if($result instanceof WP_Error)throw new RuntimeException($result->get_error_code());return $result;}finally{wp_set_current_user($prior);}
     }
 }

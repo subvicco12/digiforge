@@ -33,8 +33,12 @@ final class ShopAccessAdminGuard
     {
         if (!str_starts_with($hook,'admin_post_digiforge_')&&!str_starts_with($hook,'admin_post_nopriv_digiforge_')) return;
         $action=substr($hook,str_starts_with($hook,'admin_post_nopriv_')?18:11);
-        if (in_array($action,['digiforge_opportunity_design','digiforge_commercial_research'],true)) {
-            if (!PersonalizedPodAccess::allows()) $this->deny('personalized_pod_assignment_required');
+        // Exact feature handlers enforce WP authentication, nonce and independent authority.
+        if(class_exists(\DigiForge\PortalAccess\Feature::class)&&in_array($action,\DigiForge\PortalAccess\Feature::ACTIONS,true))return;
+        $scope=self::scopeForAction($action);
+        if($scope!==null){
+            foreach($scope['caps'] as $cap)if(ShopAccess::authorize($scope['shop'],$cap)!==true)$this->deny('feature_shop_assignment_required');
+            // Exact feature handlers independently enforce nonce, fixed target and capabilities.
             return;
         }
         // These reviewed entry points independently resolve stored scopes before private
@@ -62,6 +66,12 @@ final class ShopAccessAdminGuard
         };
         if ($cap===null) $this->deny('unmapped_action');
         $this->globalAccess($cap);
+    }
+    /** Pure mapping consumed by feature readiness and the existing global guard. */
+    public static function scopeForAction(string $action): ?array
+    {
+        $actions=\DigiForge\POD\PrintifyResearchDependencies::actions();
+        return isset($actions[$action])?['shop'=>'personalized_pod','caps'=>$actions[$action]]:null;
     }
     private function globalAccess(string $cap): void
     {

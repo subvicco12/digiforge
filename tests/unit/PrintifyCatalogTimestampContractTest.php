@@ -17,6 +17,7 @@ final class PrintifyCatalogTimestampContractTest extends TestCase
             'variant_id' => 202,
             'environment' => 'sandbox',
             'attributes' => [],
+            'currency' => 'USD', 'base_cost' => '10.00', 'shipping_cost' => '5.00',
             'observed_at' => $observedAt,
         ];
     }

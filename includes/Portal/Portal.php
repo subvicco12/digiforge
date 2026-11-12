@@ -102,10 +102,10 @@ final class Portal
     public function register(): void
     {
         add_shortcode(self::SHORTCODE, [$this, 'render']);
+        (new PrintifyProductIntelligenceFeature())->register();
         (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
-        (new OpportunityDesignPanel())->register();
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);
         add_action('admin_post_' . self::SAVE_AI_SECRET_ACTION, [$this, 'saveAiSecret']);
@@ -755,8 +755,9 @@ final class Portal
     {
         (new GoogleDrivePanel())->render(ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all'));
         $scheduled=(new \DigiForge\Queue\ScheduledTaskReadModel())->snapshot();
+        echo (new \DigiForge\Portal\SchedulerDependencyPanel())->render($scheduled);
         echo '<section class="df-panel"><div class="df-panel-head"><h2>Product Factory scheduled tasks</h2><span class="df-status">READ ONLY</span></div><p class="df-muted">System-wide bounded scheduler metadata only. Viewing tasks cannot run, retry or dispatch them; task arguments and run keys are hidden.</p><div class="df-signal-grid"><div><span>Action Scheduler evidence</span><b>'.esc_html($scheduled['query_state']['action_scheduler']).'</b></div><div><span>WP cron evidence</span><b>'.esc_html($scheduled['query_state']['wp_cron']).'</b></div></div>';
-        if($scheduled['query_state']['action_scheduler']!=='AVAILABLE')echo '<p class="df-muted">Action Scheduler is unavailable or not installed; an empty scheduler is not inferred.</p>';
+        if($scheduled['query_state']['action_scheduler']!=='AVAILABLE')echo '<p class="df-muted">Action Scheduler task-query evidence is unavailable; consult dependency inspection and query reason codes above. Installation absence is not inferred.</p>';
         if($scheduled['query_state']['wp_cron']!=='AVAILABLE')echo '<div class="df-notice df-notice-error">WP cron evidence unavailable. Missing evidence grants no recovery authority.</div>';
         if($scheduled['items']!==[]){echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Scrollable scheduled task evidence"><table class="df-table"><thead><tr><th>Scheduler</th><th>Candidate</th><th>Shop</th><th>Stage</th><th>State</th><th>Retry / execution</th></tr></thead><tbody>';foreach($scheduled['items']as $task)echo '<tr><td>'.esc_html($task['scheduler']).'</td><td>#'.esc_html((string)$task['candidate_id']).'</td><td>'.esc_html($task['shop']).'</td><td>'.esc_html($task['stage']).'</td><td>'.esc_html($task['state']).'</td><td>NO</td></tr>';echo '</tbody></table></div>';}
         if($scheduled['truncated'])echo '<p class="df-muted">The bounded task window may omit older evidence.</p>';
@@ -790,6 +791,7 @@ final class Portal
     private function personalizedPodSummary(): void
     {
         $selectedPodShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):'all');$podScope=$selectedPodShop==='all'?'personalized_pod':$selectedPodShop;
+        if($selectedPodShop==='personalized_pod')(new PrintifyProductIntelligenceFeature())->render($this->baseUrl());
         ProductionTemplatePanel::render($podScope);
         $phase1=(new PersonalizedPodOperationsReadModel())->snapshot(50,$podScope);$phaseCounts=(array)($phase1['counts']??[]);
         $renders=(new RenderEvidenceOperationsReadModel())->snapshot(50,$podScope);$renderCounts=(array)($renders['counts']??[]);

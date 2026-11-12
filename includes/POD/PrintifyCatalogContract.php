@@ -21,6 +21,7 @@ final class PrintifyCatalogContract
         $blueprintId = self::positiveInt($input['blueprint_id'] ?? null, 'blueprint_id');
         $providerId = self::positiveInt($input['print_provider_id'] ?? null, 'print_provider_id');
         $variantId = self::positiveInt($input['variant_id'] ?? null, 'variant_id');
+        if (!isset($input['currency'], $input['base_cost'])) { throw new \InvalidArgumentException('Explicit monetary evidence required; use research evidence storage for unknown costs.'); }
         $currency = strtoupper(trim((string) ($input['currency'] ?? 'USD')));
         if (!preg_match('/^[A-Z]{3}$/', $currency)) {
             throw new \InvalidArgumentException('currency must be a three-letter ISO-style code');

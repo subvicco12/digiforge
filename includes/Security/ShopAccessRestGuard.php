@@ -16,6 +16,7 @@ final class ShopAccessRestGuard
         $route=$request->get_route();
         if (!str_starts_with($route, '/digiforge/v1/')) return $result;
         // Exact independently authenticated boundaries, not general provider/customer access.
+        if ($request->get_method()==='POST' && preg_match('#^/digiforge/v1/printify/webhooks/ingress/[a-f0-9]{32}$#D',$route)===1) return $result;
         if ($request->get_method()==='POST' && $route==='/digiforge/v1/etsy/webhook') return $result;
         if ($request->get_method()==='GET' && in_array($route, [
             '/digiforge/v1/health', '/digiforge/v1/recovery/verification-snapshot',
@@ -60,6 +61,7 @@ final class ShopAccessRestGuard
     {
         $path=substr($route, strlen('/digiforge/v1/'));
         return match (true) {
+            \DigiForge\POD\PrintifyResearchDependencies::matchesRoute($route,$method)=>[['manage_digiforge','manage_digiforge_pod','manage_digiforge_research','manage_digiforge_connections']],
             preg_match('#^reviewed-contracts/(digital|personalized_pod)/acceptance$#D',$path)===1 => $method==='GET'?[['manage_digiforge']]:[],
             preg_match('#^reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/(policy|ownership)(/decision)?$#D',$path,$contract)===1 => $method==='GET'?[['manage_digiforge']]:[['manage_digiforge',isset($contract[3])||$contract[2]==='policy'?'manage_digiforge_settings':'manage_digiforge_connections']],
             str_starts_with($path,'printify/catalog-read/')=>[['manage_digiforge_connections','manage_digiforge_pod']],

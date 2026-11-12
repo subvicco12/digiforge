@@ -14,7 +14,7 @@ use WP_Error;
 final class ScopedProviderConnection
 {
  private const CAPABILITY='printify.catalog.read';
- private const CAPABILITIES=[self::CAPABILITY,'printify.connection.read','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'];
+ private const CAPABILITIES=[self::CAPABILITY,'printify.product.prepare','printify.connection.read','printify.lifecycle.prepare','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE'];
  private const FIELDS=['integration_id','capability','source_sha256','evidence_reference','observed_at'];
  public function propose(string $shop,array $input,int $effectiveAt,int $expiresAt,string $requestId,int $revision):array|WP_Error {
   if(count($input)!==count(self::FIELDS)||array_diff(array_keys($input),self::FIELDS))return self::error('invalid_input');
@@ -43,7 +43,7 @@ final class ScopedProviderConnection
  public function status(string $shop,int $integration,string $capability=self::CAPABILITY):array {
   $base=['status'=>'UNKNOWN','shop_key'=>$shop,'integration_id'=>$integration,'capability'=>$capability,'provider_identity_verified'=>false,'external_execution_authorized'=>false,'read_only'=>true];
   $access=ShopAccess::authorize($shop,'manage_digiforge_connections');if(is_wp_error($access))return array_replace($base,['status'=>'ACCESS_DENIED']);
-  if(in_array($shop,['standard_pod','jewelry'],true))return array_replace($base,['status'=>'DEFERRED_SHOP']);
+  if(in_array($shop,['standard_pod','jewelry'],true))return array_replace($base,['status'=>'DEFERRED_SHOP','configuration_proposals_supported'=>$shop==='standard_pod']);
   if($shop==='digital'&&$capability===self::CAPABILITY)return array_replace($base,['status'=>'NOT_APPLICABLE']);
   $key=self::key($shop,$integration,$capability);$state=ReviewedLocalEvidence::read('ownership',$shop,$key);
   if(is_wp_error($state))return array_replace($base,['status'=>'INVALID_EVIDENCE']);
@@ -76,10 +76,10 @@ final class ScopedProviderConnection
  }
  /** Current explicit configuration and registry ancestry; no credential decryption. */
  private function snapshot(string $shop,int $integration,string $capability):array|WP_Error {
-  if($shop!=='personalized_pod'||$integration<1||!in_array($capability,self::CAPABILITIES,true))return self::error('unsupported_scope');
+  if(!in_array($shop,['personalized_pod','standard_pod'],true)||$integration<1||!in_array($capability,self::CAPABILITIES,true))return self::error('unsupported_scope');
   $access=ShopAccess::authorize($shop,'manage_digiforge_connections');if(is_wp_error($access))return $access;
   $i=(new Repository())->find($integration);if(is_wp_error($i))return $i;if(!is_array($i)||$i['provider']!=='printify'||$i['status']!=='CONFIGURED')return self::error('integration');
-  $c=$i['config'];if(($c['shop_key']??null)!==$shop||!is_string($c['account_reference']??null)||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,190}$/D',$c['account_reference'])||!is_string($c['shop_id']??null)||!preg_match('/^[1-9][0-9]{0,18}$/D',$c['shop_id'])||!is_array($c['catalog_read_scope']??null)||($c['catalog_read_scope']['product_program']??null)!=='PERSONALIZED_POD'||empty($i['secrets']))return self::error('identity_or_material_missing');
+  $c=$i['config'];if(($c['shop_key']??null)!==$shop||!is_string($c['account_reference']??null)||!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,190}$/D',$c['account_reference'])||!is_string($c['shop_id']??null)||!preg_match('/^[1-9][0-9]{0,18}$/D',$c['shop_id'])||!is_array($c['catalog_read_scope']??null)||($c['catalog_read_scope']['product_program']??null)!==($shop==='personalized_pod'?'PERSONALIZED_POD':'ORIGINAL_DESIGN_POD')||empty($i['secrets']))return self::error('identity_or_material_missing');
   try{$scope=BusinessScope::resolveConfigured($c['catalog_read_scope']);}catch(\Throwable){return self::error('registry');}
   // Explicit relation identity cannot be inferred from shared material. A duplicate external shop is ambiguous.
   global $wpdb;$wpdb->last_error='';$others=$wpdb->get_results($wpdb->prepare('SELECT id,config FROM '.Tables::integrations().' WHERE provider=%s AND environment=%s AND status=%s LIMIT 1001','printify',$i['environment'],'CONFIGURED'),ARRAY_A);

@@ -42,6 +42,13 @@ final class ShopAccessPanel
         ) {
             return self::error();
         }
+        // Global ownership is managed through the audited module/profile UI only.
+        // This legacy handler must never enroll another owner or bypass profile scoping.
+        if (($p['operation'] ?? null) === 'ENROLL' || get_current_user_id() === 1) { return self::error(); }
+        $managed = \DigiForge\PortalAccess\Store::read(get_current_user_id());
+        if ($managed !== null || ShopAccess::authorize($p['shop'], 'manage_digiforge_settings') !== true) { return self::error(); }
+        $authority = ShopAccessRepository::authorityFor(get_current_user_id(), $p['shop'], ['manage_digiforge_settings'], time()+1);
+        if ($authority instanceof \WP_Error || $authority['record']['authority'] !== 'DELEGATE') { return self::error(); }
         $repo = new ShopAccessRepository();
         $revision = (int)$p['expected_revision'];
         if (($p['operation'] ?? null) === 'REVOKE') {
@@ -61,12 +68,6 @@ final class ShopAccessPanel
                 return self::error();
             }
         }
-        if (($p['operation'] ?? null) === 'ENROLL') {
-            if (isset($p['subject_id']) || !is_string($p['approval'] ?? null)) {
-                return self::error();
-            }
-            return $repo->enrollOwner($p['shop'], $p['role'], $p['caps'], (int)$p['expires_at'], $p['approval'], $p['request_id'], $revision);
-        }
         if (($p['operation'] ?? null) !== 'GRANT' || !is_string($p['subject_id'] ?? null) || preg_match('/^[1-9][0-9]{0,9}$/D', $p['subject_id']) !== 1) {
             return self::error();
         }
@@ -79,16 +80,40 @@ final class ShopAccessPanel
         }
         $html = '<section class="df-panel"><a href="' . esc_url(home_url('/')) . '">Return to Operations Console</a><h1>Shop access and operator assignments</h1><p>WordPress administration does not grant shop access. Select exact capabilities and confirm each local assignment. No provider or production authority is granted.</p>';
         if (isset($_GET['df_access_result']) && in_array($_GET['df_access_result'], ['recorded','blocked'], true)) {
-            $html .= '<p role="status">' . ($_GET['df_access_result'] === 'recorded' ? 'The explicit assignment change was recorded.' : 'Assignment blocked. Refresh signed scope and revision before trying again.') . '</p>';
+            $html .= '<p role="status">' . ($_GET['df_access_result'] === 'recorded' ? 'The explicit assignment change was recorded.' : 'Assignment blocked. Refresh current access and revision before trying again.') . '</p>';
         }
+        if (get_current_user_id() === 1) {
+            $profile = \DigiForge\PortalAccess\Store::read(1);
+            if (!is_array($profile) || $profile['role'] !== \DigiForge\PortalAccess\GlobalOwnerAuthority::ROLE
+                || !\DigiForge\PortalAccess\Session::valid($profile)) {
+                return $html . '<p>Global owner access is unavailable or expired. Sign in with verified email to refresh eligible assignments; revoked access requires approved recovery.</p></section>';
+            }
+            $html .= '<p>Verified database-backed Global Primary Owner. Manage operators through User Management to preserve exact shop and module permissions. This page cannot enroll another owner or issue raw grants.</p>';
+            $selected = $_GET['df_shop'] ?? 'all';
+            if (!is_string($selected) || ($selected !== 'all' && !ShopAccessPolicy::validShop($selected))) { return $html . '<p>Invalid shop scope; no assignments shown.</p></section>'; }
+            $repo = new ShopAccessRepository();
+            foreach (ShopAccessPolicy::canonicalShops() as $shop) {
+                if ($selected !== 'all' && $selected !== $shop) { continue; }
+                if (ShopAccess::authorize($shop, 'manage_digiforge_settings') !== true) { return $html . '<p>Assignment evidence unavailable; no changes permitted.</p></section>'; }
+                $state = $repo->read($shop);
+                if ($state instanceof \WP_Error) { return $html . '<p>Assignment evidence unavailable; no changes permitted.</p></section>'; }
+                $html .= '<h2>' . esc_html($shop) . '</h2><p><a href="' . esc_url(add_query_arg(['df_view'=>'users','df_shop'=>$shop], home_url('/'))) . '">Manage exact shop/module permissions</a></p>';
+                foreach ($state['grants'] as $grant) {
+                    $html .= '<p>User #' . (int)$grant['actor_id'] . ' — ' . esc_html($grant['role']) . ' — ' . esc_html(implode(', ', $grant['caps'])) . ' — ' . ($grant['revoked'] ? 'revoked' : ($grant['expires_at'] <= time() ? 'expired' : 'recorded')) . '</p>';
+                }
+            }
+            return $html . '<p>Administrative access never activates an inactive shop or external execution.</p></section>';
+        }
+        $managed = \DigiForge\PortalAccess\Store::read(get_current_user_id());
+        if ($managed !== null) { return $html . '<p>Explicit independently delegated access-management permission required.</p></section>'; }
         $records = ShopAccessAuthority::records();
         if ($records instanceof \WP_Error) {
-            return $html . '<p>Independent signed owner/delegate authority is missing or invalid. A trusted host operator must provision the reviewed authority envelope and public trust key. This website cannot create that authority or bypass it.</p></section>';
+            return $html . '<p>Independent signed delegate authority is missing or invalid. This legacy delegate contract cannot create owner authority. Global Primary Owners use verified database-backed access and User Management.</p></section>';
         }
         $repo = new ShopAccessRepository();
         $count = 0;
         foreach ($records as $record) {
-            if ($record['actor_id'] !== get_current_user_id() || !ShopAccessPolicy::validShop($record['shop'])) {
+            if ($record['actor_id'] !== get_current_user_id() || ($record['authority'] ?? null) !== 'DELEGATE' || !ShopAccessPolicy::validShop($record['shop']) || (($_GET['df_shop'] ?? 'all') !== 'all' && ($_GET['df_shop'] ?? '') !== $record['shop']) || ShopAccess::authorize($record['shop'], 'manage_digiforge_settings') !== true) {
                 continue;
             }
             $state = $repo->read($record['shop']);
@@ -99,7 +124,7 @@ final class ShopAccessPanel
             $count++;
             $html .= '<h2>' . esc_html(match ($record['shop']) { 'digital' => 'KINETIQ MATRIX DESIGNS — Digital', 'personalized_pod' => 'DigiCraftifyGoods — Personalized POD', default => $record['shop'] . ' — future shop; assignment does not activate it' }) . '</h2>';
             $html .= '<p>Signed scope expires ' . esc_html(gmdate('Y-m-d H:i:s', $record['expires_at'])) . ' UTC. Current revision ' . (int)$state['revision'] . '.</p>';
-            foreach (['ENROLL','GRANT'] as $operation) {
+            foreach (['GRANT'] as $operation) {
                 if ($operation === 'ENROLL' && $record['authority'] !== 'OWNER') {
                     continue;
                 }
@@ -144,7 +169,7 @@ final class ShopAccessPanel
         if (!\DigiForge\Security\Logger::write('portal_access_denied', ['actor_id' => get_current_user_id()], 'shop_access', 'portal')) {
             return new \WP_Error('digiforge_portal_access_audit', 'Access audit unavailable.', ['status' => 503]);
         }
-        return new \WP_Error('digiforge_portal_access_denied', 'Exact signed scope, authenticated confirmation and current role are required.', ['status' => 403]);
+        return new \WP_Error('digiforge_portal_access_denied', 'Exact current scope, authenticated confirmation and current role are required.', ['status' => 403]);
     }
     public function landing(array $shops): string
     {

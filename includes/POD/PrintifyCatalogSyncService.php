@@ -18,6 +18,7 @@ final class PrintifyCatalogSyncService
 
     public function syncBlueprint(int $integrationId,int $blueprintId,array $scope=[]): array|WP_Error
     {
+        return new WP_Error('digiforge_printify_governed_catalog_required','Use the governed catalog-read grant pipeline; legacy direct sync is disabled.',['status'=>409,'network_request_attempted'=>false]);
         if (! Settings::is_enabled('printify')) return new WP_Error('digiforge_printify_locked','Scoped Printify authorization is required before catalog network access.',['status'=>409]);
         $integration=(new IntegrationRepository())->find($integrationId);if(is_wp_error($integration))return $integration;if(!$integration||($integration['provider']??'')!=='printify')return new WP_Error('digiforge_printify_integration','A Printify integration is required.',['status'=>409]);if(($integration['status']??'')!=='CONFIGURED'||empty($integration['enabled']))return new WP_Error('digiforge_printify_disabled','Printify must be CONFIGURED and explicitly enabled before catalog sync.',['status'=>409]);if($blueprintId<1)return new WP_Error('digiforge_printify_blueprint','A positive blueprint ID is required.',['status'=>400]);$token=$this->credential($integrationId,$scope);if(is_wp_error($token))return $token;try{$client=$this->clientFactory?($this->clientFactory)():new PrintifyCatalogClient();if(!$client instanceof PrintifyCatalogClient){unset($token);return new WP_Error('digiforge_printify_client','Printify catalog client is unavailable.',['status'=>500]);}$client->bindConnectionScope($integrationId,$scope);$blueprint=$client->blueprint($token,$blueprintId);if(is_wp_error($blueprint)){unset($token);return $blueprint;}$providers=$client->providers($token,$blueprintId);}catch(\Throwable){return new WP_Error('digiforge_printify_transport','Printify catalog consumer failed.',['status'=>502]);}finally{unset($token);}if(is_wp_error($providers))return $providers;return ['provider'=>'printify','environment'=>(string)$integration['environment'],'blueprint'=>$blueprint,'providers'=>$providers,'observed_at'=>gmdate('c')];
     }
@@ -25,6 +26,7 @@ final class PrintifyCatalogSyncService
     /** Fetch provider variants and persist only normalized shared catalog evidence. */
     public function syncProviderVariants(int $integrationId,int $blueprintId,int $providerId,array $scope=[]): array|WP_Error
     {
+        return new WP_Error('digiforge_printify_governed_catalog_required','Use the governed catalog-read grant pipeline; legacy direct sync is disabled.',['status'=>409,'network_request_attempted'=>false]);
         if(!Settings::is_enabled('printify'))return new WP_Error('digiforge_printify_locked','Scoped Printify authorization is required before catalog network access.',['status'=>409]);
         $integration=(new IntegrationRepository())->find($integrationId);
         if(is_wp_error($integration))return $integration;if(!$integration||($integration['provider']??'')!=='printify'||($integration['status']??'')!=='CONFIGURED'||empty($integration['enabled']))return new WP_Error('digiforge_printify_disabled','An enabled CONFIGURED Printify integration is required.',['status'=>409]);

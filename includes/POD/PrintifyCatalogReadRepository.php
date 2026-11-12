@@ -91,6 +91,21 @@ final class PrintifyCatalogReadRepository {
   return true;
  }
  /** Authoritative grant admission; no caller-supplied authorization callback. */
+ /** Non-executing exact metadata for the acceptance overlay; no token or grant mutation. */
+ public function acceptancePlan(string $sha,int $index):array|WP_Error {
+  $g=$this->grant($sha,false);if(is_wp_error($g)||!self::reader()||($g['grant']['account_id']??null)!==get_current_user_id()||!isset($g['grant']['requests'][$index])||$index<0)return self::error('acceptance_scope',403);
+  $assigned=$this->assigned($g);if(is_wp_error($assigned))return $assigned;
+  $scope=PrintifyConnectionBoundary::context($g['binding']['shop_key'],$g['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if(is_wp_error($scope))return $scope;
+  $r=$g['grant']['requests'][$index];$op=match($r['kind']){'blueprints'=>'BLUEPRINTS','blueprint'=>'BLUEPRINT','providers'=>'BLUEPRINT_PROVIDERS','provider'=>'BLUEPRINT_PROVIDER','variants'=>'VARIANTS','size_guide'=>'SIZE_GUIDE','shipping'=>'SHIPPING_METHODS','shipping_method'=>'REGIONAL_SHIPPING',default=>null};if($op===null)return self::error('acceptance_operation',403);
+  return ['request'=>['operation'=>$op,'method'=>'GET','endpoint'=>PrintifyCatalogReadContract::endpoint($r),'body'=>[]],'scope'=>$scope];
+ }
+ public function quotaContext(array $authority):array|WP_Error {
+  if(!self::reader()||!is_string($authority['grant_sha256']??null))return self::error('account_scope',403);
+  $g=$this->grant($authority['grant_sha256']);if($g instanceof WP_Error)return $g;
+  $assigned=$this->assigned($g);if($assigned instanceof WP_Error)return $assigned;
+  $permission=$this->readPermission($authority['grant_sha256'],$g);if($permission instanceof WP_Error)return $permission;
+  return PrintifyConnectionBoundary::context($g['binding']['shop_key'],$g['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);
+ }
  public function authorizeReservedAttempt(array $authority,array $request,string $token,bool $consume):true|WP_Error {
   if(count($authority)!==3||array_diff(array_keys($authority),['grant_sha256','request_index','request_sha256'])||!is_string($authority['grant_sha256']??null)||!is_int($authority['request_index']??null)||!is_string($authority['request_sha256']??null))return self::error('reserved_scope',403);
   $sha=$authority['grant_sha256'];$index=$authority['request_index'];$key=$authority['request_sha256'];
@@ -115,8 +130,29 @@ final class PrintifyCatalogReadRepository {
    // Either half of durable dispatch evidence consumes the intent permanently.
    // A missing option is uncertainty, never permission to repeat the request.
    if($dispatch!==null||$anchors!==[])return self::error('dispatch_replay_or_unavailable',409);
+   $rate=$this->reserveAccountRate($g);if($rate instanceof WP_Error)return $rate;
    return $this->transaction(function()use($name,$sha,$key){if($this->load($name)!==null)return self::error('dispatch_replay',409);
     $r=self::seal(['grant_sha256'=>$sha,'request_sha256'=>$key,'dispatched_at'=>gmdate('c')]);$saved=$this->put($name,$r,'catalog_read_dispatched');return $saved instanceof WP_Error?$saved:true;});
+  });
+ }
+ /** Fresh-only API-workstream bridge; existing read() retains all authority and receipt checks. */
+ public function research(string $sha,int $index,string $key,int $maxAge=0):array|WP_Error {
+  if($maxAge!==0)return self::error('cache_unsupported',400);
+  return $this->read($sha,$index,$key);
+ }
+ /** Fifty per fixed minute => at most100 per rolling minute, shared across tokens/grants/shops. */
+ private function reserveAccountRate(array $grant):true|WP_Error {
+  $context=PrintifyConnectionBoundary::context($grant['binding']['shop_key'],$grant['grant']['integration_id'],PrintifyCatalogReadContract::CAPABILITY);if($context instanceof WP_Error)return $context;
+  $account=hash('sha256',self::json(array_intersect_key($context,array_flip(['installation_sha256','environment','provider','external_account_reference']))));
+  return $this->locked($account,function()use($account,$grant){
+   $bucket=hash('sha256',$account.'|'.intdiv(time(),60));$prefix='df_catalog_rate_'.$bucket.'_';global $wpdb;$wpdb->last_error='';
+   $rows=$wpdb->get_col($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name LIKE %s LIMIT 51',$wpdb->esc_like($prefix).'%'));if(self::databaseFailed()||!is_array($rows)||count($rows)>50)return self::error('rate_evidence',503);
+   $wpdb->last_error='';$audits=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND context LIKE %s LIMIT 51','catalog_read_rate_reserved','catalog_read','%'.$wpdb->esc_like('"rate_bucket_sha256":"'.$bucket.'"').'%'));if(self::databaseFailed()||!is_array($audits)||count($rows)!==count($audits))return self::error('rate_evidence',503);
+   $anchors=[];foreach($audits as $raw){$a=json_decode($raw,true);if(!is_array($a)||($a['rate_bucket_sha256']??null)!==$bucket||!is_string($a['sha256']??null)||isset($anchors[$a['sha256']]))return self::error('rate_evidence',503);$anchors[$a['sha256']]=true;}
+   foreach($rows as $raw){$r=json_decode($raw,true);if(!is_array($r)||!self::sealed($r)||($r['rate_bucket_sha256']??null)!==$bucket||($r['account_sha256']??null)!==$account||!isset($anchors[$r['sha256']]))return self::error('rate_evidence',503);unset($anchors[$r['sha256']]);}if($anchors!==[])return self::error('rate_evidence',503);
+   if(count($rows)>=50)return self::error('account_rate_limit',429);
+   return $this->transaction(function()use($prefix,$bucket,$account,$grant,$rows){$r=self::seal(['slot'=>count($rows),'rate_bucket_sha256'=>$bucket,'account_sha256'=>$account,'grant_sha256'=>$grant['sha256'],'reserved_at'=>gmdate('c')]);$saved=$this->put($prefix.count($rows),$r);if($saved instanceof WP_Error)return $saved;
+    return Logger::write('catalog_read_rate_reserved',['sha256'=>$r['sha256'],'rate_bucket_sha256'=>$bucket],'catalog_read',$r['sha256'])?true:self::error('rate_audit_unavailable',503);});
   });
  }
  public function read(string $sha,int $index,string $key,bool $persist=true):array|WP_Error {

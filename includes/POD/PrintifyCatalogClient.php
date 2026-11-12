@@ -86,8 +86,11 @@ final class PrintifyCatalogClient
             'reject_unsafe_urls'=>true, 'sslverify'=>true, 'headers'=>[
                 'Authorization'=>'Bearer '.$token, 'Accept'=>'application/json', 'User-Agent'=>'DigiForge/CatalogRead'
             ]];
+        $quotaScope=(new PrintifyCatalogReadRepository())->quotaContext($authority);if(is_wp_error($quotaScope))return $quotaScope;
+        $correlation='catalog:'.$authority['grant_sha256'].':'.$authority['request_sha256'];$quota=PrintifyAccountQuota::reserve($quotaScope,$path,'GET',$correlation);if(is_wp_error($quota))return $quota;
         try { $response = ($this->transport)('https://api.printify.com'.$path, $args); }
-        catch (\Throwable) { return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]); }
+        catch (\Throwable) { PrintifyAccountQuota::observe($quotaScope,0,[],$correlation); return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]); }
+        $quotaObserved=PrintifyAccountQuota::observe($quotaScope,is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response),is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')],$correlation);if(is_wp_error($quotaObserved))return $quotaObserved;
         if (is_wp_error($response)) return new WP_Error('catalog_read_transport', 'Catalog GET failed; the request remains consumed.', ['status'=>502]);
         $status = (int) wp_remote_retrieve_response_code($response);
         if ($status !== 200) return new WP_Error('catalog_read_http', 'Catalog GET did not return HTTP 200; no automatic retry.', ['status'=>502]);
@@ -114,6 +117,7 @@ final class PrintifyCatalogClient
 
     private function getWithEvidence(string $token, string $url): array|WP_Error
     {
+        return new WP_Error('catalog_governed_read_required','Use scopedRead with an existing exact grant and reservation.',['status'=>403]);
         $token = trim($token);
         if ($token === '' || strlen($token)>8192 || preg_match('/[\x00-\x20\x7f]/',$token)) return new WP_Error('digiforge_printify_credentials', 'Printify credential is required.', ['status'=>409]);
         if (!$this->approvedEndpoint($url)) return new WP_Error('digiforge_printify_endpoint', 'Printify endpoint is outside the approved catalog boundary.', ['status'=>400]);

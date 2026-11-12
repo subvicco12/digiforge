@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   engineering-safety-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       mariadb:
@@ -297,6 +297,8 @@ jobs:
           grep -Fq "'redirection' => 0" includes/Launch/OpenAIClient.php
           grep -Fq "'sslverify' => true" includes/Launch/OpenAIClient.php
           grep -Fq "'reject_unsafe_urls' => true" includes/Launch/OpenAIClient.php
+
+          python3 bin/artifact-audit/security.py .
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh

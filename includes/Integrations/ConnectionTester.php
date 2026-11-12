@@ -40,6 +40,7 @@ final class ConnectionTester {
     }
 
     private function testPrintify(int $integrationId,array $scope): array|\WP_Error {
+        return new \WP_Error('printify_governed_connection_required', __('Use an independently approved SHOPS_READ plan and testPrintifyGoverned; legacy direct credential tests are disabled.', 'digiforge'), ['status'=>409]);
         if (! Settings::is_enabled('printify')) { return new \WP_Error('printify_scoped_authorization_required', __('Scoped Printify authorization is required before connection-test network access.', 'digiforge'), ['status' => 409]); }
         $binding=\DigiForge\POD\PrintifyConnectionBoundary::runtime($integrationId,'printify.connection.read',$scope);if(is_wp_error($binding))return $binding;
         $token = $this->firstCredential($integrationId, ['personal_access_token', 'access_token']);
@@ -71,6 +72,13 @@ final class ConnectionTester {
         Logger::audit('integration_connection_test_succeeded', ['provider' => 'printify', 'shop_count' => count($shops)], 'integration', (string) $integrationId);
         $names = array_values(array_filter(array_map(static fn(array $shop): string => $shop['title'], $shops)));
         return ['ok' => true, 'provider' => 'printify', 'checked_at' => current_time('mysql', true), 'shops' => $shops, 'provider_identity_verified'=>false,'external_execution_authorized'=>false,'message' => sprintf(__('Scoped Printify response observed; ownership remains uncertified. %d shop(s) returned%s.', 'digiforge'), count($shops), $names ? ': ' . implode(', ', array_slice($names, 0, 5)) : '')];
+    }
+
+    public function testPrintifyGoverned(int $integrationId,string $planHash,string $authorizationHash):array|\WP_Error {
+        $workflow=new \DigiForge\POD\PrintifyApiReadWorkflow();$plan=$workflow->plan($planHash);
+        if(is_wp_error($plan)||$plan['integration_id']!==$integrationId||$plan['request']['operation']!=='SHOPS_READ')return new \WP_Error('printify_connection_plan','Exact governed account read required.',['status'=>409]);
+        $receipt=(new \DigiForge\POD\PrintifyControlledTransport())->executeApiRead($planHash,$authorizationHash);if(is_wp_error($receipt))return $receipt;
+        return ['ok'=>$receipt['record']['status']==='SUCCEEDED','provider'=>'printify','source_receipt_hash'=>$receipt['hash'],'checked_at'=>$receipt['record']['observed_at'],'shops'=>$receipt['record']['data']['shops']??[],'configuration_changed'=>false];
     }
 
     private function testEtsy(int $integrationId): array|\WP_Error {

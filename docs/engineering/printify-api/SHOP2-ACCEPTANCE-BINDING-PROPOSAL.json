@@ -1,0 +1,21 @@
+{
+    "schema": "printify-shop2-binding-proposal-v2",
+    "status": "PROPOSAL_ONLY",
+    "internal_shop_id": 2,
+    "shop_key": "personalized_pod",
+    "integration_id": 3,
+    "provider": "printify",
+    "provider_shop_id": "28930593",
+    "excluded_provider_shop_id": "28925875",
+    "channel": "etsy",
+    "environment": "production",
+    "account_reference": null,
+    "credential_reference": null,
+    "catalog_scope": null,
+    "evidence_revision": null,
+    "approval_sha256": null,
+    "observed_at": null,
+    "expires_at": null,
+    "integration_enabled": false,
+    "runtime_execution_authorized": false
+}
