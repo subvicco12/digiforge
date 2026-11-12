@@ -28,7 +28,7 @@ class Stage2PackageTests(unittest.TestCase):
             root = pathlib.Path(d)
             paths = list((ROOT / 'includes/Connector/Printify').glob('*.php'))
             paths += list((ROOT / 'companion/digiforge-printify-connector').glob('*.php'))
-            paths += [ROOT / p.CLIENT, ROOT / 'includes/POD/PrintifyConnectorReadContract.php', ROOT / 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', ROOT / 'bin/package-printify-connector-stage2.py']
+            paths += [ROOT / p.CLIENT, ROOT / 'includes/Portal/OpportunityDesignPanel.php', ROOT / 'includes/POD/PrintifyConnectorReadContract.php', ROOT / 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', ROOT / 'bin/package-printify-connector-stage2.py']
             for source in paths:
                 destination = root / source.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -132,6 +132,7 @@ class Stage2PackageTests(unittest.TestCase):
             self.assertEqual(changed, {'digiforge/digiforge.php', 'digiforge/' + p.CLIENT})
             self.assertEqual(manifest['counts']['RETAIN_IDENTICAL'], 739)
             self.assertTrue(set(original).issubset(candidate))
+            self.assertTrue('digiforge/includes/Portal/OpportunityDesignPanel.php' in candidate, 'Existing qualified panel must be included in the recovered assembly')
             self.assertFalse(manifest['installation_authorized'])
             for name, raw in candidate.items():
                 self.assertEqual((output / 'extracted/core' / name).read_bytes(), raw)

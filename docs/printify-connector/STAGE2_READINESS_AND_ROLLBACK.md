@@ -1,5 +1,7 @@
 # Stage 2 installed-lineage preparation
 
+Historical checkpoint: eec808f1. Follow-up acceptance recovery and the separately proposed, inactive policy wording are documented in STAGE2_ACCEPTANCE_RECOVERY.md and STAGE2_GET_POLICY_AMENDMENT_DRAFT.md. Original package/control evidence below is preserved; final recovered exact-head results are in the PR handoff.
+
 Status: TEST_ONLY_NOT_INSTALLATION_READY. No live GET, installation, migration, merge, staging or production change is authorized. The Personalized POD lane is not imported.
 
 ## Verified identities and provenance

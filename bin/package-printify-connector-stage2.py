@@ -14,7 +14,7 @@ BASELINE_SHA256 = '5303ef7eb5ede7dab770599f5cfd279022c77d3d8665a3d5ab1d2fce5ef83
 BASELINE_SOURCE = 'e957ba096751dc34254cdbcbefed13b625f5e507'
 BASELINE_COUNT = 741
 BASELINE_SIZE = 3201579
-CANDIDATE_VERSION = '1.0.103.17-connector.1'
+CANDIDATE_VERSION = '1.0.103.17-connector.2'
 CLIENT = 'includes/POD/PrintifyCatalogClient.php'
 ANCHOR = b'    private function id(int $id): int\n'
 METHOD_START = b'    /** One admitted attempt; the caller owns all execution and budget policy. */\n'
@@ -82,7 +82,7 @@ def write_zip(path, members):
 def selected_paths():
     files = {p.relative_to(ROOT).as_posix() for p in (ROOT / 'includes/Connector/Printify').glob('*.php')}
     files |= {'companion/digiforge-printify-connector/' + name for name in ['Plugin.php', 'digiforge-printify-connector.php']}
-    files |= {CLIENT, 'includes/POD/PrintifyConnectorReadContract.php', 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', 'bin/package-printify-connector-stage2.py'}
+    files |= {CLIENT, 'includes/Portal/OpportunityDesignPanel.php', 'includes/POD/PrintifyConnectorReadContract.php', 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', 'bin/package-printify-connector-stage2.py'}
     return files
 
 
@@ -160,6 +160,10 @@ def build(baseline_path, output, source_sha):
     candidate['digiforge/digiforge.php'] = port_header(original['digiforge/digiforge.php'])
     added = sorted(name for name in snapshot if name.startswith('includes/Connector/Printify/'))
     added += ['includes/POD/PrintifyConnectorReadContract.php']
+    for name, expected in contract['additional_runtime_files'].items():
+        if name not in snapshot or sha(snapshot[name]) != expected:
+            raise ValueError('Qualified additional runtime source changed')
+        added.append(name)
     for name in added:
         key = 'digiforge/' + name
         if key in original:

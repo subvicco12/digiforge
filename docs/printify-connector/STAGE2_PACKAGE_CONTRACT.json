@@ -17,5 +17,9 @@
   "production_installation_authorized": false,
   "live_get_authorized": false,
   "connector_method_sha256": "1b92ae27c6e60ed4b2e8aa04d093ddc2c7811daf9320629a2c54b625a77527f9",
-  "connector_source_preimage_sha256": "fac2a681340b33442b1e7b6d7f3b21436d2dfc68844dcbf95cf43e7989921132"
+  "connector_source_preimage_sha256": "fac2a681340b33442b1e7b6d7f3b21436d2dfc68844dcbf95cf43e7989921132",
+  "additional_runtime_files": {
+    "includes/Portal/OpportunityDesignPanel.php": "d5e537a0adbe35e634fe73f918ff69084b66319e8b82425eacc4d6aa40dd3611"
+  },
+  "additional_runtime_reason": "Existing qualified source class omitted by original .17 package assembly; unregistered additive class only; no bootstrap or hook change."
 }

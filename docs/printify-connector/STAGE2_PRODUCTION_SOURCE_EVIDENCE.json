@@ -71,12 +71,22 @@
     {
       "path": "includes/Core/Settings.php",
       "reason": "HOSTINGER_CONTENT_REFUSED_HTTP422",
-      "bypass_attempted": false
+      "bypass_attempted": false,
+      "expected_baseline_sha256": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862",
+      "retry_observed_at": "2026-11-12",
+      "retry_result": "HTTP422_HOSTING9999_SENSITIVE_CREDENTIAL_PREVIEW_REFUSED",
+      "production_hash_verified": false,
+      "retry_correlation_id": "a334b5a4-a917-4934-aa33-e82d1f425abb"
     },
     {
       "path": "includes/POD/ScopedProviderConnection.php",
       "reason": "HOSTINGER_CONTENT_REFUSED_HTTP422",
-      "bypass_attempted": false
+      "bypass_attempted": false,
+      "expected_baseline_sha256": "e48d64e7d1bf2f08c50cb0228ab76b082ae3d7c7dc085ec58fb5fac8d494b5cf",
+      "retry_observed_at": "2026-11-12",
+      "retry_result": "HTTP422_HOSTING9999_SENSITIVE_CREDENTIAL_PREVIEW_REFUSED",
+      "production_hash_verified": false,
+      "retry_correlation_id": "a334b59c-5b18-4673-8899-caf030195f98"
     }
   ],
   "full_production_tree_equivalence_verified": false
