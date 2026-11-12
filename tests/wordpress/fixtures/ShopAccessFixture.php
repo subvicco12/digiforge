@@ -3,31 +3,15 @@ declare(strict_types=1);
 
 /** Opt-in ephemeral signing fixture, never an implicit administrator bypass. */
 require_once __DIR__.'/SyntheticShopAuthority.php';
+require_once __DIR__.'/PortalAccessFixture.php';
 final class ShopAccessFixture
 {
     private static array $authorities=[];
     /** Opt-in setup reset of synthetic ACL evidence only, never business/provider history. */
     public static function reset(): void
     {
-        global $wpdb;
-        // WP reinstalls options between runs but retains custom tables. Remove only
-        // identifiable synthetic lifecycle audits; business and denial audits stay.
-        $table=DigiForge\Database\Tables::audit_log();
-        $rows=$wpdb->get_results("SELECT id,context FROM {$table} WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke')",ARRAY_A);
-        if($wpdb->last_error!=='')throw new RuntimeException('Synthetic ACL audit read failed.');
-        foreach($rows as $row){
-            $event=json_decode((string)$row['context'],true);$grant=$event['grant']??null;
-            if(!is_array($event)||!is_array($grant)||!is_int($grant['grantor_id']??null)||!DigiForge\Security\ShopAccessPolicy::validShop($event['shop']??''))continue;
-            $synthetic=hash('sha256','Synthetic independent authority '.$grant['grantor_id'].':'.$event['shop']);
-            if(($grant['source_approval_hash']??null)!==$synthetic)continue;
-            $wpdb->delete($table,['id'=>$row['id'],'context'=>$row['context']]);
-            if($wpdb->last_error!=='')throw new RuntimeException('Synthetic ACL audit reset failed.');
-        }
-        foreach(['digiforge_shop_access_state_','digiforge_shop_access_event_'] as $prefix){
-            $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",$wpdb->esc_like($prefix).'%'));
-            if($wpdb->last_error!=='')throw new RuntimeException('Synthetic ACL reset failed.');
-        }
-        self::$authorities=[];SyntheticShopAuthority::clear();
+        // Existing .17 fixture resets only synthetic native ACL/profile test evidence.
+        PortalAccessFixture::reset();self::$authorities=[];
     }
     public static function provision(array $authorities): void
     {
