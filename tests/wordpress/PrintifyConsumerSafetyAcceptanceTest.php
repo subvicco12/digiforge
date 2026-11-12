@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__.'/Support/ReviewedLocalFixture.php';
 require_once __DIR__.'/Support/ReviewedOwnershipFixture.php';
 require_once __DIR__.'/Support/ScopedProviderConnectionFixture.php';
+require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
+require_once __DIR__.'/fixtures/DurableCatalogFixture.php';
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\Integrations\ConnectionTester;
@@ -15,6 +17,8 @@ use DigiForge\POD\PrintifyScopedCredentialRetriever;
 /** Synthetic disposable-database consumer acceptance; every HTTP request is intercepted. */
 final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
 {
+    use DurableCatalogFixture { tearDown as private restoreConsumerSnapshot; }
+    public static function set_up_before_class():void {parent::set_up_before_class();PrintifyApiApprovalFixture::checked(DigiForge\Database\ProviderConnectionSchema::migrateIfNeeded());}
     private int $integrationId;
     private array $scopes=[];
     private int $httpCalls = 0;
@@ -25,6 +29,7 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
     {
         parent::setUp();
         DigiForge\Core\Activator::activate();
+        $this->snapshotCatalogSession();
         Settings::protectProduction();
         $actors=ReviewedLocalFixture::actors('personalized_pod');$fixture=ReviewedOwnershipFixture::create($this);$this->integrationId=$fixture['integration_id'];
         $repository=new Repository();self::assertTrue($repository->storeSecret($this->integrationId,'personal_access_token',self::TOKEN));self::assertNotWPError($repository->setEnabled($this->integrationId,true));$this->rebind();
@@ -45,7 +50,7 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
     {
         remove_filter('pre_http_request', $this->httpFilter, 1);
         Settings::protectProduction();
-        parent::tearDown();
+        $this->restoreConsumerSnapshot();
     }
 
     /** Local fixture authority only; never applied to a provider or another database. */
@@ -82,9 +87,9 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
                 $this->consume(function () use (&$consumerCalls) { ++$consumerCalls; }),
             ];
         });
-        foreach ($results as $result) {
+        foreach ($results as $index => $result) {
             self::assertWPError($result);
-            self::assertSame('integration_read_unavailable', $result->get_error_code());
+            self::assertSame(in_array($index,[0,3],true)?'integration_read_unavailable':'digiforge_printify_governed_catalog_required', $result->get_error_code());
         }
         self::assertSame(0, $consumerCalls);
         self::assertSame(0, $this->httpCalls);
@@ -111,11 +116,11 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
                 $this->consume(function () use (&$consumerCalls) { ++$consumerCalls; }),
             ];
         });
-        foreach ($results as $result) {
+        foreach ($results as $index => $result) {
             self::assertWPError($result);
-            self::assertSame(503, $result->get_error_data()['status']);
+            self::assertSame($index===3?503:409, $result->get_error_data()['status']);
         }
-        self::assertCount(4, $reads);
+        self::assertCount(1, $reads);
         foreach ($reads as $sql) self::assertStringNotContainsString("'access_token'", $sql);
         self::assertSame(0, $consumerCalls);
         self::assertSame(0, $this->httpCalls);
@@ -129,10 +134,29 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
         global $wpdb;
         $wpdb->update(Tables::integration_secrets(), ['ciphertext'=>'corrupt:test:value'],
             ['integration_id'=>$this->integrationId,'secret_name'=>'personal_access_token']);
-        $result = (new ConnectionTester())->test($this->integrationId,$this->scopes['connection']);
+        $calls=0;$result=$this->consume(static function()use(&$calls){++$calls;return [];});
         self::assertWPError($result);
-        self::assertSame('credential_decryption_failed', $result->get_error_code());
+        self::assertSame('digiforge_printify_credential_decrypt', $result->get_error_code());
+        self::assertSame(0,$calls);
         self::assertSame(0, $this->httpCalls);
+    }
+
+    private function governedResponse(array $response, ?callable $queryFault=null, string $expectedStatus='RESPONSE_REJECTED'):array
+    {
+        $fixture=new PrintifyApiApprovalFixture();$fixture->boot();$calls=0;$seenToken='';
+        $workflow=new DigiForge\POD\PrintifyApiReadWorkflow();
+        try {
+            $plan=PrintifyApiApprovalFixture::checked($workflow->prepare('personalized_pod',$fixture->integration,'SHOPS_READ',[]));
+            $auth=$fixture->approve($workflow,$plan,'printify-api-read');
+            $fake=static function($pre,$args,$url)use($response,&$calls,&$seenToken){self::assertSame('https://api.printify.com/v1/shops.json',$url);self::assertSame('GET',$args['method']);++$calls;$seenToken=substr($args['headers']['Authorization'],7);$body=str_replace([self::TOKEN,'\\u0073ynthetic-consumer-safety-token'],[$seenToken,'\\u0073'.substr($seenToken,1)],$response['body']);return ['headers'=>[],'response'=>['code'=>$response['code']],'body'=>$body];};
+            add_filter('pre_http_request',$fake,2,3);
+            try {$result=$queryFault?$this->fault($queryFault,fn()=>(new ConnectionTester())->testPrintifyGoverned($fixture->integration,$plan['hash'],$auth['hash'])):(new ConnectionTester())->testPrintifyGoverned($fixture->integration,$plan['hash'],$auth['hash']);}
+            finally {remove_filter('pre_http_request',$fake,2);}
+            self::assertIsArray($result);self::assertFalse($result['ok']);self::assertSame([],$result['shops']);self::assertFalse($result['configuration_changed']);self::assertGreaterThan(0,$calls);self::assertLessThanOrEqual(3,$calls);if($response['code']===200)self::assertSame(1,$calls);
+            $receipt=PrintifyApiApprovalFixture::checked($workflow->receipt($result['source_receipt_hash']));self::assertSame($response['code']===200?$expectedStatus:($response['code']===401?'FAILED':'UNKNOWN'),$receipt['status']);self::assertNull($receipt['data']);
+            $stored=(new Repository())->find($fixture->integration);self::assertIsArray($stored);self::assertArrayNotHasKey('_connection_test',$stored['config']);self::assertStringNotContainsString(self::TOKEN,wp_json_encode([$stored['config'],$receipt]));self::assertNotSame('',$seenToken);self::assertStringNotContainsString($seenToken,wp_json_encode([$result,$stored['config'],$receipt]));
+            return $result;
+        } finally {$fixture->restore();}
     }
 
     public function testEscapedTokenEchoAndCredentialFieldsNeverBecomeConnectionEvidence(): void
@@ -145,18 +169,8 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
             ['code'=>200,'body'=>'[{"id":12,"title":"Synthetic shop","sales_channel":"etsy","access_token":"other-secret"}]'],
         ];
         foreach ($responses as $response) {
-            $this->rebind();
-            $filter = static fn() => ['headers'=>[],'response'=>['code'=>$response['code']], 'body'=>$response['body']];
-            add_filter('pre_http_request', $filter, 2);
-            try { $result = (new ConnectionTester())->test($this->integrationId,$this->scopes['connection']); }
-            finally { remove_filter('pre_http_request', $filter, 2); }
-            self::assertWPError($result);
-            self::assertSame('printify_protected_response', $result->get_error_code());
-            self::assertStringNotContainsString(self::TOKEN, wp_json_encode($result));
-            $stored = (new Repository())->find($this->integrationId);
-            self::assertIsArray($stored);
-            self::assertFalse($stored['config']['_connection_test']['ok']);
-            self::assertStringNotContainsString(self::TOKEN, wp_json_encode($stored['config']));
+            $result=$this->governedResponse($response);
+            self::assertStringNotContainsString(self::TOKEN,wp_json_encode($result));
         }
     }
 
@@ -164,14 +178,7 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
     {
         $this->authorizeSyntheticConsumer();
         foreach (['{"error":"unexpected"}', '[{"title":"no identity","sales_channel":"etsy"}]', '[{"id":-12,"title":"negative identity","sales_channel":"etsy"}]', '[{"id":[12],"title":"array identity","sales_channel":"etsy"}]'] as $body) {
-            $this->rebind();
-            $filter = static fn() => ['headers'=>[],'response'=>['code'=>200], 'body'=>$body];
-            add_filter('pre_http_request', $filter, 2);
-            try { $result = (new ConnectionTester())->test($this->integrationId,$this->scopes['connection']); }
-            finally { remove_filter('pre_http_request', $filter, 2); }
-            self::assertWPError($result);
-            self::assertSame('printify_invalid_response', $result->get_error_code());
-            self::assertFalse((new Repository())->find($this->integrationId)['config']['_connection_test']['ok']);
+            $this->governedResponse(['code'=>200,'body'=>$body],null,'UNKNOWN');
         }
     }
 
@@ -186,16 +193,11 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
             }
             return $sql;
         };
-        $http = static function()use(&$httpReached){$httpReached=true;return ['headers'=>[], 'response'=>['code'=>200], 'body'=>'[{"id":12,"title":"Synthetic shop","sales_channel":"etsy"}]'];};
-        add_filter('pre_http_request', $http, 2);
-        try { $result = $this->fault($filter, fn() => (new ConnectionTester())->test($this->integrationId,$this->scopes['connection'])); }
-        finally { remove_filter('pre_http_request', $http, 2); }
-        self::assertWPError($result);
-        self::assertSame('provider_connection_unavailable', $result->get_error_code());
+        $http=static function($pre)use(&$httpReached){$httpReached=true;return $pre;};
+        add_filter('pre_http_request',$http,1);
+        try {$this->governedResponse(['code'=>200,'body'=>'[{"id":12,"title":"Synthetic shop","sales_channel":"etsy"}]'],$filter,'UNKNOWN');}
+        finally {remove_filter('pre_http_request',$http,1);}
         self::assertTrue($httpReached);self::assertTrue($faultReached);self::assertGreaterThanOrEqual(2,$metadataReads);
-        $stored = (new Repository())->find($this->integrationId);
-        self::assertIsArray($stored);
-        self::assertArrayNotHasKey('_connection_test', $stored['config']);
     }
 
     public function testConsumerExceptionsCannotEscapeWithCredentialMaterial(): void
@@ -212,23 +214,16 @@ final class PrintifyConsumerSafetyAcceptanceTest extends WP_UnitTestCase
         self::assertSame(0, $this->httpCalls);
     }
 
-    public function testLegacySecretAndReadOnlyBlueprintSuccessRemainSupported(): void
+    public function testLegacyDirectBlueprintSyncCannotBypassGovernedAdmission(): void
     {
         $this->authorizeSyntheticConsumer();
-        global $wpdb;
-        $wpdb->delete(Tables::integration_secrets(), ['integration_id'=>$this->integrationId,'secret_name'=>'personal_access_token']);
-        self::assertTrue((new Repository())->storeSecret($this->integrationId, 'access_token', self::TOKEN));$this->rebind();
-        $calls = [];
-        $client = new PrintifyCatalogClient(static function (string $url, array $args) use (&$calls): array {
-            $calls[] = $url;
-            self::assertSame('Bearer '.self::TOKEN, $args['headers']['Authorization']);
-            return ['response'=>['code'=>200], 'body'=>str_contains($url, 'print_providers') ? '[{"id":2}]' : '{"id":101,"title":"Synthetic blueprint"}'];
-        });
-        $result = (new PrintifyCatalogSyncService(static fn() => $client))->syncBlueprint($this->integrationId, 101,$this->scopes['catalog']);
-        self::assertIsArray($result);
-        self::assertCount(2, $calls);
-        self::assertSame(101, $result['blueprint']['id']);
-        self::assertStringNotContainsString(self::TOKEN, wp_json_encode($result));
-        self::assertSame(0, $this->httpCalls);
+        $calls=0;
+        $client=new PrintifyCatalogClient(static function() use (&$calls): array { ++$calls; return []; });
+        $result=(new PrintifyCatalogSyncService(static fn()=>$client))->syncBlueprint($this->integrationId,101,$this->scopes['catalog']);
+        self::assertWPError($result);
+        self::assertSame('digiforge_printify_governed_catalog_required',$result->get_error_code());
+        self::assertSame(0,$calls);
+        self::assertStringNotContainsString(self::TOKEN,wp_json_encode($result));
+        self::assertSame(0,$this->httpCalls);
     }
 }

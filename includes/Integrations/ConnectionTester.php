@@ -40,6 +40,8 @@ final class ConnectionTester {
     }
 
     private function testPrintify(int $integrationId,array $scope): array|\WP_Error {
+        if (! Settings::is_enabled('printify')) return new \WP_Error('printify_scoped_authorization_required','Scoped Printify authorization is required before connection-test network access.',['status'=>409]);
+        if ($scope===[]) return new \WP_Error('printify_connection_scope_required','An exact reviewed connection scope is required.',['status'=>403]);
         return new \WP_Error('printify_governed_connection_required', __('Use an independently approved SHOPS_READ plan and testPrintifyGoverned; legacy direct credential tests are disabled.', 'digiforge'), ['status'=>409]);
         if (! Settings::is_enabled('printify')) { return new \WP_Error('printify_scoped_authorization_required', __('Scoped Printify authorization is required before connection-test network access.', 'digiforge'), ['status' => 409]); }
         $binding=\DigiForge\POD\PrintifyConnectionBoundary::runtime($integrationId,'printify.connection.read',$scope);if(is_wp_error($binding))return $binding;

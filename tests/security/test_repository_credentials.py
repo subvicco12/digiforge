@@ -87,6 +87,65 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertEqual('FINDINGS_REVIEW_REQUIRED', evidence['status'])
         self.assertNotIn(canary, result.stdout + result.stderr + json.dumps(evidence))
 
+    def manifest_fixture(self, extra=None):
+        self.commit('Nonsecret Git object fixture.\n')
+        start=self.git('rev-parse','HEAD')
+        blob=self.git('rev-parse',start+':fixture.txt')
+        # The reviewed historical manifest schema, not a generic token allowlist.
+        manifest={'schema':'digiforge-printify-shared-dependency-v1',
+                  'refs':{'api_1253_start':start,'api_branch_base_main':start},
+                  'api_lane_files':[{'path':'fixture.txt','api_start_blob':blob}]}
+        if extra:manifest.update(extra)
+        p=self.root/'docs/engineering/printify-shared-dependency-manifest-v1.json'
+        p.parent.mkdir(parents=True);p.write_text(json.dumps(manifest,indent=2)+'\n')
+        self.git('add','.');self.git('commit','-qm','Git object metadata fixture')
+        return p,manifest
+
+    def test_git_metadata_requires_real_commit_and_exact_path_blob(self):
+        self.manifest_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertGreater(evidence.get('verified_git_identifier_count',0),0)
+        self.assertEqual(evidence['raw_finding_count'],evidence['verified_git_identifier_count'])
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_metadata_schema_cannot_hide_a_new_credential(self):
+        canary='ghp_'+'a1B2c3D4'*4+'E5f6'
+        self.manifest_fixture({'api_key':canary})
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+    def test_wrong_blob_at_same_metadata_key_is_not_classified(self):
+        p,m=self.manifest_fixture()
+        m['api_lane_files'][0]['api_start_blob']=m['refs']['api_1253_start']
+        p.write_text(json.dumps(m,indent=2)+'\n');self.git('add','.');self.git('commit','-qm','Wrong object identity fixture')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_known_git_key_outside_reviewed_structural_location_remains_actionable(self):
+        p, m = self.manifest_fixture()
+        m['unreviewed'] = {'api_start_blob': m['api_lane_files'][0]['api_start_blob']}
+        p.write_text(json.dumps(m, indent=2) + '\n')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'Wrong structural location fixture')
+        result, evidence = self.scan()
+        self.assertNotEqual(0, result.returncode)
+        self.assertGreater(evidence['finding_count'], 0)
+
+    def test_duplicate_json_members_remain_actionable(self):
+        p, m = self.manifest_fixture()
+        raw = json.dumps(m, indent=2)
+        raw = raw.replace('  "schema":', '  "schema": "duplicate",\n  "schema":', 1)
+        p.write_text(raw + '\n')
+        self.git('add', '.')
+        self.git('commit', '--amend', '-qm', 'Duplicate member fixture')
+        result, evidence = self.scan()
+        self.assertNotEqual(0, result.returncode)
+        self.assertGreater(evidence['finding_count'], 0)
+
     def test_shallow_history_cannot_be_certified(self):
         self.commit('Clean initial fixture.\n')
         self.commit('Clean second fixture.\n')

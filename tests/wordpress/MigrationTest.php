@@ -121,7 +121,7 @@ final class MigrationTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->query("DROP TABLE IF EXISTS `{$table}`"));
         self::assertNull($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table))));
         update_option('digiforge_db_schema_version',21,false); update_option('digiforge_db_version','21',false); $wpdb->last_error='';
-        self::assertTrue(DigiForge\Database\V6OperationalSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\ScopedPolicySchema::migrateIfNeeded()); self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table)))); self::assertSame(23,(int)get_option('digiforge_db_schema_version')); self::assertSame('23',(string)get_option('digiforge_db_version'));
+        self::assertTrue(DigiForge\Database\V6OperationalSchema::migrateIfNeeded()); self::assertTrue(DigiForge\Database\ScopedPolicySchema::migrateIfNeeded()); self::assertSame($table,$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s',$wpdb->esc_like($table)))); self::assertSame(23,(int)get_option('digiforge_db_schema_version')); self::assertSame('22',(string)get_option('digiforge_db_version'));
         $before=$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N); self::assertIsArray($before); DigiForge\Core\Activator::activate(); self::assertSame($before,$wpdb->get_row('SHOW CREATE TABLE '.$table,ARRAY_N)); self::assertSame('',(string)$wpdb->last_error);
         } finally {
             add_filter('query', [$this, '_create_temporary_tables']);

@@ -21,7 +21,8 @@ concurrency:
 jobs:
   engineering-safety-audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Cumulative WordPress + durable catalog acceptance exceeds the former budget.
+    timeout-minutes: 45
     services:
       mariadb:
         image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2

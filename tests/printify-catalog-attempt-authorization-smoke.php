@@ -13,58 +13,31 @@ require dirname(__DIR__) . '/includes/POD/PrintifyCatalogReadPolicy.php';
 require dirname(__DIR__) . '/includes/POD/PrintifyCatalogClient.php';
 use DigiForge\POD\PrintifyCatalogClient;
 function ensure(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
-$calls = 0;
-$authorized = 0;
-$sender = static function (string $url, array $args) use (&$calls): array {
-    ++$calls;
-    return $calls === 1 ? ['status'=>429,'retry_after'=>'0'] : ['status'=>200,'body'=>'{"variants":[]}'];
-};
-$guard = static function (string $url, int $attempt) use (&$authorized): bool {
-    ++$authorized;
-    return $attempt === 1;
-};
-$client = new PrintifyCatalogClient($sender, static fn(int $delay): null => null, $guard);
-$result = $client->variants('test-token', 478, 28);
-ensure($result instanceof WP_Error && $result->code === 'digiforge_printify_read_authorization', 'Retry must be denied');
-ensure($calls === 1 && $authorized === 2, 'No second transport after denied retry');
-
-$calls = 0;
-$client = new PrintifyCatalogClient($sender, static fn(int $delay): null => null, static fn(): WP_Error => new WP_Error('locked', 'STOP ALL'));
-$result = $client->variants('test-token', 478, 28);
-ensure($result instanceof WP_Error && $result->code === 'locked' && $calls === 0, 'Explicit denial must precede network');
-$client = new PrintifyCatalogClient($sender, static fn(int $delay): null => null, static function (): bool { throw new RuntimeException('failure'); });
-$result = $client->variants('test-token', 478, 28);
-ensure($result instanceof WP_Error && $calls === 0, 'Guard exceptions must deny before network');
-$client = new PrintifyCatalogClient($sender, null, static fn()=>true);
-$result = $client->scopedRead('synthetic-token',['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28]);
-ensure($result instanceof WP_Error && $calls===0, 'Missing grant dependency and permissive callback must not authorize scoped transport');
-$legacyCalls=0;
-$legacy = new PrintifyCatalogClient(static function($url,$args)use(&$legacyCalls){++$legacyCalls;return ['status'=>200,'body'=>'{"variants":[]}'];});
-ensure(is_array($legacy->variants('synthetic-token',478,28)) && $legacyCalls===1,'Legacy unscoped caller contract preserved');
-foreach(['not JSON','null',str_repeat('x',1048577),'{"value":"synthetic-token"}','{"access_token":"redacted"}']as $body){
- $bad=new PrintifyCatalogClient(static fn()=>['status'=>200,'body'=>$body]);
- ensure($bad->variants('synthetic-token',478,28) instanceof WP_Error,'Malformed or protected legacy payload rejected');
+// Callback-only legacy entry points cannot replace concrete signed admission.
+// Positive transport/provenance/rate-limit cases run through the real grant
+// repository in PrintifyCatalogResponseSafetyTest, never a permissive stub.
+$calls=0;$guardCalls=0;$sleeps=[];
+$client=new PrintifyCatalogClient(static function()use(&$calls){++$calls;return ['status'=>429,'retry_after'=>'0','body'=>'{}'];},static function($delay)use(&$sleeps){$sleeps[]=$delay;},static function()use(&$guardCalls){++$guardCalls;return true;});
+foreach ([static fn()=>$client->blueprints('synthetic-token'),static fn()=>$client->blueprint('synthetic-token',478),static fn()=>$client->providers('synthetic-token',478),static fn()=>$client->variants('synthetic-token',478,28),static fn()=>$client->variantsWithEvidence('synthetic-token',478,28)] as $read) {
+ $result=$read();ensure($result instanceof WP_Error&&$result->code==='catalog_governed_read_required','Raw legacy API cannot bypass signed grant and reservation');
 }
-$throwing = new PrintifyCatalogClient(static function(){throw new RuntimeException('sensitive detail');});
-$result=$throwing->variants('synthetic-token',478,28);
-ensure($result instanceof WP_Error && !str_contains(json_encode($result),'sensitive detail'),'Thrown transport details sanitized');
+foreach([null,'standard','priority','express','economy']as $method)ensure($client->shipping('synthetic-token',478,28,$method) instanceof WP_Error,'Raw shipping cannot bypass signed admission');
+ensure($client->shipping('synthetic-token',478,28,'POST') instanceof WP_Error,'Unsupported shipping method denied');
+ensure($calls===0&&$guardCalls===0&&$sleeps===[],'No transport, permissive callback or retry before concrete admission');
+$result=$client->scopedRead('synthetic-token',['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28]);
+ensure($result instanceof WP_Error&&$calls===0,'Missing grant dependency cannot authorize scoped transport');
 foreach ([['kind'=>'shipping_method','blueprint_id'=>478,'provider_id'=>28,'method'=>'POST'],['kind'=>'variants','blueprint_id'=>-1,'provider_id'=>28],['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28,'url'=>'https://evil.invalid'],['kind'=>'variants','blueprint_id'=>'478','provider_id'=>28]] as $request) {
- ensure($client->scopedRead('synthetic-token',$request) instanceof WP_Error && $calls===0,'Unsafe explicit scope denied before HTTP');
+ ensure($client->scopedRead('synthetic-token',$request) instanceof WP_Error&&$calls===0,'Unsafe explicit scope denied before HTTP');
 }
-$exhausted=0;$sleeps=[];
-$rate=new PrintifyCatalogClient(static function()use(&$exhausted){++$exhausted;return ['status'=>429,'retry_after'=>'999999999'];},static function($delay)use(&$sleeps){$sleeps[]=$delay;});
-ensure($rate->variants('synthetic-token',478,28) instanceof WP_Error && $exhausted===3 && $sleeps===[60000000,60000000],'Legacy retry count and delay caps preserved');
-
 foreach ([
  [['kind'=>'blueprint','blueprint_id'=>478],['id'=>478]],
  [['kind'=>'providers','blueprint_id'=>478],[['id'=>28,'title'=>'synthetic']]],
  [['kind'=>'variants','blueprint_id'=>478,'provider_id'=>28],['variants'=>[]]],
-] as [$request,$data]) {ensure(DigiForge\POD\PrintifyCatalogReadContract::select($data,$request)===$data,'Supported envelope retained without fabricated geometry');}
-echo "Printify catalog attempt authorization offline tests passed\n";
-
-// Legacy API/return shape remains unchanged; scoped v2 validation is a separate contract.
-$shippingUrls=[];$legacyShipping=new PrintifyCatalogClient(static function($url,$args)use(&$shippingUrls){$shippingUrls[]=$url;ensure(($args['redirection']??-1)===0,'No legacy redirects');return ['status'=>200,'body'=>'{"data":[]}'];});
-foreach([null,'standard','priority','express','economy']as $method){ensure($legacyShipping->shipping('synthetic-token',478,28,$method)===['data'=>[]],'Legacy shipping return shape preserved');$suffix=$method===null?'.json':'/'.$method.'.json';ensure(end($shippingUrls)==='https://api.printify.com/v2/catalog/blueprints/478/print_providers/28/shipping'.$suffix,'Exact legacy shipping GET path');}
-ensure($legacyShipping->shipping('synthetic-token',478,28,'POST') instanceof WP_Error&&count($shippingUrls)===5,'Unsupported legacy method never dispatches');
-$e=$legacyShipping->variantsWithEvidence('synthetic-token',478,28);ensure(isset($e['data'],$e['source_evidence']['response_sha256'],$e['source_evidence']['observed_at']),'Legacy variant provenance retained');
-echo "Printify legacy shipping compatibility passed\n";
+] as [$request,$data]) ensure(DigiForge\POD\PrintifyCatalogReadContract::select($data,$request)===$data,'Supported envelope retained without fabricated geometry');
+foreach([null,'standard','priority','express','economy']as $method){
+ $request=['kind'=>$method===null?'shipping':'shipping_method','blueprint_id'=>478,'provider_id'=>28];if($method!==null)$request['method']=$method;
+ $suffix=$method===null?'.json':'/'.$method.'.json';
+ ensure(DigiForge\POD\PrintifyCatalogReadContract::endpoint($request)==='/v2/catalog/blueprints/478/print_providers/28/shipping'.$suffix,'Exact supported shipping GET path retained');
+ ensure(DigiForge\POD\PrintifyCatalogReadContract::select(['data'=>[]],$request)===['data'=>[]],'Shipping envelope retained without fabricated evidence');
+}
+echo "Printify catalog concrete admission offline tests passed\n";

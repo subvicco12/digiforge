@@ -6,6 +6,8 @@ require_once __DIR__.'/PortalActionAcceptanceFixture.php';
 final class PortalShopAccessAcceptanceTest extends WP_UnitTestCase {
  private static function isAclLifecycleProofQuery(string $sql):bool {
   global $wpdb;
+  $profile=$wpdb->prepare("SELECT context FROM ".DigiForge\Database\Tables::audit_log()." WHERE object_type='portal_access_profile' AND object_id=%s AND event_type='portal_profile_changed' ORDER BY id ASC LIMIT 1001",(string)get_current_user_id());
+  if($sql===$profile)return true;
   foreach(DigiForge\Security\ShopAccessPolicy::canonicalShops() as $shop){
    $proof=$wpdb->prepare('SELECT event_type,actor_id,object_id,context FROM '.DigiForge\Database\Tables::audit_log()." WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke') AND CASE WHEN JSON_VALID(context) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.shop'))=BINARY %s ELSE false END ORDER BY id ASC LIMIT 1001",$shop);
    if($sql===$proof)return true;

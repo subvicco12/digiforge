@@ -36,6 +36,10 @@ final class RestPolicy {
   // Callback identity is part of the recorded contract, including independent boundaries.
   foreach(['callback'=>2,'permission_callback'=>3] as $key=>$index)if(isset($handler[$key])&&self::callbackName($handler[$key])!==$contract[$index])return Policy::error('route_contract');
   if(self::independent($r))return true;
+  if(get_current_user_id()<1){
+   if(!\DigiForge\Security\Logger::write('shop_access_rest_denied',['reason'=>'authentication','actor_id'=>0],'shop_access','rest'))return new \WP_Error('digiforge_shop_access_audit','Access denial audit unavailable.',['status'=>503]);
+   return new \WP_Error('digiforge_shop_access_auth','Authentication is required.',['status'=>401]);
+  }
   if(str_starts_with($r->get_route(),'/digiforge/v1/shop-access/'))return self::ownerAdmission($r,$profile);
   $forceGlobal=false;
   $sets=ShopAccessRestGuard::capabilitySets($r->get_route(),$r->get_method());
@@ -62,7 +66,8 @@ final class RestPolicy {
    if($profile!==null){$allowed=[];foreach($profile['shops'] as $shop=>$assigned)if(array_diff($caps,$assigned)===[])$allowed[]=$shop;}
    foreach($caps as $cap){$native=ShopAccess::allowedShops($cap);if(is_wp_error($native))return $native;$allowed=array_values(array_intersect($allowed,$native));}
    if($allowed===[])continue;
-   foreach(['shop','shop_key'] as $field){$claim=$r->get_param($field);if($claim!==null&&(!is_string($claim)||!ShopAccessPolicy::validShop($claim)||!in_array($claim,$allowed,true)))return Policy::error('shop_scope');}
+   if(preg_match('#^/digiforge/v1/reviewed-contracts/(digital|personalized_pod|standard_pod|jewelry)/#D',$r->get_route(),$routeShop)&&in_array($routeShop[1],$allowed,true)){foreach(['shop','shop_key'] as $field){$claim=$r->get_param($field);if($claim!==null&&$claim!==$routeShop[1])return Policy::error('shop_scope',400);}}
+   foreach(['shop','shop_key'] as $field){$claim=$r->get_param($field);if($claim!==null&&(!is_string($claim)||!ShopAccessPolicy::validShop($claim)))return Policy::error('shop_scope',400);if($claim!==null&&!in_array($claim,$allowed,true))return Policy::error('shop_scope');}
    $target=$forceGlobal?false:ShopAccessTargetScope::forRequest($r,$allowed);if(is_wp_error($target))return $target;
    if(is_string($target))foreach(['shop','shop_key'] as $field){$claim=$r->get_param($field);if($claim!==null&&$claim!==$target)return Policy::error('shop_scope');}
    $shops=is_string($target)?[$target]:ShopAccessPolicy::canonicalShops();
@@ -71,6 +76,7 @@ final class RestPolicy {
    foreach($shops as $shop)foreach($caps as $cap){$decision=ShopAccess::authorize($shop,$cap);if($decision!==true)return is_wp_error($decision)?$decision:Policy::error('native_scope');}
    return true;
   }
+  if(str_starts_with($r->get_route(),'/digiforge/v1/finance/'))return new \WP_Error('rest_forbidden','Access denied.',['status'=>403]);
   return Policy::error('module_scope');
  }
  private static function ownerAdmission(\WP_REST_Request $r,?array $profile):true|\WP_Error {

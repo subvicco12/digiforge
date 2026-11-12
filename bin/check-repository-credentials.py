@@ -4,11 +4,84 @@ import argparse
 import collections
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
 
 VERSION = '8.30.1'
+
+
+def verified_git_identifier(finding, git):
+    """Recognize only the reviewed manifest's typed, independently resolved Git IDs.
+
+    This is not a path/rule allowlist: malformed IDs, wrong objects, unknown fields,
+    additional credential fields and every other finding remain actionable.
+    Read the finding's historical commit, never substitute current working bytes.
+    """
+    path = 'docs/engineering/printify-shared-dependency-manifest-v1.json'
+    try:
+        if finding.get('File') != path or finding.get('RuleID') != 'generic-api-key':
+            return False
+        commit = finding.get('Commit')
+        line = finding.get('StartLine')
+        if not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit):
+            return False
+        if not isinstance(line, int) or line < 1 or finding.get('EndLine') != line:
+            return False
+        raw = git('show', commit + ':' + path)
+        source = raw.splitlines()
+        if line > len(source):
+            return False
+        field = re.fullmatch(r'\s*"([a-zA-Z_][a-zA-Z0-9_]*)"\s*:\s*"([a-f0-9]{40})"\s*,?\s*', source[line - 1])
+        if field is None:
+            return False
+        name, value = field.groups()
+        def unique_object(pairs):
+            result = {}
+            for key, item in pairs:
+                if key in result:
+                    raise ValueError('Duplicate JSON member')
+                result[key] = item
+            return result
+
+        manifest = json.loads(raw, object_pairs_hook=unique_object)
+        # Fail closed unless canonical serialization preserves exact historical lines.
+        canonical = json.dumps(manifest, indent=2).splitlines()
+        if canonical != source:
+            return False
+
+        def exact_location(container, key):
+            previous = container[key]
+            container[key] = '__reviewed_git_identifier_location__'
+            changed = json.dumps(manifest, indent=2).splitlines()
+            container[key] = previous
+            return [i + 1 for i, pair in enumerate(zip(canonical, changed))
+                    if pair[0] != pair[1]] == [line]
+
+        if manifest.get('schema') != 'digiforge-printify-shared-dependency-v1':
+            return False
+        refs = manifest.get('refs', {})
+        if not isinstance(refs, dict):
+            return False
+        if name in {'main', 'shared_1242', 'api_1253_start', 'api_branch_base_main', 'shared_core', 'consumer_baseline'}:
+            return refs.get(name) == value and exact_location(refs, name) and git('cat-file', '-t', value) == 'commit'
+        if name != 'api_start_blob' or git('cat-file', '-t', value) != 'blob':
+            return False
+        start = refs.get('api_1253_start')
+        if not isinstance(start, str) or not re.fullmatch('[a-f0-9]{40}', start) or git('cat-file', '-t', start) != 'commit':
+            return False
+        for row in manifest.get('api_lane_files', []):
+            if not isinstance(row, dict) or row.get(name) != value or not exact_location(row, name):
+                continue
+            target = row.get('path')
+            if not isinstance(target, str) or not target or target.startswith('/') or '..' in Path(target).parts:
+                return False
+            if git('rev-parse', '--verify', start + ':' + target) == value:
+                return True
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        return False
+    return False
 
 
 def check(repository, scanner):
@@ -66,10 +139,15 @@ def check(repository, scanner):
                 return evidence
             if (result.returncode == 0) != (len(findings) == 0):
                 return evidence
-            evidence['finding_count'] = len(findings)
-            evidence['rules_with_findings'] = dict(collections.Counter(
+            actionable = [row for row in findings if not verified_git_identifier(row, git)]
+            evidence['raw_finding_count'] = len(findings)
+            evidence['verified_git_identifier_count'] = len(findings) - len(actionable)
+            evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
-            evidence['status'] = 'PASS' if not findings else 'FINDINGS_REVIEW_REQUIRED'
+            evidence['finding_count'] = len(actionable)
+            evidence['rules_with_findings'] = dict(collections.Counter(
+                str(row.get('RuleID', 'unknown')) for row in actionable))
+            evidence['status'] = 'PASS' if not actionable else 'FINDINGS_REVIEW_REQUIRED'
         # Bind to the same clean candidate after the scan, not a concurrent edit.
         if git('rev-parse', '--verify', 'HEAD^{commit}') != evidence['commit_sha'] or git('status', '--porcelain', '--untracked-files=no'):
             evidence['status'] = 'TRACKED_TREE_CHANGED'
