@@ -1,2 +1,4 @@
 # Qualified package intake: preserve every tracked byte; do not normalize CRLF.
 * -text
+# Exact qualified evidence includes CRLF source handoffs; preserve, do not rewrite.
+/assets/pod-designs/v1/sources/** whitespace=cr-at-eol
