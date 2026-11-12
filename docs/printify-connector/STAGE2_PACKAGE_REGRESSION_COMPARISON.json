@@ -1,0 +1,68 @@
+{
+  "control": {
+    "counts": {
+      "tests": 431,
+      "assertions": 3931,
+      "errors": 6,
+      "failures": 14,
+      "skips": 2
+    },
+    "failing_tests": [
+      "FinalConvergenceScenarioTest::testPersonalizedPodReviewChainStopsBeforeExternalExecution",
+      "FocusedEtsyOrderReadinessAvailabilityTest::testEveryRequiredReadinessCountFailsClosedOnDatabaseFailure",
+      "OpportunityDesignWorkflowTest::testPortalRoundTripRequiresConfirmationAndNeverCallsHttp",
+      "OpportunityDesignWorkflowTest::testPortalRetainsShortcodePageOnReturn",
+      "PortalEvidenceAvailabilityTest::testCostQueriesResetStaleErrorsAndExposeIndependentStates",
+      "PortalEvidenceAvailabilityTest::testCostBreakdownFailureCannotMasqueradeAsAvailableTotals",
+      "ApprovalAttentionNavigationTest::testAuthorizedApprovalViewRendersTargetsForAttentionLinks",
+      "ConnectionTesterTest::testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess",
+      "MasterCatalogV2IngestionReadModelTest::testReadinessFailsClosedWithoutExactParentAndBecomesReadyWithValidParent",
+      "MasterCatalogV2IngestionReadModelTest::testExactPersistedV2IsReportedWithoutGrantingAuthority",
+      "MasterCatalogV2IngestionReadModelTest::testFingerprintMismatchBetweenStoredRowAndMigrationMetadataFailsClosed",
+      "MasterCatalogV2IngestionReadModelTest::testConflictingPersistedV2FailsClosed",
+      "MasterCatalogV2PersistenceTest::testGovernedV2PersistsAtomicallyAndReplaysOnlyExactEvidence",
+      "PrintifyPreflightTest::testValidatedTemplateRouteIsRequiredAndDryRunNeverAuthorizesExecution",
+      "PrintifyPreflightTest::testExecutionPermitBindsCurrentPreflightAndRejectsReadinessDrift",
+      "PrintifyPreflightTest::testReadinessDriftInvalidatesApprovedPackage",
+      "PrintifyPreflightTest::testRouteVariantMismatchFailsClosed",
+      "ResearchRepositoryTest::testResearchFlowIsDeterministicDeduplicatedAndHumanGated",
+      "ResearchRestTest::testResearchMutationRequiresIdempotencyKeyAndRejectsReplay",
+      "ResearchRestTest::testFailedResearchMutationReleasesReservation"
+    ]
+  },
+  "package": {
+    "counts": {
+      "tests": 435,
+      "assertions": 3952,
+      "errors": 6,
+      "failures": 14,
+      "skips": 2
+    },
+    "failing_tests": [
+      "FinalConvergenceScenarioTest::testPersonalizedPodReviewChainStopsBeforeExternalExecution",
+      "FocusedEtsyOrderReadinessAvailabilityTest::testEveryRequiredReadinessCountFailsClosedOnDatabaseFailure",
+      "OpportunityDesignWorkflowTest::testPortalRoundTripRequiresConfirmationAndNeverCallsHttp",
+      "OpportunityDesignWorkflowTest::testPortalRetainsShortcodePageOnReturn",
+      "PortalEvidenceAvailabilityTest::testCostQueriesResetStaleErrorsAndExposeIndependentStates",
+      "PortalEvidenceAvailabilityTest::testCostBreakdownFailureCannotMasqueradeAsAvailableTotals",
+      "ApprovalAttentionNavigationTest::testAuthorizedApprovalViewRendersTargetsForAttentionLinks",
+      "ConnectionTesterTest::testPrintifyReadOnlyConnectionTestUsesStoredCredentialAndRecordsSuccess",
+      "MasterCatalogV2IngestionReadModelTest::testReadinessFailsClosedWithoutExactParentAndBecomesReadyWithValidParent",
+      "MasterCatalogV2IngestionReadModelTest::testExactPersistedV2IsReportedWithoutGrantingAuthority",
+      "MasterCatalogV2IngestionReadModelTest::testFingerprintMismatchBetweenStoredRowAndMigrationMetadataFailsClosed",
+      "MasterCatalogV2IngestionReadModelTest::testConflictingPersistedV2FailsClosed",
+      "MasterCatalogV2PersistenceTest::testGovernedV2PersistsAtomicallyAndReplaysOnlyExactEvidence",
+      "PrintifyPreflightTest::testValidatedTemplateRouteIsRequiredAndDryRunNeverAuthorizesExecution",
+      "PrintifyPreflightTest::testExecutionPermitBindsCurrentPreflightAndRejectsReadinessDrift",
+      "PrintifyPreflightTest::testReadinessDriftInvalidatesApprovedPackage",
+      "PrintifyPreflightTest::testRouteVariantMismatchFailsClosed",
+      "ResearchRepositoryTest::testResearchFlowIsDeterministicDeduplicatedAndHumanGated",
+      "ResearchRestTest::testResearchMutationRequiresIdempotencyKeyAndRejectsReplay",
+      "ResearchRestTest::testFailedResearchMutationReleasesReservation"
+    ]
+  },
+  "result": "BLOCKED_FULL_PACKAGE_ACCEPTANCE",
+  "new_connector_failures_observed": 0,
+  "independent_human_approval": false,
+  "live_provider_verification": false
+}

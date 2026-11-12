@@ -18,5 +18,5 @@ final class Plugin {
   }catch(\Throwable){self::$state='INCOMPATIBLE_HOST_INTERFACE';}
  }
  public static function connector():?\DigiForge\Connector\Printify\ConnectorInterface{return self::$connector;}
- public static function status():array{return ['interface_version'=>'1.0.0','state'=>self::$state,'read_only'=>true,'provider_execution_authorized'=>false,'credential_storage'=>false,'scheduling'=>false];}
+ public static function status():array{return ['interface_version'=>'1.0.0','state'=>self::$state,'read_only'=>true,'provider_execution_authorized'=>false,'credential_storage'=>false,'scheduling'=>false,'host_contracts'=>class_exists(\DigiForge\Connector\Printify\HostCompatibility::class)?\DigiForge\Connector\Printify\HostCompatibility::inspect():['native_contracts_available'=>false,'execution_authorized'=>false]];}
 }

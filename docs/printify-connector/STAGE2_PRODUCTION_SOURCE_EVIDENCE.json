@@ -1,0 +1,83 @@
+{
+  "read_only": true,
+  "observed_at": "2026-11-12",
+  "method": "Hostinger hosting_files_website-content non-executing source reads",
+  "files": [
+    {
+      "path": "includes/Integrations/Repository.php",
+      "sha256": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415",
+      "baseline_sha256": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415",
+      "matches": true,
+      "bytes": 20645
+    },
+    {
+      "path": "includes/POD/PrintifyConnectionBoundary.php",
+      "sha256": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81",
+      "baseline_sha256": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81",
+      "matches": true,
+      "bytes": 4212
+    },
+    {
+      "path": "includes/POD/PrintifyScopedCredentialRetriever.php",
+      "sha256": "24723c971ee99e7a448c0ba35af61ac540a20171bb3934c3b477d93c7692bd6a",
+      "baseline_sha256": "24723c971ee99e7a448c0ba35af61ac540a20171bb3934c3b477d93c7692bd6a",
+      "matches": true,
+      "bytes": 3402
+    },
+    {
+      "path": "includes/PortalAccess/Owner.php",
+      "sha256": "82250e45c405064c477b2ef2ab24f1c3610446dd77d471a0ef8314dcb511aaa8",
+      "baseline_sha256": "82250e45c405064c477b2ef2ab24f1c3610446dd77d471a0ef8314dcb511aaa8",
+      "matches": true,
+      "bytes": 1503
+    },
+    {
+      "path": "includes/PortalAccess/Session.php",
+      "sha256": "8698480a4a1f177fe3316cce7f4b822f5e4515ce085bc14a4e25ac53da64931d",
+      "baseline_sha256": "8698480a4a1f177fe3316cce7f4b822f5e4515ce085bc14a4e25ac53da64931d",
+      "matches": true,
+      "bytes": 1755
+    },
+    {
+      "path": "includes/Security/Logger.php",
+      "sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844",
+      "baseline_sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844",
+      "matches": true,
+      "bytes": 2923
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "sha256": "8be00b0389317c9ac3881c9c581c1ced40a4e172b12bcef5df8100d3677bee85",
+      "baseline_sha256": "8be00b0389317c9ac3881c9c581c1ced40a4e172b12bcef5df8100d3677bee85",
+      "matches": true,
+      "bytes": 2804
+    },
+    {
+      "path": "digiforge.php",
+      "sha256": "b740adb8de4ea0cc7924be86ef73edfdedb891fd43c0f57eceff9c150ebf5810",
+      "baseline_sha256": "b740adb8de4ea0cc7924be86ef73edfdedb891fd43c0f57eceff9c150ebf5810",
+      "matches": true,
+      "bytes": 1725
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogClient.php",
+      "sha256": "719f77e3abe6bf0a5fc334a9d12007c03bcab2887fe93b108952bd1661084111",
+      "baseline_sha256": "719f77e3abe6bf0a5fc334a9d12007c03bcab2887fe93b108952bd1661084111",
+      "matches": true,
+      "bytes": 11964
+    }
+  ],
+  "unavailable": [
+    {
+      "path": "includes/Core/Settings.php",
+      "reason": "HOSTINGER_CONTENT_REFUSED_HTTP422",
+      "bypass_attempted": false
+    },
+    {
+      "path": "includes/POD/ScopedProviderConnection.php",
+      "reason": "HOSTINGER_CONTENT_REFUSED_HTTP422",
+      "bypass_attempted": false
+    }
+  ],
+  "full_production_tree_equivalence_verified": false
+}
