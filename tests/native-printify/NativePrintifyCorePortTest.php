@@ -21,7 +21,7 @@ final class NativePrintifyCorePortTest extends TestCase
   foreach(['version','inspectionVersion','publicationVersion','workflowVersion','operationsVersion'] as $method)self::assertSame('1.0.0',$p->$method());
  }
  public function testAbsentAndIncompatibleCompanionsDenyWithoutFatalOrEagerImplementation():void {
-  foreach(['absent','incompatible','wrong-return']as $mode){$pipes=[];$process=proc_open([PHP_BINARY,__DIR__.'/discovery-child.php',$mode],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes);self::assertIsResource($process);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);self::assertSame(0,proc_close($process),$error);self::assertSame("DENIED_WITHOUT_LOADING_NATIVE_IMPLEMENTATION\n",$out);}
+  foreach(['absent','incompatible','wrong-return','return-reference']as $mode){$pipes=[];$process=proc_open([PHP_BINARY,__DIR__.'/discovery-child.php',$mode],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes);self::assertIsResource($process);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);self::assertSame(0,proc_close($process),$error);self::assertSame("DENIED_WITHOUT_LOADING_NATIVE_IMPLEMENTATION\n",$out);}
  }
  public function testNoUnbuiltSourceIdentityOrExecutableCapability():void {
   $p=NativeBridge::connect('1.0.0');

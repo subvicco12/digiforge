@@ -14,9 +14,9 @@ final class NativeBridge
   try{
    if(!interface_exists($name))return false;
    $methods=[];$type=static function(?\ReflectionType $t):string{$parts=explode('|',(string)$t);sort($parts);return implode('|',$parts);};
-   foreach((new \ReflectionClass($name))->getMethods()as $m){$params=[];foreach($m->getParameters()as $p)$params[]=[$type($p->getType()),$p->isOptional(),$p->isPassedByReference(),$p->isVariadic()];$methods[$m->getName()]=[$type($m->getReturnType()),$m->isStatic(),$params];}
+   foreach((new \ReflectionClass($name))->getMethods()as $m){$params=[];foreach($m->getParameters()as $p)$params[]=[$type($p->getType()),$p->isOptional(),$p->isPassedByReference(),$p->isVariadic()];$methods[$m->getName()]=[$type($m->getReturnType()),$m->isStatic(),$m->returnsReference(),$params];}
    ksort($methods);
-   return hash_equals('00cd645b271a07fd2019608ac8e432a55a6e7da6f1d5052740cabb5d21a2871f',hash('sha256',json_encode($methods,JSON_THROW_ON_ERROR)));
+   return hash_equals('31b796a5d4dc65491e076fd18ba59a3edc074ea1ebf11a24e984150c93463902',hash('sha256',json_encode($methods,JSON_THROW_ON_ERROR)));
   }catch(\Throwable){return false;}
  }
 }
