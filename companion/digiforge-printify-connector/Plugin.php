@@ -17,6 +17,7 @@ final class Plugin {
    self::$connector=$connector;self::$state='INTERFACE_AVAILABLE_AUTHORITY_UNVERIFIED';
   }catch(\Throwable){self::$state='INCOMPATIBLE_HOST_INTERFACE';}
  }
+ public static function operationPanel(array $intents):string{return \DigiForgePrintifyConnector\Preparation\OperatorPanel::render(new \DigiForgePrintifyConnector\Preparation\OperatorReadModel(self::mutationHost()),$intents);}
  public static function mutationHost():\DigiForgePrintifyConnector\Preparation\VersionedMutationHost{return \DigiForgePrintifyConnector\Preparation\VersionedMutationHost::discover();}
  public static function preparation():\DigiForgePrintifyConnector\Preparation\PreparationService{return new \DigiForgePrintifyConnector\Preparation\PreparationService();}
  public static function connector():?\DigiForge\Connector\Printify\ConnectorInterface{return self::$connector;}

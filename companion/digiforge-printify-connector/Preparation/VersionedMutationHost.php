@@ -49,6 +49,10 @@ final class VersionedMutationHost implements CoreMutationHost {
  public function responseEvidence(MutationIntent $i,string $ref):array|\WP_Error {
   try{if(!preg_match('/^[a-f0-9]{64}$/D',$ref)||is_wp_error($this->authorize($i)))return self::error();$r=$this->call('RECEIPT_READ',$i,['receipt_reference'=>$ref]);if(is_wp_error($r)||array_keys($r['data'])!==['receipt'])return self::error();$e=$r['data']['receipt'];ProviderReceipt::validate($i,$e);if($e['receipt_hash']!==$ref||$e['recovery_epoch']!==$r['recovery_epoch']||$e['kind']!=='RESPONSE')return self::error();return ['operation_id'=>$i->operationId,'payload_fingerprint'=>$i->payloadFingerprint,'receipt_reference'=>$ref,'transport_attested'=>true,'http_status'=>$e['http_status'],'body'=>$e['body']];}catch(\Throwable){return self::error();}
  }
+ public function inspect(MutationIntent $i):array|\WP_Error{return OperationInspection::read($this->core,$i);}
+ public function importReceipt(MutationIntent $i,string $ref):array|\WP_Error {
+  try{if(!preg_match('/^[a-f0-9]{64}$/D',$ref)||is_wp_error($this->authorize($i)))return self::error();$r=$this->call('RECEIPT_READ',$i,['receipt_reference'=>$ref]);if(is_wp_error($r)||array_keys($r['data'])!==['receipt'])return self::error();$e=$r['data']['receipt'];ProviderReceipt::validate($i,$e);if($e['receipt_hash']!==$ref||$e['recovery_epoch']!==$r['recovery_epoch'])return self::error();return $this->acceptReceipt($i,$e);}catch(\Throwable){return self::error();}
+ }
  public function outcome(MutationIntent $i,string $state,array $receipt):bool {
   if(!in_array($state,['UNKNOWN','METADATA_RECONCILED'],true)||($receipt['operation_id']??null)!==$i->operationId||($receipt['state']??null)!==$state)return false;
   // Core verifies stored provider receipt and current fence atomically. No local success can finalize it.
