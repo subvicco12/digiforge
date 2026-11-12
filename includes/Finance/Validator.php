@@ -46,7 +46,7 @@ final class Validator
             throw new InvalidArgumentException('Invalid amount.');
         }
         $amount = round((float) $value, 4);
-        if ($amount < -9999999999.9999 || $amount > 9999999999.9999) {
+        if (! is_finite($amount) || $amount < -9999999999.9999 || $amount > 9999999999.9999) {
             throw new InvalidArgumentException('Amount outside allowed bounds.');
         }
         return $amount;
@@ -58,7 +58,7 @@ final class Validator
             throw new InvalidArgumentException('Invalid FX rate.');
         }
         $rate = round((float) $value, 10);
-        if ($rate <= 0 || $rate > 999999999.9999999999) {
+        if (! is_finite($rate) || $rate <= 0 || $rate > 999999999.9999999999) {
             throw new InvalidArgumentException('FX rate outside allowed bounds.');
         }
         return $rate;
@@ -114,12 +114,42 @@ final class Validator
         return hash('sha256', self::canonicalJson($value));
     }
 
+    /** Full SHA-256 source identity, encoded within the existing 64-character version field. */
+    public static function periodSourceVersion(array $source): string
+    {
+        $alphabet = 'abcdefghijklmnopqrstuvwxyz234567';
+        $digest = hash('sha256', self::canonicalJson($source), true);
+        $encoded = '';
+        $buffer = 0;
+        $bits = 0;
+        foreach (str_split($digest) as $byte) {
+            $buffer = ($buffer << 8) | ord($byte);
+            $bits += 8;
+            while ($bits >= 5) {
+                $bits -= 5;
+                $encoded .= $alphabet[($buffer >> $bits) & 31];
+            }
+            $buffer &= (1 << $bits) - 1;
+        }
+        if ($bits > 0) {
+            $encoded .= $alphabet[($buffer << (5 - $bits)) & 31];
+        }
+        return 'v2.' . $encoded;
+    }
+
     public static function convert(float $amount, float $rate): float
     {
-        if ($rate <= 0) {
-            throw new InvalidArgumentException('FX rate must be positive.');
+        if (! is_finite($rate) || $rate <= 0) {
+            throw new InvalidArgumentException('FX rate must be positive and finite.');
         }
-        return round($amount * $rate, 4);
+        if (! is_finite($amount)) {
+            throw new InvalidArgumentException('FX amount must be finite.');
+        }
+        $converted = round($amount * $rate, 4);
+        if (! is_finite($converted)) {
+            throw new InvalidArgumentException('FX conversion overflow.');
+        }
+        return $converted;
     }
 
     private static function rejectCredentialKeys(array $value): void

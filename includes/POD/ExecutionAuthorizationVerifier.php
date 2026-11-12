@@ -22,7 +22,7 @@ final class ExecutionAuthorizationVerifier
   if(str_starts_with($requiredAction,'PROVIDER_')&&(!preg_match('/^[a-f0-9]{64}$/',$expectedRequestFingerprint)||!preg_match('/^[a-f0-9]{64}$/',$boundFingerprint)||!hash_equals($expectedRequestFingerprint,$boundFingerprint)))
    return new WP_Error('digiforge_execution_request_binding','Authorization does not match the exact approved provider request.',['status'=>409]);
   $issued=(int)($a['issued_at']??0);$expires=(int)($a['expires_at']??0);
-  if($issued<1||$expires<=$issued||$now<$issued||$now>$expires||($expires-$issued)>900)
+  if($issued<1||$expires<=$issued||$now<$issued||$now>=$expires||($expires-$issued)>900)
    return new WP_Error('digiforge_execution_expired','Execution authorization is expired or invalid.',['status'=>403]);
   $nonce=(string)($a['nonce']??'');if(!preg_match('/^[A-Za-z0-9_-]{24,128}$/',$nonce))return new WP_Error('digiforge_execution_replay','Execution authorization nonce is invalid or already consumed.',['status'=>409]);
   $unused=$nonceUnused($nonce);if(is_wp_error($unused))return $unused;if($unused!==true)return new WP_Error('digiforge_execution_replay','Execution authorization nonce is invalid or already consumed.',['status'=>409]);

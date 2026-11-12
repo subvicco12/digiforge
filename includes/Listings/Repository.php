@@ -66,7 +66,15 @@ final class Repository
         $digitalCount=$count($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::digital_products().' WHERE product_version_id=%d',$pv));if(is_wp_error($digitalCount))return $digitalCount;$digital=$digitalCount>0;$podMappings=$count($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::pod_mappings()." WHERE product_version_id=%d AND environment=%s AND state='APPROVED'",$pv,(string)$listing['environment']));if(is_wp_error($podMappings))return $podMappings;$wpdb->last_error='';$podBindings=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::listing_pod_bindings().' WHERE listing_id=%d',$listingId),ARRAY_A);if(!is_array($podBindings)||!empty($wpdb->last_error))return $this->error('readiness_evidence_unavailable','Listing readiness evidence is unavailable; release readiness is blocked.',503);$pod=$podMappings>0||$podBindings!==[];
         $mediaValid=$mediaRows!==[];foreach($mediaRows as $media){$sourceValid=false;$revisionId=(int)($media['asset_revision_id']??0);$bundleId=(int)($media['release_bundle_id']??0);if($revisionId>0){$revision=$this->findEvidence(Tables::asset_revisions(),$revisionId,'readiness_evidence_unavailable','Listing readiness evidence is unavailable; release readiness is blocked.');if($revision instanceof WP_Error)return $revision;$spec=is_array($revision)?$this->findEvidence(Tables::asset_specs(),(int)($revision['asset_spec_id']??0),'readiness_evidence_unavailable','Listing readiness evidence is unavailable; release readiness is blocked.'):null;if($spec instanceof WP_Error)return $spec;$sourceValid=is_array($revision)&&is_array($spec)&&(string)($revision['state']??'')==='APPROVED'&&(int)($spec['product_version_id']??0)===$pv;}if(!$sourceValid&&$bundleId>0){$bundleValid=$this->bundleBelongsToProductEvidence($bundleId,$pv,['RELEASE_READY']);if($bundleValid instanceof WP_Error)return $bundleValid;$sourceValid=$bundleValid;}if(!$sourceValid){$mediaValid=false;break;}}
         $podValid=!$pod;if($pod){$podValid=$podBindings!==[];foreach($podBindings as $binding){$mapping=$this->findEvidence(Tables::pod_mappings(),(int)$binding['provider_mapping_id'],'readiness_evidence_unavailable','Listing readiness evidence is unavailable; release readiness is blocked.');if($mapping instanceof WP_Error)return $mapping;if(!is_array($mapping)||(int)$mapping['product_version_id']!==$pv||(string)$mapping['environment']!==(string)$listing['environment']||(string)$mapping['state']!=='APPROVED'){$podValid=false;break;}$current=(new \DigiForge\POD\Repository())->readiness((int)$mapping['id']);if(is_wp_error($current)||empty($current['ready'])||!hash_equals((string)($binding['readiness_hash']??''),hash('sha256',Validator::canonicalJson($current)))){$podValid=false;break;}}}
-        $productMode=$digital&&$pod?'hybrid':($pod?'pod':'digital');$checks=['listing_approved'=>(string)$listing['state']==='APPROVED','seo_present'=>$seo>0,'approved_media_bound'=>$mediaValid,'pod_binding_valid'=>$podValid,'human_approval'=>(int)$listing['approved_by']>0&&!empty($listing['approved_at'])];$ready=!in_array(false,$checks,true);$payload=['listing_id'=>$listingId,'product_mode'=>$productMode,'ready'=>$ready,'checks'=>$checks];$payload['hash']=hash('sha256',Validator::canonicalJson($payload));return $payload;
+        $version=$this->findEvidence(Tables::product_versions(),$pv,'readiness_evidence_unavailable','Product approval evidence could not be read.');if($version instanceof WP_Error)return $version;
+        $wpdb->last_error='';$seoRows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::listing_seo().' WHERE listing_id=%d ORDER BY id ASC',$listingId),ARRAY_A);if(!is_array($seoRows)||$wpdb->last_error!=='')return $this->error('readiness_evidence_unavailable','Listing SEO review evidence could not be read.',503);
+        $mediaSources=[];foreach($mediaRows as $media){$source=[];foreach(['asset_revision_id'=>Tables::asset_revisions(),'release_bundle_id'=>Tables::release_bundles()] as $field=>$table){$id=(int)($media[$field]??0);if($id<1)continue;$row=$this->findEvidence($table,$id,'readiness_evidence_unavailable','Exact bound media evidence could not be read.');if($row instanceof WP_Error)return $row;$source[$field]=$row;if(is_array($row)){$parentField=$field==='asset_revision_id'?'asset_spec_id':'production_plan_id';$parentTable=$field==='asset_revision_id'?Tables::asset_specs():Tables::production_plans();$parent=$this->findEvidence($parentTable,(int)($row[$parentField]??0),'readiness_evidence_unavailable','Exact bound media parent evidence could not be read.');if($parent instanceof WP_Error)return $parent;$source[$parentField]=$parent;}}$mediaSources[]=$source;}
+        $material=$listing;foreach(['state','approved_by','approved_at','updated_at'] as $mutable)unset($material[$mutable]);
+        $evidenceHash=hash('sha256',Validator::canonicalJson(['listing'=>$material,'product_version'=>$version,'seo'=>$seoRows,'media'=>$mediaRows,'resolved_media'=>$mediaSources,'pod_bindings'=>$podBindings]));
+        $snapshotCurrent=(string)$listing['state']!=='APPROVED';
+        if(!$snapshotCurrent){$wpdb->last_error='';$approved=$wpdb->get_row($wpdb->prepare("SELECT readiness FROM ".Tables::listing_readiness_reviews()." WHERE listing_id=%d AND decision='APPROVED' AND reviewed_by>0 AND reviewed_at IS NOT NULL ORDER BY id DESC LIMIT 1",$listingId),ARRAY_A);if($wpdb->last_error!=='')return $this->error('readiness_evidence_unavailable','Approved listing snapshot evidence could not be read.',503);$snapshot=is_array($approved)?json_decode((string)$approved['readiness'],true):null;$snapshotCurrent=is_array($snapshot)&&hash_equals((string)($snapshot['evidence_hash']??''),$evidenceHash);}
+
+        $productMode=$digital&&$pod?'hybrid':($pod?'pod':'digital');$checks=['approved_snapshot_current'=>$snapshotCurrent,'product_approved'=>is_array($version)&&($version['state']??'')==='APPROVED','shop_scope_present'=>(string)($listing['shop_reference']??'')!=='','listing_approved'=>(string)$listing['state']==='APPROVED','seo_present'=>$seo>0,'approved_media_bound'=>$mediaValid,'pod_binding_valid'=>$podValid,'human_approval'=>(int)$listing['approved_by']>0&&!empty($listing['approved_at'])];$ready=!in_array(false,$checks,true);$payload=['listing_id'=>$listingId,'evidence_hash'=>$evidenceHash,'product_mode'=>$productMode,'ready'=>$ready,'checks'=>$checks];$payload['hash']=hash('sha256',Validator::canonicalJson($payload));return $payload;
     }
 
     public function createReadinessReview(int $listingId, ?string $key=null): array|WP_Error
@@ -78,7 +86,7 @@ final class Repository
         $readiness=$this->readiness($listingId);
         if(is_wp_error($readiness))return $readiness;
         $checks=(array)($readiness['checks']??[]);
-        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+        foreach(['product_approved','shop_scope_present','seo_present','approved_media_bound','pod_binding_valid'] as $required){
             if(empty($checks[$required]))return $this->error('review_not_ready','Listing prerequisites must pass before Gate 3 review.',409);
         }
         $canonical=Validator::canonicalJson($readiness);
@@ -101,7 +109,7 @@ final class Repository
         $before=$this->readiness($listingId);
         if(is_wp_error($before)){$wpdb->query('ROLLBACK');return $before;}
         $checks=(array)($before['checks']??[]);
-        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+        foreach(['product_approved','shop_scope_present','seo_present','approved_media_bound','pod_binding_valid'] as $required){
             if(empty($checks[$required])){$wpdb->query('ROLLBACK');return $this->error('review_not_ready','Current listing prerequisites must pass before legacy Gate 3 repair.',409);}
         }
         $wpdb->last_error='';$listingUpdated=$wpdb->update(Tables::listings(),['state'=>'REVIEW_REQUIRED','approved_by'=>0,'approved_at'=>null,'updated_at'=>$this->now()],['id'=>$listingId,'state'=>'APPROVED']);
@@ -109,7 +117,7 @@ final class Repository
         $readiness=$this->readiness($listingId);
         if(is_wp_error($readiness)){$wpdb->query('ROLLBACK');return $readiness;}
         $postChecks=(array)($readiness['checks']??[]);
-        foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+        foreach(['product_approved','shop_scope_present','seo_present','approved_media_bound','pod_binding_valid'] as $required){
             if(empty($postChecks[$required])){$wpdb->query('ROLLBACK');return $this->error('review_not_ready','Listing prerequisites changed during legacy Gate 3 repair.',409);}
         }
         $canonical=Validator::canonicalJson($readiness);
@@ -139,8 +147,9 @@ final class Repository
         if($decision==='APPROVED'){
             $current=$this->readiness($listingId);
             if(is_wp_error($current))return $current;
+            if(!hash_equals((string)($review['readiness_hash']??''),(string)($current['hash']??'')))return $this->error('gate3_review_stale','Current listing, product approval or bound evidence differs from the reviewed snapshot; create a fresh review.',409);
             $checks=(array)($current['checks']??[]);
-            foreach(['seo_present','approved_media_bound','pod_binding_valid'] as $required){
+            foreach(['product_approved','shop_scope_present','seo_present','approved_media_bound','pod_binding_valid'] as $required){
                 if(empty($checks[$required]))return $this->error('review_not_ready','Current listing prerequisites no longer pass.',409);
             }
         }

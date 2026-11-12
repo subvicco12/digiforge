@@ -36,6 +36,10 @@ final class U3AssetReview
         check_admin_referer(self::nonceAction($revisionId));
 
         global $wpdb;
+        $productShops=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_products');$productionShops=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_production');
+        if(is_wp_error($productShops)||is_wp_error($productionShops))wp_die(esc_html__('Shop authorization evidence is unavailable.', 'digiforge'), '', ['response'=>503]);
+        $matches=[];foreach(array_intersect($productShops,$productionShops)as $shop){$scope=ProductEvidenceScope::forTable(Tables::asset_revisions(),$shop);$scope=str_replace(Tables::asset_revisions().'.','ar.',$scope??'1=0');$wpdb->last_error='';$found=$wpdb->get_var($wpdb->prepare('SELECT ar.id FROM '.Tables::asset_revisions().' ar WHERE ar.id=%d AND ('.$scope.') LIMIT 1',$revisionId));if($wpdb->last_error!=='')wp_die(esc_html__('Shop authorization evidence is unavailable.', 'digiforge'), '', ['response'=>503]);if($found!==null)$matches[]=$shop;}
+        if(count($matches)!==1)wp_die(esc_html__('Explicit shop assignments are required to review this asset.', 'digiforge'), '', ['response'=>403]);
         $wpdb->last_error = '';
         $revision = $wpdb->get_row($wpdb->prepare(
             'SELECT ar.*,s.asset_type,s.asset_key,s.purpose FROM ' . Tables::asset_revisions() . ' ar '

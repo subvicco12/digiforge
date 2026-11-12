@@ -20,6 +20,7 @@ final class ListingController
             register_rest_route(self::NS, '/listings/seo', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'setSeo']]);
             register_rest_route(self::NS, '/listings/media', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'bindMedia']]);
             register_rest_route(self::NS, '/listings/pod', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'bindPod']]);
+            register_rest_route(self::NS, '/listings/draft-qa', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'recordDraftQa']]);
             register_rest_route(self::NS, '/listings/packages', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createPackage']]);
             register_rest_route(self::NS, '/listings/intents', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'createIntent']]);
             register_rest_route(self::NS, '/listings/(?P<entity>listing|intent)/(?P<id>\d+)/state', ['methods'=>'POST','permission_callback'=>[$this,'canManage'],'callback'=>[$this,'transition']]);
@@ -47,6 +48,20 @@ final class ListingController
     public function bindPod(\WP_REST_Request $r): mixed { return $this->mutate($r,'listing_pod_bind',fn()=>(new Repository())->bindPod((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createPackage(\WP_REST_Request $r): mixed { return $this->mutate($r,'listing_package_create',fn()=>(new Repository())->createDraftPackage((array)$r->get_json_params(),$this->rawKey($r)),201); }
     public function createIntent(\WP_REST_Request $r): mixed { return $this->mutate($r,'etsy_intent_create',fn()=>(new Repository())->createIntent((array)$r->get_json_params(),$this->rawKey($r)),201); }
+
+    public function recordDraftQa(\WP_REST_Request $r): mixed
+    {
+        if(!$this->canManage()||get_current_user_id()<1)return new \WP_Error('digiforge_draft_qa_access','An authenticated listing reviewer is required.',['status'=>403]);
+        if(!wp_verify_nonce((string)$r->get_header('X-WP-Nonce'),'wp_rest'))return new \WP_Error('digiforge_draft_qa_nonce','A valid REST review nonce is required.',['status'=>403]);
+        if(strlen((string)$r->get_body())>Validator::MAX_BODY_BYTES)return new \WP_Error('payload_too_large','Review body exceeds 64 KiB.',['status'=>413]);
+        $body=$r->get_json_params();if(!is_array($body))return new \WP_Error('digiforge_draft_qa_payload','A review JSON object is required.',['status'=>400]);
+        foreach(['intent_id','draft_package_id','create_operation_id']as $field)if(!is_int($body[$field]??null)||$body[$field]<1)return new \WP_Error('digiforge_draft_qa_scope','Positive exact review identities are required.',['status'=>400]);
+        if(!is_array($body['checks']??null))return new \WP_Error('digiforge_draft_qa_checks','Explicit human QA check assertions are required.',['status'=>400]);
+        return $this->mutate($r,'draft_qa_review_'.$body['create_operation_id'],function()use($body){
+            $receipt=\DigiForge\Portal\ReviewConfirmation::accept(\DigiForge\Listings\DraftQaReviewRepository::ACTION,$body['create_operation_id'],$body);if($receipt instanceof \WP_Error)return $receipt;
+            return (new \DigiForge\Listings\DraftQaReviewRepository())->record($body['intent_id'],$body['draft_package_id'],$body['create_operation_id'],$body['checks'],(string)($body['confirmation']??''),(string)($body['objective_evidence_hash']??''));
+        },201);
+    }
 
     public function transition(\WP_REST_Request $r): mixed
     {

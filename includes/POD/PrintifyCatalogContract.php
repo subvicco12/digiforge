@@ -212,6 +212,12 @@ final class PrintifyCatalogContract
             return null;
         }
         $raw = trim((string) $value);
+        // Printify and ISO 8601 commonly express UTC with a trailing Z. The P
+        // parser below requires a numeric offset, so canonicalize only this
+        // exact UTC form before applying the same strict round-trip checks.
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/D', $raw) === 1) {
+            $raw = substr($raw, 0, -1) . '+00:00';
+        }
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', $raw);
         $format = 'Y-m-d\TH:i:sP';
         if (!$date || $date->format($format) !== $raw) {

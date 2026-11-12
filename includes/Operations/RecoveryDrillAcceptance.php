@@ -27,6 +27,21 @@ final class RecoveryDrillAcceptance
             || !hash_equals((string)($candidate['verification_evidence_hash']??''),$evidenceHash)) {
             return new \WP_Error('digiforge_recovery_drill_accept_blocked', __('The exact immutable verified recovery candidate is not eligible for human acceptance.', 'digiforge'), ['status'=>409]);
         }
+        $receipt = RecoveryVerificationEvidence::read($operationKey);
+        if ($receipt instanceof \WP_Error) return $receipt;
+        $artifacts = RecoveryEvidence::snapshot();
+        $dispatchArtifactHash = hash('sha256', (string) wp_json_encode([
+            $artifacts['database_backup'] ?? [], $artifacts['plugin_package'] ?? [],
+        ]));
+        if (! is_string($receipt['artifact_evidence_hash'] ?? null)
+            || ! hash_equals($dispatchArtifactHash, $receipt['artifact_evidence_hash'])
+            || ! hash_equals((string) ($receipt['evidence_hash'] ?? ''), $evidenceHash)) {
+            return new \WP_Error('digiforge_recovery_drill_accept_artifacts_changed', __('Current recovery artifacts must match the immutable verified receipt.', 'digiforge'), ['status'=>409]);
+        }
+        $artifactIdentityHash = hash('sha256', (string) wp_json_encode([
+            'database_backup' => $artifacts['database_backup'] ?? [],
+            'plugin_package' => $artifacts['plugin_package'] ?? [],
+        ], JSON_UNESCAPED_SLASHES));
         $checks=is_array($candidate['proposed_checks']??null)?$candidate['proposed_checks']:[];
         if (($checks['restore_verified']??false)!==true || ($checks['database_identity_verified']??false)!==true
             || ($checks['schema_verified']??false)!==true || ($checks['application_health_verified']??false)!==true) {
@@ -46,6 +61,7 @@ final class RecoveryDrillAcceptance
         }
         $record=[
             'drill_id'=>$drillId,
+            'artifact_identity_hash'=>$artifactIdentityHash,
             'performed_at'=>(string)($candidate['verified_at']??''),
             'environment'=>'staging',
             'database_backup_identifier'=>(string)($candidate['database_backup_identifier']??''),
