@@ -51,7 +51,8 @@ final class PrintifyApiApprovalFixture
  public function restore():void
  {
   global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');PortalAccessFixture::reset();
-  foreach($this->snapshots as $table=>$rows){$wpdb->query('DELETE FROM '.$table);foreach($rows as $row)$wpdb->insert($table,$row);}
+  // Preserve database strings exactly: WP globally infers object_id as an integer.
+  foreach($this->snapshots as $table=>$rows){$wpdb->query('DELETE FROM '.$table);foreach($rows as $row)$wpdb->insert($table,$row,array_fill(0,count($row),'%s'));}
   foreach(self::PREFIXES as $prefix)$wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",$wpdb->esc_like($prefix).'%'));
   foreach($this->options as $row)$wpdb->insert($wpdb->options,$row);
   if(isset($this->reviewer)){require_once ABSPATH.'wp-admin/includes/user.php';wp_delete_user($this->reviewer);if(isset($this->grantor))wp_delete_user($this->grantor);}

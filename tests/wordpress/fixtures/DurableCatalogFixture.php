@@ -14,7 +14,8 @@ trait DurableCatalogFixture {
  protected function tearDown():void {
   global $wpdb;
   $wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');
-  foreach($this->catalogSnapshots as $table=>$rows){self::assertNotFalse($wpdb->query('DELETE FROM '.$table));foreach($rows as $row)self::assertNotFalse($wpdb->insert($table,$row));}
+  // Preserve database strings exactly: WP globally infers object_id as an integer.
+  foreach($this->catalogSnapshots as $table=>$rows){self::assertNotFalse($wpdb->query('DELETE FROM '.$table));foreach($rows as $row)self::assertNotFalse($wpdb->insert($table,$row,array_fill(0,count($row),'%s')));}
   wp_cache_flush();$wpdb->query('SET autocommit=0');$wpdb->query('START TRANSACTION');parent::tearDown();
  }
 }
