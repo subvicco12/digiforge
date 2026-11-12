@@ -14,6 +14,7 @@ final class ProviderReceipt {
    if($r['body']!==[]||$r['http_status']!==0)self::bad();return ['state'=>'UNKNOWN','retry_permitted'=>false];
   }
   if($r['kind']!=='RESPONSE'||$r['http_status']!==200)self::bad();
+  if($i->operation==='PRODUCT_PUBLISH')return PublicationContract::reconcile($i->prepared(),$r['body'],$r['http_status']);
   $allowed=$i->operation==='IMAGE_UPLOAD'?['id','file_name','width','height']:['id','shop_id','blueprint_id','print_provider_id','variants','visible','is_locked'];
   if(array_diff(array_keys($r['body']),$allowed))self::bad();
   if($i->operation!=='IMAGE_UPLOAD')foreach($r['body']['variants']??[]as $v)if(!is_array($v)||array_keys($v)!==['id'])self::bad();

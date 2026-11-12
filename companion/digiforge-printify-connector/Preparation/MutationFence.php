@@ -28,7 +28,7 @@ final class MutationFence {
    if(!preg_match('/^[a-f0-9]{64}$/D',$receiptReference)||is_wp_error($this->authority($i)))throw new \RuntimeException();
    $e=$this->host->responseEvidence($i,$receiptReference);
    if(is_wp_error($e)||($e['operation_id']??null)!==$i->operationId||($e['payload_fingerprint']??null)!==$i->payloadFingerprint||($e['receipt_reference']??null)!==$receiptReference||($e['transport_attested']??null)!==true||($e['http_status']??null)!==200||!is_array($e['body']??null))throw new \RuntimeException();
-   $metadata=$i->operation==='IMAGE_UPLOAD'?UploadContract::reconcile($i->prepared(),$e['body'],200):ProductDraftContract::reconcile($i->prepared(),$e['body'],200);
+   $metadata=$i->operation==='PRODUCT_PUBLISH'?PublicationContract::reconcile($i->prepared(),$e['body'],200):($i->operation==='IMAGE_UPLOAD'?UploadContract::reconcile($i->prepared(),$e['body'],200):ProductDraftContract::reconcile($i->prepared(),$e['body'],200));
    if(is_wp_error($this->authority($i)))throw new \RuntimeException();
    $out=['operation_id'=>$i->operationId,'state'=>'METADATA_RECONCILED','receipt_reference'=>$receiptReference,'metadata'=>$metadata,'retry_permitted'=>false,'network_request_permitted'=>false];
    if(!$this->host->outcome($i,'METADATA_RECONCILED',$out)||is_wp_error($this->authority($i)))throw new \RuntimeException();return $out;

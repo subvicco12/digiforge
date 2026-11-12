@@ -24,6 +24,7 @@ final class OperationInspection {
     if($j['approval_state']!=='VALID')$reasons[]='APPROVAL_'.$j['approval_state'];
     if($j['state']==='UNKNOWN')$reasons[]='UNRESOLVED_UNKNOWN';if($j['state']==='CONFLICTING')$reasons[]='RECEIPT_CONFLICT';if($j['state']==='REJECTED')$reasons[]='OPERATION_REJECTED';
    }
+   if($i->operation==='PRODUCT_PUBLISH'){$reasons[]='PUBLICATION_REVIEW_REQUIRED';if($state==='RECONCILED')$state='PUBLISH_PENDING';if($state==='UNKNOWN')$state='PUBLICATION_UNKNOWN';}
    $events=$r['audit_events'];if(!is_array($events)||!array_is_list($events)||count($events)>20)throw new \RuntimeException();$last=0;
    foreach($events as $event){$ekeys=['sequence','state','occurred_at','event_hash'];if(!is_array($event)||array_diff(array_keys($event),$ekeys)||array_diff($ekeys,array_keys($event))||!is_int($event['sequence'])||$event['sequence']<=$last||!in_array($event['state'],['PREPARED','FENCED','UNKNOWN','METADATA_RECONCILED','REJECTED','CONFLICTING','CANCELLED'],true)||!is_int($event['occurred_at'])||$event['occurred_at']<1||$event['occurred_at']>$r['observed_at'])throw new \RuntimeException();self::digest($event['event_hash']);$last=$event['sequence'];}
    return ['audit_events'=>$events,'operation_id'=>$i->operationId,'operation'=>$i->operation,'shop_key'=>$i->scope->shopKey,'payload_fingerprint'=>$i->payloadFingerprint,'state'=>$state,'reasons'=>$reasons,'journal_revision'=>$revision,'receipt_reference'=>$receipt,'observed_at'=>$r['observed_at'],'core_evidence_hash'=>$hash,'retry_permitted'=>false,'external_execution_authorized'=>false];

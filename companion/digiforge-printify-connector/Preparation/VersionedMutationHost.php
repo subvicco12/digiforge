@@ -12,6 +12,7 @@ final class VersionedMutationHost implements CoreMutationHost {
  private function call(string $action,MutationIntent $i,array $data=[]):array|\WP_Error {
   try{
    if($this->core===null||$this->core->version()!==self::VERSION||$i->scope->expiresAt<=time())return self::error();
+   if($i->operation==='PRODUCT_PUBLISH'&&(!$this->core instanceof PublishingCoreInterface||$this->core->publicationVersion()!=='1.0.0'||$this->core->authorizePublication(self::binding($i),$i->prepared())!==true))return self::error();
    $request=['contract_version'=>self::VERSION,'action'=>$action,'binding'=>self::binding($i),'context'=>$i->context,'evidence_references'=>$i->evidenceReferences,'duplicate_key'=>$i->duplicateKey,'data'=>$data];
    $r=$this->core->exchange($request);if(is_wp_error($r))return self::error();
    $keys=['contract_version','action','binding','recovery_epoch','checkpoint_epoch','journal_revision','data','journal_hash'];

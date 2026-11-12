@@ -19,6 +19,11 @@ final readonly class MutationIntent implements \JsonSerializable {
    $expected=UploadContract::prepare($scope,$prepared['asset'],$bytes);if(self::hash($expected)!==self::hash($prepared))self::bad();
    $wire=['method'=>$expected['method'],'endpoint'=>$expected['path'],'body'=>$expected['body']];
    $logical=$expected['asset']['sha256'];foreach(['rights_receipt_sha256','ownership_receipt_sha256','geometry_receipt_sha256']as $k)$refs[]=$expected['asset'][$k];
+  }elseif($operation==='PRODUCT_PUBLISH'){
+   $e=$prepared['evidence']??[];$flags=$prepared['request']['body']??[];if(!is_array($e)||!is_array($flags))self::bad();
+   $expected=PublicationContract::prepare($scope,['product_id'=>$e['current_product_id']??null,'flags'=>$flags],$e);if(self::hash($expected)!==self::hash($prepared))self::bad();
+   foreach(['authorization_revision','product_version','expected_product_version']as $k)if(($e[$k]??null)!==$context[$k])self::bad();if($e['approval_receipt']!==$context['approval_reference'])self::bad();
+   $wire=$expected['request'];$logical=$e['current_product_id'].':'.$e['product_version'];foreach(['channel_receipt','product_receipt','approval_receipt']as $k)$refs[]=$e[$k];
   }elseif(in_array($operation,['PRODUCT_CREATE','PRODUCT_UPDATE'],true)){
    $wire=$prepared['core_request']??[];$e=$prepared['evidence']??[];if(!is_array($wire)||!is_array($e))self::bad();$input=$wire['body']??[];if(!is_array($input))self::bad();
    if($operation==='PRODUCT_UPDATE'){$input['product_id']=$e['current_product_id']??null;$input['known_variant_ids']=array_column($input['variants']??[],'id');$input['blueprint_id']=$e['blueprint_id']??null;$input['print_provider_id']=$e['print_provider_id']??null;}
