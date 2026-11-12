@@ -12,3 +12,7 @@ Engineering composition under RELEASE HOLD. This is not installation, recovery o
 - Comprehensive combined WordPress1762-test run and GitHub exact-head source CI are still being reconciled at this checkpoint; no comprehensive PASS is claimed. Final PR metadata supplies the exact current head and latest results.
 
 Remaining launch gates: raw installed-source hashes, actual supplier/font/safe-area/preview parity, commercial artwork and rights-reviewed mockups, current shipping/processing and cost evidence, exact owner price/listing decisions, recovery qualification, and tested companion migration/interface. No historical failed task was retried.
+
+Post-checkpoint correction: kept the existing main Google HTTP shell gate intact and placed the additional exact-composite policy in its own CI step. The inherited-policy test now names that step explicitly; this avoids making the narrow main Google fixture invoke a checker absent from its intentionally minimal temporary repository. No runtime gate or sender allowlist was relaxed.
+
+The full mandatory history scanner reports21 generic-api-key findings in the recovered historical shared-dependency JSON. The flagged locations are Git commit/blob metadata, not an observed credential leak. The scanner/ignore policy is unchanged; its FINDINGS_REVIEW_REQUIRED result remains visible and is not converted into a PASS. Sanitized classification and final combined test results belong in the PR receipt.

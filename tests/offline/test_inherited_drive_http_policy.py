@@ -20,7 +20,7 @@ class InheritedDrivePolicyTest(unittest.TestCase):
     def run_gate(self):
         return subprocess.run(['python3',str(ROOT/'bin/artifact-audit/security.py'),str(self.root)],capture_output=True,text=True)
     def test_reviewed_exact_client_passes_existing_source_rule(self):
-        script=(ROOT/'.github/workflows/digiforge-foundation-audit.yml').read_text().split('      - name: External HTTP client scan\n',1)[1].split('\n      - name:',1)[0]
+        script=(ROOT/'.github/workflows/digiforge-foundation-audit.yml').read_text().split('      - name: Recovered composite artifact HTTP policy\n',1)[1].split('\n      - name:',1)[0]
         self.assertIn('python3 bin/artifact-audit/security.py .',script)
         self.assertEqual(0,self.run_gate().returncode)
     def test_new_senders_and_same_filename_elsewhere_deny(self):

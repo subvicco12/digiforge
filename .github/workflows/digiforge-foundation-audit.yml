@@ -298,7 +298,8 @@ jobs:
           grep -Fq "'sslverify' => true" includes/Launch/OpenAIClient.php
           grep -Fq "'reject_unsafe_urls' => true" includes/Launch/OpenAIClient.php
 
-          python3 bin/artifact-audit/security.py .
+      - name: Recovered composite artifact HTTP policy
+        run: python3 bin/artifact-audit/security.py .
 
       - name: Build reproducible plugin package
         run: bash bin/package-plugin.sh
