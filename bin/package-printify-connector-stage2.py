@@ -82,6 +82,7 @@ def write_zip(path, members):
 def selected_paths():
     files = {p.relative_to(ROOT).as_posix() for p in (ROOT / 'includes/Connector/Printify').glob('*.php')}
     files |= {p.relative_to(ROOT).as_posix() for p in (ROOT / 'companion/digiforge-printify-connector').rglob('*.php')}
+    files.add('companion/digiforge-printify-connector/contracts/native-core-port.v1.json')
     files |= {CLIENT, 'includes/Portal/OpportunityDesignPanel.php', 'includes/POD/PrintifyConnectorReadContract.php', 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', 'bin/package-printify-connector-stage2.py'}
     return files
 
@@ -179,7 +180,7 @@ def build(baseline_path, output, source_sha):
         raise ValueError('Preservation boundary violated')
     output.mkdir(parents=True, exist_ok=True)
     core_path = output / ('digiforge-' + CANDIDATE_VERSION + '-test-only.zip')
-    companion_path = output / 'digiforge-printify-connector-0.6.0-test-only.zip'
+    companion_path = output / 'digiforge-printify-connector-0.7.0-test-only.zip'
     write_zip(core_path, candidate)
     write_zip(companion_path, companion)
     artifacts = [{'filename': p.name, 'size': p.stat().st_size, 'sha256': sha(p.read_bytes())} for p in [core_path, companion_path]]

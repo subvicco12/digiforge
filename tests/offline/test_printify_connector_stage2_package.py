@@ -28,6 +28,7 @@ class Stage2PackageTests(unittest.TestCase):
             root = pathlib.Path(d)
             paths = list((ROOT / 'includes/Connector/Printify').rglob('*.php'))
             paths += list((ROOT / 'companion/digiforge-printify-connector').rglob('*.php'))
+            paths += [ROOT / 'companion/digiforge-printify-connector/contracts/native-core-port.v1.json']
             paths += [ROOT / p.CLIENT, ROOT / 'includes/Portal/OpportunityDesignPanel.php', ROOT / 'includes/POD/PrintifyConnectorReadContract.php', ROOT / 'docs/printify-connector/STAGE2_PACKAGE_CONTRACT.json', ROOT / 'bin/package-printify-connector-stage2.py']
             for source in paths:
                 destination = root / source.relative_to(ROOT)
