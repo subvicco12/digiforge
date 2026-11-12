@@ -39,6 +39,8 @@ Core must atomically claim event identity/payload hash and append a durable audi
 
 `DF_WORKFLOW_RECEIPT_1` binds scope/actor/kind/identity/content hash, disposition, positive journal revision and matching recovery/checkpoint epochs, plus canonical receipt_hash. Hashes detect byte changes; trusted core provenance and transactional persistence supply authority. A self-hashed caller object is insufficient. The core must retain original accepted evidence on conflict and preserve UNKNOWN outcomes; coordinated rollback of all trusted roots remains blocked.
 
+`WebhookReconciler` also matches verified event observations to an exact order read model or publication readback by scope, resource type/ID and core-supplied observation time/watermark. Older readbacks and out-of-order events remain review-only; a publish-started event plus a locked product remains pending. This pure helper does not authenticate caller-produced hashes or apply state. Core must resolve the original trusted read/event receipts before using its matching evidence.
+
 ## Operator evidence
 
 `WorkflowPanel` and `WorkflowCoordinator::snapshot/export` are callable read-only views for later core portal embedding. They expose at most20 minimized journal observations with fixed reasons for order review, authoritative readback, rejected webhook, event conflict/out-of-order, publication pending and UNKNOWN. Each read requires current core permission, and every returned row must match the exact requested scope fingerprint. No form, retry action, scheduler, public route or secret-bearing raw response is introduced.
