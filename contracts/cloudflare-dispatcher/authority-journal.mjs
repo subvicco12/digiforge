@@ -1,4 +1,4 @@
-import { canonical, insist } from "./protocol.mjs";
+import { canonical, insist, keys, hex } from "./protocol.mjs";
 /** Reference authority storage. Its independent administration/durability is NOT certified. */
 export class AuthorityJournal {
   #storage;
@@ -39,6 +39,7 @@ export class AuthorityJournal {
         leases: [],
         nonce_count: 0,
       };
+      this.validate(d);
       this.#storage.sql.exec(
         "INSERT INTO df_security_authority VALUES(1,?,?)",
         0,
@@ -46,12 +47,38 @@ export class AuthorityJournal {
       );
     });
   }
+  validate(d) {
+    insist(d && typeof d === "object" && !Array.isArray(d), "ROOT_CORRUPT");
+    keys(d, ["revision", "epoch", "namespace", "code", "account", "credential_binding",
+      "workload_key", "minimum_version", "anchor", "stopped", "recovery", "booted",
+      "generation", "last_time", "nonces", "leases", "nonce_count"]);
+    for (const key of ["revision", "nonce_count"])
+      insist(Number.isSafeInteger(d[key]) && d[key] >= 0, "ROOT_CORRUPT");
+    for (const key of ["generation", "minimum_version", "last_time"])
+      insist(Number.isSafeInteger(d[key]) && d[key] > 0, "ROOT_CORRUPT");
+    for (const key of ["stopped", "recovery", "booted"])
+      insist(typeof d[key] === "boolean", "ROOT_CORRUPT");
+    for (const key of ["epoch", "namespace", "code", "credential_binding"])
+      insist(hex(d[key]), "ROOT_CORRUPT");
+    for (const key of ["account", "workload_key"])
+      insist(typeof d[key] === "string" && d[key].length > 0 && d[key].length <= 4096, "ROOT_CORRUPT");
+    for (const [key, limit] of [["nonces", 2048], ["leases", 10]]) {
+      const list = d[key];
+      insist(Array.isArray(list) && list.length <= limit && new Set(list).size === list.length &&
+        list.every(v => typeof v === "string" && v.length > 0 && v.length <= 160), "ROOT_CORRUPT");
+    }
+    insist(d.nonce_count <= 2048 && d.anchor && typeof d.anchor === "object" &&
+      Number.isSafeInteger(d.anchor.revision) && d.anchor.revision >= 0 && hex(d.anchor.hash), "ROOT_CORRUPT");
+    keys(d.anchor, ["revision", "hash"]);
+  }
   read() {
     const rows = this.#storage.sql
       .exec("SELECT revision,document FROM df_security_authority WHERE id=1")
       .toArray();
     insist(rows.length === 1, "ROOT_MISSING");
+    insist(typeof rows[0].document === "string" && rows[0].document.length <= 1048576, "ROOT_CORRUPT");
     const d = JSON.parse(rows[0].document);
+    this.validate(d);
     insist(
       d.revision === rows[0].revision && Number.isSafeInteger(d.revision),
       "ROOT_CORRUPT",
@@ -69,6 +96,7 @@ export class AuthorityJournal {
       const result = fn(d);
       insist(!result?.then, "ASYNC_TRANSACTION_DENIED");
       d.revision++;
+      this.validate(d);
       const changed = this.#storage.sql
         .exec(
           "UPDATE df_security_authority SET revision=?,document=? WHERE id=1 AND revision=? RETURNING revision",
@@ -94,6 +122,7 @@ export class AuthorityJournal {
   active() {
     const d = this.read();
     insist(!d.stopped && !d.recovery, "ROOT_REVOKED");
+    insist(d.generation < Number.MAX_SAFE_INTEGER, "ROOT_GENERATION_EXHAUSTED");
     return d;
   }
   claim(nonce, active = true) {

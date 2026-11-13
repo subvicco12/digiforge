@@ -122,6 +122,15 @@ export class IndependentAuthorityService {
     await this.admission(context.certificate, context.custody);
     freshness(context.authentication.manifest, this.#clock(), 30);
   }
+  completion(id) {
+    const context = this.#contexts.get(id);
+    insist(context, "WORKLOAD_CONTEXT");
+    const now = this.#clock();
+    freshness(context.certificate.manifest, now, 60);
+    freshness(context.custody.manifest, now, 60);
+    freshness(context.authentication.manifest, now, 30);
+    // STOP may already have made the result UNKNOWN; do not prevent its safe completion.
+  }
   async physical(id, send) {
     await this.guard(id);
     // Final independent root read and expiry checks are synchronous with physical callback invocation.
@@ -297,7 +306,7 @@ class AuthorityBoundSender {
       this.#config,
     ).check();
   }
-  send(request, claim) {
+  async send(request, claim) {
     const original = this.#custody,
       provider = this.#fetch,
       service = this.#service,
@@ -338,12 +347,15 @@ class AuthorityBoundSender {
         return provider.fetch(...args);
       }),
     };
-    return new SyntheticFinalSender(
+    const result = await new SyntheticFinalSender(
       custody,
       physical,
       this.#witness,
       this.#config,
     ).send(request, claim);
+    // Response evidence is not usable after its independent custody/workload lease expires.
+    service.completion(id);
+    return result;
   }
 }
 /** No final-admission Boolean crosses the workload boundary. Sender invocation stays inside this service. */
