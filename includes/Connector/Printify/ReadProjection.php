@@ -68,7 +68,7 @@ final class ReadProjection {
   foreach($v as $area){
    if(!is_array($area)||!is_array($area['variant_ids']??null)||!array_is_list($area['variant_ids'])||count($area['variant_ids'])>2000||!is_array($area['placeholders']??null)||!array_is_list($area['placeholders'])||count($area['placeholders'])>100)throw new \InvalidArgumentException('Print area mapping malformed.');
    $ids=[];foreach($area['variant_ids'] as $id){if(!is_int($id)||$id<1)throw new \InvalidArgumentException('Variant identity malformed.');$ids[]=$id;}$positions=[];
-   foreach($area['placeholders'] as $place){if(!is_array($place)||!is_string($place['position']??null)||!is_array($place['images']??null)||!array_is_list($place['images'])||count($place['images'])>10)throw new \InvalidArgumentException('Placement malformed.');$images=[];
+   foreach($area['placeholders'] as $place){if(!is_array($place)||!is_string($place['position']??null)||!is_array($place['images']??null)||!array_is_list($place['images'])||count($place['images'])>20)throw new \InvalidArgumentException('Placement malformed.');$images=[];
     foreach($place['images'] as $image){if(!is_array($image)||!is_string($image['id']??null)||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$image['id']))throw new \InvalidArgumentException('Image reference malformed.');$n=['id'=>$image['id']];foreach(['x','y','scale','angle'] as $f){$number=$image[$f]??null;if((!is_int($number)&&!is_float($number))||!is_finite((float)$number)||abs((float)$number)>1000||($f==='scale'&&$number<=0))throw new \InvalidArgumentException('Placement evidence malformed.');$n[$f]=$number;}$images[]=$n;}
     $positions[]=['position'=>self::text($place['position']),'images'=>$images];
    }$out[]=['variant_ids'=>$ids,'placeholders'=>$positions];
