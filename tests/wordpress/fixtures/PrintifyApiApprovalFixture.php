@@ -44,6 +44,16 @@ final class PrintifyApiApprovalFixture
   $wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');
  }
  public function owner():void {wp_set_current_user(1);$_COOKIE=$this->ownerCookies;}
+ /** New logical test operation only: real simulated email flow, never timestamp renewal.
+  * Leave a five-minute budget under the unchanged ten-minute owner proof. A
+  * new session invalidates earlier session-bound grants; callers must prepare anew.
+  */
+ public function refreshOwnerVerification():void {
+  $this->owner();$s=WP_Session_Tokens::get_instance(1)->get(wp_get_session_token());
+  if(\DigiForge\PortalAccess\EmailAuthentication::recent(1)&&is_array($s)&&is_int($s['digiforge_email_verified_at']??null)&&$s['digiforge_email_verified_at']>time()-300)return;
+  PortalAccessFixture::verifyEmail();$this->ownerCookies=$_COOKIE;
+  if(!\DigiForge\PortalAccess\EmailAuthentication::recent(1))throw new RuntimeException('Synthetic owner step-up unavailable.');
+ }
  public function setting(string $key,bool $value):void { global $wpdb;$ok=$wpdb->replace(\DigiForge\Database\Tables::settings(),['setting_key'=>$key,'setting_value'=>wp_json_encode($value),'setting_type'=>\DigiForge\Core\Config::setting_type($key),'updated_at'=>current_time('mysql',true)]);if($ok===false)throw new RuntimeException('Synthetic settings unavailable'); }
  public function approve(object $workflow,array $plan,string $prefix):array
  {
