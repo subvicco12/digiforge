@@ -1,0 +1,23 @@
+{
+  "contract": "DF_NATIVE_CORE_PORT_1",
+  "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "companion_reviewed_sha": "ac3f61c1cccec1a49bddf2f1f3c8975e40d8a8f3",
+  "accepted_pod_frozen_sha": "8517778a47dfe9aaae26bd7dd48e9ef1c1f15ba8",
+  "advertised_native_capabilities": ["PANEL"],
+  "external_execution_authorized": false,
+  "capabilities": [
+    {"name":"Versioned discovery and session/shop/nonce admission","status":"COMPLETE","scope":"Existing protected read authentication; not an operational grant"},
+    {"name":"PANEL","status":"COMPLETE","scope":"Authentication receipt only; no protected data route mounted"},
+    {"name":"Held candidate state machine","status":"COMPLETE","scope":"Nonexecuting local state, one-shot local fence/cancel/UNKNOWN; no independent recovery qualification"},
+    {"name":"Held SQL journal primitive","status":"PARTIAL","scope":"Real transactional component and offline proposed schema; not installed/registered or connected to native exchange"},
+    {"name":"Current protected plan and approval evidence join","status":"PARTIAL","scope":"Read-only existing server-owned records and reviewed policy; native product/order version and operational grant joins remain unqualified"},
+    {"name":"Core receipt reference join","status":"PARTIAL","scope":"Protected core receipt metadata only; no native producer/fence/sequence/checkpoint qualification; positive receipt path not newly qualified"},
+    {"name":"GET_READ operational grant","status":"BLOCKED","scope":"Fixed grammar and fail-closed boundary exist; independent native read-plan authorization mapping missing"},
+    {"name":"MUTATION_ADMISSION and native JOURNAL","status":"PARTIAL","scope":"Typed denial boundary plus held candidate primitives only; native authoritative registration/reservation/fence is not enabled"},
+    {"name":"PUBLICATION_ADMISSION","status":"BLOCKED","scope":"Global owner/safety checks preserved; no operational publication grant"},
+    {"name":"WORKFLOW and OPERATIONS snapshots/review CAS","status":"NOT_IMPLEMENTED","scope":"Local read admission exists; trusted native snapshot/event/review identity joins absent"},
+    {"name":"ORDER_ALLOCATION","status":"NOT_IMPLEMENTED","scope":"No inferred quantities, membership, proof or order identities"},
+    {"name":"RECOVERY independent revocation/checkpoint/drain","status":"BLOCKED","scope":"Coordinated all-root rollback counterexample remains; no synthetic checkpoint used as independent witness"},
+    {"name":"Exclusive credential custody","status":"BLOCKED","scope":"No callback receives secrets; no credential/dispatch lease or independent custody service qualification"}
+  ]
+}
