@@ -91,6 +91,13 @@
       "upstream_path": "includes/POD/PrintifyConnectorReadContract.php",
       "sha256": "3ca477a6830bfa8eefae0011c383ebae52ae110a6027a10fede3d78489a4bef7",
       "identical": true
+    },
+    {
+      "path": "tests/fixtures/native-printify-companion/CoreContractAdapter.php",
+      "upstream_path": "companion/digiforge-printify-connector/Preparation/CoreContractAdapter.php",
+      "sha256": "847f5d92226abe39ef98933f265ded582c359648f4855c8f9178d940fa1deaa9",
+      "identical": true,
+      "also_verified_at_companion_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18"
     }
   ]
 }

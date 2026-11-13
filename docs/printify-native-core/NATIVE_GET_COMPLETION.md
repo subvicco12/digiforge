@@ -33,3 +33,7 @@ GET_READ advertisement is gated by the complete offline conformance run; PANEL r
 ## Remaining gates
 
 No installation or production provider request is authorized. Companion default pin review, production source equivalence, exact reviewed provider/account/credential/scopes and shop binding, operational policy and installation approvals remain external gates. Canonical mutation/journal/receipt-producer/publication/order snapshot/allocation/recovery and independent anti-rollback/custody guarantees remain separate unimplemented or unqualified work. Historical reservation22 is untouched. STOP ALL ON, external lock ON, automation OFF, RELEASE HOLD.
+
+## Core-only CI fixture parity
+
+The actual-companion composition passed, but hosted core-only CI exposed a missing pinned fixture dependency: NativePortAdapter::discover resolves CoreContractAdapter::REFERENCE_SHA. The source fixture set contained the adapter but omitted CoreContractAdapter. A no-companion WordPress reproduction and standalone native test reproduce Class-not-found; the exact upstream CoreContractAdapter bytes are now included and hash-pinned in CONTRACT_LINEAGE.json. They are identical at the original fixture source and unchanged companione31c20bd. Default source pin702a remains unchanged and unreviewed-source discovery still denies. This is test scaffolding only, not a runtime authority or core interface change. All mandatory CI gates remain enabled.

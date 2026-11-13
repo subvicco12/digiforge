@@ -30,4 +30,10 @@ final class NativeProjectionCompatibilityTest extends TestCase {
   $this->expectException(InvalidArgumentException::class);DigiForge\POD\PrintifyUploadContract::project($request,$body);
  }
 
+ public function testCoreOnlyDefaultDiscoveryHasItsPinnedDependencyAndStillDeniesUnreviewedSource():void {
+  $adapter=DigiForgePrintifyConnector\Preparation\NativePortAdapter::discover();self::assertInstanceOf(DigiForgePrintifyConnector\Preparation\NativeCorePortInterface::class,$adapter);
+  self::assertSame('702a4d078555ac9cb75fd115357db5387281c74a',DigiForgePrintifyConnector\Preparation\CoreContractAdapter::REFERENCE_SHA);
+  $i=new ExternalOperationIntent(1,'personalized_pod',3,'SHOPS_READ',[],str_repeat('a',32));self::assertInstanceOf(WP_Error::class,$adapter->read($i));
+ }
+
 }
