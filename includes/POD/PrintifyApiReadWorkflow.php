@@ -160,6 +160,33 @@ final class PrintifyApiReadWorkflow
         if (!is_array($anchor) || ($anchor['receipt_sha256'] ?? null) !== $hash || ($anchor['status'] ?? null) !== $receipt['status'] || ($anchor['plan_sha256'] ?? null) !== $receipt['plan_hash']) { return self::error('receipt_audit'); }
         return $receipt;
     }
+    /** Protected observation provenance, never an operational grant or native dispatch receipt.
+     * Joins the original sealed authorization, consumed claim and both real producer audit anchors.
+     * Expired execution authorization cannot send again; immutable observations may be read while
+     * their exact original review revision remains current. No nonce or session token is returned.
+     */
+    public function orderSource(string $hash): array|WP_Error
+    {
+        try {
+            $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());if(is_wp_error($session))return $session;
+            $r=$this->receipt($hash);if(is_wp_error($r)||($r['operation']??null)!=='ORDER_READ'||($r['status']??null)!=='SUCCEEDED'||($r['network_request_attempted']??null)!==true||!is_array($r['data']??null))return self::error('source_receipt');
+            $p=$this->plan($r['plan_hash']);if(is_wp_error($p))return $p;
+            $request=PrintifyApiRequest::prepare('ORDER_READ',$p['provider_shop_id'],$p['input']);
+            $expected=$this->approvalPayload($r['plan_hash']);$policy=ReviewedLocalEvidence::approved('policy',$p['shop_key'],'printify-api-read:'.$r['plan_hash']);
+            if(is_wp_error($expected)||is_wp_error($policy)||Validator::canonicalJson($request)!==Validator::canonicalJson($p['request'])||Validator::canonicalJson($expected)!==Validator::canonicalJson($policy['payload'])||($r['data']['id']??null)!==($p['input']['order_id']??null))return self::error('source_plan');
+            foreach(['operation'=>'operation','endpoint_path'=>'endpoint','request_fingerprint'=>'fingerprint']as $a=>$b)if(($r[$a]??null)!==$request[$b])return self::error('source_request');
+            foreach(['shop_key','integration_id','provider_shop_id']as $key)if(($r[$key]??null)!==$p[$key])return self::error('source_identity');
+            global $wpdb;$wpdb->last_error='';
+            $rows=$wpdb->get_results($wpdb->prepare('SELECT id,event_type,actor_id,context FROM '.\DigiForge\Database\Tables::audit_log().' WHERE object_type=%s AND object_id=%s AND event_type IN (%s,%s) ORDER BY id LIMIT 3','printify_api',$r['plan_hash'],'printify_api_read_reserved','printify_api_read_receipt'),ARRAY_A);
+            if($wpdb->last_error!==''||!is_array($rows)||count($rows)!==2||$rows[0]['event_type']!=='printify_api_read_reserved'||$rows[1]['event_type']!=='printify_api_read_receipt'||(int)$rows[0]['actor_id']<1||$rows[0]['actor_id']!==$rows[1]['actor_id'])return self::error('source_producer');
+            $anchor=json_decode($rows[0]['context'],true);$receiptAnchor=json_decode($rows[1]['context'],true);$authHash=$anchor['authorization_sha256']??'';
+            if(($anchor['plan_sha256']??null)!==$r['plan_hash']||($anchor['max_requests']??null)!==3||($receiptAnchor['receipt_sha256']??null)!==$hash)return self::error('source_reservation');
+            $auth=$this->load('authorization',$authHash);if(is_wp_error($auth)||($auth['plan_hash']??null)!==$r['plan_hash']||($auth['actor']??null)!==(int)$rows[0]['actor_id']||($auth['policy_hash']??null)!==$policy['proposal_hash']||($auth['policy_revision']??null)!==$policy['revision'])return self::error('source_approval_revision');
+            $wpdb->last_error='';$claim=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_api_read_claim_'.$r['plan_hash']));
+            if($wpdb->last_error!==''||$claim!==$authHash)return self::error('source_claim');
+            return ['receipt'=>$r,'connection_scope'=>$p['connection_scope'],'authorization_hash'=>$authHash,'approval_hash'=>$policy['proposal_hash'],'approval_revision'=>$policy['revision'],'producer_audit_id'=>(int)$rows[1]['id'],'producer_actor_id'=>(int)$rows[1]['actor_id']];
+        } catch(\Throwable) {return self::error('source_unavailable');}
+    }
     /** Called only by the existing controlled transport; no new HTTP client. */
     public function execute(string $hash, string $authorization, callable $sender): array|WP_Error
     {

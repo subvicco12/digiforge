@@ -51,7 +51,9 @@ final class NativeCorePort implements NativeCorePortInterface
   return NativeFailure::error('exclusive_webhook_custody_bridge_required');
  }
  public function recordWorkflow(array $envelope):array|\WP_Error{return NativeFailure::error('atomic_workflow_identity_join_required');}
- public function inspectWorkflows(ShopBinding $scope,int $actor,int $limit):array|\WP_Error{return $this->view($scope,$actor,$limit,'inspect_workflows','trusted_workflow_snapshot_join_required');}
+ public function inspectWorkflows(ShopBinding $scope,int $actor,int $limit):array|\WP_Error{
+  $access=$this->authorizeWorkflow($scope,$actor,'inspect_workflows');return is_wp_error($access)?$access:(new NativeOrderSourceJournal())->snapshot($scope,$actor,$limit);
+ }
  public function reviewQueue(ShopBinding $scope,int $actor,int $limit):array|\WP_Error{return $this->view($scope,$actor,$limit,'inspect_reviews','trusted_review_snapshot_join_required');}
  private function view(ShopBinding $scope,int $actor,int $limit,string $action,string $missing):array|\WP_Error {
   if($limit<1||$limit>20)return NativeFailure::error('view_limit');$access=$this->authorizeWorkflow($scope,$actor,$action);return is_wp_error($access)?$access:NativeFailure::error($missing);

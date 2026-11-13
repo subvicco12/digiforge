@@ -37,12 +37,18 @@
     {
       "name": "Core receipt reference join",
       "status": "PARTIAL",
-      "scope": "Protected core receipt metadata only; no native producer/fence/sequence/checkpoint qualification; positive receipt path not newly qualified"
+      "scope": "Protected product receipt reference remains partial. NativeOrderSourceEvidence now joins actual core ORDER_READ producer audit/reservation, consumed claim, original sealed authorization and current exact policy/connection to canonical provider-order identity and immutable receipt source version. This is not native dispatch producer/fence/sequence/checkpoint qualification."
+    },
+    {
+      "name": "Protected order observation source registry",
+      "status": "PARTIAL",
+      "scope": "Actual protected producer/source-version joins and immutable SQL observation revisions, exact idempotent replay, generation CAS, exclusive SQL reservation, transactional audit and readback implemented. Passive offline schema; no installer/host durability or canonical business-order/product version, dispatch fence or independent epoch authority."
     },
     {
       "name": "GET_READ operational grant",
-      "status": "COMPLETE_OFFLINE",
-      "scope": "All13 canonical GET operations use sealed current plan/session/approval authority, existing catalog grants or owned-upload receipts, one-use claims, existing vault/transport and minimized ReadProjection. Ordinary STOP and external-lock denial preserved; no acceptance exception or operational activation."
+      "status": "COMPLETE",
+      "scope": "All13 canonical GET operations use sealed current plan/session/approval authority, existing catalog grants or owned-upload receipts, one-use claims, existing vault/transport and minimized ReadProjection. Ordinary STOP and external-lock denial preserved; no acceptance exception or operational activation. Offline implementation only; current composed matrix/reviewed-source pin acceptance remains a separate gate. No independently qualified mutation operational grant.",
+      "verification_status": "PARTIAL"
     },
     {
       "name": "MUTATION_ADMISSION and native JOURNAL",
@@ -56,8 +62,8 @@
     },
     {
       "name": "WORKFLOW and OPERATIONS snapshots/review CAS",
-      "status": "NOT_IMPLEMENTED",
-      "scope": "Local read admission exists; trusted native snapshot/event/review identity joins absent"
+      "status": "PARTIAL",
+      "scope": "inspectWorkflows provides a scoped consistent view of explicitly registered protected ORDER_READ observations, with dual inventory roots and postcommit approval revalidation. Passive schema; missing storage denies. recordWorkflow, review decisions/queues and operational snapshots remain denied; aggregate WORKFLOW is not advertised."
     },
     {
       "name": "ORDER_ALLOCATION",

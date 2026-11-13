@@ -1,5 +1,7 @@
 # Batch 10: native operational port join gaps
 
+Update: the later bounded core-governed ORDER_READ producer/source registry and read-only registered-observation inventory are documented in [NATIVE_SOURCE_OBSERVATIONS.md](NATIVE_SOURCE_OBSERVATIONS.md). The requirements below still apply to canonical operational business versions, allocations, dispatch producers and independent epochs; observation revisions do not satisfy those requirements.
+
 The native protected records support local evidence inspection; they do not yet supply the canonical operational authority required by `includes/Connector/Printify/native-core-port.v1.json`. This assessment does not authorize provider writes, change STOP/lock/release-hold policy, or qualify rollback recovery.
 
 | Canonical port | Existing core evidence | Required missing join |

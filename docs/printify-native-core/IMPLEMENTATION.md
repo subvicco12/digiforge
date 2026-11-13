@@ -4,7 +4,7 @@ Core baseline: PR1264 702a4d078555ac9cb75fd115357db5387281c74a (1.0.103.25).
 Reviewed companion: PR1263 e31c20bd38dec08846ad99f5b474c4f78b6e8b18. Its separately governed runtime source pin is unchanged.
 Batch6 canonical JSON SHA256: 6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434.
 
-**This is not completion of the native operational ports.** All composite signatures exist. PANEL and GET_READ are advertised for protected panel authentication and all thirteen ordinary governed reads after the source integration described in NATIVE_GET_COMPLETION.md. Current held-journal primitives remain candidate-only. WORKFLOW/OPERATIONS snapshots, canonical mutation journals, publication, allocation and independent recovery/custody remain unavailable. No caller, administrator, source hash or synthetic fixture can enable those ports. No production/staging installation or real provider execution is authorized; ordinary reads deny under STOP ALL/external lock.
+**This is not completion of the native operational ports.** All composite signatures exist. PANEL and GET_READ are advertised for protected panel authentication and all thirteen ordinary governed reads after the source integration described in NATIVE_GET_COMPLETION.md. Current held-journal primitives remain candidate-only. Aggregate WORKFLOW/OPERATIONS, canonical mutation journals, publication, allocation and independent recovery/custody remain unavailable. A read-only view of registered protected order observations is implemented separately; see NATIVE_SOURCE_OBSERVATIONS.md. No caller, administrator, source hash or synthetic fixture can enable those ports. No production/staging installation or real provider execution is authorized; ordinary reads deny under STOP ALL/external lock.
 
 ## Implemented boundary
 
@@ -25,7 +25,7 @@ Batch6 canonical JSON SHA256: 6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b599602
 | authorizePublication | native module scope, Settings, Owner::require, PrintifyProductPipeline's current policy checks (unchanged) | BLOCKED publication-specific current approval/product/checkpoint join. Etsy PublishReviewRepository is not used as Printify authority. |
 | authorizeWorkflow | session + signed shop/module + current reviewed connection | Current local-read authorization only; never an execution grant. |
 | withWebhookSecret | existing PrintifyWebhookInbox authenticates with core-owned secret internally | BLOCKED exclusive-custody bridge. Callback is NEVER invoked with secret material. |
-| recordWorkflow / inspectWorkflows | existing PrintifyWebhookInbox / PrintifyApiReadWorkflow | BLOCKED atomic event/approval/receipt identity mapping and consistent native snapshots; no second store. |
+| recordWorkflow / inspectWorkflows | protected PrintifyApiReadWorkflow producer and passive NativeOrderSourceJournal | Read-only registered observation snapshot implemented with current source-policy checks; recordWorkflow remains BLOCKED for native epoch/business joins. No provider-order mirror or sender is created. |
 | reviewQueue / decideReview | current signed module access | BLOCKED exact review subject/payload/auth/product/order/epoch CAS and consistent queue. No caller-driven outcome change. |
 | recordFulfillment / inspectFulfillment | existing order evidence and fulfillment models | BLOCKED trusted read-receipt/order/allocation lineage join. |
 | allocation | existing Orders/ApprovedPodMappingResolver + order line items | BLOCKED approved allocation proof/revision/checkpoint join. No inferred quantities/tracking identity. |
@@ -84,3 +84,7 @@ The native receipt uses only the existing minimized projection, rereads its seal
 All thirteen canonical GET operations now compose the same governed plan/session/approval pipeline, with existing catalog grants and owned-upload receipts for the six supplemental joins. Aggregate GET_READ is advertised alongside PANEL after offline conformance; no mutation or independent recovery capability is unlocked. GPSR remains outside the canonical native allowlist. See NATIVE_GET_COMPLETION.md for exact identity/version evidence, ordinary safety denial, source provenance, actual companion qualification and remaining operational gates.
 
 Full source/package integrity remains a separate engineering gate; the native build stamp's bounded inventory is not an authorization or independent anti-rollback witness. Full-root rollback, exclusive credential custody and canonical mutation/product/order/version/receipt-producer/checkpoint joins remain unresolved. See BATCH10_PORT_JOIN_GAPS.md.
+
+## Protected order source observations
+
+See NATIVE_SOURCE_OBSERVATIONS.md for the actual core producer/original approval/source-version join, passive transactional observation index and bounded read-only inspectWorkflows inventory. Observation revisions are never canonical business product/order versions or independent recovery generations. No additional aggregate capability or operational authority is advertised.
