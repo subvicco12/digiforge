@@ -24,8 +24,11 @@ final class NativePrintifyCorePortTest extends TestCase
   foreach(['absent','incompatible','wrong-return','return-reference']as $mode){$pipes=[];$process=proc_open([PHP_BINARY,__DIR__.'/discovery-child.php',$mode],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes);self::assertIsResource($process);fclose($pipes[0]);$out=stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);self::assertSame(0,proc_close($process),$error);self::assertSame("DENIED_WITHOUT_LOADING_NATIVE_IMPLEMENTATION\n",$out);}
  }
  public function testNoUnbuiltSourceIdentityOrExecutableCapability():void {
-  $p=NativeBridge::connect('1.0.0');
-  $this->expectException(RuntimeException::class);$p->contractManifest();
+  $p=NativeBridge::connect('1.0.0');$stamp=__DIR__.'/../../includes/Connector/Printify/native-build.json';
+  if(!is_file($stamp)){$this->expectException(RuntimeException::class);$p->contractManifest();return;}
+  // A built artifact has an explicit source identity; it still grants no execution.
+  $m=$p->contractManifest();$declared=json_decode(file_get_contents($stamp),true,8,JSON_THROW_ON_ERROR);
+  self::assertMatchesRegularExpression('/^[a-f0-9]{40}$/D',$m['core_source_sha']);self::assertSame($declared['source_sha'],$m['core_source_sha']);self::assertSame(NativePortContract::digest(),$m['spec_sha256']);self::assertSame(['PANEL'],$m['capabilities']);self::assertFalse($m['external_execution_authorized']);
  }
  public function testCallerHashesCannotCreateDurableOrRecoveryEvidence():void {
   $p=NativeBridge::connect('1.0.0');$scope=self::scope();$called=0;

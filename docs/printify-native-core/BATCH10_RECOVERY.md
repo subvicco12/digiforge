@@ -26,6 +26,8 @@ Frozen native read suite:11tests41assertions. Fixed logical database first pass:
 
 Configured PHP unit suite with pinned processor:2193tests10770assertions,1existing skip. Offline suite198tests passes using the pinned interpreter and PHP on PATH. Configured PHPStan/PHPCS, lint and legacy tests pass. Final full WordPress, catalog, extracted artifact, repository-security and exact-head CI results belong in the consolidated PR receipt; missing local scanner/tooling must be reported rather than claimed passed.
 
+Native standalone unit checks retain the unstamped-source rejection and explicitly verify the built stamp, exact spec identity, PANEL-only capability and no-execution flag. Source11tests86assertions and extracted stamped-artifact11tests90assertions pass; no test was excluded to hide the legitimate source/package distinction.
+
 Independent source review found no additional concrete defect after the per-attempt authority, UNKNOWN and strict-claim fixes. Review is not live acceptance or hosted durability proof.
 
 ## Explicit remaining engineering blockers
