@@ -18,4 +18,16 @@ final class NativeProjectionCompatibilityTest extends TestCase {
   $row=['id'=>'p','print_areas'=>[['variant_ids'=>[3],'placeholders'=>[['position'=>'front','images'=>array_fill(0,21,['id'=>'i','x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0])]]]]];
   $this->expectException(InvalidArgumentException::class);ReadProjection::project($intent,$scope,$row);
  }
+ public static function orderOperations():array{return [['ORDER_READ'],['ORDERS_READ']];}
+ /** @dataProvider orderOperations */
+ public function testContradictoryOrderShopRejectedBeforeProjection(string $op):void {
+  $order=['id'=>'synthetic_order','shop_id'=>999,'status'=>'pending','line_items'=>[]];$data=$op==='ORDER_READ'?$order:['data'=>[$order],'current_page'=>1,'per_page'=>10,'last_page'=>1];
+  $this->expectException(InvalidArgumentException::class);DigiForge\POD\PrintifyApiReadEvidence::project($op,$data,'12',$op==='ORDER_READ'?['order_id'=>'synthetic_order']:[]);
+ }
+ public function testContradictoryOwnedUploadShopRejectedBeforeProjection():void {
+  $request=DigiForge\POD\PrintifyUploadContract::prepare('UPLOADS_READ','12',[])+['owned_images'=>[['image_id'=>'owned','receipt_hash'=>str_repeat('a',64),'plan_hash'=>str_repeat('b',64)]]];
+  $body=['data'=>[['id'=>'owned','shop_id'=>999,'width'=>100,'height'=>100,'size'=>100,'file_name'=>'synthetic.png','mime_type'=>'image/png','upload_time'=>'2026-11-13 00:00:00']],'current_page'=>1,'per_page'=>10,'last_page'=>1];
+  $this->expectException(InvalidArgumentException::class);DigiForge\POD\PrintifyUploadContract::project($request,$body);
+ }
+
 }

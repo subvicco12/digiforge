@@ -24,12 +24,13 @@ final class PrintifyApiReadEvidence
             foreach ($data['data'] as $row) { if (!is_array($row)) self::bad(); $product=self::product($row,$shop,null); if (isset($seen[$product['id']])) self::bad(); $seen[$product['id']]=true; $rows[]=$product; }
             return ['data'=>$rows,'current_page'=>$page,'last_page'=>$data['last_page'],'per_page'=>$limit,'next_page'=>$page<$data['last_page']?['page'=>$page+1,'limit'=>$limit]:null,'pagination_followed'=>false];
         }
-        if ($operation === 'ORDER_READ') { return PrintifyOrderEvidence::project($data, (string)$input['order_id']); }
+        if ($operation === 'ORDER_READ') { self::shop($data,$shop); return PrintifyOrderEvidence::project($data, (string)$input['order_id']); }
         if ($operation === 'ORDERS_READ') {
             if (!is_array($data['data'] ?? null) || !array_is_list($data['data']) || count($data['data']) > 10 || !is_int($data['current_page'] ?? null) || $data['current_page'] !== (int)($input['page'] ?? 1)) { throw new \InvalidArgumentException('Invalid bounded order page.'); }
             $rows = []; $seen = [];
             foreach ($data['data'] as $order) {
                 if (!is_array($order) || !is_string($order['id'] ?? null) || isset($seen[$order['id']])) { throw new \InvalidArgumentException('Invalid order identity.'); }
+                self::shop($order,$shop);
                 $seen[$order['id']] = true;
                 $rows[] = PrintifyOrderEvidence::project($order, $order['id']);
             }
@@ -103,6 +104,7 @@ final class PrintifyApiReadEvidence
         return ['id'=>$data['id'],'blueprint_id'=>$data['blueprint_id'],'print_provider_id'=>$data['print_provider_id'],'variants'=>$variants,'print_areas'=>$areas,'images'=>$projected,'supplier_certified'=>false];
     }
     private static function variantIds(mixed $value,array $known):array { if(!is_array($value)||!array_is_list($value)||!$value||count($value)>1000)self::bad();$seen=[];foreach($value as $id){self::positive($id);if(!isset($known[$id])||isset($seen[$id]))self::bad();$seen[$id]=true;}return $value; }
+    private static function shop(array $row,string $shop):void { if(array_key_exists('shop_id',$row)&&((!is_string($row['shop_id'])&&!is_int($row['shop_id']))||(string)$row['shop_id']!==$shop))self::bad(); }
     private static function bounded(array $data):void { try {$json=json_encode($data,JSON_THROW_ON_ERROR);}catch(\JsonException){self::bad();}if(strlen($json)>262144)self::bad(); }
     private static function identity(mixed $value):void { if(!is_string($value)||!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$value))self::bad(); }
     private static function positive(mixed $value):void { if(!is_int($value)||$value<1||$value>2147483647)self::bad(); }

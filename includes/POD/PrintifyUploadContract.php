@@ -32,7 +32,7 @@ final class PrintifyUploadContract
   }
   $page=$expected['input']['page'];$limit=$expected['input']['limit'];
   if(!is_array($data['data']??null)||!array_is_list($data['data'])||count($data['data'])>$limit||($data['current_page']??null)!==$page||($data['per_page']??null)!==$limit||!is_int($data['last_page']??null)||$data['last_page']<$page||$data['last_page']>2147483647)self::bad();
-  $rows=[];$seen=[];foreach($data['data'] as $row){if(!is_array($row))self::bad();self::id($row['id']??null);if(isset($seen[$row['id']]))self::bad();$seen[$row['id']]=true;if(!isset($ids[$row['id']]))continue;
+  $rows=[];$seen=[];foreach($data['data'] as $row){if(!is_array($row))self::bad();self::id($row['id']??null);if(isset($seen[$row['id']]))self::bad();$seen[$row['id']]=true;if(!isset($ids[$row['id']]))continue;if(array_key_exists('shop_id',$row)&&((!is_string($row['shop_id'])&&!is_int($row['shop_id']))||(string)$row['shop_id']!==$expected['provider_shop_id']))self::bad();
    $out=['id'=>$row['id']];foreach(['height','width','size'] as $k){if(!is_int($row[$k]??null)||$row[$k]<1||$row[$k]>2147483647)self::bad();$out[$k]=$row[$k];}
    foreach(['file_name'=>255,'mime_type'=>100,'upload_time'=>100] as $k=>$max){if(!is_string($row[$k]??null)||strlen($row[$k])>$max||preg_match('/[\x00-\x1f\x7f]/',$row[$k]))self::bad();$out[$k]=$row[$k];}
    $rows[]=$out;
