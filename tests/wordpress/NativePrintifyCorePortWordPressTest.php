@@ -40,7 +40,7 @@ final class NativePrintifyCorePortWordPressTest extends WP_UnitTestCase
  }
  public function testBuiltSourceMatchesPinnedActualCompanionPanelAdapter():void {
   if(!is_file(DIGIFORGE_PATH.'includes/Connector/Printify/native-build.json'))$this->markTestSkipped('Build-owned source identity is required; exercised again against extracted artifact.');
-  $s=$this->scope();$p=NativeBridge::connect('1.0.0');$m=$p->contractManifest();self::assertTrue(NativePortContract::valid('manifest',$m));self::assertSame(['PANEL'],$m['capabilities']);
+  $s=$this->scope();$p=NativeBridge::connect('1.0.0');$m=$p->contractManifest();self::assertTrue(NativePortContract::valid('manifest',$m));self::assertSame(['PANEL','GET_READ'],$m['capabilities']);
   $adapter=new DigiForgePrintifyConnector\Preparation\NativePortAdapter($p,$m['core_source_sha']);$r=$adapter->panelAccess($s,get_current_user_id(),$this->context($s));self::assertNotWPError($r);
   $wrong=new DigiForgePrintifyConnector\Preparation\NativePortAdapter($p,str_repeat('0',40));self::assertWPError($wrong->panelAccess($s,get_current_user_id(),$this->context($s)));
   self::assertWPError($adapter->exchange(NativePrintifyContractFixture::mutation('AUTHORIZE')));

@@ -28,7 +28,7 @@ final class NativePrintifyCorePortTest extends TestCase
   if(!is_file($stamp)){$this->expectException(RuntimeException::class);$p->contractManifest();return;}
   // A built artifact has an explicit source identity; it still grants no execution.
   $m=$p->contractManifest();$declared=json_decode(file_get_contents($stamp),true,8,JSON_THROW_ON_ERROR);
-  self::assertMatchesRegularExpression('/^[a-f0-9]{40}$/D',$m['core_source_sha']);self::assertSame($declared['source_sha'],$m['core_source_sha']);self::assertSame(NativePortContract::digest(),$m['spec_sha256']);self::assertSame(['PANEL'],$m['capabilities']);self::assertFalse($m['external_execution_authorized']);
+  self::assertMatchesRegularExpression('/^[a-f0-9]{40}$/D',$m['core_source_sha']);self::assertSame($declared['source_sha'],$m['core_source_sha']);self::assertSame(NativePortContract::digest(),$m['spec_sha256']);self::assertSame(['PANEL','GET_READ'],$m['capabilities']);self::assertFalse($m['external_execution_authorized']);
  }
  public function testCallerHashesCannotCreateDurableOrRecoveryEvidence():void {
   $p=NativeBridge::connect('1.0.0');$scope=self::scope();$called=0;

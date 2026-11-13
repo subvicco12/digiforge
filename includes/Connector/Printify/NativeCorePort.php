@@ -15,8 +15,8 @@ final class NativeCorePort implements NativeCorePortInterface
  public function operationsVersion():string{return '1.0.0';}
  public function contractManifest():array {
   return ['schema'=>'DF_NATIVE_CORE_MANIFEST_1','contract_version'=>'1.0.0','spec_sha256'=>NativePortContract::digest(),'core_source_sha'=>NativeBuildIdentity::source(),'authority'=>'DIGIFORGE_CORE','protocols'=>array_fill_keys(['base','inspection','publication','workflow','operations','native'],'1.0.0'),
-   // PANEL is the only complete native capability. Typed denial methods are not advertised as implemented services.
-   'capabilities'=>['PANEL'],'external_execution_authorized'=>false];
+   // Complete ordinary GET admission and protected panel access only; mutation/recovery stay denied.
+   'capabilities'=>['PANEL','GET_READ'],'external_execution_authorized'=>false];
  }
  public function read(ExternalOperationIntent $intent):ProviderResult|\WP_Error{return (new NativeReadConnector())->read($intent);}
  public function exchange(array $request):array|\WP_Error {

@@ -4,7 +4,8 @@
   "companion_reviewed_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
   "accepted_pod_frozen_sha": "8517778a47dfe9aaae26bd7dd48e9ef1c1f15ba8",
   "advertised_native_capabilities": [
-    "PANEL"
+    "PANEL",
+    "GET_READ"
   ],
   "external_execution_authorized": false,
   "capabilities": [
@@ -40,8 +41,8 @@
     },
     {
       "name": "GET_READ operational grant",
-      "status": "PARTIAL",
-      "scope": "Exact sealed plan/approval/session-to-intent binding and existing governed transport for SHOPS, PROVIDERS, PROVIDER, PRODUCTS, PRODUCT, ORDERS, ORDER. Aggregate GET_READ not advertised: catalog and owned-upload native grant joins remain unavailable. No STOP exception."
+      "status": "COMPLETE_OFFLINE",
+      "scope": "All13 canonical GET operations use sealed current plan/session/approval authority, existing catalog grants or owned-upload receipts, one-use claims, existing vault/transport and minimized ReadProjection. Ordinary STOP and external-lock denial preserved; no acceptance exception or operational activation."
     },
     {
       "name": "MUTATION_ADMISSION and native JOURNAL",
