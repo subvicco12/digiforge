@@ -21,6 +21,10 @@ final class PrintifyApiApprovalFixture
   if(!has_action('digiforge_log',[\DigiForge\Security\Logger::class,'write']))add_action('digiforge_log',[\DigiForge\Security\Logger::class,'write'],10,4);
   foreach([$tables::settings(),$tables::integrations(),$tables::integration_secrets(),$tables::businesses(),$tables::stores(),$tables::product_programs(),$tables::audit_log(),$tables::pod_execution_nonces(),\DigiForge\Database\ProviderConnectionSchema::table()] as $table)$this->snapshots[$table]=$wpdb->get_results('SELECT * FROM '.$table,ARRAY_A);
   foreach(self::PREFIXES as $prefix)foreach($wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->options} WHERE option_name LIKE %s",$wpdb->esc_like($prefix).'%'),ARRAY_A) as $row)$this->options[$row['option_name']]=$row;
+  // Isolate synthetic connections from committed rows left by other integration fixtures.
+  // Exact snapshots are restored below; the runtime ambiguity denial is unchanged.
+  self::checked($wpdb->query('DELETE FROM '.$tables::integration_secrets()));
+  self::checked($wpdb->query('DELETE FROM '.$tables::integrations()));
   PortalAccessFixture::reset();PortalAccessFixture::enroll();$this->ownerCookies=$_COOKIE;
   $this->reviewer=(int)self::checked(wp_insert_user(['user_login'=>'df_api_review_'.wp_generate_uuid4(),'user_pass'=>wp_generate_password(32),'role'=>'administrator']));
   $caps=\DigiForge\Core\Capabilities::ALL;$user=get_userdata($this->reviewer);foreach($caps as $cap)$user->add_cap($cap);
