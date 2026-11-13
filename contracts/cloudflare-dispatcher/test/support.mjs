@@ -182,6 +182,7 @@ export async function fixture({ startup = true } = {}) {
     available: true,
     exclusive: true,
     hostCopiesInvalidated: true,
+    generation: 1,
     binding: c.credential_binding,
     account: c.account,
     shop: "28930593",

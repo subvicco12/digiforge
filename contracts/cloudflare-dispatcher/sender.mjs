@@ -26,9 +26,10 @@ export class SyntheticFinalSender {
   check() {
     const c = this.#custody;
     insist(
-      c.available &&
-        c.exclusive &&
-        c.hostCopiesInvalidated &&
+      c.available === true &&
+        c.exclusive === true &&
+        c.hostCopiesInvalidated === true &&
+        Number.isSafeInteger(c.generation) && c.generation > 0 &&
         c.binding === this.#config.credential_binding &&
         c.account === this.#config.account &&
         c.shop === "28930593",
@@ -36,11 +37,17 @@ export class SyntheticFinalSender {
     );
   }
   async send(request, claim) {
+    // Snapshot first, then validate the immutable tuple used by witness and fetch.
+    request = Object.freeze({ ...request, body: Object.freeze([...request.body]) });
     inspect(request);
     this.check();
+    const generation = this.#custody.generation;
     const abort = new AbortController();
     let expired = false,
       physical = false,
+      callbackUsed = false,
+      closed = false,
+      response,
       reader,
       timer;
     const deadline = new Promise((resolve) => {
@@ -48,31 +55,44 @@ export class SyntheticFinalSender {
         expired = true;
         abort.abort();
         if (reader) reader.cancel().catch(() => {});
-        resolve(unknown(physical));
+        // The custody/witness callback can still be pending even before fetch starts.
+        resolve(unknown(true));
       }, LIMITS.timeout);
     });
+    const current = () => {
+      insist(!closed && !expired && !abort.signal.aborted, "DEADLINE");
+      this.check();
+      insist(this.#custody.generation === generation, "CUSTODY_GENERATION_CHANGED");
+    };
     const physicalWork = async () => {
       try {
-        insist(!expired, "DEADLINE");
-        this.check();
-        physical = true;
-        const response = await this.#custody.perform(() =>
-          this.#fetch.fetch("https://api.printify.com" + request.endpoint, {
+        current();
+        response = await this.#custody.perform(() => {
+          // Custody may defer this callback. Recheck at the actual physical boundary.
+          insist(!callbackUsed, "CUSTODY_CALLBACK_REPLAY");
+          callbackUsed = true;
+          current();
+          const authorization = this.#custody.syntheticAuthorization();
+          current();
+          physical = true;
+          return this.#fetch.fetch("https://api.printify.com" + request.endpoint, {
             method: "GET",
             redirect: "error",
             signal: abort.signal,
             headers: {
               Accept: "application/json",
               "User-Agent": "DigiForge-offline-dispatcher/1",
-              Authorization: this.#custody.syntheticAuthorization(),
+              Authorization: authorization,
             },
-          }),
-        );
+          });
+        });
         if (expired) return unknown(physical);
+        current();
         if (!response || !Number.isInteger(response.status))
           return unknown(physical);
         if (response.status >= 300) {
           if (response.body) await response.body.cancel();
+          current();
           return {
             status: "REJECTED",
             http_status: response.status,
@@ -86,6 +106,7 @@ export class SyntheticFinalSender {
         }
         if (response.status !== 200) {
           if (response.body) await response.body.cancel();
+          current();
           return unknown(false);
         }
         reader = response.body?.getReader();
@@ -94,6 +115,7 @@ export class SyntheticFinalSender {
           size = 0;
         while (true) {
           const part = await reader.read();
+          current();
           if (part.done) break;
           size += part.value.byteLength;
           if (size > LIMITS.bytes) {
@@ -109,6 +131,7 @@ export class SyntheticFinalSender {
           at += chunk.byteLength;
         }
         try {
+          current();
           return {
             status: "OBSERVED",
             http_status: 200,
@@ -136,7 +159,14 @@ export class SyntheticFinalSender {
     try {
       return await Promise.race([work, deadline]);
     } finally {
+      closed = true;
+      abort.abort();
       clearTimeout(timer);
+      // Do not await an uncooperative body: retain UNKNOWN rather than extending deadline.
+      try {
+        if (response?.body && !response.body.locked) response.body.cancel().catch(() => {});
+        else if (reader) reader.cancel().catch(() => {});
+      } catch {}
     }
   }
 }

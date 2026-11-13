@@ -301,7 +301,8 @@ class AuthorityBoundSender {
     const original = this.#custody,
       provider = this.#fetch,
       service = this.#service,
-      id = claim.id;
+      id = claim.id,
+      generation = original.generation;
     const custody = {
       synthetic: true,
       get available() {
@@ -312,6 +313,9 @@ class AuthorityBoundSender {
       },
       get hostCopiesInvalidated() {
         return original.hostCopiesInvalidated;
+      },
+      get generation() {
+        return original.generation;
       },
       get binding() {
         return original.binding;
@@ -327,7 +331,12 @@ class AuthorityBoundSender {
     };
     const physical = {
       synthetic: true,
-      fetch: (...args) => service.physical(id, () => provider.fetch(...args)),
+      fetch: (...args) => service.physical(id, () => {
+        // physical() awaits an independent guard; fence custody again after that await.
+        this.check();
+        insist(original.generation === generation && args[1]?.signal?.aborted === false, "CUSTODY_REVOKED");
+        return provider.fetch(...args);
+      }),
     };
     return new SyntheticFinalSender(
       custody,
