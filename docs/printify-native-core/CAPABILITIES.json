@@ -1,7 +1,7 @@
 {
   "contract": "DF_NATIVE_CORE_PORT_1",
   "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
-  "companion_reviewed_sha": "8e669c1aac5bd916769a6d25b07de9a620a17a9c",
+  "companion_reviewed_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
   "accepted_pod_frozen_sha": "8517778a47dfe9aaae26bd7dd48e9ef1c1f15ba8",
   "advertised_native_capabilities": [
     "PANEL"
@@ -26,7 +26,7 @@
     {
       "name": "Held SQL journal primitive",
       "status": "PARTIAL",
-      "scope": "Real transactional component and offline proposed schema; not installed/registered or connected to native exchange"
+      "scope": "Real SQL insert/exact idempotent candidate reconciliation and revision/head/fence-pinned transitions, audit/readback, two-worker tests; passive schema only. Not native REGISTER/CLAIM, installed lifecycle or independent generation; exchange remains disabled."
     },
     {
       "name": "Current protected plan and approval evidence join",

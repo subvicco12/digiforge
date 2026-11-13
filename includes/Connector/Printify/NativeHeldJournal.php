@@ -13,25 +13,41 @@ final class NativeHeldJournal {
  private static function encode(array $v):string{return json_encode($v,JSON_THROW_ON_ERROR|JSON_PRESERVE_ZERO_FRACTION);}
  private static function failed():bool{global $wpdb;return $wpdb->last_error!=='';}
  /** Persist unverified, immutable candidate claims only. No approvals, epochs or physical identities are certified. */
- public function prepare(array $binding,string $candidateKey):array|\WP_Error {
+ public function prepare(array $binding,string $candidateKey):array|\WP_Error {return $this->registerCandidate($binding,$candidateKey,false);}
+ /** Idempotent candidate reconciliation only. Never reissues a fence, lease or operational acknowledgement. */
+ public function register(array $binding,string $candidateKey):array|\WP_Error {return $this->registerCandidate($binding,$candidateKey,true);}
+ private function registerCandidate(array $binding,string $candidateKey,bool $exactReplay):array|\WP_Error {
   try{$state=NativeHeldJournalState::prepare($binding,$candidateKey,time());}catch(\Throwable){return self::error('contract');}
   $access=$this->access($binding['shop_key'],$binding['actor_id']);if(is_wp_error($access))return $access;
-  return $this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),function()use($state,$binding){
+  return $this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),function()use($state,$binding,$exactReplay){
    global $wpdb;[$j]=NativeHeldJournalSchema::tables();
    $wpdb->last_error='';$prior=$wpdb->get_results($wpdb->prepare("SELECT operation_id FROM $j WHERE (shop_key=%s AND operation_id=%s) OR candidate_key=%s FOR UPDATE",$binding['shop_key'],$binding['operation_id'],self::candidateKey($binding,$state['candidate_key'])),ARRAY_A);
-   if(self::failed()||!is_array($prior))return self::error('read_unavailable');if($prior!==[])return self::error('consumed');
+   if(self::failed()||!is_array($prior))return self::error('read_unavailable');if($prior!==[]){
+    if(!$exactReplay||count($prior)!==1||$prior[0]['operation_id']!==$binding['operation_id'])return self::error('consumed');
+    $existing=$this->load($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],true);
+    if(is_wp_error($existing))return $existing;
+    if($existing['record']['candidate_key']!==$state['candidate_key']||NativePortContract::hash($existing['record']['binding'])!==NativePortContract::hash($binding))return self::error('replay_substitution');
+    return $existing;
+   }
    return $this->append($state,null);
   },$binding['shop_key'],$binding['actor_id']);
  }
- public function transition(string $operationId,string $shop,int $actor,int $expected,string $action):array|\WP_Error {
+ public function transition(string $operationId,string $shop,int $actor,int $expected,string $action):array|\WP_Error {return $this->advance($operationId,$shop,$actor,$expected,$action,null,null);}
+ /** Pin the exact current local generation and fence; not an independently enforceable dispatch generation. */
+ public function transitionPinned(string $operationId,string $shop,int $actor,int $expected,string $head,?string $fence,string $action):array|\WP_Error {
+  if(!preg_match('/^[a-f0-9]{64}$/D',$head)||($fence!==null&&!preg_match('/^[a-f0-9]{64}$/D',$fence)))return self::error('generation_contract');
+  return $this->advance($operationId,$shop,$actor,$expected,$action,$head,$fence);
+ }
+ private function advance(string $operationId,string $shop,int $actor,int $expected,string $action,?string $head,?string $fence):array|\WP_Error {
   if(!preg_match('/^[a-f0-9]{64}$/D',$operationId)||$expected<1||!in_array($action,['FENCE','CANCEL','UNKNOWN'],true))return self::error('transition_contract');
   $access=$this->access($shop,$actor);if(is_wp_error($access))return $access;
   $guard=$this->storage();if(is_wp_error($guard))return $guard;
   // Read a non-authoritative lock key; immutable row is reread/verified under transaction and row lock.
   global $wpdb;try{[$j]=NativeHeldJournalSchema::tables();$wpdb->last_error='';$key=$wpdb->get_var($wpdb->prepare("SELECT candidate_key FROM $j WHERE operation_id=%s AND shop_key=%s AND actor_id=%d",$operationId,$shop,$actor));}catch(\Throwable){return self::error('lookup_unavailable');}
   if(self::failed()||!is_string($key)||!preg_match('/^[a-f0-9]{64}$/D',$key))return self::error('missing_or_unavailable');
-  return $this->transaction($operationId,$key,function()use($operationId,$shop,$actor,$expected,$action){
+  return $this->transaction($operationId,$key,function()use($operationId,$shop,$actor,$expected,$action,$head,$fence){
    $prior=$this->load($operationId,$shop,$actor,true);if(is_wp_error($prior))return $prior;
+   if($head!==null&&($prior['event_hash']!==$head||$prior['record']['fence_hash']!==$fence))return self::error('stale_generation');
    try{$state=NativeHeldJournalState::advance($prior['record'],$action,$expected,time(),$action==='FENCE'?hash('sha256',random_bytes(32)):null);}catch(\Throwable){return self::error('stale_or_terminal');}
    return $this->append($state,$prior);
   },$shop,$actor);

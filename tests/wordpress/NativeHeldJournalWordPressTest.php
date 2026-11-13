@@ -20,6 +20,30 @@ final class NativeHeldJournalWordPressTest extends WP_UnitTestCase {
  }
  private function prepare():array {$r=(new Journal())->prepare($this->binding,hash('sha256','candidate-'.$this->binding['operation_id']));self::assertNotWPError($r);return $r;}
  private function transition(string $action,int $revision=1):array|WP_Error{return (new Journal())->transition($this->binding['operation_id'],'personalized_pod',$this->actor,$revision,$action);}
+ public function testExactRegistrationReplayDoesNotAppendOrReviveTerminalState():void {
+  self::assertTrue(method_exists(Journal::class,'register'),'Exact durable registration API missing');$j=new Journal();$key=str_repeat('e',64);$first=$j->register($this->binding,$key);self::assertNotWPError($first);
+  global $wpdb;$audit=DigiForge\Database\Tables::audit_log();$before=(int)$wpdb->get_var("SELECT COUNT(*) FROM $audit WHERE object_type='native_printify_held'");self::assertSame($first,$j->register($this->binding,$key));self::assertSame($before,(int)$wpdb->get_var("SELECT COUNT(*) FROM $audit WHERE object_type='native_printify_held'"));
+  $changed=$this->binding;$changed['approval_reference']=str_repeat('9',64);self::assertWPError($j->register($changed,$key));self::assertWPError($j->register($this->binding,str_repeat('d',64)));self::assertWPError($j->prepare($this->binding,$key));
+  $cancel=$this->transition('CANCEL');self::assertNotWPError($cancel);self::assertSame($cancel,$j->register($this->binding,$key));self::assertWPError($this->transition('FENCE',2));
+ }
+ public function testPinnedHeadAndFenceRejectSubstitutionWithoutConsumingCurrentGeneration():void {
+  self::assertTrue(method_exists(Journal::class,'transitionPinned'),'Pinned generation API missing');$r=$this->prepare();$j=new Journal();$op=$this->binding['operation_id'];
+  self::assertWPError($j->transitionPinned($op,'personalized_pod',$this->actor,1,str_repeat('0',64),null,'FENCE'));self::assertSame($r,$j->read($op,'personalized_pod',$this->actor));
+  self::assertWPError($j->transitionPinned($op,'personalized_pod',$this->actor,1,$r['event_hash'],str_repeat('1',64),'FENCE'));
+  $f=$j->transitionPinned($op,'personalized_pod',$this->actor,1,$r['event_hash'],null,'FENCE');self::assertNotWPError($f);self::assertFalse($f['record']['dispatch_permitted']);
+  self::assertWPError($j->transitionPinned($op,'personalized_pod',$this->actor,2,$r['event_hash'],$f['record']['fence_hash'],'UNKNOWN'));self::assertWPError($j->transitionPinned($op,'personalized_pod',$this->actor,2,$f['event_hash'],str_repeat('2',64),'UNKNOWN'));
+  $u=$j->transitionPinned($op,'personalized_pod',$this->actor,2,$f['event_hash'],$f['record']['fence_hash'],'UNKNOWN');self::assertNotWPError($u);self::assertSame('UNKNOWN',$u['record']['state']);self::assertWPError($j->transitionPinned($op,'personalized_pod',$this->actor,3,$u['event_hash'],$u['record']['fence_hash'],'FENCE'));self::assertSame($u,$j->register($this->binding,hash('sha256','candidate-'.$op)));
+ }
+ public function testLostRegistrationAcknowledgementReconcilesExactClaimsWithoutNewGeneration():void {
+  self::assertTrue(method_exists(Journal::class,'register'));global $wpdb;$lost=false;$inject=function(string $sql)use(&$lost,$wpdb):string{if($sql==='COMMIT'&&!$lost){$lost=true;$wpdb->query('COMMIT');return 'SELECT * FROM missing_native_registration_ack';}return $sql;};$prior=$wpdb->suppress_errors(true);add_filter('query',$inject);
+  $j=new Journal();try{$unknown=$j->register($this->binding,str_repeat('e',64));self::assertWPError($unknown);self::assertSame('printify_native_held_journal_commit_unknown',$unknown->get_error_code());}finally{remove_filter('query',$inject);$wpdb->suppress_errors($prior);}
+  $r=$j->register($this->binding,str_repeat('e',64));self::assertNotWPError($r);self::assertSame(1,$r['record']['revision']);self::assertFalse($r['record']['approval_verified']);self::assertFalse($r['record']['dispatch_permitted']);foreach(Schema::tables()as $t)self::assertSame('1',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$t));
+ }
+ public function testExactReplayAndPinnedTransitionRequireCurrentMembershipAndSession():void {
+  self::assertTrue(method_exists(Journal::class,'register'));$j=new Journal();$r=$j->register($this->binding,str_repeat('e',64));self::assertNotWPError($r);$user=wp_get_current_user();$user->add_cap('manage_digiforge_pod',false);
+  try{self::assertWPError($j->register($this->binding,str_repeat('e',64)));self::assertWPError($j->transitionPinned($this->binding['operation_id'],'personalized_pod',$this->actor,1,$r['event_hash'],null,'CANCEL'));}finally{$user->add_cap('manage_digiforge_pod',true);}
+  WP_Session_Tokens::get_instance($this->actor)->destroy_all();self::assertWPError($j->register($this->binding,str_repeat('e',64)));self::assertWPError($j->transitionPinned($this->binding['operation_id'],'personalized_pod',$this->actor,1,$r['event_hash'],null,'FENCE'));PortalAccessFixture::login($this->actor);self::assertSame($r,$j->read($this->binding['operation_id'],'personalized_pod',$this->actor));
+ }
  public function testDurableRestartLocalFenceAndUnknownNeverRearm():void {
   $r=$this->prepare();self::assertFalse($r['record']['approval_verified']);self::assertFalse($r['record']['dispatch_permitted']);
   $f=$this->transition('FENCE');self::assertNotWPError($f);self::assertSame('FENCED',$f['record']['state']);self::assertSame($f,(new Journal())->read($this->binding['operation_id'],'personalized_pod',$this->actor));
@@ -94,10 +118,22 @@ final class NativeHeldJournalWordPressTest extends WP_UnitTestCase {
  }
  public static function crashModes():array {return [['before_header',73],['after_commit',74]];}
  public function testTwoWorkersHaveOnePermanentLocalFenceWinner():void {
-  $this->prepare();$dir=sys_get_temp_dir().'/df-native-workers-'.wp_generate_uuid4();mkdir($dir,0700);$fixture=['synthetic_only'=>true,'actor'=>$this->actor,'cookie'=>$_COOKIE[LOGGED_IN_COOKIE],'operation'=>$this->binding['operation_id'],'trust_key'=>DIGIFORGE_SHOP_ACCESS_TRUST_KEY,'authority_file'=>DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE,'config'=>defined('WP_TESTS_CONFIG_FILE_PATH')?WP_TESTS_CONFIG_FILE_PATH:null];$path=$dir.'/fixture.json';file_put_contents($path,wp_json_encode($fixture));chmod($path,0600);$workers=[];
+  $prepared=$this->prepare();$dir=sys_get_temp_dir().'/df-native-workers-'.wp_generate_uuid4();mkdir($dir,0700);$fixture=['synthetic_only'=>true,'actor'=>$this->actor,'cookie'=>$_COOKIE[LOGGED_IN_COOKIE],'operation'=>$this->binding['operation_id'],'trust_key'=>DIGIFORGE_SHOP_ACCESS_TRUST_KEY,'authority_file'=>DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE,'config'=>defined('WP_TESTS_CONFIG_FILE_PATH')?WP_TESTS_CONFIG_FILE_PATH:null,'worker_action'=>'PINNED_FENCE','head'=>$prepared['event_hash']];$path=$dir.'/fixture.json';file_put_contents($path,wp_json_encode($fixture));chmod($path,0600);$workers=[];
   try{for($i=0;$i<2;$i++){$workers[$i]=proc_open([PHP_BINARY,__DIR__.'/fixtures/native-held-worker.php',$path,$dir.'/result'.$i,$dir.'/go'],[0=>['file','/dev/null','r'],1=>['file',$dir.'/log'.$i,'w'],2=>['file',$dir.'/err'.$i,'w']],$pipes);self::assertIsResource($workers[$i]);}
    $until=microtime(true)+30;while((!is_file($dir.'/result0.ready')||!is_file($dir.'/result1.ready'))&&microtime(true)<$until)usleep(10000);self::assertFileExists($dir.'/result0.ready');self::assertFileExists($dir.'/result1.ready');file_put_contents($dir.'/go','1');foreach($workers as $i=>$worker){self::assertSame(0,proc_close($worker),(string)file_get_contents($dir.'/err'.$i));unset($workers[$i]);}
    self::assertSame(1,(int)file_get_contents($dir.'/result0')+(int)file_get_contents($dir.'/result1'),file_get_contents($dir.'/result0.detail').' / '.file_get_contents($dir.'/result1.detail'));$r=(new Journal())->read($this->binding['operation_id'],'personalized_pod',$this->actor);self::assertNotWPError($r);self::assertSame('FENCED',$r['record']['state']);self::assertSame(2,$r['record']['revision']);
   }finally{foreach($workers as $worker){proc_terminate($worker);proc_close($worker);}foreach(glob($dir.'/*')as $p)unlink($p);rmdir($dir);}
  }
+ public function testTwoRegistrarsPersistOneImmutableCandidateGeneration():void {
+  $dir=sys_get_temp_dir().'/df-native-register-'.wp_generate_uuid4();mkdir($dir,0700);$fixture=['synthetic_only'=>true,'actor'=>$this->actor,'cookie'=>$_COOKIE[LOGGED_IN_COOKIE],'operation'=>$this->binding['operation_id'],'trust_key'=>DIGIFORGE_SHOP_ACCESS_TRUST_KEY,'authority_file'=>DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE,'config'=>defined('WP_TESTS_CONFIG_FILE_PATH')?WP_TESTS_CONFIG_FILE_PATH:null,'worker_action'=>'REGISTER','binding'=>$this->binding,'candidate_key'=>str_repeat('e',64)];$path=$dir.'/fixture.json';file_put_contents($path,wp_json_encode($fixture));chmod($path,0600);$workers=[];
+  try{for($i=0;$i<2;$i++){$workers[$i]=proc_open([PHP_BINARY,__DIR__.'/fixtures/native-held-worker.php',$path,$dir.'/result'.$i,$dir.'/go'],[0=>['file','/dev/null','r'],1=>['file',$dir.'/log'.$i,'w'],2=>['file',$dir.'/err'.$i,'w']],$pipes);self::assertIsResource($workers[$i]);}
+   $until=microtime(true)+30;while((!is_file($dir.'/result0.ready')||!is_file($dir.'/result1.ready'))&&microtime(true)<$until)usleep(10000);self::assertFileExists($dir.'/result0.ready');self::assertFileExists($dir.'/result1.ready');file_put_contents($dir.'/go','1');foreach($workers as $i=>$worker){self::assertSame(0,proc_close($worker),(string)file_get_contents($dir.'/err'.$i));unset($workers[$i]);}
+   self::assertGreaterThanOrEqual(1,(int)file_get_contents($dir.'/result0')+(int)file_get_contents($dir.'/result1'));global $wpdb;foreach(Schema::tables()as $t)self::assertSame('1',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$t));$j=new Journal();$r=$j->register($this->binding,str_repeat('e',64));self::assertNotWPError($r);self::assertSame(1,$r['record']['revision']);self::assertFalse($r['record']['dispatch_permitted']);
+  }finally{foreach($workers as $worker){proc_terminate($worker);proc_close($worker);}foreach(glob($dir.'/*')as $p)unlink($p);rmdir($dir);}
+ }
+ public function testRegistrationReplayCannotHideTamperedAuditOrCrossActorClaims():void {
+  $j=new Journal();$r=$j->register($this->binding,str_repeat('e',64));self::assertNotWPError($r);global $wpdb;$audit=DigiForge\Database\Tables::audit_log();$wpdb->delete($audit,['object_type'=>'native_printify_held','object_id'=>$r['event_hash']],['%s','%s']);self::assertWPError($j->register($this->binding,str_repeat('e',64)));
+  $other=self::factory()->user->create(['role'=>'administrator']);PrintifyResearchAccessFixture::assign($other);PortalAccessFixture::login($other);$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$binding=$this->binding;$binding['actor_id']=$other;self::assertWPError($j->register($binding,str_repeat('e',64)));foreach(Schema::tables()as $t)self::assertSame('1',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$t));
+ }
+
 }

@@ -9,4 +9,9 @@ $crashed=false;if(isset($f['crash_mode']))add_filter('query',static function(str
  if($f['crash_mode']==='before_header'&&str_starts_with($sql,'UPDATE `'.$t.'`'))exit(73);
  if($f['crash_mode']==='after_commit'&&$sql==='COMMIT'&&!$crashed){$crashed=true;$wpdb->query('COMMIT');exit(74);}return $sql;
 });
-$r=(new DigiForge\Connector\Printify\NativeHeldJournal())->transition($f['operation'],'personalized_pod',$f['actor'],1,'FENCE');file_put_contents($argv[2],is_wp_error($r)?'0':'1');file_put_contents($argv[2].'.detail',wp_json_encode($counts+['result'=>is_wp_error($r)?$r->get_error_code():'LOCAL_FENCE_PERSISTED']));
+$journal=new DigiForge\Connector\Printify\NativeHeldJournal();
+$r=match($f['worker_action']??'FENCE'){
+ 'REGISTER'=>$journal->register($f['binding'],$f['candidate_key']),
+ 'PINNED_FENCE'=>$journal->transitionPinned($f['operation'],'personalized_pod',$f['actor'],1,$f['head'],null,'FENCE'),
+ default=>$journal->transition($f['operation'],'personalized_pod',$f['actor'],1,'FENCE'),
+};file_put_contents($argv[2],is_wp_error($r)?'0':'1');file_put_contents($argv[2].'.detail',wp_json_encode($counts+['result'=>is_wp_error($r)?$r->get_error_code():'LOCAL_FENCE_PERSISTED']));
