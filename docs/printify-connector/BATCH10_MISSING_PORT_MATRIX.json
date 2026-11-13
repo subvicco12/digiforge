@@ -1,0 +1,65 @@
+{
+  "schema": "DF_COMPANION_BATCH10_CONFORMANCE_1",
+  "core_sha": "9e9094097992453a8cb6ecddd7f936c3584eccef",
+  "starting_companion_sha": "8e669c1aac5bd916769a6d25b07de9a620a17a9c",
+  "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "runtime_pin_decision": "UNCHANGED",
+  "runtime_pin": "702a4d078555ac9cb75fd115357db5387281c74a",
+  "advertised_capabilities": [
+    "PANEL"
+  ],
+  "direct_native_get_joins": [
+    "SHOPS_READ",
+    "PROVIDERS_READ",
+    "PROVIDER_READ",
+    "PRODUCTS_READ",
+    "PRODUCT_READ",
+    "ORDERS_READ",
+    "ORDER_READ"
+  ],
+  "companion_aggregate_get": "DENIED_CAPABILITY_NOT_ADVERTISED",
+  "missing_get_joins": [
+    {
+      "operation": "BLUEPRINTS_READ",
+      "required_join": "Existing catalog grant to native intent; catalog ownership and projection",
+      "status": "BLOCKED_NATIVE_JOIN"
+    },
+    {
+      "operation": "BLUEPRINT_READ",
+      "required_join": "Blueprint catalog grant and exact identity",
+      "status": "BLOCKED_NATIVE_JOIN"
+    },
+    {
+      "operation": "VARIANTS_READ",
+      "required_join": "Blueprint/provider geometry provenance and catalog grant",
+      "status": "BLOCKED_NATIVE_JOIN"
+    },
+    {
+      "operation": "SHIPPING_READ",
+      "required_join": "V2 shipping grant, region and method binding",
+      "status": "BLOCKED_NATIVE_JOIN"
+    },
+    {
+      "operation": "UPLOADS_READ",
+      "required_join": "Owned-upload listing authority and receipt membership",
+      "status": "BLOCKED_NATIVE_JOIN"
+    },
+    {
+      "operation": "UPLOAD_READ",
+      "required_join": "Owned-upload receipt resolver and exact asset identity",
+      "status": "BLOCKED_NATIVE_JOIN"
+    }
+  ],
+  "missing_ports": {
+    "MUTATION_ADMISSION": "Canonical product/order identity and version; current immutable approval and durable registration",
+    "JOURNAL": "Authoritative transactional journal/fence/nonce/audit and independently qualified checkpoint",
+    "RECEIPT": "Trusted producer identity, operation/fence/epoch/sequence correlation; caller hashes insufficient",
+    "PUBLICATION_ADMISSION": "Exact product version and channel approval/checkpoint joins",
+    "WORKFLOW": "Trusted order/publication snapshot and event identity joins",
+    "OPERATIONS": "Review inventory, CAS decisions and fulfillment receipt joins",
+    "ORDER_ALLOCATION": "Approved order/line-item/product-version/proof membership and quantities",
+    "RECOVERY": "Independent recovery epoch, revocation generation, pending leases and drain authority"
+  },
+  "live_provider_verified": false,
+  "production_ready": false
+}
