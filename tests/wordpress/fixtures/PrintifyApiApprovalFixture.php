@@ -11,7 +11,7 @@ final class PrintifyApiApprovalFixture
  private array $snapshots=[];
  private array $options=[];
  private array $ownerCookies=[];
- private const PREFIXES=['digiforge_portal_','digiforge_shop_access_','digiforge_local_review_','digiforge_api_read_','digiforge_pfy_lifecycle_','digiforge_execution_nonce_','digiforge_pfy_intent_','df_pq_'];
+ private const PREFIXES=['digiforge_portal_','digiforge_shop_access_','digiforge_local_review_','digiforge_api_read_','digiforge_pfy_lifecycle_','digiforge_execution_nonce_','digiforge_pfy_intent_','df_pq_','df_catalog_'];
  public static function checked(mixed $result):mixed { if(is_wp_error($result))throw new RuntimeException($result->get_error_code().': '.$result->get_error_message());if($result===false)throw new RuntimeException('Synthetic fixture database write failed');return $result; }
  public function boot():void
  {

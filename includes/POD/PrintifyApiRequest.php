@@ -10,6 +10,11 @@ final class PrintifyApiRequest
         if (!preg_match('/^[1-9][0-9]{0,18}$/D', $shop)) {
             throw new \InvalidArgumentException('Exact provider shop identity required.');
         }
+        if (in_array($operation,['BLUEPRINTS_READ','BLUEPRINT_READ','VARIANTS_READ','SHIPPING_READ','UPLOADS_READ','UPLOAD_READ'],true)) {
+            $r=PrintifyConnectorReadContract::prepare($operation,$shop,$input);
+            $m=['operation'=>$operation,'provider_shop_id'=>$shop,'method'=>'GET','endpoint'=>$r['endpoint'],'body'=>[],'required_scope'=>in_array($operation,['UPLOADS_READ','UPLOAD_READ'],true)?'uploads.read':'catalog.read'];
+            return $m+['fingerprint'=>hash('sha256',\DigiForge\Listings\Validator::canonicalJson($m)),'external_execution_authorized'=>false];
+        }
         $keys = match ($operation) {
             'SHOPS_READ','PROVIDERS_READ','WEBHOOKS_READ' => [],
             'PROVIDER_READ' => ['provider_id'],

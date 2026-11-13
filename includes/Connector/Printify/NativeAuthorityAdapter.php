@@ -52,7 +52,16 @@ final class NativeAuthorityAdapter
    if(!is_wp_error($result)&&is_bool($result['record']['network_request_attempted']??null))$attempted=$result['record']['network_request_attempted'];
    if(is_wp_error($result)||($result['record']['status']??null)!=='SUCCEEDED'||!is_array($result['record']['data']??null))return new \WP_Error('printify_native_read_outcome_unknown','Native read outcome could not be verified.',['outcome'=>'UNKNOWN','network_request_attempted'=>is_wp_error($result)?null:($result['record']['network_request_attempted']??null),'retry_permitted'=>false,'external_execution_authorized'=>false]);
    $r=$workflow->receipt($result['hash']);$still=$workflow->resolveNative($intent);if(is_wp_error($r)||is_wp_error($still)||$still!==$grant||($r['status']??null)!=='SUCCEEDED')return new \WP_Error('printify_native_read_outcome_unknown','Current persisted native read evidence unavailable.',['outcome'=>'UNKNOWN','network_request_attempted'=>$result['record']['network_request_attempted']??null,'retry_permitted'=>false,'external_execution_authorized'=>false]);
-   $data=$r['data'];$receipt=['intent_id'=>$intent->intentId,'operation'=>$intent->operation,'shop_key'=>$intent->shopKey,'integration_id'=>$intent->integrationId,'outcome'=>'OBSERVED','status'=>200,'request_attempted'=>$r['network_request_attempted'],'request_sha256'=>$grant['request_fingerprint'],'binding_sha256'=>$grant['connection_binding_hash'],'observed_at'=>$r['observed_at'],'response_sha256'=>hash('sha256',json_encode($data,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)),'duration_ms'=>(int)max(0,round((microtime(true)-$start)*1000))];
+   $data=$r['data'];
+   if(!\DigiForge\POD\PrintifyNativeReadSources::extended($intent->operation)){
+    $v=(new ScopedProviderConnection())->verified($intent->shopKey,$intent->integrationId,\DigiForge\POD\PrintifyApiReadWorkflow::CAPABILITY);
+    if(is_wp_error($v)||$v['binding_hash']!==$grant['connection_binding_hash'])return self::unknown($attempted);
+    $binding=new ShopBinding(['personalized_pod'=>2,'standard_pod'=>3][$intent->shopKey],$intent->shopKey,$intent->integrationId,$v['external_shop_reference'],$v['environment'],$v['review_revision'],new CredentialReference($intent->integrationId),$v['binding_hash'],$v['expires_at']);
+    $body=match($intent->operation){'SHOPS_READ'=>$data['shops'],'PROVIDERS_READ'=>$data['providers'],'PROVIDER_READ'=>$data['providers'][0],default=>$data};
+    $data=ReadProjection::project($intent,$binding,$body);
+   }
+   $final=$workflow->resolveNative($intent);if(is_wp_error($final)||$final!==$grant)return self::unknown($attempted);
+   $receipt=['intent_id'=>$intent->intentId,'operation'=>$intent->operation,'shop_key'=>$intent->shopKey,'integration_id'=>$intent->integrationId,'outcome'=>'OBSERVED','status'=>200,'request_attempted'=>$r['network_request_attempted'],'request_sha256'=>$grant['request_fingerprint'],'binding_sha256'=>$grant['connection_binding_hash'],'observed_at'=>$r['observed_at'],'response_sha256'=>hash('sha256',json_encode($data,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)),'duration_ms'=>(int)max(0,round((microtime(true)-$start)*1000))];
    $out=new ProviderResult($data,$receipt);return NativePortContract::valid('get_response',$out->jsonSerialize())?$out:self::unknown($attempted);
   }catch(\Throwable){return $attempted===false?NativeFailure::error('read_grant_unavailable'):self::unknown($attempted);}
  }

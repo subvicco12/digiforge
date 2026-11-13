@@ -8,6 +8,8 @@
             <exclude>tests/wordpress/PrintifyCatalogResponseSafetyTest.php</exclude>
             <exclude>tests/wordpress/PrintifyCatalogIntegrationTest.php</exclude>
             <exclude>tests/wordpress/PrintifyCatalogScopedSmokeTest.php</exclude>
+            <!-- Executes in the mandatory production catalog profile, not twice. -->
+            <exclude>tests/wordpress/NativeSupplementalGetTest.php</exclude>
         </testsuite>
     </testsuites>
 </phpunit>

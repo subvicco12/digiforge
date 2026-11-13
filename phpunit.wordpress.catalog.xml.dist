@@ -7,6 +7,7 @@
             <file>tests/wordpress/PrintifyCatalogResponseSafetyTest.php</file>
             <file>tests/wordpress/PrintifyCatalogIntegrationTest.php</file>
             <file>tests/wordpress/PrintifyCatalogScopedSmokeTest.php</file>
+            <file>tests/wordpress/NativeSupplementalGetTest.php</file>
         </testsuite>
     </testsuites>
 </phpunit>

@@ -114,7 +114,14 @@
       "historical_source_pin": "4b22541b1a2edb647588e70e631e6d14911ad6adb23d98f61572e8b088080810",
       "origin": "QUALIFIED_25_PACKAGE",
       "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
-      "sha256": "2028a8df15d2239bddce7fb291134094b92fde00819eadcf95dc049abea21a26"
+      "sha256": "f1b4a1e666da9c2e1129a7ce1cdd2289a69286053f55d15bd6a737ea37255868",
+      "native_get_extension": {
+        "current_origin": "CORE_NATIVE_GET_EXTENSION",
+        "base_source_sha": "9e9094097992453a8cb6ecddd7f936c3584eccef",
+        "base_sha256": "2028a8df15d2239bddce7fb291134094b92fde00819eadcf95dc049abea21a26",
+        "added_text_sha256": "c5d58f93b9b51220a708704fb3c1d1a13d6748b111d8fd94cf9bbd0cfcf64c81",
+        "authorization": "USER_DIRECTED_NATIVE_GET_COMPLETION_NOT_OPERATIONAL_AUTHORITY"
+      }
     },
     {
       "path": "includes/POD/PrintifyConnectionBoundary.php",

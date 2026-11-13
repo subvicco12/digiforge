@@ -29,6 +29,16 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                 continue
             self.assertIn(pin['origin'],['POD1256','QUALIFIED_25_PACKAGE'])
             self.assertEqual(pin['sha256'],hashlib.sha256(path.read_bytes()).hexdigest(),row['path'])
+            if 'native_get_extension' in pin:
+                extension=pin['native_get_extension']
+                self.assertEqual('includes/POD/PrintifyCatalogReadRepository.php',row['path'])
+                self.assertEqual('CORE_NATIVE_GET_EXTENSION',extension['current_origin'])
+                self.assertEqual('9e9094097992453a8cb6ecddd7f936c3584eccef',extension['base_source_sha'])
+                self.assertEqual('USER_DIRECTED_NATIVE_GET_COMPLETION_NOT_OPERATIONAL_AUTHORITY',extension['authorization'])
+                raw=path.read_bytes();start=raw.index(b' /** Native ordinary-read admission.');end=raw.index(b' public function read(string $sha',start)
+                self.assertEqual(extension['added_text_sha256'],hashlib.sha256(raw[start:end]).hexdigest())
+                self.assertEqual(extension['base_sha256'],hashlib.sha256(raw[:start]+raw[end:]).hexdigest())
+
             if pin['origin']=='POD1256':
                 self.assertEqual('d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f',pin['source_sha'])
             else:

@@ -155,6 +155,24 @@ final class PrintifyCatalogReadRepository {
     return Logger::write('catalog_read_rate_reserved',['sha256'=>$r['sha256'],'rate_bucket_sha256'=>$bucket],'catalog_read',$r['sha256'])?true:self::error('rate_audit_unavailable',503);});
   });
  }
+ /** Native ordinary-read admission. Existing grant, site, ownership and quotas remain authoritative. */
+ public function nativeGrant(string $sha,int $index,string $shop,int $integration,string $endpoint):array|WP_Error {
+  if(Settings::safety_locked()||Settings::get('stop_all',true)!==false||!Settings::is_enabled('printify')||wp_get_environment_type()!=='production')return self::error('native_locked',409);
+  $r=$this->grant($sha);if(is_wp_error($r))return $r;$assigned=$this->assigned($r);if(is_wp_error($assigned))return $assigned;
+  if(!self::reader()||$index<0||($r['grant']['account_id']??null)!==get_current_user_id()||($r['grant']['integration_id']??null)!==$integration||($r['binding']['shop_key']??null)!==$shop||!isset($r['grant']['requests'][$index]))return self::error('native_scope',403);
+  try{$request=$r['grant']['requests'][$index];if(PrintifyCatalogReadContract::endpoint($request)!==$endpoint)return self::error('native_endpoint',403);}catch(\Throwable){return self::error('native_contract',403);}
+  $permission=$this->readPermission($sha,$r);if(is_wp_error($permission)||($permission['mode']??null)!=='ORDINARY_AUTHORIZATION')return self::error('native_ordinary_authority',403);
+  return ['grant_sha256'=>$sha,'request_index'=>$index,'request'=>$request,'ownership_binding_sha256'=>$r['binding']['ownership_binding_sha256'],'grant_binding_sha256'=>hash('sha256',self::json($r['binding']))];
+ }
+ /** Consume the same immutable reservation/audit budget used by catalog read(), never a new quota store. */
+ public function reserveNative(string $sha,int $index,string $shop,int $integration,string $endpoint,string $key):array|WP_Error {
+  return $this->locked($sha,function()use($sha,$index,$shop,$integration,$endpoint,$key){
+   $proof=$this->nativeGrant($sha,$index,$shop,$integration,$endpoint);if(is_wp_error($proof))return $proof;try{self::hash($key);}catch(\Throwable){return self::error('native_key',400);}
+   $g=$this->grant($sha);if(is_wp_error($g))return $g;
+   $result=$this->transaction(function()use($sha,$index,$key,$g){$name='df_catalog_read_request_'.$sha.'_'.$key;if($this->load($name)!==null)return self::error('request_replay',409);$attempts=$this->attempts($sha);if(is_wp_error($attempts))return $attempts;if(count($attempts)>=$g['grant']['max_requests']||in_array($key,$attempts,true))return self::error('quota_exhausted',409);return $this->put($name,self::seal(['grant_sha256'=>$sha,'request_sha256'=>$key,'request_index'=>$index,'safety_exception_sha256'=>null,'reserved_at'=>gmdate('c')]),'catalog_read_reserved');});
+   return is_wp_error($result)?$result:['grant_sha256'=>$sha,'request_index'=>$index,'request_sha256'=>$key];
+  });
+ }
  public function read(string $sha,int $index,string $key,bool $persist=true):array|WP_Error {
   if(!self::reader())return self::error('account_scope',403);
   try{self::requestKey($key);}catch(\Throwable){return self::error('request_key',400);}
