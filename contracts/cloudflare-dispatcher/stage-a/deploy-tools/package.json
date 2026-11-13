@@ -1,0 +1,8 @@
+{
+  "name": "digiforge-stage-a-deployment-toolchain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned future deployment tooling only. No execution or Cloudflare access is authorized.",
+  "engines": {"node": ">=24 <25"},
+  "devDependencies": {"wrangler": "4.150.0"}
+}

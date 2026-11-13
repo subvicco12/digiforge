@@ -6,7 +6,7 @@ namespace DigiForge\Research;
 final class CommercialResearchContract
 {
     public const METRICS=['demand','competition','differentiation','seasonal_urgency'];
-    public const KINDS=['etsy_competitor','buyer_intent','google_trend','seasonal'];
+    public const KINDS=['etsy_competitor','buyer_intent','google_trend','seasonal','supplier_catalog'];
     public static function research(array $input): array
     {
         self::keys($input,['shop_key','title','product_family','sources']);

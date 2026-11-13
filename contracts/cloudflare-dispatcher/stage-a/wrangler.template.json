@@ -1,0 +1,23 @@
+{
+  "name": "digiforge-dispatcher-qualification",
+  "main": "stage-a/entrypoint.mjs",
+  "base_dir": ".",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "no_bundle": true,
+  "find_additional_modules": true,
+  "rules": [{"type":"ESModule","globs":["stage-a/entrypoint.mjs","stage-a/factory.mjs","stage-a/egress.mjs","stage-a/state.mjs","stage-a/suite.mjs","protocol.mjs","sqlite-state.mjs"],"fallthrough":false}],
+  "upload_source_maps": false,
+  "keep_vars": false,
+  "observability": {"enabled":false},
+  "vars": {
+    "DF_QUAL_MODE": "DISABLED",
+    "DF_QUAL_WINDOW_START": "0",
+    "DF_QUAL_WINDOW_END": "0",
+    "DF_QUAL_BUILD_ID": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "durable_objects": {"bindings":[{"name":"DF_QUAL_STATE","class_name":"DigiForgeQualificationState"}]},
+  "migrations": [{"tag":"stage-a-synthetic-v1","new_sqlite_classes":["DigiForgeQualificationState"]}]
+}

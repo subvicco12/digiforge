@@ -226,10 +226,9 @@ final class ApprovedDesignListingPackageTest extends TestCase
     {
         $e=$this->evidence(); $d=$this->design();
         // Synthetic unit data only, explicitly not an actual FL-04 variant/source receipt.
-        $e['template']=['template_id'=>'synthetic-test-only','template_version'=>1,'supplier'=>'printify',
-            'provider_blueprint_id'=>1,'provider_id'=>2,'variant_ids'=>[3],
-            'print_areas'=>[['position'=>'front','decoration_method'=>'print','width_px'=>2418,'height_px'=>3018]],
-            'personalization_pipeline'=>'PRINTIFY_NATIVE','personalization_engine'=>'NATIVE','template_status'=>'VALIDATED'];
+        require_once __DIR__.'/../fixtures/PrintifyGeometryFixture.php';
+        $e['template']=\PrintifyGeometryFixture::candidate(\PrintifyGeometryFixture::catalog(1,2,3,2418,3018),'synthetic-test-only',2418,3018);
+        $e['template']['personalization_pipeline']='PRINTIFY_NATIVE';$e['template']['personalization_engine']='NATIVE';unset($e['template']['fingerprint']);
         $template=\DigiForge\POD\ProductionTemplateContract::normalize($e['template']);
         $assetHash=hash('sha256',$d['record']['input']['artwork']['svg']);
         $e['provider_binding']=['shop_key'=>'personalized_pod','environment'=>'test',
