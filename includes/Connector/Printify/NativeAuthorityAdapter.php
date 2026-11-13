@@ -38,15 +38,23 @@ final class NativeAuthorityAdapter
    $session=self::session($actor);return is_wp_error($session)?$session:['scope'=>$connection,'expires_at'=>min($scope->expiresAt,$session['expires_at'],time()+60),'session_fingerprint'=>$session['fingerprint']];
   }catch(\Throwable){return NativeFailure::error('connection_unavailable');}
  }
- public static function read(ExternalOperationIntent $intent):\WP_Error {
+ public static function read(ExternalOperationIntent $intent):ProviderResult|\WP_Error {
   $caps=match($intent->operation){
    'PRODUCT_READ','PRODUCTS_READ','UPLOAD_READ','UPLOADS_READ'=>['manage_digiforge_products'],
    'ORDER_READ','ORDERS_READ'=>['manage_digiforge_orders'],
    default=>['manage_digiforge_pod','manage_digiforge_research'],
   };
   $access=self::module($intent->shopKey,$intent->actorId,$caps);if(is_wp_error($access))return $access;
-  // The GET intent contains no independently resolved native read-plan/authorization reference.
-  // Never infer one from sourceReferences (owned uploads), an intent hash, or a configured token.
-  return NativeFailure::error('read_operational_grant_join_required');
+  $attempted=false;
+  try{
+   $workflow=new \DigiForge\POD\PrintifyApiReadWorkflow();$grant=$workflow->resolveNative($intent);if(is_wp_error($grant))return $grant;
+   $start=microtime(true);$attempted=null;$result=(new \DigiForge\POD\PrintifyControlledTransport())->executeApiRead($grant['plan_hash'],$grant['authorization_hash']);
+   if(!is_wp_error($result)&&is_bool($result['record']['network_request_attempted']??null))$attempted=$result['record']['network_request_attempted'];
+   if(is_wp_error($result)||($result['record']['status']??null)!=='SUCCEEDED'||!is_array($result['record']['data']??null))return new \WP_Error('printify_native_read_outcome_unknown','Native read outcome could not be verified.',['outcome'=>'UNKNOWN','network_request_attempted'=>is_wp_error($result)?null:($result['record']['network_request_attempted']??null),'retry_permitted'=>false,'external_execution_authorized'=>false]);
+   $r=$workflow->receipt($result['hash']);$still=$workflow->resolveNative($intent);if(is_wp_error($r)||is_wp_error($still)||$still!==$grant||($r['status']??null)!=='SUCCEEDED')return new \WP_Error('printify_native_read_outcome_unknown','Current persisted native read evidence unavailable.',['outcome'=>'UNKNOWN','network_request_attempted'=>$result['record']['network_request_attempted']??null,'retry_permitted'=>false,'external_execution_authorized'=>false]);
+   $data=$r['data'];$receipt=['intent_id'=>$intent->intentId,'operation'=>$intent->operation,'shop_key'=>$intent->shopKey,'integration_id'=>$intent->integrationId,'outcome'=>'OBSERVED','status'=>200,'request_attempted'=>$r['network_request_attempted'],'request_sha256'=>$grant['request_fingerprint'],'binding_sha256'=>$grant['connection_binding_hash'],'observed_at'=>$r['observed_at'],'response_sha256'=>hash('sha256',json_encode($data,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)),'duration_ms'=>(int)max(0,round((microtime(true)-$start)*1000))];
+   $out=new ProviderResult($data,$receipt);return NativePortContract::valid('get_response',$out->jsonSerialize())?$out:self::unknown($attempted);
+  }catch(\Throwable){return $attempted===false?NativeFailure::error('read_grant_unavailable'):self::unknown($attempted);}
  }
+ private static function unknown(?bool $attempted):\WP_Error{return new \WP_Error('printify_native_read_outcome_unknown','Native read outcome could not be verified.',['outcome'=>'UNKNOWN','network_request_attempted'=>$attempted,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
 }

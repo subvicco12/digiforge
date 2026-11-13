@@ -1,10 +1,10 @@
 # Native Printify core boundary — partial implementation, non-executable
 
 Core baseline: PR1264 702a4d078555ac9cb75fd115357db5387281c74a (1.0.103.25).
-Pinned companion: PR1263 a7dca70902f755c38f04aa7793040a8253a3056d.
+Pinned companion: PR1263 8e669c1aac5bd916769a6d25b07de9a620a17a9c.
 Batch6 canonical JSON SHA256: 6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434.
 
-**This is not completion of the native operational ports.** All composite signatures exist; only scoped panel authentication is advertised as a complete native capability. Read-only local authorization is available directly, but WORKFLOW is not advertised because its persistence/snapshot services are incomplete. GET, journals, publication, allocation and recovery are denial-only boundaries. No caller, administrator, source hash or synthetic fixture can turn them on. No production/staging installation or provider execution is authorized.
+**This is not completion of the native operational ports.** All composite signatures exist; only scoped panel authentication is advertised as a complete native capability. Read-only local authorization is available directly, but WORKFLOW is not advertised because its persistence/snapshot services are incomplete. Normal governed GET has a partial native join described below; catalog/upload aggregate GET capability, journals, publication, allocation and recovery remain unavailable. No caller, administrator, source hash or synthetic fixture can turn them on. No production/staging installation or provider execution is authorized.
 
 ## Implemented boundary
 
@@ -69,3 +69,18 @@ Every held snapshot explicitly says approval_verified=false, dispatch_permitted=
 Tests use genuine existing core APIs in disposable synthetic state. Shared real SQL tables (not WordPress connection-local temporary tables) test one winner across two PHP workers, restart/readback, cancellation, stale/revoked access, changed binding, corrupt/missing event/audit/head, failed writes, lost commit acknowledgement and no accidental Digital audit/jobs/legacy-intent effects. A journal/events-only rollback is rejected when newer scoped audit anchors remain. Abrupt PHP exit before header persistence rolls the transaction back; exit after actual COMMIT retains the local fence and prevents a second claim. These are process/SQL tests, not power-loss certification. The explicit **all-root rollback counterexample** restores journal/events/audit and revives a local candidate fence; all authority flags remain false. This demonstrates why independent recovery is BLOCKED, not passed. Database settings/fsync assertions alone are not hosted power-loss or exclusive-custody qualification.
 
 See CAPABILITIES.json for COMPLETE/PARTIAL/BLOCKED/NOT_IMPLEMENTED, preserving the distinction between a tested component and a qualified native capability. Operational grants, native provider producer/physical identity/version/allocations and independent emergency revocation/custody remain unresolved. STOP ALL/external lock ON, automation OFF, Manual approval, RELEASE HOLD. No provider calls, real credentials, production writes, merge or deployment.
+
+
+## Batch10: normal governed native read binding (partial)
+
+`PrintifyApiReadWorkflow::bindNative(intent, planHash, authorizationHash)` binds an existing sealed independently reviewed normal read plan and authorization to one immutable actor/shop/integration/operation/input/intent ID and live WordPress session. It does not create an approval or acceptance exception. Registration reuses existing options/audit storage, actual global owner/email step-up, signed shop permissions, provider connection evidence and credential vault. Unknown/different endpoint, actor, source references, approval revision, expiry or session denies. Original provider/catalog authorities remain separate.
+
+Native intent-to-grant and grant-to-intent indexes use strict `INSERT IGNORE` with verified single-column option_name uniqueness, never WordPress add_option's racing upsert. Partial writes, lost/duplicate audit, unavailable index or SQL error never acknowledge authority. A grant cannot be rebound to another intent. Provider dispatch still uses only `PrintifyControlledTransport::executeApiRead`; one-use plan claim is now strict SQL as well, followed by the existing durable nonce ledger. Both normal STOP and external lock/activation gates remain unchanged. Positive tests unlock only the existing synthetic fixture settings; real operations remain unauthorized.
+
+Read authorizations now capture exact independently approved policy revision/hash, issuance/expiry (maximum300seconds) and live session fingerprint. These are rechecked before custody, before each safe-read attempt and after response; renewed approval cannot revive an old grant. Older short-lived authorizations lacking these fields fail closed and must be reissued through existing approval/authentication. No database migration is required.
+
+The native receipt uses only the existing minimized projection, rereads its sealed persisted core receipt/audit anchor and revalidates the exact current native grant before returning. Post-dispatch contract/persistence exceptions preserve UNKNOWN with true/unknown attempt evidence and retry=false. They never claim no request was made. This normal read path inherits the existing bounded safe-GET retry policy; it is not the separately governed no-retry acceptance exception.
+
+Supported overlap is seven of the canonical thirteen operations: SHOPS_READ, PROVIDERS_READ, PROVIDER_READ, PRODUCTS_READ, PRODUCT_READ, ORDERS_READ, ORDER_READ. BLUEPRINTS_READ, BLUEPRINT_READ, VARIANTS_READ, SHIPPING_READ and both upload reads still need their existing catalog/owned-upload authority integration. GPSR remains a normal core service but is not in the canonical native intent allowlist. The aggregate GET_READ capability is intentionally not advertised. No mutation or independent recovery capability is unlocked.
+
+Full source/package integrity remains a separate engineering gate; the native build stamp's bounded inventory is not an authorization or independent anti-rollback witness. Full-root rollback, exclusive credential custody and canonical mutation/product/order/version/receipt-producer/checkpoint joins remain unresolved. See BATCH10_PORT_JOIN_GAPS.md.

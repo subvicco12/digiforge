@@ -77,7 +77,68 @@ final class PrintifyApiReadWorkflow
     {
         $plan = $this->load('plan', $hash); if (is_wp_error($plan)) { return $plan; }
         $current = $this->current($hash, $plan); if (is_wp_error($current)) { return $current; }
-        return $this->save('authorization', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'actor'=>get_current_user_id(),'nonce'=>bin2hex(random_bytes(24)),'expires_at'=>time()+300]);
+        $policy=ReviewedLocalEvidence::approved('policy',$plan['shop_key'],'printify-api-read:'.$hash);if(is_wp_error($policy))return $policy;
+        $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());if(is_wp_error($session))return $session;
+        return $this->save('authorization', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'actor'=>get_current_user_id(),'nonce'=>bin2hex(random_bytes(24)),'issued_at'=>time(),'expires_at'=>time()+300,'policy_revision'=>$policy['revision'],'policy_hash'=>$policy['proposal_hash'],'session_fingerprint'=>$session['fingerprint']]);
+    }
+    private function grantCurrent(string $hash,array $plan,array $auth):true|WP_Error
+    {
+        if(($auth['actor']??null)!==get_current_user_id()||!is_int($auth['issued_at']??null)||!is_int($auth['expires_at']??null)||$auth['issued_at']>time()||$auth['expires_at']<=$auth['issued_at']||$auth['expires_at']-$auth['issued_at']>300||$auth['expires_at']<=time())return self::error('authorization_expired');
+        $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session($auth['actor']);if(is_wp_error($session)||($auth['session_fingerprint']??null)!==$session['fingerprint'])return self::error('authorization_session');
+        $current=$this->current($hash,$plan);if(is_wp_error($current))return $current;
+        $policy=ReviewedLocalEvidence::approved('policy',$plan['shop_key'],'printify-api-read:'.$hash);
+        if(is_wp_error($policy)||($auth['policy_revision']??null)!==$policy['revision']||($auth['policy_hash']??null)!==$policy['proposal_hash'])return self::error('authorization_revision');
+        return true;
+    }
+    /** Atomic claim: wp add_option uses an upsert and cannot protect racing writers. */
+    private function claimIndex(string $key,string $value):bool
+    {
+        global $wpdb;if(strlen($key)>191||preg_match('/^[a-f0-9]{64}$/D',$value)!==1||preg_match('/^[A-Za-z0-9_]+$/D',$wpdb->options)!==1)return false;
+        $wpdb->last_error='';$indexes=$wpdb->get_results('SHOW INDEX FROM '.$wpdb->options.' WHERE Non_unique=0',ARRAY_A);if($wpdb->last_error!==''||!is_array($indexes))return false;
+        $groups=[];foreach($indexes as $index)$groups[$index['Key_name']][]=$index;$unique=false;
+        foreach($groups as $columns)if(count($columns)===1&&$columns[0]['Column_name']==='option_name'&&($columns[0]['Sub_part']??null)===null)$unique=true;
+        if(!$unique)return false;$wpdb->last_error='';$ok=$wpdb->query($wpdb->prepare('INSERT IGNORE INTO '.$wpdb->options.' (option_name,option_value,autoload) VALUES (%s,%s,%s)',$key,$value,'no'));
+        if($wpdb->last_error!==''||$ok!==1)return false;wp_cache_delete($key,'options');wp_cache_delete('notoptions','options');return true;
+    }
+    /** Bind an existing independently approved one-use read grant to one exact native intent.
+     * This adds no approval, sender, credential store or safety exception.
+     */
+    public function bindNative(\DigiForge\Connector\Printify\ExternalOperationIntent $intent, string $planHash, string $authorizationHash): array|WP_Error
+    {
+      try{
+        $durable=PrintifyProductPipeline::durableDispatchSession();if(is_wp_error($durable))return $durable;
+        $proof=$this->nativeProof($intent,$planHash,$authorizationHash);if(is_wp_error($proof))return $proof;
+        $fingerprint=self::nativeFingerprint($intent);$key='digiforge_api_read_native_intent_'.$fingerprint;
+        $saved=$this->save('native_binding',['shop_key'=>$intent->shopKey,'operation'=>$intent->operation,'actor'=>$intent->actorId,'intent_fingerprint'=>$fingerprint,'session_fingerprint'=>$proof['session']['fingerprint'],'plan_hash'=>$planHash,'authorization_hash'=>$authorizationHash]);
+        if(is_wp_error($saved))return $saved;
+        // Immutable association: an intent cannot be rebound after any uncertainty or revocation.
+        if(!$this->claimIndex('digiforge_api_read_native_authorization_'.$authorizationHash,$fingerprint))return self::error('native_authorization_already_bound');
+        if(!$this->claimIndex($key,$saved['hash']))return self::error('native_intent_already_bound');
+        if(!Logger::write('native_printify_read_bound',['binding_hash'=>$saved['hash'],'intent_fingerprint'=>$fingerprint],'native_read',$fingerprint))return self::error('native_binding_audit');
+        $verified=$this->resolveNative($intent);return is_wp_error($verified)?$verified:['intent_fingerprint'=>$fingerprint,'binding_hash'=>$saved['hash'],'execution_authorized'=>false];
+      }catch(\Throwable){return self::error('native_binding_unconfirmed');}
+    }
+    private static function nativeFingerprint(\DigiForge\Connector\Printify\ExternalOperationIntent $i): string
+    {return hash('sha256',Validator::canonicalJson([$i->actorId,$i->shopKey,$i->integrationId,$i->operation,$i->input,$i->intentId,$i->sourceReferences]));}
+    private function nativeProof(\DigiForge\Connector\Printify\ExternalOperationIntent $i,string $planHash,string $authorizationHash):array|WP_Error
+    {
+        $p=$this->load('plan',$planHash);$a=$this->load('authorization',$authorizationHash);$session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session($i->actorId);
+        if(is_wp_error($p)||is_wp_error($a)||is_wp_error($session)||$i->sourceReferences!==[]||$i->actorId!==get_current_user_id()||($p['created_by']??null)!==$i->actorId||($p['shop_key']??null)!==$i->shopKey||($p['integration_id']??null)!==$i->integrationId||($p['request']['operation']??null)!==$i->operation||($a['plan_hash']??null)!==$planHash||($a['actor']??null)!==$i->actorId||!is_int($a['expires_at']??null)||$a['expires_at']<=time())return self::error('native_identity');
+        try{$request=PrintifyConnectorReadContract::prepare($i->operation,$p['provider_shop_id'],$i->input);if($request['endpoint']!==$p['request']['endpoint']||($p['request']['method']??null)!=='GET')return self::error('native_request');}catch(\Throwable){return self::error('native_request');}
+        $current=$this->grantCurrent($planHash,$p,$a);return is_wp_error($current)?$current:['plan'=>$p,'authorization'=>$a,'session'=>$session];
+    }
+    /** Server-internal references only; no route or ability exposes grant hashes. */
+    public function resolveNative(\DigiForge\Connector\Printify\ExternalOperationIntent $intent):array|WP_Error
+    {
+        $fingerprint=self::nativeFingerprint($intent);global $wpdb;$wpdb->last_error='';
+        $hash=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_api_read_native_intent_'.$fingerprint));
+        if($wpdb->last_error!==''||!is_string($hash))return self::error('native_binding_missing');
+        $r=$this->load('native_binding',$hash);if(is_wp_error($r))return $r;
+        $wpdb->last_error='';$reverse=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_api_read_native_authorization_'.($r['authorization_hash']??'')));if($wpdb->last_error!==''||$reverse!==$fingerprint)return self::error('native_authorization_binding');
+        $proof=$this->nativeProof($intent,$r['plan_hash']??'', $r['authorization_hash']??'');if(is_wp_error($proof)||($r['intent_fingerprint']??null)!==$fingerprint||($r['session_fingerprint']??null)!==$proof['session']['fingerprint']||($r['actor']??null)!==$intent->actorId)return self::error('native_binding_stale');
+        $wpdb->last_error='';$rows=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.\DigiForge\Database\Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s LIMIT 2','native_printify_read_bound','native_read',$fingerprint));
+        if($wpdb->last_error!==''||!is_array($rows)||count($rows)!==1||json_decode($rows[0],true)!==['binding_hash'=>$hash,'intent_fingerprint'=>$fingerprint])return self::error('native_binding_audit');
+        return ['plan_hash'=>$r['plan_hash'],'authorization_hash'=>$r['authorization_hash'],'request_fingerprint'=>$proof['plan']['request']['fingerprint'],'connection_binding_hash'=>$proof['plan']['connection_scope']['binding_hash']];
     }
     public function receipt(string $hash): array|WP_Error
     {
@@ -96,22 +157,22 @@ final class PrintifyApiReadWorkflow
         $plan = $this->load('plan', $hash); $auth = $this->load('authorization', $authorization);
         if (is_wp_error($plan) || is_wp_error($auth)) { return self::error('record'); }
         if (($auth['plan_hash'] ?? null) !== $hash || ($auth['actor'] ?? null) !== get_current_user_id() || ($auth['expires_at'] ?? 0) < time()) { return self::error('authorization'); }
-        $current = $this->current($hash, $plan); if (is_wp_error($current)) { return $current; }
+        $current = $this->grantCurrent($hash, $plan, $auth); if (is_wp_error($current)) { return $current; }
         try { $request = PrintifyApiRequest::prepare($plan['request']['operation'], $plan['provider_shop_id'], $plan['input']); } catch (\Throwable) { return self::error('contract'); }
         if (Validator::canonicalJson($request) !== Validator::canonicalJson($plan['request']) || $request['method'] !== 'GET' || !PrintifyApiReadEvidence::supported($request['operation'])) { return self::error('read_confinement'); }
         // Claim before sending. Any interruption remains consumed, requiring a new reviewed plan.
-        if (!add_option('digiforge_api_read_claim_' . $hash, $authorization, '', false)) { return self::error('consumed'); }
+        if (!$this->claimIndex('digiforge_api_read_claim_' . $hash, $authorization)) { return self::error('consumed'); }
         $nonce = ExecutionNonceLedger::consume($auth['nonce'], $authorization, get_current_user_id()); if (is_wp_error($nonce)) { return $nonce; }
         if (!Logger::write('printify_api_read_reserved', ['plan_sha256'=>$hash,'authorization_sha256'=>$authorization,'max_requests'=>3], 'printify_api', $hash)) { return self::error('audit'); }
         $attempted = false;
-        $result = (new PrintifyScopedCredentialRetriever())->consume($plan['integration_id'], function (string $token) use ($hash, $plan, $request, $sender, &$attempted) {
-            $current = $this->current($hash, $plan); if (is_wp_error($current)) { return $current; }
+        $result = (new PrintifyScopedCredentialRetriever())->consume($plan['integration_id'], function (string $token) use ($hash, $plan, $request, $sender, $auth, &$attempted) {
+            $current = $this->grantCurrent($hash, $plan, $auth); if (is_wp_error($current)) { return $current; }
             $material = PrintifyConnectionBoundary::material($plan['integration_id'], $token); if (is_wp_error($material)) { return $material; }
             $durable = PrintifyProductPipeline::durableDispatchSession(); if (is_wp_error($durable)) { return $durable; }
             $response = null;
             for ($attempt=1; $attempt<=3; $attempt++) {
                 if($attempt>1)usleep(100000*($attempt-1));
-                $fresh=$this->current($hash,$plan);if(is_wp_error($fresh))return $fresh;
+                $fresh=$this->grantCurrent($hash,$plan,$auth);if(is_wp_error($fresh))return $fresh;
                 $correlation=$hash.':'.$attempt;$quota=PrintifyAccountQuota::reserve($plan['connection_scope'],$request['endpoint'],'GET',$correlation);if(is_wp_error($quota))return $quota;
                 $attempted=true;
                 try{$response=$sender('https://api.printify.com'.$request['endpoint'],['method'=>'GET','timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577,'headers'=>['Authorization'=>'Bearer '.$token,'User-Agent'=>'DigiForge/PrintifyApi','Accept'=>'application/json']]);}catch(\Throwable){$response=new WP_Error('printify_transport_unknown');}
@@ -129,7 +190,7 @@ final class PrintifyApiReadWorkflow
                 $decoded = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
                 if (!is_array($decoded) || PrintifyCatalogReadContract::containsProtectedMaterial($decoded, $token)) { return ['status'=>'RESPONSE_REJECTED','data'=>null]; }
                 $data = PrintifyApiReadEvidence::project($request['operation'], $decoded, $plan['provider_shop_id'], $plan['input']);
-                if ($this->current($hash, $plan) !== true) { return ['status'=>'UNKNOWN','data'=>null]; }
+                if ($this->grantCurrent($hash, $plan, $auth) !== true) { return ['status'=>'UNKNOWN','data'=>null]; }
                 return ['status'=>'SUCCEEDED','data'=>$data,'response_sha256'=>hash('sha256',$raw)];
             } catch (\Throwable) { return ['status'=>'UNKNOWN','data'=>null]; } finally { $token = ''; }
         }, $plan['connection_scope']);
