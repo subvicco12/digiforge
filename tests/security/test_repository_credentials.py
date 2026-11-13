@@ -1,5 +1,6 @@
 """Real offline scanner acceptance; synthetic canary is never a usable credential."""
 import json
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -157,6 +158,70 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertEqual('HISTORY_INCOMPLETE', evidence['status'])
         self.assertIsNone(evidence['finding_count'])
+
+    def reviewed_plan_fixture(self):
+        path='docs/superpowers/plans/2026-11-13-native-reservation-continuation.md'
+        raw=subprocess.run(['git','-C',str(SCRIPT.parent.parent),'show',
+                            'cc60045d165f53c10f716d6c646edbb1b4d09ab3:'+path],
+                           check=True,capture_output=True).stdout
+        target=self.root/path;target.parent.mkdir(parents=True);target.write_bytes(raw)
+        self.git('add','.');self.git('commit','-qm','Exact noncredential historical plan fixture')
+
+    def test_exact_reviewed_plan_prose_is_separately_verified(self):
+        self.reviewed_plan_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual(1,evidence.get('verified_plan_state_phrase_count',0))
+        self.assertEqual(0,evidence['finding_count'])
+        self.assertEqual(0,evidence['verified_git_identifier_count'])
+
+    def test_reviewed_prose_does_not_hide_an_additional_history_credential(self):
+        self.reviewed_plan_fixture()
+        canary='ghp_'+'a1B2c3D4'*4+'E5f6'
+        self.commit('token = "'+canary+'"\n')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(1,evidence.get('verified_plan_state_phrase_count',0))
+        self.assertGreater(evidence['finding_count'],0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+
+class ReviewedPlanPhraseVerifierTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('credential_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent
+        self.finding={'File':'docs/superpowers/plans/2026-11-13-native-reservation-continuation.md',
+                      'RuleID':'generic-api-key','Commit':'cc60045d165f53c10f716d6c646edbb1b4d09ab3',
+                      'StartLine':8,'EndLine':8,'Secret':'REDACTED','Match':'key '+'denial, REDACTED '}
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,
+                              capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,
+                              capture_output=True).stdout
+    def verify(self,finding=None,git=None,raw=None):
+        self.assertTrue(hasattr(self.gate,'verified_plan_state_phrase'),
+                        'Exact historical noncredential verifier must exist')
+        return self.gate.verified_plan_state_phrase(finding or self.finding,git or self.git,raw or self.raw)
+    def test_exact_historical_prose_requires_actual_raw_blob(self):
+        self.assertTrue(self.verify())
+    def test_rule_path_line_match_and_commit_changes_remain_actionable(self):
+        for key,value in [('File','other.md'),('RuleID','github-pat'),('StartLine',9),
+                          ('EndLine',9),('StartLine',8.0),('Secret','unredacted-value'),
+                          ('Match','different redacted match'),('Commit','f'*40)]:
+            changed=dict(self.finding);changed[key]=value
+            with self.subTest(field=key):self.assertFalse(self.verify(changed))
+    def test_changed_blob_or_appended_credential_cannot_reuse_review(self):
+        def wrong(*args):
+            return 'f'*40 if args[0]=='rev-parse' else self.git(*args)
+        self.assertFalse(self.verify(git=wrong))
+        raw=self.raw('show',self.finding['Commit']+':'+self.finding['File'])
+        self.assertFalse(self.verify(raw=lambda *args:raw+b'\n'+b'api_'+b'key = '+b'synthetic_'+b'changed_content\n'))
+        self.assertFalse(self.verify(raw=lambda *args:raw.replace(b'non-revival',b'changed-content')))
+    def test_lookup_failure_is_not_a_clean_classification(self):
+        def unavailable(*args):raise OSError('offline lookup failure')
+        self.assertFalse(self.verify(raw=unavailable))
 
 
 if __name__ == '__main__':

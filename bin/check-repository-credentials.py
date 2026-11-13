@@ -2,6 +2,7 @@
 """Fail-closed candidate-history credential gate; never publish finding contents."""
 import argparse
 import collections
+import hashlib
 import json
 import os
 import re
@@ -84,6 +85,40 @@ def verified_git_identifier(finding, git):
     return False
 
 
+def verified_plan_state_phrase(finding, git, git_bytes):
+    """One reviewed historical noncredential span; never a path/rule suppression.
+
+    Require independently resolved historical bytes and exact location/context.
+    Changed content and all additional findings stay actionable.
+    """
+    path = 'docs/superpowers/plans/2026-11-13-native-reservation-continuation.md'
+    reviewed_blob = '75b7888afc9feb2f36912af6539eb0e1355681a0'
+    reviewed_content = '260aff926fff972cce787da6a59b033535306b2616753ef80b98234fa9f0c7c9'
+    try:
+        commit = finding.get('Commit')
+        if (finding.get('File') != path or finding.get('RuleID') != 'generic-api-key'
+                or type(finding.get('StartLine')) is not int or type(finding.get('EndLine')) is not int
+                or finding.get('StartLine') != 8 or finding.get('EndLine') != 8
+                or finding.get('Secret') != 'REDACTED'
+                or finding.get('Match') != 'key ' + 'denial, REDACTED '
+                or not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit)):
+            return False
+        if git('cat-file', '-t', commit) != 'commit':
+            return False
+        blob = git('rev-parse', '--verify', commit + ':' + path)
+        if blob != reviewed_blob:
+            return False
+        raw = git_bytes('cat-file', 'blob', blob)
+        if not isinstance(raw, bytes) or hashlib.sha256(raw).hexdigest() != reviewed_content:
+            return False
+        expected_line = ('- [x] Add real SQL failing tests for exact registration replay without new events/audit, changed-binding/'
+                         + 'key ' + 'denial, ' + '/'.join(('cancellation', 'UNKNOWN'))
+                         + ' non-revival, lost acknowledgement, generation/head/fence substitution and revoked session.')
+        return raw.decode('utf-8').splitlines()[7] == expected_line
+    except (OSError, ValueError, TypeError, IndexError, subprocess.SubprocessError):
+        return False
+
+
 def check(repository, scanner):
     evidence = {'schema': 'digiforge-repository-credential-evidence-v1',
                 'status': 'SCAN_UNAVAILABLE', 'scanner_version': VERSION,
@@ -94,6 +129,10 @@ def check(repository, scanner):
     def git(*args):
         return subprocess.run(['git', '-C', str(repository), *args], check=True,
                               capture_output=True, text=True, timeout=30).stdout.strip()
+
+    def git_bytes(*args):
+        return subprocess.run(['git', '-C', str(repository), *args], check=True,
+                              capture_output=True, timeout=30).stdout
 
     try:
         evidence['commit_sha'] = git('rev-parse', '--verify', 'HEAD^{commit}')
@@ -139,9 +178,13 @@ def check(repository, scanner):
                 return evidence
             if (result.returncode == 0) != (len(findings) == 0):
                 return evidence
-            actionable = [row for row in findings if not verified_git_identifier(row, git)]
+            kinds = [('git' if verified_git_identifier(row, git) else
+                      'plan_prose' if verified_plan_state_phrase(row, git, git_bytes) else
+                      'actionable') for row in findings]
+            actionable = [row for row, kind in zip(findings, kinds) if kind == 'actionable']
             evidence['raw_finding_count'] = len(findings)
-            evidence['verified_git_identifier_count'] = len(findings) - len(actionable)
+            evidence['verified_git_identifier_count'] = kinds.count('git')
+            evidence['verified_plan_state_phrase_count'] = kinds.count('plan_prose')
             evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
             evidence['finding_count'] = len(actionable)
