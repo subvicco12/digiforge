@@ -1,0 +1,60 @@
+SHOP 2 OFFLINE PRODUCT FACTORY — DEVELOPMENT CANDIDATE
+
+Scope: FL-03 anniversary mug / FL-04 anniversary poster. No installation,
+provider execution, commercial approval or release authority is granted.
+STOP ALL ON; external lock ON; automation OFF; manual approval; RELEASE HOLD.
+
+1. In an authorized disposable WordPress portal page containing
+   [digiforge_admin_portal], choose Research / Personalized POD.
+2. Import source-linked research JSON using the existing strict contract.
+   Import three differentiated concept responses, then select one direction.
+   Manual/import is functional; unavailable AI is not represented as generation.
+3. Review linked sources, buyer intent and gifting occasion. Save the design
+   specification and exact three nonoverlapping native text rectangles.
+4. Import original editable fixed SVG (optional strict PNG references); record
+   original source and font/license provenance. Review all nine existing human
+   criteria and approve exact immutable artwork only with genuine authority.
+5. In Customer fields, save text/date definitions mapping every native region.
+   Keys, order, caps and required flags are persisted as an immutable schema.
+6. Enter sample values and save a local proof. Required values, Unicode caps,
+   real ISO calendar dates, extra fields and invalid input are rejected.
+   Unsupported glyphs/layout are MANUAL_HOLD with no substitute/truncated proof.
+7. Review the displayed source/sample proof. Record a local APPROVE or REJECT
+   rationale. This never approves production, supplier typography or final output.
+   HOLD cannot be approved. Revise samples/schema as a new version; old reviews
+   remain attached to their original exact bytes.
+8. Reopen via Saved Shop 2 research/design workspaces, Saved design versions,
+   then Saved schema and sample versions. Discovery is bounded to latest records;
+   existing exact-hash inspection remains available for older versions.
+
+LIMITATIONS
+Local proofs use the existing conservative generic-font renderer, not bundled
+commercial fonts. Accepted layout remains MANUAL_REVIEW; native provider sizing,
+common-tier synchronization, physical floors and preview/final parity UNVERIFIED.
+Offline standalone font preflight remains separate; no provider control invented.
+Text/date screen does not upload/crop photos; unsupported fields require manual
+review. Fixed vectors remain separate from editable native fields. Proof SVG is
+DO NOT IMPORT and cannot become production artwork through a local review.
+Workspace/proof hashes are local identities, not supplier product IDs/SKUs or
+Lane B's canonical business versions. Product/listing integration stays separate.
+
+REPRODUCIBLE FOCUSED CHECKS
+Use the repository's documented isolated WordPress test bootstrap/database.
+Run ArtworkPersonalizationWorkflowTest plus CommercialResearchWorkflowTest,
+DesignFactoryWorkflowTest and PersonalizedPodModuleIsolationTest. The added
+registration regression calls normal Portal::register, not a substitute handler.
+Unit filter: ArtworkPersonalizationContractTest, CommercialResearchContractTest,
+DesignFactoryContractTest, LocalPersonalizationProofTest,
+PersonalizationPayloadContractTest. See evidence artifact for exact logs/totals.
+
+BROWSER REGRESSION
+python tests/offline/shop2-artwork-browser.py --base-url \
+ 'http://127.0.0.1:18966/?page_id=4&df_view=research&df_shop=personalized_pod' \
+ --cookies-file /private/synthetic-browser-cookies.json --output /tmp/proofs
+Use disposable DB/core, plugin source from this branch, genuine server-issued
+synthetic owner/session and [digiforge_admin_portal]. Loopback only. Chromium
+and Playwright are test-tool prerequisites, not plugin runtime dependencies.
+Block WordPress HTTP and mail; disable WP cron; never point at a real site.
+Fixtures are SYNTHETIC: original engineering vectors and test concept responses,
+not replacement R5B commercial assets. Synthetic reviews grant no owner approval.
+Do not publish cookies, keys, configuration, SQL, authentication captures or HAR.

@@ -105,6 +105,7 @@ final class Portal
         (new PrintifyProductIntelligenceFeature())->register();
         (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
+        (new OpportunityDesignPanel())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);
         add_action('admin_post_' . self::DEVELOP_ACTION, [$this, 'develop']);

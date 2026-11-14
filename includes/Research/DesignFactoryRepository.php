@@ -9,6 +9,17 @@ final class DesignFactoryRepository
 {
     private const PREFIX='digiforge_design_personalized_pod_';
     public function __construct(private ?DesignGenerationProvider $provider=null) {$this->provider??=new DesignFactoryUnavailableProvider();}
+    /** Bounded operator discovery; every returned version still passes current admission and lineage. */
+    public function recent(string $shop,string $commercial): array|WP_Error
+    {
+        $access=$this->access($shop);if(is_wp_error($access))return $access;
+        $context=$this->context($shop,$commercial);if(is_wp_error($context))return $context;
+        global $wpdb;$wpdb->last_error='';$prefix=self::PREFIX.'version_';
+        $names=$wpdb->get_col($wpdb->prepare('SELECT option_name FROM '.$wpdb->options.' WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT 50',$wpdb->esc_like($prefix).'%'));
+        if($wpdb->last_error!==''||!is_array($names))return self::error('Saved design index unavailable.');
+        $out=[];foreach($names as $name){$hash=substr($name,strlen($prefix));$v=$this->read($shop,$hash);if(is_wp_error($v))return $v;if($v['record']['commercial_hash']!==$commercial)continue;$out[]=['hash'=>$hash,'kind'=>$v['record']['kind'],'created_at'=>$v['record']['created_at'],'review_state'=>$v['review_state']];}
+        return $out;
+    }
     public function providerStatus(): array {return $this->provider->status();}
     public function approveConcept(string $shop,string $commercialHash,array $review): array|WP_Error
     {
