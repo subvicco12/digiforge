@@ -8,6 +8,11 @@ final class PreparationService {
  public function upload(ShopBinding $scope,string $bytes,array $evidence,array $context):MutationIntent {
   $asset=ArtworkContract::inspect($bytes,$evidence,$scope);return new MutationIntent('IMAGE_UPLOAD',$scope,UploadContract::prepare($scope,$asset,$bytes),$context);
  }
+ public function uploadFromCoreDescriptor(ShopBinding $scope,string $bytes,array $evidence,array $descriptor,array $context):MutationIntent {
+  if(!is_int($context['actor_id']??null))throw new \InvalidArgumentException('Exact owner context required.');
+  $asset=ArtworkContract::inspect($bytes,$evidence,$scope);
+  return new MutationIntent('IMAGE_UPLOAD',$scope,UploadContract::prepareFromCoreDescriptor($scope,$asset,$bytes,$descriptor,$context['actor_id']),$context);
+ }
  public function product(string $operation,ShopBinding $scope,array $input,array $evidence,array $context):MutationIntent {
   if(!class_exists(\DigiForge\POD\PrintifyProductRequest::class))throw new \RuntimeException('Compatible existing DigiForge product request contract required.');
   return new MutationIntent($operation,$scope,ProductDraftContract::prepare($operation,$scope,$input,$evidence),$context);
