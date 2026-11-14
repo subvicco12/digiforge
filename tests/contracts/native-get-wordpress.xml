@@ -1,0 +1,7 @@
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="DF_NATIVE_TEST_SHA" value="509abc0ea3b6e6a6ad855dcea24228e45bce4e5e" force="true"/><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Exact native GET">
+<file>/companionrepo/tests/contracts/NativeGetWordPressAcceptance.php</file>
+<file>/companionrepo/tests/contracts/NativeCompanionWordPressAcceptance.php</file>
+<file>/feature/tests/wordpress/NativeReadGrantWordPressTest.php</file>
+
+<file>/feature/tests/wordpress/NativeOwnedUploadGetTest.php</file>
+<file>/companionrepo/tests/contracts/NativeDefaultGetPinAcceptance.php</file></testsuite></testsuites></phpunit>

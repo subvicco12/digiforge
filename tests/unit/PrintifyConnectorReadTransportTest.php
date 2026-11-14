@@ -5,7 +5,7 @@ use DigiForge\POD\PrintifyConnectorReadContract;
 use PHPUnit\Framework\TestCase;
 require_once __DIR__.'/../../includes/POD/PrintifyCatalogClient.php';
 if (is_file(__DIR__.'/../../includes/POD/PrintifyConnectorReadContract.php')) require_once __DIR__.'/../../includes/POD/PrintifyConnectorReadContract.php';
-if (!class_exists('WP_Error')) { class WP_Error { public function __construct(public string $code='',public string $message='',public array $data=[]) {} } }
+if (!class_exists('WP_Error')) { class WP_Error { public function __construct(public string $code='',public string $message='',public array $data=[]) {} public function get_error_data():array{return $this->data;} } }
 final class PrintifyConnectorReadTransportTest extends TestCase
 {
     public function testContractAndTransportAreAvailable(): void { self::assertTrue(class_exists(PrintifyConnectorReadContract::class)); self::assertTrue(method_exists(PrintifyCatalogClient::class,'connectorRead')); }

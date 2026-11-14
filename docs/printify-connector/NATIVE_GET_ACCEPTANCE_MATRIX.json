@@ -1,0 +1,193 @@
+{
+  "schema": "DF_COMPANION_NATIVE_GET_ACCEPTANCE_1",
+  "reviewed_core_sha": "509abc0ea3b6e6a6ad855dcea24228e45bce4e5e",
+  "get_checkpoint_sha": "63780e9bc4df6623f02c0a2b74731e5dc7cd50bc",
+  "starting_companion_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
+  "core_ci": {
+    "run": 43491757279,
+    "conclusion": "success"
+  },
+  "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "capabilities": [
+    "PANEL",
+    "GET_READ"
+  ],
+  "live_read_verified": false,
+  "external_execution_authorized": false,
+  "source_review_files": [
+    ".github/workflows/digiforge-foundation-audit.yml",
+    "bin/check-repository-credentials.py",
+    "docs/printify-native-core/BATCH10_PORT_JOIN_GAPS.md",
+    "docs/printify-native-core/CAPABILITIES.json",
+    "docs/printify-native-core/IMPLEMENTATION.md",
+    "docs/printify-native-core/NATIVE_SOURCE_OBSERVATIONS.md",
+    "docs/superpowers/plans/2026-11-13-native-source-joins.md",
+    "includes/Connector/Printify/NativeCorePort.php",
+    "includes/Connector/Printify/NativeOrderSourceEvidence.php",
+    "includes/Connector/Printify/NativeOrderSourceJournal.php",
+    "includes/Connector/Printify/NativeOrderSourceSchema.php",
+    "includes/POD/PrintifyApiReadWorkflow.php",
+    "tests/security/test_repository_credentials.py",
+    "tests/wordpress/NativeApiFixtureIsolationTest.php",
+    "tests/wordpress/NativeOrderSourceEvidenceTest.php",
+    "tests/wordpress/NativeOrderSourceJournalTest.php",
+    "tests/wordpress/NativeOwnedUploadGetTest.php",
+    "tests/wordpress/NativeReadGrantWordPressTest.php",
+    "tests/wordpress/fixtures/PrintifyApiApprovalFixture.php"
+  ],
+  "operations": [
+    {
+      "operation": "SHOPS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/shops.json",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "BLUEPRINTS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/catalog/blueprints.json",
+      "api_version": "v1",
+      "source_join": "existing_catalog_grant_and_reservation",
+      "one_use": "strict_native_and_plan_claim_plus_nonce_and_shared_catalog_reservation",
+      "positive_and_negative_test": "tests/wordpress/NativeSupplementalGetTest.php"
+    },
+    {
+      "operation": "BLUEPRINT_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/catalog/blueprints/{blueprint_id}.json",
+      "api_version": "v1",
+      "source_join": "existing_catalog_grant_and_reservation",
+      "one_use": "strict_native_and_plan_claim_plus_nonce_and_shared_catalog_reservation",
+      "positive_and_negative_test": "tests/wordpress/NativeSupplementalGetTest.php"
+    },
+    {
+      "operation": "PROVIDERS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/catalog/print_providers.json",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "PROVIDER_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/catalog/print_providers/{provider_id}.json",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "VARIANTS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/variants.json",
+      "api_version": "v1",
+      "source_join": "existing_catalog_grant_and_reservation",
+      "one_use": "strict_native_and_plan_claim_plus_nonce_and_shared_catalog_reservation",
+      "positive_and_negative_test": "tests/wordpress/NativeSupplementalGetTest.php"
+    },
+    {
+      "operation": "SHIPPING_READ",
+      "method": "GET",
+      "endpoint_template": "/v2/catalog/blueprints/{blueprint_id}/print_providers/{provider_id}/shipping[/{shipping_method}].json",
+      "api_version": "v2",
+      "source_join": "existing_catalog_grant_and_reservation",
+      "one_use": "strict_native_and_plan_claim_plus_nonce_and_shared_catalog_reservation",
+      "positive_and_negative_test": "tests/wordpress/NativeSupplementalGetTest.php"
+    },
+    {
+      "operation": "PRODUCTS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/shops/{provider_shop_id}/products.json?page={page}&limit={limit}",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "PRODUCT_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/shops/{provider_shop_id}/products/{product_id}.json",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "ORDERS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/shops/{provider_shop_id}/orders.json?page={page}&limit={limit}",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "ORDER_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/shops/{provider_shop_id}/orders/{order_id}.json",
+      "api_version": "v1",
+      "source_join": "existing_approved_api_read_plan",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeGetCompanionConformanceTest.php"
+    },
+    {
+      "operation": "UPLOADS_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/uploads.json?page={page}&limit={limit}",
+      "api_version": "v1",
+      "source_join": "actual_owned_product_image_receipts",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeOwnedUploadGetTest.php"
+    },
+    {
+      "operation": "UPLOAD_READ",
+      "method": "GET",
+      "endpoint_template": "/v1/uploads/{upload_id}.json",
+      "api_version": "v1",
+      "source_join": "actual_owned_product_image_receipts",
+      "one_use": "strict_native_and_plan_claim_plus_nonce",
+      "positive_and_negative_test": "tests/wordpress/NativeOwnedUploadGetTest.php"
+    }
+  ],
+  "limits": {
+    "authorization_seconds": 300,
+    "maximum_page": 3,
+    "maximum_records_per_page": 10,
+    "timeout_seconds": 20,
+    "maximum_response_bytes": 1048576,
+    "maximum_catalog_attempts": 1,
+    "maximum_other_safe_get_attempts": 3,
+    "unknown_replay_authorized": false
+  },
+  "remaining": [
+    "No production installation or live GET authorization",
+    "Actual account/credential/shop association and approved provider binding unverified",
+    "Native mutation/receipt producer/allocation/recovery aggregates remain denied",
+    "Independent recovery anchoring and exclusive credential custody unqualified"
+  ],
+  "pin_decision": "PROMOTED_AFTER_SOURCE_AND_NATIVE_INTERFACE_QUALIFICATION",
+  "offline_native_test_cohorts": {
+    "original_and_manifest_panels_grants": [
+      39,
+      475
+    ],
+    "owned_uploads": [
+      1,
+      80
+    ],
+    "catalog": [
+      10,
+      64
+    ],
+    "default_discovery": [
+      1,
+      7
+    ]
+  },
+  "security_review": "NO_CRITICAL_OR_IMPORTANT_BLOCKERS; manifest discovery exemption limited to metadata, every operation retains capability gate"
+}

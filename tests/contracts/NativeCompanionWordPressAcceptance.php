@@ -31,13 +31,14 @@ final class NativeCompanionWordPressAcceptance extends WP_UnitTestCase {
  private function port():NativeCorePortInterface {$p=NativeBridge::connect('1.0.0');self::assertInstanceOf(NativeCorePortInterface::class,$p);return $p;}
  private function adapter():NativePortAdapter {return new NativePortAdapter($this->port(),getenv('DF_NATIVE_TEST_SHA'));}
  public function testExactManifestAndFiveActualNativePanelViews():void {
-  $s=$this->scope();$p=$this->port();$m=$p->contractManifest();self::assertSame(getenv('DF_NATIVE_TEST_SHA'),$m['core_source_sha']);self::assertTrue(NativePortSchema::valid('manifest',$m));self::assertSame(['PANEL'],$m['capabilities']);
+  $s=$this->scope();$p=$this->port();$m=$p->contractManifest();self::assertSame(getenv('DF_NATIVE_TEST_SHA'),$m['core_source_sha']);self::assertTrue(NativePortSchema::valid('manifest',$m));self::assertSame(['PANEL','GET_READ'],$m['capabilities']);
   foreach(['publication','orders','fulfillment','conflicts','unknown']as $view){$r=$this->adapter()->panelAccess($s,get_current_user_id(),$this->context($s,$view));self::assertNotWPError($r);self::assertTrue($r['read_only']);self::assertFalse($r['external_execution_authorized']);}
  }
  public function testActualReadOnlyWorkflowAuthorizationDoesNotSupplySnapshots():void {
   $s=$this->scope();$p=$this->port();$a=get_current_user_id();foreach(['inspect_reviews','inspect_workflows','inspect_fulfillment','inspect_allocations','inspect_recovery']as $action){$r=$p->authorizeWorkflow($s,$a,$action);self::assertNotWPError($r);self::assertTrue($r['external_writes_denied']);}
+  $missing=$p->inspectWorkflows($s,$a,10);self::assertWPError($missing);self::assertSame('printify_native_order_source_durability_unavailable',$missing->get_error_code());self::assertWPError($this->adapter()->inspectWorkflows($s,$a,10));
   foreach(['record_order','record_review']as $action)self::assertWPError($p->authorizeWorkflow($s,$a,$action));
-  foreach([[$p->reviewQueue($s,$a,10),'trusted_review_snapshot_join_required'],[$p->inspectWorkflows($s,$a,10),'trusted_workflow_snapshot_join_required'],[$p->allocation($s,$a,['order_identity'=>str_repeat('a',64),'order_version'=>1]),'approved_allocation_proof_join_required'],[$p->recovery($s,$a,['action'=>'INSPECT']),'independent_checkpoint_and_drain_required']]as [$r,$reason]){self::assertWPError($r);self::assertSame('printify_native_'.$reason,$r->get_error_code());}
+  foreach([[$p->reviewQueue($s,$a,10),'trusted_review_snapshot_join_required'],[$p->allocation($s,$a,['order_identity'=>str_repeat('a',64),'order_version'=>1]),'approved_allocation_proof_join_required'],[$p->recovery($s,$a,['action'=>'INSPECT']),'independent_checkpoint_and_drain_required']]as [$r,$reason]){self::assertWPError($r);self::assertSame('printify_native_'.$reason,$r->get_error_code());}
  }
  public function testPanelsFailClosedWithoutNativeReviewQueueDespiteValidPanelAccess():void {
   $s=$this->scope();$a=get_current_user_id();$adapter=$this->adapter();self::assertNotWPError($adapter->panelAccess($s,$a,$this->context($s,'orders')));$panel=new ProtectedPanel($adapter);self::assertWPError($panel->snapshot($s,$a,$this->context($s,'orders')));self::assertStringContainsString('unavailable',$panel->render($s,$a,$this->context($s,'orders')));self::assertWPError((new RecoveryDiagnostics($adapter))->snapshot($s,$a));

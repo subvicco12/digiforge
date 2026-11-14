@@ -32,4 +32,13 @@ final class PrintifyCompanionBatch6Test extends TestCase {
 
  public function testStopAndExternalLockEachDenyNativeAdmission():void{[$s,$core,$a]=$this->fixture();$i=(require __DIR__.'/../fixtures/printify-connector/batch2/intent.php')();foreach([[true,false],[false,true],[true,true]]as [$stop,$lock]){$core->safetyStop=$stop;$core->externalLock=$lock;self::assertInstanceOf(WP_Error::class,(new VersionedMutationHost($a))->authorize($i));}}
 
+ /** @dataProvider attemptedEvidence */
+ public function testReadUnknownPreservesOnlyNonSecretBoundedEvidence(?bool $attempted):void {
+  [$s,$core,$a]=$this->fixture();$core->readError=new WP_Error('sensitive-code','sensitive-marker',['outcome'=>'UNKNOWN','retry_permitted'=>false,'network_request_attempted'=>$attempted,'access_token'=>'sensitive-marker']);$i=new DigiForge\Connector\Printify\ExternalOperationIntent(1,'personalized_pod',7,'SHOPS_READ',[],str_repeat('a',32));$r=$a->read($i);self::assertInstanceOf(WP_Error::class,$r);self::assertSame(['outcome'=>'UNKNOWN','network_request_attempted'=>$attempted,'retry_permitted'=>false,'external_execution_authorized'=>false],$r->get_error_data());self::assertStringNotContainsString('sensitive',json_encode($r));
+ }
+ public static function attemptedEvidence():array{return [[true],[false],[null]];}
+ public function testMalformedUnknownCannotAcquireRetryOrLeakCoreError():void {
+  foreach([['outcome'=>'UNKNOWN','retry_permitted'=>false],['outcome'=>'UNKNOWN','network_request_attempted'=>true],['outcome'=>'SUCCEEDED','retry_permitted'=>false,'network_request_attempted'=>true],['outcome'=>'UNKNOWN','retry_permitted'=>true,'network_request_attempted'=>true],['outcome'=>'UNKNOWN','retry_permitted'=>false,'network_request_attempted'=>'yes']]as $d){[$s,$core,$a]=$this->fixture();$core->readError=new WP_Error('sensitive','sensitive-marker',$d);$r=$a->read(new DigiForge\Connector\Printify\ExternalOperationIntent(1,'personalized_pod',7,'SHOPS_READ',[],str_repeat('a',32)));self::assertInstanceOf(WP_Error::class,$r);self::assertFalse($r->get_error_data()['retry_permitted']);self::assertArrayNotHasKey('outcome',$r->get_error_data());self::assertStringNotContainsString('sensitive',json_encode($r));}
+ }
+
 }
