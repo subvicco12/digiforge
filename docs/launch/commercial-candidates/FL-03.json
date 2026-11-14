@@ -1,0 +1,132 @@
+{
+  "schema": "digiforge-offline-etsy-content-v2",
+  "product": "FL-03",
+  "execution_authorized": false,
+  "publish": false,
+  "content": {
+    "title": "Personalized Anniversary Mug, Botanical Names and Date, Couple Keepsake",
+    "description": "Celebrate the date your story began. Two botanical stems meet in a warm gold knot, framing two names and a meaningful date on a white 11oz ceramic mug. The restrained green-and-gold composition makes a personal anniversary keepsake for everyday coffee or a quiet moment together.\n\nPersonalize the design with each partner’s first name and your chosen date. The names appear on separate lines, in the order you provide. This listing is for one physical mug; scene props are not included. Colors can appear differently on screens and the finished print.\n\nPlease check spelling, accents, name order and date carefully before submitting. Submit the date as YYYY-MM-DD (for example, 2021-06-18); alternative display styles require manual confirmation. Your personalized layout will be reviewed manually before fulfillment. If a requested combination needs clarification, we will contact you before proceeding.\n\nDesign process: developed with AI assistance and seller direction.",
+    "tags": [
+      "anniversary mug",
+      "personalized mug",
+      "couple gift",
+      "names and date mug",
+      "botanical mug",
+      "wedding anniversary",
+      "gift for spouse",
+      "custom name mug",
+      "romantic keepsake",
+      "couples coffee mug",
+      "anniversary gift",
+      "two stems one date",
+      "wedding date gift"
+    ],
+    "language": "en-US",
+    "type": "physical",
+    "currency_code": "USD",
+    "personalization_required": true,
+    "personalization_instructions": "First name 1 (maximum 13 characters):\nFirst name 2 (maximum 13 characters):\nDate in YYYY-MM-DD format (example: 2021-06-18). Check spelling, accents and name order. Spaces and punctuation count. Long or accented names and alternative date styles require manual layout review.",
+    "personalization_total_limit": null,
+    "individual_field_limits_historical": [
+      13,
+      13,
+      18
+    ],
+    "offering": {
+      "size": "11oz",
+      "finish": "white ceramic",
+      "quantity": 1
+    },
+    "price": null,
+    "buyer_shipping_usd": null
+  },
+  "artwork": [
+    {
+      "filename": "FL-03-R5B-fixed-import-v1.svg",
+      "sha256": "72c3cc2f0e5e0e5c8e9f6f0c4e8435687bd406e18338fbfa560c666d8c1552ef",
+      "status": "PINNED_MATCH",
+      "source_archive": "Drive 1oHKKybPRPlI6pYZXycR5IXwo8jtqTf07",
+      "unchanged": true,
+      "source_archive_sha256": "affcd974d02b5e5a72af27f80e422a1ad8a339a5a4a1b80ae60c1017d5279542",
+      "source_member": "reused/FL-03-R5B-fixed-import-v1.svg"
+    },
+    {
+      "filename": "FL-03-R5B-fixed-import-v1.png",
+      "sha256": "eae431adc21e7fb45c4007c3c68df80607e2ebaf76c79bba942d27808707a6fb",
+      "status": "PINNED_MATCH",
+      "source_archive": "Drive 1oHKKybPRPlI6pYZXycR5IXwo8jtqTf07",
+      "unchanged": true,
+      "source_archive_sha256": "affcd974d02b5e5a72af27f80e422a1ad8a339a5a4a1b80ae60c1017d5279542",
+      "source_member": "reused/FL-03-R5B-fixed-import-v1.png"
+    }
+  ],
+  "publication_required_unresolved": {
+    "shop_id": null,
+    "taxonomy_id": null,
+    "production_partner_id": null,
+    "shipping_profile_id": null,
+    "return_policy_id": null,
+    "processing_profile_id": null,
+    "listing_images": null,
+    "seller_design_process_confirmation": null,
+    "rights_approval": null,
+    "provider_variant_binding": null,
+    "owner_price_approval": null
+  },
+  "notes": "Complete offline copy/content payload, intentionally not an executable Etsy API request. Taxonomy/profile/quantity-on-sale/partner/material-specific assertions require authenticated facts. Individual Printify caps do not establish Etsy combined personalization box limit.",
+  "date_input_example": "2021-06-18",
+  "historical_economics_reference": {
+    "source_date": "2026-11-04",
+    "historical_price_usd": "17.99",
+    "historical_buyer_shipping_usd": "7.29",
+    "current_supplier_costs_verified": false,
+    "owner_price_approval": null
+  },
+  "input_schema_candidate": [
+    {
+      "key": "first_name",
+      "type": "text",
+      "required": true,
+      "max_length": 13
+    },
+    {
+      "key": "second_name",
+      "type": "text",
+      "required": true,
+      "max_length": 13
+    },
+    {
+      "key": "date",
+      "type": "date",
+      "required": true,
+      "max_length": 10
+    }
+  ],
+  "readiness": {
+    "status": "CANDIDATE_ONLY_MANUAL_HOLD",
+    "owner_artwork_approval": null,
+    "owner_rights_approval": null,
+    "owner_listing_approval": null,
+    "native_typography_parity": "UNKNOWN",
+    "supplier_safe_area_bleed": "UNKNOWN",
+    "preview_final_parity": "BLOCKED_PROVIDER_EVIDENCE_MISSING",
+    "requires_fresh_schema_proof_and_listing_approval_if_adopted": true,
+    "previous_approvals_inherited": false,
+    "name_caps_basis": "Historical native observations and local proposed policy; current native fields require requalification",
+    "date_policy_basis": "Accepted DigiForge PersonalizationPayloadContract typed ISO date; historical freeform provider text caps remain separate",
+    "seller_design_process_confirmation": null,
+    "publish_ready": false,
+    "offering_status": "CANDIDATE_HISTORICAL_SPEC_NOT_CURRENT_SUPPLIER_QUALIFICATION"
+  },
+  "source_copy": {
+    "drive_id": "1KkEi8KNUPEecNp4nkJHlK65DGVPhCj9h",
+    "archive_sha256": "4fc730d290d4fde312ec2b56b78f5d2c08c7c0275b995bd66e3fcb7ee2fc31ce",
+    "member": "FL-03_ETSY_OFFLINE_PAYLOAD.json",
+    "changes": [
+      "Clarified supported ISO date entry; alternatives manual",
+      "Moved historical prices/shipping outside buyer-facing content; current values null",
+      "Added proposed source-bound schema and explicit fresh-approval gates"
+    ],
+    "new_keyword_research_performed": false
+  }
+}
