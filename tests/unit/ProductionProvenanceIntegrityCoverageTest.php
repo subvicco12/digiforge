@@ -11,6 +11,7 @@ final class ProductionProvenanceIntegrityCoverageTest extends TestCase
         require_once __DIR__.'/../../includes/POD/ProductionProvenanceIntegrityCoverageReadModel.php';
         $previous=$GLOBALS['wpdb']??null;
         $db=new class {
+ public string $last_error='';
             public string $prefix='wp_';
             public array $queries=[];
             public bool $fail=false;

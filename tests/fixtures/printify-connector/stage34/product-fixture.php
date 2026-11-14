@@ -1,0 +1,8 @@
+<?php
+declare(strict_types=1);
+return static function():array {
+ $scope=new \DigiForge\Connector\Printify\ShopBinding(2,'personalized_pod',99001,'99002','test',7,new \DigiForge\Connector\Printify\CredentialReference(99001),str_repeat('a',64),2000000000,['fixture_image']);
+ $input=['title'=>'Synthetic fixture draft','description'=>'Offline fixture only','blueprint_id'=>99003,'print_provider_id'=>99004,'variants'=>[['id'=>99005,'price'=>1200,'is_enabled'=>true]],'print_areas'=>[['variant_ids'=>[99005],'placeholders'=>[['position'=>'front','images'=>[['id'=>'fixture_image','x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0]]]]]]];
+ $e=['shop_key'=>'personalized_pod','integration_id'=>99001,'provider_shop_id'=>'99002','catalog_receipt_sha256'=>str_repeat('b',64),'geometry_receipt_sha256'=>str_repeat('c',64),'approval_receipt_sha256'=>str_repeat('d',64),'authorization_revision'=>7,'product_version'=>0,'expected_product_version'=>0,'blueprint_id'=>99003,'print_provider_id'=>99004,'allowed_variant_ids'=>[99005],'owned_uploads'=>[['image_id'=>'fixture_image','asset_sha256'=>str_repeat('e',64),'upload_receipt_sha256'=>str_repeat('f',64),'shop_key'=>'personalized_pod','integration_id'=>99001,'provider_shop_id'=>'99002','width_px'=>1000,'height_px'=>1000,'content_bounds'=>['x'=>100,'y'=>100,'width'=>800,'height'=>800]]],'print_areas'=>[['position'=>'front','width_px'=>1000,'height_px'=>1000,'safe_zone'=>['x'=>100,'y'=>100,'width'=>800,'height'=>800]]]];
+ $response=['id'=>'fixture_product','shop_id'=>99002,'blueprint_id'=>99003,'print_provider_id'=>99004,'variants'=>[['id'=>99005]],'visible'=>false,'is_locked'=>false];return [$scope,$input,$e,$response];
+};

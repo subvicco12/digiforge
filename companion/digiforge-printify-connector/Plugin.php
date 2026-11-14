@@ -1,0 +1,31 @@
+<?php
+declare(strict_types=1);
+namespace DigiForgePrintifyConnector;
+/** Companion owns no provider transport, configuration, credentials, routes or scheduled work. */
+final class Plugin {
+ private static bool $registered=false;
+ private static ?\DigiForge\Connector\Printify\ConnectorInterface $connector=null;
+ private static string $state='NOT_BOOTED';
+ private function __construct(){}
+ public static function register():void{if(self::$registered)return;self::$registered=true;add_action('plugins_loaded',[self::class,'boot'],20);if(did_action('plugins_loaded'))self::boot();}
+ public static function boot():void {
+  if(self::$connector!==null)return;
+  try{
+   if(!class_exists(\DigiForge\Connector\Printify\Bridge::class)||!interface_exists(\DigiForge\Connector\Printify\ConnectorInterface::class)){self::$state='MISSING_HOST_INTERFACE';return;}
+   $connector=\DigiForge\Connector\Printify\Bridge::connect('1.0.0');
+   if(!$connector instanceof \DigiForge\Connector\Printify\ConnectorInterface||$connector->version()!=='1.0.0'){self::$state='INCOMPATIBLE_HOST_INTERFACE';return;}
+   self::$connector=$connector;self::$state='INTERFACE_AVAILABLE_AUTHORITY_UNVERIFIED';
+  }catch(\Throwable){self::$state='INCOMPATIBLE_HOST_INTERFACE';}
+ }
+ public static function nativePort():\DigiForgePrintifyConnector\Preparation\NativePortAdapter{return \DigiForgePrintifyConnector\Preparation\NativePortAdapter::discover();}
+ public static function heldPreparationPanel():\DigiForgePrintifyConnector\Preparation\HeldPreparationPanel{return new \DigiForgePrintifyConnector\Preparation\HeldPreparationPanel(self::nativePort());}
+ public static function existingProductSourcePanel():\DigiForgePrintifyConnector\Preparation\ExistingProductSourcePanel{return new \DigiForgePrintifyConnector\Preparation\ExistingProductSourcePanel(self::nativePort());}
+ public static function reviews():\DigiForgePrintifyConnector\Preparation\ReviewCoordinator{return \DigiForgePrintifyConnector\Preparation\ReviewCoordinator::discover();}
+ public static function coreCompatibility():array{return \DigiForgePrintifyConnector\Preparation\CoreContractAdapter::inspect();}
+ public static function workflows():\DigiForgePrintifyConnector\Preparation\WorkflowCoordinator{return \DigiForgePrintifyConnector\Preparation\WorkflowCoordinator::discover();}
+ public static function operationPanel(array $intents):string{return \DigiForgePrintifyConnector\Preparation\OperatorPanel::render(new \DigiForgePrintifyConnector\Preparation\OperatorReadModel(self::mutationHost()),$intents);}
+ public static function mutationHost():\DigiForgePrintifyConnector\Preparation\VersionedMutationHost{return \DigiForgePrintifyConnector\Preparation\VersionedMutationHost::discover();}
+ public static function preparation():\DigiForgePrintifyConnector\Preparation\PreparationService{return new \DigiForgePrintifyConnector\Preparation\PreparationService();}
+ public static function connector():?\DigiForge\Connector\Printify\ConnectorInterface{return self::$connector;}
+ public static function status():array{return ['interface_version'=>'1.0.0','state'=>self::$state,'read_only'=>true,'provider_execution_authorized'=>false,'credential_storage'=>false,'scheduling'=>false,'host_contracts'=>class_exists(\DigiForge\Connector\Printify\HostCompatibility::class)?\DigiForge\Connector\Printify\HostCompatibility::inspect():['native_contracts_available'=>false,'execution_authorized'=>false]];}
+}

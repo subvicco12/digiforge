@@ -1,0 +1,122 @@
+{
+  "schema": "DF_COMPANION_COMPLETION_SPRINT_LEDGER_1",
+  "deadline": "2026-11-16",
+  "core_source_sha": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "companion_baseline_sha": "823a5beafa8820101fea04ba5cd05e1f41be3ff0",
+  "trusted_core_pin": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "overall": "PARTIAL_OFFLINE; native writes remain blocked",
+  "production_release": "BLOCKED",
+  "features": [
+    {
+      "feature": "Native GET13/PANEL",
+      "status": "OFFLINE_VERIFIED",
+      "evidence": "Real core, synthetic transport; qualification matrix retained"
+    },
+    {
+      "feature": "Upload/create/update/publication contracts",
+      "status": "TESTED_SYNTHETIC",
+      "evidence": "Full companion lifecycle; no native mutation execution claim"
+    },
+    {
+      "feature": "Current business/artwork/plan IMAGE_UPLOAD source and HELD registration",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Actual core-to-companion1/56; no approval/counter/epoch inferred"
+    },
+    {
+      "feature": "Protected source inspection",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Actual WordPress1/64; nonce/session/current-source validation; no mounted route"
+    },
+    {
+      "feature": "Canonical mutation approval/REGISTER/CLAIM/receipt aggregates",
+      "status": "BLOCKED_AUTHORITY",
+      "evidence": "Native contract requires verified counters/approval/checkpoint; methods deny"
+    },
+    {
+      "feature": "Native product-create/update/publication identity join",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Price-only existing-product read/adoption source and protected PANEL observation verified; canonical aggregate version/approval/CAS and create/publication authority remain unavailable"
+    },
+    {
+      "feature": "Orders/webhooks/fulfillment/review/recovery composition",
+      "status": "TESTED_SYNTHETIC",
+      "evidence": "Core-owned synthetic ports; source journals partial, aggregate operations unadvertised"
+    },
+    {
+      "feature": "Independent recovery/exclusive credential custody",
+      "status": "BLOCKED",
+      "evidence": "All-root rollback and old usable credentials unqualified; unattended writes denied"
+    },
+    {
+      "feature": "Production host durability",
+      "status": "BLOCKED",
+      "evidence": "Reported flush_log_at_trx_commit=2 versus required1; no change made"
+    },
+    {
+      "feature": "Protected PRICE-only existing-product source component",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED_NOT_MOUNTED_ROUTE",
+      "evidence": "Actual core/PANEL source1/91; strict view35/86; null currency/native version; no mutation/dispatch/credential access"
+    }
+  ],
+  "policy_exception_activated": false,
+  "live_provider_calls": 0,
+  "installation_authorized": false,
+  "automation": false,
+  "release_hold": true,
+  "current_core_observed_sha": "d8733ba6167a968575010a8ee53e936752e344b8",
+  "current_core_certification": {
+    "run_id": 43626762812,
+    "job_id": 132544258046,
+    "conclusion": "FAILED_HISTORY_SCAN_NONCREDENTIAL_SOURCE_CHECKSUM_CLASSIFICATION_PENDING",
+    "main": {
+      "tests": 1952,
+      "assertions": 74676,
+      "skipped": 5,
+      "result": "PASS"
+    },
+    "catalog": {
+      "tests": 58,
+      "assertions": 268509,
+      "result": "PASS"
+    },
+    "pin_promoted": false,
+    "detail": "docs/printify-connector/CURRENT_CORE_CERTIFICATION.md"
+  },
+  "candidate_native_conformance": {
+    "runtime_source_sha": "2ac7e9183cf74a216c255138aaff1a2f615ec553",
+    "runtime_identical_public_sha": "d8733ba6167a968575010a8ee53e936752e344b8",
+    "repository_pin_promoted": false,
+    "private_proposed_pin_only": true,
+    "get": {
+      "tests": 51,
+      "assertions": 630,
+      "result": "PASS"
+    },
+    "fresh_owner_batch": {
+      "tests": 13,
+      "assertions": 53,
+      "result": "PASS"
+    },
+    "price_source_panel": {
+      "tests": 1,
+      "assertions": 91,
+      "result": "PASS",
+      "inspection_dml": 0,
+      "ciphertext_sql_reads": 0,
+      "inspection_http": 0
+    },
+    "live_provider_verified": false
+  },
+  "companion_local_qualification": {
+    "version": "0.7.2",
+    "unit_tests": 1736,
+    "unit_assertions": 9220,
+    "wordpress_tests": 265,
+    "wordpress_assertions": 2453,
+    "offline_tests": 74,
+    "static": "PASS configured PHPStan baseline, sequential local execution",
+    "style": "PASS",
+    "provider_transport": "SYNTHETIC_ONLY",
+    "trusted_pin_promoted": false
+  }
+}

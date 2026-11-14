@@ -1,0 +1,58 @@
+# Current paired sprint qualification
+
+The current reviewed core pin is7d624512a0fab416278b7d8f88208c9463224b6f. See COMPLETION_SPRINT.md and COMPLETION_SPRINT_LEDGER.json for the current exact-head audit, preserved GET/source/held qualification and release blockers. The earlier05091b95 qualification below is retained as history; it does not override the current pin.
+
+# Core pin promotion to 05091b95
+
+Companion starting source: 005a89521403239219bbb59598aefcb432cd54c3. Independently verified core: 05091b954af8164fe7c447aa0e642e28be33630a; exact-head Engineering & Safety audit [43559846172](https://github.com/subvicco12/digiforge/actions/runs/43559846172) PASS. Core PR1264 is not modified.
+
+The nine-file delta from the previous qualified pin 509abc0e leaves the GET dispatcher, all 13 GET joins, PANEL, capability advertisement and canonical contract bytes unchanged. Separate local product-source receipt inspection is stricter but does not enter GET dispatch. Independent read-only review found no blocking interface issue. The canonical spec SHA256 remains 6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434.
+
+The earlier actor-substitution failure was a fixture defect: untyped wpdb object_id predicates inherited integer formatting for hash strings. The repair explicitly uses string predicates, asserts exactly one affected row and reads the actor back before asserting denial; scientific-notation and alphabetic hash cases pass locally (2 tests / 12 assertions). The full protected producer test also passes the core exact-head audit. Production authorization guards were not weakened.
+
+Before promotion, actual isolated WordPress conformance passed 40 tests / 555 assertions plus the required catalog profile 10 tests / 64 assertions. The retained 509abc pin correctly failed the default-discovery positive expectation with zero provider transport calls. Only after these results is the companion reference promoted to 05091b95. The default discovery regression now denies both prior 702a and 509abc pins before transport, then exercises successful Plugin::nativePort discovery and one-use consumption. The committed XML profiles name the exact new core source. Final post-promotion/default, extracted-package and hosted companion results are recorded in the PR qualification receipt after execution, not inferred here.
+
+Complete unchanged-companion regression before promotion: 1,582 unit / 8,615 assertions; 265 WordPress / 2,453 assertions; 74 offline tests with the approved private baseline supplied and no skips. PHP lint 1,121 files, configured PHPStan and PHPCS pass. Provider responses and credential material are synthetic; containers have external networking disabled. No installed-source, policy or live-provider qualification is implied.
+
+The source pin is compatibility evidence only. Installation, real credential/account/shop association, reviewed binding, any safety-policy amendment and bounded live GET execution still require independent evidence and separate authorization. STOP ALL ON, external lock ON, automation OFF and RELEASE HOLD remain unchanged. Mutation, allocation and recovery authority is not added. Any local test ZIP remains TEST_ONLY_NOT_INSTALLATION_READY.
+
+## Preserved previous qualification
+
+# Native GET acceptance against core 509abc0e
+
+Starting companion: e31c20bd38dec08846ad99f5b474c4f78b6e8b18 (draft PR1263). Reviewed core: 509abc0ea3b6e6a6ad855dcea24228e45bce4e5e (draft PR1264). Core source is not modified by this qualification. Core exact-head Engineering & Safety run43491757279 succeeded: https://github.com/subvicco12/digiforge/actions/runs/43491757279 . It includes1848 WordPress tests/68411 assertions (5 existing skips), the58-test production catalog profile,2193 PHP tests (1 existing skip),198 offline tests and native boundary/security/package checks. Hosted source CI is separate from the composed companion tests below.
+
+## Source review and interface
+
+Review interval: GET checkpoint63780e9bc4df6623f02c0a2b74731e5dc7cd50bc through core509abc0e. The19-file delta adds passive protected order-observation source/journal classes and read-only inspection, genuine email step-up renewal in long synthetic scenarios, two negative session-expiry tests, a60-minute CI budget, and an exact blob/content/context check for one historical noncredential prose finding. The scanner correction does not suppress paths/rules or additional findings. Existing GET dispatch joins are preserved; the read workflow adds orderSource without changing execute. No new provider authority is inferred from observation storage. WORKFLOW/mutation/allocation/recovery aggregates remain unadvertised.
+
+The Batch6 schema bytes match exactly (SHA2566d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434). Five protocol version methods remain1.0.0. Actual core manifest advertises PANEL and GET_READ only, with external_execution_authorized=false. All13 GET operations are listed in NATIVE_GET_ACCEPTANCE_MATRIX.json, including V2 shipping methods/regional evidence, independently granted catalog requests and uploads restricted to actual owned product-image receipts. Standard POD cannot borrow Personalized POD upload receipts.
+
+## Minimal companion corrections
+
+1. NativePortAdapter previously discarded core UNKNOWN evidence. The corrected read boundary returns only UNKNOWN, strict bool/null attempted evidence, retry_permitted=false and external_execution_authorized=false. It never forwards raw core codes/messages, extra payloads, headers, credentials or PII. Invalid/missing uncertainty fields produce the existing generic nonretryable denial. Real malformed-response and429 tests reproduce the prior loss and retain consumed core claims.
+2. contractManifest previously required aggregate INSPECTION, which is absent from a GET/PANEL-only core. Metadata discovery now checks the same exact source, schema digest and protocol versions without requiring an unrelated operational capability. All authority-bearing methods still require their original named capability. Wrong-source manifests remain rejected; discovery grants no execution authority.
+
+The trusted source pin is promoted to the exact reviewed509abc0e after explicit-source actual-core conformance succeeded. A separate default-discovery test first fails under the old702a pin with zero transport attempts, then succeeds through Plugin::nativePort after promotion (1test/7assertions). Old/unreviewed pins, unadvertised mutation contracts and legacy cores remain denied. The pin is source compatibility evidence, not installation, policy or execution approval.
+
+## Reproduction and evidence boundaries
+
+Use a disposable WordPress/MariaDB fixture with network disabled, pre_http_request and mail denial guards, and synthetic encrypted test material only. Verify core Git identity, CRC and every runtime member in its source-stamped archive before adding external test scaffolding. Mount the exact core archive at /feature, companion repository at /companionrepo and companion source or extracted ZIP at /companion. Load the actual core WordPress bootstrap and real companion plugin; do not substitute synthetic core authorization. Use tests/contracts/native-get-wordpress.xml and native-get-catalog.xml. The latter is a separate required production-site profile, not an exclusion. They pin DF_NATIVE_TEST_SHA to509abc0e.
+
+Only the physical provider response is synthetic. Real core owner/session enrollment fixtures, independent review, shop/integration/vault association, SQL one-use claims, catalog quotas, upload ownership receipts and audit persistence are exercised. Successful fixtures temporarily unlock their isolated database; production STOP/external lock are untouched. Request-attempted evidence means the intercepted synthetic transport ran, not live connectivity. Native safe GET retries remain bounded by core policy;429/malformed/uncertain results do not restore claims or permit blind replay.
+
+Tests cover all13 operations; PANEL views/nonces; one-use claims; exact account/shop/integration/credential identity; approval/session expiry and revocation; source ownership; quota exhaustion;429; malformed results; bounded safe-read retries; UNKNOWN preservation; and continued mutation denial. Unit uncertainty fixtures include secret-bearing errors and missing/malformed fields. The existing complete companion unit, WordPress and offline suites also run. Preserve their assertions and conditional skips. Final exact source SHA, counts, package hashes and hosted companion CI conclusion are recorded in the PR qualification receipt; this document does not predeclare a pending run successful.
+
+## Remaining gates
+
+Production remains1.0.103.17 and lacks the reviewed native core installation. Installation/staging, binding, actual account/credential/scope association, provider activation and live GET acceptance are not authorized. No GET exception is implemented or activated. Absolute ordinary STOP/external-lock denial remains. Independent all-root recovery anchoring and exclusive credential custody are unqualified; mutations/producer receipts/allocation/recovery remain separate core-owned gaps. No provider connectivity, commercial certification or production durability is inferred from fixtures. Artifacts remain TEST_ONLY_NOT_INSTALLATION_READY; no production release ZIP is issued.
+
+STOP ALL ON. External safety lock ON. Automation OFF. RELEASE HOLD. No production/staging installation, core PR change, credential access, live provider call, mutation, merge, policy activation or historical reservation22 replay.
+
+## Package harness correction
+
+A naive source-era265-test scaffold against the older installed-lineage ZIP produced4errors/16failures, including schema23 expectations against its schema22 fresh fixture. Those results are preserved as a mismatched-scaffold negative control, not hidden or attributed to provider connectivity. The existing prepare-printify-connector-package-tests.py supplies the full pinned438-test baseline plus reviewed fixture overlays without omitted files/methods. Its first complete run exposed one real harness gap: subprocess workers used the legacy bootstrap and did not inherit the parent fresh namespace. The generator now includes the exact committed namespace-aware bootstrap.php and FixtureConfiguration.php as explicit support overlays. A subprocess behavior test fails with baseline_ versus the generated parent prefix before the fix and passes afterward. No concurrency assertions or production runtime files are changed; the complete438-test suite is rerun. Final receipts account for both initial failures and the corrected results.
+
+Corrected complete installed-lineage result:438tests/4146assertions,2existing conditional skips; the exact previously failing WordPress concurrent-worker test passes1test/15assertions. The native extracted artifact passes51tests/626assertions. Source unit1581/8613 and offline74tests (private baseline supplied, no skips) pass. These runtime/package bytes are unchanged by the harness-only correction. Final companion exact-head CI is recorded in the PR after its conclusion.
+
+A later complete unit rerun exposed an intermittent older fixture defect: its HostInterface generated expiresAt=time()+300 anew at every authorization check, so a wall-clock tick changed the authority fingerprint and correctly caused core denial. A deterministic read spanning a tick fails before and succeeds after capturing the fixture expiry once at construction. No runtime expiry or fingerprint comparison is changed. Final complete unit result:1582tests/8615assertions; the regression itself1test/2assertions.

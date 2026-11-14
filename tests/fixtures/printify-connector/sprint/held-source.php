@@ -1,0 +1,6 @@
+<?php
+declare(strict_types=1);
+return static function():array {
+ $s=new DigiForge\Connector\Printify\ShopBinding(2,'personalized_pod',7,'12','test',3,new DigiForge\Connector\Printify\CredentialReference(7),str_repeat('a',64),2000000000);
+ $r=['schema'=>'DF_NATIVE_BUSINESS_MUTATION_EVIDENCE_1','version'=>'1.0.0','scope_fingerprint'=>$s->fingerprint(),'actor_id'=>1,'shop_key'=>'personalized_pod','integration_id'=>7,'credential_reference'=>7,'provider_shop_id'=>'12','environment'=>'test','product_id'=>5,'product_version_id'=>6,'provider_mapping_id'=>8,'asset_spec_id'=>9,'plan_hash'=>str_repeat('b',64),'package_hash'=>str_repeat('c',64),'artwork_version_hash'=>str_repeat('d',64),'business_evidence_hash'=>str_repeat('e',64),'artwork_evidence_hash'=>str_repeat('f',64),'plan_evidence_hash'=>str_repeat('a',64),'operation'=>'IMAGE_UPLOAD','payload_fingerprint'=>str_repeat('b',64),'plan_policy_hash'=>str_repeat('c',64),'plan_policy_revision'=>2,'authorization_revision'=>3,'native_product_version'=>null,'native_version_counters_verified'=>false,'business_package_binding_approved'=>false,'companion_payload_equivalence_verified'=>false,'mutation_authorized'=>false,'independent_checkpoint_verified'=>false,'external_execution_authorized'=>false,'release_hold'=>true];$r['evidence_hash']=DigiForgePrintifyConnector\Preparation\MutationIntent::hash($r);return [$s,$r];
+};

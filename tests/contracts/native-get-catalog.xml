@@ -1,0 +1,1 @@
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="DF_NATIVE_TEST_SHA" value="7d624512a0fab416278b7d8f88208c9463224b6f" force="true"/><env name="WP_ENVIRONMENT_TYPE" value="production" force="true"/></php><testsuites><testsuite name="Exact catalog"><file>/feature/tests/wordpress/NativeSupplementalGetTest.php</file></testsuite></testsuites></phpunit>

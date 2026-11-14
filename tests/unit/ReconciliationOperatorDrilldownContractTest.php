@@ -17,6 +17,7 @@ final class ReconciliationOperatorDrilldownContractTest extends TestCase {
   require_once __DIR__.'/../../includes/Listings/EtsyReconciliationOperatorReadModel.php';
   $previous=$GLOBALS['wpdb']??null;
   $db=new class {
+ public string $last_error='';
    public string $prefix='wp_';
    public array $queries=[];
    public function prepare(string $sql,int $id):string {return str_replace('%d',(string)$id,$sql);}
@@ -48,6 +49,7 @@ final class ReconciliationOperatorDrilldownContractTest extends TestCase {
   require_once __DIR__.'/../../includes/Listings/EtsyReconciliationOperatorReadModel.php';
   $previous=$GLOBALS['wpdb']??null;
   $db=new class {
+ public string $last_error='';
    public string $prefix='wp_';
    public string $query='';
    public function prepare(string $sql,int $limit):string {return str_replace('%d',(string)$limit,$sql);}

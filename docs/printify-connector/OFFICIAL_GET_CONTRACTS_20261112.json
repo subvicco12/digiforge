@@ -1,0 +1,444 @@
+{
+  "source": "https://developers.printify.com/openapi.json",
+  "retrieved_date": "2026-11-12",
+  "openapi": "3.0.3",
+  "info": {
+    "license": {
+      "name": "ISC",
+      "url": "https://www.isc.org/licenses/"
+    },
+    "title": "Printify Public API",
+    "description": "## Getting started\n\nPrintify API enables you to automate product and order creation for a variety of scenarios,\nincluding integration with your on-site design generator, on-site product customization and more.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "scope": "GET-only operation excerpts; external component references remain in official spec",
+  "paths": {
+    "/v1/shops.json": {
+      "get": {
+        "tags": [
+          "Shops"
+        ],
+        "summary": "Retrieve list of shops in a Printify account",
+        "description": "This will return the list of available merchant shops (IDs and titles)",
+        "operationId": "retrieveListOfShopsInAPrintifyAccount",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/shopsList"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/catalog/blueprints.json": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Retrieves list of blueprints in the catalog",
+        "description": "Retrieves the list of blueprints in the catalog to explore from",
+        "operationId": "retrievesListOfBlueprintsInTheCatalog",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/blueprintsList"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/catalog/blueprints/{blueprint_id}.json": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Retrieve a specific blueprint",
+        "description": "Retrieves the list of blueprints in the catalog to explore from",
+        "operationId": "retrieveASpecificBlueprint",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/blueprint"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/catalog/print_providers.json": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Retrieve a list of available print providers",
+        "description": "Retrieves the list of all print providers",
+        "operationId": "retrieveAListOfAvailablePrintProviders",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/printProvidersFullList"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/catalog/print_providers/{print_provider_id}.json": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Retrieve a specific print provider",
+        "description": "Retrieves a print provider with its location and the blueprints it offers",
+        "operationId": "retrieveASpecificPrintProvider",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/printProviderFull"
+          },
+          "404": {
+            "$ref": "#/components/responses/catalogNotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/variants.json": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Retrieve a list of variants of a blueprint from a specific print provider",
+        "description": "Retrieves the list of of variants options for the Print Provider and Blueprint.\n    Those form the set of options available for customization Product (Blueprint)\n    on particular manufacturer (Print Provider).",
+        "operationId": "retrieveAListOfVariantsOfABlueprintFromASpecificPrintProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/show-out-of-stock"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/variantsResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/catalogNotFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/shops/{shop_id}/products.json": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Retrieve a list of products",
+        "description": "Retrieve a list of products",
+        "operationId": "retrieveAListOfProducts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit_max_50_default_50"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/productsList"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/shops/{shop_id}/products/{product_id}.json": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Retrieve a product",
+        "description": "Retrieve a product",
+        "operationId": "retrieveAProduct",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/product"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/invalidProductId"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/shops/{shop_id}/orders.json": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Retrieve a list of orders",
+        "description": "Retrieve a list of orders",
+        "operationId": "retrieveAListOfOrders",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit_max_50"
+          },
+          {
+            "$ref": "#/components/parameters/page_with_example"
+          },
+          {
+            "$ref": "#/components/parameters/status"
+          },
+          {
+            "$ref": "#/components/parameters/sku"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ordersList"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/shops/{shop_id}/orders/{order_id}.json": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get order details by ID",
+        "description": "Get order details by ID",
+        "operationId": "getOrderDetailsById",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/order"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/uploads.json": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Retrieve a list of uploaded images",
+        "description": "Retrieve a list of uploaded images",
+        "operationId": "retrieveAListOfUploadedImages",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/limit_max_50"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/uploadsList"
+          },
+          "400": {
+            "$ref": "#/components/responses/error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/uploads/{image_id}.json": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Retrieve an uploaded image by id",
+        "description": "Retrieve an uploaded image by id",
+        "operationId": "retrieveAnUploadedImageById",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/upload"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping.json": {
+      "get": {
+        "tags": [
+          "V2 Catalog Blueprints"
+        ],
+        "summary": "Retrieve available shipping list information",
+        "description": "Retrieves the available shipping methods for all variants of a blueprint from a specific print provider",
+        "operationId": "retrieveAvailableShippingListInformation",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/v2ShippingResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/standard.json": {
+      "get": {
+        "tags": [
+          "V2 Catalog Blueprints"
+        ],
+        "summary": "Retrieve standard shipping method information",
+        "description": "Retrieves the standard shipping handling time and shipping costs for all variants of a blueprint from a specific print provider",
+        "operationId": "retrieveSpecificShippingMethodInformation",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/v2ShippingStandardResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/priority.json": {
+      "get": {
+        "tags": [
+          "V2 Catalog Blueprints"
+        ],
+        "summary": "Retrieve priority shipping method information",
+        "description": "Retrieves the priority shipping handling time and shipping costs for all variants of a blueprint from a specific print provider",
+        "operationId": "retrievePriorityShippingMethodInformation",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/v2ShippingStandardResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/express.json": {
+      "get": {
+        "tags": [
+          "V2 Catalog Blueprints"
+        ],
+        "summary": "Retrieve express shipping method information",
+        "description": "Retrieves the express shipping handling time and shipping costs for all variants of a blueprint from a specific print provider",
+        "operationId": "retrieveExpressShippingMethodInformation",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/v2ShippingStandardResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/economy.json": {
+      "get": {
+        "tags": [
+          "V2 Catalog Blueprints"
+        ],
+        "summary": "Retrieve economy shipping method information",
+        "description": "Retrieves the economy shipping handling time and shipping costs for all variants of a blueprint from a specific print provider",
+        "operationId": "retrieveEconomyShippingMethodInformation",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/v2ShippingStandardResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/notFound"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  }
+}

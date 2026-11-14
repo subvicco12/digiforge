@@ -1,0 +1,35 @@
+{
+  "state": "BLOCKED",
+  "execution_authorized": false,
+  "fixtures_are_synthetic": true,
+  "FL03": {
+    "product_id_prefix": "6ae98d61",
+    "ui_canvas_px": [
+      2475,
+      1155
+    ],
+    "ui_text_limits": [
+      13,
+      13,
+      18
+    ]
+  },
+  "FL04": {
+    "product_id_prefix": "6ae9913",
+    "ui_canvas_px": [
+      2418,
+      3018
+    ],
+    "ui_text_limits": "UNKNOWN"
+  },
+  "evidence_boundary": "Owner-provided product dimensions and FL03 limits only; FL04 native limits UNKNOWN. No authoritative geometry or catalog evidence.",
+  "missing": [
+    "real numeric blueprint IDs",
+    "real numeric print provider IDs",
+    "complete real variant IDs",
+    "authoritative print geometry and safe zones",
+    "artwork rights approval",
+    "independently verified upload ownership",
+    "current authorization and product revision receipts"
+  ]
+}
