@@ -57,5 +57,16 @@
   "live_provider_calls": 0,
   "installation_authorized": false,
   "automation": false,
-  "release_hold": true
+  "release_hold": true,
+  "current_core_observed_sha": "63953bfd9b87a6c365443cd1c66199ca76cee6e2",
+  "current_core_certification": {
+    "run_id": 43611269255,
+    "job_id": 132496693397,
+    "conclusion": "CANCELLED_MAXIMUM_2_HOUR_JOB_DURATION",
+    "main_last_progress": "1830/1939",
+    "main_completed": false,
+    "catalog_completed": false,
+    "pin_promoted": false,
+    "detail": "docs/printify-connector/CURRENT_CORE_CERTIFICATION.md"
+  }
 }
