@@ -190,7 +190,9 @@
       "historical_source_pin": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
       "origin": "QUALIFIED_25_PACKAGE",
       "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
-      "sha256": "e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d"
+      "sha256": "e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d",
+      "audit5007_fresh_read_overlay": "docs/engineering/audit5007-fresh-read-overlay.json",
+      "current_tree_sha256": "c41bcf8472f462875474733adbf24202b99de4149abe5619993a7327a5201918"
     }
   ]
 }
