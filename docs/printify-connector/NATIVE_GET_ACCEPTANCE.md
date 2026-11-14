@@ -1,3 +1,19 @@
+# Core pin promotion to 05091b95
+
+Companion starting source: 005a89521403239219bbb59598aefcb432cd54c3. Independently verified core: 05091b954af8164fe7c447aa0e642e28be33630a; exact-head Engineering & Safety audit [43559846172](https://github.com/subvicco12/digiforge/actions/runs/43559846172) PASS. Core PR1264 is not modified.
+
+The nine-file delta from the previous qualified pin 509abc0e leaves the GET dispatcher, all 13 GET joins, PANEL, capability advertisement and canonical contract bytes unchanged. Separate local product-source receipt inspection is stricter but does not enter GET dispatch. Independent read-only review found no blocking interface issue. The canonical spec SHA256 remains 6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434.
+
+The earlier actor-substitution failure was a fixture defect: untyped wpdb object_id predicates inherited integer formatting for hash strings. The repair explicitly uses string predicates, asserts exactly one affected row and reads the actor back before asserting denial; scientific-notation and alphabetic hash cases pass locally (2 tests / 12 assertions). The full protected producer test also passes the core exact-head audit. Production authorization guards were not weakened.
+
+Before promotion, actual isolated WordPress conformance passed 40 tests / 555 assertions plus the required catalog profile 10 tests / 64 assertions. The retained 509abc pin correctly failed the default-discovery positive expectation with zero provider transport calls. Only after these results is the companion reference promoted to 05091b95. The default discovery regression now denies both prior 702a and 509abc pins before transport, then exercises successful Plugin::nativePort discovery and one-use consumption. The committed XML profiles name the exact new core source. Final post-promotion/default, extracted-package and hosted companion results are recorded in the PR qualification receipt after execution, not inferred here.
+
+Complete unchanged-companion regression before promotion: 1,582 unit / 8,615 assertions; 265 WordPress / 2,453 assertions; 74 offline tests with the approved private baseline supplied and no skips. PHP lint 1,121 files, configured PHPStan and PHPCS pass. Provider responses and credential material are synthetic; containers have external networking disabled. No installed-source, policy or live-provider qualification is implied.
+
+The source pin is compatibility evidence only. Installation, real credential/account/shop association, reviewed binding, any safety-policy amendment and bounded live GET execution still require independent evidence and separate authorization. STOP ALL ON, external lock ON, automation OFF and RELEASE HOLD remain unchanged. Mutation, allocation and recovery authority is not added. Any local test ZIP remains TEST_ONLY_NOT_INSTALLATION_READY.
+
+## Preserved previous qualification
+
 # Native GET acceptance against core 509abc0e
 
 Starting companion: e31c20bd38dec08846ad99f5b474c4f78b6e8b18 (draft PR1263). Reviewed core: 509abc0ea3b6e6a6ad855dcea24228e45bce4e5e (draft PR1264). Core source is not modified by this qualification. Core exact-head Engineering & Safety run43491757279 succeeded: https://github.com/subvicco12/digiforge/actions/runs/43491757279 . It includes1848 WordPress tests/68411 assertions (5 existing skips), the58-test production catalog profile,2193 PHP tests (1 existing skip),198 offline tests and native boundary/security/package checks. Hosted source CI is separate from the composed companion tests below.

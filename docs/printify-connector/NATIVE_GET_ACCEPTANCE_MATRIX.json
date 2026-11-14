@@ -1,10 +1,10 @@
 {
   "schema": "DF_COMPANION_NATIVE_GET_ACCEPTANCE_1",
-  "reviewed_core_sha": "509abc0ea3b6e6a6ad855dcea24228e45bce4e5e",
+  "reviewed_core_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
   "get_checkpoint_sha": "63780e9bc4df6623f02c0a2b74731e5dc7cd50bc",
-  "starting_companion_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
+  "starting_companion_sha": "005a89521403239219bbb59598aefcb432cd54c3",
   "core_ci": {
-    "run": 43491757279,
+    "run": 43559846172,
     "conclusion": "success"
   },
   "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
@@ -15,25 +15,15 @@
   "live_read_verified": false,
   "external_execution_authorized": false,
   "source_review_files": [
-    ".github/workflows/digiforge-foundation-audit.yml",
-    "bin/check-repository-credentials.py",
-    "docs/printify-native-core/BATCH10_PORT_JOIN_GAPS.md",
+    "docs/printify-native-core/AUDIT_ACTOR_SUBSTITUTION_REPAIR.md",
     "docs/printify-native-core/CAPABILITIES.json",
-    "docs/printify-native-core/IMPLEMENTATION.md",
-    "docs/printify-native-core/NATIVE_SOURCE_OBSERVATIONS.md",
-    "docs/superpowers/plans/2026-11-13-native-source-joins.md",
-    "includes/Connector/Printify/NativeCorePort.php",
-    "includes/Connector/Printify/NativeOrderSourceEvidence.php",
-    "includes/Connector/Printify/NativeOrderSourceJournal.php",
-    "includes/Connector/Printify/NativeOrderSourceSchema.php",
-    "includes/POD/PrintifyApiReadWorkflow.php",
-    "tests/security/test_repository_credentials.py",
-    "tests/wordpress/NativeApiFixtureIsolationTest.php",
+    "docs/printify-native-core/PRODUCT_SOURCE_PROVENANCE.md",
+    "docs/superpowers/plans/2026-11-14-native-producer-composed.md",
+    "includes/Connector/Printify/NativePlanEvidence.php",
+    "includes/POD/PrintifyProductPipeline.php",
     "tests/wordpress/NativeOrderSourceEvidenceTest.php",
-    "tests/wordpress/NativeOrderSourceJournalTest.php",
     "tests/wordpress/NativeOwnedUploadGetTest.php",
-    "tests/wordpress/NativeReadGrantWordPressTest.php",
-    "tests/wordpress/fixtures/PrintifyApiApprovalFixture.php"
+    "tests/wordpress/NativeProductSourceEvidenceTest.php"
   ],
   "operations": [
     {
@@ -186,8 +176,55 @@
     ],
     "default_discovery": [
       1,
-      7
+      9
     ]
   },
-  "security_review": "NO_CRITICAL_OR_IMPORTANT_BLOCKERS; manifest discovery exemption limited to metadata, every operation retains capability gate"
+  "security_review": "NO_CRITICAL_OR_IMPORTANT_BLOCKERS; manifest discovery exemption limited to metadata, every operation retains capability gate",
+  "previous_qualification": {
+    "reviewed_core_sha": "509abc0ea3b6e6a6ad855dcea24228e45bce4e5e",
+    "core_ci_run": 43491757279,
+    "starting_companion_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
+    "source_review_files": [
+      ".github/workflows/digiforge-foundation-audit.yml",
+      "bin/check-repository-credentials.py",
+      "docs/printify-native-core/BATCH10_PORT_JOIN_GAPS.md",
+      "docs/printify-native-core/CAPABILITIES.json",
+      "docs/printify-native-core/IMPLEMENTATION.md",
+      "docs/printify-native-core/NATIVE_SOURCE_OBSERVATIONS.md",
+      "docs/superpowers/plans/2026-11-13-native-source-joins.md",
+      "includes/Connector/Printify/NativeCorePort.php",
+      "includes/Connector/Printify/NativeOrderSourceEvidence.php",
+      "includes/Connector/Printify/NativeOrderSourceJournal.php",
+      "includes/Connector/Printify/NativeOrderSourceSchema.php",
+      "includes/POD/PrintifyApiReadWorkflow.php",
+      "tests/security/test_repository_credentials.py",
+      "tests/wordpress/NativeApiFixtureIsolationTest.php",
+      "tests/wordpress/NativeOrderSourceEvidenceTest.php",
+      "tests/wordpress/NativeOrderSourceJournalTest.php",
+      "tests/wordpress/NativeOwnedUploadGetTest.php",
+      "tests/wordpress/NativeReadGrantWordPressTest.php",
+      "tests/wordpress/fixtures/PrintifyApiApprovalFixture.php"
+    ],
+    "native_tests": 51,
+    "native_assertions": 626
+  },
+  "source_review_from_sha": "509abc0ea3b6e6a6ad855dcea24228e45bce4e5e",
+  "prepromotion_explicit_native": {
+    "tests": 50,
+    "assertions": 619,
+    "result": "PASS"
+  },
+  "default_pin_negative_control": {
+    "tests": 1,
+    "assertions": 4,
+    "failures": 1,
+    "expected": true,
+    "reason": "Previous pin correctly rejects unreviewed new source before promotion"
+  },
+  "actor_fixture_validation": {
+    "tests": 2,
+    "assertions": 12,
+    "result": "PASS",
+    "core_full_audit": "43559846172"
+  }
 }
