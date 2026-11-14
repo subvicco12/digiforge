@@ -11,6 +11,18 @@ final class NativeBusinessMutationEvidence
 
     public static function resolve(ShopBinding $scope, int $actor, int $mapping, int $spec, string $planHash, ?string $expectedHash = null): array|\WP_Error
     {
+        $current = self::current($scope, $actor, $mapping, $spec, $planHash, $expectedHash);
+        return is_wp_error($current) ? $current : $current['evidence'];
+    }
+
+    /** Reuse only the sources already checked by the original resolver; no cache or weaker checks. */
+    public static function sourceMaterial(ShopBinding $scope, int $actor, int $mapping, int $spec, string $planHash): array|\WP_Error
+    {
+        return self::current($scope, $actor, $mapping, $spec, $planHash, null);
+    }
+
+    private static function current(ShopBinding $scope, int $actor, int $mapping, int $spec, string $planHash, ?string $expectedHash): array|\WP_Error
+    {
         if ($mapping < 1 || $spec < 1 || !self::digest($planHash) || ($expectedHash !== null && !self::digest($expectedHash))) return NativeFailure::error('business_mutation_identity');
         if ($scope->shopKey !== 'personalized_pod' || $scope->shopId !== 2) return NativeFailure::error('business_mutation_shop');
         $access = NativeAuthorityAdapter::scope($scope, $actor, ['manage_digiforge_pod','manage_digiforge_products','manage_digiforge_listings','manage_digiforge_research']);
@@ -54,7 +66,9 @@ final class NativeBusinessMutationEvidence
                 'business_package_binding_approved'=>false,'mutation_authorized'=>false,
                 'independent_checkpoint_verified'=>false,'external_execution_authorized'=>false,'release_hold'=>true];
             $result['evidence_hash'] = NativePortContract::hash($result);
-            return $expectedHash !== null && !hash_equals($expectedHash, $result['evidence_hash']) ? NativeFailure::error('business_mutation_stale') : $result;
+            if ($expectedHash !== null && !hash_equals($expectedHash, $result['evidence_hash'])) return NativeFailure::error('business_mutation_stale');
+            return ['schema'=>'DF_NATIVE_BUSINESS_MUTATION_COMPONENTS_1','evidence'=>$result,
+                'business_dependencies'=>$lastBusiness['dependency_hashes'],'artwork_dependency_hash'=>$lastArtwork['dependency_hash']];
         } catch (\Throwable) {
             return NativeFailure::error('business_mutation_unavailable');
         }

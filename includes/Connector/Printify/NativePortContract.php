@@ -5,7 +5,8 @@ namespace DigiForge\Connector\Printify;
 final class NativePortContract {
  public const DIGEST='6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434';
  public static function hash(array $value):string {
-  $sort=static function(array $v)use(&$sort):array{foreach($v as &$x)if(is_array($x))$x=$sort($x);unset($x);if(!array_is_list($v))ksort($v);return $v;};
+  if(!self::safe($value,0))throw new \InvalidArgumentException('Bounded native JSON data required.');
+  $sort=static function(array $v)use(&$sort):array{$copy=[];foreach($v as $key=>$x)$copy[$key]=is_array($x)?$sort($x):$x;if(!array_is_list($copy))ksort($copy);return $copy;};
   return hash('sha256',json_encode($sort($value),JSON_THROW_ON_ERROR|JSON_PRESERVE_ZERO_FRACTION));
  }
  public static function digest():string{return self::DIGEST;}

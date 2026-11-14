@@ -1,0 +1,25 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
+require_once __DIR__.'/fixtures/NativeBusinessMutationFixture.php';
+use DigiForge\Connector\Printify\{NativeBusinessMutationEvidence as Evidence,NativeHeldJournalSchema,NativeHeldJournal,NativeBridge};
+use DigiForge\Database\Tables;
+final class NativeBusinessSourceLockTest extends WP_UnitTestCase {
+ use NativeBusinessMutationFixture;
+ private PrintifyApiApprovalFixture $fixture;private array $snapshots=[];
+ protected function setUp():void{parent::setUp();remove_filter('query',[$this,'_create_temporary_tables']);remove_filter('query',[$this,'_drop_temporary_tables']);PortalAccessFixture::reset();DigiForge\Core\Activator::activate();$this->fixture=new PrintifyApiApprovalFixture();$this->fixture->boot();global $wpdb;foreach([Tables::opportunities(),Tables::product_families(),Tables::products(),Tables::product_versions(),Tables::production_plans(),Tables::pod_mappings(),Tables::pod_business_mappings(),Tables::asset_specs(),Tables::production_plan_assets()]as $t)$this->snapshots[$t]=$wpdb->get_results('SELECT * FROM '.$t,ARRAY_A);DigiForge\Core\Settings::protectProduction();}
+ protected function tearDown():void{try{global $wpdb;$wpdb->query('ROLLBACK');foreach(NativeHeldJournalSchema::tables()as $t)$wpdb->query('DROP TABLE IF EXISTS '.$t);foreach($this->snapshots as $t=>$rows){$wpdb->query('DELETE FROM '.$t);foreach($rows as $r)$wpdb->insert($t,$r,array_fill(0,count($r),'%s'));}$this->fixture->restore();}finally{parent::tearDown();}}
+ public function testCoreBusinessDependencyLocksRequireAndPreserveTheOwnerTransaction():void {
+  self::assertTrue(method_exists(DigiForge\Connector\Printify\NativeBusinessEvidence::class,'lockCurrent'),'Lock-aware protected business verifier required.');
+  $f=$this->businessMutationFixture($this->fixture);$scope=$f['scope'];$mapping=$f['mapping_id'];$e=PrintifyApiApprovalFixture::checked(DigiForge\Connector\Printify\NativeBusinessEvidence::product($scope,1,$mapping));
+  self::assertWPError(DigiForge\Connector\Printify\NativeBusinessEvidence::lockCurrent($scope,1,$mapping,$e['dependency_hashes']));
+  global $wpdb;self::assertNotFalse($wpdb->query('START TRANSACTION'));
+  $r=PrintifyApiApprovalFixture::checked(DigiForge\Connector\Printify\NativeBusinessEvidence::lockCurrent($scope,1,$mapping,$e['dependency_hashes']));self::assertTrue($r['business_dependencies_locked']);self::assertFalse($r['dispatch_permitted']);self::assertSame('1',(string)$wpdb->get_var('SELECT @@session.in_transaction'));
+  $other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->suppress_errors(true);$other->query('SET innodb_lock_wait_timeout=1');$blocked=$other->query($other->prepare('UPDATE '.Tables::product_versions().' SET notes=%s WHERE id=%d','competing writer',$f['business_version_id']));self::assertFalse($blocked);self::assertStringContainsString('Lock wait timeout',$other->last_error);
+  $owner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE provider_mapping_id=%d',$mapping),ARRAY_A);unset($owner['id']);$owner['product_version_id']=(int)$owner['product_version_id']+999999;$owner['idempotency_key']=wp_generate_uuid4();self::assertFalse($other->insert(Tables::pod_business_mappings(),$owner,array_fill(0,count($owner),'%s')));self::assertStringContainsString('Lock wait timeout',$other->last_error);
+  $event=['event_type'=>'product_version_state_changed','object_type'=>'product_version','object_id'=>(string)$f['business_version_id'],'actor_id'=>1,'context'=>'{"to":"APPROVED"}','created_at'=>gmdate('Y-m-d H:i:s')];self::assertFalse($other->insert(Tables::audit_log(),$event,array_fill(0,count($event),'%s')));self::assertStringContainsString('Lock wait timeout',$other->last_error);
+  self::assertNotFalse($wpdb->query('ROLLBACK'));self::assertSame('0',(string)$wpdb->get_var('SELECT @@session.in_transaction'));self::assertSame(1,$other->query($other->prepare('UPDATE '.Tables::product_versions().' SET notes=%s WHERE id=%d','changed after lock release',$f['business_version_id'])));$other->close();
+  self::assertNotFalse($wpdb->query('START TRANSACTION'));self::assertWPError(DigiForge\Connector\Printify\NativeBusinessEvidence::lockCurrent($scope,1,$mapping,$e['dependency_hashes']));self::assertSame('1',(string)$wpdb->get_var('SELECT @@session.in_transaction'));self::assertNotFalse($wpdb->query('ROLLBACK'));
+  self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());
+ }
+}
