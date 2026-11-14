@@ -1,9 +1,9 @@
 {
   "schema": "DF_COMPANION_COMPLETION_SPRINT_LEDGER_1",
   "deadline": "2026-11-16",
-  "core_source_sha": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "core_source_sha": "f525accb557c2516781abbe8dafb4095fa805935",
   "companion_baseline_sha": "823a5beafa8820101fea04ba5cd05e1f41be3ff0",
-  "trusted_core_pin": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "trusted_core_pin": "f525accb557c2516781abbe8dafb4095fa805935",
   "overall": "PARTIAL_OFFLINE; native writes remain blocked",
   "production_release": "BLOCKED",
   "features": [
@@ -108,7 +108,7 @@
     "live_provider_verified": false
   },
   "companion_local_qualification": {
-    "version": "0.7.2",
+    "version": "0.7.3",
     "unit_tests": 1736,
     "unit_assertions": 9220,
     "wordpress_tests": 265,
@@ -117,6 +117,29 @@
     "static": "PASS configured PHPStan baseline, sequential local execution",
     "style": "PASS",
     "provider_transport": "SYNTHETIC_ONLY",
-    "trusted_pin_promoted": false
-  }
+    "trusted_pin_promoted": true,
+    "native_and_exact_head_receipt": "Recorded separately for final published source"
+  },
+  "qualified_core_audit": {
+    "run": 43636765422,
+    "job": 132575240759,
+    "status": "PASS",
+    "unit": [
+      2246,
+      10883
+    ],
+    "wordpress": [
+      1957,
+      75435
+    ],
+    "catalog": [
+      58,
+      268557
+    ],
+    "offline": 199,
+    "unit_skips": 1,
+    "wordpress_skips": 5
+  },
+  "companion_candidate_version": "0.7.3",
+  "pin_promotion_basis": "Exact source/contract review, complete core audit and actual all13 GET/PANEL conformance with synthetic provider transport"
 }
