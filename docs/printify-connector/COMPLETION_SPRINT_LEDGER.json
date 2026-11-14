@@ -1,0 +1,61 @@
+{
+  "schema": "DF_COMPANION_COMPLETION_SPRINT_LEDGER_1",
+  "deadline": "2026-11-16",
+  "core_source_sha": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "companion_baseline_sha": "823a5beafa8820101fea04ba5cd05e1f41be3ff0",
+  "trusted_core_pin": "7d624512a0fab416278b7d8f88208c9463224b6f",
+  "overall": "PARTIAL_OFFLINE; native writes remain blocked",
+  "production_release": "BLOCKED",
+  "features": [
+    {
+      "feature": "Native GET13/PANEL",
+      "status": "OFFLINE_VERIFIED",
+      "evidence": "Real core, synthetic transport; qualification matrix retained"
+    },
+    {
+      "feature": "Upload/create/update/publication contracts",
+      "status": "TESTED_SYNTHETIC",
+      "evidence": "Full companion lifecycle; no native mutation execution claim"
+    },
+    {
+      "feature": "Current business/artwork/plan IMAGE_UPLOAD source and HELD registration",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Actual core-to-companion1/56; no approval/counter/epoch inferred"
+    },
+    {
+      "feature": "Protected source inspection",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Actual WordPress1/64; nonce/session/current-source validation; no mounted route"
+    },
+    {
+      "feature": "Canonical mutation approval/REGISTER/CLAIM/receipt aggregates",
+      "status": "BLOCKED_AUTHORITY",
+      "evidence": "Native contract requires verified counters/approval/checkpoint; methods deny"
+    },
+    {
+      "feature": "Native product-create/update/publication identity join",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": "Exact saved-provider-product/mapping approval join absent; source-only API rejects"
+    },
+    {
+      "feature": "Orders/webhooks/fulfillment/review/recovery composition",
+      "status": "TESTED_SYNTHETIC",
+      "evidence": "Core-owned synthetic ports; source journals partial, aggregate operations unadvertised"
+    },
+    {
+      "feature": "Independent recovery/exclusive credential custody",
+      "status": "BLOCKED",
+      "evidence": "All-root rollback and old usable credentials unqualified; unattended writes denied"
+    },
+    {
+      "feature": "Production host durability",
+      "status": "BLOCKED",
+      "evidence": "Reported flush_log_at_trx_commit=2 versus required1; no change made"
+    }
+  ],
+  "policy_exception_activated": false,
+  "live_provider_calls": 0,
+  "installation_authorized": false,
+  "automation": false,
+  "release_hold": true
+}

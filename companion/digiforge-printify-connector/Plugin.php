@@ -18,6 +18,7 @@ final class Plugin {
   }catch(\Throwable){self::$state='INCOMPATIBLE_HOST_INTERFACE';}
  }
  public static function nativePort():\DigiForgePrintifyConnector\Preparation\NativePortAdapter{return \DigiForgePrintifyConnector\Preparation\NativePortAdapter::discover();}
+ public static function heldPreparationPanel():\DigiForgePrintifyConnector\Preparation\HeldPreparationPanel{return new \DigiForgePrintifyConnector\Preparation\HeldPreparationPanel(self::nativePort());}
  public static function reviews():\DigiForgePrintifyConnector\Preparation\ReviewCoordinator{return \DigiForgePrintifyConnector\Preparation\ReviewCoordinator::discover();}
  public static function coreCompatibility():array{return \DigiForgePrintifyConnector\Preparation\CoreContractAdapter::inspect();}
  public static function workflows():\DigiForgePrintifyConnector\Preparation\WorkflowCoordinator{return \DigiForgePrintifyConnector\Preparation\WorkflowCoordinator::discover();}

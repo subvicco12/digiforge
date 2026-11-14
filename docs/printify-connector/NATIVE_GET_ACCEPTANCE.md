@@ -1,3 +1,7 @@
+# Current paired sprint qualification
+
+The current reviewed core pin is7d624512a0fab416278b7d8f88208c9463224b6f. See COMPLETION_SPRINT.md and COMPLETION_SPRINT_LEDGER.json for the current exact-head audit, preserved GET/source/held qualification and release blockers. The earlier05091b95 qualification below is retained as history; it does not override the current pin.
+
 # Core pin promotion to 05091b95
 
 Companion starting source: 005a89521403239219bbb59598aefcb432cd54c3. Independently verified core: 05091b954af8164fe7c447aa0e642e28be33630a; exact-head Engineering & Safety audit [43559846172](https://github.com/subvicco12/digiforge/actions/runs/43559846172) PASS. Core PR1264 is not modified.

@@ -12,7 +12,7 @@ final class MutationFence {
  }
  public function register(MutationIntent $i):array|\WP_Error {
   $a=$this->authority($i);if(is_wp_error($a))return $a;
-  try{$r=$this->host->register($i);if(is_wp_error($r))return $r;if(($r['operation_id']??null)!==$i->operationId||($r['intent_fingerprint']??null)!==$i->intentFingerprint)return self::error();return ['operation_id'=>$i->operationId,'intent_fingerprint'=>$i->intentFingerprint,'state'=>'PREPARED','network_request_permitted'=>false];}catch(\Throwable){return self::error();}
+  try{$r=$this->host->register($i);if(is_wp_error($r))return $r;if(($r['operation_id']??null)!==$i->operationId||($r['intent_fingerprint']??null)!==$i->intentFingerprint||($r['state']??null)!=='PREPARED')return self::error();$current=$this->authority($i);if(is_wp_error($current)||MutationIntent::hash($current)!==MutationIntent::hash($a))return self::error();return ['operation_id'=>$i->operationId,'intent_fingerprint'=>$i->intentFingerprint,'state'=>'PREPARED','network_request_permitted'=>false];}catch(\Throwable){return self::error();}
  }
  public function reserve(MutationIntent $i):array|\WP_Error {
   $a=$this->authority($i);if(is_wp_error($a))return $a;

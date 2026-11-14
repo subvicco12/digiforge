@@ -1,10 +1,10 @@
 {
   "schema": "DF_COMPANION_NATIVE_GET_ACCEPTANCE_1",
-  "reviewed_core_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
+  "reviewed_core_sha": "7d624512a0fab416278b7d8f88208c9463224b6f",
   "get_checkpoint_sha": "63780e9bc4df6623f02c0a2b74731e5dc7cd50bc",
-  "starting_companion_sha": "005a89521403239219bbb59598aefcb432cd54c3",
+  "starting_companion_sha": "823a5beafa8820101fea04ba5cd05e1f41be3ff0",
   "core_ci": {
-    "run": 43559846172,
+    "run": 43575156758,
     "conclusion": "success"
   },
   "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
@@ -15,15 +15,16 @@
   "live_read_verified": false,
   "external_execution_authorized": false,
   "source_review_files": [
-    "docs/printify-native-core/AUDIT_ACTOR_SUBSTITUTION_REPAIR.md",
+    "docs/printify-native-core/BUSINESS_MUTATION_SOURCE_PREPARATION.md",
     "docs/printify-native-core/CAPABILITIES.json",
-    "docs/printify-native-core/PRODUCT_SOURCE_PROVENANCE.md",
-    "docs/superpowers/plans/2026-11-14-native-producer-composed.md",
-    "includes/Connector/Printify/NativePlanEvidence.php",
-    "includes/POD/PrintifyProductPipeline.php",
-    "tests/wordpress/NativeOrderSourceEvidenceTest.php",
-    "tests/wordpress/NativeOwnedUploadGetTest.php",
-    "tests/wordpress/NativeProductSourceEvidenceTest.php"
+    "docs/superpowers/plans/2026-11-14-shop2-business-resolver.md",
+    "includes/Connector/Printify/NativeBusinessArtworkEvidence.php",
+    "includes/Connector/Printify/NativeBusinessEvidence.php",
+    "includes/Connector/Printify/NativeBusinessMutationEvidence.php",
+    "tests/wordpress/NativeBusinessEvidenceTest.php",
+    "tests/wordpress/NativeBusinessMutationEvidenceTest.php",
+    "tests/wordpress/fixtures/NativeApprovedPackageFixture.php",
+    "tests/wordpress/fixtures/NativeBusinessMutationFixture.php"
   ],
   "operations": [
     {
@@ -176,7 +177,7 @@
     ],
     "default_discovery": [
       1,
-      9
+      11
     ]
   },
   "security_review": "NO_CRITICAL_OR_IMPORTANT_BLOCKERS; manifest discovery exemption limited to metadata, every operation retains capability gate",
@@ -208,7 +209,7 @@
     "native_tests": 51,
     "native_assertions": 626
   },
-  "source_review_from_sha": "509abc0ea3b6e6a6ad855dcea24228e45bce4e5e",
+  "source_review_from_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
   "prepromotion_explicit_native": {
     "tests": 50,
     "assertions": 619,
@@ -216,15 +217,46 @@
   },
   "default_pin_negative_control": {
     "tests": 1,
-    "assertions": 4,
+    "assertions": 6,
     "failures": 1,
     "expected": true,
-    "reason": "Previous pin correctly rejects unreviewed new source before promotion"
+    "reason": "Retained05091b pin denied new7d core before qualification; no transport attempts"
   },
   "actor_fixture_validation": {
     "tests": 2,
     "assertions": 12,
     "result": "PASS",
     "core_full_audit": "43559846172"
+  },
+  "prior_qualified_heads": [
+    {
+      "core_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
+      "core_ci": {
+        "run": 43559846172,
+        "conclusion": "success"
+      },
+      "native_tests": 51,
+      "native_assertions": 628
+    }
+  ],
+  "fixture_isolation": {
+    "initial_result": "40 tests/538 assertions/1 OTP setup error; before provider handler",
+    "cause": "Fixed synthetic nonce salts caused MariaDB global advisory-lock contention across independent fixture namespaces",
+    "production_auth_changed": false,
+    "regression": {
+      "tests": 1,
+      "assertions": 10,
+      "result": "PASS"
+    },
+    "corrected_get": {
+      "tests": 40,
+      "assertions": 555,
+      "result": "PASS"
+    },
+    "required_catalog": {
+      "tests": 10,
+      "assertions": 64,
+      "result": "PASS"
+    }
   }
 }
