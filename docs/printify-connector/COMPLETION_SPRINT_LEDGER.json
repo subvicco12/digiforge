@@ -34,8 +34,8 @@
     },
     {
       "feature": "Native product-create/update/publication identity join",
-      "status": "NOT_IMPLEMENTED",
-      "evidence": "Exact saved-provider-product/mapping approval join absent; source-only API rejects"
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED",
+      "evidence": "Price-only existing-product read/adoption source and protected PANEL observation verified; canonical aggregate version/approval/CAS and create/publication authority remain unavailable"
     },
     {
       "feature": "Orders/webhooks/fulfillment/review/recovery composition",
@@ -51,6 +51,11 @@
       "feature": "Production host durability",
       "status": "BLOCKED",
       "evidence": "Reported flush_log_at_trx_commit=2 versus required1; no change made"
+    },
+    {
+      "feature": "Protected PRICE-only existing-product source component",
+      "status": "NATIVE_PARTIAL_OFFLINE_VERIFIED_NOT_MOUNTED_ROUTE",
+      "evidence": "Actual core/PANEL source1/91; strict view35/86; null currency/native version; no mutation/dispatch/credential access"
     }
   ],
   "policy_exception_activated": false,
@@ -58,15 +63,60 @@
   "installation_authorized": false,
   "automation": false,
   "release_hold": true,
-  "current_core_observed_sha": "63953bfd9b87a6c365443cd1c66199ca76cee6e2",
+  "current_core_observed_sha": "d8733ba6167a968575010a8ee53e936752e344b8",
   "current_core_certification": {
-    "run_id": 43611269255,
-    "job_id": 132496693397,
-    "conclusion": "CANCELLED_MAXIMUM_2_HOUR_JOB_DURATION",
-    "main_last_progress": "1830/1939",
-    "main_completed": false,
-    "catalog_completed": false,
+    "run_id": 43626762812,
+    "job_id": 132544258046,
+    "conclusion": "FAILED_HISTORY_SCAN_NONCREDENTIAL_SOURCE_CHECKSUM_CLASSIFICATION_PENDING",
+    "main": {
+      "tests": 1952,
+      "assertions": 74676,
+      "skipped": 5,
+      "result": "PASS"
+    },
+    "catalog": {
+      "tests": 58,
+      "assertions": 268509,
+      "result": "PASS"
+    },
     "pin_promoted": false,
     "detail": "docs/printify-connector/CURRENT_CORE_CERTIFICATION.md"
+  },
+  "candidate_native_conformance": {
+    "runtime_source_sha": "2ac7e9183cf74a216c255138aaff1a2f615ec553",
+    "runtime_identical_public_sha": "d8733ba6167a968575010a8ee53e936752e344b8",
+    "repository_pin_promoted": false,
+    "private_proposed_pin_only": true,
+    "get": {
+      "tests": 51,
+      "assertions": 630,
+      "result": "PASS"
+    },
+    "fresh_owner_batch": {
+      "tests": 13,
+      "assertions": 53,
+      "result": "PASS"
+    },
+    "price_source_panel": {
+      "tests": 1,
+      "assertions": 91,
+      "result": "PASS",
+      "inspection_dml": 0,
+      "ciphertext_sql_reads": 0,
+      "inspection_http": 0
+    },
+    "live_provider_verified": false
+  },
+  "companion_local_qualification": {
+    "version": "0.7.2",
+    "unit_tests": 1736,
+    "unit_assertions": 9220,
+    "wordpress_tests": 265,
+    "wordpress_assertions": 2453,
+    "offline_tests": 74,
+    "static": "PASS configured PHPStan baseline, sequential local execution",
+    "style": "PASS",
+    "provider_transport": "SYNTHETIC_ONLY",
+    "trusted_pin_promoted": false
   }
 }

@@ -1,0 +1,1 @@
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Actual protected existing-product source"><file>/companionrepo/tests/contracts/NativeExistingProductSourcePanelAcceptance.php</file></testsuite></testsuites></phpunit>
