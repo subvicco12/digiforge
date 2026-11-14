@@ -1,0 +1,113 @@
+{
+  "schema": "DF_NATIVE_MUTATION_PREPARATION_MATRIX_1",
+  "core_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
+  "companion_start_sha": "2164d393fd6d8ff68a1f1594dcfd108c7cbedda3",
+  "canonical_spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "advertised_capabilities": [
+    "PANEL",
+    "GET_READ"
+  ],
+  "native_mutation_success_claimed": false,
+  "live_provider_verified": false,
+  "ports": [
+    {
+      "port": "GET_READ/PANEL",
+      "status": "COMPLETE_OFFLINE",
+      "source": "NativeCorePort::read/panelAccess",
+      "remaining": "Existing qualified13-GET and protected-panel acceptance; unchanged pin"
+    },
+    {
+      "port": "MUTATION_ADMISSION",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::exchange",
+      "remaining": "Current identity/version/approval joins and operational grant incomplete"
+    },
+    {
+      "port": "JOURNAL",
+      "status": "PARTIAL_PRIMITIVE_ONLY",
+      "source": "NativeHeldJournal / NativeCorePort::exchange",
+      "remaining": "Held SQL CAS/audit is not canonical native journal, dispatch fence or independent epoch"
+    },
+    {
+      "port": "RECEIPT_READ/RECONCILE",
+      "status": "NATIVE_DENIED_WITH_SOURCE_PRIMITIVES",
+      "source": "NativePlanEvidence / NativeOrderSourceEvidence / PrintifyProductPipeline::receiptSource",
+      "remaining": "Protected source provenance lacks canonical native producer/fence/approval/version/epoch join"
+    },
+    {
+      "port": "INSPECTION",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::inspect",
+      "remaining": "Authoritative operation identity/version and consistent snapshots incomplete"
+    },
+    {
+      "port": "PUBLICATION_ADMISSION",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::authorizePublication",
+      "remaining": "Fresh owner, exact approval/channel/product revision and checkpoint join incomplete"
+    },
+    {
+      "port": "WORKFLOW",
+      "status": "PARTIAL_READ_ONLY",
+      "source": "NativeCorePort::authorizeWorkflow/inspectWorkflows",
+      "remaining": "Explicit protected order observation inventory only; no aggregate capability or record authority"
+    },
+    {
+      "port": "OPERATIONS",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::reviewQueue/decideReview/recordFulfillment",
+      "remaining": "Missing review CAS, order/product/allocation lineage and trusted snapshots"
+    },
+    {
+      "port": "ORDER_ALLOCATION",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::allocation",
+      "remaining": "No approved canonical order/proof/product quantity joins"
+    },
+    {
+      "port": "RECOVERY",
+      "status": "NATIVE_DENIED",
+      "source": "NativeCorePort::recovery",
+      "remaining": "Independent generation/epoch/checkpoint/drain and all-root rollback qualification absent"
+    },
+    {
+      "port": "CREDENTIAL_CUSTODY",
+      "status": "BLOCKED",
+      "source": "Existing vault and core-owned transport",
+      "remaining": "No exclusive credential/final-dispatch custody qualified; companion owns neither"
+    }
+  ],
+  "provider_contracts": [
+    {
+      "operation": "IMAGE_UPLOAD",
+      "method": "POST",
+      "endpoint": "/v1/uploads/images.json",
+      "status": "PURE_PREPARATION_AND_OBSERVATION_ONLY",
+      "native_execution": "DENIED"
+    },
+    {
+      "operation": "PRODUCT_CREATE",
+      "method": "POST",
+      "endpoint": "/v1/shops/{shop}/products.json",
+      "status": "PURE_PREPARATION_AND_OBSERVATION_ONLY",
+      "native_execution": "DENIED"
+    },
+    {
+      "operation": "PRODUCT_UPDATE",
+      "method": "PUT",
+      "endpoint": "/v1/shops/{shop}/products/{product}.json",
+      "status": "PURE_PREPARATION_AND_OBSERVATION_ONLY",
+      "native_execution": "DENIED"
+    },
+    {
+      "operation": "PRODUCT_PUBLISH",
+      "method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/publish.json",
+      "status": "PURE_PREPARATION_AND_OBSERVATION_ONLY",
+      "native_execution": "DENIED"
+    }
+  ],
+  "actual_core_profile": "tests/contracts/native-mutation-wordpress.xml",
+  "synthetic_profile": "tests/unit/PrintifyCompanionMutationPreparationTest.php",
+  "operational_authorization": false
+}
