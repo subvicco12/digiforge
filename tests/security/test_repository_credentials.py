@@ -284,5 +284,50 @@ class ReviewedPlanPhraseVerifierTest(unittest.TestCase):
         self.assertFalse(self.verify(raw=unavailable))
 
 
+class ReviewedSourceChecksumVerifierTest(unittest.TestCase):
+    def setUp(self):
+        import hashlib
+        spec=importlib.util.spec_from_file_location('source_checksum_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate);self.repo=SCRIPT.parent.parent
+        self.path='tests/offline/test_printify_dependencies.py';self.commit='d8733ba6167a968575010a8ee53e936752e344b8'
+        self.content=self.raw('show',self.commit+':'+self.path)
+        line=self.content.decode().splitlines()[92]
+        qualified=self.raw('show','7d624512a0fab416278b7d8f88208c9463224b6f:includes/Security/ShopAccessRepository.php')
+        checksum=hashlib.sha256(qualified).hexdigest();self.assertIn(checksum,line)
+        masked=line.replace(checksum,'REDACTED')[34:70]
+        self.assertEqual('f39d40f87f1c979483dfa43e545d6e87909a3c44a6df9fe7fc2680eeca7b91e3',hashlib.sha256(masked.encode()).hexdigest())
+        self.finding={'File':self.path,'RuleID':'generic-api-key','Commit':self.commit,'StartLine':93,'EndLine':93,'StartColumn':36,'EndColumn':127,'Secret':'REDACTED','Match':masked}
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True).stdout
+    def verify(self,finding=None,git=None,raw=None):
+        self.assertTrue(hasattr(self.gate,'verified_source_digest_reference'),'Exact independent qualified-source checksum verifier required')
+        return self.gate.verified_source_digest_reference(finding or self.finding,git or self.git,raw or self.raw)
+    def test_exact_public_checksum_requires_real_historical_blob_and_qualified_source(self):
+        self.assertTrue(self.verify())
+    def test_wrong_path_rule_span_redaction_or_commit_remains_actionable(self):
+        for key,value in [('File','tests/offline/other.py'),('RuleID','github-pat'),('StartLine',94),('EndLine',94),('StartLine',93.0),('StartColumn',35),('EndColumn',128),('StartColumn',True),('Secret','unredacted-value'),('Match','different masked match'),('Commit','f'*40)]:
+            changed=dict(self.finding);changed[key]=value
+            with self.subTest(field=key):self.assertFalse(self.verify(changed))
+    def test_unreviewed_blob_or_content_cannot_reuse_the_checksum_classification(self):
+        def wrong(*args):return 'f'*40 if args[0]=='rev-parse' else self.git(*args)
+        self.assertFalse(self.verify(git=wrong))
+        self.assertFalse(self.verify(raw=lambda *args:self.content+b'\n# synthetic changed content\n'))
+        self.assertFalse(self.verify(raw=lambda *args:self.content.replace(b'bases={',b'other={',1)))
+    def test_missing_or_changed_independent_qualified_source_remains_actionable(self):
+        def unavailable(*args):
+            if args[0]=='cat-file' and args[1]=='-t' and args[2]=='7d624512a0fab416278b7d8f88208c9463224b6f':raise OSError('missing qualified source')
+            return self.git(*args)
+        self.assertFalse(self.verify(git=unavailable))
+        def changed(*args):
+            value=self.raw(*args)
+            return value if value==self.content else value+b'\n# synthetic altered qualified source\n'
+        self.assertFalse(self.verify(raw=changed))
+    def test_unavailable_git_or_invalid_blob_bytes_never_count_as_verified(self):
+        def unavailable(*args):raise OSError('offline lookup unavailable')
+        self.assertFalse(self.verify(git=unavailable));self.assertFalse(self.verify(raw=unavailable));self.assertFalse(self.verify(raw=lambda *args:'not bytes'))
+
+
 if __name__ == '__main__':
     unittest.main()

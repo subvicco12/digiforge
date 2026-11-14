@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fail-closed candidate-history credential gate; never publish finding contents."""
 import argparse
+import ast
 import collections
 import hashlib
 import json
@@ -120,38 +121,76 @@ def verified_plan_state_phrase(finding, git, git_bytes):
 
 
 def verified_source_digest_reference(finding, git, git_bytes):
-    """One public source digest in an exact historical assertion, never a path/rule ignore.
+    """Verify one exact historical typed source checksum, never ignore a path/rule.
 
-    Resolve the named baseline file independently. A changed context, missing
-    baseline, additional credential or any other finding remains actionable.
+    Its full reviewed blob, scanner span/masked grammar and Python AST must agree.
+    Independently hash the actual qualified source; do not trust a claimed digest.
     """
     path = 'tests/offline/test_printify_dependencies.py'
     reviewed_blob = 'fcf8ea6e200166e07abe8310d498546b0e187fec'
     reviewed_content = '4da1d41d289524091dd711a672d766e5f507e3f9633102bcd0c9a140c804f499'
-    before = '63953bfd9b87a6c365443cd1c66199ca76cee6e2'
-    target = 'includes/Security/ShopAccessRepository.php'
-    expected = 'e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d'
+    reviewed_match = 'f39d40f87f1c979483dfa43e545d6e87909a3c44a6df9fe7fc2680eeca7b91e3'
+    qualified_source = '7d624512a0fab416278b7d8f88208c9463224b6f'
+    source_path = 'includes/Security/ShopAccessRepository.php'
     try:
         commit = finding.get('Commit')
+        match = finding.get('Match')
+        location = {'StartLine': 93, 'EndLine': 93, 'StartColumn': 36, 'EndColumn': 127}
         if (finding.get('File') != path or finding.get('RuleID') != 'generic-api-key'
-                or type(finding.get('StartLine')) is not int or type(finding.get('EndLine')) is not int
-                or finding['StartLine'] != 93 or finding['EndLine'] != 93
                 or finding.get('Secret') != 'REDACTED'
+                or any(type(finding.get(key)) is not int or finding[key] != value for key, value in location.items())
+                or type(match) is not str or len(match) != 36
+                or hashlib.sha256(match.encode('utf-8')).hexdigest() != reviewed_match
                 or not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit)):
             return False
-        if git('cat-file', '-t', commit) != 'commit' or git('cat-file', '-t', before) != 'commit':
+        if git('cat-file', '-t', commit) != 'commit':
             return False
         blob = git('rev-parse', '--verify', commit + ':' + path)
         if blob != reviewed_blob:
             return False
         raw = git_bytes('cat-file', 'blob', blob)
-        if not isinstance(raw, bytes) or hashlib.sha256(raw).hexdigest() != reviewed_content:
+        if not isinstance(raw, bytes) or len(raw) > 65536 or hashlib.sha256(raw).hexdigest() != reviewed_content:
             return False
-        expected_line = '        bases={' + repr(target) + ':' + repr(expected) + ','
-        if raw.decode('utf-8').splitlines()[92] != expected_line:
+        text = raw.decode('utf-8')
+        module = ast.parse(text)
+        classes = [node for node in module.body if isinstance(node, ast.ClassDef) and node.name == 'PrintifySharedDependencyBoundaryTest']
+        if len(classes) != 1:
             return False
-        return hashlib.sha256(git_bytes('show', before + ':' + target)).hexdigest() == expected
-    except (OSError, ValueError, TypeError, IndexError, subprocess.SubprocessError):
+        methods = [node for node in classes[0].body if isinstance(node, ast.FunctionDef) and node.name == 'test_audit_stall_delta_preserves_exact_qualified_bases_and_grants_no_authority']
+        if len(methods) != 1:
+            return False
+        assignments = [node for node in ast.walk(methods[0]) if isinstance(node, ast.Assign)
+                       and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == 'bases']
+        if len(assignments) != 1 or not isinstance(assignments[0].value, ast.Dict):
+            return False
+        mapping = assignments[0].value
+        if len(mapping.keys) != 2 or any(not isinstance(key, ast.Constant) or type(key.value) is not str for key in mapping.keys):
+            return False
+        keys = [key.value for key in mapping.keys]
+        if set(keys) != {source_path, 'includes/PortalAccess/GlobalOwnerAuthority.php'} or len(set(keys)) != len(keys):
+            return False
+        index = keys.index(source_path)
+        value = mapping.values[index]
+        if (not isinstance(value, ast.Constant) or type(value.value) is not str
+                or re.fullmatch('[a-f0-9]{64}', value.value) is None
+                or value.lineno != 93 or value.end_lineno != 93 or mapping.keys[index].lineno != 93):
+            return False
+        line = text.splitlines()[92]
+        if line.count(value.value) != 1:
+            return False
+        masked = line.replace(value.value, 'REDACTED')
+        # Gitleaks8.30.1 column metadata does not map to a direct one-based slice.
+        # Bind the independently reviewed exact masked span, never accept alternatives.
+        if masked.count(match) != 1:
+            return False
+        if git('cat-file', '-t', qualified_source) != 'commit':
+            return False
+        source_blob = git('rev-parse', '--verify', qualified_source + ':' + source_path)
+        if not isinstance(source_blob, str) or not re.fullmatch('[a-f0-9]{40}', source_blob) or git('cat-file', '-t', source_blob) != 'blob':
+            return False
+        qualified = git_bytes('cat-file', 'blob', source_blob)
+        return isinstance(qualified, bytes) and hashlib.sha256(qualified).hexdigest() == value.value
+    except (OSError, ValueError, TypeError, IndexError, SyntaxError, subprocess.SubprocessError):
         return False
 
 

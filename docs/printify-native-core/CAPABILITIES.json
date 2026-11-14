@@ -88,7 +88,7 @@
     {
       "name": "Independently reviewed local business/package/plan association",
       "status": "PARTIAL",
-      "scope": "NativeBusinessMutationAssociation reuses existing ReviewedLocalEvidence author/reviewer policy streams, local proposal version and transition revision. Business rows and ownership/approval ranges are locked inside the existing review transaction with exact producer-audit provenance; generic policy approval cannot substitute. Full artwork/options/provider/session source CAS, canonical counters and native dispatch remain unverified. Approved read-only upload wire descriptor contains hashes/fixed metadata only, never asset contents or credentials. No canonical capability advertised."
+      "scope": "NativeBusinessMutationAssociation reuses existing ReviewedLocalEvidence author/reviewer policy streams, local proposal version and transition revision. Business rows and ownership/approval ranges are locked inside the existing review transaction with exact producer-audit provenance; generic policy approval cannot substitute. Exact artwork SQL rows/approval ranges and captured protected business-data option bytes/absence now join the existing review transaction, with full unique-name index and caller-transaction continuity checks. Source-specific approval acknowledgement revalidates the actual producer after persistence. Provider/session/owner/delegation and conditional source roots are not collectively locked; full source CAS, canonical counters and native dispatch remain unverified. Approved read-only upload wire descriptor contains hashes/fixed metadata only, never asset contents or credentials. No canonical capability advertised."
     },
     {
       "name": "Protected existing-product PRICE_UPDATE source evidence",

@@ -33,7 +33,7 @@ final class Shop2ProductWorkflow {
  public function read(string $hash):array|WP_Error {
   if(!self::access())return self::error('Shop 2 workflow access denied.',403);
   if(!preg_match('/^[a-f0-9]{64}$/D',$hash))return self::error('Exact supplier workflow hash required.');
-  global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_shop2_workflow_'.$hash));
+  global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_shop2_workflow_'.$hash));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption('digiforge_shop2_workflow_'.$hash,$raw);
   if($wpdb->last_error!==''||!is_string($raw)||strlen($raw)>8192||!hash_equals($hash,hash('sha256',$raw)))return self::error('Supplier linkage missing, corrupt or unavailable.');
   $r=json_decode($raw,true);if(!is_array($r)||($r['schema']??null)!=='shop2-supplier-workflow-v1'||($r['shop_key']??null)!=='personalized_pod'||($r['external_execution_authorized']??null)!==false)return self::error('Invalid supplier linkage.');
   $packet=(new ProductIntelligenceRepository())->read($r['snapshot_id']);if(is_wp_error($packet))return $packet;

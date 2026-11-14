@@ -403,7 +403,7 @@ final class ProductPackageRepository
     {
         global $wpdb;
         $wpdb->last_error = '';
-        $raw = $wpdb->get_var($wpdb->prepare('SELECT option_value FROM ' . $wpdb->options . ' WHERE BINARY option_name=BINARY %s', $name));
+        $raw = $wpdb->get_var($wpdb->prepare('SELECT option_value FROM ' . $wpdb->options . ' WHERE BINARY option_name=BINARY %s', $name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);
         return $wpdb->last_error === '' && ($raw === null || is_string($raw)) ? $raw : self::error('Durable evidence unavailable.', 503);
     }
     private static function hash(string $hash): bool

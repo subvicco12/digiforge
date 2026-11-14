@@ -23,7 +23,9 @@ final class NativeBusinessMutationAssociation
 
     private static function observe(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan): array|\WP_Error
     {
-        $material = NativeBusinessMutationEvidence::sourceMaterial($scope, $actor, $mapping, $spec, $plan);
+        $capture = NativeProtectedOptionDependencies::capture(static fn () => NativeBusinessMutationEvidence::sourceMaterial($scope, $actor, $mapping, $spec, $plan));
+        if (is_wp_error($capture)) return $capture;
+        $material = $capture['value'];
         if (is_wp_error($material)) {
             return $material;
         }
@@ -34,7 +36,7 @@ final class NativeBusinessMutationAssociation
             'package_hash' => $e['package_hash'],'artwork_version_hash' => $e['artwork_version_hash'],
             'payload_fingerprint' => $e['payload_fingerprint'],'operation' => $e['operation'],
             'plan_policy_hash' => $e['plan_policy_hash'],'plan_policy_revision' => $e['plan_policy_revision'],
-            'business_dependencies' => $material['business_dependencies'],'artwork_dependency_hash' => $material['artwork_dependency_hash']];
+            'business_dependencies' => $material['business_dependencies'],'artwork_dependency_hash' => $material['artwork_dependency_hash'],'data_option_dependencies'=>$capture['dependencies']];
         // Actor-independent source identity permits a genuinely distinct reviewer.
         $payload['source_hash'] = NativePortContract::hash($payload);
         return ['source'=>$payload,'current_source_evidence_hash'=>$e['evidence_hash']];
@@ -90,14 +92,18 @@ final class NativeBusinessMutationAssociation
             if ($wpdb !== $reviewDatabase || (string)$wpdb->get_var('SELECT CONNECTION_ID()') !== $connectionId || $wpdb->last_error !== '') {
                 return NativeFailure::error('association_review_connection_changed');
             }
-            $locked = NativeBusinessEvidence::lockCurrent($scope, $actor, $mapping, $before['payload']['business_dependencies']);
+            $locked = NativeBusinessArtworkEvidence::lockCurrent($scope, $actor, $mapping, $before['payload']['asset_spec_id'], $before['payload']['business_dependencies'], $before['payload']['artwork_dependency_hash']);
             if (is_wp_error($locked)) {
                 return $locked;
             }
+            $dataLock = NativeProtectedOptionDependencies::lockCurrent($scope, $actor, $before['payload']['data_option_dependencies'] ?? []);
+            if (is_wp_error($dataLock)) return $dataLock;
             $assignments = (new \DigiForge\Security\ShopAccessRepository())->read($scope->shopKey);
             if (is_wp_error($assignments)) {
                 return $assignments;
             }
+            $transaction = NativeSourceTransaction::verify($reviewDatabase, $connectionId);
+            if (is_wp_error($transaction)) return $transaction;
             $receipt = self::reviewReceipt($scope, $before['payload'], $before['author_id'], $actor, $revision + 1, $proposalHash, $assignments['revision']);
             return \DigiForge\Security\Logger::write('native_mutation_business_source_reviewed', $receipt, 'native_mutation_association', $proposalHash)
                 ? true : NativeFailure::error('association_review_audit');
@@ -107,7 +113,15 @@ final class NativeBusinessMutationAssociation
             return $result;
         }
         $last = self::source($scope, $actor, $mapping, $spec, $plan);
-        return is_wp_error($last) || NativePortContract::hash($last) !== NativePortContract::hash($before['payload']) ? NativeFailure::error('association_approval_unknown') : $result;
+        if (is_wp_error($last) || NativePortContract::hash($last) !== NativePortContract::hash($before['payload'])) return NativeFailure::error('association_approval_unknown');
+        // A reconnect can roll back the source producer while a generic decision
+        // later auto-commits. Do not acknowledge that orphan as source approval.
+        $approved = ReviewedLocalEvidence::approved('policy', $scope->shopKey, $key);
+        if (is_wp_error($approved) || $approved !== $result) return NativeFailure::error('association_approval_unknown');
+        $producer = self::approvedReceipt($scope, $last, $approved);
+        if (is_wp_error($producer)) return NativeFailure::error('association_approval_unknown');
+        $current = ReviewedLocalEvidence::approved('policy', $scope->shopKey, $key);
+        return is_wp_error($current) || $current !== $approved ? NativeFailure::error('association_approval_unknown') : $result;
     }
 
     public static function read(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan): array|\WP_Error

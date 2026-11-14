@@ -133,6 +133,6 @@ final class CommercialResearchRepository
         return $this->read('personalized_pod',$hash);
     }
     private function access(mixed $shop): true|WP_Error {return \DigiForge\Security\PersonalizedPodAccess::allows()&&$shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research')?true:self::error('Authenticated personalized-POD research and artwork reviewer required.',403);}
-    private function stored(string $name): string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::error('Durable evidence read failed.',503);}
+    private function stored(string $name): string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::error('Durable evidence read failed.',503);}
     private static function error(string $message,int $status=409): WP_Error {return new WP_Error('commercial_research_denied',$message,['status'=>$status,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
 }

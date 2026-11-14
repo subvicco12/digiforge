@@ -110,25 +110,63 @@ final class NativeBusinessArtworkEvidence
         return $wpdb->query($sql) !== false && $wpdb->last_error === '';
     }
 
-    private static function material(array $business, int $specId): array|\WP_Error
+    /** Only the named SQL artwork roots are frozen; option/authority closure is deliberately not claimed. */
+    public static function lockCurrent(ShopBinding $scope, int $actor, int $mapping, int $spec, array $expectedBusiness, string $expectedArtwork): array|\WP_Error
+    {
+        if ($spec < 1 || preg_match('/^[a-f0-9]{64}$/D', $expectedArtwork) !== 1) return NativeFailure::error('artwork_lock_identity');
+        $authority = NativeAuthorityAdapter::scope($scope, $actor, ['manage_digiforge_pod','manage_digiforge_products','manage_digiforge_listings','manage_digiforge_research']);
+        if (is_wp_error($authority)) return $authority;
+        global $wpdb;
+        $database = $wpdb;
+        $connectionId = NativeSourceTransaction::id();
+        if (is_wp_error($connectionId)) return $connectionId;
+        $locked = NativeBusinessEvidence::lockCurrent($scope, $actor, $mapping, $expectedBusiness);
+        if (is_wp_error($locked)) return $locked;
+        global $wpdb;
+        try {
+            foreach ([Tables::asset_specs(), Tables::production_plan_assets()] as $table) {
+                $wpdb->last_error = '';
+                $engine = $wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $table));
+                $ddl = $wpdb->get_row('SHOW CREATE TABLE '.$table, ARRAY_N);
+                if ($wpdb->last_error !== '' || strtoupper((string)$engine) !== 'INNODB' || !is_array($ddl) || !str_starts_with(strtoupper((string)($ddl[1] ?? '')), 'CREATE TABLE ')) return NativeFailure::error('artwork_lock_storage');
+            }
+            $material = self::material($locked['artwork_identity'], $spec, true);
+            if (is_wp_error($material)) return $material;
+            $digest = NativePortContract::hash($material);
+            if (!hash_equals($expectedArtwork, $digest)) return NativeFailure::error('artwork_lock_stale');
+            $last = NativeAuthorityAdapter::scope($scope, $actor, ['manage_digiforge_pod','manage_digiforge_products','manage_digiforge_listings','manage_digiforge_research']);
+            if (is_wp_error($last) || $last['scope'] !== $authority['scope'] || $last['session_fingerprint'] !== $authority['session_fingerprint']) return NativeFailure::error('artwork_lock_authority_changed');
+            $transaction = NativeSourceTransaction::verify($database, $connectionId);
+            if (is_wp_error($transaction)) return $transaction;
+            return ['schema'=>'DF_NATIVE_LOCKED_ARTWORK_SQL_SOURCE_1','scope_fingerprint'=>$scope->fingerprint(),'actor_id'=>$actor,
+                'dependency_hash'=>$digest,'artwork_sql_dependency_hashes'=>array_map(static fn(array $row): string=>NativePortContract::hash($row), array_intersect_key($material, array_flip(['spec','link','approval','link_approval']))),
+                'business_dependencies_locked'=>true,'artwork_sql_dependencies_locked'=>true,'artwork_option_dependencies_locked'=>false,
+                'transaction_owned_by_caller'=>true,'source_approval_cas_verified'=>false,'native_product_version'=>null,
+                'dispatch_permitted'=>false,'external_execution_authorized'=>false,'release_hold'=>true];
+        } catch (\Throwable) {
+            return NativeFailure::error('artwork_lock_unavailable');
+        }
+    }
+
+    private static function material(array $business, int $specId, bool $lock = false): array|\WP_Error
     {
         global $wpdb;
         $wpdb->last_error = '';
-        $spec = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::asset_specs().' WHERE id=%d', $specId), ARRAY_A);
+        $spec = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::asset_specs().' WHERE id=%d'.($lock ? ' FOR UPDATE' : ''), $specId), ARRAY_A);
         if ($wpdb->last_error !== '' || !is_array($spec) || ($spec['state'] ?? null) !== 'APPROVED' || (string)$spec['product_version_id'] !== (string)$business['product_version_id'] || (string)$spec['dpi'] !== '300' || ($spec['format'] ?? null) !== 'svg') return NativeFailure::error('artwork_business_spec');
         $content = json_decode((string)$spec['content_requirements'], true);
         $binding = $content['native_artwork_binding'] ?? null;
         if (!is_array($binding) || count($binding) !== 5 || ($binding['schema'] ?? null) !== 'DF_NATIVE_ARTWORK_BINDING_1' || ($binding['shop_key'] ?? null) !== 'personalized_pod') return NativeFailure::error('artwork_business_binding');
         foreach (['design_factory_hash','supplier_workflow_hash','artwork_version_hash'] as $key) if (!is_string($binding[$key] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $binding[$key]) !== 1) return NativeFailure::error('artwork_business_binding');
         $wpdb->last_error = '';
-        $link = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::production_plan_assets().' WHERE production_plan_id=%d AND asset_spec_id=%d AND is_required=1', $business['production_plan_id'], $specId), ARRAY_A);
+        $link = $wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::production_plan_assets().' WHERE production_plan_id=%d AND asset_spec_id=%d AND is_required=1'.($lock ? ' FOR UPDATE' : ''), $business['production_plan_id'], $specId), ARRAY_A);
         if ($wpdb->last_error !== '' || !is_array($link)) return NativeFailure::error('artwork_business_plan_link');
         $wpdb->last_error = '';
-        $approval = $wpdb->get_row($wpdb->prepare('SELECT id,actor_id,context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s ORDER BY id DESC LIMIT 1', 'production_state_changed', 'spec', (string)$specId), ARRAY_A);
+        $approval = $wpdb->get_row($wpdb->prepare('SELECT id,actor_id,context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s ORDER BY id DESC LIMIT 1'.($lock ? ' FOR UPDATE' : ''), 'production_state_changed', 'spec', (string)$specId), ARRAY_A);
         $context = is_array($approval) ? json_decode((string)$approval['context'], true) : null;
         if ($wpdb->last_error !== '' || !is_array($approval) || (int)$approval['actor_id'] < 1 || (int)$approval['id'] < 1 || (string)(int)$approval['id'] !== (string)$approval['id'] || ($context['to'] ?? null) !== 'APPROVED' || (int)$approval['id'] >= $business['plan_approval_event_id']) return NativeFailure::error('artwork_business_spec_approval');
         $wpdb->last_error = '';
-        $linked = $wpdb->get_row($wpdb->prepare('SELECT id,actor_id,context FROM '.Tables::audit_log()." WHERE event_type=%s AND object_type=%s AND object_id=%s AND JSON_VALID(context) AND JSON_UNQUOTE(JSON_EXTRACT(context,'$.asset_spec_id'))=%s ORDER BY id DESC LIMIT 1", 'production_asset_linked', 'production_plan', (string)$business['production_plan_id'], (string)$specId), ARRAY_A);
+        $linked = $wpdb->get_row($wpdb->prepare('SELECT id,actor_id,context FROM '.Tables::audit_log()." WHERE event_type=%s AND object_type=%s AND object_id=%s AND JSON_VALID(context) AND JSON_UNQUOTE(JSON_EXTRACT(context,'$.asset_spec_id'))=%s ORDER BY id DESC LIMIT 1".($lock ? ' FOR UPDATE' : ''), 'production_asset_linked', 'production_plan', (string)$business['production_plan_id'], (string)$specId), ARRAY_A);
         $linkContext = is_array($linked) ? json_decode((string)$linked['context'], true) : null;
         if ($wpdb->last_error !== '' || !is_array($linked) || (int)$linked['actor_id'] < 1 || (int)$linked['id'] < 1 || (string)(int)$linked['id'] !== (string)$linked['id'] || ($linkContext['required'] ?? null) !== true || (int)$linked['id'] >= $business['plan_approval_event_id']) return NativeFailure::error('artwork_business_link_approval');
         $factory = new DesignFactoryRepository();

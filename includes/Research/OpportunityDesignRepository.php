@@ -60,7 +60,7 @@ final class OpportunityDesignRepository
     {
         global $wpdb;
         $wpdb->last_error='';
-        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));
+        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);
         if ($wpdb->last_error!=='' || ($raw!==null && !is_string($raw))) return self::error('Database evidence unavailable.',503);
         return $raw;
     }

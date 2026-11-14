@@ -107,7 +107,7 @@ final class ArtworkPersonalizationIntake
     }
     private function headKey(string $supplier,string $factory):string {return self::PREFIX.'head_'.hash('sha256','personalized_pod:'.$supplier.':'.$factory);}
     private function seal(array $selection):string {return hash_hmac('sha256','DF_ARTWORK_PERSONALIZATION_SELECTION_1:'.CommercialResearchContract::json($selection),wp_salt('auth'));}
-    private function stored(string $key):string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$key));return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::deny('storage_unavailable',503);}
+    private function stored(string $key):string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$key));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($key,$raw);return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::deny('storage_unavailable',503);}
     private static function hash(mixed $value):bool {return is_string($value)&&preg_match('/^[a-f0-9]{64}$/D',$value)===1;}
     private static function deny(string $code,int $status=409):WP_Error {return new WP_Error('personalization_intake_'.$code,'Current selected reviewed local proof required: '.$code.'.',['status'=>$status,'retry_permitted'=>false,'external_execution_authorized'=>false,'production_authorized'=>false,'release_hold'=>true]);}
 }

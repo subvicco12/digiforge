@@ -26,7 +26,7 @@ final class ProductIntelligenceRepository
         global $wpdb;
         if (!preg_match('/^[a-f0-9]{64}$/D',$id)) return $this->unavailable();
         $wpdb->last_error='';
-        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s LIMIT 1',self::PREFIX.$id));
+        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE option_name=%s LIMIT 1',self::PREFIX.$id));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption(self::PREFIX.$id,$raw);
         if (!empty($wpdb->last_error) || !is_string($raw) || !hash_equals($id,hash('sha256',$raw))) return $this->unavailable();
         try {$input=json_decode($raw,true,32,JSON_THROW_ON_ERROR);if(!is_array($input))return $this->unavailable();return ProductIntelligence::validate($input);}
         catch (\Throwable) {return $this->unavailable();}
