@@ -44,10 +44,10 @@ final class GlobalOwnerAuthority {
   $u=get_userdata(1);if(!$u||strtolower($u->user_email)!==Owner::EMAIL||!user_can(1,'manage_options'))return false;
   $authority=self::current();if(is_wp_error($authority)||($profile['global_authority_hash']??null)!==$authority['hash']||array_keys($profile['shops']??[])!==ShopAccessPolicy::canonicalShops())return false;
   foreach(Capabilities::ALL as $cap)if(!user_can(1,$cap))return false;
-  $repo=new ShopAccessRepository();
+  $repo=new ShopAccessRepository();$states=$repo->readCanonicalShops();if(is_wp_error($states))return false;
   foreach($authority['records'] as $shop=>$a){
    if(($profile['shops'][$shop]??null)!==Capabilities::ALL||($profile['authority_hashes'][$shop]??null)!==$a['hash']||!is_string($profile['global_grants'][$shop]??null))return false;
-   $state=$repo->read($shop);if(is_wp_error($state))return false;$id=$profile['global_grants'][$shop];$grant=$state['grants'][$id]??null;
+   $state=$states[$shop];$id=$profile['global_grants'][$shop];$grant=$state['grants'][$id]??null;
    if(!is_array($grant)||$grant['actor_id']!==1||$grant['grantor_id']!==1||$grant['revoked']||(!$allowExpired&&$grant['expires_at']<=time())||$grant['expires_at']>$authority['expires_at']||$grant['caps']!==Capabilities::ALL||$grant['authority_hash']!==$a['hash']||$grant['source_approval_hash']!==$authority['source_approval_hash']||!in_array($grant['role'],$u->roles,true))return false;
    $role=get_role($grant['role']);if(!$role)return false;foreach(Capabilities::ALL as $cap)if(!$role->has_cap($cap))return false;
    if($repo->verifyGrantEvidence($id,$grant,$state['revision'])!==true)return false;

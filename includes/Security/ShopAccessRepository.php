@@ -30,6 +30,60 @@ final class ShopAccessRepository
         $rows=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,object_id,context FROM '.\DigiForge\Database\Tables::audit_log()." WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke') AND CASE WHEN JSON_VALID(context) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.shop'))=BINARY %s ELSE false END ORDER BY id ASC LIMIT 1001",$shop),ARRAY_A);
         if($wpdb->last_error!==''||!is_array($rows))return self::error('lifecycle_read',503);
         if(count($rows)>1000||count($rows)!==$state['revision'])return self::error('lifecycle_revision');
+        return $this->validateLifecycle($shop,$state,$eventKeys,$rows);
+    }
+    /** Fresh bounded reads, not an authority cache. All four ledgers remain independently verified. */
+    public function readCanonicalShops():array|\WP_Error
+    {
+        global $wpdb;
+        $shops=ShopAccessPolicy::canonicalShops();$keys=array_map([self::class,'key'],$shops);
+        $marks=implode(',',array_fill(0,count($shops),'%s'));
+        $wpdb->last_error='';
+        $snapshots=$wpdb->get_results($wpdb->prepare("SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name IN ($marks) LIMIT 5",...$keys),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($snapshots)||count($snapshots)>4)return self::error('read',503);
+        $states=array_fill_keys($shops,['revision'=>0,'grants'=>[]]);$seen=[];
+        foreach($snapshots as $row){
+            $index=array_search($row['option_name']??null,$keys,true);
+            if($index===false||isset($seen[$index]))return self::error('corrupt');$seen[$index]=true;
+            $shop=$shops[$index];$value=$row['option_value']??null;
+            if(!is_string($value)||strlen($value)>1048576)return self::error('corrupt');
+            $state=json_decode($value,true);
+            if(!is_array($state)||!is_int($state['revision']??null)||$state['revision']<0||!is_array($state['grants']??null)||count($state['grants'])>500)return self::error('corrupt');
+            foreach($state['grants'] as $id=>$grant)if(!is_string($id)||!preg_match('/^[a-f0-9]{64}$/D',$id)||!ShopAccessPolicy::validRecord($grant)||!is_string($grant['role']??null)||!is_int($grant['grantor_id']??null)||!is_string($grant['authority_hash']??null)||!is_bool($grant['revoked']??null)||$grant['shop']!==$shop)return self::error('corrupt');
+            $states[$shop]=$state;
+        }
+        $wpdb->last_error='';
+        $events=$wpdb->get_results($wpdb->prepare("SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CASE WHEN JSON_VALID(option_value) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(option_value,'$.shop')) IN ($marks) ELSE false END LIMIT 4001",$wpdb->esc_like('digiforge_shop_access_event_').'%',...$shops),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($events))return self::error('lifecycle_event_read',503);
+        if(count($events)>4000)return self::error('lifecycle_revision');
+        $values=array_fill_keys($shops,[]);
+        foreach($events as $row){
+            $raw=$row['option_value']??null;$name=$row['option_name']??null;
+            if(!is_string($raw)||strlen($raw)>16384||!is_string($name))return self::error('lifecycle_event');
+            $event=json_decode($raw,true);$shop=$event['shop']??null;
+            if(!is_string($shop)||!array_key_exists($shop,$values)||isset($values[$shop][$name]))return self::error('lifecycle_event');
+            $values[$shop][$name]=$raw;
+        }
+        $wpdb->last_error='';
+        $audits=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,object_id,context FROM '.\DigiForge\Database\Tables::audit_log()." WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke') AND CASE WHEN JSON_VALID(context) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.shop')) IN ($marks) ELSE false END ORDER BY id ASC LIMIT 4001",...$shops),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($audits))return self::error('lifecycle_read',503);
+        if(count($audits)>4000)return self::error('lifecycle_revision');
+        $rows=array_fill_keys($shops,[]);
+        foreach($audits as $row){
+            $raw=$row['context']??null;if(!is_string($raw)||strlen($raw)>16384)return self::error('lifecycle_audit');
+            $event=json_decode($raw,true);$shop=$event['shop']??null;
+            if(!is_string($shop)||!array_key_exists($shop,$rows))return self::error('lifecycle_audit');$rows[$shop][]=$row;
+        }
+        foreach($shops as $shop){
+            if(count($values[$shop])>1000||count($rows[$shop])>1000||count($values[$shop])!==$states[$shop]['revision']||count($rows[$shop])!==$states[$shop]['revision'])return self::error('lifecycle_revision');
+            $proof=$this->validateLifecycle($shop,$states[$shop],array_keys($values[$shop]),$rows[$shop],$values[$shop]);if(is_wp_error($proof))return $proof;
+        }
+        return $states;
+    }
+    /** Same replay/row validation for individual and batched fresh reads. */
+    private function validateLifecycle(string $shop,array $state,array $eventKeys,array $rows,?array $values=null):true|\WP_Error
+    {
+        global $wpdb;
         $grants=[];$revision=0;
         foreach($rows as $row){
             if(!is_string($row['context']??null)||strlen($row['context'])>16384)return self::error('lifecycle_audit');
@@ -37,7 +91,7 @@ final class ShopAccessRepository
             if(!is_array($event)||!in_array($action,['GRANT','REVOKE'],true)||($event['shop']??null)!==$shop||($event['revision']??null)!==++$revision||!is_int($event['actor_id']??null)||$event['actor_id']<1||(string)$event['actor_id']!==(string)($row['actor_id']??null)||($row['event_type']??null)!=='shop_access_'.strtolower($action)||!is_string($id)||!preg_match('/^[a-f0-9]{64}$/D',$id)||($row['object_id']??null)!==$id||!is_string($request)||!preg_match('/^[A-Za-z0-9_-]{16,128}$/D',$request)||!is_int($event['created_at']??null)||!ShopAccessPolicy::validRecord($grant)||$grant['shop']!==$shop||!is_string($grant['role']??null)||!is_int($grant['grantor_id']??null)||!is_string($grant['authority_hash']??null)||!is_bool($grant['revoked']??null))return self::error('lifecycle_audit');
             $eventId=hash('sha256',$shop.':'.$request);$wpdb->last_error='';
             if(!in_array('digiforge_shop_access_event_'.$eventId,$eventKeys,true))return self::error('lifecycle_event');
-            $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",'digiforge_shop_access_event_'.$eventId));
+            $raw=$values===null?$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",'digiforge_shop_access_event_'.$eventId)):($values['digiforge_shop_access_event_'.$eventId]??null);
             if($wpdb->last_error!=='')return self::error('lifecycle_event_read',503);
             if(!is_string($raw)||strlen($raw)>16384||json_decode($raw,true)!==$event)return self::error('lifecycle_event');
             if($action==='GRANT'){

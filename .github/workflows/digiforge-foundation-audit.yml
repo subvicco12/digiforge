@@ -135,7 +135,8 @@ jobs:
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
           DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
-        run: composer test:wordpress
+        # Keep the job ceiling unchanged; identify and fail any individual overrun.
+        run: composer test:wordpress -- --debug --enforce-time-limit --default-time-limit 600
 
       - name: Set up Node for offline portal acceptance
         uses: actions/setup-node@v4
