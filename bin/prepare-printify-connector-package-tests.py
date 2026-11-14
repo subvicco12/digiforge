@@ -38,10 +38,18 @@ def prepare(output):
         original[target]=raw
     connector='tests/wordpress/PrintifyConnectorIntegrationTest.php'
     original[connector]=blob(head,connector)
+    # Baseline child workers must inherit the parent's fresh namespace too.
+    support={}
+    for target in ['tests/wordpress/bootstrap.php','tests/wordpress/FixtureConfiguration.php']:
+        raw=blob(head,target)
+        if raw!=(ROOT/target).read_bytes() or not methods(original.get(target,b''))<=methods(raw):
+            raise ValueError('Exact committed namespace support without removed tests required')
+        support[target]={'sha256':hashlib.sha256(raw).hexdigest(),'source':target}
+        original[target]=raw
     original['phpunit.wordpress.xml.dist']=blob(BASE,'phpunit.wordpress.xml.dist')
     for name,raw in original.items():
         target=output/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
-    manifest={'base_source_sha':BASE,'fixture_source_sha':head,'source_identity_verified':True,'omitted_test_files':[],'omitted_original_test_methods':[],'overlays':overlays,'files':[{'path':name,'sha256':hashlib.sha256(raw).hexdigest()}for name,raw in sorted(original.items())]}
+    manifest={'base_source_sha':BASE,'fixture_source_sha':head,'source_identity_verified':True,'omitted_test_files':[],'omitted_original_test_methods':[],'overlays':overlays,'support_overlays':support,'files':[{'path':name,'sha256':hashlib.sha256(raw).hexdigest()}for name,raw in sorted(original.items())]}
     (output/'fixture-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     return manifest
 
