@@ -1,0 +1,242 @@
+{
+  "classification": "AUTHENTIC_SOURCE_LINKED_CANDIDATE_REVIEW_ONLY_NOT_READY_FOR_PORTAL_IMPORT",
+  "fixture_id": "FL-04",
+  "shop_key": "personalized_pod",
+  "source_links": {
+    "research": {
+      "reference": "https://drive.google.com/file/d/16fh_tHcM146fnDtQgpHuVuE9P7ox2OX1/view#evidence/digiforge-final-consolidation-20261104/inputs/integration/digiforge-authentic-commercial-integration-20261104/authentic-imports/FL-04/research.json",
+      "sha256": "a67cfa00ebe7e98822dc78c9358931daa437698b0e182781225c73a90f8de1bc",
+      "source_ids": [
+        "e665602744",
+        "e4585736020",
+        "e4533257223",
+        "e1588551860",
+        "e574806197"
+      ]
+    },
+    "three_concepts": [
+      "Our Shared Chapter",
+      "Two Paths",
+      "Color Field Pair"
+    ],
+    "response_sha256": "5017609686366819e5a56e83cd8650ef1811d5fcaf567b319fb097430e022ef7",
+    "provenance_sha256": "8842cdeefd637a9511ed39eaf28f11f6f24ef0b62e021258bad4a2f0fba09f63"
+  },
+  "candidate_artwork_sha256": "4804a76147d4558f1d89330b5cc2b1c64351eb55938b11d8693f55f0b27eec55",
+  "listing_review_proposal_unchanged": {
+    "schema": "digiforge-offline-etsy-content-v1",
+    "product": "FL-04",
+    "execution_authorized": false,
+    "publish": false,
+    "content": {
+      "title": "Personalized Anniversary Poster, Our Shared Chapter, Names and Date Print",
+      "description": "Every shared chapter has a beginning. This personalized anniversary poster pairs your names and a significant date with a classic bookplate border, warm ivory background, bookmark detail and an open-book illustration. The quiet literary composition is designed as a keepsake for a couple’s home.\n\nThis listing is for one physical 8×10-inch portrait matte poster. It is unframed; the frame and display props shown in review scenes are not included. It is not a digital download.\n\nEnter each partner’s first name and your chosen date. Names are arranged on separate lines in the order supplied. Please check spelling, accents and date carefully. Your personalized layout will be reviewed manually before fulfillment; we will contact you if clarification is needed. Screen colors may differ from the finished print.\n\nDesign process: developed with AI assistance and seller direction.",
+      "tags": [
+        "anniversary poster",
+        "personalized print",
+        "couple wall art",
+        "our shared chapter",
+        "names and date art",
+        "book lover gift",
+        "anniversary gift",
+        "custom couple print",
+        "romantic wall decor",
+        "wedding date print",
+        "literary wall art",
+        "gift for spouse",
+        "portrait poster"
+      ],
+      "language": "en-US",
+      "type": "physical",
+      "currency_code": "USD",
+      "price": "18.99",
+      "buyer_shipping_usd": "7.39",
+      "personalization_required": true,
+      "personalization_instructions": "First name 1 (maximum 16 characters):\nFirst name 2 (maximum 16 characters):\nDate exactly as you want it printed (maximum 24 characters):\nExample: Maya / Alex / June 18, 2021. Check spelling and name order. Spaces and punctuation count; accented names require layout review.",
+      "personalization_total_limit": null,
+      "individual_field_limits_historical": [
+        16,
+        16,
+        24
+      ],
+      "offering": {
+        "size": "8×10 inches portrait",
+        "finish": "matte / unframed",
+        "quantity": 1
+      }
+    },
+    "artwork": [
+      {
+        "filename": "FL-04-R4-fixed-import-v1.svg",
+        "sha256": "4804a76147d4558f1d89330b5cc2b1c64351eb55938b11d8693f55f0b27eec55",
+        "status": "PINNED_MATCH",
+        "source_archive": "Drive 1D3khSJF6g_Ustobtbs5Nsaa3sMIfAKpB",
+        "unchanged": true
+      },
+      {
+        "filename": "FL-04-R4-fixed-import-v1.png",
+        "sha256": "189786e68b7360067d6a530cc4bc43ab8874e2dcb8d6d67d78ff242c682c18b5",
+        "status": "PINNED_MATCH",
+        "source_archive": "Drive 1D3khSJF6g_Ustobtbs5Nsaa3sMIfAKpB",
+        "unchanged": true
+      }
+    ],
+    "publication_required_unresolved": {
+      "shop_id": null,
+      "taxonomy_id": null,
+      "production_partner_id": null,
+      "shipping_profile_id": null,
+      "return_policy_id": null,
+      "processing_profile_id": null,
+      "listing_images": null,
+      "seller_design_process_confirmation": null,
+      "rights_approval": null,
+      "provider_variant_binding": null,
+      "owner_price_approval": null
+    },
+    "notes": "Complete offline copy/content payload, intentionally not an executable Etsy API request. Taxonomy/profile/quantity-on-sale/partner/material-specific assertions require authenticated facts. Individual Printify caps do not establish Etsy combined personalization box limit."
+  },
+  "commercial_worksheet": {
+    "schema": "DF_SHOP2_COMMERCIAL_WORKSHEET_1",
+    "currency": "USD",
+    "binding": {
+      "shop_key": "personalized_pod",
+      "environment": "production",
+      "fixture_id": "FL-04",
+      "product_id": "6ae9913d9541969415088814",
+      "artwork_sha256": "4804a76147d4558f1d89330b5cc2b1c64351eb55938b11d8693f55f0b27eec55",
+      "template_fingerprint": null,
+      "blueprint_id": null,
+      "provider_id": null,
+      "variant_ids": []
+    },
+    "as_of": "2026-11-14T15:33:33Z",
+    "sources": {
+      "saved_offer": {
+        "reference": "https://drive.google.com/file/d/16fh_tHcM146fnDtQgpHuVuE9P7ox2OX1/view#CANONICAL_ECONOMICS.json",
+        "sha256": "7f69f69bd426c7e771c094e02044eb11a2cb737a6ea4b1356295a1387162c333",
+        "classification": "HISTORICAL_AUTHENTICATED_OBSERVATION",
+        "observed_at": "2026-11-04",
+        "valid_until": null
+      },
+      "public_policy": {
+        "reference": "https://drive.google.com/file/d/1S11cpYpIelIf5b7IMGoI4GJRWn5eoRIh/view#ECONOMICS_NOTES.md",
+        "sha256": "c804aaf9091b1258c5082386d461bda724881170c5638a96998f5b220c1bef16",
+        "classification": "PUBLIC_POLICY",
+        "observed_at": "2026-11-13",
+        "valid_until": null
+      },
+      "review_proposal": {
+        "reference": "https://drive.google.com/file/d/1KkEi8KNUPEecNp4nkJHlK65DGVPhCj9h/view#FL-04_ETSY_OFFLINE_PAYLOAD.json",
+        "sha256": "7fe92e6a20c6c1872697d43c64fc67ccf26cd24ab6e0c339923e46bc1e907056",
+        "classification": "OPERATOR_ASSUMPTION",
+        "observed_at": "2026-11-13",
+        "valid_until": null
+      }
+    },
+    "revenue": {
+      "item_price_minor": {
+        "value": 1899,
+        "source": "saved_offer"
+      },
+      "buyer_shipping_minor": {
+        "value": 739,
+        "source": "saved_offer"
+      },
+      "buyer_tax_minor": {
+        "value": null,
+        "source": null
+      }
+    },
+    "costs": {
+      "base_cost_minor": {
+        "value": null,
+        "source": null
+      },
+      "supplier_shipping_minor": {
+        "value": null,
+        "source": null
+      },
+      "surcharge_minor": {
+        "value": null,
+        "source": null
+      },
+      "listing_fee_minor": {
+        "value": 20,
+        "source": "public_policy"
+      },
+      "processing_fixed_minor": {
+        "value": null,
+        "source": null
+      },
+      "conversion_minor": {
+        "value": null,
+        "source": null
+      },
+      "regulatory_minor": {
+        "value": null,
+        "source": null
+      },
+      "merchant_tax_minor": {
+        "value": null,
+        "source": null
+      },
+      "other_cost_minor": {
+        "value": null,
+        "source": null
+      }
+    },
+    "rates": {
+      "transaction_bps": {
+        "value": 650,
+        "source": "public_policy"
+      },
+      "processing_bps": {
+        "value": 500,
+        "source": "public_policy"
+      },
+      "ads_bps": {
+        "value": null,
+        "source": null
+      },
+      "refund_bps": {
+        "value": null,
+        "source": null
+      },
+      "discount_bps": {
+        "value": 0,
+        "source": "review_proposal"
+      }
+    },
+    "target_margin_bps": 0
+  },
+  "legacy_economics_for_future_import": {
+    "currency": "USD",
+    "sale_price": 18.99,
+    "base_cost": null,
+    "shipping_cost": null,
+    "seller_fees": null,
+    "ads_cost": null,
+    "fx_cost": null,
+    "refund_reserve": null,
+    "tax_cost": null
+  },
+  "canonical_offer": {
+    "item_price_minor": 1899,
+    "buyer_shipping_minor": 739,
+    "buyer_total_before_tax_minor": 2638
+  },
+  "current_server_workflow_hash": null,
+  "current_server_factory_hash": null,
+  "current_server_artwork_version_hash": null,
+  "current_server_package_hash": null,
+  "owner_source_approval": null,
+  "owner_artwork_approval": null,
+  "owner_package_approval": null,
+  "owner_price_approval": null,
+  "owner_margin_target_bps": null,
+  "commercial_approved": false,
+  "external_execution_authorized": false,
+  "release_hold": true,
+  "intake_gate": "Populate exact current reviewed supplier/template/variant and genuine approved artwork/mapping identities; new worksheet digest/new package seal/new explicit decision. Current null supplier binding cannot be silently promoted."
+}

@@ -253,6 +253,17 @@ final class ApprovedDesignListingPackage
         }
 
         $economics = self::economics($evidence['economics'] ?? []);
+        if (array_key_exists('commercial_worksheet', $evidence)) {
+            if (!is_array($evidence['commercial_worksheet'])) throw new InvalidArgumentException('Structured commercial worksheet required.');
+            $economics = CommercialWorksheet::forPackage($evidence['commercial_worksheet'], [
+                'shop_key'=>$shop,'environment'=>$evidence['environment'],'fixture_id'=>$id,
+                'product_id'=>$provider['product_id'],'artwork_sha256'=>$asset['sha256'],
+                'template_fingerprint'=>$provider['template']['fingerprint']??null,
+                'blueprint_id'=>$provider['blueprint_id'],'provider_id'=>$provider['provider_id'],
+                'variant_ids'=>$provider['variant_ids'],
+            ], $evidence['economics'] ?? []);
+            $blockers = array_merge($blockers, $economics['worksheet']['blockers']);
+        }
         if ($economics['unknown_costs'] !== []) {
             $blockers[] = 'ECONOMICS_COST_EVIDENCE_REQUIRED';
         }

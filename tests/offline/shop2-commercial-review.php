@@ -1,0 +1,11 @@
+<?php
+/** Read JSON review inputs and exercise pure production calculation; never imports or approves. */
+declare(strict_types=1);
+if(PHP_SAPI!=='cli')exit(1);
+if(!function_exists('wp_json_encode')){function wp_json_encode(mixed $value,int $flags=0):string|false{return json_encode($value,$flags);}}
+require __DIR__.'/../../includes/Listings/Validator.php';require __DIR__.'/../../includes/POD/CommercialWorksheet.php';
+$root=$argv[1]??__DIR__.'/../../docs/engineering/shop2-commercial-1266';$results=[];
+foreach(['FL-03'=>2528,'FL-04'=>2638]as $id=>$total){$file=$root.'/'.$id.'-REVIEW-INPUT.json';$r=json_decode(file_get_contents($file),true,32,JSON_THROW_ON_ERROR);if($r['classification']!=='AUTHENTIC_SOURCE_LINKED_CANDIDATE_REVIEW_ONLY_NOT_READY_FOR_PORTAL_IMPORT'||$r['canonical_offer']['buyer_total_before_tax_minor']!==$total||count($r['listing_review_proposal_unchanged']['content']['tags'])!==13||count($r['source_links']['three_concepts'])!==3)throw new RuntimeException('Review fixture content conflict');foreach(['owner_source_approval','owner_artwork_approval','owner_package_approval','owner_price_approval','current_server_workflow_hash','current_server_factory_hash','current_server_artwork_version_hash','current_server_package_hash']as $key)if($r[$key]!==null)throw new RuntimeException('Candidate approval/identity was manufactured');
+ $w=$r['commercial_worksheet'];$assessment=DigiForge\POD\CommercialWorksheet::assess($w,$w['binding']);if($assessment['actual_contribution_minor']!==null||$assessment['conditional']['contribution_minor']!==null||$assessment['conditional']['minimum_modeled_item_price_minor']!==null||$assessment['minimum_approved_selling_price_minor']!==null||$assessment['commercial_approved']!==false||$assessment['external_execution_authorized']!==false)throw new RuntimeException('Unknown facts became profit/authority');
+ $results[]=['fixture_id'=>$id,'input_sha256'=>hash_file('sha256',$file),'classification'=>'CANDIDATE_ONLY_PURE_REVIEW_NO_SERVER_AUTHORITY','assessment'=>$assessment];
+}echo json_encode(['families'=>2,'http_calls'=>0,'production_imports'=>0,'approvals_issued'=>0,'results'=>$results],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR)."\n";

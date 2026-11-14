@@ -1,0 +1,242 @@
+{
+  "classification": "AUTHENTIC_SOURCE_LINKED_CANDIDATE_REVIEW_ONLY_NOT_READY_FOR_PORTAL_IMPORT",
+  "fixture_id": "FL-03",
+  "shop_key": "personalized_pod",
+  "source_links": {
+    "research": {
+      "reference": "https://drive.google.com/file/d/16fh_tHcM146fnDtQgpHuVuE9P7ox2OX1/view#evidence/digiforge-final-consolidation-20261104/inputs/integration/digiforge-authentic-commercial-integration-20261104/authentic-imports/FL-03/research.json",
+      "sha256": "5f8b29686c5c75e0868eb81d4df82e8c6476c1980e784e5061f57e7cc106deeb",
+      "source_ids": [
+        "e1847045834",
+        "e1859050833",
+        "e4342369022",
+        "e1690339777",
+        "e1635040338"
+      ]
+    },
+    "three_concepts": [
+      "Two Stems, One Date",
+      "Modernist Duet",
+      "Quiet Letterpress"
+    ],
+    "response_sha256": "de63368a187f12aad77f1fb510a984e82b3af21c2c8fbb5f549a6ada147a7893",
+    "provenance_sha256": "09387e2e675da7dca61c043cfbb5138d9ea1022b9bfa5c3dd45c05e53dca6d83"
+  },
+  "candidate_artwork_sha256": "72c3cc2f0e5e0e5c8e9f6f0c4e8435687bd406e18338fbfa560c666d8c1552ef",
+  "listing_review_proposal_unchanged": {
+    "schema": "digiforge-offline-etsy-content-v1",
+    "product": "FL-03",
+    "execution_authorized": false,
+    "publish": false,
+    "content": {
+      "title": "Personalized Anniversary Mug, Botanical Names and Date, Couple Keepsake",
+      "description": "Celebrate the date your story began. Two botanical stems meet in a warm gold knot, framing two names and a meaningful date on a white 11oz ceramic mug. The restrained green-and-gold composition makes a personal anniversary keepsake for everyday coffee or a quiet moment together.\n\nPersonalize the design with each partner’s first name and your chosen date. The names appear on separate lines, in the order you provide. This listing is for one physical mug; scene props are not included. Colors can appear differently on screens and the finished print.\n\nPlease check spelling, accents, name order and date carefully before submitting. Your personalized layout will be reviewed manually before fulfillment. If a requested combination needs clarification, we will contact you before proceeding.\n\nDesign process: developed with AI assistance and seller direction.",
+      "tags": [
+        "anniversary mug",
+        "personalized mug",
+        "couple gift",
+        "names and date mug",
+        "botanical mug",
+        "wedding anniversary",
+        "gift for spouse",
+        "custom name mug",
+        "romantic keepsake",
+        "couples coffee mug",
+        "anniversary gift",
+        "two stems one date",
+        "wedding date gift"
+      ],
+      "language": "en-US",
+      "type": "physical",
+      "currency_code": "USD",
+      "price": "17.99",
+      "buyer_shipping_usd": "7.29",
+      "personalization_required": true,
+      "personalization_instructions": "First name 1 (maximum 13 characters):\nFirst name 2 (maximum 13 characters):\nDate exactly as you want it printed (maximum 18 characters):\nExample: Maya / Alex / June 18, 2021. Check spelling and name order. Spaces and punctuation count; accented names require layout review.",
+      "personalization_total_limit": null,
+      "individual_field_limits_historical": [
+        13,
+        13,
+        18
+      ],
+      "offering": {
+        "size": "11oz",
+        "finish": "white ceramic",
+        "quantity": 1
+      }
+    },
+    "artwork": [
+      {
+        "filename": "FL-03-R5B-fixed-import-v1.svg",
+        "sha256": "72c3cc2f0e5e0e5c8e9f6f0c4e8435687bd406e18338fbfa560c666d8c1552ef",
+        "status": "PINNED_MATCH",
+        "source_archive": "Drive 1D3khSJF6g_Ustobtbs5Nsaa3sMIfAKpB",
+        "unchanged": true
+      },
+      {
+        "filename": "FL-03-R5B-fixed-import-v1.png",
+        "sha256": "eae431adc21e7fb45c4007c3c68df80607e2ebaf76c79bba942d27808707a6fb",
+        "status": "PINNED_MATCH",
+        "source_archive": "Drive 1D3khSJF6g_Ustobtbs5Nsaa3sMIfAKpB",
+        "unchanged": true
+      }
+    ],
+    "publication_required_unresolved": {
+      "shop_id": null,
+      "taxonomy_id": null,
+      "production_partner_id": null,
+      "shipping_profile_id": null,
+      "return_policy_id": null,
+      "processing_profile_id": null,
+      "listing_images": null,
+      "seller_design_process_confirmation": null,
+      "rights_approval": null,
+      "provider_variant_binding": null,
+      "owner_price_approval": null
+    },
+    "notes": "Complete offline copy/content payload, intentionally not an executable Etsy API request. Taxonomy/profile/quantity-on-sale/partner/material-specific assertions require authenticated facts. Individual Printify caps do not establish Etsy combined personalization box limit."
+  },
+  "commercial_worksheet": {
+    "schema": "DF_SHOP2_COMMERCIAL_WORKSHEET_1",
+    "currency": "USD",
+    "binding": {
+      "shop_key": "personalized_pod",
+      "environment": "production",
+      "fixture_id": "FL-03",
+      "product_id": "6ae98d61eb5d7e24b80ca0a6",
+      "artwork_sha256": "72c3cc2f0e5e0e5c8e9f6f0c4e8435687bd406e18338fbfa560c666d8c1552ef",
+      "template_fingerprint": null,
+      "blueprint_id": null,
+      "provider_id": null,
+      "variant_ids": []
+    },
+    "as_of": "2026-11-14T15:33:33Z",
+    "sources": {
+      "saved_offer": {
+        "reference": "https://drive.google.com/file/d/16fh_tHcM146fnDtQgpHuVuE9P7ox2OX1/view#CANONICAL_ECONOMICS.json",
+        "sha256": "7f69f69bd426c7e771c094e02044eb11a2cb737a6ea4b1356295a1387162c333",
+        "classification": "HISTORICAL_AUTHENTICATED_OBSERVATION",
+        "observed_at": "2026-11-04",
+        "valid_until": null
+      },
+      "public_policy": {
+        "reference": "https://drive.google.com/file/d/1S11cpYpIelIf5b7IMGoI4GJRWn5eoRIh/view#ECONOMICS_NOTES.md",
+        "sha256": "c804aaf9091b1258c5082386d461bda724881170c5638a96998f5b220c1bef16",
+        "classification": "PUBLIC_POLICY",
+        "observed_at": "2026-11-13",
+        "valid_until": null
+      },
+      "review_proposal": {
+        "reference": "https://drive.google.com/file/d/1KkEi8KNUPEecNp4nkJHlK65DGVPhCj9h/view#FL-03_ETSY_OFFLINE_PAYLOAD.json",
+        "sha256": "05c47810ebdeb6b534842bd44ecb57da7c34463a206ff63214b704848c3bde01",
+        "classification": "OPERATOR_ASSUMPTION",
+        "observed_at": "2026-11-13",
+        "valid_until": null
+      }
+    },
+    "revenue": {
+      "item_price_minor": {
+        "value": 1799,
+        "source": "saved_offer"
+      },
+      "buyer_shipping_minor": {
+        "value": 729,
+        "source": "saved_offer"
+      },
+      "buyer_tax_minor": {
+        "value": null,
+        "source": null
+      }
+    },
+    "costs": {
+      "base_cost_minor": {
+        "value": null,
+        "source": null
+      },
+      "supplier_shipping_minor": {
+        "value": null,
+        "source": null
+      },
+      "surcharge_minor": {
+        "value": null,
+        "source": null
+      },
+      "listing_fee_minor": {
+        "value": 20,
+        "source": "public_policy"
+      },
+      "processing_fixed_minor": {
+        "value": null,
+        "source": null
+      },
+      "conversion_minor": {
+        "value": null,
+        "source": null
+      },
+      "regulatory_minor": {
+        "value": null,
+        "source": null
+      },
+      "merchant_tax_minor": {
+        "value": null,
+        "source": null
+      },
+      "other_cost_minor": {
+        "value": null,
+        "source": null
+      }
+    },
+    "rates": {
+      "transaction_bps": {
+        "value": 650,
+        "source": "public_policy"
+      },
+      "processing_bps": {
+        "value": 500,
+        "source": "public_policy"
+      },
+      "ads_bps": {
+        "value": null,
+        "source": null
+      },
+      "refund_bps": {
+        "value": null,
+        "source": null
+      },
+      "discount_bps": {
+        "value": 0,
+        "source": "review_proposal"
+      }
+    },
+    "target_margin_bps": 0
+  },
+  "legacy_economics_for_future_import": {
+    "currency": "USD",
+    "sale_price": 17.99,
+    "base_cost": null,
+    "shipping_cost": null,
+    "seller_fees": null,
+    "ads_cost": null,
+    "fx_cost": null,
+    "refund_reserve": null,
+    "tax_cost": null
+  },
+  "canonical_offer": {
+    "item_price_minor": 1799,
+    "buyer_shipping_minor": 729,
+    "buyer_total_before_tax_minor": 2528
+  },
+  "current_server_workflow_hash": null,
+  "current_server_factory_hash": null,
+  "current_server_artwork_version_hash": null,
+  "current_server_package_hash": null,
+  "owner_source_approval": null,
+  "owner_artwork_approval": null,
+  "owner_package_approval": null,
+  "owner_price_approval": null,
+  "owner_margin_target_bps": null,
+  "commercial_approved": false,
+  "external_execution_authorized": false,
+  "release_hold": true,
+  "intake_gate": "Populate exact current reviewed supplier/template/variant and genuine approved artwork/mapping identities; new worksheet digest/new package seal/new explicit decision. Current null supplier binding cannot be silently promoted."
+}
