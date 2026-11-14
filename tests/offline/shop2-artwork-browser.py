@@ -7,12 +7,13 @@ from playwright.sync_api import sync_playwright
 def main():
     args=argparse.ArgumentParser()
     args.add_argument('--base-url',required=True);args.add_argument('--cookies-file',type=Path,required=True)
+    args.add_argument('--supplier-seed-file',type=Path)
     args.add_argument('--output',type=Path,required=True);args.add_argument('--chromium',default='/usr/bin/chromium')
     a=args.parse_args();url=urllib.parse.urlsplit(a.base_url)
     if url.hostname not in ['127.0.0.1','localhost'] or url.scheme!='http':raise ValueError('Disposable loopback only')
     a.output.mkdir(parents=True,exist_ok=True);source=Path(__file__).resolve().parents[2]
     fixture=json.loads((source/'tests/fixtures/research/commercial-research.json').read_text())
-    events=[];results=[];blocked=[]
+    events=[];results=[];blocked=[];posts=[];other_notices=[]
     with sync_playwright() as p:
         browser=p.chromium.launch(executable_path=a.chromium,headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
         context=browser.new_context(viewport={'width':1280,'height':900})
@@ -21,15 +22,38 @@ def main():
         page=context.new_page();page.on('pageerror',lambda e:events.append(str(e)));page.set_default_timeout(30000)
         def form(operation):return page.locator('form:has(input[name="operation"][value="'+operation+'"])').first
         def submit(f):
-            with page.expect_navigation(wait_until='domcontentloaded'):f.locator('button').first.click()
-            errors=page.locator('.df-notice-error').all_text_contents()
+            operation=f.locator('[name=operation]').input_value()
+            with page.expect_response(lambda r:r.request.method=='POST' and '/admin-post.php' in r.url) as response:
+                with page.expect_navigation(wait_until='domcontentloaded'):f.locator('button').first.click()
+            query=urllib.parse.parse_qs(urllib.parse.urlsplit(page.url).query)
+            if query.get('df_workflow_error'):raise AssertionError(query['df_workflow_error'])
+            if a.supplier_seed_file and operation.startswith('personalization_'):
+                assert response.value.status==302
+                assert query['df_supplier_workflow'][0]==supplier_hash
+                assert query['df_research_version'][0]==commercial_hash
+                assert query['df_factory_version'][0]==factory_hash
+                selected=query['df_personalization_version'][0];assert len(selected)==64
+                posts.append({'product':code,'operation':operation,'http_status':response.value.status,'supplier_workflow_hash':supplier_hash,'research_hash':commercial_hash,'factory_hash':factory_hash,'personalization_hash':selected,'error':None})
+            errors=page.locator('#df-commercial-research .df-notice-error' if a.supplier_seed_file else '.df-notice-error').all_text_contents()
             if errors:raise AssertionError('Portal error: '+str(errors))
         for family,profile,code in [('mug','fl03_mug_11oz','FL-03'),('poster','fl04_poster_8x10','FL-04')]:
-            page.goto(a.base_url,wait_until='domcontentloaded')
-            f=form('research_import');f.locator('xpath=ancestor::details').locator('summary').click() if not f.is_visible() else None
-            research=json.loads(json.dumps(fixture['research']));research['product_family']=family;research['title']='SYNTHETIC '+code+' offline portal journey'
-            f.locator('[name=research_json]').fill(json.dumps(research));submit(f)
-            f=form('concepts');f.locator('[name=response_json]').fill(json.dumps(fixture['response']));submit(f)
+            response=json.loads(json.dumps(fixture['response']))
+            if a.supplier_seed_file:
+                page.goto(a.base_url.replace('df_view=research','df_view=pod_personalized'),wait_until='domcontentloaded')
+                seed=json.loads(a.supplier_seed_file.read_text());ids=('DG2-001','5','7','9') if family=='mug' else ('DG2-002','6','8','10')
+                f=form('supplier_start')
+                for key,value in zip(['snapshot_id','concept_id','blueprint_id','provider_id','variant_id'],[seed[family],*ids]):f.locator('[name='+key+']').fill(value)
+                f.locator('[name=product_family]').select_option(family);submit(f)
+                supplier_hash=urllib.parse.parse_qs(urllib.parse.urlsplit(page.url).query)['df_supplier_workflow'][0]
+                other_notices.extend(page.locator('.df-notice-error').all_text_contents())
+                for key in response['scores']:response['scores'][key]=None
+                for concept in response['concepts']:concept['source_ids']=['supplier_catalog']
+            else:
+                page.goto(a.base_url,wait_until='domcontentloaded')
+                f=form('research_import');f.locator('xpath=ancestor::details').locator('summary').click() if not f.is_visible() else None
+                research=json.loads(json.dumps(fixture['research']));research['product_family']=family;research['title']='SYNTHETIC '+code+' offline portal journey'
+                f.locator('[name=research_json]').fill(json.dumps(research));submit(f)
+            f=form('concepts');f.locator('[name=response_json]').fill(json.dumps(response));submit(f)
             concepts=page.locator('#df-commercial-research article.df-candidate h4').all_text_contents();assert len(concepts)==3,concepts
             page.locator('#df-commercial-research').screenshot(path=str(a.output/(code+'-three-concepts.png')))
             submit(form('select'))
@@ -45,6 +69,8 @@ def main():
             f=form('design_review');f.locator('[name=decision]').select_option('APPROVE');f.locator('[name=note]').fill('SYNTHETIC nine-criterion test decision only')
             for check in f.locator('input[type=checkbox]').all():check.check()
             submit(f)
+            context_query=urllib.parse.parse_qs(urllib.parse.urlsplit(page.url).query)
+            commercial_hash=context_query['df_research_version'][0];factory_hash=context_query['df_factory_version'][0]
             f=form('personalization_schema');submit(f)
             f=form('personalization_sample')
             for key,value in {'first_name':'Élodie','second_name':'José','date':'2024-02-29'}.items():f.locator('[name="samples['+key+']"]').fill(value)
@@ -57,8 +83,13 @@ def main():
             fixed_hash=hashlib.sha256(fixed).hexdigest();assert fixed_hash in panel.inner_text()
             query=urllib.parse.parse_qs(urllib.parse.urlsplit(page.url).query)
             results.append({'product':code,'profile':profile,'three_concepts':concepts,'workflow_hash':query['df_research_version'][0],'factory_hash':query['df_factory_version'][0],'personalization_hash':query['df_personalization_version'][0],'import_input_svg_sha256':hashlib.sha256(art.encode()).hexdigest(),'fixed_svg_sha256':fixed_hash,'proof_svg_sha256':hashlib.sha256(proof).hexdigest(),'local_review_only':True,'provider_certified':False,'production_authorized':False})
+            # Supplier wrappers must keep their linkage when traversing saved version links.
+            reopen_url=a.base_url
+            if a.supplier_seed_file:
+                reopen_url=a.base_url.replace('df_view=research','df_view=pod_personalized')+'&df_supplier_workflow='+supplier_hash
+                results[-1]['supplier_workflow_hash']=supplier_hash
             # Reopen from persisted discovery links without manually pasting any version.
-            page.goto(a.base_url,wait_until='domcontentloaded')
+            page.goto(reopen_url,wait_until='domcontentloaded')
             link=page.locator('a[href*="df_research_version='+query['df_research_version'][0]+'"]').first
             page.goto(link.get_attribute('href'),wait_until='domcontentloaded')
             link=page.locator('a[href*="df_factory_version='+query['df_factory_version'][0]+'"]').first
@@ -71,6 +102,6 @@ def main():
         page.goto(a.base_url.replace('df_shop=personalized_pod','df_shop=digital'),wait_until='domcontentloaded');assert page.locator('#df-commercial-research').count()==0;assert page.locator('#df-artwork-personalization').count()==0
         assert not events,events
         context.close();browser.close()
-    (a.output/'browser-receipt.json').write_text(json.dumps({'journeys':results,'page_errors':events,'blocked_external_hosts':sorted(set(blocked)),'cross_shop_panels_absent':True,'STOP_ALL':True,'external_lock':True,'automation':False,'RELEASE_HOLD':True,'scope':'ACTUAL_DISPOSABLE_WORDPRESS_PORTAL_SYNTHETIC_INPUTS_ONLY'},indent=2)+'\n')
+    (a.output/'browser-receipt.json').write_text(json.dumps({'other_supplier_page_notices':sorted(set(other_notices)),'personalization_http_posts':posts,'supplier_mounted':bool(a.supplier_seed_file),'journeys':results,'page_errors':events,'blocked_external_hosts':sorted(set(blocked)),'cross_shop_panels_absent':True,'STOP_ALL':True,'external_lock':True,'automation':False,'RELEASE_HOLD':True,'scope':'ACTUAL_DISPOSABLE_WORDPRESS_PORTAL_SYNTHETIC_INPUTS_ONLY'},indent=2)+'\n')
     print(json.dumps({'journeys':len(results),'page_errors':len(events),'products':[x['product'] for x in results]}))
 if __name__=='__main__':main()
