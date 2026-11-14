@@ -79,6 +79,11 @@
       "name": "Exclusive credential custody",
       "status": "BLOCKED",
       "scope": "No callback receives secrets; no credential/dispatch lease or independent custody service qualification"
+    },
+    {
+      "name": "Core-owned business mutation source and held registration",
+      "status": "PARTIAL",
+      "scope": "NativeBusinessMutationEvidence joins current approved business/artwork/package and protected plan/policy identities, then derives transactional HELD candidates through existing journal. Canonical counters/companion wire equivalence/business-package approval/independent checkpoint/dispatch remain unverified and false. No capability advertised; canonical exchange unchanged."
     }
   ]
 }
