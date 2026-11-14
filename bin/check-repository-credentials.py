@@ -119,6 +119,42 @@ def verified_plan_state_phrase(finding, git, git_bytes):
         return False
 
 
+def verified_source_digest_reference(finding, git, git_bytes):
+    """One public source digest in an exact historical assertion, never a path/rule ignore.
+
+    Resolve the named baseline file independently. A changed context, missing
+    baseline, additional credential or any other finding remains actionable.
+    """
+    path = 'tests/offline/test_printify_dependencies.py'
+    reviewed_blob = 'fcf8ea6e200166e07abe8310d498546b0e187fec'
+    reviewed_content = '4da1d41d289524091dd711a672d766e5f507e3f9633102bcd0c9a140c804f499'
+    before = '63953bfd9b87a6c365443cd1c66199ca76cee6e2'
+    target = 'includes/Security/ShopAccessRepository.php'
+    expected = 'e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d'
+    try:
+        commit = finding.get('Commit')
+        if (finding.get('File') != path or finding.get('RuleID') != 'generic-api-key'
+                or type(finding.get('StartLine')) is not int or type(finding.get('EndLine')) is not int
+                or finding['StartLine'] != 93 or finding['EndLine'] != 93
+                or finding.get('Secret') != 'REDACTED'
+                or not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit)):
+            return False
+        if git('cat-file', '-t', commit) != 'commit' or git('cat-file', '-t', before) != 'commit':
+            return False
+        blob = git('rev-parse', '--verify', commit + ':' + path)
+        if blob != reviewed_blob:
+            return False
+        raw = git_bytes('cat-file', 'blob', blob)
+        if not isinstance(raw, bytes) or hashlib.sha256(raw).hexdigest() != reviewed_content:
+            return False
+        expected_line = '        bases={' + repr(target) + ':' + repr(expected) + ','
+        if raw.decode('utf-8').splitlines()[92] != expected_line:
+            return False
+        return hashlib.sha256(git_bytes('show', before + ':' + target)).hexdigest() == expected
+    except (OSError, ValueError, TypeError, IndexError, subprocess.SubprocessError):
+        return False
+
+
 def check(repository, scanner):
     evidence = {'schema': 'digiforge-repository-credential-evidence-v1',
                 'status': 'SCAN_UNAVAILABLE', 'scanner_version': VERSION,
@@ -180,11 +216,13 @@ def check(repository, scanner):
                 return evidence
             kinds = [('git' if verified_git_identifier(row, git) else
                       'plan_prose' if verified_plan_state_phrase(row, git, git_bytes) else
+                      'source_digest' if verified_source_digest_reference(row, git, git_bytes) else
                       'actionable') for row in findings]
             actionable = [row for row, kind in zip(findings, kinds) if kind == 'actionable']
             evidence['raw_finding_count'] = len(findings)
             evidence['verified_git_identifier_count'] = kinds.count('git')
             evidence['verified_plan_state_phrase_count'] = kinds.count('plan_prose')
+            evidence['verified_source_digest_reference_count'] = kinds.count('source_digest')
             evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
             evidence['finding_count'] = len(actionable)

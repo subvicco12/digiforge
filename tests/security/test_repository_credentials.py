@@ -167,6 +167,66 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         target=self.root/path;target.parent.mkdir(parents=True);target.write_bytes(raw)
         self.git('add','.');self.git('commit','-qm','Exact noncredential historical plan fixture')
 
+    def reviewed_source_digest_fixture(self, baseline_available=True, changed=False):
+        path='tests/offline/test_printify_dependencies.py'
+        project=SCRIPT.parent.parent
+        raw=subprocess.check_output(['git','-C',str(project),'show',
+                                     'd8733ba6167a968575010a8ee53e936752e344b8:'+path])
+        if changed:
+            raw+=b'\n# A changed context must require review again.\n'
+        if baseline_available:
+            common=subprocess.check_output(['git','-C',str(project),'rev-parse','--git-common-dir'],text=True).strip()
+            objects=(project/common).resolve()/'objects'
+            # Read-only real baseline objects, not candidate ancestors or invented Git identities.
+            alternate=self.root/'.git/objects/info/alternates'
+            alternate.parent.mkdir(parents=True,exist_ok=True);alternate.write_text(str(objects)+'\n')
+        target=self.root/path;target.parent.mkdir(parents=True);target.write_bytes(raw)
+        self.git('add','.');self.git('commit','-qm','Exact public source digest assertion fixture')
+
+    def test_exact_historical_source_digest_is_independently_resolved(self):
+        self.reviewed_source_digest_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual('PASS',evidence['status'])
+        self.assertEqual(1,evidence['verified_source_digest_reference_count'])
+        self.assertEqual(1,evidence['raw_finding_count'])
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_source_digest_without_resolvable_baseline_remains_actionable(self):
+        self.reviewed_source_digest_fixture(baseline_available=False)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_changed_digest_assertion_context_remains_actionable(self):
+        self.reviewed_source_digest_fixture(changed=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_source_digest_classification_does_not_hide_another_credential(self):
+        self.reviewed_source_digest_fixture()
+        canary='ghp_'+'a1B2c3D4'*4+'E5f6'
+        self.commit('token = "'+canary+'"\n')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(1,evidence['verified_source_digest_reference_count'])
+        self.assertGreater(evidence['finding_count'],0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+    def test_source_digest_does_not_hide_generic_key_in_same_file_history(self):
+        self.reviewed_source_digest_fixture()
+        canary='b7C9dE2fG5hJ8kM3'*3
+        target=self.root/'tests/offline/test_printify_dependencies.py'
+        target.write_bytes(target.read_bytes()+('\napi_key = "'+canary+'"\n').encode())
+        self.git('add','.');self.git('commit','-qm','Synthetic generic credential at reviewed path')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual('FINDINGS_REVIEW_REQUIRED',evidence['status'])
+        self.assertEqual(1,evidence['verified_source_digest_reference_count'])
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
     def test_exact_reviewed_plan_prose_is_separately_verified(self):
         self.reviewed_plan_fixture()
         result,evidence=self.scan()
