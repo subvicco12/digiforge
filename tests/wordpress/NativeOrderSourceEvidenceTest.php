@@ -25,9 +25,9 @@ final class NativeOrderSourceEvidenceTest extends WP_UnitTestCase {
   [$p,$a,$r]=$this->source();$scope=$this->scope();global $wpdb;$audit=DigiForge\Database\Tables::audit_log();
   switch($mode){
    case 'receipt':$key='digiforge_api_read_receipt_'.$r['hash'];$wpdb->update($wpdb->options,['option_value'=>'{}'],['option_name'=>$key]);break;
-   case 'reservation':$wpdb->delete($audit,['event_type'=>'printify_api_read_reserved','object_id'=>$p['hash']]);break;
+   case 'reservation':self::assertSame(1,$wpdb->delete($audit,['event_type'=>'printify_api_read_reserved','object_id'=>$p['hash']],['%s','%s']));break;
    case 'claim':$wpdb->update($wpdb->options,['option_value'=>str_repeat('a',64)],['option_name'=>'digiforge_api_read_claim_'.$p['hash']]);break;
-   case 'producer_actor':$wpdb->update($audit,['actor_id'=>$this->fixture->reviewer],['event_type'=>'printify_api_read_receipt','object_id'=>$p['hash']]);break;
+   case 'producer_actor':self::assertSame(1,$wpdb->update($audit,['actor_id'=>$this->fixture->reviewer],['event_type'=>'printify_api_read_receipt','object_id'=>$p['hash']],['%d'],['%s','%s']));self::assertSame($this->fixture->reviewer,(int)$wpdb->get_var($wpdb->prepare('SELECT actor_id FROM '.$audit.' WHERE event_type=%s AND object_id=%s','printify_api_read_receipt',$p['hash'])));break;
    case 'source_plan':$wpdb->update($wpdb->options,['option_value'=>'{}'],['option_name'=>'digiforge_api_read_plan_'.$p['hash']]);break;
    case 'membership':wp_get_current_user()->add_cap('manage_digiforge_orders',false);break;
    case 'session':WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());break;
