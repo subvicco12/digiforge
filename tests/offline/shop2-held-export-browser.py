@@ -15,7 +15,7 @@ def main():
   def chunk(t,b):return struct.pack('!I',len(b))+t+b+struct.pack('!I',zlib.crc32(t+b)&0xffffffff)
   return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!IIBBBBB',8,8,8,2,0,0,0))+chunk(b'IDAT',zlib.compress((b'\0'+bytes([i,34,51])*8)*8))+chunk(b'IEND',b'')
  with sync_playwright()as pw:
-  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);c=browser.new_context(accept_downloads=True,viewport={'width':1280,'height':900});c.add_cookies([{'name':k,'value':v,'url':base}for k,v in json.loads((private/'cookies.json').read_text()).items()]);c.route('**/*',lambda q:q.continue_()if urllib.parse.urlsplit(q.request.url).netloc==origin.netloc else(blocked.append(urllib.parse.urlsplit(q.request.url).hostname),q.abort())[1]);page=c.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.set_default_timeout(120000)
+  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);c=browser.new_context(accept_downloads=True,viewport={'width':1280,'height':900});c.add_cookies([{'name':k,'value':v,'url':base}for k,v in json.loads((private/'cookies.json').read_text()).items()]);c.route('**/*',lambda q:q.continue_()if urllib.parse.urlsplit(q.request.url).netloc==origin.netloc else(blocked.append(urllib.parse.urlsplit(q.request.url).hostname),q.abort())[1]);page=c.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.set_default_timeout(180000)
   def form(op):return page.locator('form:has(input[name="operation"][value="'+op+'"])').first
   def submit(f,button=None):
    with page.expect_navigation(wait_until='domcontentloaded'):(button or f.locator('button').first).click()
@@ -33,14 +33,19 @@ def main():
    for name in ['business_integration_id','business_mapping_id','business_asset_spec_id']:f.locator('[name='+name+']').fill(ids[name])
    q=submit(f,f.locator('button[value=import]'));package=q['df_package_version'][0];f=form('package_decide');f.locator('[name=decision]').select_option('APPROVE');f.locator('[name=note]').fill('SYNTHETIC exact proof/business-bound held package only');f.locator('[name=confirm]').check();submit(f)
    f=form('package_export');f.locator('[name=confirm]').check();body=dict(f.locator('input').evaluate_all('ns=>ns.map(n=>[n.name,n.type==="checkbox"?"1":n.value])'))
+   (args.output/'PROGRESS.json').write_text(json.dumps({'product':j['product'],'phase':'initial_download'}))
    with page.expect_download()as download:f.locator('button').click()
    target=args.output/(j['product']+'-HELD.json');download.value.save_as(target);raw=target.read_bytes();out=json.loads(raw);bound=out['proof_business_binding'];proof=bound['personalization_intake'];assert proof['versions']['proof_hash']==j['personalization_hash'];assert proof['intake_hash']==j['intake_hash'];assert bound['business']['product_version_id']==ids['product_version_id'];assert str(bound['business']['selectors']['provider_mapping_id'])==ids['business_mapping_id'];assert out['package_hash']==out['immutable_package_record_sha256']==package;assert out['release_hold']is True and out['external_execution_authorized']is False
-   again=c.request.post(base+'/wp-admin/admin-post.php',form=body,max_redirects=0);assert again.status==200 and again.body()==raw
+   (args.output/'PROGRESS.json').write_text(json.dumps({'product':j['product'],'phase':'repeat_download'}))
+   again=c.request.post(base+'/wp-admin/admin-post.php',form=body,max_redirects=0,timeout=180000);assert again.status==200 and again.body()==raw
    negatives=[]
    for name,changes in [('nonexistent_proof',{'personalization_hash':'f'*64}),('substituted_review',{'review_hash':'a'*64}),('wrong_business',{'business_mapping_id':str(int(ids['business_mapping_id'])+9999)}),('cross_shop',{'shop_key':'digital'}),('invalid_nonce',{'_df_workflow_nonce':'invalid'})]:
-    result=c.request.post(base+'/wp-admin/admin-post.php',form=dict(body,**changes),max_redirects=0);assert result.status==403 if name=='invalid_nonce'else result.status in [302,303],(name,result.status);assert 'application/json'not in result.headers.get('content-type','');negatives.append({'case':name,'status':result.status,'denied':True})
+    (args.output/'PROGRESS.json').write_text(json.dumps({'product':j['product'],'phase':'negative:'+name}))
+    result=c.request.post(base+'/wp-admin/admin-post.php',form=dict(body,**changes),max_redirects=0,timeout=180000);assert result.status==403 if name=='invalid_nonce'else result.status in [302,303],(name,result.status);assert 'application/json'not in result.headers.get('content-type','');negatives.append({'case':name,'status':result.status,'denied':True})
    results.append({'product':j['product'],'package_hash':package,'held_sha256':hashlib.sha256(raw).hexdigest(),'proof_hash':proof['versions']['proof_hash'],'schema_hash':proof['versions']['schema_hash'],'review_hash':proof['versions']['review_hash'],'intake_hash':proof['intake_hash'],'business_ids':ids,'byte_identical_repeat':True,'negative_http':negatives,'synthetic_only':True,'external_execution_authorized':False});page.screenshot(path=str(args.output/(j['product']+'-held.png')),full_page=True)
   browser.close()
  assert before==fingerprints(),'Source changed during HTTP acceptance';assert not blocked,blocked;assert not errors,errors
  receipt={'source_sha':args.source_sha,'wordpress':'7.1.4','scope':'ACTUAL_SUPPLIER_MOUNTED_HTTP_SYNTHETIC_CORE_APPROVALS','source_unchanged':True,'journeys':results,'page_errors':errors,'blocked_external_hosts':blocked,'STOP_ALL':True,'external_lock':True,'automation':False,'RELEASE_HOLD':True,'production_acceptance':False};(args.output/'HTTP_RECEIPT.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'journeys':len(results),'http_denials':sum(len(x['negative_http'])for x in results)}))
-if __name__=='__main__':main()
+if __name__=='__main__':
+ try:main()
+ except Exception as exc:raise SystemExit(type(exc).__name__+': held-export driver failed; request metadata withheld.') from None
