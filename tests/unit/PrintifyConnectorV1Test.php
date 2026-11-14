@@ -11,9 +11,9 @@ final class PrintifyConnectorV1Test extends TestCase {
  protected function setUp():void{self::assertTrue(class_exists(ReadConnector::class),'Versioned DigiForge read service required');}
  private function intent(string $op='PRODUCTS_READ',array $input=[]):ExternalOperationIntent{return new ExternalOperationIntent(1,'personalized_pod',3,$op,$input,str_repeat('a',32));}
  private function host(array $ownedUploads=[]):HostInterface {return new class($ownedUploads) implements HostInterface {
-  public function __construct(private array $ownedUploads){}
+  private int $expiresAt;public function __construct(private array $ownedUploads){$this->expiresAt=time()+300;}
   public int $authorizations=0;public int $credentials=0;public int $reservations=0;public bool $locked=false;public bool $audit=true;public array $receipts=[];
-  public function authorize(ExternalOperationIntent $i):ShopBinding|WP_Error{$this->authorizations++;return $this->locked?new WP_Error('locked','Denied'):new ShopBinding(2,'personalized_pod',3,'28930593','production',1,new CredentialReference(3),hash('sha256','binding'),time()+300,$this->ownedUploads);}
+  public function authorize(ExternalOperationIntent $i):ShopBinding|WP_Error{$this->authorizations++;return $this->locked?new WP_Error('locked','Denied'):new ShopBinding(2,'personalized_pod',3,'28930593','production',1,new CredentialReference(3),hash('sha256','binding'),$this->expiresAt,$this->ownedUploads);}
   public function reserve(ExternalOperationIntent $i,ShopBinding $b):true|WP_Error{$this->reservations++;return true;}
   public function consume(CredentialReference $r,callable $f):mixed{$this->credentials++;return $f('synthetic_fixture_token');}
   public function record(array $r):bool{$this->receipts[]=$r;return $this->audit;}
@@ -22,6 +22,10 @@ final class PrintifyConnectorV1Test extends TestCase {
  public function testStopDeniesBeforeVaultAndTransport():void{$h=$this->host();$h->locked=true;$calls=0;$c=new ReadConnector($h,new PrintifyCatalogClient(function()use(&$calls){$calls++;return [];}));self::assertInstanceOf(WP_Error::class,$c->read($this->intent()));self::assertSame(0,$h->credentials);self::assertSame(0,$calls);}
  public function testUnavailableAuditDeniesBeforeCredentials():void{$h=$this->host();$h->audit=false;$c=new ReadConnector($h,new PrintifyCatalogClient(fn()=>[]));self::assertInstanceOf(WP_Error::class,$c->read($this->intent()));self::assertSame(0,$h->credentials);}
  public function testPostResponseRevocationDeniesData():void{$h=$this->host();$c=new ReadConnector($h,new PrintifyCatalogClient(function()use($h){$h->locked=true;return ['response'=>['code'=>200],'body'=>'{"data":[]}'];}));self::assertInstanceOf(WP_Error::class,$c->read($this->intent()));}
+ public function testReadAcrossClockTickKeepsUnchangedHostAuthority():void {
+  $h=$this->host();$c=new ReadConnector($h,new PrintifyCatalogClient(static function(){ $next=time()+1;while(time()<$next)usleep(1000);return ['response'=>['code'=>200],'body'=>'[{"id":28930593,"title":"Bound"}]']; }));
+  self::assertInstanceOf(ProviderResult::class,$c->read($this->intent('SHOPS_READ')));
+ }
  public function testOrdersNeverExposeBuyerPersonalData():void{$h=$this->host();$c=new ReadConnector($h,new PrintifyCatalogClient(fn()=>['response'=>['code'=>200],'body'=>'{"id":"o1","status":"pending","address_to":{"email":"private@example.test","address1":"Secret street"},"line_items":[{"variant_id":7,"quantity":1}],"shipments":[{"carrier":"UPS","number":"secret-tracking"}]}']));$r=$c->read($this->intent('ORDER_READ',['order_id'=>'o1']));self::assertInstanceOf(ProviderResult::class,$r);self::assertSame('o1',$r->data['items'][0]['id']);self::assertStringNotContainsString('Secret street',json_encode($r));self::assertStringNotContainsString('private@',json_encode($r));self::assertStringNotContainsString('secret-tracking',json_encode($r));}
  public function testShopDiscoveryProjectsOnlyBoundIdentity():void{$h=$this->host();$c=new ReadConnector($h,new PrintifyCatalogClient(fn()=>['response'=>['code'=>200],'body'=>'[{"id":28930593,"title":"Bound"},{"id":28925875,"title":"Other private shop"}]']));$r=$c->read($this->intent('SHOPS_READ'));self::assertInstanceOf(ProviderResult::class,$r);self::assertCount(1,$r->data['items']);self::assertStringNotContainsString('Other private',json_encode($r));}
  public function testUnsafeIntentRejected():void{$this->expectException(InvalidArgumentException::class);$this->intent('PRODUCT_PUBLISH');}
