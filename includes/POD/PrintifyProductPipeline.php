@@ -103,6 +103,33 @@ final class PrintifyProductPipeline {
   if(!is_array($p['connection_scope']))return self::error('ownership_required');$binding=PrintifyConnectionBoundary::runtime($p['integration_id'],self::CAPABILITY,$p['connection_scope'],$p['shop_id']);if(is_wp_error($binding))return $binding;
   $policy=ReviewedLocalEvidence::approved('policy','personalized_pod','printify-product:'.$hash);if(is_wp_error($policy))return $policy;$expected=$this->approvalPayload($hash);if(is_wp_error($expected)||Validator::canonicalJson($policy['payload'])!==Validator::canonicalJson($expected))return self::error('exact_approval');return $policy;
  }
+ /** Inspect original product dispatch provenance without issuing execution authority.
+  * Historical authorizations contain a policy hash, not a policy revision: never infer it.
+  * Adopted read receipts require their own producer chain and are deliberately not dispatches.
+  */
+ public function receiptSource(string $hash):array|WP_Error {
+  try{
+   $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());if(is_wp_error($session))return $session;
+   $r=$this->receipt($hash);if(is_wp_error($r)||($r['status']??null)!=='SUCCEEDED'||($r['network_request_attempted']??null)!==true||isset($r['source_read_receipt'])||($r['audit_required']??null)!==true)return self::error('source_receipt');
+   $p=$this->plan($r['plan_hash']);$expected=$this->approvalPayload($r['plan_hash']);$policy=ReviewedLocalEvidence::approved('policy','personalized_pod','printify-product:'.$r['plan_hash']);
+   if(is_wp_error($p)||is_wp_error($expected)||is_wp_error($policy)||Validator::canonicalJson($expected)!==Validator::canonicalJson($policy['payload']))return self::error('source_policy');
+   $connection=PrintifyConnectionBoundary::context('personalized_pod',$p['integration_id'],self::CAPABILITY);if(is_wp_error($connection)||Validator::canonicalJson($connection)!==Validator::canonicalJson($p['connection_scope']))return self::error('source_connection');
+   foreach(['workflow','package','integration_id','shop_id']as $key)if(($r[$key]??null)!==$p[$key])return self::error('source_identity');
+   if(($r['operation']??null)!==$p['request']['operation']||($r['connection_binding_hash']??null)!==($p['connection_scope']['binding_hash']??null))return self::error('source_binding');
+   global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT id,event_type,actor_id,context FROM '.\DigiForge\Database\Tables::audit_log().' WHERE object_type=%s AND object_id=%s AND event_type IN (%s,%s) ORDER BY id LIMIT 3','printify_product',$r['plan_hash'],'printify_product_dispatch_reserved','printify_product_receipt'),ARRAY_A);
+   if($wpdb->last_error!==''||!is_array($rows)||count($rows)!==2||$rows[0]['event_type']!=='printify_product_dispatch_reserved'||$rows[1]['event_type']!=='printify_product_receipt'||(int)$rows[0]['actor_id']<1||$rows[0]['actor_id']!==$rows[1]['actor_id'])return self::error('source_producer');
+   $anchor=json_decode($rows[0]['context'],true);$end=json_decode($rows[1]['context'],true);$authHash=$anchor['authorization_hash']??'';
+   if(($anchor['plan_hash']??null)!==$r['plan_hash']||($anchor['request_fingerprint']??null)!==$p['request']['fingerprint']||($end['receipt_hash']??null)!==$hash||($end['plan_hash']??null)!==$r['plan_hash']||($end['operation']??null)!==$r['operation']||($end['status']??null)!=='SUCCEEDED')return self::error('source_audit');
+   $a=$this->get('authorization',$authHash);if(is_wp_error($a)||($a['plan_hash']??null)!==$r['plan_hash']||($a['fingerprint']??null)!==$p['request']['fingerprint']||($a['actor']??null)!==(int)$rows[0]['actor_id']||($a['policy_hash']??null)!==$policy['proposal_hash'])return self::error('source_authorization');
+   $claim=$p['request']['method']==='GET'?$r['plan_hash']:hash('sha256',$p['package'].':'.$p['integration_id'].':'.$p['request']['fingerprint']);$wpdb->last_error='';$consumed=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s','digiforge_pp_claim_'.$claim));if($wpdb->last_error!==''||$consumed!==$authHash)return self::error('source_claim');
+   $wpdb->last_error='';$nonce=$wpdb->get_row($wpdb->prepare('SELECT authorization_hash,consumed_by FROM '.\DigiForge\Database\Tables::pod_execution_nonces().' WHERE nonce_hash=%s',hash('sha256',$a['nonce'])),ARRAY_A);if($wpdb->last_error!==''||!is_array($nonce)||($nonce['authorization_hash']??null)!==$authHash||(int)($nonce['consumed_by']??0)!==(int)$rows[0]['actor_id'])return self::error('source_nonce');
+   $package=(new ProductPackageRepository())->read('personalized_pod',$p['package']);if(is_wp_error($package))return $package;$record=$package['record'];
+   $again=$this->receipt($hash);$last=$this->plan($r['plan_hash']);$current=ReviewedLocalEvidence::approved('policy','personalized_pod','printify-product:'.$r['plan_hash']);$fresh=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());
+   if(is_wp_error($again)||is_wp_error($last)||is_wp_error($current)||is_wp_error($fresh)||$again!==$r||$last!==$p||$current!==$policy||$fresh!==$session)return self::error('source_changed');
+   $lastConnection=PrintifyConnectionBoundary::context('personalized_pod',$p['integration_id'],self::CAPABILITY);if(is_wp_error($lastConnection)||$lastConnection!==$connection)return self::error('source_connection_changed');
+   return ['receipt_hash'=>$hash,'plan_hash'=>$r['plan_hash'],'workflow_hash'=>$p['workflow'],'package_version_hash'=>$p['package'],'artwork_version_hash'=>$record['artwork_version_hash'],'design_factory_hash'=>$record['commercial_design_metadata']['design_hash']??null,'commercial_source_hash'=>$record['commercial_design_metadata']['commercial_hash']??null,'authorization_hash'=>$authHash,'approval_hash'=>$policy['proposal_hash'],'original_approval_revision'=>null,'producer_audit_id'=>(int)$rows[1]['id'],'producer_actor_id'=>(int)$rows[1]['actor_id'],'native_dispatch_fence_verified'=>false,'external_execution_authorized'=>false];
+  }catch(\Throwable){return self::error('source_unavailable');}
+ }
  /** Explicit owner invocation only; no portal page calls this automatically. */
  public function authorize(string $hash):array|WP_Error {
   if(self::locked())return self::error('locked');$p=$this->plan($hash);if(is_wp_error($p))return $p;$policy=$this->current($hash,$p);if(is_wp_error($policy))return $policy;

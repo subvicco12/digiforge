@@ -37,7 +37,7 @@
     {
       "name": "Core receipt reference join",
       "status": "PARTIAL",
-      "scope": "Protected product receipt reference remains partial. NativeOrderSourceEvidence now joins actual core ORDER_READ producer audit/reservation, consumed claim, original sealed authorization and current exact policy/connection to canonical provider-order identity and immutable receipt source version. This is not native dispatch producer/fence/sequence/checkpoint qualification."
+      "scope": "Protected product source inspection joins original sealed authorization, consumed claim/nonce and ordered producer audit anchors to current connection/policy and immutable workflow/package/artwork/design/source references. Original product approval revision is UNKNOWN because historical authorization omits it; adopted read receipts require a separate chain and are denied here. Order sources retain their governed-read producer chain. Neither path issues canonical business counters, allocation proof, native dispatch fences or independent epochs."
     },
     {
       "name": "Protected order observation source registry",
