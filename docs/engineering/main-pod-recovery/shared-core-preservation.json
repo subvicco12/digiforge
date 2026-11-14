@@ -1,0 +1,198 @@
+{
+  "schema": "main-pod-shared-core-preservation-v1",
+  "authorization": "USER_DIRECTED_MAIN_PLUGIN_PRESERVATION_NOT_RUNTIME_AUTHORITY",
+  "external_execution_authorized": false,
+  "source_pin_ledger_superseded_for_current_tree": true,
+  "files": [
+    {
+      "path": "includes/Core/Capabilities.php",
+      "historical_source_pin": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "e2da586f6549b01c4f960505e97a0e2b8c2d904fb118c5be5eca7ca0b31d302e"
+    },
+    {
+      "path": "includes/Core/Config.php",
+      "historical_source_pin": "b73b3c0d29b1b56054b2ac4e3143e93e63bbb6d63258d55b84b1ef3b68c2aa77",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "b73b3c0d29b1b56054b2ac4e3143e93e63bbb6d63258d55b84b1ef3b68c2aa77"
+    },
+    {
+      "path": "includes/Core/Settings.php",
+      "historical_source_pin": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "68e35511444d511c50fd7925e89a6d82cb9133df6e3c4caf3de5bccf70320862"
+    },
+    {
+      "path": "includes/Database/ProviderConnectionSchema.php",
+      "historical_source_pin": "e87f3e4d80d3aa1dcec9ad61c585fb15b5786785ac1f05ace13e546716f7ef57",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "e87f3e4d80d3aa1dcec9ad61c585fb15b5786785ac1f05ace13e546716f7ef57"
+    },
+    {
+      "path": "includes/Database/QueryEvidence.php",
+      "historical_source_pin": "d9e3de2a05482724697b3db422a907f3722f9ed0f216a36aa75dca8c7c362ce8",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "d9e3de2a05482724697b3db422a907f3722f9ed0f216a36aa75dca8c7c362ce8"
+    },
+    {
+      "path": "includes/Database/Tables.php",
+      "historical_source_pin": "c33f7277ecff3eb701835d0c56132987f6a96d7b136e96c70ca5ec1a2da6830b",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "e5d3bdc505805278acb2c79122c27e0e95d86d20bdd361295917c30b267470d4"
+    },
+    {
+      "path": "includes/Integrations/CredentialVault.php",
+      "historical_source_pin": "37525dc10b8b11688ca5aadb528fe97fee66aee94b549498ec6a91af9a3d850c",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "27ce5494a08aefb142384a5d073c5eef243a01dee6fbd41a0ab4a1ff2c3b081a"
+    },
+    {
+      "path": "includes/Integrations/ProviderCatalog.php",
+      "historical_source_pin": "845ea0d7e5b17ab21b494b2a81a9d29f560de0b528250845c51b2d358e44486e",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "845ea0d7e5b17ab21b494b2a81a9d29f560de0b528250845c51b2d358e44486e"
+    },
+    {
+      "path": "includes/Integrations/Repository.php",
+      "historical_source_pin": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "0b74f96d50ababc7b09f256ece4983fc634862c95865720e41a95f249f2dc415"
+    },
+    {
+      "path": "includes/Listings/Validator.php",
+      "historical_source_pin": "1aae6f9080a49146aaaf482209936706b5e8bb571281dcddbe565a991d226311",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "1aae6f9080a49146aaaf482209936706b5e8bb571281dcddbe565a991d226311"
+    },
+    {
+      "path": "includes/POD/BusinessScope.php",
+      "historical_source_pin": "17eda8a944d9a2652c04f30575803b3b19f46a7587ace4f3276fed1b3011622d",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "17eda8a944d9a2652c04f30575803b3b19f46a7587ace4f3276fed1b3011622d"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogClient.php",
+      "historical_source_pin": "86632726dc0efdd05de68ba3ed704264d55cb88c530aaad8be6f55c71f2be668",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "92ed5f3df0e00258b959491620a826790ddb40b2586f649f7be41782e57ae00c"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
+      "historical_source_pin": "b2c8afb6aa66ae0ead678b442244b6dbfacacf02e894688f4dc896137751f406",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "b2c8afb6aa66ae0ead678b442244b6dbfacacf02e894688f4dc896137751f406"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadContract.php",
+      "historical_source_pin": "1440f008f6a3048661c184f4dffd144e5e5bc2aeb74f32b2e1cafdd72742da7d",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "2618082f073d2180c9c6990947cab1551f388a72f84746ad94b40da7cd7330e2"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadPolicy.php",
+      "historical_source_pin": "db156ea09dbee2d90281c16d0983049803ccba0ea1a5ad65325eb5508ea3488a",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "db156ea09dbee2d90281c16d0983049803ccba0ea1a5ad65325eb5508ea3488a"
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadRepository.php",
+      "historical_source_pin": "4b22541b1a2edb647588e70e631e6d14911ad6adb23d98f61572e8b088080810",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "f1b4a1e666da9c2e1129a7ce1cdd2289a69286053f55d15bd6a737ea37255868",
+      "native_get_extension": {
+        "current_origin": "CORE_NATIVE_GET_EXTENSION",
+        "base_source_sha": "9e9094097992453a8cb6ecddd7f936c3584eccef",
+        "base_sha256": "2028a8df15d2239bddce7fb291134094b92fde00819eadcf95dc049abea21a26",
+        "added_text_sha256": "c5d58f93b9b51220a708704fb3c1d1a13d6748b111d8fd94cf9bbd0cfcf64c81",
+        "authorization": "USER_DIRECTED_NATIVE_GET_COMPLETION_NOT_OPERATIONAL_AUTHORITY"
+      }
+    },
+    {
+      "path": "includes/POD/PrintifyConnectionBoundary.php",
+      "historical_source_pin": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "8d852615e7ba93c8d1d4d251330a9c408173aab8911233c8660e21dcd019fb81"
+    },
+    {
+      "path": "includes/POD/ScopedProviderConnection.php",
+      "historical_source_pin": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "68ce534d270346b614b71ae040956bd6bc486d1d3abe9afb3147c4794ee34c95"
+    },
+    {
+      "path": "includes/REST/PrintifyCatalogReadController.php",
+      "historical_source_pin": "001635ec4ee17fdd0c185a9adcfbe498ced34ccf5d0e6ccc25d018434edb4b8d",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "733fa78d4dcd4a1a693fc333eb9bba330d78d1897b6daa9d94ccacc31a8dfae4"
+    },
+    {
+      "path": "includes/Security/FirstPartyOwnerPolicy.php",
+      "historical_source_pin": "9b308fb2f1b0b6f01dcd42cdc3ba7813a4c26c2aeaeda080b6fdce70b3739416",
+      "origin": "NOT_IN_QUALIFIED_PACKAGE",
+      "sha256": null
+    },
+    {
+      "path": "includes/Security/Logger.php",
+      "historical_source_pin": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "dc72b2c6a7047ec0d7d419f868b859ebe6838b1e441e5e70ab99bbfbc53e5844"
+    },
+    {
+      "path": "includes/Security/ReviewedLocalEvidence.php",
+      "historical_source_pin": "9b1acf6263bd3bb7b40f78ee56c8100f74dbb63436bf7eb2bca14c12fb3bad51",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "9b1acf6263bd3bb7b40f78ee56c8100f74dbb63436bf7eb2bca14c12fb3bad51"
+    },
+    {
+      "path": "includes/Security/ShopAccess.php",
+      "historical_source_pin": "bbb3a3cc1fbddbddbe9571682fc292494bb9ab74178100bdd87a1d4db56f4c5f",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "8be00b0389317c9ac3881c9c581c1ced40a4e172b12bcef5df8100d3677bee85"
+    },
+    {
+      "path": "includes/Security/ShopAccessAuthority.php",
+      "historical_source_pin": "075c431a3106bdd0d3e4e6979fe7ea858f147c24c356ce34fb4cd770c03424e0",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "024181d6e9795c0a1681e62ff10f80ffea692c6bab2a9debad37a12555161845"
+    },
+    {
+      "path": "includes/Security/ShopAccessPolicy.php",
+      "historical_source_pin": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63",
+      "origin": "POD1256",
+      "source_sha": "d32fc91ae7b559857b6a1dc81798eb6c3e45ed1f",
+      "sha256": "06ebc8bfb8c74f7321c3524064d57e656f3ee6ef6dee8ff176e29e1f5afceb63"
+    },
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "historical_source_pin": "2c77dedb1b8397114b37904bf56650c1533cd3ef173cfee9a48a1037aa01894f",
+      "origin": "QUALIFIED_25_PACKAGE",
+      "artifact_sha256": "98cf08aeb8bdf08617808751257e098a1fef37b60a14ce7400fe08122d6ba45e",
+      "sha256": "e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d",
+      "audit5007_fresh_read_overlay": "docs/engineering/audit5007-fresh-read-overlay.json",
+      "current_tree_sha256": "c41bcf8472f462875474733adbf24202b99de4149abe5619993a7327a5201918"
+    }
+  ]
+}

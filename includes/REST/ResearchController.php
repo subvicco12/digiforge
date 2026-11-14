@@ -24,7 +24,7 @@ final class ResearchController {
         });
     }
     public function canManage():bool{return Capabilities::can('manage_digiforge_research');}
-    public function list(\WP_REST_Request $r):\WP_REST_Response{return new \WP_REST_Response((new Repository())->list((string)$r['entity'],(int)($r['page']?:1),(int)($r['per_page']?:20)));}
+    public function list(\WP_REST_Request $r):mixed{$result=(new Repository())->list((string)$r['entity'],(int)($r['page']?:1),(int)($r['per_page']?:20),$r['shop_key']===null?null:(string)$r['shop_key']);return is_wp_error($result)?$result:new \WP_REST_Response($result);}
     public function createSource(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_source_create',fn()=>(new Repository())->createSource((array)$r->get_json_params(),$this->key($r)),201);}
     public function ingest(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_observation_ingest',fn()=>(new Repository())->ingest((array)$r->get_json_params(),$this->key($r)),201);}
     public function addEvidence(\WP_REST_Request $r):mixed{return $this->mutate($r,'research_evidence_create_'.(int)$r['id'],fn()=>(new Repository())->addEvidence((int)$r['id'],(array)$r->get_json_params(),$this->key($r)),201);}
@@ -54,7 +54,8 @@ final class ResearchController {
         $header=trim((string)$r->get_header('Idempotency-Key'));
         if($header==='')$header=trim((string)$fallbackKey);
         if($header==='')return new \WP_Error('missing_idempotency_key',__('Idempotency-Key header is required.','digiforge'),['status'=>400]);
-        $storageKey=hash('sha256',$operation.'|'.$header);
+        $params=(array)$r->get_json_params();$scope=sanitize_key((string)($params['shop_key']??''));if($scope==='goods')$scope='personalized_pod';
+        $storageKey=hash('sha256',$operation.'|'.$scope.'|'.$header);
         $idempotency=new Idempotency();
         $reservation=$idempotency->reserve($storageKey,$operation);if(is_wp_error($reservation))return $reservation;if(!$reservation)return new \WP_Error('idempotency_conflict',__('This mutation has already been submitted.','digiforge'),['status'=>409]);
         try{$result=$callback();}catch(\Throwable $e){$idempotency->release($storageKey);return new \WP_Error('research_mutation_failed',__('Research mutation failed.','digiforge'),['status'=>500]);}

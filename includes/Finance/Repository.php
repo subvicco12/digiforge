@@ -5,25 +5,126 @@ declare(strict_types=1);
 namespace DigiForge\Finance;
 
 use DigiForge\Database\Tables;
+use DigiForge\Database\QueryEvidence as DatabaseEvidence;
 use DigiForge\Security\Logger;
 use WP_Error;
 
 final class Repository
 {
+    /** Append an internal typed declaration; never authenticates a provider or reconciles a period. */
+    public function importDeclaration(array $input):array|WP_Error
+    {
+        try{$declaration=DeclarationContract::normalize($input);}catch(\InvalidArgumentException){return $this->error('finance_declaration_invalid','Typed normalized DECLARATION-v1 input is required.',400);}
+        $references=(new DeclarationReferences())->validate($declaration);if($references instanceof WP_Error)return $references;
+        $key=DeclarationContract::identityKey($declaration).$declaration['revision'];
+        if($declaration['revision']>1){
+            $previous=$this->declarationByKey(DeclarationContract::identityKey($declaration).($declaration['revision']-1));
+            if($previous instanceof WP_Error)return $previous;
+            if(!is_array($previous)||!hash_equals($previous['declaration']['declaration_hash'],$declaration['previous_revision_hash']))return $this->error('finance_declaration_revision_missing','Exact preceding transaction revision is required.',409);
+            if($previous['declaration']['scope']['business_id']!==$declaration['scope']['business_id']||$previous['declaration']['scope']['shop_key']!==$declaration['scope']['shop_key'])return $this->error('finance_declaration_scope_conflict','Transaction revisions cannot change immutable business/shop ownership.',409);
+        }
+        if($declaration['reversal_of_hash']!==''){
+            $original=$this->declarationByHash($declaration['reversal_of_hash'],$declaration['environment']);if($original instanceof WP_Error)return $original;
+            if(!DeclarationMatcher::isReversal($declaration,$original['declaration']))return $this->error('finance_declaration_reversal_conflict','Declared reversal must exactly negate its scoped original; partial refunds are separate declarations.',409);
+            $history=$this->declarationHistory($original['declaration']);if($history instanceof WP_Error)return $history;
+            foreach($history as $revision)if($revision['declaration']['revision']>$original['declaration']['revision'])return $this->error('finance_declaration_reversal_conflict','Reversal references a superseded transaction revision.',409);
+        }
+        $sourceType=$declaration['scope']['order_id']>0?'order':'manual';$sourceId=$declaration['scope']['order_id'];
+        $metadata=['finance_declaration'=>$declaration,'fx_snapshot_hash'=>$references['fx_snapshot_hash'],'ownership_id'=>$references['ownership_id'],'product_id'=>$references['product_id']];
+        if($declaration['scope']['shop_key']==='digital'){
+            $metadata['ownership_hash']=$references['ownership_hash'];
+            $metadata['ownership_revision']=$references['ownership_revision'];
+        }
+        $entryType=DeclarationContract::CATEGORIES[$declaration['category']];
+        $canonical=['environment'=>$declaration['environment'],'source_type'=>$sourceType,'source_id'=>$sourceId,'entry_type'=>$entryType,
+            'currency'=>$declaration['currency'],'amount'=>Validator::amount($declaration['amount']),'base_currency'=>$declaration['base_currency'],
+            'base_amount'=>Validator::amount($declaration['base_amount']),'effective_date'=>substr($declaration['occurred_at'],0,10),'metadata'=>$metadata];
+        // Decimal columns receive exact strings; their legacy canonical hash also binds the exact declaration strings in metadata.
+        return $this->insert(Tables::finance_ledger(),$key,['environment'=>$declaration['environment'],'source_type'=>$sourceType,'source_id'=>$sourceId,
+            'entry_type'=>$entryType,'currency'=>$declaration['currency'],'amount'=>$declaration['amount'],'base_currency'=>$declaration['base_currency'],
+            'base_amount'=>$declaration['base_amount'],'effective_date'=>$canonical['effective_date'],'metadata'=>Validator::canonicalJson($metadata),
+            'canonical_hash'=>Validator::hash($canonical),'reconciliation_state'=>'UNRECONCILED','created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'finance_declaration');
+    }
+
+    /** Validate stored normalized evidence and current references; never infer actual-source completeness. */
+    public function declarationEvidence(array $row):array|WP_Error
+    {
+        try{
+            if(!$this->ledgerIntegrityValid($row))throw new \InvalidArgumentException('Ledger hash invalid.');
+            $metadata=json_decode((string)$row['metadata'],true,512,JSON_THROW_ON_ERROR);
+            $declaration=DeclarationContract::fromStored($metadata['finance_declaration']??[]);
+            if(ExactDecimal::money((string)$row['amount'])!==$declaration['amount']||ExactDecimal::money((string)$row['base_amount'])!==$declaration['base_amount']
+                ||$row['environment']!==$declaration['environment']||$row['currency']!==$declaration['currency']||$row['base_currency']!==$declaration['base_currency']
+                ||$row['entry_type']!==DeclarationContract::CATEGORIES[$declaration['category']]||$row['effective_date']!==substr($declaration['occurred_at'],0,10)
+                ||$row['source_type']!==($declaration['scope']['order_id']>0?'order':'manual')||(int)$row['source_id']!==$declaration['scope']['order_id'])throw new \InvalidArgumentException('Stored declaration differs from ledger.');
+            $references=(new DeclarationReferences())->validate($declaration);if($references instanceof WP_Error)return $references;
+            if($declaration['scope']['shop_key']==='digital'&&(($metadata['ownership_hash']??null)!==$references['ownership_hash']
+                ||($metadata['ownership_revision']??null)!==$references['ownership_revision']))throw new \InvalidArgumentException('Exact reviewed Digital ownership revision changed.');
+            if(($metadata['fx_snapshot_hash']??null)!==$references['fx_snapshot_hash']||($metadata['ownership_id']??null)!==$references['ownership_id']||($metadata['product_id']??null)!==$references['product_id']
+                ||($row['idempotency_key']??null)!==DeclarationContract::identityKey($declaration).$declaration['revision'])throw new \InvalidArgumentException('Stored source links changed.');
+            return ['ledger_id'=>(int)$row['id'],'declaration'=>$declaration,'product_id'=>$references['product_id']];
+        }catch(\InvalidArgumentException|\JsonException|\TypeError){return $this->error('finance_declaration_integrity_invalid','Stored declaration evidence or immutable source links are invalid.',409);}
+    }
+
+    public function declarationByHash(string $hash,string $environment):array|WP_Error
+    {
+        if(preg_match('/^[a-f0-9]{64}$/D',$hash)!==1)return $this->error('finance_declaration_reference_invalid','Exact declaration digest required.',409);
+        global $wpdb;$wpdb->last_error='';
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE environment=%s AND metadata LIKE %s LIMIT 2',
+            $environment,'%"declaration_hash":"'.$hash.'"%'),ARRAY_A);
+        if(DatabaseEvidence::failed()||!is_array($rows))return $this->error('finance_declaration_reference_unavailable','Exact original declaration evidence could not be read.',503);
+        if(count($rows)!==1)return $this->error('finance_declaration_reversal_missing','One exact original declaration is required.',409);
+        $evidence=$this->declarationEvidence($rows[0]);
+        if($evidence instanceof WP_Error)return $evidence;
+        return hash_equals($hash,$evidence['declaration']['declaration_hash'])?$evidence:$this->error('finance_declaration_reference_invalid','Original declaration digest differs.',409);
+    }
+
+    public function declarationHistory(array $declaration):array|WP_Error
+    {
+        global $wpdb;$wpdb->last_error='';
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE idempotency_key LIKE %s ORDER BY id ASC LIMIT 51',$wpdb->esc_like(DeclarationContract::identityKey($declaration)).'%'),ARRAY_A);
+        if(DatabaseEvidence::failed()||!is_array($rows))return $this->error('finance_declaration_reference_unavailable','Transaction history could not be read.',503);
+        if(count($rows)>50)return $this->error('finance_declaration_history_truncated','Transaction revision history exceeds the bounded review window.',409);
+        $result=[];foreach($rows as$row){$evidence=$this->declarationEvidence($row);if($evidence instanceof WP_Error)return $evidence;$result[]=$evidence;}
+        return $result;
+    }
+
+    private function declarationByKey(string $key):array|WP_Error|null
+    {
+        global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::finance_ledger().' WHERE idempotency_key=%s LIMIT 1',$key),ARRAY_A);
+        if(DatabaseEvidence::failed())return $this->error('finance_declaration_reference_unavailable','Transaction revision evidence could not be read.',503);
+        return is_array($row)?$this->declarationEvidence($row):null;
+    }
+
     public function createLedger(array $input, ?string $key = null): array|WP_Error
     {
         try {
             $environment=Validator::environment((string)($input['environment']??''));$entryType=Validator::entryType((string)($input['entry_type']??''));$currency=Validator::currency((string)($input['currency']??''));$amount=Validator::amount($input['amount']??0);$effective=Validator::date((string)($input['effective_date']??''));$metadata=Validator::structured((array)($input['metadata']??[]));
         } catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}
         $sourceType=sanitize_key((string)($input['source_type']??'manual'));$sourceId=absint($input['source_id']??0);$relationship=$this->validateSource($sourceType,$sourceId,$environment);if(is_wp_error($relationship))return $relationship;
-        $baseCurrency=trim((string)($input['base_currency']??''));$baseAmount=null;if($baseCurrency!==''){try{$baseCurrency=Validator::currency($baseCurrency);if($baseCurrency===$currency){$baseAmount=Validator::amount($input['base_amount']??$amount);}elseif(!array_key_exists('base_amount',$input)){return $this->error('fx_evidence_required','Foreign-currency ledger entries require an explicit converted base_amount.',409);}else{$baseAmount=Validator::amount($input['base_amount']);}}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}}
+        $baseCurrency=trim((string)($input['base_currency']??''));$baseAmount=null;if($baseCurrency!==''){try{$baseCurrency=Validator::currency($baseCurrency);if($baseCurrency===$currency){$baseAmount=Validator::amount($input['base_amount']??$amount);if($baseAmount!==$amount)return $this->error('fx_amount_conflict','Same-currency base amount must equal the original amount.',409);}elseif(!array_key_exists('base_amount',$input)){return $this->error('fx_evidence_required','Foreign-currency ledger entries require an explicit converted base_amount.',409);}else{$baseAmount=Validator::amount($input['base_amount']);}}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}}
         $canonical=['environment'=>$environment,'source_type'=>$sourceType,'source_id'=>$sourceId,'entry_type'=>$entryType,'currency'=>$currency,'amount'=>$amount,'base_currency'=>$baseCurrency,'base_amount'=>$baseAmount,'effective_date'=>$effective,'metadata'=>$metadata];
         return $this->insert(Tables::finance_ledger(),$key,['environment'=>$environment,'source_type'=>$sourceType,'source_id'=>$sourceId,'entry_type'=>$entryType,'currency'=>$currency,'amount'=>$amount,'base_currency'=>$baseCurrency,'base_amount'=>$baseAmount,'effective_date'=>$effective,'metadata'=>Validator::canonicalJson($metadata),'canonical_hash'=>Validator::hash($canonical),'reconciliation_state'=>'UNRECONCILED','created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'finance_ledger');
     }
 
     public function createFx(array $input,?string $key=null):array|WP_Error
     {
-        try{$environment=Validator::environment((string)($input['environment']??''));$base=Validator::currency((string)($input['base_currency']??''));$quote=Validator::currency((string)($input['quote_currency']??''));$rate=Validator::positiveRate($input['rate']??0);$metadata=Validator::structured((array)($input['source_metadata']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}if($base===$quote)return $this->error('validation','FX currency pair must contain different currencies.');$asOf=sanitize_text_field((string)($input['as_of_at']??$this->now()));$canonical=['environment'=>$environment,'base'=>$base,'quote'=>$quote,'rate'=>$rate,'as_of_at'=>$asOf,'source'=>$metadata];return $this->insert(Tables::fx_snapshots(),$key,['environment'=>$environment,'base_currency'=>$base,'quote_currency'=>$quote,'rate'=>$rate,'as_of_at'=>$asOf,'source_metadata'=>Validator::canonicalJson($metadata),'canonical_hash'=>Validator::hash($canonical),'created_by'=>get_current_user_id(),'created_at'=>$this->now()],'fx_snapshot');
+        try{
+            $environment=Validator::environment((string)($input['environment']??''));$base=Validator::currency((string)($input['base_currency']??''));$quote=Validator::currency((string)($input['quote_currency']??''));
+            $rate=Validator::positiveRate($input['rate']??0);$metadata=Validator::structured((array)($input['source_metadata']??[]));
+            $asOf=sanitize_text_field((string)($input['as_of_at']??$this->now()));$storedRate=number_format($rate,10,'.','');
+            if(($metadata['kind']??null)==='DECLARATION'){
+                if(isset($metadata['exact_fx_snapshot']))throw new \InvalidArgumentException('Exact FX binding is derived.');
+                $storedRate=ExactDecimal::rate($input['rate']??null);
+                $source=DeclarationContract::source($metadata);
+                $metadata['exact_fx_snapshot']=['schema'=>'digiforge-finance-fx-declaration-v1','rate'=>$storedRate,
+                    'source_hash'=>Validator::hash(['environment'=>$environment,'base_currency'=>$base,'quote_currency'=>$quote,'rate'=>$storedRate,'as_of_at'=>$asOf,'source'=>$source])];
+            }
+        }catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}
+        if($base===$quote)return $this->error('validation','FX currency pair must contain different currencies.');
+        $canonical=['environment'=>$environment,'base'=>$base,'quote'=>$quote,'rate'=>$rate,'as_of_at'=>$asOf,'source'=>$metadata];
+        return $this->insert(Tables::fx_snapshots(),$key,['environment'=>$environment,'base_currency'=>$base,'quote_currency'=>$quote,'rate'=>$storedRate,
+            'as_of_at'=>$asOf,'source_metadata'=>Validator::canonicalJson($metadata),'canonical_hash'=>Validator::hash($canonical),'created_by'=>get_current_user_id(),'created_at'=>$this->now()],'fx_snapshot');
     }
 
     public function createTaxClassification(array $input,?string $key=null):array|WP_Error
@@ -38,9 +139,9 @@ final class Repository
 
     public function calculatePeriod(array $input,?string $key=null):array|WP_Error
     {
-        try{$environment=Validator::environment((string)($input['environment']??''));$start=Validator::date((string)($input['period_start']??''));$end=Validator::date((string)($input['period_end']??''));$baseCurrency=Validator::currency((string)($input['base_currency']??'USD'));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}if($start>$end)return $this->error('validation','Period start must not be after period end.');global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT source_type, source_id, entry_type, amount, base_amount, base_currency, currency, reconciliation_state FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s',$environment,$start,$end),ARRAY_A);if(!is_array($rows)||!empty($wpdb->last_error))return $this->error('ledger_evidence_unavailable','Finance ledger evidence could not be read; period calculation is blocked.',500);$metrics=['gross_revenue'=>0.0,'refund_reserves'=>0.0,'platform_payment_fees'=>0.0,'shipping_cost'=>0.0,'provider_cost'=>0.0,'advertising_cost'=>0.0,'tax_collected'=>0.0,'tax_expense'=>0.0,'other_income'=>0.0,'other_expense'=>0.0,'gross_profit'=>0.0,'contribution_profit'=>0.0,'net_operating_profit'=>0.0,'margin_percent'=>0.0,'order_count'=>0,'average_order_value'=>0.0,'unresolved_reconciliation_count'=>0];$revenueOrderIds=[];
-        foreach($rows as$row){if((string)($row['entry_type']??'')==='REVENUE'&&(string)($row['source_type']??'')==='order'&&(int)($row['source_id']??0)>0){$revenueOrderIds[(int)$row['source_id']]=true;}$currency=(string)$row['currency'];$rowBase=(string)($row['base_currency']??'');if($currency===$baseCurrency){$value=(float)$row['amount'];}elseif($row['base_amount']!==null&&$rowBase===$baseCurrency){$value=(float)$row['base_amount'];}else{return $this->error('currency_conversion_required','Period contains ledger entries without conversion into the requested base currency.',409);}switch((string)$row['entry_type']){case'REVENUE':$metrics['gross_revenue']+=$value;break;case'REFUND_RESERVE':$metrics['refund_reserves']+=abs($value);break;case'PLATFORM_FEE':case'PAYMENT_FEE':$metrics['platform_payment_fees']+=abs($value);break;case'SHIPPING_COST':$metrics['shipping_cost']+=abs($value);break;case'COGS':$metrics['provider_cost']+=abs($value);break;case'AD_SPEND':$metrics['advertising_cost']+=abs($value);break;case'TAX_COLLECTED':$metrics['tax_collected']+=$value;break;case'TAX_EXPENSE':$metrics['tax_expense']+=abs($value);break;case'OTHER_INCOME':$metrics['other_income']+=$value;break;case'OTHER_EXPENSE':$metrics['other_expense']+=abs($value);break;case'ADJUSTMENT':$metrics['other_income']+=$value;break;}if((string)$row['reconciliation_state']!=='RECONCILED')$metrics['unresolved_reconciliation_count']++;}
-        $metrics['order_count']=count($revenueOrderIds);$metrics['average_order_value']=$metrics['order_count']>0?round($metrics['gross_revenue']/$metrics['order_count'],4):0.0;$metrics['gross_profit']=round($metrics['gross_revenue']-$metrics['refund_reserves']-$metrics['provider_cost'],4);$metrics['contribution_profit']=round($metrics['gross_profit']-$metrics['platform_payment_fees']-$metrics['shipping_cost']-$metrics['advertising_cost'],4);$metrics['net_operating_profit']=round($metrics['contribution_profit']+$metrics['other_income']-$metrics['other_expense']-$metrics['tax_expense'],4);$metrics['margin_percent']=$metrics['gross_revenue']==0.0?0.0:round(($metrics['net_operating_profit']/$metrics['gross_revenue'])*100,4);$canonical=['environment'=>$environment,'period_start'=>$start,'period_end'=>$end,'base_currency'=>$baseCurrency,'metrics'=>$metrics,'calculation_version'=>'v2'];return $this->insert(Tables::finance_periods(),$key,['environment'=>$environment,'period_start'=>$start,'period_end'=>$end,'base_currency'=>$baseCurrency,'metrics'=>Validator::canonicalJson($metrics),'metrics_hash'=>Validator::hash($canonical),'calculation_version'=>'v2','state'=>'CALCULATED','approved_by'=>0,'approved_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'finance_period');
+        try{$environment=Validator::environment((string)($input['environment']??''));$start=Validator::date((string)($input['period_start']??''));$end=Validator::date((string)($input['period_end']??''));$baseCurrency=Validator::currency((string)($input['base_currency']??'USD'));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}if($start>$end)return $this->error('validation','Period start must not be after period end.');global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT source_type, source_id, entry_type, amount, base_amount, base_currency, currency, reconciliation_state, environment, effective_date, metadata, canonical_hash, id FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s ORDER BY id ASC',$environment,$start,$end),ARRAY_A);if(!is_array($rows)||!empty($wpdb->last_error))return $this->error('ledger_evidence_unavailable','Finance ledger evidence could not be read; period calculation is blocked.',500);$metrics=['gross_revenue'=>0.0,'refund_reserves'=>0.0,'platform_payment_fees'=>0.0,'shipping_cost'=>0.0,'provider_cost'=>0.0,'advertising_cost'=>0.0,'tax_collected'=>0.0,'tax_expense'=>0.0,'other_income'=>0.0,'other_expense'=>0.0,'gross_profit'=>0.0,'contribution_profit'=>0.0,'net_operating_profit'=>0.0,'margin_percent'=>0.0,'order_count'=>0,'average_order_value'=>0.0,'unresolved_reconciliation_count'=>0];$revenueOrderIds=[];$sourceEntries=[];
+        foreach($rows as$row){if(!is_array($row)||!$this->ledgerIntegrityValid($row)||!is_scalar($row['id']??null)||!ctype_digit((string)$row['id'])||(int)$row['id']<1)return $this->error('ledger_integrity_invalid','Finance ledger evidence hash is invalid; period calculation is blocked.',409);if(array_key_exists('finance_declaration',json_decode((string)$row['metadata'],true)))return $this->error('declaration_report_required','Normalized declarations require the provisional active-revision report; legacy period calculation is blocked.',409);$sourceEntries[]=['id'=>(string)$row['id'],'canonical_hash'=>(string)$row['canonical_hash'],'reconciliation_state'=>(string)$row['reconciliation_state']];if((string)($row['entry_type']??'')==='REVENUE'&&(string)($row['source_type']??'')==='order'&&(int)($row['source_id']??0)>0){$revenueOrderIds[(int)$row['source_id']]=true;}$currency=(string)$row['currency'];$rowBase=(string)($row['base_currency']??'');if($currency===$baseCurrency){$value=(float)$row['amount'];}elseif($row['base_amount']!==null&&$rowBase===$baseCurrency){$value=(float)$row['base_amount'];}else{return $this->error('currency_conversion_required','Period contains ledger entries without conversion into the requested base currency.',409);}switch((string)$row['entry_type']){case'REVENUE':$metrics['gross_revenue']+=$value;break;case'REFUND_RESERVE':$metrics['refund_reserves']+=abs($value);break;case'PLATFORM_FEE':case'PAYMENT_FEE':$metrics['platform_payment_fees']+=abs($value);break;case'SHIPPING_COST':$metrics['shipping_cost']+=abs($value);break;case'COGS':$metrics['provider_cost']+=abs($value);break;case'AD_SPEND':$metrics['advertising_cost']+=abs($value);break;case'TAX_COLLECTED':$metrics['tax_collected']+=$value;break;case'TAX_EXPENSE':$metrics['tax_expense']+=abs($value);break;case'OTHER_INCOME':$metrics['other_income']+=$value;break;case'OTHER_EXPENSE':$metrics['other_expense']+=abs($value);break;case'ADJUSTMENT':$metrics['other_income']+=$value;break;}if((string)$row['reconciliation_state']!=='RECONCILED')$metrics['unresolved_reconciliation_count']++;}
+        $metrics['order_count']=count($revenueOrderIds);$metrics['average_order_value']=$metrics['order_count']>0?round($metrics['gross_revenue']/$metrics['order_count'],4):0.0;$metrics['gross_profit']=round($metrics['gross_revenue']-$metrics['refund_reserves']-$metrics['provider_cost'],4);$metrics['contribution_profit']=round($metrics['gross_profit']-$metrics['platform_payment_fees']-$metrics['shipping_cost']-$metrics['advertising_cost'],4);$metrics['net_operating_profit']=round($metrics['contribution_profit']+$metrics['other_income']-$metrics['other_expense']-$metrics['tax_expense'],4);$metrics['margin_percent']=$metrics['gross_revenue']==0.0?0.0:round(($metrics['net_operating_profit']/$metrics['gross_revenue'])*100,4);$version=Validator::periodSourceVersion(['formula_version'=>'v2','environment'=>$environment,'period_start'=>$start,'period_end'=>$end,'base_currency'=>$baseCurrency,'ledger'=>$sourceEntries]);$canonical=['environment'=>$environment,'period_start'=>$start,'period_end'=>$end,'base_currency'=>$baseCurrency,'metrics'=>$metrics,'calculation_version'=>$version];return $this->insert(Tables::finance_periods(),$key,['environment'=>$environment,'period_start'=>$start,'period_end'=>$end,'base_currency'=>$baseCurrency,'metrics'=>Validator::canonicalJson($metrics),'metrics_hash'=>Validator::hash($canonical),'calculation_version'=>$version,'state'=>'CALCULATED','approved_by'=>0,'approved_at'=>null,'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'finance_period');
     }
 
     public function createAnalyticsSnapshot(array $input,?string $key=null):array|WP_Error
@@ -62,7 +163,64 @@ final class Repository
 
     public function transition(string $entity,int $id,string $to):array|WP_Error
     {
-        $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};$reviewerId=get_current_user_id();if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');$row=$this->find($table,$id);if(is_wp_error($row))return $row;$to=strtoupper(sanitize_key($to));if(!is_array($row))return $this->error('not_found','Finance record not found.',404);if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Finance lifecycle transition is not permitted.',409);if(in_array($to,['APPROVED','APPROVED_INTENT'],true)&&$reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);$now=$this->now();global $wpdb;$data=['state'=>$to,'updated_at'=>$now];if($entity==='period'&&$to==='APPROVED'){$data['approved_by']=$reviewerId;$data['approved_at']=$now;}$wpdb->last_error='';$updated=$wpdb->update($table,$data,['id'=>$id,'state'=>(string)$row['state']]);if($updated===false||!empty($wpdb->last_error))return $this->error('transition_failed','Finance lifecycle persistence is unavailable.',503);if($updated!==1)return $this->error('transition_conflict','State changed concurrently or update failed.',409);Logger::audit('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id);return $this->find($table,$id)?:[];
+        $table=match($entity){'period'=>Tables::finance_periods(),'alert'=>Tables::operational_alerts(),'intent'=>Tables::finance_intents(),default=>''};
+        $reviewerId=get_current_user_id();
+        if($table==='')return $this->error('validation','Unknown finance lifecycle entity.');
+        $row=$this->find($table,$id);
+        if(is_wp_error($row))return $row;
+        $to=strtoupper(sanitize_key($to));
+        if(!is_array($row))return $this->error('not_found','Finance record not found.',404);
+        // Approval and closure both depend on current evidence, including idempotent requests.
+        if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
+            if($reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+            if($to==='CLOSED'&&((int)($row['approved_by']??0)<1||empty($row['approved_at'])))return $this->error('period_approval_required','Period closure requires an existing human approval.',409);
+            $complete=$this->validatePeriodApproval($row);
+            if($complete instanceof WP_Error)return $complete;
+        }
+        if((string)$row['state']===$to)return $row+['idempotent_transition'=>true];
+        if(!Lifecycle::can($entity,(string)$row['state'],$to))return $this->error('invalid_transition','Finance lifecycle transition is not permitted.',409);
+        if(in_array($to,['APPROVED','APPROVED_INTENT'],true)&&$reviewerId<1)return $this->error('reviewer_required','Authenticated human reviewer required.',403);
+        $now=$this->now();global $wpdb;$data=['state'=>$to,'updated_at'=>$now];
+        $where=['id'=>$id,'state'=>(string)$row['state']];
+        if($entity==='period'&&in_array($to,['APPROVED','CLOSED'],true)){
+            if($to==='APPROVED'){$data['approved_by']=$reviewerId;$data['approved_at']=$now;}
+            if($to==='CLOSED'){$where['approved_by']=$row['approved_by'];$where['approved_at']=$row['approved_at'];}
+            $where['metrics_hash']=$row['metrics_hash'];
+            $where['metrics']=$row['metrics'];
+            foreach(['environment','period_start','period_end','base_currency','calculation_version'] as $field)$where[$field]=$row[$field];
+        }
+        $wpdb->last_error='';$updated=$wpdb->update($table,$data,$where);
+        if($updated===false||!empty($wpdb->last_error))return $this->error('transition_failed','Finance lifecycle persistence is unavailable.',503);
+        if($updated!==1)return $this->error('transition_conflict','State or immutable evidence changed concurrently.',409);
+        Logger::audit('finance_state_changed',['from'=>$row['state'],'to'=>$to],$entity,(string)$id);
+        return $this->find($table,$id)?:[];
+    }
+
+    /**
+     * Current helpers prove local coverage only, never authenticated fees/actual charges.
+     * Until an authoritative import contract exists, active periods cannot be approved.
+     * Empty local observations are not provider certification or external execution authority.
+     */
+    private function validatePeriodApproval(array $row):true|WP_Error
+    {
+        $metrics=json_decode((string)($row['metrics']??''),true);
+        $canonical=['environment'=>(string)($row['environment']??''),'period_start'=>(string)($row['period_start']??''),'period_end'=>(string)($row['period_end']??''),'base_currency'=>(string)($row['base_currency']??''),'metrics'=>$metrics,'calculation_version'=>(string)($row['calculation_version']??'')];
+        try{
+            if(!is_array($metrics)||!preg_match('/^[a-f0-9]{64}$/',(string)($row['metrics_hash']??''))||!hash_equals((string)$row['metrics_hash'],Validator::hash($canonical)))return $this->error('period_integrity_invalid','Finance period evidence hash is invalid.',409);
+            if(($metrics['unresolved_reconciliation_count']??null)!==0)return $this->error('reconciliation_required','Finance period has unresolved or unverified reconciliation evidence.',409);
+            $coverage=(new SourceCompletenessReadModel())->snapshot($canonical['environment'],$canonical['period_start'],$canonical['period_end']);
+        }catch(\Throwable){return $this->error('source_evidence_unavailable','Current source completeness could not be verified.',503);}
+        if(($coverage['query_state']['orders']??null)!=='AVAILABLE'||($coverage['query_state']['revenue']??null)!=='AVAILABLE')return $this->error('source_evidence_unavailable','Current source completeness could not be verified.',503);
+        if(($coverage['state']??null)!=='ZERO_ACTIVITY')return $this->error('source_completeness_required','Authenticated payment timing, fees and actual provider charges remain unverified.',409);
+        // ZERO_ACTIVITY in the read model concerns orders/revenue only; manual costs are not empty activity.
+        global $wpdb;$wpdb->last_error='';
+        $ledger=$wpdb->get_results($wpdb->prepare('SELECT id FROM '.Tables::finance_ledger().' WHERE environment=%s AND effective_date BETWEEN %s AND %s LIMIT 1',$canonical['environment'],$canonical['period_start'],$canonical['period_end']),ARRAY_A);
+        if(!is_array($ledger)||DatabaseEvidence::failed())return $this->error('source_evidence_unavailable','Current ledger coverage could not be verified.',503);
+        if($ledger!==[])return $this->error('source_completeness_required','Nonempty ledger requires authoritative source certification.',409);
+        $required=['gross_revenue','refund_reserves','platform_payment_fees','shipping_cost','provider_cost','advertising_cost','tax_collected','tax_expense','other_income','other_expense','gross_profit','contribution_profit','net_operating_profit','margin_percent','order_count','average_order_value','unresolved_reconciliation_count'];
+        foreach($required as $key)if(!array_key_exists($key,$metrics))return $this->error('period_integrity_invalid','Period metrics are incomplete.',409);
+        foreach($metrics as $value)if((!is_int($value)&&!is_float($value))||!is_finite((float)$value)||(float)$value!==0.0)return $this->error('source_completeness_required','Stored period contradicts empty current source evidence.',409);
+        return true;
     }
 
     public function list(string $entity,int $page=1,int $perPage=20):array
@@ -86,12 +244,110 @@ final class Repository
 
     private function insert(string $table,?string $key,array $data,string $objectType):array|WP_Error
     {
-        global $wpdb;$key=$key===null?null:sanitize_text_field($key);if($key==='')$key=null;if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key is too long.');if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);if(is_array($existing)){if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable finance data.',409);return $existing+['idempotent_replay'=>true];}$data['idempotency_key']=$key;}if($wpdb->insert($table,$data)!==1){if($key!==null){$wpdb->last_error='';$existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);if(empty($wpdb->last_error)&&is_array($existing)&&$this->replayCompatible($existing,$data))return $existing+['idempotent_replay'=>true];}return $this->error('database_error','Unable to persist finance record.',500);}$id=(int)$wpdb->insert_id;Logger::audit($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id);return $this->find($table,$id)?:[];
+        global $wpdb;
+        $periodRevision=$objectType==='finance_period';$declarationRecord=$objectType==='finance_declaration';
+        $key=$key===null?null:sanitize_text_field($key);
+        if($key==='')$key=null;
+        if($key!==null&&strlen($key)>191)return $this->error('validation','Idempotency key is too long.');
+        if($key!==null){
+            $wpdb->last_error='';
+            $existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);
+            if(!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);
+            if(is_array($existing)){
+                if(!$this->replayCompatible($existing,$data))return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable finance data.',409);
+                return $declarationRecord?$this->confirmDeclarationRecord($existing,$data,true):$existing+['idempotent_replay'=>true];
+            }
+            $data['idempotency_key']=$key;
+        }
+        if($periodRevision){
+            $existing=$this->findPeriodRevision($data);
+            if(is_wp_error($existing))return $existing;
+            if(is_array($existing))return $this->replayPeriodRevision($existing,$data);
+        }
+        $wpdb->last_error='';
+        if($wpdb->insert($table,$data)!==1||!empty($wpdb->last_error)){
+            if($key!==null){
+                $wpdb->last_error='';
+                $existing=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE idempotency_key=%s LIMIT 1",$key),ARRAY_A);
+                if($periodRevision&&!empty($wpdb->last_error))return $this->error('idempotency_evidence_unavailable','Idempotency evidence could not be read.',500);
+                if(empty($wpdb->last_error)&&is_array($existing)){
+                    if($this->replayCompatible($existing,$data))return $declarationRecord?$this->confirmDeclarationRecord($existing,$data,true):$existing+['idempotent_replay'=>true];
+                    if($periodRevision)return $this->error('idempotency_payload_conflict','Idempotency key was already used with different immutable finance data.',409);
+                }
+            }
+            if($periodRevision){
+                $existing=$this->findPeriodRevision($data);
+                if(is_wp_error($existing))return $existing;
+                if(is_array($existing))return $this->replayPeriodRevision($existing,$data);
+            }
+            return $this->error('database_error','Unable to persist finance record.',500);
+        }
+        $id=(int)$wpdb->insert_id;
+        Logger::audit($objectType.'_created',['idempotency_key'=>$key===null?'':'[PRESENT]'],$objectType,(string)$id);
+        $stored=$this->find($table,$id);
+        if($periodRevision){
+            if(is_wp_error($stored))return $stored;
+            if(!is_array($stored))return $this->error('period_revision_evidence_unavailable','Persisted period revision could not be read.',503);
+            if(!$this->replayCompatible($stored,$data))return $this->error('period_revision_conflict','Persisted period revision differs from calculated evidence.',409);
+        }
+        if($declarationRecord)return $this->confirmDeclarationRecord($stored,$data,false);
+        return $stored?:[];
+    }
+
+    private function confirmDeclarationRecord(array|WP_Error|null $stored,array $data,bool $replay):array|WP_Error
+    {
+        if($stored instanceof WP_Error)return $stored;
+        if(!is_array($stored)||(int)($stored['id']??0)<1)return $this->error('finance_declaration_evidence_unavailable','Persisted declaration evidence could not be read.',503);
+        if(!$this->replayCompatible($stored,$data))return $this->error('finance_declaration_integrity_invalid','Persisted declaration differs from immutable input.',409);
+        $evidence=$this->declarationEvidence($stored);if($evidence instanceof WP_Error)return $evidence;
+        return $replay?$stored+['idempotent_replay'=>true]:$stored;
+    }
+
+    private function findPeriodRevision(array $data):array|WP_Error|null
+    {
+        global $wpdb;
+        $wpdb->last_error='';
+        $row=$wpdb->get_row($wpdb->prepare(
+            'SELECT * FROM '.Tables::finance_periods().' WHERE environment=%s AND period_start=%s AND period_end=%s AND calculation_version=%s LIMIT 1',
+            $data['environment'],$data['period_start'],$data['period_end'],$data['calculation_version']
+        ),ARRAY_A);
+        if(!empty($wpdb->last_error))return $this->error('period_revision_evidence_unavailable','Period revision evidence could not be read.',503);
+        return is_array($row)?$row:null;
+    }
+
+    private function replayPeriodRevision(array $existing,array $incoming):array|WP_Error
+    {
+        if(!$this->replayCompatible($existing,$incoming))return $this->error('period_revision_conflict','Existing period revision conflicts with calculated source evidence.',409);
+        return $existing+['idempotent_replay'=>true];
+    }
+
+    private function ledgerIntegrityValid(array $row):bool
+    {
+        $fields=['environment','source_type','source_id','entry_type','currency','amount','base_currency','base_amount','effective_date','metadata','canonical_hash'];
+        foreach($fields as $field)if(!array_key_exists($field,$row))return false;
+        try{
+            $metadata=json_decode((string)$row['metadata'],true,512,JSON_THROW_ON_ERROR);
+            if(!is_array($metadata))return false;
+            $canonical=[
+                'environment'=>Validator::environment((string)$row['environment']),
+                'source_type'=>(string)$row['source_type'],
+                'source_id'=>(int)$row['source_id'],
+                'entry_type'=>Validator::entryType((string)$row['entry_type']),
+                'currency'=>Validator::currency((string)$row['currency']),
+                'amount'=>Validator::amount($row['amount']),
+                'base_currency'=>(string)$row['base_currency'],
+                'base_amount'=>$row['base_amount']===null?null:Validator::amount($row['base_amount']),
+                'effective_date'=>Validator::date((string)$row['effective_date']),
+                'metadata'=>Validator::structured($metadata),
+            ];
+            return preg_match('/^[a-f0-9]{64}$/',(string)$row['canonical_hash'])===1
+                &&hash_equals((string)$row['canonical_hash'],Validator::hash($canonical));
+        }catch(\InvalidArgumentException|\JsonException){return false;}
     }
 
     private function replayCompatible(array $existing,array $incoming):bool
     {
-        $ignore=['id','idempotency_key','state','created_at','updated_at','created_by','approved_by','approved_at','review_status','reviewed_by','reviewed_at','reconciliation_state'];foreach($incoming as$field=>$value){if(in_array($field,$ignore,true)||!array_key_exists($field,$existing))continue;$left=$existing[$field];if($value===null||$left===null){if($value!==null||$left!==null)return false;continue;}if(is_numeric($value)&&is_numeric($left)){if(abs((float)$left-(float)$value)>0.0000001)return false;}elseif((string)$left!==(string)$value)return false;}return true;
+        $ignore=['id','idempotency_key','state','created_at','updated_at','created_by','approved_by','approved_at','review_status','reviewed_by','reviewed_at','reconciliation_state'];foreach($incoming as$field=>$value){if(in_array($field,$ignore,true))continue;if(!array_key_exists($field,$existing))return false;$left=$existing[$field];if($value===null||$left===null){if($value!==null||$left!==null)return false;continue;}if(is_int($value)){if((string)$left!==(string)$value)return false;}elseif(is_float($value)){if(!is_numeric($left)||(float)$left!==$value)return false;}elseif((string)$left!==(string)$value)return false;}return true;
     }
 
     private function find(string $table,int $id):array|WP_Error|null{if($id<1)return null;global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d LIMIT 1",$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('finance_evidence_unavailable','Finance authority evidence could not be read.',503);return is_array($row)?$row:null;}

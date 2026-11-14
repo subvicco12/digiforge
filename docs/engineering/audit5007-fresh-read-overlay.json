@@ -1,0 +1,41 @@
+{
+  "schema": "DF_AUDIT5007_FRESH_READ_DELTA_1",
+  "authorization": "USER_DIRECTED_AUDIT5007_STALL_FIX_NOT_OPERATIONAL_AUTHORITY",
+  "baseline_source_sha": "63953bfd9b87a6c365443cd1c66199ca76cee6e2",
+  "decision_cache_added": false,
+  "external_execution_authorized": false,
+  "companion_pins_modified": false,
+  "qualified_hashes_replaced": false,
+  "files": [
+    {
+      "path": "includes/Security/ShopAccessRepository.php",
+      "baseline_sha256": "e2107698f79b465a1d4b0e23b61e736cbe01cc82e395db76aac7296d90611e9d",
+      "current_sha256": "c41bcf8472f462875474733adbf24202b99de4149abe5619993a7327a5201918",
+      "hunks": [
+        {
+          "baseline_text": "",
+          "reviewed_text": "        return $this->validateLifecycle($shop,$state,$eventKeys,$rows);\n    }\n    /** Fresh bounded reads, not an authority cache. All four ledgers remain independently verified. */\n    public function readCanonicalShops():array|\\WP_Error\n    {\n        global $wpdb;\n        $shops=ShopAccessPolicy::canonicalShops();$keys=array_map([self::class,'key'],$shops);\n        $marks=implode(',',array_fill(0,count($shops),'%s'));\n        $wpdb->last_error='';\n        $snapshots=$wpdb->get_results($wpdb->prepare(\"SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name IN ($marks) LIMIT 5\",...$keys),ARRAY_A);\n        if($wpdb->last_error!==''||!is_array($snapshots)||count($snapshots)>4)return self::error('read',503);\n        $states=array_fill_keys($shops,['revision'=>0,'grants'=>[]]);$seen=[];\n        foreach($snapshots as $row){\n            $index=array_search($row['option_name']??null,$keys,true);\n            if($index===false||isset($seen[$index]))return self::error('corrupt');$seen[$index]=true;\n            $shop=$shops[$index];$value=$row['option_value']??null;\n            if(!is_string($value)||strlen($value)>1048576)return self::error('corrupt');\n            $state=json_decode($value,true);\n            if(!is_array($state)||!is_int($state['revision']??null)||$state['revision']<0||!is_array($state['grants']??null)||count($state['grants'])>500)return self::error('corrupt');\n            foreach($state['grants'] as $id=>$grant)if(!is_string($id)||!preg_match('/^[a-f0-9]{64}$/D',$id)||!ShopAccessPolicy::validRecord($grant)||!is_string($grant['role']??null)||!is_int($grant['grantor_id']??null)||!is_string($grant['authority_hash']??null)||!is_bool($grant['revoked']??null)||$grant['shop']!==$shop)return self::error('corrupt');\n            $states[$shop]=$state;\n        }\n        $wpdb->last_error='';\n        $events=$wpdb->get_results($wpdb->prepare(\"SELECT option_name,option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CASE WHEN JSON_VALID(option_value) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(option_value,'$.shop')) IN ($marks) ELSE false END LIMIT 4001\",$wpdb->esc_like('digiforge_shop_access_event_').'%',...$shops),ARRAY_A);\n        if($wpdb->last_error!==''||!is_array($events))return self::error('lifecycle_event_read',503);\n        if(count($events)>4000)return self::error('lifecycle_revision');\n        $values=array_fill_keys($shops,[]);\n        foreach($events as $row){\n            $raw=$row['option_value']??null;$name=$row['option_name']??null;\n            if(!is_string($raw)||strlen($raw)>16384||!is_string($name))return self::error('lifecycle_event');\n            $event=json_decode($raw,true);$shop=$event['shop']??null;\n            if(!is_string($shop)||!array_key_exists($shop,$values)||isset($values[$shop][$name]))return self::error('lifecycle_event');\n            $values[$shop][$name]=$raw;\n        }\n        $wpdb->last_error='';\n        $audits=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,object_id,context FROM '.\\DigiForge\\Database\\Tables::audit_log().\" WHERE object_type='shop_access' AND event_type IN ('shop_access_grant','shop_access_revoke') AND CASE WHEN JSON_VALID(context) THEN BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.shop')) IN ($marks) ELSE false END ORDER BY id ASC LIMIT 4001\",...$shops),ARRAY_A);\n        if($wpdb->last_error!==''||!is_array($audits))return self::error('lifecycle_read',503);\n        if(count($audits)>4000)return self::error('lifecycle_revision');\n        $rows=array_fill_keys($shops,[]);\n        foreach($audits as $row){\n            $raw=$row['context']??null;if(!is_string($raw)||strlen($raw)>16384)return self::error('lifecycle_audit');\n            $event=json_decode($raw,true);$shop=$event['shop']??null;\n            if(!is_string($shop)||!array_key_exists($shop,$rows))return self::error('lifecycle_audit');$rows[$shop][]=$row;\n        }\n        foreach($shops as $shop){\n            if(count($values[$shop])>1000||count($rows[$shop])>1000||count($values[$shop])!==$states[$shop]['revision']||count($rows[$shop])!==$states[$shop]['revision'])return self::error('lifecycle_revision');\n            $proof=$this->validateLifecycle($shop,$states[$shop],array_keys($values[$shop]),$rows[$shop],$values[$shop]);if(is_wp_error($proof))return $proof;\n        }\n        return $states;\n    }\n    /** Same replay/row validation for individual and batched fresh reads. */\n    private function validateLifecycle(string $shop,array $state,array $eventKeys,array $rows,?array $values=null):true|\\WP_Error\n    {\n        global $wpdb;\n"
+        },
+        {
+          "baseline_text": "            $raw=$wpdb->get_var($wpdb->prepare(\"SELECT option_value FROM {$wpdb->options} WHERE option_name=%s\",'digiforge_shop_access_event_'.$eventId));\n",
+          "reviewed_text": "            $raw=$values===null?$wpdb->get_var($wpdb->prepare(\"SELECT option_value FROM {$wpdb->options} WHERE option_name=%s\",'digiforge_shop_access_event_'.$eventId)):($values['digiforge_shop_access_event_'.$eventId]??null);\n"
+        }
+      ]
+    },
+    {
+      "path": "includes/PortalAccess/GlobalOwnerAuthority.php",
+      "baseline_sha256": "0a7f3be355f0f8518f8ee46734779b624e7709062c91b158b684a1b1071c091c",
+      "current_sha256": "f95f526633285db053d80ad984ccd7375ca8fd66233ae62dc0da1fe40fcec135",
+      "hunks": [
+        {
+          "baseline_text": "  $repo=new ShopAccessRepository();\n",
+          "reviewed_text": "  $repo=new ShopAccessRepository();$states=$repo->readCanonicalShops();if(is_wp_error($states))return false;\n"
+        },
+        {
+          "baseline_text": "   $state=$repo->read($shop);if(is_wp_error($state))return false;$id=$profile['global_grants'][$shop];$grant=$state['grants'][$id]??null;\n",
+          "reviewed_text": "   $state=$states[$shop];$id=$profile['global_grants'][$shop];$grant=$state['grants'][$id]??null;\n"
+        }
+      ]
+    }
+  ]
+}

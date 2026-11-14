@@ -10,11 +10,16 @@ use WP_Error;
 /** Uses the already registered CommercialResearchPanel action; no new route or registration. */
 final class DesignFactoryPanel
 {
-    public function render(string $shop,string $commercialHash): void
+    public function render(string $shop,string $commercialHash,?array $supplierTemplate=null,bool $manualOnly=false): void
     {
         $commercial=(new CommercialResearchRepository())->read($shop,$commercialHash);if($commercial instanceof WP_Error||$commercial['record']['stage']!=='DESIGN_SELECTED')return;
         echo '<section class="df-panel" id="df-design-factory"><h3>Approved concept → design specification → original artwork</h3><p>Separate source approval is required. A selected direction or generated prompt is not approved artwork. All specifications and safe-region rectangles are operator instructions; supplier bleed/safe margins remain unknown. STOP ALL and RELEASE HOLD remain.</p>';
         $this->form('design_approve_concept',$commercialHash);foreach(['sources_reviewed'=>'I reviewed the linked source evidence and limitations','buyer_intent_reviewed'=>'I reviewed the buyer intent','gifting_occasion_reviewed'=>'I reviewed the gifting occasion']as $key=>$label)$this->check($key,$label);$this->field('note','Source-linked concept approval rationale');echo '<button class="df-button">Approve source-linked concept</button></form>';
+        $saved=(new DesignFactoryRepository())->recent($shop,$commercialHash);
+        echo '<details><summary>Saved design versions (latest 50 records)</summary>';
+        if(is_wp_error($saved))echo '<p>'.esc_html($saved->get_error_message()).'</p>';
+        else foreach($saved as $item)echo '<p><a href="'.esc_url(add_query_arg(['df_view'=>'research','df_shop'=>$shop,'df_research_version'=>$commercialHash,'df_factory_version'=>$item['hash']],$this->baseUrl())).'#df-design-factory">'.esc_html($item['kind'].' · '.$item['review_state'].' · '.$item['created_at']).'</a></p>';
+        echo '</details>';
         $this->form('design_inspect',$commercialHash);$this->field('factory_hash','Open exact saved design version');echo '<button class="df-button">Inspect design version</button></form>';
         $hash=$_GET['df_factory_version']??null;if(!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash)){echo '</section>';return;}
         $repo=new DesignFactoryRepository();$v=$repo->read($shop,$hash);if($v instanceof WP_Error){echo '<p>'.esc_html($v->get_error_message()).'</p></section>';return;}
@@ -26,7 +31,7 @@ final class DesignFactoryPanel
         }
         if($r['kind']==='SPEC_READY'){
             $status=$repo->providerStatus();echo '<p>Image provider: '.esc_html($status['reason']??'UNVERIFIED').'. Original editable artwork import is available; no paid API dependency is added.</p>';
-            $this->form('design_generate',$commercialHash,$hash);$this->check('confirm','Request one authorized design-provider attempt; STOP ALL still blocks dispatch');echo '<button class="df-button"'.(($status['available']??false)?'':' disabled').'>Request provider artwork</button></form>';
+            if(!$manualOnly){$this->form('design_generate',$commercialHash,$hash);$this->check('confirm','Request one authorized design-provider attempt; STOP ALL still blocks dispatch');echo '<button class="df-button"'.(($status['available']??false)?'':' disabled').'>Request provider artwork</button></form>';}
             $this->form('design_import',$commercialHash,$hash);echo '<h4>Import actual original artwork</h4><label>Editable SVG (maximum 60000 bytes, exact width/height/viewBox)<textarea name="svg" rows="8" maxlength="60000" required></textarea></label><label>Optional supplemental PNG uploads JSON: [{"mime_type":"image/png","base64":"..."}]<textarea name="rasters_json" rows="3" maxlength="8400000">[]</textarea></label><p>Up to three complete non-interlaced 8-bit PNGs, maximum 2 MiB each, exact canvas dimensions and embedded 300-DPI density. PNGs remain raster assets and are not embedded into the vector-only listing handoff.</p>';$this->field('rights_note','Original artwork / font licensing evidence');$this->field('source_note','Creation/import provenance and tool reference');echo '<button class="df-button">Import original editable artwork</button></form>';
         }
         if(is_array($r['asset'])){
@@ -41,7 +46,8 @@ final class DesignFactoryPanel
             if($r['kind']==='ASSET_READY'&&$v['review_state']===null){$this->form('design_review',$commercialHash,$hash);echo '<h4>Human commercial quality review (no AI quality score)</h4>';foreach(DesignFactoryContract::REVIEW_CRITERIA as $criterion)$this->check($criterion,str_replace('_',' ',$criterion),false);echo '<p>All criteria must be confirmed for APPROVE. Leave failed criteria unchecked for REJECT. Geometry review is against the recorded technical baseline, not supplier-certified margins.</p><select name="decision"><option value="REJECT">Reject artwork</option><option value="APPROVE">Approve exact artwork</option></select>';$this->field('note','Human quality/originality/licensing decision rationale');$this->check('confirm','I reviewed the actual source bytes and all criteria for this exact immutable version');echo '<button class="df-button">Record immutable artwork decision</button></form>';}
             if(in_array($v['review_state'],['APPROVAL_UNCONFIRMED','REVIEW_INTENT_UNCONFIRMED'],true))echo '<p>Review intent is preserved; approval is unconfirmed. Inspect the exact records before retry. No package handoff is allowed.</p>';
             if($v['review_state']==='HUMAN_APPROVED')echo '<p>Confirmed Day1 artwork reference <code>'.esc_html($v['artwork']['version_hash']).'</code>. Supplier/package validation remains a separate gate; supplemental PNGs require an explicitly integrated asset path.</p>';
-            if($v['review_state']==='HUMAN_APPROVED')(new ProductPackagePanel())->render($shop,$commercialHash,$hash);
+            if($v['review_state']==='HUMAN_APPROVED')(new ArtworkPersonalizationPanel())->render($shop,$commercialHash,$hash);
+            if($v['review_state']==='HUMAN_APPROVED')(new ProductPackagePanel())->render($shop,$commercialHash,$hash,$supplierTemplate);
         }
         if(is_array($r['specification'])){$this->form('design_revise',$commercialHash,$hash);$this->field('note','Artwork/specification revision reason');echo '<label>Optional revised layout JSON (same keys as specification.layout)<textarea name="choices_json" rows="4"></textarea></label><button class="df-button">Create immutable design revision</button></form>';}
         $history=$repo->history($shop,$hash);echo '<h4>Immutable design history</h4>';if($history instanceof WP_Error)echo '<p>'.esc_html($history->get_error_message()).'</p>';else foreach($history as $item)echo '<p><a href="'.esc_url(add_query_arg(['df_view'=>'research','df_shop'=>$shop,'df_research_version'=>$commercialHash,'df_factory_version'=>$item['hash']],$this->baseUrl())).'#df-design-factory">'.esc_html($item['kind'].' · '.$item['created_at']).'</a> · '.esc_html($item['note']).'</p>';
@@ -55,7 +61,7 @@ final class DesignFactoryPanel
     }
     public function process(array $post): array|WP_Error
     {
-        if(($post['shop_key']??null)!=='personalized_pod'||!is_string($post['workflow_hash']??null)||get_current_user_id()<1||!current_user_can('manage_digiforge_pod')||!current_user_can('manage_digiforge_research'))return new WP_Error('design_factory_scope','Authenticated exact-shop selected concept required.');
+        if(!\DigiForge\Security\PersonalizedPodAccess::allows()||($post['shop_key']??null)!=='personalized_pod'||!is_string($post['workflow_hash']??null)||get_current_user_id()<1||!current_user_can('manage_digiforge_pod')||!current_user_can('manage_digiforge_research'))return new WP_Error('design_factory_scope','Authenticated exact-shop selected concept required.');
         $commercial=$post['workflow_hash'];$repo=new DesignFactoryRepository();$op=$post['operation']??null;$result=null;
         if($op==='design_approve_concept')$result=$repo->approveConcept('personalized_pod',$commercial,['sources_reviewed'=>($post['sources_reviewed']??null)==='1','buyer_intent_reviewed'=>($post['buyer_intent_reviewed']??null)==='1','gifting_occasion_reviewed'=>($post['gifting_occasion_reviewed']??null)==='1','note'=>$post['note']??null]);
         else {

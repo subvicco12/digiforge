@@ -26,12 +26,12 @@ final class AttentionReadModel
             'orders_needing_reconciliation'=>$count("SELECT COUNT(DISTINCT o.id) FROM ".Tables::orders()." o LEFT JOIN ".Tables::order_line_items()." li ON li.order_id=o.id WHERE o.state NOT IN ('CLOSED','REJECTED','SUPERSEDED') AND (li.id IS NULL OR li.validation_status<>'VALIDATED' OR (li.provider_mapping_id=0 AND NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)))"),
         ];
         $preflight=(new \DigiForge\POD\ProductionPreflightAttentionReadModel())->summary();
-        $items['production_revalidation_reviews']=(int)$preflight['revalidation_required'];
+        $items['production_revalidation_reviews']=$preflight['revalidation_required'];
         $reconciliation=(new \DigiForge\POD\PrintifyUnknownOperatorReadModel())->summary();
         $items['printify_unknown_reconciliations']=$reconciliation['unresolved_reconciliations']??null;
         $items['printify_reconciliation_reviews']=$reconciliation['resolved_review_required']??null;
         $items['etsy_operations_requiring_reconciliation']=$count("SELECT COUNT(*) FROM ".$wpdb->prefix.'digiforge_etsy_operations'." WHERE state IN ('UNKNOWN','RECONCILIATION')");
-        $persistence=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::summary();$persistenceDrilldown=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::recent(50);$items['production_permit_persistence_unknown']=(int)$persistence['unknown_count'];$items['production_permit_persistence_observed']=(int)$persistence['persisted_observed_count'];
+        $persistence=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::summary();$persistenceDrilldown=\DigiForge\POD\ProductionPermitPersistenceObservationRepository::recent(50);$items['production_permit_persistence_unknown']=$persistence['unknown_count'];$items['production_permit_persistence_observed']=$persistence['persisted_observed_count'];
         $lifecycleClosures=$count("SELECT COUNT(*) FROM ".Tables::pod_lifecycle_closures());
         $items['execution_outcomes_pending']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_execution_outcomes()." o ON o.authorization_hash=n.authorization_hash WHERE o.id IS NULL");
         $items['production_legacy_unbound']=$count("SELECT COUNT(*) FROM ".Tables::pod_execution_nonces()." n LEFT JOIN ".Tables::pod_authorization_bindings()." b ON b.authorization_hash=n.authorization_hash LEFT JOIN ".Tables::pod_lifecycle_closures()." c ON c.authorization_hash=n.authorization_hash WHERE b.id IS NULL AND c.id IS NULL");

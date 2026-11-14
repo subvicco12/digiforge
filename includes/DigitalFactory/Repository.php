@@ -118,13 +118,16 @@ final class Repository {
     }
 
     public function find(string $type, int $id): array|\WP_Error|null { if (! isset(self::DEFINITIONS[$type]) || $id < 1) { return null; } global $wpdb; $wpdb->last_error=''; $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $this->table($type) . ' WHERE id = %d', $id), ARRAY_A); if(!empty($wpdb->last_error)){return $this->error('evidence_unavailable','Digital entity evidence is unavailable.',503);} return is_array($row) ? $this->normalize($row) : null; }
-    public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE): array {
+    public function all(string $type, int $page = 1, int $per_page = self::DEFAULT_PAGE_SIZE, ?string $shop = null): array {
         $page = max(1, $page); $per_page = min(self::MAX_PAGE_SIZE, max(1, $per_page));
         if (! isset(self::DEFINITIONS[$type])) { return ['items' => [], 'pagination' => compact('page', 'per_page') + ['total_items' => 0, 'total_pages' => 0]]; }
         global $wpdb; $table = $this->table($type); $offset = ($page - 1) * $per_page;
-        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
+        $scope=$shop===null?null:\DigiForge\Portal\ProductEvidenceScope::forTable($table,$shop);
+        $where=$shop===null?'':' WHERE '.($scope??'1=0');
+        $wpdb->last_error='';
+        $rows = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . $where . ' ORDER BY id DESC LIMIT %d OFFSET %d', $per_page, $offset), ARRAY_A);
         $rows_ok = is_array($rows) && (string) $wpdb->last_error === '';
-        $total_raw = $rows_ok ? $wpdb->get_var('SELECT COUNT(*) FROM ' . $table) : null;
+        $total_raw = $rows_ok ? $wpdb->get_var('SELECT COUNT(*) FROM ' . $table . $where) : null;
         $query_ok = $rows_ok && $total_raw !== null && (string) $wpdb->last_error === '';
         $total = $query_ok ? (int) $total_raw : 0;
         return ['items' => $query_ok ? array_map([$this, 'normalize'], $rows) : [], 'pagination' => ['page' => $page, 'per_page' => $per_page, 'total_items' => $total, 'total_pages' => $query_ok ? (int) ceil($total / $per_page) : 0], 'query_ok' => $query_ok];

@@ -62,6 +62,8 @@ final class PodSchema
         return true;
     }
 
+    // Explicit integer display widths match MariaDB SHOW COLUMNS output. Without
+    // them WordPress dbDelta repeatedly issues identical ALTERs on every boot.
     /** @return list<string> */
     public static function statements(string $charset): array
     {
@@ -137,17 +139,17 @@ final class PodSchema
             "CREATE TABLE " . Tables::pod_production_templates() . " (
   id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   template_id varchar(100) NOT NULL,
-  template_version int unsigned NOT NULL,
+  template_version int(10) unsigned NOT NULL,
   supplier varchar(32) NOT NULL,
-  provider_blueprint_id bigint unsigned NOT NULL,
-  provider_id bigint unsigned NOT NULL,
+  provider_blueprint_id bigint(20) unsigned NOT NULL,
+  provider_id bigint(20) unsigned NOT NULL,
   variant_ids longtext NOT NULL,
   print_areas longtext NOT NULL,
   personalization_pipeline varchar(32) NOT NULL,
   personalization_engine varchar(64) NOT NULL,
   template_status varchar(32) NOT NULL DEFAULT 'DRAFT',
   fingerprint char(64) NOT NULL,
-  created_by bigint unsigned NOT NULL DEFAULT 0,
+  created_by bigint(20) unsigned NOT NULL DEFAULT 0,
   created_at datetime NOT NULL,
   updated_at datetime NOT NULL,
   PRIMARY KEY  (id),
@@ -213,7 +215,7 @@ final class PodSchema
   width_value decimal(12,4) NOT NULL DEFAULT 0,
   height_value decimal(12,4) NOT NULL DEFAULT 0,
   unit varchar(16) NOT NULL DEFAULT 'px',
-  dpi_target smallint unsigned NOT NULL DEFAULT 0,
+  dpi_target smallint(5) unsigned NOT NULL DEFAULT 0,
   bleed_metadata longtext NULL,
   safe_area_metadata longtext NULL,
   accepted_formats longtext NULL,

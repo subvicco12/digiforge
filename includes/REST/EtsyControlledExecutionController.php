@@ -87,7 +87,7 @@ final class EtsyControlledExecutionController
             if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_image_evidence_unavailable','Derived image source revision evidence could not be read.',['status'=>503]);
             if(!is_array($source)||(int)($source['product_version_id']??0)!==(int)$listing['product_version_id']||($source['state']??'')!=='APPROVED'||!hash_equals(strtolower((string)($source['checksum_sha256']??'')),$sourceChecksum)||!hash_equals((string)($source['storage_reference']??''),(string)($provenance['source_storage_reference']??'')))return new WP_Error('digiforge_etsy_image_lineage','Derived listing image source no longer matches approved immutable source evidence.',['status'=>409]);
         }
-        $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId); if($identity instanceof WP_Error)return $identity;
+        $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId,(string)($listing['environment']??'')); if($identity instanceof WP_Error)return $identity;
         $operations=new EtsyOperationRepository(); $parent=$operations->confirmedCreateForScope($intentId,$packageId,(string)$shopId); if($parent instanceof WP_Error)return $parent; if(!is_array($parent))return new WP_Error('digiforge_etsy_image_parent','A confirmed CREATE_DRAFT is required before image upload.',['status'=>409]);
         $listingId=(int)($parent['external_reference']??0); if($listingId<1)return new WP_Error('digiforge_etsy_image_parent_identity','Confirmed CREATE_DRAFT listing identity is invalid.',['status'=>409]);
         $path=AssetStorage::absolutePath((string)$asset['storage_reference']); if($path===null)return new WP_Error('digiforge_etsy_image_storage','Approved image bytes are unavailable in protected asset storage.',['status'=>409]); $multipart=EtsyMultipartImageRequest::build($shopId,$listingId,$path,$rank); if($multipart instanceof WP_Error)return $multipart;
@@ -118,7 +118,7 @@ final class EtsyControlledExecutionController
         if(!is_array($intent)||($intent['state']??'')!=='APPROVED_INTENT'||(int)($intent['draft_package_id']??0)!==$packageId||!is_array($package)||(int)($package['approved_by']??0)<1)return new WP_Error('digiforge_etsy_file_approval','Approved intent/package scope is required.',['status'=>409]);
         $wpdb->last_error='';
         $listing=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::listings().' WHERE id=%d LIMIT 1',(int)$intent['listing_id']),ARRAY_A); if(!empty($wpdb->last_error))return new WP_Error('digiforge_etsy_scope_evidence_unavailable','Approved listing evidence could not be read.',['status'=>503]); if(!is_array($listing)||($listing['state']??'')!=='APPROVED')return new WP_Error('digiforge_etsy_file_listing','Approved listing is required.',['status'=>409]);
-        $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId); if($identity instanceof WP_Error)return $identity;
+        $connection=(new ConnectionTester())->test($integrationId); if($connection instanceof WP_Error)return $connection; $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId,(string)($listing['environment']??'')); if($identity instanceof WP_Error)return $identity;
         $operations=new EtsyOperationRepository(); $parent=$operations->confirmedCreateForScope($intentId,$packageId,(string)$shopId); if($parent instanceof WP_Error)return $parent; if(!is_array($parent))return new WP_Error('digiforge_etsy_file_parent','A confirmed CREATE_DRAFT is required before digital upload.',['status'=>409]);
         $listingId=(int)($parent['external_reference']??0); if($listingId<1)return new WP_Error('digiforge_etsy_file_parent_identity','Confirmed CREATE_DRAFT listing identity is invalid.',['status'=>409]);
         $selected=EtsyCustomerDownloadResolver::resolve((int)$listing['product_version_id']); if($selected instanceof WP_Error)return $selected;
@@ -169,7 +169,7 @@ final class EtsyControlledExecutionController
 
         $connection=(new ConnectionTester())->test($integrationId);
         if($connection instanceof WP_Error) return $connection;
-        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);
+        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId,(string)($listing['environment']??''));
         if($identity instanceof WP_Error) return $identity;
         $taxonomyId=(int)($classification['taxonomy_id']??0);
         if($taxonomyId<1) return new WP_Error('digiforge_etsy_runtime_taxonomy','A positive Etsy taxonomy_id is required for verified taxonomy lookup.',['status'=>400]);

@@ -1,0 +1,130 @@
+{
+  "schema": "fc01-native-evidence-packet-v1",
+  "shop_key": "personalized_pod",
+  "evidence_kind": "SYNTHETIC_TEST_ONLY",
+  "concept_spec_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "connection": {},
+  "identity": {
+    "product_id": "synthetic-existing-product",
+    "blueprint_id": 90001,
+    "provider_id": 90002,
+    "variant_id": 90003,
+    "placement": "front"
+  },
+  "sources": [
+    {
+      "id": "synthetic-source",
+      "kind": "SYNTHETIC_TEST_ONLY",
+      "origin": "https://help.printify.com/",
+      "observed_at": "2026-10-19T00:00:00Z",
+      "expires_at": "2026-10-20T00:00:00Z",
+      "sha256": "ba6b5e5cb9d9a1cd133e8677b5d03a195d6579f0cb57bc76377d8058450b0995"
+    },
+    {
+      "id": "preview",
+      "kind": "RENDER_CAPTURE",
+      "origin": "https://help.printify.com/",
+      "observed_at": "2026-10-19T00:00:00Z",
+      "expires_at": "2026-10-20T00:00:00Z",
+      "sha256": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f"
+    },
+    {
+      "id": "final",
+      "kind": "RENDER_CAPTURE",
+      "origin": "https://help.printify.com/",
+      "observed_at": "2026-10-19T00:00:00Z",
+      "expires_at": "2026-10-20T00:00:00Z",
+      "sha256": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f"
+    }
+  ],
+  "sections": {
+    "N01": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "font_selection": "Synthetic native font",
+        "layer_settings_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "N02": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "family_name_field_id": "synthetic-family",
+        "required": true
+      }
+    },
+    "N03": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "established_field_id": "synthetic-established",
+        "optional": true,
+        "conditional_omission": true,
+        "prefix": "ESTABLISHED "
+      }
+    },
+    "N04": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "max_code_points": 48,
+        "exact_utf8": true,
+        "normalization": "NONE"
+      }
+    },
+    "N05": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "overflow": "REJECT",
+        "auto_shrink": false
+      }
+    },
+    "N06": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "proposed_locale": "en-US",
+        "glyph_coverage_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "N07": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "synthetic-source"
+      ],
+      "findings": {
+        "geometry_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "placement": "front"
+      }
+    },
+    "N08": {
+      "reported_level": "TESTED",
+      "source_ids": [
+        "preview",
+        "final"
+      ],
+      "findings": {
+        "input_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "preview_sha256": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f",
+        "final_sha256": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f",
+        "parity_rule": "SAME_FORMAT_BYTES",
+        "preview_source_id": "preview",
+        "final_source_id": "final"
+      }
+    }
+  }
+}

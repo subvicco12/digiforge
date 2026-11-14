@@ -230,6 +230,11 @@ final class ProductPackageRepository
             'commercial_approved' => false, 'supplier_certified' => false, 'release_hold' => true,
             'external_execution_authorized' => false, 'external_execution_performed' => false,
             'handoff' => 'MANUAL_PRINTIFY_NATIVE_AFTER_SEPARATE_EXACT_LIVE_AUTHORIZATION'];
+        $bound = array_key_exists('shop2_binding', $v['record']['evidence']);
+        if ($bound) {
+            $export['proof_business_binding'] = $v['record']['evidence']['shop2_binding'];
+            $export['immutable_package_record_sha256'] = $hash;
+        }
         if (!empty($v['record']['commercial_design_metadata']['raster_references'])) {
             $export['remaining_gates'][] = 'SUPPLEMENTAL_RASTER_COMPOSITION_REVIEW_REQUIRED';
         }
@@ -238,7 +243,21 @@ final class ProductPackageRepository
         } catch (\InvalidArgumentException) {
             return self::error('Held export including sidecar metadata exceeds the 65536-byte budget.');
         }
-        return Validator::canonicalJson($export);
+        $encoded = Validator::canonicalJson($export);
+        if ($bound) {
+            // Bound records cannot fall back to a worksheet through another export caller.
+            $binding = $v['record']['evidence']['shop2_binding'];
+            $supplier = is_array($binding) ? ($binding['business']['supplier_workflow_hash'] ?? null) : null;
+            $factory = $v['record']['commercial_design_metadata']['design_hash'] ?? null;
+            $research = $v['record']['commercial_design_metadata']['commercial_hash'] ?? null;
+            if (!is_string($supplier) || !is_string($factory) || !is_string($research)) return self::error('Current proof/business-bound source references required.');
+            $link = (new Shop2ProductWorkflow())->read($supplier);
+            if (is_wp_error($link)) return $link;
+            $current = Shop2HeldPackageBinding::inspect($link, $research, $factory, $hash);
+            if (is_wp_error($current)) return $current;
+            if ($current['decision_hash'] !== \DigiForge\Connector\Printify\NativePortContract::hash(['decision'=>$v['decision']])) return self::error('Package decision changed during bound export.');
+        }
+        return $encoded;
     }
 
     /** Attachment bytes for an authenticated caller only; never an inline SVG/public URL. */
@@ -351,7 +370,7 @@ final class ProductPackageRepository
 
     private function access(string $shop): bool
     {
-        return $shop === 'personalized_pod' && get_current_user_id() > 0
+        return \DigiForge\Security\PersonalizedPodAccess::allows() && $shop === 'personalized_pod' && get_current_user_id() > 0
             && current_user_can('manage_digiforge_pod') && current_user_can('manage_digiforge_research');
     }
 
@@ -384,7 +403,7 @@ final class ProductPackageRepository
     {
         global $wpdb;
         $wpdb->last_error = '';
-        $raw = $wpdb->get_var($wpdb->prepare('SELECT option_value FROM ' . $wpdb->options . ' WHERE BINARY option_name=BINARY %s', $name));
+        $raw = $wpdb->get_var($wpdb->prepare('SELECT option_value FROM ' . $wpdb->options . ' WHERE BINARY option_name=BINARY %s', $name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);
         return $wpdb->last_error === '' && ($raw === null || is_string($raw)) ? $raw : self::error('Durable evidence unavailable.', 503);
     }
     private static function hash(string $hash): bool

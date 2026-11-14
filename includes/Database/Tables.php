@@ -94,6 +94,7 @@ final class Tables {
     public static function shop_ai_policies(): string { return self::name('shop_ai_policies'); }
     public static function scoped_capability_policies(): string { return self::name('scoped_capability_policies'); }
     public static function shop_ai_usage(): string { return self::name('shop_ai_usage'); }
+    public static function etsy_order_event_evidence(): string { return self::name('etsy_order_event_evidence'); }
     public static function webhook_evidence(): string { return self::name('webhook_evidence'); }
     public static function pod_render_evidence(): string { return self::name('pod_render_evidence'); }
     public static function pod_authorization_packages(): string { return self::name('pod_authorization_packages'); }

@@ -1,0 +1,304 @@
+{
+  "schema": "source6-migration-observation-input-v1",
+  "reported_observation_date": "2026-10-20",
+  "reported_observation_precision": "DATE_ONLY_REPORTED_NOT_EXACT_PROVIDER_TIMESTAMP",
+  "reported_source_current_combination_count": 496,
+  "report_receipts": [
+    {
+      "comment_id": 6286964033,
+      "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033",
+      "body_sha256": "67b22239d6250d9468bb314ec757a2976f50fa7008d425f3a9390b505432f871",
+      "github_report_received_at": null,
+      "receipt_timestamp_state": "UNKNOWN_NOT_INCLUDED_IN_CACHED_EXPORT",
+      "body": "## Authenticated option inventory follow-up (2026-10-20)\nSource [TinyFish read-only run](https://agent.tinyfish.ai/runs/b2d3bf19-f04a-41d3-885c-79020de08e13).\n\nCandle `6ad647d03c2fe90c6102cb18`: 9oz; exact nine scents observed: Clean Cotton; Sea Salt + Orchid; White Sage and Lavender; Apple Harvest; Cinnamon Vanilla; Christmas Warmth; Coconut Cream + Cardamom; Peppered Passionfruit; Unscented. UI reports all in stock. One example SKU for Clean Cotton `24656548580068192697` (UI observation only). Proposed candle-only group locally calculates 1×9=9 combinations under Printify's observed rule, but no authorization/rights/publishing readiness inferred.\n\nSweatshirt `6ad647d24f4a65e4300211e5`: current read-only table showed S–5XL (8 size rows), 5 colors S–3XL and 4 colors 4XL–5XL; exact color labels inaccessible. Earlier inspection reported XS–5XL (9 selected size slots), conflicting with current visible table; must resolve actual selected status before exact group calculation.\n\nTote `6ad647d04f4a65e4300211e2`: 15×16 inches, 2 colors, one out of stock; exact color names inaccessible. Accessories combination count remains UNKNOWN and needs shared option semantics review.\n\nNo product edits, saves, publishing, orders or token renewal. Preserve the discrepancy; do not substitute inferred labels. Three offline plans remain BLOCKED except home arithmetic can be marked locally calculated, not accepted. Ledger unchanged 246/268 candidates, 22 UNVERIFIED; STOP ALL ON, external lock ON, automation OFF, RELEASE HOLD, Finance excluded."
+    },
+    {
+      "comment_id": 6287001558,
+      "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6287001558",
+      "body_sha256": "830116ecf5ac45d0554f2cc1b55b961e54b2af5000d1c2cf663fb41cc57158d7",
+      "github_report_received_at": null,
+      "receipt_timestamp_state": "UNKNOWN_NOT_INCLUDED_IN_CACHED_EXPORT",
+      "body": "## Three-group acceptance reconciliation — source-based, no provider mutations (2026-10-20)\n\nSources: authenticated read-only evidence comments #6286228625, #6286591812, #6286755159, #6286964033. Draft #1219 remains open at `c69f96a71a2ca207dd772db551453e8768c72074`.\n\n**Home:** Candle `6ad647d03c2fe90c6102cb18`, 9oz and nine explicitly observed scents, yielding **9 locally calculated combinations** under Printify's stated size×option rule. This is not a provider-certified planned listing, nor shipping, pricing, rights, personalization or authorization acceptance.\n\n**Apparel:** hoodie eight selected sizes, sweatshirt contradictory eight/nine size observations, T-shirt nine reported sizes. T-shirt/hoodie confirmed union of six color names; sweatshirt exact labels not captured and prior palette reports conflict. Exact apparel size-slot and option union therefore UNKNOWN. Do not promote the earlier provisional 26×6=156 illustration to exact count.\n\n**Accessories:** sticker four selected sizes and tote one size with two colors (one out of stock). Shared option semantics for colorless sticker vs tote not verified. Exact Etsy combination count UNKNOWN.\n\n**Shared operational blockers:** existing six-product listing 496>400; multi-listing shipping/pricing dependencies; disabled T-shirt personalization; expired Etsy connection; missing authoritative variant/SKU/provider/geometry/rights and installed-site acceptance.\n\n**Engineering:** Reuse existing #1219 draft contracts; test only source-backed cases, no new PR unless reproducible defect. No criterion promotion: 246/268 implementation candidates and 22 UNVERIFIED. STOP ALL ON, external lock ON, automation OFF, RELEASE HOLD; Finance excluded."
+    },
+    {
+      "comment_id": 6288058817,
+      "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6288058817",
+      "body_sha256": "04dde28a76949d39f3c030481403c6e608b21aa1d6bfc5e98a1bd25d95ff66ea",
+      "github_report_received_at": null,
+      "receipt_timestamp_state": "UNKNOWN_NOT_INCLUDED_IN_CACHED_EXPORT",
+      "body": "## Six-product -> three-group OFFLINE migration specification (2026-10-20)\n\n**Scope/authority:** planning only; owner has NOT authorized any Printify/Etsy listing changes. Source membership authenticated UI [run](https://agent.tinyfish.ai/runs/5293f5a6-5b0a-4405-8cd1-00d0c6c569d0). Existing source listing `8a2666c5-d3db-4b44-bf6a-4c5b4213815e`, primary candle, six products, Draft with unsaved changes, 496=31×16 > Etsy 400. Keep source untouched.\n\n**Candidate groups, preserving source IDs:**\nA APPAREL: hoodie `6ad647d14f4a65e4300211e4`, sweatshirt `6ad647d24f4a65e4300211e5`, T-shirt `6ad647d23c2fe90c6102cb1c`. New primary/category not approved; exact size slots and shared color-name union UNKNOWN due conflicting observations.\nB HOME: soy candle `6ad647d03c2fe90c6102cb18`; 9oz and 9 named scents observed, locally calculated 9 combinations, not supplier/API-certified.\nC ACCESSORIES: stickers `6ad647d01f72f1c0030e41be`, tote `6ad647d04f4a65e4300211e2`; exact option semantics UNKNOWN; tote one out-of-stock color.\n\n**Prerequisites for any executable migration:** 1) authenticated typed shop/product/blueprint/provider/variant/SKU/placement and revision records, with snapshot hashes/timestamps; 2) exact selected options and Etsy size×union color/scent count <=400 for each proposed listing; 3) source and target Etsy listing identities, linkage graph, duplicate/SEO implications, categories and approved primary product; 4) separate shipping profile, carrier/provider costs and single-listing price propagation, explicit review of stock and manual republish notice; 5) rights/font/artwork/template and personalization eligibility; 6) valid Etsy authorization proved by allowed read-only integration checks; 7) owner-approved per-listing change plan, rollback and post-change verification. Missing inputs fail closed.\n\n**Execution sequencing for future separately authorized operation only:** snapshot current source/linked individual listing state -> create independent draft targets -> verify target counts/options, mockups, shipping and personalization -> owner reviews -> explicitly authorize controlled publishing/migration -> verify links, stock and prices -> only then consider retiring source. None of these provider actions are authorized now.\n\n**Codex acceptance checks (offline):** preserve all six IDs exactly once; no cross-shop bleed; enforce <=400 using selected shared-option semantics; unknown variants/rights/provider identity remain BLOCKED; prevent price/shipping shared mutation; no draft plan capable of provider execution; deterministic idempotent versioned plan and rollback manifest. Reuse #1219; no PR absent reproduced defect.\n\n**Release:** NO RELEASE. Ledger 246/268 implementation candidates, 22 UNVERIFIED; STOP ALL ON, external lock ON, automation OFF, RELEASE HOLD; Finance excluded."
+    }
+  ],
+  "report_receipts_sha256": "1ece0c1bfefed40d4dde1bd2384c7f0845f5aca6a94c2c85c0c19fd0272d01e0",
+  "prior_reconciled_artifact_sha256": "d1b5308254742ebe2fb00ab791bba819943f730bf8057d39ea747e34ac7caa96",
+  "prior_artifact_use": "Only previously attributed routing observations retained; no current provider IDs or refreshed supplier evidence inferred.",
+  "partial_observations_not_promoted_to_selected_options": {
+    "tote_size_report": "15×16 inches",
+    "tote_color_count_report": 2,
+    "tote_exact_color_names": null,
+    "sticker_selected_size_count_report": 4,
+    "sticker_exact_size_labels": null,
+    "tshirt_selected_size_count_report": 9,
+    "hoodie_selected_size_count_report": 8,
+    "sweatshirt_selected_size_counts_report": [
+      8,
+      9
+    ],
+    "candle_example_sku": {
+      "shared_value": "Clean Cotton",
+      "sku": "24656548580068192697",
+      "variant_id": null,
+      "binding_state": "UNBOUND_UI_OBSERVATION_ONLY"
+    }
+  },
+  "source_snapshot": {
+    "shop_key": "personalized_pod",
+    "environment": "production",
+    "printify_store_id": "28930593",
+    "source_listing_id": "8a2666c5-d3db-4b44-bf6a-4c5b4213815e",
+    "source_primary_product_id": "6ad647d03c2fe90c6102cb18",
+    "source_revision": null,
+    "source_state": "DRAFT_WITH_UNSAVED_CHANGES",
+    "provenance": {
+      "kind": "ATTRIBUTED_AUTHENTICATED_UI_REPORT",
+      "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6288058817",
+      "observed_at": null,
+      "evidence_sha256": "1ece0c1bfefed40d4dde1bd2384c7f0845f5aca6a94c2c85c0c19fd0272d01e0"
+    },
+    "products": [
+      {
+        "product_id": "6ad647d14f4a65e4300211e4",
+        "label": "hoodie",
+        "routing": "DYNAMIC_CHOICE",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": null,
+        "selected_shared_values": null,
+        "selections_complete": false,
+        "options_source_reference": null,
+        "stock": null,
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      },
+      {
+        "product_id": "6ad647d24f4a65e4300211e5",
+        "label": "sweatshirt",
+        "routing": "DYNAMIC_CHOICE",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": null,
+        "selected_shared_values": null,
+        "selections_complete": false,
+        "options_source_reference": null,
+        "stock": null,
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      },
+      {
+        "product_id": "6ad647d23c2fe90c6102cb1c",
+        "label": "tshirt",
+        "routing": "DYNAMIC_CHOICE",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": null,
+        "selected_shared_values": null,
+        "selections_complete": false,
+        "options_source_reference": null,
+        "stock": null,
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      },
+      {
+        "product_id": "6ad647d03c2fe90c6102cb18",
+        "label": "soy_candle",
+        "routing": "FIXED_PROVIDER",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": [
+          "9oz"
+        ],
+        "selected_shared_values": [
+          "Clean Cotton",
+          "Sea Salt + Orchid",
+          "White Sage and Lavender",
+          "Apple Harvest",
+          "Cinnamon Vanilla",
+          "Christmas Warmth",
+          "Coconut Cream + Cardamom",
+          "Peppered Passionfruit",
+          "Unscented"
+        ],
+        "selections_complete": true,
+        "options_source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033",
+        "stock": [
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Clean Cotton",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Sea Salt + Orchid",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "White Sage and Lavender",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Apple Harvest",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Cinnamon Vanilla",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Christmas Warmth",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Coconut Cream + Cardamom",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Peppered Passionfruit",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          },
+          {
+            "variant_id": null,
+            "size_slot": "9oz",
+            "shared_value": "Unscented",
+            "state": "IN_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          }
+        ],
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      },
+      {
+        "product_id": "6ad647d01f72f1c0030e41be",
+        "label": "stickers",
+        "routing": "DYNAMIC_CHOICE",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": null,
+        "selected_shared_values": null,
+        "selections_complete": false,
+        "options_source_reference": null,
+        "stock": null,
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      },
+      {
+        "product_id": "6ad647d04f4a65e4300211e2",
+        "label": "tote",
+        "routing": "DYNAMIC_CHOICE",
+        "provider_id": null,
+        "blueprint_id": null,
+        "selected_variant_ids": null,
+        "sku_mapping": null,
+        "selected_size_slots": null,
+        "selected_shared_values": null,
+        "selections_complete": false,
+        "options_source_reference": null,
+        "stock": [
+          {
+            "variant_id": null,
+            "size_slot": null,
+            "shared_value": null,
+            "state": "OUT_OF_STOCK",
+            "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6286964033"
+          }
+        ],
+        "local_product_version_id": null,
+        "local_product_version_sha256": null
+      }
+    ],
+    "dependency_snapshots": {
+      "linkage": null,
+      "pricing": null,
+      "shipping": null,
+      "mockups": null,
+      "personalization": null
+    }
+  },
+  "groups": [
+    {
+      "group_key": "apparel",
+      "product_ids": [
+        "6ad647d14f4a65e4300211e4",
+        "6ad647d24f4a65e4300211e5",
+        "6ad647d23c2fe90c6102cb1c"
+      ],
+      "primary_product_id": null,
+      "counting_rule": null,
+      "evidence_conflicts": [
+        "Sweatshirt selected-size reports conflict: 8 versus 9; exact selected color labels incomplete/conflicting."
+      ]
+    },
+    {
+      "group_key": "home",
+      "product_ids": [
+        "6ad647d03c2fe90c6102cb18"
+      ],
+      "primary_product_id": null,
+      "counting_rule": {
+        "rule": "SUM_PRODUCT_SIZE_SLOTS_X_EXACT_SHARED_VALUE_UNION",
+        "review_state": "REVIEWED_FOR_OFFLINE_COUNTING",
+        "source_reference": "https://github.com/subvicco12/digiforge/issues/1209#issuecomment-6287001558"
+      },
+      "evidence_conflicts": []
+    },
+    {
+      "group_key": "accessories",
+      "product_ids": [
+        "6ad647d01f72f1c0030e41be",
+        "6ad647d04f4a65e4300211e2"
+      ],
+      "primary_product_id": null,
+      "counting_rule": null,
+      "evidence_conflicts": [
+        "Shared option semantics for colorless stickers versus tote remain UNKNOWN; exact tote color labels inaccessible."
+      ]
+    }
+  ],
+  "stop_all": true,
+  "external_lock": true,
+  "automation": false,
+  "release_hold": true,
+  "external_execution_performed": false,
+  "quoted_report_scope_note": "Report bodies are historical public evidence quotations. Their historical Finance exclusions do not change the current task scope or establish current Finance authority."
+}

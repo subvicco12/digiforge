@@ -27,7 +27,7 @@ final class Repository {
         if ($key !== null) {
             $existing = $this->find_by_key($type, $key);
             if (is_wp_error($existing)) { return $existing; }
-            if ($existing !== null) { return $existing + ['idempotent_replay' => true]; }
+            if ($existing !== null) { if (! $this->replayMatches($definition, $existing, $input)) { return $this->error('idempotency_conflict', 'Idempotency identity belongs to different immutable content or lineage.', 409); } return $existing + ['idempotent_replay' => true]; }
         }
         $data = [$definition['label'] => $label, $definition['text'] => sanitize_textarea_field((string) ($input[$definition['text']] ?? '')), 'state' => Lifecycle::initial($type), 'idempotency_key' => $key, 'created_by' => get_current_user_id(), 'created_at' => current_time('mysql', true), 'updated_at' => current_time('mysql', true)];
         if (isset($definition['parent'])) {
@@ -43,7 +43,7 @@ final class Repository {
             if ($key !== null) {
                 $existing = $this->find_by_key($type, $key);
                 if (is_wp_error($existing)) { return $existing; }
-                if ($existing !== null) { return $existing + ['idempotent_replay' => true]; }
+                if ($existing !== null) { if (! $this->replayMatches($definition, $existing, $input)) { return $this->error('idempotency_conflict', 'Idempotency identity belongs to different immutable content or lineage.', 409); } return $existing + ['idempotent_replay' => true]; }
             }
             return $this->error('create_failed', 'Unable to create entity.', 500);
         }
@@ -95,6 +95,16 @@ final class Repository {
         $entity = $this->find($type, $id);
         if (is_wp_error($entity)) { return $entity; }
         return $entity ?? $this->error('not_found', 'Entity not found.', 404);
+    }
+    /** Existing identities may only replay the same canonical creation payload. */
+    private function replayMatches(array $definition, array $existing, array $input): bool {
+        if ((string) ($existing[$definition['label']] ?? '') !== sanitize_text_field((string) ($input[$definition['label']] ?? ''))) { return false; }
+        if ((string) ($existing[$definition['text']] ?? '') !== sanitize_textarea_field((string) ($input[$definition['text']] ?? ''))) { return false; }
+        if (isset($definition['parent'])) {
+            $parent = absint($input[$definition['parent']] ?? 0);
+            if ($parent < 1 || $parent !== (int) ($existing[$definition['parent']] ?? 0)) { return false; }
+        }
+        return true;
     }
     private function find_by_key(string $type, string $key): array|\WP_Error|null {
         global $wpdb;

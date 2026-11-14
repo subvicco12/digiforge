@@ -12,7 +12,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         $attention = new DigiForge\Portal\AttentionReadModel();
         $pendingBefore = $attention->summary()['research_reviews'];
 
-        $source = $repository->createSource([
+        $source = $repository->createSource(['shop_key'=>'digital',
             'name' => 'Manual Etsy research',
             'source_type' => 'manual',
             'environment' => 'sandbox',
@@ -47,7 +47,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         ], 'research-evidence-1');
         self::assertIsArray($evidence);
 
-        $candidate = $repository->createCandidate([
+        $candidate = $repository->createCandidate(['shop_key'=>'digital',
             'title' => 'Personalized Family Mug',
             'summary' => 'Candidate produced from stored manual evidence.',
             'signals' => [
@@ -64,7 +64,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         self::assertSame($pendingBefore + 1, $attention->summary()['research_reviews']);
         self::assertEqualsWithDelta(71.0, (float) $candidate['score'], 0.001);
 
-        $duplicateCandidate = $repository->createCandidate(['title' => '  PERSONALIZED   FAMILY MUG  ']);
+        $duplicateCandidate = $repository->createCandidate(['shop_key'=>'digital','title' => '  PERSONALIZED   FAMILY MUG  ']);
         self::assertIsArray($duplicateCandidate);
         self::assertTrue((bool) ($duplicateCandidate['deduplicated'] ?? false));
 

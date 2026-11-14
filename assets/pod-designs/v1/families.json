@@ -1,0 +1,1131 @@
+{
+  "FC01": {
+    "component": "family_leaf_border",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "family_name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "established",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "FC01",
+    "name": "Our Family Established",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FC02": {
+    "component": "coordinate_pin",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "coordinates",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "place",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "FC02",
+    "name": "Coordinates of Us",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FC03": {
+    "component": "couple_rings",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name_one",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "name_two",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "date",
+        "max_length": 48,
+        "required": true,
+        "type": "date"
+      }
+    ],
+    "id": "FC03",
+    "name": "Two Names One Date",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FC04": {
+    "component": "constellation_stars",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "family_name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "detail",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "FC04",
+    "name": "Family Name Constellation",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR01": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "PET_FACE_REPEAT",
+    "fields": [],
+    "id": "FR01",
+    "name": "scattered_pet_faces",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        210.0,
+        83.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        460.0,
+        83.0
+      ],
+      [
+        85.0,
+        190.0
+      ],
+      [
+        193.0,
+        208.0
+      ],
+      [
+        335.0,
+        190.0
+      ],
+      [
+        443.0,
+        208.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        210.0,
+        333.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        460.0,
+        333.0
+      ],
+      [
+        85.0,
+        440.0
+      ],
+      [
+        193.0,
+        458.0
+      ],
+      [
+        335.0,
+        440.0
+      ],
+      [
+        443.0,
+        458.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR01_scattered_pet_faces.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR02": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "PET_FACE_REPEAT",
+    "fields": [],
+    "id": "FR02",
+    "name": "diagonal_dog-face_repeat",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        108.0,
+        190.0
+      ],
+      [
+        233.0,
+        190.0
+      ],
+      [
+        358.0,
+        190.0
+      ],
+      [
+        483.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        108.0,
+        440.0
+      ],
+      [
+        233.0,
+        440.0
+      ],
+      [
+        358.0,
+        440.0
+      ],
+      [
+        483.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR02_diagonal_dog-face_repeat.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR03": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "decoration": "fr03_decoration",
+    "engine": "PET_FACE_REPEAT",
+    "fields": [],
+    "id": "FR03",
+    "name": "pet_faces_and_hearts",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        68.0,
+        190.0
+      ],
+      [
+        193.0,
+        190.0
+      ],
+      [
+        318.0,
+        190.0
+      ],
+      [
+        443.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        68.0,
+        440.0
+      ],
+      [
+        193.0,
+        440.0
+      ],
+      [
+        318.0,
+        440.0
+      ],
+      [
+        443.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR03_pet_faces_and_hearts.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR04": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "FACE_REPEAT",
+    "fields": [],
+    "id": "FR04",
+    "name": "human_face_celebration",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        108.0,
+        190.0
+      ],
+      [
+        233.0,
+        190.0
+      ],
+      [
+        358.0,
+        190.0
+      ],
+      [
+        483.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        108.0,
+        440.0
+      ],
+      [
+        233.0,
+        440.0
+      ],
+      [
+        358.0,
+        440.0
+      ],
+      [
+        483.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR04_human_face_celebration.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR05": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "FACE_REPEAT",
+    "fields": [],
+    "id": "FR05",
+    "name": "couple_alternating_faces",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        68.0,
+        190.0
+      ],
+      [
+        193.0,
+        190.0
+      ],
+      [
+        318.0,
+        190.0
+      ],
+      [
+        443.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        68.0,
+        440.0
+      ],
+      [
+        193.0,
+        440.0
+      ],
+      [
+        318.0,
+        440.0
+      ],
+      [
+        443.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR05_couple_alternating_faces.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR06": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "FACE_REPEAT",
+    "fields": [],
+    "id": "FR06",
+    "name": "minimal_monochrome_face_repeat",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        210.0,
+        83.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        460.0,
+        83.0
+      ],
+      [
+        85.0,
+        190.0
+      ],
+      [
+        193.0,
+        208.0
+      ],
+      [
+        335.0,
+        190.0
+      ],
+      [
+        443.0,
+        208.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        210.0,
+        333.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        460.0,
+        333.0
+      ],
+      [
+        85.0,
+        440.0
+      ],
+      [
+        193.0,
+        458.0
+      ],
+      [
+        335.0,
+        440.0
+      ],
+      [
+        443.0,
+        458.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR06_minimal_monochrome_face_repeat.svg",
+    "required_cutout_style": "CS06",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR07": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "decoration": "fr07_decoration",
+    "engine": "PET_FACE_REPEAT",
+    "fields": [],
+    "id": "FR07",
+    "name": "pet_faces_with_name_ribbons",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        68.0,
+        190.0
+      ],
+      [
+        193.0,
+        190.0
+      ],
+      [
+        318.0,
+        190.0
+      ],
+      [
+        443.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        68.0,
+        440.0
+      ],
+      [
+        193.0,
+        440.0
+      ],
+      [
+        318.0,
+        440.0
+      ],
+      [
+        443.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR07_pet_faces_with_name_ribbons.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "FR08": {
+    "canvas": [
+      560,
+      560
+    ],
+    "compatible_engines": [
+      "FACE_REPEAT",
+      "PET_FACE_REPEAT",
+      "AOP_PATTERN"
+    ],
+    "component": null,
+    "engine": "PET_FACE_REPEAT",
+    "fields": [],
+    "id": "FR08",
+    "name": "multi-pet_family_repeat",
+    "positions": [
+      [
+        68.0,
+        65.0
+      ],
+      [
+        193.0,
+        65.0
+      ],
+      [
+        318.0,
+        65.0
+      ],
+      [
+        443.0,
+        65.0
+      ],
+      [
+        108.0,
+        190.0
+      ],
+      [
+        233.0,
+        190.0
+      ],
+      [
+        358.0,
+        190.0
+      ],
+      [
+        483.0,
+        190.0
+      ],
+      [
+        68.0,
+        315.0
+      ],
+      [
+        193.0,
+        315.0
+      ],
+      [
+        318.0,
+        315.0
+      ],
+      [
+        443.0,
+        315.0
+      ],
+      [
+        108.0,
+        440.0
+      ],
+      [
+        233.0,
+        440.0
+      ],
+      [
+        358.0,
+        440.0
+      ],
+      [
+        483.0,
+        440.0
+      ]
+    ],
+    "prototype_source": "sources/FACE_REPEAT_Design_Family/FR08_multi-pet_family_repeat.svg",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "MR01": {
+    "component": "memorial_flourish",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "dates",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "MR01",
+    "name": "Forever in Our Hearts",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "MR02": {
+    "component": "rainbow_arc",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "detail",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "MR02",
+    "name": "Pet Rainbow Remembrance",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "MR03": {
+    "component": "photo_frame",
+    "engine": "MEMORIAL",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "photo",
+        "max_length": 512,
+        "required": true,
+        "type": "image_reference"
+      }
+    ],
+    "id": "MR03",
+    "name": "In Loving Memory Photo",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "MR04": {
+    "component": "handwriting_underline",
+    "engine": "HANDWRITING",
+    "fields": [
+      {
+        "key": "artwork",
+        "max_length": 512,
+        "required": true,
+        "type": "image_reference"
+      },
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "MR04",
+    "name": "Handwriting Keepsake",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "NM01": {
+    "component": "botanical_sprig",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "initial",
+        "max_length": 1,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "NM01",
+    "name": "Botanical Initial",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "NM02": {
+    "component": "geometric_name_frame",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "detail",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "NM02",
+    "name": "Modern Name Stack",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "NM03": {
+    "component": "laurel_wreath",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "initials",
+        "max_length": 4,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "names",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "NM03",
+    "name": "Classic Monogram Wreath",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "NM04": {
+    "component": "retro_badge",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "year",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "NM04",
+    "name": "Retro Name Badge",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "OC01": {
+    "component": "celebration_confetti",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "milestone",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "OC01",
+    "name": "Birthday Milestone",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "OC02": {
+    "component": "baby_moon",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "date",
+        "max_length": 48,
+        "required": false,
+        "type": "date"
+      }
+    ],
+    "id": "OC02",
+    "name": "New Baby Welcome",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "OC03": {
+    "component": "graduation_crest",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "year",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "OC03",
+    "name": "Graduation Crest",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "OC04": {
+    "component": "ornament_frame",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "family_name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "year",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "OC04",
+    "name": "Holiday Family Ornament",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "PT01": {
+    "component": "paw_mark",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "detail",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "PT01",
+    "name": "Paw & Name",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "PT02": {
+    "component": "pet_silhouette",
+    "engine": "NAME_MONOGRAM",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "detail",
+        "max_length": 48,
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "id": "PT02",
+    "name": "Pet Silhouette Badge",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "PT03": {
+    "component": "photo_frame",
+    "engine": "PHOTO_TEXT",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "photo",
+        "max_length": 512,
+        "required": true,
+        "type": "image_reference"
+      }
+    ],
+    "id": "PT03",
+    "name": "Pet Photo Frame",
+    "status": "DRAFT_RECIPE_AVAILABLE",
+    "version": 1
+  },
+  "PT04": {
+    "component": "photo_frame",
+    "engine": "PET_PORTRAIT",
+    "fields": [
+      {
+        "key": "name",
+        "max_length": 48,
+        "required": true,
+        "type": "text"
+      },
+      {
+        "key": "photo",
+        "max_length": 512,
+        "required": true,
+        "type": "image_reference"
+      }
+    ],
+    "id": "PT04",
+    "name": "Painterly Pet Keepsake",
+    "status": "TRANSFORMATION_REQUIRED",
+    "version": 1
+  }
+}

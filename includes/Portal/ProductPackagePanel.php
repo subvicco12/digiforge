@@ -10,7 +10,7 @@ use WP_Error;
 /** Operator controls over existing held services. Uses the existing nonce-protected portal action. */
 final class ProductPackagePanel
 {
-    public function render(string $shop, string $workflow, string $design): void
+    public function render(string $shop, string $workflow, string $design, ?array $supplierTemplate=null): void
     {
         if (!$this->access($shop)) return;
         $handoff=$this->context($shop,$workflow,$design);
@@ -27,6 +27,7 @@ final class ProductPackagePanel
         echo '<button class="df-button">Inspect held package</button></form>';
         $e=$current['record']['evidence']??$this->template($handoff);
         if ($e instanceof WP_Error) {$this->message($e);echo '</section>';return;}
+        if($current===null&&$supplierTemplate!==null)$e['template']=$supplierTemplate;
         echo '<details'.($current===null?' open':'').'><summary>Create or revise product evidence</summary>';
         $this->form('package_prepare',$workflow,$design);
         if ($current!==null) echo '<input type="hidden" name="parent_hash" value="'.esc_attr($current['hash']).'">';
@@ -107,7 +108,16 @@ final class ProductPackagePanel
                 if ($op==='package_inspect') $result=$v;
                 elseif ($op==='package_decide'&&($post['confirm']??null)==='1'&&is_string($post['decision']??null)&&is_string($post['note']??null)) $result=$repo->decide($shop,$hash,$post['decision'],$post['note']);
                 elseif ($op==='package_export'&&($post['confirm']??null)==='1') {
-                    $json=$repo->export($shop,$hash);if ($json instanceof WP_Error)return $json;
+                    if(array_key_exists('shop2_binding',$v['record']['evidence'])){
+                        $supplier=$v['record']['evidence']['shop2_binding']['business']['supplier_workflow_hash']??null;
+                        if(!is_string($supplier))return $this->error('Exact proof/business-bound supplier reference required.');
+                        $link=(new \DigiForge\POD\Shop2ProductWorkflow())->read($supplier);if(is_wp_error($link))return $link;
+                        $json=\DigiForge\POD\Shop2HeldPackageBinding::export($link,$workflow,$design,$hash,$post);
+                    }else{
+                        foreach(['personalization_hash','proof_hash','schema_hash','review_hash','intake_hash','proof','review','schema','intake','personalization_intake','shop2_binding','business_binding']as $key)if(array_key_exists($key,$post))return $this->error('Create and review a new proof/business-bound package before exporting personalization evidence.');
+                        $json=$repo->export($shop,$hash);
+                    }
+                    if ($json instanceof WP_Error)return $json;
                     return ['hash'=>$workflow,'design_factory_hash'=>$design,'package_hash'=>$hash,'package_export'=>$json];
                 }
             }
@@ -157,7 +167,7 @@ final class ProductPackagePanel
     private function check(string $label): void
     { echo '<p><label><input type="checkbox" name="confirm" value="1" required> '.esc_html($label).'</label></p>'; }
     private function message(WP_Error $e): void { echo '<p>'.esc_html($e->get_error_message()).'</p>'; }
-    private function access(string $shop): bool { return $shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research'); }
+    private function access(string $shop): bool { return \DigiForge\Security\PersonalizedPodAccess::allows()&&$shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research'); }
     private function baseUrl(): string { $id=get_queried_object_id();$url=$id>0?get_permalink($id):home_url('/');return is_string($url)?$url:home_url('/'); }
     private function error(string $message): WP_Error { return new WP_Error('product_package_portal_denied',$message,['status'=>409,'release_hold'=>true,'external_execution_authorized'=>false]); }
 }

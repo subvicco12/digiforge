@@ -33,6 +33,15 @@ final class EtsyPublishExecutionController
         if(Settings::is_enabled('etsy_publish')!==true)return self::error('capability','Etsy Publish capability is not effectively enabled.',409);
         $integrationId=(int)($body['integration_id']??0);$shopId=(int)($body['shop_id']??0);$intentId=(int)($body['intent_id']??0);$packageId=(int)($body['draft_package_id']??0);
         if($integrationId<1||$shopId<1||$intentId<1||$packageId<1)return self::error('scope','Integration, shop, approved intent and package are required.',400);
+        if(!$this->canExecute())return self::error('access','Publishing permissions required.',403);
+        foreach(['manage_digiforge_connections','manage_digiforge_listings']as $cap){$shops=\DigiForge\Security\ShopAccess::allowedShops($cap);if(is_wp_error($shops))return $shops;if(count(array_intersect(['digital','personalized_pod','standard_pod','jewelry'],$shops))!==4)return self::error('access','Explicit assignments for the global publish API required.',403);}
+        global $wpdb;$lock='digiforge-publish-'.substr(hash('sha256',(string)$shopId),0,40);$wpdb->last_error='';$acquired=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock));if($wpdb->last_error!==''||(string)$acquired!=='1')return self::error('busy','Publish scope is busy or unavailable; no retry authorization.',409);
+        try{$result=$this->executeScoped($body,$key,$integrationId,$shopId,$intentId,$packageId);}catch(\Throwable){$result=self::error('uncertain','Publish outcome is uncertain; reconcile before any retry.',503);}
+        finally{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));$releaseFailed=$wpdb->last_error!==''||(string)$released!=='1';}
+        if($releaseFailed)return self::error('uncertain','Publish lock release is uncertain; reconcile before any retry.',503);return $result;
+    }
+    private function executeScoped(array $body,string $key,int $integrationId,int $shopId,int $intentId,int $packageId):WP_REST_Response|WP_Error
+    {
         global $wpdb;
         $wpdb->last_error='';
         $intent=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::etsy_intents().' WHERE id=%d LIMIT 1',$intentId),ARRAY_A);
@@ -47,8 +56,10 @@ final class EtsyPublishExecutionController
         if(!empty($wpdb->last_error))return self::error('evidence_unavailable','Approved listing evidence could not be read.',503);
         if(!is_array($listing)||($listing['state']??'')!=='APPROVED'||(int)($listing['approved_by']??0)<1)return self::error('listing','Explicitly approved listing is required.',409);
         $hash=strtolower(trim((string)($package['readiness_hash']??'')));if(!preg_match('/^[a-f0-9]{64}$/',$hash))return self::error('evidence','Approved readiness hash is required.',409);
-        $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
-        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId);if($identity instanceof WP_Error)return $identity;
+        $draftQa=(new \DigiForge\Listings\DraftQaReviewRepository())->verify($intentId,$packageId,(string)$shopId);if($draftQa instanceof WP_Error)return $draftQa;
+        $reviewId=$body['publish_review_id']??null;if(!is_string($reviewId))return self::error('separate_review','A separate persisted publish review is required.',409);
+        $reviewRepo=new \DigiForge\Listings\PublishReviewRepository();$reviewContext=$reviewRepo->inspect(['shop_key'=>(string)$listing['shop_reference'],'integration_id'=>$integrationId,'shop_id'=>$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId]);if($reviewContext instanceof WP_Error)return $reviewContext;
+        $review=$reviewRepo->verify($reviewId,$reviewContext);if($review instanceof WP_Error)return $review;
         $ops=new EtsyOperationRepository();$parent=$ops->confirmedCreateForScope($intentId,$packageId,(string)$shopId);if($parent instanceof WP_Error)return $parent;if(!is_array($parent))return self::error('parent','Confirmed CREATE_DRAFT evidence is required.',409);
         $etsyListingId=trim((string)($parent['external_reference']??''));if(!ctype_digit($etsyListingId)||(int)$etsyListingId<1)return self::error('identity','Authoritative Etsy listing identity is invalid.',409);
         $confirmedPublish=$ops->confirmedPublishForScope($intentId,$packageId,(string)$shopId,$etsyListingId);if($confirmedPublish instanceof WP_Error)return $confirmedPublish;if(is_array($confirmedPublish))return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_CONFIRMED','etsy_listing_id'=>(int)$etsyListingId,'external_execution_performed'=>false,'retry_permitted'=>false],200);
@@ -61,7 +72,11 @@ final class EtsyPublishExecutionController
             if(!$same)return self::error('idempotency','Idempotency key already belongs to a different Etsy publish request.',409);
             return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_ATTEMPTED','operation'=>$existing,'external_execution_performed'=>(string)($existing['state']??'')!=='NOT_SENT','retry_permitted'=>false],200);
         }
-        $actor=get_current_user_id();$approval=['state'=>'HUMAN_APPROVED','decision'=>'APPROVE','publishing_enabled'=>false,'order_execution_enabled'=>false,'evidence_hash'=>$hash];
+        $outstanding=$ops->publishAttemptForResource((string)$shopId,$etsyListingId);if($outstanding instanceof WP_Error)return $outstanding;if(is_array($outstanding))return self::error('reconciliation','An existing publish outcome for this seller/listing blocks a new key; reconcile before any retry.',409);
+        $actor=get_current_user_id();$approval=$reviewRepo->consume($reviewId,$reviewContext,$key);if($approval instanceof WP_Error)return $approval;
+        $connection=(new ConnectionTester())->test($integrationId);if($connection instanceof WP_Error)return $connection;
+        $identity=EtsyVerifiedShopIdentity::resolve($integrationId,(string)$listing['shop_reference'],$shopId,(string)($listing['environment']??''));if($identity instanceof WP_Error)return $identity;
+
         $authorization=ExecutionAuthorization::issue($approval,'ETSY_PUBLISH_LISTING',$actor,str_replace('-','_',wp_generate_uuid4()),300,$fingerprint);if($authorization instanceof WP_Error)return $authorization;
         $operation=$ops->createFromPayload(['shop_reference'=>(string)$shopId,'intent_id'=>$intentId,'draft_package_id'=>$packageId,'operation_type'=>'PUBLISH_LISTING','resource_reference'=>$etsyListingId,'idempotency_key'=>$key,'authorization_hash'=>(string)$authorization['authorization_hash'],'evidence_hash'=>$hash],$payload);if($operation instanceof WP_Error)return $operation;
         if(($operation['idempotent_replay']??false)===true&&(string)($operation['state']??'')!=='NOT_SENT')return new WP_REST_Response(['state'=>'ETSY_PUBLISH_ALREADY_ATTEMPTED','operation'=>$operation,'external_execution_performed'=>true,'retry_permitted'=>false],200);

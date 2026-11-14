@@ -1,0 +1,42 @@
+# Batch 13 — encrypted native Finance evidence custody
+
+Baseline: draft #1230, `5d1897b28bb561bbe6147a75a889361f9a755c04`, exact-head audit #4765 PASS; main `844107ab9baf7e1303cd47708e9eab3bc700b348`. The isolated follow-on preserves source PRs and cumulative ancestry. Owner authorization covers draft/offline encrypted storage engineering only. No authentic records, production write, accounting recognition or retention/deletion authority is implied.
+
+## Implemented boundary
+
+`NativeFinanceEvidenceSchema` proposes two separate InnoDB tables: encrypted original records and immutable scoped identity claims. Its explicit version-1 installer is available only under WordPress `local`; it is **not registered** with plugin activation, startup, REST, portal submission, scheduler or external transports. Existing schema markers are unchanged. Partial creation is retryable; success requires expected columns, atomic uniqueness and InnoDB tables, including the audit table. Current installation does no repeated DDL. There is no destructive down migration, deletion/cleanup API, expiry column, retention duration or automatic job.
+
+`CredentialVault::encryptExisting` reuses the established authenticated-encryption implementation and existing key custody without provisioning a key. Its context authenticates the record identity. Original financial JSON is encrypted inside a byte-preserving envelope; the ordinary Finance canonicalizer trims strings and is therefore deliberately not used to serialize original source bytes. Only hashes, ciphertext and creation time enter the new tables. Capture context, original bytes, reviewer binding and correction references are encrypted together. Missing/wrong keys, malformed ciphertext, source hashes, missing audit/claim/history or changed scope deny reads and retries. Key rotation/recovery policy is not added.
+
+`NativeEvidenceAccess` requires exact installation, environment, business, store, DigiForge shop, Etsy seller account/shop, integration, parser contract hash and current ownership review hash/revision. It reuses `DigitalSourceBinding`, independently signed local review history, current connection/credential **metadata** and all-four Finance actor assignments. It never retrieves provider credentials. Only Digital/test observations in a local runtime are currently supported. Digital remains POD-independent. Personalized POD Etsy account custody is blocked because the existing Printify ownership contracts do not establish Etsy seller-account ownership; no second ownership approval system is invented. Deferred shops deny. Local binding reviews never certify real provider ownership: `authoritative()` always denies.
+
+`NativeEvidenceStore` reparses one original document through the existing eight-schema staging/parser contract. Each document retains existing 64 KiB bounds, native integer/divisor/currency/timestamp precision and original capture. Scoped content identities give exact retry receipts, including when a later capture timestamp accompanies identical bytes; the first stored provenance remains unchanged. Conflicting bytes sharing native transaction identities append a QUARANTINED record. Explicit same-identity predecessor links append UNREVIEWED_CORRECTION records; no original row or claim is updated. Money/ShopRefund remain observation-only, cannot establish transaction recognition or supersession, and never become accounting entries. Every receipt withholds raw/source/customer text and denies accounting, transaction recognition, period approval and external execution.
+
+A zero-wait database advisory lock serializes each database/installation/source scope. Database uniqueness supplies a second guard; in-process reentry denies. Inserts, identity claims and the existing redacted audit writer commit together. Existing outer transactions use savepoints. Binding/actor authority is checked before and after mutation. Interrupted writes, database/audit failures and authority drift roll back; no partial original or claim is accepted. Supported application APIs are append-only; this is not a claim that a database administrator cannot rewrite the database or restore an older database and audit together.
+
+The existing browser preview remains nonpersisting and unchanged. No raw-document read endpoint or live import endpoint is introduced. No amounts are classified, converted, allocated or recognized.
+
+## Reproducible local evidence
+
+- New encryption tests: 9 cases / 27 assertions, including missing key without provisioning, exact byte round-trip, scope/key/ciphertext mismatch, and production/staging/development/sandbox installer/storage denial before a database path.
+- Focused parser/staging/Digital-contract/encryption suite: 111 cases / 220 assertions PASS.
+- New real-WordPress persistence suite: 13 cases / 277 assertions PASS. Covers encryption, original whitespace preservation beyond the signed-review store’s 32 KiB bound, retries, conflict quarantine, correction append, missing stable identity, scope drift, revoked binding/actor, deleted claim/audit/original, separate database writer contention, reentry, mid-write binding drift, rollback/retry, migration partial-failure recovery and DDL idempotency.
+- Existing Digital binding/browser staging plus new persistence compatibility run: 39 WordPress cases / 688 assertions PASS.
+- Supplementary changed-code PHPStan level 5 uses actual WordPress symbols and no analysis suppression. Final results and exact-head hosted audit receipt are recorded in the validation ledger and PR/issue #1209. No fresh browser, installed-site, provider or authentic financial certification is claimed.
+
+The initial red persistence tests established the missing store. A test harness correction disables WordPress's temporary-table rewrite only for creating the two isolated disposable database tables, so real InnoDB metadata can be checked. No production readiness check is weakened. The original-byte test also caught use of the string-trimming canonicalizer; byte-preserving serialization fixes that mismatch without changing any existing canonicalizer or parser behavior.
+
+## Remaining D01–D06 decisions and evidence
+
+| ID | Status after this batch | Smallest remaining input |
+|---|---|---|
+| D01 source ownership | Exact current local Digital restrictions implemented; real ownership unverified; Personalized POD Etsy binding unsupported | Authentic installation/business/store/seller/account/integration evidence and independent review; approved POD Etsy account relationship using existing authority infrastructure |
+| D02 privacy/key/retention | Draft encrypted local custody authorized and implemented; production/privacy/readers/key recovery/backup/retention/deletion remain blocked | Reviewed production custody/readership and key-recovery contract; separately decide retention/legal hold/erasure, with no inferred duration or deletion permission |
+| D03 source lifecycle | Bounded append-only custody, replay, conflict quarantine and unreviewed correction references implemented offline | Authentic correction history and independent correction/finality evidence; unsupported Money/ShopRefund identities remain excluded from recognition |
+| D04 accounting mapping | BLOCKED | Reviewed source category/sign/divisor/rounding/FX/attribution/correction/completeness/finality rule table; no payment/ledger double counting |
+| D05 authentic Etsy/POD sources | BLOCKED | Private original Etsy records with seller/capture/population context; documented paid POD invoice/order-export schema and original charge records |
+| D06 AI billing | BLOCKED | Original charge/invoice schema, precision/finality and reviewed account/project/environment/shop relation; aggregate usage is not settlement |
+
+All 23 atomic Finance-dependent criteria remain UNVERIFIED. Non-Finance stays 246/268 implementation candidates, with 22 UNVERIFIED; no protected source classification changes. Master 500 remains 500 identities / 360 bounded recipe capabilities / 140 artistic-execution-blocked concepts. Synthetic storage tests do not establish authentic transactions, supplier geometry/rights, linguistic/artistic review, installed-site readiness or production authority.
+
+**NO-GO. STOP ALL ON; external lock ON; automation OFF; RELEASE HOLD.** No real imports, financial approvals, credentials, provider calls, production/staging writes, orders, publishing, activation, merges or deployment.

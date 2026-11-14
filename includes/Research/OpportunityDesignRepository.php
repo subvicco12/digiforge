@@ -51,7 +51,7 @@ final class OpportunityDesignRepository
 
     private function access(mixed $shop): true|WP_Error
     {
-        if ($shop!=='personalized_pod' || get_current_user_id()<1 || !current_user_can('manage_digiforge_pod') || !current_user_can('manage_digiforge_research')) return self::error('Authenticated Personalized POD research/artwork reviewer required.',403);
+        if (!\DigiForge\Security\PersonalizedPodAccess::allows() || $shop!=='personalized_pod' || get_current_user_id()<1 || !current_user_can('manage_digiforge_pod') || !current_user_can('manage_digiforge_research')) return self::error('Authenticated Personalized POD research/artwork reviewer required.',403);
         return true;
     }
     private function name(string $hash): string { return 'digiforge_opportunity_personalized_pod_'.$hash; }
@@ -60,7 +60,7 @@ final class OpportunityDesignRepository
     {
         global $wpdb;
         $wpdb->last_error='';
-        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));
+        $raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);
         if ($wpdb->last_error!=='' || ($raw!==null && !is_string($raw))) return self::error('Database evidence unavailable.',503);
         return $raw;
     }

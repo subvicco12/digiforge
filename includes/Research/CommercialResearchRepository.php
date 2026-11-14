@@ -106,6 +106,16 @@ final class CommercialResearchRepository
         // Reuse evidence/creative learning, never old selection, artwork or approvals.
         return $this->append($v,['research'=>$research,'stage'=>$v['record']['response']===null?'RESEARCH_READY':'CONCEPTS_READY','selected_concept'=>null,'design_prompt'=>null,'artwork_version_hash'=>null,'review'=>null,'revision_note'=>'Family reuse requires fresh concept and artwork review.','reused_from'=>$hash]);
     }
+    /** Bounded saved-version discovery; no remote research, writes or cross-shop reads. */
+    public function recent(string $shop,int $limit=20):array|WP_Error
+    {
+        $access=$this->access($shop);if($access instanceof WP_Error)return $access;
+        if($limit<1||$limit>50)return self::error('Saved research window must be 1–50 versions.');
+        global $wpdb;$wpdb->last_error='';$names=$wpdb->get_col($wpdb->prepare('SELECT option_name FROM '.$wpdb->options.' WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d',$wpdb->esc_like('digiforge_commercial_version_').'%', $limit));
+        if($wpdb->last_error!==''||!is_array($names))return self::error('Saved research index unavailable.',503);
+        $out=[];foreach($names as $name){$hash=substr($name,strlen('digiforge_commercial_version_'));$v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;$out[]=['hash'=>$hash,'title'=>$v['record']['research']['title'],'family'=>$v['record']['research']['product_family'],'stage'=>$v['record']['stage'],'created_at'=>$v['record']['created_at']];}
+        return $out;
+    }
     public function history(string $shop,string $hash): array|WP_Error
     {
         $history=[];$seen=[];
@@ -122,7 +132,7 @@ final class CommercialResearchRepository
         if(!add_option($name,$raw,'',false))return self::error('Version exists or write uncertain; inspect before retry.');
         return $this->read('personalized_pod',$hash);
     }
-    private function access(mixed $shop): true|WP_Error {return $shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research')?true:self::error('Authenticated personalized-POD research and artwork reviewer required.',403);}
-    private function stored(string $name): string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::error('Durable evidence read failed.',503);}
+    private function access(mixed $shop): true|WP_Error {return \DigiForge\Security\PersonalizedPodAccess::allows()&&$shop==='personalized_pod'&&get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&current_user_can('manage_digiforge_research')?true:self::error('Authenticated personalized-POD research and artwork reviewer required.',403);}
+    private function stored(string $name): string|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));if(class_exists(\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::class))\DigiForge\Connector\Printify\NativeProtectedOptionDependencies::observeOption($name,$raw);return $wpdb->last_error===''&&($raw===null||is_string($raw))?$raw:self::error('Durable evidence read failed.',503);}
     private static function error(string $message,int $status=409): WP_Error {return new WP_Error('commercial_research_denied',$message,['status'=>$status,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
 }

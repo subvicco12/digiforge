@@ -375,11 +375,13 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
         $worker=$directory.'/worker.php';
         $bootstrap=var_export(__DIR__.'/bootstrap.php',true);
         $autoload=var_export(dirname(__DIR__,2).'/vendor/autoload.php',true);
-        file_put_contents($worker, '<?php putenv("WP_TESTS_SKIP_INSTALL=1"); require '.$autoload.'; require '.$bootstrap.'; file_put_contents($argv[2].".ready", "1"); $deadline=microtime(true)+10; while (!file_exists($argv[3])) { if(microtime(true)>$deadline)exit(2); usleep(10000); } $ok=\\DigiForge\\Operations\\RecoveryDispatchLedger::insert($argv[1],["worker"=>$argv[2],"state"=>"UNKNOWN"]); file_put_contents($argv[2],$ok?"1":"0");');
+        $configuration=defined('WP_TESTS_CONFIG_FILE_PATH')?'define("WP_TESTS_CONFIG_FILE_PATH",'.var_export(WP_TESTS_CONFIG_FILE_PATH,true).');':'';
+        file_put_contents($worker, '<?php '.$configuration.' putenv("WP_TESTS_SKIP_INSTALL=1"); require '.$autoload.'; require '.$bootstrap.'; file_put_contents($argv[2].".ready", "1"); $deadline=microtime(true)+10; while (!file_exists($argv[3])) { if(microtime(true)>$deadline)exit(2); usleep(10000); } $ok=\\DigiForge\\Operations\\RecoveryDispatchLedger::insert($argv[1],["worker"=>$argv[2],"state"=>"UNKNOWN"]); file_put_contents($argv[2],$ok?"1":"0");');
         $processes=[];
         try {
             for($i=0;$i<2;++$i){
-                $processes[]=proc_open([PHP_BINARY,$worker,$name,$directory.'/result'.$i,$directory.'/go'],[0=>['file','/dev/null','r'],1=>['file',$directory.'/log'.$i,'w'],2=>['file',$directory.'/error'.$i,'w']],$pipes);
+                $command=[PHP_BINARY];if(is_string(php_ini_loaded_file())){$command[]='-c';$command[]=php_ini_loaded_file();}
+                $processes[]=proc_open(array_merge($command,[$worker,$name,$directory.'/result'.$i,$directory.'/go']),[0=>['file','/dev/null','r'],1=>['file',$directory.'/log'.$i,'w'],2=>['file',$directory.'/error'.$i,'w']],$pipes);
                 self::assertIsResource($processes[$i]);
             }
             $deadline=microtime(true)+10;
@@ -389,7 +391,8 @@ final class HostingerRecoveryTransportTest extends WP_UnitTestCase
             file_put_contents($directory.'/go','1');
             foreach($processes as $index=>$process){self::assertSame(0,proc_close($process));unset($processes[$index]);}
             self::assertSame(1,(int)file_get_contents($directory.'/result0')+(int)file_get_contents($directory.'/result1'));
-            self::assertSame('UNKNOWN',DigiForge\Operations\RecoveryDispatchLedger::read($name)['state']);
+            $claim=DigiForge\Operations\RecoveryDispatchLedger::read($name);self::assertIsArray($claim);self::assertArrayHasKey('state',$claim);
+            self::assertSame('UNKNOWN',$claim['state']);
         } finally {
             foreach($processes as $process){proc_terminate($process);proc_close($process);}
             foreach(glob($directory.'/*') as $file)unlink($file);
