@@ -167,13 +167,22 @@ final class PrintifyApiReadWorkflow
      */
     public function orderSource(string $hash): array|WP_Error
     {
+        return $this->readSource($hash, 'ORDER_READ', 'order_id');
+    }
+    /** Same protected governed-read producer join; product identity is not a business version. */
+    public function productSource(string $hash): array|WP_Error
+    {
+        return $this->readSource($hash, 'PRODUCT_READ', 'product_id');
+    }
+    private function readSource(string $hash, string $operation, string $identityField): array|WP_Error
+    {
         try {
             $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());if(is_wp_error($session))return $session;
-            $r=$this->receipt($hash);if(is_wp_error($r)||($r['operation']??null)!=='ORDER_READ'||($r['status']??null)!=='SUCCEEDED'||($r['network_request_attempted']??null)!==true||!is_array($r['data']??null))return self::error('source_receipt');
+            $r=$this->receipt($hash);if(is_wp_error($r)||($r['operation']??null)!==$operation||($r['status']??null)!=='SUCCEEDED'||($r['network_request_attempted']??null)!==true||!is_array($r['data']??null))return self::error('source_receipt');
             $p=$this->plan($r['plan_hash']);if(is_wp_error($p))return $p;
-            $request=PrintifyApiRequest::prepare('ORDER_READ',$p['provider_shop_id'],$p['input']);
+            $request=PrintifyApiRequest::prepare($operation,$p['provider_shop_id'],$p['input']);
             $expected=$this->approvalPayload($r['plan_hash']);$policy=ReviewedLocalEvidence::approved('policy',$p['shop_key'],'printify-api-read:'.$r['plan_hash']);
-            if(is_wp_error($expected)||is_wp_error($policy)||Validator::canonicalJson($request)!==Validator::canonicalJson($p['request'])||Validator::canonicalJson($expected)!==Validator::canonicalJson($policy['payload'])||($r['data']['id']??null)!==($p['input']['order_id']??null))return self::error('source_plan');
+            if(is_wp_error($expected)||is_wp_error($policy)||Validator::canonicalJson($request)!==Validator::canonicalJson($p['request'])||Validator::canonicalJson($expected)!==Validator::canonicalJson($policy['payload'])||($r['data']['id']??null)!==($p['input'][$identityField]??null))return self::error('source_plan');
             foreach(['operation'=>'operation','endpoint_path'=>'endpoint','request_fingerprint'=>'fingerprint']as $a=>$b)if(($r[$a]??null)!==$request[$b])return self::error('source_request');
             foreach(['shop_key','integration_id','provider_shop_id']as $key)if(($r[$key]??null)!==$p[$key])return self::error('source_identity');
             global $wpdb;$wpdb->last_error='';

@@ -105,6 +105,15 @@ final class Repository
 
     public function readiness(int $orderId): array|WP_Error
     {
+        return $this->projectReadiness($orderId,false);
+    }
+    /** Existing readiness projection with no nested POD audit issuance. */
+    public function readinessSnapshot(int $orderId): array|WP_Error
+    {
+        return $this->projectReadiness($orderId,true);
+    }
+    private function projectReadiness(int $orderId,bool $readOnly): array|WP_Error
+    {
         $order=$this->find(Tables::orders(),$orderId);
         if(is_wp_error($order))return $order;
         if(!is_array($order))return $this->error('not_found','Order not found.',404);
@@ -129,7 +138,7 @@ final class Repository
             $wpdb->last_error='';
             $bindings=$wpdb->get_results($wpdb->prepare('SELECT b.provider_mapping_id,b.readiness_hash FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::listing_pod_bindings().' b ON b.listing_id=li.listing_id AND b.provider_mapping_id=li.provider_mapping_id WHERE li.order_id=%d AND li.listing_id>0',$orderId),ARRAY_A);
             if(!is_array($bindings)||$wpdb->last_error!=='')return $this->error('order_readiness_evidence_unavailable','Current provider binding evidence could not be read.',500);
-            foreach($bindings as $binding){$current=(new \DigiForge\POD\Repository())->readiness((int)$binding['provider_mapping_id']);if(is_wp_error($current)||empty($current['ready'])||!hash_equals((string)$binding['readiness_hash'],hash('sha256',Validator::canonicalJson($current)))){$unmapped++;break;}}
+            foreach($bindings as $binding){$pod=new \DigiForge\POD\Repository();$current=$readOnly?$pod->readinessSnapshot((int)$binding['provider_mapping_id']):$pod->readiness((int)$binding['provider_mapping_id']);if(is_wp_error($current)||empty($current['ready'])||!hash_equals((string)$binding['readiness_hash'],hash('sha256',Validator::canonicalJson($current)))){$unmapped++;break;}}
         }
         $digitalDeliveryMissing=0;
         if($digitalLines>0){$etsyOperations=$wpdb->prefix.'digiforge_etsy_operations';$deliveryShopScope=\DigiForge\Listings\EtsyStoredShopScope::matches($wpdb->prepare('%s',(string)$order['shop_reference']),'op.shop_reference',$wpdb->prepare('%s',(string)$order['environment']));$sql="SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=$orderId AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id) AND (li.listing_id=0 OR NOT EXISTS (SELECT 1 FROM ".Tables::etsy_draft_packages()." pkg INNER JOIN ".$etsyOperations." op ON op.draft_package_id=pkg.id WHERE pkg.listing_id=li.listing_id AND ".$deliveryShopScope." AND op.operation_type='UPLOAD_FILE' AND op.state='CONFIRMED_SUCCESS' AND op.external_reference REGEXP '^[1-9][0-9]*$' AND op.external_asset_reference REGEXP '^[1-9][0-9]*$' AND op.resource_reference=op.external_reference AND pkg.approved_by>0 AND pkg.approved_at IS NOT NULL AND EXISTS (SELECT 1 FROM ".Tables::listings()." delivery_listing WHERE delivery_listing.id=li.listing_id AND delivery_listing.state='APPROVED' AND delivery_listing.approved_by>0 AND delivery_listing.approved_at IS NOT NULL) AND EXISTS (SELECT 1 FROM ".$etsyOperations." created WHERE created.operation_type='CREATE_DRAFT' AND created.state='CONFIRMED_SUCCESS' AND created.draft_package_id=op.draft_package_id AND created.intent_id=op.intent_id AND BINARY created.shop_reference=BINARY op.shop_reference AND BINARY created.external_reference=BINARY op.external_reference)))";$digitalDeliveryMissing=$this->readinessCount($sql);if($digitalDeliveryMissing===null)return $this->error('order_readiness_evidence_unavailable','Digital delivery evidence could not be read.',500);}
