@@ -106,6 +106,16 @@ final class CommercialResearchRepository
         // Reuse evidence/creative learning, never old selection, artwork or approvals.
         return $this->append($v,['research'=>$research,'stage'=>$v['record']['response']===null?'RESEARCH_READY':'CONCEPTS_READY','selected_concept'=>null,'design_prompt'=>null,'artwork_version_hash'=>null,'review'=>null,'revision_note'=>'Family reuse requires fresh concept and artwork review.','reused_from'=>$hash]);
     }
+    /** Bounded saved-version discovery; no remote research, writes or cross-shop reads. */
+    public function recent(string $shop,int $limit=20):array|WP_Error
+    {
+        $access=$this->access($shop);if($access instanceof WP_Error)return $access;
+        if($limit<1||$limit>50)return self::error('Saved research window must be 1–50 versions.');
+        global $wpdb;$wpdb->last_error='';$names=$wpdb->get_col($wpdb->prepare('SELECT option_name FROM '.$wpdb->options.' WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d',$wpdb->esc_like('digiforge_commercial_version_').'%', $limit));
+        if($wpdb->last_error!==''||!is_array($names))return self::error('Saved research index unavailable.',503);
+        $out=[];foreach($names as $name){$hash=substr($name,strlen('digiforge_commercial_version_'));$v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;$out[]=['hash'=>$hash,'title'=>$v['record']['research']['title'],'family'=>$v['record']['research']['product_family'],'stage'=>$v['record']['stage'],'created_at'=>$v['record']['created_at']];}
+        return $out;
+    }
     public function history(string $shop,string $hash): array|WP_Error
     {
         $history=[];$seen=[];

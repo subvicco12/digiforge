@@ -108,7 +108,16 @@ final class ProductPackagePanel
                 if ($op==='package_inspect') $result=$v;
                 elseif ($op==='package_decide'&&($post['confirm']??null)==='1'&&is_string($post['decision']??null)&&is_string($post['note']??null)) $result=$repo->decide($shop,$hash,$post['decision'],$post['note']);
                 elseif ($op==='package_export'&&($post['confirm']??null)==='1') {
-                    $json=$repo->export($shop,$hash);if ($json instanceof WP_Error)return $json;
+                    if(array_key_exists('shop2_binding',$v['record']['evidence'])){
+                        $supplier=$v['record']['evidence']['shop2_binding']['business']['supplier_workflow_hash']??null;
+                        if(!is_string($supplier))return $this->error('Exact proof/business-bound supplier reference required.');
+                        $link=(new \DigiForge\POD\Shop2ProductWorkflow())->read($supplier);if(is_wp_error($link))return $link;
+                        $json=\DigiForge\POD\Shop2HeldPackageBinding::export($link,$workflow,$design,$hash,$post);
+                    }else{
+                        foreach(['personalization_hash','proof_hash','schema_hash','review_hash','intake_hash','proof','review','schema','intake','personalization_intake','shop2_binding','business_binding']as $key)if(array_key_exists($key,$post))return $this->error('Create and review a new proof/business-bound package before exporting personalization evidence.');
+                        $json=$repo->export($shop,$hash);
+                    }
+                    if ($json instanceof WP_Error)return $json;
                     return ['hash'=>$workflow,'design_factory_hash'=>$design,'package_hash'=>$hash,'package_export'=>$json];
                 }
             }

@@ -1,0 +1,70 @@
+DF_ARTWORK_PERSONALIZATION_INTAKE_1 — PRIVATE SHOP 2 CONTRACT
+
+Interface (instance methods, returning array|WP_Error):
+ DigiForge\Research\ArtworkPersonalizationIntake::selectReviewed(
+   string $shop, string $supplierWorkflowHash, string $factoryHash, string $proofHash)
+ DigiForge\Research\ArtworkPersonalizationIntake::resolve(
+   string $shop, string $supplierWorkflowHash, string $factoryHash,
+   ?string $expectedIntakeHash = null)
+
+Only personalized_pod is supported. Supplier and factory references MUST come
+from the consumer's verified server-side product/package/business binding.
+There is NO proof/schema/review metadata argument to resolve. GET/POST values,
+filenames, latest timestamps and request-provided approval flags are not authority.
+
+Selection is an explicit authenticated local-review action, NEVER an export step.
+The existing supplier-mounted personalization_review handler selects the exact
+successfully approved proof. Already-reviewed legacy proofs require the explicit
+Select reviewed sample checkbox/button, using that same nonce-protected operation.
+Viewing a proof URL does not select it. Unreviewed drafts do not replace an
+approved selection. Explicitly selecting another valid reviewed version changes
+the intake hash; packages holding the prior intake hash must be requalified.
+
+The only new storage is sealed, immutable selection-reference receipts and a CAS
+head keyed by shop/supplier/factory. No SVG, sample, schema or human approval is
+copied into this storage. The original ArtworkPersonalizationRepository and
+DesignFactory/OpportunityDesign approvals remain authoritative and immutable.
+Selection history is bounded to 50 revisions per context; capacity or uncertain
+writes deny. A corrupt/missing current head never falls back to an older proof.
+Salt rotation or lost evidence requires explicit requalification, not silent repair.
+
+resolve checks the current actor, actual WordPress login session, enabled native
+profile/session, ordinary capabilities and signed Shop 2 assignment. It rereads
+supplier/research ancestry, technical family/pixels, approved factory/artwork,
+selected schema/proof and exact APPROVE review. Current source, authority and head
+are checked again after snapshot materialization. No provider request is made.
+
+Return schema: DF_ARTWORK_PERSONALIZATION_INTAKE_1.
+ intake_hash: SHA256 of CommercialResearchContract::json(body without intake_hash).
+ actor_scope: current actor ID/shop, profile revision/generation/hash, signed ACL
+   revision/hash, required capabilities and current_session_verified.
+ selection: opaque hash of the sealed reference receipt plus its metadata record.
+ versions: supplier workflow/snapshot, research, factory/review, artwork/approval,
+   specification/artwork bytes, schema, proof, local review and selection hashes.
+ supplier, research, factory, artwork: verified existing source/approval evidence.
+ field_schema, proof, review: original repository records/projections, not copies
+   issued as new approvals. Proof contains private sample values and DO NOT IMPORT
+   SVG; retain privacy and existing byte limits.
+ external_execution_authorized=false; production_authorized=false;
+ package_approval_issued=false; provider_certified=false; release_hold=true.
+
+Lane B consumer:
+ 1. At package preparation, resolve(shop, verified_supplier, verified_factory).
+ 2. Bind intake_hash and required versions/approval references into the immutable
+    held manifest along with independently verified canonical business identity.
+    The detailed private result need not be embedded wholesale; do not expand
+    existing package byte limits or turn a local proof SVG into production art.
+ 3. Immediately before final export, resolve(..., stored_intake_hash) again and
+    perform the consumer's own current business/package/actor authorization checks.
+ 4. Missing/corrupt/stale/revoked/foreign/unreviewed evidence yields typed denial.
+    The export consumer must reject unsolicited proof metadata or deny any mismatch
+    with its resolved record. Compatibility aliases may be compared, never used
+    to select a proof. This internal service never reads request globals.
+
+Local sample review/selection is distinct from original artwork, commercial rights,
+package, publication, provider and production approval. Native font sizing,
+physical legibility and preview/final parity remain UNVERIFIED. This is an internal
+authenticated snapshot, not a portable bearer grant or host-durability certificate.
+Shop2ProductWorkflowPanel.php is owned by Lane B for final package_export integration;
+this increment makes no change to that shared file or to provider/business modules.
+STOP ALL ON; external lock ON; automation OFF; manual approval; RELEASE HOLD.

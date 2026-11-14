@@ -7,7 +7,7 @@ use WP_Error;
 /** A scoped local adapter over the existing artwork and package workflow. No supplier transport. */
 final class Shop2ProductWorkflowPanel {
  public const ACTION='digiforge_shop2_product_workflow';
- private const OPS=['proof_preview','provider_prepare','provider_inspect','provider_authorize','provider_execute','provider_receipt','etsy_draft_prepare','revise_research','revise','mockup_import','inspect','concepts','select','design_approve_concept','design_prepare','design_import','design_review','design_inspect','design_revise','package_bundle','package_prepare','package_inspect','package_decide','package_export'];
+ private const OPS=['personalization_schema','personalization_sample','personalization_review','proof_preview','provider_prepare','provider_inspect','provider_authorize','provider_execute','provider_receipt','etsy_draft_prepare','revise_research','revise','mockup_import','inspect','concepts','select','design_approve_concept','design_prepare','design_import','design_review','design_inspect','design_revise','package_bundle','package_prepare','package_inspect','package_decide','package_export'];
  public function register():void{add_action('admin_post_'.self::ACTION,[$this,'submit']);}
  public function process(array $post):array|WP_Error {
   $op=$post['operation']??null;
@@ -49,17 +49,25 @@ final class Shop2ProductWorkflowPanel {
    if(!is_array($e))return Shop2ProductWorkflow::error('Package evidence object required.');$valid=$repo->package($link,$e);if(is_wp_error($valid))return $valid;
    if(!is_string($post['factory_hash']??null))return Shop2ProductWorkflow::error('Exact approved design required.');
    if(($e['media']??[])===[]){$media=(new \DigiForge\POD\Shop2MockupRepository())->media($link,$post['factory_hash']);if(is_wp_error($media))return $media;$e['media']=$media;}
-   $valid=$repo->media($link,$post['factory_hash'],$e['media']??[]);if(is_wp_error($valid))return $valid;$post['evidence_json']=\DigiForge\Listings\Validator::canonicalJson($e);
+   $valid=$repo->media($link,$post['factory_hash'],$e['media']??[]);if(is_wp_error($valid))return $valid;$bindingRequested=isset($post['personalization_hash'])||isset($post['business_integration_id'])||isset($post['business_mapping_id'])||isset($post['business_asset_spec_id'])||isset($e['shop2_binding']);
+   if($bindingRequested){$binding=\DigiForge\POD\Shop2HeldPackageBinding::prepare($link,$post['workflow_hash'],$post['factory_hash'],['integration_id'=>$post['business_integration_id']??null,'provider_mapping_id'=>$post['business_mapping_id']??null,'asset_spec_id'=>$post['business_asset_spec_id']??null],$e,$post);if(is_wp_error($binding))return $binding;$e['shop2_binding']=$binding;}
+   $post['evidence_json']=\DigiForge\Listings\Validator::canonicalJson($e);
   }elseif(str_starts_with($op,'package_')){
    $hash=$post['package_hash']??null;if(!is_string($hash))return Shop2ProductWorkflow::error('Exact package required.');
    $v=(new ProductPackageRepository())->read('personalized_pod',$hash);if(is_wp_error($v))return $v;
    $valid=$repo->package($link,$v['record']['evidence']);if(is_wp_error($valid))return $valid;
    $valid=$repo->media($link,$v['record']['commercial_design_metadata']['design_hash']??'',$v['record']['evidence']['media']??[]);if(is_wp_error($valid))return $valid;
   }
-  if($op==='package_bundle')$post['operation']='package_export';
+  if(in_array($op,['package_export','package_bundle'],true)){
+   if(($post['confirm']??null)!=='1'||!is_string($post['factory_hash']??null))return Shop2ProductWorkflow::error('Exact approved held package and confirmation required.');
+   if($op==='package_export'){$bound=\DigiForge\POD\Shop2HeldPackageBinding::export($link,$post['workflow_hash'],$post['factory_hash'],$post['package_hash'],$post);return is_wp_error($bound)?$bound:['hash'=>$post['workflow_hash'],'design_factory_hash'=>$post['factory_hash'],'package_hash'=>$post['package_hash'],'supplier_workflow_hash'=>$link['hash'],'package_export'=>$bound];}
+   $before=\DigiForge\POD\Shop2HeldPackageBinding::inspect($link,$post['workflow_hash'],$post['factory_hash'],$post['package_hash'],$post);if(is_wp_error($before))return $before;
+   $bytes=\DigiForge\POD\Shop2ReviewBundle::build($link,$post['package_hash']);if(is_wp_error($bytes))return $bytes;
+   $after=\DigiForge\POD\Shop2HeldPackageBinding::inspect($link,$post['workflow_hash'],$post['factory_hash'],$post['package_hash'],$post);if(is_wp_error($after)||$before!==$after)return Shop2ProductWorkflow::error('Proof, business, package decision or current session changed during bundle assembly.');
+   return ['hash'=>$post['workflow_hash'],'design_factory_hash'=>$post['factory_hash'],'package_hash'=>$post['package_hash'],'supplier_workflow_hash'=>$link['hash'],'package_bundle'=>$bytes];
+  }
+  if($op==='package_decide'&&isset($v['record']['evidence']['shop2_binding'])){$check=\DigiForge\POD\Shop2HeldPackageBinding::inspect($link,$post['workflow_hash'],$post['factory_hash'],$post['package_hash'],$post);if(is_wp_error($check))return $check;}
   $result=(new CommercialResearchPanel())->process($post);if(is_wp_error($result))return $result;
-  if($op==='package_export'){$raw=$repo->export($link,$result['package_hash']);if(is_wp_error($raw))return $raw;$result['package_export']=$raw;}
-  if($op==='package_bundle'){$bytes=\DigiForge\POD\Shop2ReviewBundle::build($link,$result['package_hash']);if(is_wp_error($bytes))return $bytes;unset($result['package_export']);$result['package_bundle']=$bytes;}
   $result['supplier_workflow_hash']=$link['hash'];return $result;
  }
  public function render(string $baseUrl):void {
@@ -81,7 +89,24 @@ final class Shop2ProductWorkflowPanel {
   $html=str_replace('</form>',$hidden.'</form>',$html);$html=str_replace('df_view=research','df_view=pod_personalized',$html);
   // Preserve the supplier linkage on history links; no protected content is fetched here.
   $html=preg_replace_callback('/href="([^"]*)"/',static function($m)use($hash){$url=html_entity_decode($m[1],ENT_QUOTES,'UTF-8');if(str_contains($url,'df_research_version='))return 'href="'.esc_url(add_query_arg('df_supplier_workflow',$hash,$url)).'"';return $m[0];},$html);
+  $html=$this->bindingForms($html);
   echo $html;$this->proofForm($link,$research,$baseUrl);$this->bundleForm($link,$research,$baseUrl);$this->mockups($link,$research,$baseUrl);(new Shop2ProviderProductPanel())->render($link,$research,$baseUrl);echo '<p>For a package import, supply an exact selected-supplier DRAFT template with explicit placement, decoration and catalog-matching pixels. This workflow never assigns VALIDATED status. The existing historical FL-03/FL-04 product IDs are technical anchors, not a newly created Printify product.</p></section>';
+ }
+ /** View hints only. POST values are independently resolved through the protected binding service. */
+ private function bindingForms(string $html):string {
+  $proof=$_GET['df_personalization_version']??null;$hidden=is_string($proof)&&preg_match('/^[a-f0-9]{64}$/D',$proof)?'<input type="hidden" name="personalization_hash" value="'.esc_attr($proof).'">':'';
+  $saved=[];$package=$_GET['df_package_version']??null;
+  if(is_string($package)){$v=(new ProductPackageRepository())->read('personalized_pod',$package);if(is_array($v))$saved=$v['record']['evidence']['shop2_binding']['business']['selectors']??[];}
+  return (string)preg_replace_callback('#<form\b.*?</form>#s',static function(array $m)use($hidden,$saved):string{
+   $form=$m[0];if(!str_contains($form,'name="operation" value="package_'))return $form;
+   $extra=$hidden;
+   if(str_contains($form,'name="operation" value="package_prepare"')){
+    $extra.='<fieldset><legend>Current approved core business binding</legend><p>A server-selected reviewed personalization proof is required. Enter existing approved core IDs; these selectors grant no authority. New bindings require a fresh exact package decision.</p>';
+    foreach(['business_integration_id'=>['integration_id','df_business_integration','Reviewed Printify connection ID'],'business_mapping_id'=>['provider_mapping_id','df_business_mapping','Approved provider mapping ID'],'business_asset_spec_id'=>['asset_spec_id','df_business_asset_spec','Approved artwork asset-spec ID']]as $name=>[$key,$query,$label]){$v=$_GET[$query]??$saved[$key]??'';$value=is_scalar($v)&&preg_match('/^[1-9][0-9]{0,9}$/D',(string)$v)?(string)$v:'';$extra.='<label>'.esc_html($label).'<input type="number" name="'.esc_attr($name).'" value="'.esc_attr($value).'" min="1" max="2147483647" required></label>';}
+    $extra.='</fieldset>';
+   }
+   return str_replace('</form>',$extra.'</form>',$form);
+  },$html);
  }
  private function proofForm(array $link,string $research,string $baseUrl):void {
   $design=$_GET['df_factory_version']??null;if(!is_string($design))return;
@@ -113,9 +138,11 @@ final class Shop2ProductWorkflowPanel {
   if(is_array($r)&&is_string($r['package_bundle']??null)){nocache_headers();header('Content-Type: application/zip');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-held-review-'.$r['package_hash'].'.zip"');echo $r['package_bundle'];exit;}
   if(is_array($r)&&is_string($r['package_export']??null)){nocache_headers();header('Content-Type: application/json; charset=utf-8');header('X-Content-Type-Options: nosniff');header('Content-Disposition: attachment; filename="shop2-held-etsy-package-'.$r['package_hash'].'.json"');echo $r['package_export'];exit;}
   $args=['df_view'=>'pod_personalized','df_shop'=>'personalized_pod'];if(is_wp_error($r)){$args['df_workflow_error']=$r->get_error_message();$r=$post;}
-  foreach(['supplier_workflow_hash'=>'df_supplier_workflow','hash'=>'df_research_version','design_factory_hash'=>'df_factory_version','package_hash'=>'df_package_version','provider_plan_hash'=>'df_provider_plan','provider_authorization_hash'=>'df_provider_authorization','provider_receipt_hash'=>'df_provider_receipt'] as $key=>$q)if(is_string($r[$key]??null)&&preg_match('/^[a-f0-9]{64}$/D',$r[$key]))$args[$q]=$r[$key];
+  foreach(['supplier_workflow_hash'=>'df_supplier_workflow','hash'=>'df_research_version','design_factory_hash'=>'df_factory_version','personalization_hash'=>'df_personalization_version','package_hash'=>'df_package_version','provider_plan_hash'=>'df_provider_plan','provider_authorization_hash'=>'df_provider_authorization','provider_receipt_hash'=>'df_provider_receipt'] as $key=>$q)if(is_string($r[$key]??null)&&preg_match('/^[a-f0-9]{64}$/D',$r[$key]))$args[$q]=$r[$key];
   if(!isset($args['df_research_version'])&&is_string($post['workflow_hash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$post['workflow_hash']))$args['df_research_version']=$post['workflow_hash'];
   if(!isset($args['df_factory_version'])&&is_string($post['factory_hash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$post['factory_hash']))$args['df_factory_version']=$post['factory_hash'];
+  if(!isset($args['df_personalization_version'])&&is_string($post['personalization_hash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$post['personalization_hash']))$args['df_personalization_version']=$post['personalization_hash'];
+  foreach(['business_integration_id'=>'df_business_integration','business_mapping_id'=>'df_business_mapping','business_asset_spec_id'=>'df_business_asset_spec']as $key=>$q)if(is_string($post[$key]??null)&&preg_match('/^[1-9][0-9]{0,9}$/D',$post[$key])&&(int)$post[$key]<=2147483647)$args[$q]=$post[$key];
   $return=is_string($post['return_url']??null)?wp_validate_redirect($post['return_url'],home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#df-shop2-workflow');exit;
  }
 }
