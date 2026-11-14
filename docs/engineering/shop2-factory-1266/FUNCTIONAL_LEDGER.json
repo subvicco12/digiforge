@@ -1,0 +1,107 @@
+{
+  "scope": "SHOP2_LANE_A_DEVELOPMENT_ONLY",
+  "base_sha": "05091b954af8164fe7c447aa0e642e28be33630a",
+  "frozen_pod_sha": "8517778a47dfe9aaae26bd7dd48e9ef1c1f15ba8",
+  "gates": [
+    [
+      "research_sources_buyer_competitor_season",
+      "IMPLEMENTED_VERIFIED",
+      "Existing strict research import and source provenance; focused contracts/WP and native HTTP"
+    ],
+    [
+      "three_distinct_concepts_selection",
+      "IMPLEMENTED_VERIFIED",
+      "Existing 3-concept import and selection; both actual browser journeys"
+    ],
+    [
+      "normal_post_registration",
+      "IMPLEMENTED_VERIFIED",
+      "P1 W-1266-01 repaired via accepted existing handler mount; red/green hook test and real HTTP"
+    ],
+    [
+      "editable_artwork_review_revision",
+      "IMPLEMENTED_VERIFIED",
+      "Existing SVG import/nine-criterion review/history; WP regressions; synthetic mug/poster browser art"
+    ],
+    [
+      "saved_workflow_discovery",
+      "IMPLEMENTED_VERIFIED",
+      "New bounded research/design/schema/proof links; both browser journeys reopen from links"
+    ],
+    [
+      "schema_sample_proof_persistence",
+      "IMPLEMENTED_VERIFIED",
+      "New source/hash-bound immutable schema, sample revisions and separate local review"
+    ],
+    [
+      "date_unicode_caps_glyph_overflow",
+      "IMPLEMENTED_VERIFIED",
+      "Existing payload/renderer reused; required, ISO dates, caps, unsupported HOLD; no truncation/substitution"
+    ],
+    [
+      "shop_access_immutable_denial_no_http",
+      "IMPLEMENTED_VERIFIED",
+      "Current signed shop grants/caps checked; revoked/corrupt/unapproved/cross-context denial; safety unchanged"
+    ],
+    [
+      "exact_head_hosted_acceptance",
+      "IMPLEMENTED_UNVERIFIED",
+      "Pending branch CI; local complete unit needs configured existing cutout runtime"
+    ],
+    [
+      "lane_b_composed_product_listing_join",
+      "PARTIAL",
+      "Lane A local workspace identities do not replace canonical business IDs; separate integration and independent composed acceptance pending"
+    ]
+  ],
+  "tests": {
+    "focused_wordpress": {
+      "tests": 53,
+      "assertions": 477,
+      "result": "PASS"
+    },
+    "focused_unit": {
+      "tests": 75,
+      "assertions": 197,
+      "result": "PASS"
+    },
+    "full_local_unit": {
+      "tests": 2199,
+      "assertions": 10786,
+      "errors": 1,
+      "skipped": 1,
+      "result": "ENVIRONMENT_BLOCKED",
+      "cause": "Existing OfflineCutoutPipelineTest requires DIGIFORGE_CUTOUT_PYTHON and pinned OpenCV runtime; absent locally"
+    },
+    "actual_disposable_browser": {
+      "journeys": 2,
+      "products": [
+        "FL-03",
+        "FL-04"
+      ],
+      "saved_link_reopen": true,
+      "page_errors": 0,
+      "result": "PASS",
+      "data": "SYNTHETIC_ENGINEERING_FIXTURES_ONLY"
+    }
+  },
+  "external_gates": {
+    "ai_generation": "PROVIDER_BLOCKED; functional manual import retained",
+    "photo_upload_crop": "Not supported in new text-proof panel; explicit manual review, no fake preview",
+    "native_font_physical_floor_preview_final": "UNVERIFIED; local proofs remain MANUAL_REVIEW",
+    "commercial_owner_approvals": "OWNER_BLOCKED; synthetic tests confer no authority"
+  },
+  "estimate": {
+    "denominator": "10 bounded Lane A gates above, not whole MVP",
+    "verified_percent": 80,
+    "remaining_percent": 20,
+    "working_days_remaining": "2\u20133, conditional on cross-lane composed acceptance"
+  },
+  "safety": {
+    "stop_all": true,
+    "external_lock": true,
+    "automation": false,
+    "release_hold": true,
+    "production_authorized": false
+  }
+}

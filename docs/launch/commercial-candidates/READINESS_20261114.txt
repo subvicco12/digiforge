@@ -1,0 +1,78 @@
+FL-03 / FL-04 — COMMERCIAL CANDIDATES, RELEASE HOLD
+
+Accepted Shop 2 runtime remains unchanged from5ea3fe94. This increment contains
+listing-presentation data and a focused date-contract regression only.
+
+REUSED EXACT COMMERCIAL ARTWORK
+FL-03 Two Stems, One Date: R5B botanical fixed SVG/PNG and editable layered master.
+ SVG72c3cc2f0e5e0e5c8e9f6f0c4e8435687bd406e18338fbfa560c666d8c1552ef
+ PNGeae431adc21e7fb45c4007c3c68df80607e2ebaf76c79bba942d27808707a6fb
+FL-04 Our Shared Chapter: original R4 layered master and format-only fixed SVG/PNG.
+ SVG4804a76147d4558f1d89330b5cc2b1c64351eb55938b11d8693f55f0b27eec55
+ PNG189786e68b7360067d6a530cc4bc43ab8874e2dcb8d6d67d78ff242c682c18b5
+Canonical owner-decision archive1oHKKybPRPlI6pYZXycR5IXwo8jtqTf07, outerSHA256
+ affcd974d02b5e5a72af27f80e422a1ad8a339a5a4a1b80ae60c1017d5279542.
+No artwork revision or new commercial image generated. Original hashes preserved.
+Some layered masters retain legacy internal R3 review titles; identity is established
+by their R4/R5B custody manifest and hashes, not by silently rewriting XML titles.
+
+LOCAL TECHNICAL VERIFICATION
+Both reference canvases preserved:2475x1155 and2418x3018, nominal300DPI.
+Current strict SVG/PNG contract passes4assets: SVG<=60000bytes, PNG<=2097152bytes.
+PNG density11811pixels/metre =299.9994DPI; tolerance acceptance is not supplier certification.
+All six operator native rectangles have zero foreground RGB difference from their
+flat white/ivory background at thresholds>0 and>10. Background remains opaque;
+this is NOT zero alpha, an unprinted safe zone or certified bleed/trim/curvature.
+Three empty editable source placeholders and separate native sidecars preserved;
+provider field IDs remain null. Fixed derivatives contain no native/sample text.
+Exact Libre Baskerville/Open Sans binaries and OFL notices preserved unchanged.
+
+PERSONALIZATION
+Existing offline guard used24actual-font cases:22MANUAL_REVIEW,2invalid dates rejected;
+16local name fits,6held layouts. Swapped mixed/accented source-font masks and repeated
+ISO date glyph masks are identical per product. No truncation/font substitution.
+Regular local floors68px/86px are PROPOSALS, not approved physical/native sizes.
+Bold maximum-width, unsupported glyphs and below-floor requests remain HOLD.
+Date39px/62px source proof sizes are not approved minimums; date floor remains null.
+Provider Regular reproduction, common-size synchronization, tracking/placement,
+physical legibility and actual personalized preview/final parity remain BLOCKED.
+Manual common-tier preproduction review is an UNVERIFIED proposed fallback only.
+
+CONFIRMED PRESENTATION DEFECT CORRECTED
+November13 candidate instructions allowed a freeform printed date, while the accepted
+portal date contract requires a valid ISOYYYY-MM-DD value. New version2copy and
+schema examples use ISO; alternative styles require manual confirmation, not a
+claim that the typed portal accepts them. Historical buyer values are never rewritten.
+Titles and13tags per product are reused, not new keyword-demand research.
+Historical price/shipping moved to non-authoritative reference metadata; current
+values/owner decisions remain null. Physical offering and AI-process disclosure
+are candidates requiring seller confirmation before publication.
+
+PREVIEW / LISTING MEDIA
+Reuse exact Work product-context illustrations, original sample-only proofs and
+placement metadata from1Wj5F5Qq6-NrizyDizmJrwpUMdy0fbC8M. These are offline synthetic
+illustrations, not provider previews or verified stock photographs. Legacy Printify
+mockups with old STATIC_BACKGROUND are excluded. Five publication-qualified views
+per product are NOT supplied or inferred. Existing illustrated month-name dates do
+not demonstrate the newly documented typed ISO input/output or native parity.
+Reused fidelity evidence: FL04front-parallel artwork rectangle PASS only; FL03curved
+surface direct pixel parity BLOCKED. Whole-scene/supplier parity is not established.
+
+VERSION / APPROVAL BOUNDARIES
+No existing approval is inherited by these new listing/schema candidates. Adopting
+stricter name caps/date policy creates a fresh immutable schema, proof, review and
+server selection, then new business/package/listing approval as applicable.
+Any future fixed art/font/render-spec/native-region change needs new source versions
+and dependent proof/package requalification. Existing intake/currentness contracts
+and independent W3 acceptance are reused; no business/supplier/held-export edits.
+
+REMAINING OWNER / PROVIDER GATES
+Owner: exact artwork/outline fidelity,9human quality/rights criteria, font licenses/
+originality, regular-weight/common-tier/floor policy, date style/floor, media rights/
+truthfulness, final copy/AI disclosure/offer and fresh exact package/listing decisions.
+Provider: current shop/product/variant/routing/template binding, numerical safe/bleed/
+trim/handle/seam rules, native field IDs/font binary/weight/units, actual saved preview
+with the approved art and no duplicate legacy background, physical legibility and
+preview/final parity. Historical product IDs/provider names do not certify any of these.
+No provider upload/save/copy, publication, production import, merge or deployment.
+STOP ALL ON; external lock ON; automation OFF; manual approval; RELEASE HOLD.

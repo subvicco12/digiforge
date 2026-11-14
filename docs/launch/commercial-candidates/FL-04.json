@@ -1,0 +1,132 @@
+{
+  "schema": "digiforge-offline-etsy-content-v2",
+  "product": "FL-04",
+  "execution_authorized": false,
+  "publish": false,
+  "content": {
+    "title": "Personalized Anniversary Poster, Our Shared Chapter, Names and Date Print",
+    "description": "Every shared chapter has a beginning. This personalized anniversary poster pairs your names and a significant date with a classic bookplate border, warm ivory background, bookmark detail and an open-book illustration. The quiet literary composition is designed as a keepsake for a couple’s home.\n\nThis listing is for one physical 8×10-inch portrait matte poster. It is unframed; the frame and display props shown in review scenes are not included. It is not a digital download.\n\nEnter each partner’s first name and your chosen date. Names are arranged on separate lines in the order supplied. Please check spelling, accents and date carefully. Submit the date as YYYY-MM-DD (for example, 2021-06-18); alternative display styles require manual confirmation. Your personalized layout will be reviewed manually before fulfillment; we will contact you if clarification is needed. Screen colors may differ from the finished print.\n\nDesign process: developed with AI assistance and seller direction.",
+    "tags": [
+      "anniversary poster",
+      "personalized print",
+      "couple wall art",
+      "our shared chapter",
+      "names and date art",
+      "book lover gift",
+      "anniversary gift",
+      "custom couple print",
+      "romantic wall decor",
+      "wedding date print",
+      "literary wall art",
+      "gift for spouse",
+      "portrait poster"
+    ],
+    "language": "en-US",
+    "type": "physical",
+    "currency_code": "USD",
+    "personalization_required": true,
+    "personalization_instructions": "First name 1 (maximum 16 characters):\nFirst name 2 (maximum 16 characters):\nDate in YYYY-MM-DD format (example: 2021-06-18). Check spelling, accents and name order. Spaces and punctuation count. Long or accented names and alternative date styles require manual layout review.",
+    "personalization_total_limit": null,
+    "individual_field_limits_historical": [
+      16,
+      16,
+      24
+    ],
+    "offering": {
+      "size": "8×10 inches portrait",
+      "finish": "matte / unframed",
+      "quantity": 1
+    },
+    "price": null,
+    "buyer_shipping_usd": null
+  },
+  "artwork": [
+    {
+      "filename": "FL-04-R4-fixed-import-v1.svg",
+      "sha256": "4804a76147d4558f1d89330b5cc2b1c64351eb55938b11d8693f55f0b27eec55",
+      "status": "PINNED_MATCH",
+      "source_archive": "Drive 1oHKKybPRPlI6pYZXycR5IXwo8jtqTf07",
+      "unchanged": true,
+      "source_archive_sha256": "affcd974d02b5e5a72af27f80e422a1ad8a339a5a4a1b80ae60c1017d5279542",
+      "source_member": "reused/FL-04-R4-fixed-import-v1.svg"
+    },
+    {
+      "filename": "FL-04-R4-fixed-import-v1.png",
+      "sha256": "189786e68b7360067d6a530cc4bc43ab8874e2dcb8d6d67d78ff242c682c18b5",
+      "status": "PINNED_MATCH",
+      "source_archive": "Drive 1oHKKybPRPlI6pYZXycR5IXwo8jtqTf07",
+      "unchanged": true,
+      "source_archive_sha256": "affcd974d02b5e5a72af27f80e422a1ad8a339a5a4a1b80ae60c1017d5279542",
+      "source_member": "reused/FL-04-R4-fixed-import-v1.png"
+    }
+  ],
+  "publication_required_unresolved": {
+    "shop_id": null,
+    "taxonomy_id": null,
+    "production_partner_id": null,
+    "shipping_profile_id": null,
+    "return_policy_id": null,
+    "processing_profile_id": null,
+    "listing_images": null,
+    "seller_design_process_confirmation": null,
+    "rights_approval": null,
+    "provider_variant_binding": null,
+    "owner_price_approval": null
+  },
+  "notes": "Complete offline copy/content payload, intentionally not an executable Etsy API request. Taxonomy/profile/quantity-on-sale/partner/material-specific assertions require authenticated facts. Individual Printify caps do not establish Etsy combined personalization box limit.",
+  "date_input_example": "2021-06-18",
+  "historical_economics_reference": {
+    "source_date": "2026-11-04",
+    "historical_price_usd": "18.99",
+    "historical_buyer_shipping_usd": "7.39",
+    "current_supplier_costs_verified": false,
+    "owner_price_approval": null
+  },
+  "input_schema_candidate": [
+    {
+      "key": "first_name",
+      "type": "text",
+      "required": true,
+      "max_length": 16
+    },
+    {
+      "key": "second_name",
+      "type": "text",
+      "required": true,
+      "max_length": 16
+    },
+    {
+      "key": "date",
+      "type": "date",
+      "required": true,
+      "max_length": 10
+    }
+  ],
+  "readiness": {
+    "status": "CANDIDATE_ONLY_MANUAL_HOLD",
+    "owner_artwork_approval": null,
+    "owner_rights_approval": null,
+    "owner_listing_approval": null,
+    "native_typography_parity": "UNKNOWN",
+    "supplier_safe_area_bleed": "UNKNOWN",
+    "preview_final_parity": "BLOCKED_PROVIDER_EVIDENCE_MISSING",
+    "requires_fresh_schema_proof_and_listing_approval_if_adopted": true,
+    "previous_approvals_inherited": false,
+    "name_caps_basis": "Historical native observations and local proposed policy; current native fields require requalification",
+    "date_policy_basis": "Accepted DigiForge PersonalizationPayloadContract typed ISO date; historical freeform provider text caps remain separate",
+    "seller_design_process_confirmation": null,
+    "publish_ready": false,
+    "offering_status": "CANDIDATE_HISTORICAL_SPEC_NOT_CURRENT_SUPPLIER_QUALIFICATION"
+  },
+  "source_copy": {
+    "drive_id": "1KkEi8KNUPEecNp4nkJHlK65DGVPhCj9h",
+    "archive_sha256": "4fc730d290d4fde312ec2b56b78f5d2c08c7c0275b995bd66e3fcb7ee2fc31ce",
+    "member": "FL-04_ETSY_OFFLINE_PAYLOAD.json",
+    "changes": [
+      "Clarified supported ISO date entry; alternatives manual",
+      "Moved historical prices/shipping outside buyer-facing content; current values null",
+      "Added proposed source-bound schema and explicit fresh-approval gates"
+    ],
+    "new_keyword_research_performed": false
+  }
+}
