@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Portal;
-use DigiForge\Research\{ArtworkPersonalizationRepository,DesignFactoryRepository,CommercialResearchContract};
+use DigiForge\Research\{ArtworkPersonalizationRepository,ArtworkPersonalizationIntake,DesignFactoryRepository,CommercialResearchContract};
 use WP_Error;
 
 /** Uses the existing authenticated research route; no new orchestrator or external action. */
@@ -42,7 +42,20 @@ final class ArtworkPersonalizationPanel
             if(is_string($result['svg']))echo '<img alt="Local personalization proof — not production artwork" style="max-width:100%;width:600px" src="data:image/svg+xml;base64,'.esc_attr(base64_encode($result['svg'])).'">';
             else echo '<p>Manual HOLD: '.esc_html(implode(', ',$result['reasons'])).'. No output or substitution generated.</p>';
             echo '<p>Fixed-art SHA-256 <code>'.esc_html($result['artwork_sha256']).'</code> · Proof SHA-256 <code>'.esc_html($result['proof_sha256']??'NONE — HOLD').'</code></p>';
-            if($selected['review']!==null)echo '<p>Human local-proof decision: '.esc_html($selected['review']['decision']).' · '.esc_html($selected['review']['note']).'. Production authority: NO.</p>';
+            if($selected['review']!==null){
+                echo '<p>Human local-proof decision: '.esc_html($selected['review']['decision']).' · '.esc_html($selected['review']['note']).'. Production authority: NO.</p>';
+                $supplier=$_GET['df_supplier_workflow']??null;
+                if($selected['review']['decision']==='APPROVE'&&is_string($supplier)&&preg_match('/^[a-f0-9]{64}$/D',$supplier)){
+                    $intake=(new ArtworkPersonalizationIntake())->resolve($shop,$supplier,$factory);
+                    if(is_array($intake)&&$intake['proof']['hash']===$selected['hash'])echo '<p>Selected reviewed local proof for held intake: <code>'.esc_html($intake['intake_hash']).'</code>. Business/package review remains separate.</p>';
+                    else{
+                        echo '<p>This reviewed sample is not the current held-intake selection. Selecting it preserves its existing immutable review; it grants no business, package or production approval.</p>';
+                        $this->form('personalization_review',$commercial,$factory);
+                        foreach(['select_reviewed'=>'1','proof_hash'=>$selected['hash'],'decision'=>'APPROVE','note'=>'Select existing reviewed local proof only'] as $key=>$value)echo '<input type="hidden" name="'.esc_attr($key).'" value="'.esc_attr($value).'">';
+                        echo '<label><input type="checkbox" name="confirm" value="1" required> Select this exact already-reviewed local sample for held intake.</label><button class="df-button">Select reviewed sample</button></form>';
+                    }
+                }
+            }
             else{
                 $this->form('personalization_review',$commercial,$factory);echo '<input type="hidden" name="proof_hash" value="'.esc_attr($selected['hash']).'"><select name="decision"><option value="REJECT">Reject / revise sample</option><option value="APPROVE"'.($result['state']==='MANUAL_HOLD'?' disabled':'').'>Approve this local sample only</option></select><textarea name="note" rows="2" maxlength="2000" required></textarea><label><input type="checkbox" name="confirm" value="1" required> I reviewed these exact source/sample bytes; provider qualification and production stay held.</label><button class="df-button">Record immutable sample review</button></form>';
             }
@@ -64,7 +77,17 @@ final class ArtworkPersonalizationPanel
             elseif(in_array($op,['personalization_sample','personalization_review'],true)){
                 $hash=$post[$op==='personalization_sample'?'schema_hash':'proof_hash']??null;if(!is_string($hash))throw new \RuntimeException();$source=$repo->read('personalized_pod',$hash);if(is_wp_error($source))return $source;if($source['record']['factory_hash']!==$factory)return $this->error();
                 if($op==='personalization_sample'){if(!is_array($post['samples']??null))throw new \RuntimeException();$result=$repo->sample('personalized_pod',$hash,$post['samples'],$parent);}
-                elseif(($post['confirm']??null)==='1'&&is_string($post['decision']??null)&&is_string($post['note']??null))$result=$repo->decide('personalized_pod',$hash,$post['decision'],$post['note']);
+                elseif(($post['confirm']??null)==='1'&&is_string($post['decision']??null)&&is_string($post['note']??null)){
+                    if(($post['select_reviewed']??null)==='1'){
+                        if($post['decision']!=='APPROVE'||($source['review']['decision']??null)!=='APPROVE'||!is_string($post['supplier_workflow_hash']??null))return $this->error();
+                        $result=$source;
+                    }else $result=$repo->decide('personalized_pod',$hash,$post['decision'],$post['note']);
+                    if(is_array($result)&&$post['decision']==='APPROVE'&&isset($post['supplier_workflow_hash'])){
+                        if(!is_string($post['supplier_workflow_hash']))return $this->error();
+                        $intake=(new ArtworkPersonalizationIntake())->selectReviewed('personalized_pod',$post['supplier_workflow_hash'],$factory,$result['hash']);
+                        if(is_wp_error($intake))return $intake;
+                    }
+                }
             }
         }catch(\Throwable){return $this->error();}
         if(is_wp_error($result))return $result;if(!is_array($result))return $this->error();

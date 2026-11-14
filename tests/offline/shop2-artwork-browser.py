@@ -8,6 +8,7 @@ def main():
     args=argparse.ArgumentParser()
     args.add_argument('--base-url',required=True);args.add_argument('--cookies-file',type=Path,required=True)
     args.add_argument('--supplier-seed-file',type=Path)
+    args.add_argument('--expect-proof-intake',action='store_true')
     args.add_argument('--output',type=Path,required=True);args.add_argument('--chromium',default='/usr/bin/chromium')
     a=args.parse_args();url=urllib.parse.urlsplit(a.base_url)
     if url.hostname not in ['127.0.0.1','localhost'] or url.scheme!='http':raise ValueError('Disposable loopback only')
@@ -82,7 +83,12 @@ def main():
             fixed=base64.b64decode(page.locator('#df-design-factory > img[alt="Approved-source fixed artwork preview"]').get_attribute('src').split(',',1)[1])
             fixed_hash=hashlib.sha256(fixed).hexdigest();assert fixed_hash in panel.inner_text()
             query=urllib.parse.parse_qs(urllib.parse.urlsplit(page.url).query)
+            if a.expect_proof_intake:
+                import re
+                match=re.search(r'Selected reviewed local proof for held intake:\s*([a-f0-9]{64})',panel.inner_text());assert match,panel.inner_text()
+                intake_hash=match.group(1)
             results.append({'product':code,'profile':profile,'three_concepts':concepts,'workflow_hash':query['df_research_version'][0],'factory_hash':query['df_factory_version'][0],'personalization_hash':query['df_personalization_version'][0],'import_input_svg_sha256':hashlib.sha256(art.encode()).hexdigest(),'fixed_svg_sha256':fixed_hash,'proof_svg_sha256':hashlib.sha256(proof).hexdigest(),'local_review_only':True,'provider_certified':False,'production_authorized':False})
+            if a.expect_proof_intake:results[-1]['intake_hash']=intake_hash
             # Supplier wrappers must keep their linkage when traversing saved version links.
             reopen_url=a.base_url
             if a.supplier_seed_file:
@@ -97,6 +103,7 @@ def main():
             link=page.locator('a[href*="df_personalization_version='+query['df_personalization_version'][0]+'"]').first
             page.goto(link.get_attribute('href'),wait_until='domcontentloaded')
             assert 'Human local-proof decision: APPROVE' in panel.inner_text()
+            if a.expect_proof_intake:assert intake_hash in panel.inner_text()
             results[-1]['reopened_from_saved_links']=True
             page.set_viewport_size({'width':390,'height':844});panel.screenshot(path=str(a.output/(code+'-mobile.png')));page.set_viewport_size({'width':1280,'height':900})
         page.goto(a.base_url.replace('df_shop=personalized_pod','df_shop=digital'),wait_until='domcontentloaded');assert page.locator('#df-commercial-research').count()==0;assert page.locator('#df-artwork-personalization').count()==0
