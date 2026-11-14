@@ -6,6 +6,7 @@ require_once __DIR__.'/../../includes/Connector/Printify/CredentialReference.php
 require_once __DIR__.'/../../includes/Connector/Printify/ShopBinding.php';
 if(!class_exists(\DigiForge\POD\PrintifyProductRequest::class))require_once __DIR__.'/../fixtures/printify-connector/stage34/CoreProductRequest.php';
 require_once __DIR__.'/../../companion/digiforge-printify-connector/Preparation/ProductDraftContract.php';
+require_once __DIR__.'/../../companion/digiforge-printify-connector/Preparation/MutationIntent.php';
 final class PrintifyCompanionProductDraftTest extends TestCase {
  private function fixture():array{return (require __DIR__.'/../fixtures/printify-connector/stage34/product-fixture.php')();}
  public function testCreateIsPureAndReadbackStripsUnrelatedData():void{[$s,$i,$e,$r]=$this->fixture();$q=Contract::prepare('PRODUCT_CREATE',$s,$i,$e);self::assertSame('POST',$q['core_request']['method']);self::assertFalse($q['external_execution_authorized']);$r['customer_email']='private@example.invalid';$out=Contract::reconcile($q,$r);self::assertSame('PRODUCT_METADATA_OBSERVED_UNCERTIFIED',$out['state']);self::assertArrayNotHasKey('customer_email',$out);}

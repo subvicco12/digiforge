@@ -44,7 +44,6 @@ final class ProductDraftContract
  private static function shopId(mixed $id):string{if(is_int($id)&&$id>0)return (string)$id;if(is_string($id)&&preg_match('/^[1-9][0-9]{0,18}$/D',$id)===1)return $id;self::bad();}
  private static function number(mixed $v):void{if((!is_int($v)&&!is_float($v))||!is_finite((float)$v))self::bad();}
  private static function digest(mixed $v):void{if(!is_string($v)||preg_match('/^[a-f0-9]{64}$/D',$v)!==1)self::bad();}
- private static function hash(array $v):string{return hash('sha256',json_encode(self::canonical($v),JSON_THROW_ON_ERROR|JSON_PRESERVE_ZERO_FRACTION));}
- private static function canonical(array $v):array{foreach($v as &$item)if(is_array($item))$item=self::canonical($item);unset($item);if(!array_is_list($v))ksort($v);return $v;}
+ private static function hash(array $v):string{return MutationIntent::hash($v);}
  private static function bad():never{throw new \InvalidArgumentException('Exact scoped draft evidence, complete variants and bounded approved geometry required.');}
 }

@@ -180,7 +180,7 @@ def build(baseline_path, output, source_sha):
         raise ValueError('Preservation boundary violated')
     output.mkdir(parents=True, exist_ok=True)
     core_path = output / ('digiforge-' + CANDIDATE_VERSION + '-test-only.zip')
-    companion_path = output / 'digiforge-printify-connector-0.7.0-test-only.zip'
+    companion_path = output / 'digiforge-printify-connector-0.7.1-test-only.zip'
     write_zip(core_path, candidate)
     write_zip(companion_path, companion)
     artifacts = [{'filename': p.name, 'size': p.stat().st_size, 'sha256': sha(p.read_bytes())} for p in [core_path, companion_path]]
