@@ -19,6 +19,9 @@ final class ReviewConfirmation {
    'digiforge_portal_master500_acceptance'=>['catalog_versions','catalog_version_id','Master 500 migration review','manage_digiforge_pod','catalog',['ACCEPT','REJECT']],
    'digiforge_portal_personalization_review'=>['personalization_submissions','submission_id','Order personalization review','manage_digiforge_orders','personalization',['APPROVED','REJECTED']],
    'digiforge_portal_ownership_review'=>['pod_business_mappings','mapping_id','POD ownership mapping review','manage_digiforge_pod','ownership',[]],
+   'digiforge_portal_order_local_begin_review'=>['orders','order_id','Local order review entry','manage_digiforge_orders','order_local',[]],
+   'digiforge_portal_order_local_approve'=>['orders','order_id','Local order approval','manage_digiforge_orders','order_local',[]],
+   'digiforge_portal_order_local_draft_plan'=>['orders','order_id','DRAFT fulfillment plan preparation','manage_digiforge_orders','order_local',[]],
    'digiforge_portal_replacement_request'=>['orders','order_id','Replacement support request','manage_digiforge_orders','order',[]],
    'digiforge_portal_replacement_decision'=>['audit_log','case_id','Replacement support case review','manage_digiforge_orders','case',['APPROVED_LOCAL_REVIEW','REJECTED_LOCAL_REVIEW']],
    'digiforge_portal_draft_qa_review'=>['etsy_operations','create_operation_id','Marketplace draft QA review','manage_digiforge_listings','draft_qa',[]],
@@ -27,6 +30,7 @@ final class ReviewConfirmation {
  }
  public static function parameters(string $action,array $body):array {
   $definition=self::definition($action);$params=[];
+  if(in_array($action,[OrderLocalWorkflow::BEGIN_REVIEW,OrderLocalWorkflow::APPROVE,OrderLocalWorkflow::DRAFT],true))return OrderLocalWorkflow::parameters($action,$body);
   if($definition!==null&&$definition[5]!==[])$params['decision']=is_string($body['decision']??null)?strtoupper($body['decision']):'';
   if($action==='digiforge_portal_develop_candidate')$params['destination_shop']=is_string($body['shop']??null)?$body['shop']:'';
   if($action==='digiforge_portal_draft_qa_review')$params=['checks'=>$body['checks']??null,'objective_evidence_hash'=>$body['objective_evidence_hash']??null,'intent_id'=>self::positiveId($body['intent_id']??null),'draft_package_id'=>self::positiveId($body['draft_package_id']??null)];
@@ -40,6 +44,8 @@ final class ReviewConfirmation {
   $evidence=['target'=>$row];$order=null;$shop='';$environment=(string)($row['environment']??'');$summary=[];
   try{
    switch($definition[4]){
+    case 'order_local':
+     $context=OrderLocalWorkflow::inspect($action,$id,$authorizedShop,$params);if($context instanceof WP_Error)return $context;$shop=$authorizedShop;$environment=$context['order']['environment'];$evidence['local_order_source']=$context;$summary=['Stored order #'.$id.' / '.$context['order']['state'],count($context['lines']).' current mapped lines','Current order currency '.$context['order']['currency'],'Current reviewer #'.get_current_user_id(),'Reviewed connection #'.$context['connection']['integration_id']];foreach($context['lines']as $line)$summary[]='Line #'.$line['id'].' / version #'.$line['product_version_id'].' / mapping #'.$line['provider_mapping_id'].' / quantity '.$line['quantity'];foreach($context['personalization']as $submission)$summary[]='Buyer submission #'.$submission['id'].' / '.$submission['review_status'].' / SHA-256 '.$submission['payload_hash'];if($action===OrderLocalWorkflow::DRAFT){$summary[]='Shipping and costs are unverified local review assumptions; no provider quote, debit, actual margin or pricing approval.';foreach($params as $name=>$value)$summary[]=$name.': '.$value;}break;
     case 'product':
      $product=self::requiredRow(Tables::products(),(int)$row['product_id']);$family=self::requiredRow(Tables::product_families(),(int)$product['product_family_id']);$evidence['product']=$product;$evidence['family']=$family;$evidence['opportunity']=self::requiredRow(Tables::opportunities(),(int)$family['opportunity_id']);$shop=$authorizedShop;$environment='local product review';
      $plans=self::rows('SELECT * FROM '.Tables::production_plans().' WHERE product_version_id='.$id.' ORDER BY id DESC LIMIT 1');if($plans===[])return self::error('unavailable','Current production review plan is unavailable.');$plan=$plans[0];$bundles=self::rows('SELECT * FROM '.Tables::release_bundles().' WHERE production_plan_id='.(int)$plan['id'].' ORDER BY id DESC LIMIT 1');if($bundles===[])return self::error('unavailable','Current product review bundle is unavailable.');$bundle=$bundles[0];if($plan['state']!=='REVIEW_REQUIRED'||$bundle['state']!=='REVIEW_REQUIRED')return self::error('stale','Product plan and release bundle are no longer awaiting review.');$evidence['plan']=$plan;$evidence['bundle']=$bundle;
@@ -80,7 +86,7 @@ final class ReviewConfirmation {
   $nonce=$proof['confirmation_nonce']??str_replace('-','',wp_generate_uuid4());$issued=$proof['issued_at']??time();
   if(!is_string($nonce)||preg_match('/^[a-f0-9]{32}$/D',$nonce)!==1||!is_int($issued)||$issued>time()||time()-$issued>900)return self::error('expired','Review confirmation is invalid or expired. Review current evidence again.');
   $hash=hash('sha256',Validator::canonicalJson($evidence));$payload=['action'=>$action,'target_id'=>$id,'shop'=>$shop,'actor_id'=>get_current_user_id(),'evidence_hash'=>$hash,'parameters'=>$params,'confirmation_nonce_sha256'=>hash('sha256',$nonce),'issued_at'=>$issued];
-  $effect=match($action){'digiforge_portal_develop_candidate'=>'Prepares product development for the selected source shop. Activation, budgets and external execution remain separately governed.','digiforge_portal_replacement_request'=>'Creates a local support review request bound to the stored order and lines. No replacement production or refund is authorized.',default=>'Records the selected local review decision only. No publishing, provider production, fulfillment or money movement is authorized.'};
+  $effect=match($action){OrderLocalWorkflow::BEGIN_REVIEW=>'Moves the validated stored order into local human review only. Separate order approval is still required. Production remains held.',OrderLocalWorkflow::APPROVE=>'Records local order approval only. Production release remains held.',OrderLocalWorkflow::DRAFT=>'Creates a DRAFT fulfillment plan using unverified local review assumptions. Separate plan review and production authorization remain required.','digiforge_portal_develop_candidate'=>'Prepares product development for the selected source shop. Activation, budgets and external execution remain separately governed.','digiforge_portal_replacement_request'=>'Creates a local support review request bound to the stored order and lines. No replacement production or refund is authorized.',default=>'Records the selected local review decision only. No publishing, provider production, fulfillment or money movement is authorized.'};
   return $payload+['token'=>hash_hmac('sha256',Validator::canonicalJson($payload),wp_salt('nonce')),'confirmation_nonce'=>$nonce,'target_label'=>$definition[2].' #'.$id,'environment'=>$environment,'summary'=>array_map(static fn(string $value):string=>mb_substr(wp_strip_all_tags($value),0,240),$summary),'effect'=>$effect];
  }
  public static function verify(string $action,int $id,array $body):true|WP_Error {
@@ -119,7 +125,7 @@ final class ReviewConfirmation {
     'draft_qa'=>"EXISTS (SELECT 1 FROM ".Tables::etsy_draft_packages()." p INNER JOIN ".Tables::listings()." l ON l.id=p.listing_id WHERE p.id=t.draft_package_id AND ".$wpdb->prepare('BINARY l.shop_reference=BINARY %s',$shop).")",
     'personalization'=>"EXISTS (SELECT 1 FROM ".Tables::order_line_items()." li INNER JOIN ".Tables::orders()." o ON o.id=li.order_id WHERE li.id=t.order_line_item_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
     'render','package'=>"EXISTS (SELECT 1 FROM ".Tables::orders()." o WHERE o.id=t.order_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
-    'order'=>\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'t'),
+    'order','order_local'=>\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'t'),
     'case'=>"t.object_type='order' AND EXISTS (SELECT 1 FROM ".Tables::orders()." o WHERE BINARY CAST(o.id AS CHAR)=BINARY t.object_id AND ".\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o').")",
     'ownership'=>"EXISTS (SELECT 1 FROM ".Tables::pod_mappings()." WHERE id=t.provider_mapping_id AND ".ProductEvidenceScope::forTable(Tables::pod_mappings(),$shop).")",
     'catalog'=>$shop==='personalized_pod'?'1=1':'1=0',default=>'1=0',

@@ -1,0 +1,75 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/fixtures/NativeBusinessOrderFixture.php';
+use DigiForge\Database\Tables;
+use DigiForge\Portal\OrderLocalWorkflow;
+use DigiForge\Orders\Repository;
+
+final class OrderLocalWorkflowTest extends WP_UnitTestCase {
+ use NativeBusinessOrderFixture;
+ public function setUp():void {parent::setUp();\DigiForge\Core\Activator::activate();$this->bootOrderFixture();}
+ public function tearDown():void {try{$this->restoreOrderFixture();}finally{$_POST=[];parent::tearDown();}}
+ public function testRegisteredPostPreviewAndConfirmationApproveOrderThenCreateDraftWithoutHttp():void {
+  self::assertTrue(class_exists(OrderLocalWorkflow::class),'Connected local order review workflow required.');
+  self::assertTrue(defined(OrderLocalWorkflow::class.'::BEGIN_REVIEW'),'Validated orders need a separate manual review-entry action.');[$order]=$this->localOrder('VALIDATED');self::assertNotFalse(has_action('admin_post_'.OrderLocalWorkflow::BEGIN_REVIEW));self::assertNotFalse(has_action('admin_post_'.OrderLocalWorkflow::APPROVE));$http=0;$deny=static function()use(&$http){$http++;return new WP_Error('unexpected_http');};add_filter('pre_http_request',$deny);
+  try {
+   $_GET['df_order_id']=(string)$order;ob_start();(new \DigiForge\Portal\OrderHeldPreparationPanel())->render('personalized_pod');$panel=(string)ob_get_clean();unset($_GET['df_order_id']);self::assertStringContainsString('Preview entry into local order review',$panel);self::assertStringNotContainsString('name="document"',$panel);
+   $begin=$this->body(OrderLocalWorkflow::BEGIN_REVIEW,$order);$preview=$this->invoke($begin);self::assertStringContainsString('Confirm entry into local order review',$preview);$confirm=$this->confirmed($begin,$preview);self::assertStringContainsString('Local order entered review',$this->invoke($confirm));global $wpdb;self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT approved_by FROM '.Tables::orders().' WHERE id=%d',$order)));
+   $wrongPurpose=$confirm;$wrongPurpose['action']=OrderLocalWorkflow::APPROVE;$wrongPurpose['_wpnonce']=wp_create_nonce(OrderLocalWorkflow::APPROVE.':'.$order);self::assertStringContainsString('changed',$this->invoke($wrongPurpose));
+   $approve=$this->body(OrderLocalWorkflow::APPROVE,$order);$preview=$this->invoke($approve);self::assertStringContainsString('Confirm local order approval',$preview);$confirm=$this->confirmed($approve,$preview);$html=$this->invoke($confirm);self::assertStringContainsString('Local order approved',$html);self::assertStringContainsString('Return to this order',$html);self::assertStringContainsString('/operations/?df_view=orders',$html);
+   global $wpdb;self::assertSame('APPROVED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));
+   $draft=$this->body(OrderLocalWorkflow::DRAFT,$order)+['shipping_method'=>'standard','base_production_cost'=>'10.00','shipping_estimate'=>'4.50'];$preview=$this->invoke($draft);self::assertStringContainsString('unverified local review assumptions',$preview);self::assertStringContainsString('base_production_cost: 10.0000',$preview);self::assertStringContainsString('shipping_estimate: 4.5000',$preview);self::assertStringContainsString('shipping_method: standard',$preview);self::assertStringContainsString('Current order currency USD',$preview);$confirm=$this->confirmed($draft,$preview);$html=$this->invoke($confirm);self::assertStringContainsString('DRAFT fulfillment plan created',$html);
+   $plan=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::fulfillment_plans().' WHERE order_id=%d ORDER BY id DESC LIMIT 1',$order),ARRAY_A);self::assertSame('DRAFT',$plan['state']);self::assertSame('0',$plan['approved_by']);$payload=json_decode($plan['canonical_payload'],true);self::assertSame(2,(int)$payload['line_identity_snapshot']['items'][0]['line']['quantity']);self::assertSame('USD',$payload['cost']['currency']);self::assertSame('unverified_local_review_assumptions',$payload['cost']['source']);
+   self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::fulfillment_intents().' WHERE order_id=%d',$order)));
+   self::assertStringContainsString('changed',$this->invoke($confirm));$draft['shipping_estimate']='5.00';$fresh=$this->confirmed($draft,$this->invoke($draft));self::assertStringContainsString('DRAFT fulfillment plan created',$this->invoke($fresh));self::assertSame('2',$wpdb->get_var($wpdb->prepare('SELECT COUNT(DISTINCT plan_version) FROM '.Tables::fulfillment_plans().' WHERE order_id=%d',$order)));
+  } finally {remove_filter('pre_http_request',$deny);}
+  self::assertSame(0,$http);self::assertTrue(\DigiForge\Core\Settings::safety_locked());
+ }
+ public function testEvidenceAndFormTamperingRequireFreshPreview():void {
+  self::assertTrue(class_exists(OrderLocalWorkflow::class));[$order,$line]=$this->localOrder();PrintifyApiApprovalFixture::checked((new Repository())->transition('order',$order,'APPROVED'));self::assertNotFalse(has_action('admin_post_'.OrderLocalWorkflow::APPROVE));
+  $body=$this->body(OrderLocalWorkflow::DRAFT,$order)+['shipping_method'=>'standard','base_production_cost'=>'10','shipping_estimate'=>'4'];$preview=$this->invoke($body);$confirm=$this->confirmed($body,$preview);
+  $tamper=$confirm;$tamper['shipping_estimate']='400';self::assertStringContainsString('changed',$this->invoke($tamper));
+  global $wpdb;$wpdb->update(Tables::order_line_items(),['quantity'=>3],['id'=>$line]);self::assertStringContainsString('changed',$this->invoke($confirm));self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::fulfillment_plans().' WHERE order_id=%d',$order)));
+ }
+ public function testFailedBusinessWriteConsumesConfirmationAndCannotBeReplayed():void {
+  self::assertTrue(class_exists(OrderLocalWorkflow::class));[$order]=$this->localOrder();PrintifyApiApprovalFixture::checked((new Repository())->transition('order',$order,'APPROVED'));
+  $body=$this->body(OrderLocalWorkflow::DRAFT,$order)+['shipping_method'=>'standard','base_production_cost'=>'10','shipping_estimate'=>'4'];$confirm=$this->confirmed($body,$this->invoke($body));
+  global $wpdb;$deny=static fn(string $sql):string=>preg_match('/^INSERT INTO `?'.preg_quote(Tables::fulfillment_plans(),'/').'`?/i',$sql)?'INSERT INTO missing_local_plan_failure (id) VALUES (1)':$sql;$previous=$wpdb->suppress_errors(true);add_filter('query',$deny);
+  try{$html=$this->invoke($confirm);}finally{remove_filter('query',$deny);$wpdb->suppress_errors($previous);}
+  self::assertStringNotContainsString('DRAFT fulfillment plan created',$html);self::assertSame('0',$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::fulfillment_plans().' WHERE order_id=%d',$order)));
+  self::assertStringContainsString('already been accepted',$this->invoke($confirm));
+ }
+ public function testActorAndTargetCannotBeSubstitutedAfterPreview():void {
+  self::assertTrue(class_exists(OrderLocalWorkflow::class));[$order]=$this->localOrder();$body=$this->body(OrderLocalWorkflow::APPROVE,$order);$confirm=$this->confirmed($body,$this->invoke($body));
+  $bad=$confirm;$bad['order_id']=(string)($order+1);self::assertStringContainsString('nonce',$this->invoke($bad));
+  PortalAccessFixture::login($this->fixture->reviewer);$confirm['_wpnonce']=wp_create_nonce(OrderLocalWorkflow::APPROVE.':'.$order);self::assertStringContainsString('changed',$this->invoke($confirm));
+  global $wpdb;self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));
+ }
+ public function testUnavailableOrNontransactionalStorageCannotConfirm():void {
+  [$order]=$this->localOrder();$body=$this->body(OrderLocalWorkflow::APPROVE,$order);$confirm=$this->confirmed($body,$this->invoke($body));global $wpdb;
+  foreach(['missing','MyISAM']as $mode){$observed=false;$filter=static function(string $sql)use($mode,&$observed):string{if(str_contains($sql,'information_schema.TABLES')){$observed=true;return $mode==='missing'?'SELECT * FROM missing_order_storage_metadata':str_replace('TABLE_NAME,ENGINE',"TABLE_NAME,'MyISAM' AS ENGINE",$sql);}return $sql;};$previous=$wpdb->suppress_errors(true);add_filter('query',$filter);try{$html=$this->invoke($confirm);}finally{remove_filter('query',$filter);$wpdb->suppress_errors($previous);}self::assertTrue($observed,'Actual bounded storage engine evidence must be checked.');self::assertStringNotContainsString('Local order approved',$html);self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));}
+ }
+ public function testActorRevocationAfterWriteRollsBackBeforeCommit():void {
+  [$order]=$this->localOrder();$body=$this->body(OrderLocalWorkflow::APPROVE,$order);$confirm=$this->confirmed($body,$this->invoke($body));global $wpdb;$actor=wp_get_current_user();$changed=false;
+  $filter=static function(string $sql)use(&$changed,$actor):string{if(!$changed&&str_starts_with($sql,'UPDATE `'.Tables::orders().'`')){$changed=true;$actor->add_cap('manage_digiforge_orders',false);}return $sql;};add_filter('query',$filter);try{$html=$this->invoke($confirm);}finally{remove_filter('query',$filter);$actor->add_cap('manage_digiforge_orders');}
+  self::assertTrue($changed);self::assertStringNotContainsString('Local order approved',$html);self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));
+ }
+ public function testFreshSecondPlanGetsAnImmutableDistinctVersion():void {
+  [$order]=$this->localOrder();PrintifyApiApprovalFixture::checked((new Repository())->transition('order',$order,'APPROVED'));$body=$this->body(OrderLocalWorkflow::DRAFT,$order)+['shipping_method'=>'standard','base_production_cost'=>'10','shipping_estimate'=>'4'];$confirm=$this->confirmed($body,$this->invoke($body));self::assertStringContainsString('DRAFT fulfillment plan created',$this->invoke($confirm));$body['shipping_estimate']='5';$confirm=$this->confirmed($body,$this->invoke($body));self::assertStringContainsString('DRAFT fulfillment plan created',$this->invoke($confirm));global $wpdb;self::assertSame('2',$wpdb->get_var($wpdb->prepare('SELECT COUNT(DISTINCT plan_version) FROM '.Tables::fulfillment_plans().' WHERE order_id=%d',$order)));
+ }
+ public function testExistingTransactionIsDeniedWithoutCommittingCallerWrites():void {
+  [$order]=$this->localOrder();$body=$this->body(OrderLocalWorkflow::APPROVE,$order);$confirm=$this->confirmed($body,$this->invoke($body));global $wpdb;$wpdb->query('START TRANSACTION');try{$html=$this->invoke($confirm);self::assertStringNotContainsString('Local order approved',$html);self::assertSame('1',(string)$wpdb->get_var('SELECT @@session.in_transaction'));}finally{$wpdb->query('ROLLBACK');}self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));
+ }
+ public function testWrongScopeModuleAnonymousAndNonceCannotWrite():void {
+  self::assertTrue(class_exists(OrderLocalWorkflow::class));[$order]=$this->localOrder();self::assertNotFalse(has_action('admin_post_'.OrderLocalWorkflow::APPROVE));$body=$this->body(OrderLocalWorkflow::APPROVE,$order);
+  $wrong=$body;$wrong['shop_key']='digital';self::assertStringNotContainsString('Confirm local order approval',$this->invoke($wrong));
+  $wrong=$body;$wrong['_wpnonce']='bad';self::assertStringContainsString('nonce',$this->invoke($wrong));
+  PrintifyApiApprovalFixture::checked(\DigiForge\PortalAccess\Store::change($this->fixture->reviewer,'Viewer',['personalized_pod'=>['research']],true,0,wp_generate_uuid4()));PortalAccessFixture::login($this->fixture->reviewer);self::assertStringNotContainsString('Confirm local order approval',$this->invoke($body));
+  wp_set_current_user(0);self::assertStringNotContainsString('Confirm local order approval',$this->invoke($body));
+  global $wpdb;self::assertSame('REVIEW_REQUIRED',$wpdb->get_var($wpdb->prepare('SELECT state FROM '.Tables::orders().' WHERE id=%d',$order)));
+ }
+ private function body(string $action,int $order):array {return ['action'=>$action,'order_id'=>(string)$order,'shop_key'=>'personalized_pod','_wpnonce'=>wp_create_nonce($action.':'.$order),'phase'=>'preview','return_url'=>home_url('/operations/')];}
+ private function invoke(array $body):string {$post=$_POST;$hadMethod=array_key_exists('REQUEST_METHOD',$_SERVER);$method=$_SERVER['REQUEST_METHOD']??null;$_SERVER['REQUEST_METHOD']='POST';$_POST=$body;ob_start();try{try{do_action('admin_post_'.$body['action']);}catch(WPDieException $error){echo esc_html($error->getMessage());}return (string)ob_get_contents();}finally{ob_end_clean();$_POST=$post;if($hadMethod)$_SERVER['REQUEST_METHOD']=$method;else unset($_SERVER['REQUEST_METHOD']);}}
+ private function confirmed(array $body,string $html):array {$doc=new DOMDocument();@$doc->loadHTML($html);foreach($doc->getElementsByTagName('input')as $input){$name=$input->getAttribute('name');if($name==='df_confirmation_tokens[REVIEW]')$body['df_confirmation_tokens']['REVIEW']=$input->getAttribute('value');elseif(str_starts_with($name,'df_confirmation_'))$body[$name]=$input->getAttribute('value');}$body['phase']='confirm';$body['df_confirm_review']='1';return $body;}
+ private function localOrder(string $orderState='REVIEW_REQUIRED'):array {[, $mapping,$version]=$this->product();$repo=new Repository();$order=PrintifyApiApprovalFixture::checked($repo->createOrder(['channel'=>'etsy','shop_reference'=>'personalized_pod','environment'=>'test','currency'=>'USD','personalization_required'=>true]));$line=PrintifyApiApprovalFixture::checked($repo->addLineItem(['order_id'=>$order['id'],'product_version_id'=>$version,'provider_mapping_id'=>$mapping,'quantity'=>2]));$pod=new \DigiForge\POD\Repository();$schema=PrintifyApiApprovalFixture::checked($pod->createPersonalizationSchema(['product_version_id'=>$version,'schema_key'=>'local-order','version_label'=>'v1','field_definitions'=>[['key'=>'name','type'=>'text','required'=>true]]]));foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED']as $state)PrintifyApiApprovalFixture::checked($pod->transition('personalization',(int)$schema['id'],$state));$submission=PrintifyApiApprovalFixture::checked($repo->createPersonalization(['order_line_item_id'=>$line['id'],'personalization_schema_id'=>$schema['id'],'payload'=>['name'=>'Synthetic buyer']]));PrintifyApiApprovalFixture::checked($repo->reviewPersonalization((int)$submission['id'],'APPROVED'));PrintifyApiApprovalFixture::checked($repo->transition('order',(int)$order['id'],$orderState));\DigiForge\Core\Settings::protectProduction();return [(int)$order['id'],(int)$line['id']];}
+}

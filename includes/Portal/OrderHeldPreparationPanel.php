@@ -28,6 +28,7 @@ final class OrderHeldPreparationPanel
         echo '<h3>Stored buyer render reviews</h3>';
         if($source['renders']===[])echo '<p>Buyer-specific render evidence is missing. Artifact preparation and separate visual approval are still required.</p>';
         foreach($source['renders'] as $row)echo '<p>Render #'.esc_html((string)$row['id']).' · mapping #'.esc_html((string)$row['provider_mapping_id']).' · '.esc_html((string)$row['template_key'].' / '.(string)$row['template_version'].' / '.(string)$row['review_status']).'. Actual artifacts require their existing certification check before production review.</p>';
+        (new OrderLocalWorkflow())->renderForms($shop,$source);
         echo '<h3>Stored fulfillment plans and intents</h3>';
         foreach($source['plans'] as $row)echo '<p>Plan #'.esc_html((string)$row['id']).' · '.esc_html((string)$row['provider'].' / '.(string)$row['state']).'</p>';
         if($source['intents']===[])echo '<p>No stored preparation intent exists. Create and review the local fulfillment plan through the existing order workflow before preparing an intent.</p>';

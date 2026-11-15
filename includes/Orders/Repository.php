@@ -145,11 +145,9 @@ final class Repository
         $invalidLines=$this->readinessCount($invalidSql);
         if($lineCount===null||$invalidLines===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
         if($lineCount===0)return $this->error('order_line_items_missing','Order readiness requires at least one stored line item.',409);
-        $personalizationMissing=0;
-        if((int)$order['personalization_required']===1){
-            $personalizationMissing=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND NOT EXISTS (SELECT 1 FROM ".Tables::personalization_submissions()." ps WHERE ps.order_line_item_id=li.id AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL)",$orderId));
-            if($personalizationMissing===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
-        }
+        $personalizationCurrent=(new PersonalizationCurrentness())->forOrder($orderId,(int)$order['personalization_required']===1);
+        if(is_wp_error($personalizationCurrent)&&($personalizationCurrent->get_error_data()['status']??409)===503)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
+        $personalizationMissing=is_wp_error($personalizationCurrent)?1:0;
         $digitalLines=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
         $physical="(NOT EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id) OR EXISTS (SELECT 1 FROM ".Tables::listing_pod_bindings()." binding WHERE binding.listing_id=li.listing_id))";
         $podLines=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND ".$physical,$orderId));
