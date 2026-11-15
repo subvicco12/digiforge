@@ -1,0 +1,48 @@
+{
+  "source_identity": "Containing commit; all relevant runtime changes validated before commit.",
+  "runtime": {
+    "php": "8.4 local fixture wrapper",
+    "wordpress_core": "7.1.4",
+    "wordpress_test_library": "official7.1.4 tag",
+    "disposable_database": "dedicated released fixture; no production state"
+  },
+  "verification": {
+    "all_unit": {
+      "tests": 2268,
+      "assertions": 12058,
+      "failures": 0,
+      "errors": 0,
+      "skips": 1,
+      "skip_reason": "Existing experimental matting owner weights/runtime absent"
+    },
+    "released_integrated": {
+      "tests": 93,
+      "assertions": 2080,
+      "status": "PASS",
+      "elapsed": "07:52.744",
+      "scope": "All selected new core integration groups plus webhook persistence and currency; exact-channel addition separately verified below"
+    },
+    "held_final_including_channel": {
+      "tests": 9,
+      "assertions": 816,
+      "status": "PASS"
+    },
+    "native_contracts": {
+      "tests": 17,
+      "assertions": 95,
+      "status": "PASS"
+    },
+    "configured_phpstan": "PASS; debug single process; default listener failed under sandbox",
+    "configured_phpcs": "PASS",
+    "changed_php_lint": "PASS",
+    "whitespace": "PASS",
+    "independent_source_review": "PASS after fixing exact ownership and post-approval line snapshot blockers"
+  },
+  "limits": [
+    "Early diagnostic integration runs used old7.2-alpha and emitted fixture constant warnings; not release certification.",
+    "Final released config removed only duplicate synthetic auth constants, without suppressing warnings or editing source bootstrap.",
+    "No source exact-head hosted CI result embedded before commit; see PR check run.",
+    "No hosted exact-ZIP, installed-source, real provider, credentials, durability, custody or native mutation qualification.",
+    "No151capability row promotions or full software completion claim."
+  ]
+}

@@ -630,6 +630,12 @@ final class Portal
     {
         $selectedShop=ShopOperationsReadModel::normalize(isset($_GET['df_shop'])?sanitize_key(wp_unslash($_GET['df_shop'])):ShopOperationsReadModel::ALL);$shop=$selectedShop===ShopOperationsReadModel::ALL?null:$selectedShop;
         $ordersQueryState=null;$rows=(new OrderOperationsReadModel())->recent(50,$ordersQueryState,$shop);$orderReconciliation=new OrderReconciliationReadModel();$exceptions=(new OperationalExceptionReadModel())->snapshot(50,$shop);$fulfillmentExceptions=(array)$exceptions['fulfillment'];
+        (new OrderHeldPreparationPanel())->render($selectedShop);
+        if($shop!==null&&$ordersQueryState==='AVAILABLE'&&$rows!==[]){
+            echo '<section class="df-panel"><h2>Inspect a stored order</h2><p>Order and POD module assignments are required. Preparation remains held for local review.</p><div class="df-actions">';
+            foreach($rows as $row)echo '<a class="df-button df-button-compact" href="'.esc_url(add_query_arg(['df_order_id'=>(int)$row['id'],'df_intent_id'=>false],$this->url('orders'))).'">Inspect order #'.esc_html((string)$row['id']).'</a>';
+            echo '</div></section>';
+        }
         $humanGates=(new HumanGateOperationsReadModel())->snapshot(50,$shop);
         echo '<section class="df-panel"><div class="df-panel-head"><div><h2>Personalization & ownership review queue</h2><p>Explicit human gates before downstream POD readiness. This queue is read only and grants no marketplace or provider authority.</p></div><span class="df-status">HUMAN GATES</span></div>';
         if(($humanGates['query_state']['aggregate']??'UNAVAILABLE')!=='AVAILABLE')echo '<div class="df-notice df-notice-error">One or more human-gate evidence sources are unavailable. No empty queue or approval is inferred.</div>';

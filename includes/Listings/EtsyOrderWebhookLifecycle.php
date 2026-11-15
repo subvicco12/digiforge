@@ -59,7 +59,11 @@ final class EtsyOrderWebhookLifecycle
             $normalized=[];
             foreach($prepared as $entry){
                 $item=$entry['item'];$index=(int)$entry['index'];
-                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>(int)$entry['listing_id'],'product_version_id'=>(int)$entry['product_version_id'],'provider_mapping_id'=>(int)$entry['provider_mapping_id'],'quantity'=>(int)($item['quantity']??1),'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
+                // Only an absent quantity defaults to one. Preserve supplied values
+                // for repository validation instead of truncating or coercing them.
+                $quantity=array_key_exists('quantity',$item)?$item['quantity']:1;
+                if(!is_int($quantity)&&!is_float($quantity)&&!is_string($quantity)){$reviewRequired=true;continue;}
+                $line=$this->orders->addLineItem(['order_id'=>(int)$order['id'],'listing_id'=>(int)$entry['listing_id'],'product_version_id'=>(int)$entry['product_version_id'],'provider_mapping_id'=>(int)$entry['provider_mapping_id'],'quantity'=>$quantity,'unit_price_amount'=>$this->amount($item,'price'),'currency'=>$this->currency($item+['currency'=>$order['currency']]),'personalization_payload'=>is_array($item['personalization']??null)?$item['personalization']:[]],'etsy_webhook:'.$eventId.':line:'.$index);
                 if($line instanceof WP_Error){$reviewRequired=true;continue;}
                 $normalized[]=(int)$line['id'];
             }

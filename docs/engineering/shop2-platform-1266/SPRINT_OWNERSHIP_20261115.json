@@ -1,0 +1,34 @@
+{
+  "source": "Owner maximum-parallel48h directive",
+  "baseline": "78e7f973455a3c89319be06f0907caf2103658a7",
+  "owners": {
+    "quantity_fix": [
+      "includes/Listings/EtsyOrderWebhookLifecycle.php",
+      "tests/wordpress/EtsyWebhookQuantityIntegrityTest.php"
+    ],
+    "identity_review": [
+      "includes/POD/BusinessScopeRepository.php",
+      "tests/wordpress/BusinessScopeOwnershipIntegrityTest.php"
+    ],
+    "date_integration": [
+      "exact LaneA10-file additive diff a52..fc997474"
+    ],
+    "queue_recovery_review": [
+      "read-only pending concrete defect"
+    ],
+    "capability_ledger": [
+      "local receipt reconciliation only"
+    ],
+    "root": [
+      "integration evidence, docs, commit/push to1264, focused acceptance"
+    ]
+  },
+  "shared_contracts_frozen": [
+    "canonical native port1.0.0",
+    "companion source pin",
+    "API1260 source",
+    "independent authority trust root/custody",
+    "existing W03 bound export envelope"
+  ],
+  "safety": "STOP ALL/lockON automationOFF releaseHOLD"
+}

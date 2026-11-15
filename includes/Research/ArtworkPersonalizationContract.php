@@ -35,10 +35,34 @@ final class ArtworkPersonalizationContract
         return $out;
     }
 
-    public static function proof(array $spec, string $artwork, array $fields, array $samples): array
+    /** Explicit opt-in. Never upgrade an existing schema or infer a policy from sample text. */
+    public static function datePolicy(array $spec,array $fields,?string $policy):?string
+    {
+        if($policy===null)return null;
+        $profile=$spec['profile']??null;$cap=['fl03_mug_11oz'=>13,'fl04_poster_8x10'=>16][$profile]??null;
+        if($policy!==\DigiForge\POD\OfflineDateDisplayProof::POLICY||$cap===null||count($fields)!==3)throw new \InvalidArgumentException('Supported explicit date policy and profile required.');
+        $by=[];foreach(self::fields($spec,$fields)as $field)$by[$field['key']]=$field;
+        foreach(['first_name','second_name','date']as $key){$f=$by[$key]??null;if(!is_array($f)||!$f['required']||$f['type']!==($key==='date'?'date':'text')||$f['max_length']>($key==='date'?10:$cap))throw new \InvalidArgumentException('Policy requires exact required name/name/ISO date fields within preserved native caps.');}
+        return $policy;
+    }
+
+    public static function proof(array $spec, string $artwork, array $fields, array $samples, ?string $datePolicy=null): array
     {
         $fields=self::fields($spec,$fields);
         PersonalizationPayloadContract::validate($fields,$samples);
+        if(self::datePolicy($spec,$fields,$datePolicy)!==null){
+            $product=$spec['profile']==='fl03_mug_11oz'?'FL-03':'FL-04';
+            $display=\DigiForge\POD\OfflineDateDisplayProof::render($product,$spec,$artwork,$samples,$datePolicy);
+            $result=$display['proof'];
+            $result['date_display']=['policy'=>$display['policy'],'policy_sha256'=>$display['policy_sha256'],
+                'canonical_inputs_sha256'=>$display['canonical_inputs_sha256'],'samples'=>$result['samples'],
+                'display_inputs_sha256'=>$display['display_inputs_sha256'],'receipt_sha256'=>$display['receipt_sha256']];
+            // Existing intake consumers keep canonical input semantics, never generated display text.
+            $result['samples']=$samples;$result['fields']=$fields;
+            $result['sample_values_sha256']=hash('sha256',CommercialResearchContract::json($samples));
+            return $result;
+        }
+
         $values=[];$reasons=[];
         foreach($fields as $field){
             $v=$samples[$field['key']]??'';

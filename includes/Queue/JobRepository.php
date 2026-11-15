@@ -66,7 +66,8 @@ final class JobRepository
 
     public function transition(int $id, string $from, string $to): bool
     {
-        if ($to === 'RUNNING' || ! JobState::canTransition($from, $to)) {
+        // Execution and retries require their lease or classified-admission paths.
+        if (in_array($to, ['RUNNING', 'RETRY'], true) || ! JobState::canTransition($from, $to)) {
             return false;
         }
 
