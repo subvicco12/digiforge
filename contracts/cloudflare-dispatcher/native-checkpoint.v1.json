@@ -27,6 +27,7 @@
   "automatic_rearm": false,
   "operational_factory": "NOT_IMPLEMENTED; existing default Worker remains503",
   "evidence_currentness": "WITNESSED_AT_SIGNING_ONLY; revocation after witness signing is not detected by this observation; mandatory final sender must recheck",
+  "evidence_expires_at": "Minimum of issuer and witness signed expires_at; never extend a shorter signed lifetime to the maximum freshness window",
   "returned_native_mutation_response": false,
   "returned_mutation_authority": false,
   "production_context_accepted": false,

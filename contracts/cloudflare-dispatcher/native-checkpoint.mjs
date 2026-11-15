@@ -89,7 +89,7 @@ export class SyntheticNativeCheckpointObserver {
           if(c.recovery_epoch!==last.recovery_epoch)insist(c.root_revision>last.root_revision,'CHECKPOINT_ROLLBACK');
         }
         this.#last=Object.fromEntries(VECTOR.map(k=>[k,c[k]]));this.#witnessHead=w.witness_head;this.#time=finished;
-        return Object.freeze({schema:'DF_NATIVE_CHECKPOINT_OBSERVATION_1',version:NATIVE_CHECKPOINT_VERSION,...this.#last,witness_head:w.witness_head,witness_sequence:w.witness_sequence,witness_observed_at:w.issued_at,evidence_currentness:'WITNESSED_AT_SIGNING_ONLY',observation_hash:observationHash,cryptographically_verified:true,independent_recovery_qualified:false,mutation_authorized:false,external_execution_authorized:false,operational_authority:false,retry_permitted:false,release_hold:true});
+        return Object.freeze({schema:'DF_NATIVE_CHECKPOINT_OBSERVATION_1',version:NATIVE_CHECKPOINT_VERSION,...this.#last,witness_head:w.witness_head,witness_sequence:w.witness_sequence,witness_observed_at:w.issued_at,evidence_expires_at:Math.min(c.expires_at,w.expires_at),evidence_currentness:'WITNESSED_AT_SIGNING_ONLY',observation_hash:observationHash,cryptographically_verified:true,independent_recovery_qualified:false,mutation_authorized:false,external_execution_authorized:false,operational_authority:false,retry_permitted:false,release_hold:true});
       };
       const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Denied('CHECKPOINT_TIMEOUT_UNKNOWN')),LIMITS.timeout);});
       return await Promise.race([work(),deadline]);

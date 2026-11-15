@@ -6,7 +6,7 @@ import {
 } from "../authority-service.mjs";
 import { SyntheticFinalSender } from "../sender.mjs";
 import { b64, sign } from "../protocol.mjs";
-export async function authorityFixture() {
+export async function authorityFixture(options = {}) {
   const base = await fixture(),
     pair = () => crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]);
   const workload = await pair(),
@@ -14,6 +14,7 @@ export async function authorityFixture() {
     custodian = await pair(),
     response = await pair(),
     untrusted = await pair();
+  const prepared = options.beforeAuthority ? await options.beforeAuthority(base) : null;
   const storage = new LocalSqliteStorage(),
     root = new AuthorityJournal(storage, () => base.clock.now),
     publicKey = b64(await crypto.subtle.exportKey("raw", workload.publicKey));
@@ -62,7 +63,9 @@ export async function authorityFixture() {
       synthetic: true,
     });
   const initialRoot = root.read();
-  const service = makeService(),
+  const service = options.serviceFactory
+      ? await options.serviceFactory({ runtime: base.runtime, root, ports, clock: () => base.clock.now, synthetic: true, base, storage, prepared })
+      : makeService(),
     port = { synthetic: true, send: (m) => service.handle(m) },
     keys = {
       workloadPrivate: workload.privateKey,
@@ -80,6 +83,7 @@ export async function authorityFixture() {
     });
   return {
     base,
+    prepared,
     initialRoot,
     storage,
     root,

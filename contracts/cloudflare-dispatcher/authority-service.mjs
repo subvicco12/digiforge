@@ -12,10 +12,11 @@ import {
   b64,
   unb64,
 } from "./protocol.mjs";
-const OPERATIONS = Object.freeze(["SESSION", "EXECUTE", "EMERGENCY"]);
+const OPERATIONS = Object.freeze(["SESSION", "EXECUTE", "CHECKPOINT_EXECUTE", "EMERGENCY"]);
 const payloadKeys = {
   SESSION: ["proof", "approval", "scope"],
   EXECUTE: ["authority", "authentication"],
+  CHECKPOINT_EXECUTE: ["authority", "authentication", "checkpoint"],
   EMERGENCY: ["authority"],
 };
 /** Independent final service. Constructor is synthetic-only, with no live transport/custody factory. */
@@ -26,7 +27,8 @@ export class IndependentAuthorityService {
   #clock;
   #fenced = false;
   #contexts = new Map();
-  constructor({ runtime, root, ports, clock, synthetic = false }) {
+  #checkpoint;
+  constructor({ runtime, root, ports, clock, synthetic = false, checkpointGate = null }) {
     insist(
       synthetic === true && runtime instanceof OfflineRuntime,
       "LIVE_AUTHORITY_NOT_IMPLEMENTED",
@@ -35,6 +37,8 @@ export class IndependentAuthorityService {
     this.#root = root;
     this.#ports = ports;
     this.#clock = clock;
+    insist(!checkpointGate || (checkpointGate.synthetic===true && typeof checkpointGate.prepare==='function' && typeof checkpointGate.assert==='function'), 'SYNTHETIC_CHECKPOINT_GATE');
+    this.#checkpoint = checkpointGate;
     root.boot();
     runtime.witness = new FencedWitness(runtime.witness, this, root);
     // Sender and credential ports stay private to the independent service, never the workload client.
@@ -121,6 +125,12 @@ export class IndependentAuthorityService {
     insist(context, "WORKLOAD_CONTEXT");
     await this.admission(context.certificate, context.custody);
     freshness(context.authentication.manifest, this.#clock(), 30);
+    let checked=null;
+    if (this.#checkpoint) {
+      checked=await this.#runtime.checked();
+      this.#checkpoint.assert(id);
+    }
+    return checked;
   }
   completion(id) {
     const context = this.#contexts.get(id);
@@ -132,7 +142,7 @@ export class IndependentAuthorityService {
     // STOP may already have made the result UNKNOWN; do not prevent its safe completion.
   }
   async physical(id, send) {
-    await this.guard(id);
+    const checked=await this.guard(id);
     // Final independent root read and expiry checks are synchronous with physical callback invocation.
     const context = this.#contexts.get(id),
       d = this.#root.active();
@@ -140,7 +150,15 @@ export class IndependentAuthorityService {
     freshness(context.custody.manifest, this.#clock(), 60);
     freshness(context.authentication.manifest, this.#clock(), 30);
     insist(d.leases.includes(id), "ROOT_LEASE_MISSING");
+    if(this.#checkpoint)this.#checkpointBoundary(id,checked,true);
     return send();
+  }
+  #checkpointBoundary(id, checked, physical = false) {
+    const current=this.#runtime.state.read();
+    insist(canonical(current.doc,1048576)===canonical(checked.doc,1048576)&&current.events.length===checked.events.length&&current.events.every((e,i)=>canonical(e)===canonical(checked.events[i])),'CURRENT_JOURNAL_REQUIRED');
+    const result=this.#runtime.witness.currentGuard(this.#runtime.config,checked,physical?id:null);
+    insist(result===undefined,'SYNCHRONOUS_WITNESS_REQUIRED');
+    this.#checkpoint.assert(id);
   }
   async validateStop(input) {
     const m = await verify(
@@ -185,6 +203,8 @@ export class IndependentAuthorityService {
       const raw = input.authentication.manifest;
       operation = raw.operation;
       insist(OPERATIONS.includes(operation), "OPERATION");
+      insist(!this.#checkpoint || ['CHECKPOINT_EXECUTE','EMERGENCY'].includes(operation), 'CHECKPOINT_REQUIRED');
+      insist(operation !== 'CHECKPOINT_EXECUTE' || this.#checkpoint, 'CHECKPOINT_REQUIRED');
       keys(input.payload, payloadKeys[operation]);
       canonical(input, 16384);
       if (operation === "EMERGENCY") {
@@ -259,10 +279,21 @@ export class IndependentAuthorityService {
           id = m.session + ":" + m.slot;
         insist(!this.#contexts.has(id), "WORKLOAD_REPLAY");
         this.#contexts.set(id, structuredClone(input));
-        result = await this.#runtime.dispatch(input.payload);
+        const payload={authority:input.payload.authority,authentication:input.payload.authentication};
+        if (operation === 'CHECKPOINT_EXECUTE') {
+          await this.#runtime.authorize(payload);
+          await this.#checkpoint.prepare(id,input.payload.checkpoint,payload);
+        }
+        result = await this.#runtime.dispatch(payload);
+        if (this.#checkpoint) {
+          try { this.#checkpoint.assert(id); }
+          catch { result={status:'UNKNOWN',receipt_committed:false,retry_permitted:false}; }
+        }
       }
       const d = this.#root.read();
-      return await sign(this.#ports.responsePrivate, "authority-response", {
+      const responseId=operation==='CHECKPOINT_EXECUTE'?input.payload.authority.manifest.session+':'+input.payload.authority.manifest.slot:null;
+      const responseSnapshot=responseId ? await this.#runtime.checked() : null;
+      const response=await sign(this.#ports.responsePrivate, "authority-response", {
         protocol: "dg-authority-response-v1",
         nonce,
         request_hash: requestHash,
@@ -273,6 +304,11 @@ export class IndependentAuthorityService {
         expires_at: this.#clock() + 30,
         result,
       });
+      if(responseSnapshot){
+        try { this.#checkpointBoundary(responseId,responseSnapshot); }
+        catch { return {status:'UNKNOWN',receipt_committed:false,retry_permitted:false}; }
+      }
+      return response;
     } catch {
       // A failure after an authenticated emergency was admitted may be a lost durable acknowledgement.
       if (operation === "EMERGENCY" && authorizedStop) {
@@ -368,6 +404,13 @@ class FencedWitness extends RecoveryWitness {
     this.#base = base;
     this.#service = service;
     this.#root = root;
+  }
+  currentGuard(c, snapshot, id = null) {
+    const d=this.#root.active();
+    insist(d.anchor.revision===snapshot.doc.revision&&d.anchor.hash===snapshot.hash,'CURRENT_ROOT_REQUIRED');
+    if(id!==null)insist(d.leases.includes(id),'ROOT_LEASE_MISSING');
+    const result=this.#base.currentGuard(c,snapshot,id);
+    insist(result===undefined,'SYNCHRONOUS_WITNESS_REQUIRED');
   }
   async snapshot(c) {
     const w = await this.#base.snapshot(c),

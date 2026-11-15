@@ -5,20 +5,22 @@ import { canonical, hash, sign, insist } from '../protocol.mjs';
 
 export const randomHex = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), x => x.toString(16).padStart(2, '0')).join('');
 export const nonce = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
-export async function checkpointFixture() {
+export async function checkpointFixture(options = {}) {
   const pair = () => crypto.subtle.generateKey('Ed25519', true, ['sign','verify']);
   const issuer = await pair(), witness = await pair();
-  const storage = new LocalSqliteStorage();
-  const clock = { now: 1000 };
-  const root = new AuthorityJournal(storage, () => clock.now);
+  const storage = options.storage || new LocalSqliteStorage();
+  const clock = options.clock || { now: 1000 };
+  const root = options.root || new AuthorityJournal(storage, () => clock.now);
   const epoch = randomHex(); // Issued by this synthetic independent root, never inferred from a content hash.
-  root.initialize({epoch,namespace:randomHex(),code:randomHex(),account:'synthetic-account',credential_binding:randomHex()}, {revision:1,hash:randomHex()}, 'synthetic-workload-key');
-  root.boot();
+  if (!options.root) {
+    root.initialize({epoch,namespace:randomHex(),code:randomHex(),account:'synthetic-account',credential_binding:randomHex()}, {revision:1,hash:randomHex()}, 'synthetic-workload-key');
+    root.boot();
+  }
   const binding = {operation_id:randomHex(),payload_fingerprint:randomHex(),intent_fingerprint:randomHex(),scope_fingerprint:randomHex(),approval_reference:randomHex(),shop_id:2,integration_id:3,credential_reference:3,actor_id:1,authorization_revision:2,shop_key:'personalized_pod',provider_shop_id:'28930593',environment:'test',product_version:1,expected_product_version:1};
   const context = {binding,provider:'printify',provider_account_reference:'synthetic-account',installation_id:'synthetic-wordpress',workload_id:'synthetic-dispatcher',deployment_digest:randomHex(),policy_revision:1,core_source_sha:'78e7f973455a3c89319be06f0907caf2103658a7',owner_proof_reference:randomHex(),owner_session_reference:randomHex()};
   const policy = {authority_id:'synthetic-authority',witness_id:'synthetic-witness',authority_domain:'authority-administrator',witness_domain:'witness-administrator',sender_domain:'sender-administrator',root_set_revision:1,minimum_recovery_revision:1,minimum_generation:1,minimum_root_revision:1};
   const f = {root,storage,clock,context,policy,issuer,witness,calls:0,afterIssue:null,beforeWitness:null,changeCheckpoint:null,changeWitness:null};
-  const state = () => { const d=root.active(); return {recovery_epoch:d.epoch,checkpoint_epoch:d.epoch,recovery_revision:d.anchor.revision,generation:d.generation,root_revision:d.revision}; };
+  const state = () => { const d=root.active(); return {recovery_epoch:d.epoch,checkpoint_epoch:d.epoch,recovery_revision:options.recoveryRevision ? options.recoveryRevision() : d.anchor.revision,generation:d.generation,root_revision:d.revision}; };
   f.ports = {
     synthetic:true,
     async issue(q) {

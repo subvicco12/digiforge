@@ -13,6 +13,10 @@ import {
 import { inspect } from "./allowlist.mjs";
 /** External witness is mandatory. This abstract port NEVER supplies local fallback. */
 export class RecoveryWitness {
+  // Synchronous, witness-owned final boundary. A remote Boolean/RPC is insufficient.
+  currentGuard() {
+    throw Error("RECOVERY_UNQUALIFIED");
+  }
   async snapshot() {
     throw Error("RECOVERY_UNQUALIFIED");
   }
@@ -103,7 +107,7 @@ export class OfflineRuntime {
           doc.pause_until <= this.now(),
         "AUTHORITY_INACTIVE",
       );
-    return { doc, w, hash: currentHash };
+    return { doc, w, hash: currentHash, events };
   }
   async commit(snapshot, next, event, correlation = "none") {
     next.revision = snapshot.doc.revision + 1;

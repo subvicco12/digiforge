@@ -72,6 +72,16 @@ export class SyntheticWitness extends RecoveryWitness {
       leases: new Set([...r.leases, ...r.admitted.keys()]).size,
     });
   }
+  currentGuard(c, snapshot, id = null) {
+    const r=this.check(c,true),now=this.now();
+    insist(r.revision===snapshot.doc.revision&&r.hash===snapshot.hash&&r.generation===snapshot.doc.generation,'CURRENT_WITNESS_REQUIRED');
+    if(id!==null){
+      const reserved=r.reservations.get(id);
+      insist(r.leases.has(id)&&r.admitted.has(id)&&reserved?.state==='ADMITTED'&&reserved.generation===r.generation,'CURRENT_LEASE_REQUIRED');
+      freshness(reserved,now);freshness(reserved.authentication,now,30);
+      insist(r.sessions.get(reserved.session)?.expires_at>now,'FINAL_EXPIRY');
+    }
+  }
   async checkpoint(rev, old, next, value, envelope, c, doc) {
     const m = await verify(envelope, "state-v1", this.#ports.statePublic);
     const r = this.check(c);
