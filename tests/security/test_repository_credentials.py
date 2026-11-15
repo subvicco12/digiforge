@@ -227,6 +227,27 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
+    def test_receipt_digest_does_not_hide_same_file_history_credential(self):
+        project=SCRIPT.parent.parent
+        ref='fe7517c721861870c0e364d5d89f113423a23e71'
+        receipt='docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json'
+        for name in [receipt,'bin/check-repository-credentials.py','tests/security/test_repository_credentials.py']:
+            raw=subprocess.check_output(['git','-C',str(project),'show',ref+':'+name])
+            target=self.root/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+        self.git('add','.');self.git('commit','-qm','Reviewed historical source checksum fixture')
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual(2,evidence.get('verified_receipt_source_digest_count'))
+        canary='b7C9dE2fG5hJ8kM3'*3
+        target=self.root/receipt;document=json.loads(target.read_text());document['api_key']=canary
+        target.write_text(json.dumps(document,indent=2)+'\n')
+        self.git('add','.');self.git('commit','-qm','Synthetic credential beside historical checksum receipt')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(2,evidence.get('verified_receipt_source_digest_count'))
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
     def reviewed_interface_fixture(self, baseline_available=True, changed=False):
         project=SCRIPT.parent.parent
         for ref,name in [('9d79f66868bafe7d43fedf5de1994eab787a6bf4','P0_CONTINUATION_DELIVERY_20261115.json'),
@@ -293,6 +314,57 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertEqual(1,evidence.get('verified_plan_state_phrase_count',0))
         self.assertGreater(evidence['finding_count'],0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+
+class ReviewedReceiptSourceDigestTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('receipt_digest_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent
+        self.commit='fe7517c721861870c0e364d5d89f113423a23e71'
+        self.path='docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json'
+        self.content=self.raw('show',self.commit+':'+self.path)
+        self.cases=[]
+        for source,line,start,end in [('bin/check-repository-credentials.py',449,15,114),('tests/security/test_repository_credentials.py',450,26,124)]:
+            self.cases.append((source,{'File':self.path,'RuleID':'generic-api-key','Commit':self.commit,
+                'Secret':'REDACTED','Match':source.split('/')[-1]+'": "REDACTED"',
+                'StartLine':line,'EndLine':line,'StartColumn':start,'EndColumn':end}))
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True).stdout
+    def verify(self,finding,git=None,raw=None):
+        self.assertTrue(hasattr(self.gate,'verified_receipt_source_digest'),'Reviewed receipt source checksums require independent historical hashing')
+        return self.gate.verified_receipt_source_digest(finding,git or self.git,raw or self.raw)
+    def test_exact_receipt_checksums_match_actual_historical_source(self):
+        for _,finding in self.cases:self.assertTrue(self.verify(finding))
+    def test_changed_source_missing_source_and_wrong_type_remain_actionable(self):
+        for source,finding in self.cases:
+            blob=self.git('rev-parse',self.commit+':'+source)
+            def changed(*args):
+                raw=self.raw(*args)
+                return raw+b'changed' if args==('cat-file','blob',blob) else raw
+            def missing(*args):
+                if args==('rev-parse','--verify',self.commit+':'+source):raise OSError('Missing historical source')
+                return self.git(*args)
+            def wrong_type(*args):return 'commit' if args==('cat-file','-t',blob) else self.git(*args)
+            self.assertFalse(self.verify(finding,raw=changed))
+            self.assertFalse(self.verify(finding,git=missing))
+            self.assertFalse(self.verify(finding,git=wrong_type))
+    def test_changed_receipt_context_and_additional_canary_do_not_reuse_review(self):
+        for _,finding in self.cases:
+            self.assertFalse(self.verify(finding,raw=lambda *args:self.content+b'\n'))
+            self.assertFalse(self.verify(finding,raw=lambda *args:self.content.replace(b'"source_sha256"',b'"other"')))
+            canary='b7C9dE2fG5hJ8kM3'*3
+            document=json.loads(self.content);document['api_key']=canary
+            self.assertFalse(self.verify(finding,raw=lambda *args:json.dumps(document,indent=2).encode()))
+            other=dict(finding);other['Match']='api_key": "REDACTED"'
+            self.assertFalse(self.verify(other))
+    def test_finding_metadata_changes_are_not_classified(self):
+        for _,finding in self.cases:
+            for key,value in [('File','other.json'),('RuleID','github-pat'),('Secret','unmasked'),('StartLine',True),('StartColumn',1),('EndColumn',0),('Match','other'),('Commit','f'*40)]:
+                other=dict(finding);other[key]=value
+                with self.subTest(field=key):self.assertFalse(self.verify(other))
 
 
 class ReviewedInterfaceGitReferenceVerifierTest(unittest.TestCase):

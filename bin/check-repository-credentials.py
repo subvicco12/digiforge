@@ -277,6 +277,74 @@ def verified_interface_git_reference(finding, git, git_bytes):
         return False
 
 
+def verified_receipt_source_digest(finding, git, git_bytes):
+    """Verify exact historical receipt checksums against source at its own commit."""
+    path = 'docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json'
+    reviewed_blob = '9f775f87825abac38c52bf0c4fc79228744509b2'
+    reviewed_content = '5558a996ebf44574cf12e2a9dd4fa8576f6ebed47df1dee1b146a77a6ec72300'
+    specs = [('bin/check-repository-credentials.py', 449, 15, 114),
+             ('tests/security/test_repository_credentials.py', 450, 26, 124)]
+    try:
+        commit = finding.get('Commit')
+        if (finding.get('File') != path or finding.get('RuleID') != 'generic-api-key'
+                or finding.get('Secret') != 'REDACTED' or not isinstance(commit, str)
+                or not re.fullmatch('[a-f0-9]{40}', commit)):
+            return False
+        selected = [spec for spec in specs if finding.get('Match') == spec[0].split('/')[-1] + '": "REDACTED"']
+        if len(selected) != 1:
+            return False
+        source, line_number, start, end = selected[0]
+        location = {'StartLine': line_number, 'EndLine': line_number, 'StartColumn': start, 'EndColumn': end}
+        if any(type(finding.get(key)) is not int or finding[key] != value for key, value in location.items()):
+            return False
+        if git('cat-file', '-t', commit) != 'commit':
+            return False
+        blob = git('rev-parse', '--verify', commit + ':' + path)
+        if blob != reviewed_blob:
+            return False
+        raw = git_bytes('cat-file', 'blob', blob)
+        if not isinstance(raw, bytes) or len(raw) > 65536 or hashlib.sha256(raw).hexdigest() != reviewed_content:
+            return False
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('Duplicate JSON member')
+                result[key] = value
+            return result
+
+        text = raw.decode('utf-8')
+        document = json.loads(text, object_pairs_hook=unique_object)
+        canonical = json.dumps(document, indent=2).splitlines()
+        if canonical != text.splitlines():
+            return False
+        mapping = document['held_job_continuation']['credential_gate_repair']['source_sha256']
+        if not isinstance(mapping, dict) or set(mapping) != {spec[0] for spec in specs}:
+            return False
+        value = mapping[source]
+        if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{64}', value):
+            return False
+        line = canonical[line_number - 1]
+        if re.fullmatch(r'\s*"' + re.escape(source) + r'": "' + value + r'",?', line) is None:
+            return False
+        if line.replace(value, 'REDACTED').count(finding['Match']) != 1:
+            return False
+        mapping[source] = '__reviewed_source_location__'
+        changed = json.dumps(document, indent=2).splitlines()
+        if [i + 1 for i, pair in enumerate(zip(canonical, changed)) if pair[0] != pair[1]] != [line_number]:
+            return False
+        source_blob = git('rev-parse', '--verify', commit + ':' + source)
+        if not isinstance(source_blob, str) or not re.fullmatch('[a-f0-9]{40}', source_blob):
+            return False
+        if git('cat-file', '-t', source_blob) != 'blob':
+            return False
+        source_raw = git_bytes('cat-file', 'blob', source_blob)
+        return isinstance(source_raw, bytes) and hashlib.sha256(source_raw).hexdigest() == value
+    except (OSError, ValueError, TypeError, KeyError, IndexError, subprocess.SubprocessError):
+        return False
+
+
 def check(repository, scanner):
     evidence = {'schema': 'digiforge-repository-credential-evidence-v1',
                 'status': 'SCAN_UNAVAILABLE', 'scanner_version': VERSION,
@@ -340,6 +408,7 @@ def check(repository, scanner):
                       'plan_prose' if verified_plan_state_phrase(row, git, git_bytes) else
                       'source_digest' if verified_source_digest_reference(row, git, git_bytes) else
                       'interface_git' if verified_interface_git_reference(row, git, git_bytes) else
+                      'receipt_source' if verified_receipt_source_digest(row, git, git_bytes) else
                       'actionable') for row in findings]
             actionable = [row for row, kind in zip(findings, kinds) if kind == 'actionable']
             evidence['raw_finding_count'] = len(findings)
@@ -347,6 +416,7 @@ def check(repository, scanner):
             evidence['verified_plan_state_phrase_count'] = kinds.count('plan_prose')
             evidence['verified_source_digest_reference_count'] = kinds.count('source_digest')
             evidence['verified_interface_git_reference_count'] = kinds.count('interface_git')
+            evidence['verified_receipt_source_digest_count'] = kinds.count('receipt_source')
             evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
             evidence['finding_count'] = len(actionable)

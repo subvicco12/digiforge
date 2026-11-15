@@ -445,14 +445,81 @@
         "passed": true,
         "log_sha256": "5b8f5e01f744302f7f3c1a270364c604311783ba38cc012e3fc9258c0e7f4676"
       },
-      "source_sha256": {
-        "bin/check-repository-credentials.py": "fc100c0f5cc64df0b4710c5a5d043d68ae5f9baa8fd58ebc50b5908a3af0e78e",
-        "tests/security/test_repository_credentials.py": "8116adacac837a43184856c9a268097b3fc6b0da839521e2191b2be1f2984f88"
-      },
       "recognition": "Exact reviewed historical blob and content digest; typed finding span and masked grammar; duplicate-denying canonical JSON with exact semantic field/paired PR1260; independently resolved commit object. Changed context, missing/wrong object and every added credential remain actionable.",
       "scope_preserved": "Pinned8.30.1 embedded default rules; complete candidate HEAD reachable history; empty worktree and explicit empty ignore; repository config/ignore/inline suppression disabled. Other refs are not certified.",
       "review": "Independent read-only security review: no open findings.",
-      "candidate_certification": "Historical9d replay only. New committed HEAD must pass the same gate before push; new automatic exact-head full audit remains required."
+      "candidate_certification": "Historical9d and fe7517c7 full-history replay PASS. Final committed HEAD must pass the same gate before push; final exact-head CI receipt is posted to PR1264 and Issue1266 separately. No full new-head audit/installed-candidate qualification inferred from local focused tests.",
+      "historical_repair_source": [
+        {
+          "path": "bin/check-repository-credentials.py",
+          "sha256": "fc100c0f5cc64df0b4710c5a5d043d68ae5f9baa8fd58ebc50b5908a3af0e78e"
+        },
+        {
+          "path": "tests/security/test_repository_credentials.py",
+          "sha256": "8116adacac837a43184856c9a268097b3fc6b0da839521e2191b2be1f2984f88"
+        }
+      ],
+      "historical_repair_source_commit": "fe7517c721861870c0e364d5d89f113423a23e71",
+      "pre_push_receipt_red": {
+        "commit_sha": "fe7517c721861870c0e364d5d89f113423a23e71",
+        "external_actions_performed": false,
+        "finding_count": 2,
+        "other_refs_certified": false,
+        "raw_finding_count": 27,
+        "raw_rules_with_findings": {
+          "generic-api-key": 27
+        },
+        "reachable_commits": 3129,
+        "rules_with_findings": {
+          "generic-api-key": 2
+        },
+        "scanner_version": "8.30.1",
+        "schema": "digiforge-repository-credential-evidence-v1",
+        "scope": "candidate_HEAD_reachable_history_default_rules",
+        "status": "FINDINGS_REVIEW_REQUIRED",
+        "verified_git_identifier_count": 21,
+        "verified_interface_git_reference_count": 2,
+        "verified_plan_state_phrase_count": 1,
+        "verified_source_digest_reference_count": 1
+      },
+      "pre_push_receipt_green": {
+        "commit_sha": "fe7517c721861870c0e364d5d89f113423a23e71",
+        "external_actions_performed": false,
+        "finding_count": 0,
+        "other_refs_certified": false,
+        "raw_finding_count": 27,
+        "raw_rules_with_findings": {
+          "generic-api-key": 27
+        },
+        "reachable_commits": 3129,
+        "rules_with_findings": {},
+        "scanner_version": "8.30.1",
+        "schema": "digiforge-repository-credential-evidence-v1",
+        "scope": "candidate_HEAD_reachable_history_default_rules",
+        "status": "PASS",
+        "verified_git_identifier_count": 21,
+        "verified_interface_git_reference_count": 2,
+        "verified_plan_state_phrase_count": 1,
+        "verified_receipt_source_digest_count": 2,
+        "verified_source_digest_reference_count": 1
+      },
+      "final_security_tests": {
+        "tests": 40,
+        "passed": true,
+        "log_sha256": "c3aaaf1e053e7d89e489fa6eda8509e85c8f26b69598809dc60cba4f8c04e59d",
+        "negative_cases": "Exact historical receipt source hashes recomputed; changed/missing/wrong-type source, altered receipt/span/context and additional real-scanner same-file synthetic credential remain actionable without disclosure."
+      },
+      "final_gate_sources": [
+        {
+          "path": "bin/check-repository-credentials.py",
+          "sha256": "c22e16099c2063f27de8bc19aa62c8f96c070368d6136ffde585cb59c53c92cf"
+        },
+        {
+          "path": "tests/security/test_repository_credentials.py",
+          "sha256": "bbb5b619aaea3af882b5500fd26caefab665e9d21d78f266e84d411cfe234040"
+        }
+      ],
+      "receipt_label_repair": "A pre-push scan caught two source-checksum labels introduced in fe7517c7. Exact reviewed historical receipt and field spans now require independent hashing of source at the finding commit. Current receipt uses typed path/sha256 lists; original history is preserved. Independent read-only review found no open findings."
     }
   }
 }
