@@ -15,8 +15,11 @@ final class OrderHeldPreparationPanel
         if(!ShopAccessPolicy::validShop($shop)){echo '<p>Select one concrete shop to inspect its order evidence.</p></section>';return;}
         $raw=$_GET['df_order_id'];
         if(!is_string($raw)||!preg_match('/^[1-9][0-9]{0,9}$/D',$raw)){echo '<p role="alert">An exact stored order ID is required.</p></section>';return;}
+        (new OrderHoldWorkflow())->render($shop,(int)$raw);
         $service=new HeldFulfillmentPreparation();$source=$service->forOrder($shop,(int)$raw);
-        if(is_wp_error($source)){echo '<div role="alert" class="df-notice df-notice-error">'.esc_html($source->get_error_message()).'</div></section>';return;}
+        if(is_wp_error($source)){echo '<div role="alert" class="df-notice df-notice-error">'.esc_html($source->get_error_message()).'</div>';
+            $intent=$_GET['df_intent_id']??null;if(is_string($intent)&&preg_match('/^[1-9][0-9]{0,9}$/D',$intent)===1&&(int)$intent<=2147483647)(new OrderHeldJobWorkflow())->render($shop,(int)$raw,(int)$intent);
+            echo '</section>';return;}
         $order=$source['order'];
         echo '<p>Order #'.esc_html((string)$order['id']).' · '.esc_html((string)$order['external_order_reference']).' · '.esc_html((string)$order['environment'].' / '.(string)$order['state']).'</p>';
         echo '<p>Current readiness: '.(!empty($source['readiness']['ready'])?'READY FOR LOCAL REVIEW':'BLOCKED').' · Reconciliation: '.(!empty($source['reconciliation']['reconciled'])?'MATCHED LOCAL LINES':'REVIEW REQUIRED').'. Production release remains held.</p>';
@@ -48,6 +51,7 @@ final class OrderHeldPreparationPanel
             $id=$_GET['df_intent_id'];$prepared=is_string($id)&&preg_match('/^[1-9][0-9]{0,9}$/D',$id)?$service->prepare($shop,(int)$order['id'],(int)$id):new \WP_Error('held_intent_id','An exact stored intent ID is required.');
             if(is_wp_error($prepared))echo '<div role="alert" class="df-notice df-notice-error">Held preparation blocked: '.esc_html($prepared->get_error_message()).'</div>';
             else echo '<div class="df-notice"><strong>'.esc_html($prepared['state']).'</strong><p>Stored plan #'.esc_html((string)$prepared['fulfillment_plan_id']).' and current mapped lines prepared for local review.</p><p>Evidence <code>'.esc_html($prepared['current_evidence_hash']).'</code></p></div>';
+            if(is_string($id)&&preg_match('/^[1-9][0-9]{0,9}$/D',$id)===1&&(int)$id<=2147483647)(new OrderHeldJobWorkflow())->render($shop,(int)$order['id'],(int)$id);
         }
         echo '<p>Release hold: YES. Adapter invoked: NO. External execution authority: NO. Buyer artifact certification, visual approval and the existing separate production authorization remain required.</p></section>';
     }

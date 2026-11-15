@@ -1,0 +1,17 @@
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.38 by Sebastian Bergmann and contributors.
+
+.......................................................DigiForge audit persistence failed: AUDIT_WRITE_FAILED
+........  63 / 115 ( 54%)
+................WordPress database error Table 'digiforge_lane_b_3cb66a15.missing_local_confirmation_audit' doesn't exist for query INSERT INTO missing_local_confirmation_audit (id) VALUES (1) made by include('/workspace/digiforge/vendor/phpunit/phpunit/phpunit'), PHPUnit\TextUI\Command::main, PHPUnit\TextUI\Command->run, PHPUnit\TextUI\TestRunner->run, PHPUnit\Framework\TestSuite->run, PHPUnit\Framework\TestSuite->run, PHPUnit\Framework\TestSuite->run, PHPUnit\Framework\TestCase->run, PHPUnit\Framework\TestResult->run, PHPUnit\Framework\TestCase->runBare, PHPUnit\Framework\TestCase->runTest, PortalReviewConfirmationAcceptanceTest->testAuditFailureAndExpiredAcknowledgementCannotChangeReviewState, PortalActionAcceptanceFixture::invoke, do_action('admin_post_digiforge_portal_review_research'), WP_Hook->do_action, WP_Hook->apply_filters, DigiForge\Portal\Portal->review, DigiForge\Portal\Portal->requireConfirmation, DigiForge\Portal\ReviewConfirmation::accept, DigiForge\Security\Logger::write
+DigiForge audit persistence failed: AUDIT_WRITE_FAILED
+.<div id="error"><p class="wpdberror"><strong>WordPress database error:</strong> [Table &#039;digiforge_lane_b_3cb66a15.missing_local_confirmation_audit&#039; doesn&#039;t exist]<br /><code>INSERT INTO missing_local_confirmation_audit (id) VALUES (1)</code></p></div>.......................DigiForge audit persistence failed: AUDIT_WRITE_FAILED
+............            115 / 115 (100%)
+
+Time: 03:02.693, Memory: 92.50 MB
+
+OK (115 tests, 2972 assertions)

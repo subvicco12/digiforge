@@ -106,6 +106,8 @@ final class Portal
         (new ShopAccessPanel())->register();
         (new ResearchRunWorkflow())->register();
         (new OrderLocalWorkflow())->register();
+        (new OrderHeldJobWorkflow())->register();
+        (new OrderHoldWorkflow())->register();
         (new OpportunityDesignPanel())->register();
         add_action('admin_post_' . self::PUBLISH_REVIEW_ACTION, [$this, 'recordPublishReview']);
         add_action('admin_post_' . self::REVIEW_ACTION, [$this, 'review']);

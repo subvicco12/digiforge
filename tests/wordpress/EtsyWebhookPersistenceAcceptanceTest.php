@@ -9,12 +9,23 @@ use DigiForge\Orders\Repository;
 /** Synthetic signed local events and historical listing evidence; no live execution. */
 final class EtsyWebhookPersistenceAcceptanceTest extends WP_UnitTestCase
 {
+    private int $httpCalls=0;
+    private Closure $denyHttp;
+
     protected function setUp(): void
     {
         parent::setUp();
         DigiForge\Core\Activator::activate();
         DigiForge\Core\Settings::protectProduction();
         wp_set_current_user(0);
+        $this->denyHttp=function(){++$this->httpCalls;return new WP_Error('offline_paid_intake','Provider HTTP is forbidden in this fixture.');};
+        add_filter('pre_http_request',$this->denyHttp);
+    }
+
+    protected function tearDown(): void
+    {
+        remove_filter('pre_http_request',$this->denyHttp);
+        try {self::assertSame(0,$this->httpCalls);} finally {parent::tearDown();}
     }
 
     private function signed(array $payload): array
@@ -45,6 +56,7 @@ final class EtsyWebhookPersistenceAcceptanceTest extends WP_UnitTestCase
         self::assertSame('REVIEW_REQUIRED',$result['persisted_order_state']);
         self::assertSame(0,$result['line_item_count']);self::assertTrue($result['unmatched_line_items']);
         self::assertSame('REVIEW_REQUIRED',(new Repository())->findByExternalReference(json_decode($signed[1],true)['order_id'],'712002')['state']);
+        $this->assertNoAutomaticApproval((int)$result['order_id']);
         $this->assertLedger($signed[0],'PROCESSED');self::assertFalse($result['fulfillment_authorized']);
     }
 
@@ -72,6 +84,7 @@ final class EtsyWebhookPersistenceAcceptanceTest extends WP_UnitTestCase
         self::assertSame('REVIEW_REQUIRED',$result['persisted_order_state']);self::assertSame(1,$result['line_item_count']);self::assertTrue($result['unmatched_line_items']);
         global $wpdb;$line=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::order_line_items().' WHERE order_id=%d',$result['order_id']),ARRAY_A);
         self::assertSame($listing,(int)$line['listing_id']);self::assertSame(2,(int)$line['quantity']);self::assertSame('VALIDATED',$line['validation_status']);
+        $this->assertNoAutomaticApproval((int)$result['order_id']);
         $this->assertLedger($signed[0],'PROCESSED');self::assertFalse($result['fulfillment_authorized']);
     }
 
@@ -82,6 +95,22 @@ final class EtsyWebhookPersistenceAcceptanceTest extends WP_UnitTestCase
         $second=$this->signed($payload);$again=$this->accept($second);self::assertNotWPError($again);self::assertSame('ETSY_ORDER_ALREADY_RECEIVED',$again['state']);self::assertSame($result['order_id'],$again['order_id']);$this->assertLedger($second[0],'PROCESSED');
         global $wpdb;self::assertSame(1,(int)$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::order_line_items().' WHERE order_id=%d',$result['order_id'])));
         self::assertSame('VALIDATED',(new Repository())->findByExternalReference('712006','712002')['state']);
+        $this->assertNoAutomaticApproval((int)$result['order_id']);
+    }
+
+    /** A persisted intake state never supplies a human approval or production records. */
+    private function assertNoAutomaticApproval(int $orderId): void
+    {
+        global $wpdb;
+        $order=$wpdb->get_row($wpdb->prepare('SELECT approved_by,approved_at FROM '.Tables::orders().' WHERE id=%d',$orderId),ARRAY_A);
+        self::assertIsArray($order);self::assertSame(0,(int)$order['approved_by']);self::assertNull($order['approved_at']);
+        foreach([Tables::fulfillment_plans(),Tables::fulfillment_intents(),Tables::pod_authorization_packages()] as $table){
+            $wpdb->last_error='';$count=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.$table.' WHERE order_id=%d',$orderId));
+            self::assertSame('',$wpdb->last_error);self::assertSame('0',(string)$count);
+        }
+        self::assertTrue(DigiForge\Core\Settings::safety_locked());
+        self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));
+        self::assertFalse(DigiForge\Core\Settings::get('automation_armed',false));
     }
 
     public function testChangedSignedBodyCannotReuseFailedEventIdentity(): void

@@ -227,6 +227,55 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
+    def reviewed_interface_fixture(self, baseline_available=True, changed=False):
+        project=SCRIPT.parent.parent
+        for ref,name in [('9d79f66868bafe7d43fedf5de1994eab787a6bf4','P0_CONTINUATION_DELIVERY_20261115.json'),
+                         ('d46374057aa993dea5e863228be2c4d962a4f6bb','CONTINUATION_DELIVERY_20261115.json')]:
+            path='docs/engineering/shop2-platform-1266/'+name
+            raw=subprocess.check_output(['git','-C',str(project),'show',ref+':'+path])
+            target=self.root/path;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(raw+(b'\n' if changed else b''))
+        if baseline_available:
+            common=subprocess.check_output(['git','-C',str(project),'rev-parse','--git-common-dir'],text=True).strip()
+            alternate=self.root/'.git/objects/info/alternates'
+            alternate.parent.mkdir(parents=True,exist_ok=True)
+            alternate.write_text(str((project/common).resolve()/'objects')+'\n')
+        self.git('add','.');self.git('commit','-qm','Exact reviewed interface source references')
+
+    def test_exact_historical_interface_references_require_real_commit_objects(self):
+        self.reviewed_interface_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual('PASS',evidence['status'])
+        self.assertEqual(2,evidence.get('verified_interface_git_reference_count'))
+        self.assertEqual(2,evidence['raw_finding_count'])
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_interface_references_without_resolvable_objects_remain_actionable(self):
+        self.reviewed_interface_fixture(baseline_available=False)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_changed_interface_context_requires_review_again(self):
+        self.reviewed_interface_fixture(changed=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_reviewed_interface_does_not_hide_another_generic_key_in_same_file_history(self):
+        self.reviewed_interface_fixture()
+        canary='b7C9dE2fG5hJ8kM3'*3
+        target=self.root/'docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json'
+        document=json.loads(target.read_text());document['api_key']=canary
+        target.write_text(json.dumps(document,indent=2)+'\n')
+        self.git('add','.');self.git('commit','-qm','Synthetic credential alongside source reference')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(2,evidence.get('verified_interface_git_reference_count'))
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
     def test_exact_reviewed_plan_prose_is_separately_verified(self):
         self.reviewed_plan_fixture()
         result,evidence=self.scan()
@@ -244,6 +293,64 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertEqual(1,evidence.get('verified_plan_state_phrase_count',0))
         self.assertGreater(evidence['finding_count'],0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+
+class ReviewedInterfaceGitReferenceVerifierTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('interface_reference_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent
+        self.cases=[]
+        for commit,name,parent,field,line,end in [
+            ('9d79f66868bafe7d43fedf5de1994eab787a6bf4','P0_CONTINUATION_DELIVERY_20261115.json','interfaces','api_sha',138,58),
+            ('d46374057aa993dea5e863228be2c4d962a4f6bb','CONTINUATION_DELIVERY_20261115.json','native_interface_status','verified_api_sha',60,67),
+        ]:
+            path='docs/engineering/shop2-platform-1266/'+name
+            raw=self.raw('show',commit+':'+path)
+            reference=json.loads(raw)[parent][field]
+            self.assertEqual('commit',self.git('cat-file','-t',reference))
+            finding={'File':path,'RuleID':'generic-api-key','Commit':commit,'Secret':'REDACTED',
+                     'Match':field+'": "REDACTED"','StartLine':line,'EndLine':line,'StartColumn':7,'EndColumn':end}
+            self.cases.append((finding,raw,reference))
+
+    def git(self,*args):
+        return subprocess.check_output(['git','-C',str(self.repo),*args],text=True).strip()
+
+    def raw(self,*args):
+        return subprocess.check_output(['git','-C',str(self.repo),*args])
+
+    def verify(self,finding,git=None,raw=None):
+        self.assertTrue(hasattr(self.gate,'verified_interface_git_reference'),'Exact historical interface source-reference verification is required')
+        return self.gate.verified_interface_git_reference(finding,git or self.git,raw or self.raw)
+
+    def test_both_exact_reviewed_references_are_independently_resolved(self):
+        for finding,_,_ in self.cases:
+            with self.subTest(path=finding['File']):self.assertTrue(self.verify(finding))
+
+    def test_changed_rule_path_span_mask_and_commit_stay_actionable(self):
+        for finding,_,_ in self.cases:
+            for key,value in [('File','other.json'),('RuleID','github-pat'),('StartLine',1),('EndLine',1),
+                              ('StartColumn',True),('StartColumn',8),('EndColumn',0),('StartLine',float(finding['StartLine'])),
+                              ('Secret','not-redacted'),('Match','different masked span'),('Commit','f'*40)]:
+                changed=dict(finding);changed[key]=value
+                with self.subTest(path=finding['File'],field=key):self.assertFalse(self.verify(changed))
+
+    def test_changed_historical_blob_or_json_context_is_not_classified(self):
+        for finding,raw,_ in self.cases:
+            def wrong_blob(*args):return 'f'*40 if args[0]=='rev-parse' else self.git(*args)
+            self.assertFalse(self.verify(finding,git=wrong_blob))
+            self.assertFalse(self.verify(finding,raw=lambda *args:raw+b'\n'))
+            self.assertFalse(self.verify(finding,raw=lambda *args:raw.replace(b'"api_pr": 1260',b'"api_pr": 1261')))
+            self.assertFalse(self.verify(finding,raw=lambda *args:raw.replace(b'"api_pr": 1260',b'"api_pr": 1260, "api_pr": 1260')))
+
+    def test_missing_or_wrong_type_reference_objects_cannot_be_treated_as_safe(self):
+        for finding,_,reference in self.cases:
+            def missing(*args):
+                if args==('cat-file','-t',reference):raise OSError('Missing independently resolved source object')
+                return self.git(*args)
+            def wrong_type(*args):return 'blob' if args==('cat-file','-t',reference) else self.git(*args)
+            self.assertFalse(self.verify(finding,git=missing))
+            self.assertFalse(self.verify(finding,git=wrong_type))
 
 
 class ReviewedPlanPhraseVerifierTest(unittest.TestCase):

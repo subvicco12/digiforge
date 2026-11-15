@@ -1,0 +1,37 @@
+{
+  "schema": "digiforge-audit-terminal-receipt-v1",
+  "number": 5025,
+  "run_id": 43710051952,
+  "job_id": 132799438232,
+  "head_sha": "9d79f66868bafe7d43fedf5de1994eab787a6bf4",
+  "status": "completed",
+  "conclusion": "failure",
+  "updated_at": "2026-11-15T13:19:11Z",
+  "url": "https://github.com/subvicco12/digiforge/actions/runs/43710051952",
+  "failed_step": "Complete candidate-history credential scan",
+  "passed": {
+    "unit_tests": 2268,
+    "unit_assertions": 12058,
+    "wordpress_tests": 2085,
+    "wordpress_assertions": 78908,
+    "browser_acceptance": true,
+    "official_action_scheduler_acceptance": true
+  },
+  "credential_scan": {
+    "raw_findings": 25,
+    "actionable_findings": 2,
+    "reviewed_nonsecret_locations": [
+      {
+        "path": "docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json",
+        "line": 138,
+        "field": "interfaces.api_sha"
+      },
+      {
+        "path": "docs/engineering/shop2-platform-1266/CONTINUATION_DELIVERY_20261115.json",
+        "line": 60,
+        "field": "native_interface_status.verified_api_sha"
+      }
+    ]
+  },
+  "limitation": "Later gates/build/package/upload skipped after failed credential gate; no successful installed-candidate qualification inferred."
+}

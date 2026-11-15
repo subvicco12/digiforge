@@ -194,6 +194,89 @@ def verified_source_digest_reference(finding, git, git_bytes):
         return False
 
 
+def verified_interface_git_reference(finding, git, git_bytes):
+    """Prove two exact reviewed historical interface references are real Git commits.
+
+    Keep the raw default-rule findings. A changed document, span, JSON location,
+    unresolved object or any other credential remains actionable.
+    """
+    reviewed = {
+        'docs/engineering/shop2-platform-1266/P0_CONTINUATION_DELIVERY_20261115.json': {
+            'blob': 'f954272f7db9cc81585907600327421fad015908',
+            'content': '140cadc73891d9d1e1c3e616701bf2d031cf7680507e3b838b8ac1b05146dfef',
+            'parent': 'interfaces', 'field': 'api_sha', 'line': 138, 'end_column': 58,
+        },
+        'docs/engineering/shop2-platform-1266/CONTINUATION_DELIVERY_20261115.json': {
+            'blob': 'de15977661ea87227d87369f4d2aa53c10dfb141',
+            'content': 'f223a9b6e3c5801c2cf19ce4f535fb2a7aa9cc2afff0dbcc2e371a8636e34a8d',
+            'parent': 'native_interface_status', 'field': 'verified_api_sha', 'line': 60, 'end_column': 67,
+        },
+    }
+    try:
+        path = finding.get('File')
+        spec = reviewed.get(path)
+        commit = finding.get('Commit')
+        if (spec is None or finding.get('RuleID') != 'generic-api-key'
+                or finding.get('Secret') != 'REDACTED'
+                or finding.get('Match') != spec['field'] + '\": \"REDACTED\"'
+                or not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit)):
+            return False
+        location = {'StartLine': spec['line'], 'EndLine': spec['line'],
+                    'StartColumn': 7, 'EndColumn': spec['end_column']}
+        if any(type(finding.get(key)) is not int or finding[key] != value
+               for key, value in location.items()):
+            return False
+        if git('cat-file', '-t', commit) != 'commit':
+            return False
+        blob = git('rev-parse', '--verify', commit + ':' + path)
+        if blob != spec['blob']:
+            return False
+        raw = git_bytes('cat-file', 'blob', blob)
+        if (not isinstance(raw, bytes) or len(raw) > 65536
+                or hashlib.sha256(raw).hexdigest() != spec['content']):
+            return False
+
+        def unique_object(pairs):
+            result = {}
+            for key, item in pairs:
+                if key in result:
+                    raise ValueError('Duplicate JSON member')
+                result[key] = item
+            return result
+
+        text = raw.decode('utf-8')
+        document = json.loads(text, object_pairs_hook=unique_object)
+        if not isinstance(document, dict):
+            return False
+        canonical = json.dumps(document, indent=2).splitlines()
+        if canonical != text.splitlines():
+            return False
+        container = document.get(spec['parent'])
+        if (not isinstance(container, dict) or type(container.get('api_pr')) is not int
+                or container['api_pr'] != 1260):
+            return False
+        value = container.get(spec['field'])
+        if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{40}', value):
+            return False
+        line = canonical[spec['line'] - 1]
+        field = re.fullmatch(r'\s*"' + re.escape(spec['field']) + r'"\s*:\s*"([a-f0-9]{40})"\s*,?\s*', line)
+        if field is None or field.group(1) != value:
+            return False
+        masked = line.replace(value, 'REDACTED')
+        if masked.count(finding['Match']) != 1:
+            return False
+        # Verify the parsed JSON path identifies this exact historical line,
+        # rather than another occurrence of the same key or reference value.
+        container[spec['field']] = '__reviewed_interface_reference_location__'
+        changed = json.dumps(document, indent=2).splitlines()
+        if ([index + 1 for index, pair in enumerate(zip(canonical, changed))
+             if pair[0] != pair[1]] != [spec['line']]):
+            return False
+        return git('cat-file', '-t', value) == 'commit'
+    except (OSError, ValueError, TypeError, IndexError, subprocess.SubprocessError):
+        return False
+
+
 def check(repository, scanner):
     evidence = {'schema': 'digiforge-repository-credential-evidence-v1',
                 'status': 'SCAN_UNAVAILABLE', 'scanner_version': VERSION,
@@ -256,12 +339,14 @@ def check(repository, scanner):
             kinds = [('git' if verified_git_identifier(row, git) else
                       'plan_prose' if verified_plan_state_phrase(row, git, git_bytes) else
                       'source_digest' if verified_source_digest_reference(row, git, git_bytes) else
+                      'interface_git' if verified_interface_git_reference(row, git, git_bytes) else
                       'actionable') for row in findings]
             actionable = [row for row, kind in zip(findings, kinds) if kind == 'actionable']
             evidence['raw_finding_count'] = len(findings)
             evidence['verified_git_identifier_count'] = kinds.count('git')
             evidence['verified_plan_state_phrase_count'] = kinds.count('plan_prose')
             evidence['verified_source_digest_reference_count'] = kinds.count('source_digest')
+            evidence['verified_interface_git_reference_count'] = kinds.count('interface_git')
             evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
             evidence['finding_count'] = len(actionable)
