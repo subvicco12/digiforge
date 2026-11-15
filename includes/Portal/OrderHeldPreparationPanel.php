@@ -20,6 +20,7 @@ final class OrderHeldPreparationPanel
         $order=$source['order'];
         echo '<p>Order #'.esc_html((string)$order['id']).' · '.esc_html((string)$order['external_order_reference']).' · '.esc_html((string)$order['environment'].' / '.(string)$order['state']).'</p>';
         echo '<p>Current readiness: '.(!empty($source['readiness']['ready'])?'READY FOR LOCAL REVIEW':'BLOCKED').' · Reconciliation: '.(!empty($source['reconciliation']['reconciled'])?'MATCHED LOCAL LINES':'REVIEW REQUIRED').'. Production release remains held.</p>';
+        if($order['environment']==='production')echo '<p><a class="df-button df-button-compact" href="'.esc_url(add_query_arg(['df_view'=>'fulfillment','df_shop'=>$shop,'df_tracking_order'=>(int)$order['id']],OperatorReturnUrl::current()).'#df-order-tracking').'">Inspect this order’s shipment receipts</a></p>';
         echo '<div class="df-table-wrap" role="region" tabindex="0" aria-label="Order line identities"><table class="df-table"><thead><tr><th>Line</th><th>Listing / version</th><th>Mapping / provider</th><th>Quantity</th><th>Evidence state</th></tr></thead><tbody>';
         foreach($source['lines'] as $line)echo '<tr><td>#'.esc_html((string)$line['id']).'</td><td>#'.esc_html((string)$line['listing_id']).' / #'.esc_html((string)$line['product_version_id']).'</td><td>#'.esc_html((string)$line['provider_mapping_id']).' / '.esc_html((string)($line['provider']??'UNAVAILABLE')).'</td><td>'.esc_html((string)$line['quantity']).'</td><td>'.esc_html((string)$line['validation_status'].' / '.(string)($line['mapping_state']??'MISSING')).'</td></tr>';
         echo '</tbody></table></div><h3>Stored personalization reviews</h3>';
@@ -28,6 +29,12 @@ final class OrderHeldPreparationPanel
         echo '<h3>Stored buyer render reviews</h3>';
         if($source['renders']===[])echo '<p>Buyer-specific render evidence is missing. Artifact preparation and separate visual approval are still required.</p>';
         foreach($source['renders'] as $row)echo '<p>Render #'.esc_html((string)$row['id']).' · mapping #'.esc_html((string)$row['provider_mapping_id']).' · '.esc_html((string)$row['template_key'].' / '.(string)$row['template_version'].' / '.(string)$row['review_status']).'. Actual artifacts require their existing certification check before production review.</p>';
+        foreach($source['renders'] as $row)echo '<p><a class="df-button df-button-compact" href="'.esc_url(add_query_arg(['df_view'=>'orders','df_shop'=>$shop,'df_order_id'=>(int)$order['id'],'df_render_id'=>(int)$row['id']],OperatorReturnUrl::current())).'">Inspect stored render #'.esc_html((string)$row['id']).'</a></p>';
+        if(isset($_GET['df_render_id'])){
+            $renderId=$_GET['df_render_id'];$packageId=$_GET['df_package_id']??null;
+            if(!is_string($renderId)||preg_match('/^[1-9][0-9]{0,9}$/D',$renderId)!==1||(int)$renderId>2147483647||($packageId!==null&&(!is_string($packageId)||preg_match('/^[1-9][0-9]{0,9}$/D',$packageId)!==1||(int)$packageId>2147483647)))echo '<p role="alert">Exact stored render and optional package IDs are required for inspection.</p>';
+            else (new OrderArtifactInspection())->render($shop,(int)$order['id'],(int)$renderId,$packageId===null?null:(int)$packageId);
+        }
         (new OrderLocalWorkflow())->renderForms($shop,$source);
         echo '<h3>Stored fulfillment plans and intents</h3>';
         foreach($source['plans'] as $row)echo '<p>Plan #'.esc_html((string)$row['id']).' · '.esc_html((string)$row['provider'].' / '.(string)$row['state']).'</p>';

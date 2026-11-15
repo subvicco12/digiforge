@@ -1,0 +1,193 @@
+{
+  "baseline_core_sha": "d46374057aa993dea5e863228be2c4d962a4f6bb",
+  "baseline_audit": {
+    "conclusion": "failure",
+    "headSha": "d46374057aa993dea5e863228be2c4d962a4f6bb",
+    "number": 5024,
+    "status": "completed",
+    "updatedAt": "2026-11-15T11:30:16Z",
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/43703928395"
+  },
+  "source_sha256": {
+    "includes/Listings/EtsyOrderEventRepository.php": "a18d921c37b6b654a4c275a24937f9c37d5c50a684b93192070bb927a140e5e4",
+    "includes/Portal/OrderArtifactInspection.php": "e728675581eecf0cb6d6455db3955694ba3380d66f638867dad3e84c08842951",
+    "includes/Portal/OrderHeldPreparationPanel.php": "5f8f4152ca52e51178780feda27fef0c4765a21e263ab40dd5d0576a507a0f33",
+    "includes/Portal/OrderLocalWorkflow.php": "c10be4806a5d4424e341e300bbff38e3f22ad228078495c136d73dca7482e58b",
+    "includes/Portal/OrderTrackingInspectionPanel.php": "95e5591c5dc7bdd4ef436770c8720b279172d225ccf2fcd1a7ee3c953d4d1565",
+    "includes/Portal/Portal.php": "5d44280e03764505bee4f9d83137c0396042669fc9cf3dbc16e427a1fdb44eaa",
+    "includes/Portal/ReviewConfirmation.php": "b809e1fc7a0c1fece252c7a336e600bd30dbea2616e8ce463c388f13929b309a",
+    "tests/wordpress/EtsyTrackingCompletionIntegrityTest.php": "0e47b2d75feafecc38ef6ee2b9bdf2cf6a68a3e62e61b81feb2097515a54a8f3",
+    "tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php": "ade86fed0cf3646840f0000e77a09046741a2acfc4980e3f4641a23237b8f8f4",
+    "tests/wordpress/OrderArtifactInspectionTest.php": "aea08fd785c80662a6517bb29b1badeb4597aff41b043cedded37089686cd419",
+    "tests/wordpress/OrderLocalWorkflowTest.php": "ea48a3f83cbe9d94a73962e141cedf37e927474594355908b1bf11d4e671299a"
+  },
+  "source_receipt_note": "Hashes bind frozen changed PHP source and tests in this containing commit. CI at the parent does not certify the successor.",
+  "workflows": [
+    {
+      "name": "governed local plan review and held intent",
+      "capability_ids": [
+        "S2-OPS-03",
+        "S2-ORD-07",
+        "S2-ORD-08"
+      ],
+      "result": "DRAFT -> separate local review -> separate local approval -> BLOCKED PREPARE_FULFILLMENT -> actual HeldFulfillmentPreparation; adapter_invoked=false",
+      "production_authority": false
+    },
+    {
+      "name": "scoped stored artifact inspection",
+      "capability_ids": [
+        "S2-OPS-03"
+      ],
+      "result": "Exact order/render/mapped line/current ownership/optional package, current-input blocker, repeated source reads and actual portal/package lookup form",
+      "artifact_certification": "NOT_PERFORMED",
+      "preview_url_exported": false
+    },
+    {
+      "name": "durable tracking receipt inspection",
+      "capability_ids": [
+        "S2-OPS-03",
+        "S2-ORD-12"
+      ],
+      "result": "Signed intake + normalized event + exact current order + durable processed completion; scoped older-order drilldown, final same-actor module/shop recheck",
+      "authoritative_fulfillment_state": false,
+      "retry_permitted": false
+    }
+  ],
+  "verification": {
+    "released_wordpress": "7.1.4",
+    "integration": {
+      "tests": 41,
+      "assertions": 1381,
+      "errors": 0,
+      "failures": 0,
+      "skips": 0,
+      "stdout": "docs/engineering/shop2-platform-1266/evidence/p0-wordpress-integration-20261115.txt",
+      "stdout_sha256": "ca9c6408e18b5fbf8abaabeb3805f46262b11b0c8b886b35bf737fe852109f70",
+      "source": "Final frozen source after all admission guards and Audit5024 test repair."
+    },
+    "focused_operator": {
+      "tests": 14,
+      "assertions": 128,
+      "passed": true
+    },
+    "focused_artifact_inspection": {
+      "tests": 8,
+      "assertions": 978,
+      "passed": true
+    },
+    "focused_tracking_with_existing_regression": {
+      "tests": 17,
+      "assertions": 248,
+      "passed": true
+    },
+    "counting_note": "Focused results overlap the integrated suite; do not sum these counts.",
+    "php_lint": "All11 changed PHP files pass",
+    "phpstan": "Configured6-file baseline passes; no claim of whole-application static coverage",
+    "phpcs": "Configured baseline passes",
+    "git_diff_check": "PASS",
+    "filter": "OrderLocalWorkflowTest|OrderArtifactInspectionTest|EtsyTrackingCompletionIntegrityTest|PortalTrackingAcceptanceTest|FocusedEtsyOrderReadinessAvailabilityTest",
+    "command": "DIGIFORGE_CUTOUT_PYTHON=<existing cutout runtime python> WP_TESTS_DIR=<released7.1.4 tests/phpunit> php <shared vendor>/bin/phpunit -c phpunit.wordpress.xml.dist --filter <filter above>",
+    "diagnostics": "Final41-case workflow stdout is clean. The retained earlier108-case regression includes expected injected missing_local_confirmation_audit/AUDIT_WRITE_FAILED diagnostics from its existing negative test. Early overlapping artifact and pre-final-guard107-case diagnostics are excluded.",
+    "red_reproductions": [
+      "Missing local plan review/approval/intent actions",
+      "Rejected history incorrectly denied",
+      "Unexpected review/approval write effects accepted",
+      "Missing scoped artifact inspector and package lookup form",
+      "Failed completion ledger shown verified",
+      "Wrong/missing completion ledger shown verified",
+      "Actor/order changes during projection accepted",
+      "Same-actor module revocation during final order read accepted",
+      "Artifact metadata released after logout or same-actor module revocation during last read",
+      "Audit5024 old count-only database test double lacks get_results"
+    ],
+    "independent_review": "Two independent reviewers; all concrete findings resolved and final source reviewed without open findings; neither reviewer ran shared database tests.",
+    "regression_before_final_artifact_guard": {
+      "result": {
+        "tests": 108,
+        "assertions": 3093,
+        "errors": 0,
+        "failures": 0,
+        "skips": 0,
+        "stdout": "docs/engineering/shop2-platform-1266/evidence/p0-wordpress-regression-before-final-artifact-admission-20261115.txt",
+        "stdout_sha256": "93d6e6959e299bf03488fb3fa25553160462ed727aa9376f61bbbac95e83bada",
+        "limitation": "Passed before final artifact-admission guard and readiness test repair; not final-source certification."
+      },
+      "source_sha256": {
+        "includes/Listings/EtsyOrderEventRepository.php": "a18d921c37b6b654a4c275a24937f9c37d5c50a684b93192070bb927a140e5e4",
+        "includes/Portal/OrderArtifactInspection.php": "c1b16cdb63a31f858de8738eafedbff62cc8cba2765f1dad7fdb171fbed4d921",
+        "includes/Portal/OrderHeldPreparationPanel.php": "5f8f4152ca52e51178780feda27fef0c4765a21e263ab40dd5d0576a507a0f33",
+        "includes/Portal/OrderLocalWorkflow.php": "c10be4806a5d4424e341e300bbff38e3f22ad228078495c136d73dca7482e58b",
+        "includes/Portal/OrderTrackingInspectionPanel.php": "95e5591c5dc7bdd4ef436770c8720b279172d225ccf2fcd1a7ee3c953d4d1565",
+        "includes/Portal/Portal.php": "5d44280e03764505bee4f9d83137c0396042669fc9cf3dbc16e427a1fdb44eaa",
+        "includes/Portal/ReviewConfirmation.php": "b809e1fc7a0c1fece252c7a336e600bd30dbea2616e8ce463c388f13929b309a",
+        "tests/wordpress/EtsyTrackingCompletionIntegrityTest.php": "0e47b2d75feafecc38ef6ee2b9bdf2cf6a68a3e62e61b81feb2097515a54a8f3",
+        "tests/wordpress/OrderArtifactInspectionTest.php": "99a8e9ce5992fdc3a55db861ec6bfc2e189dbbd666abc32dec88c286e4c7f8e7",
+        "tests/wordpress/OrderLocalWorkflowTest.php": "ea48a3f83cbe9d94a73962e141cedf37e927474594355908b1bf11d4e671299a"
+      }
+    },
+    "audit5024_readiness_repair": {
+      "tests": 2,
+      "assertions": 27,
+      "passed": true,
+      "reproduced_original_error": true,
+      "coverage": "Real ready WordPress fixture; five count reads plus current line and input read SQL failures must execute and fail closed."
+    }
+  },
+  "interfaces": {
+    "api_pr": 1260,
+    "api_sha": "200e6101bf8635453b2186be2f45ec87a5946465",
+    "companion_pr": 1263,
+    "companion_sha": "4da802a1568b13bcf1bbca28eba009b8b6148ef1",
+    "companion_pin_changed": false,
+    "lane_a_exclusive_files_changed": false,
+    "real_native_authority_interface_received": false,
+    "coordination": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6893403989",
+    "required_contracts": "NATIVE_OWNER_INTERFACE_REQUEST_20261115.md"
+  },
+  "capability_promotions": [],
+  "baseline_counts_unchanged": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 31
+  },
+  "remaining": [
+    "Real independent issuer/checkpoint/witness/allocation/journal/mandatory sender/receipt/custody and drain/recovery interfaces",
+    "Lane A artifact/preview currentness and agreed explicit buyer-input selection/supersession",
+    "Broader background dispatch, native cancellation/fulfillment and authoritative tracking joins",
+    "Companion owner source qualification and hosted/current-installed candidate acceptance"
+  ],
+  "estimate": {
+    "aggregate_engineering_day_baseline": "50-80",
+    "status": "PROVISIONAL_UNCHANGED",
+    "basis": "No complete capability promotion supports a lower estimate; native integration duration depends on actual owner source receipts."
+  },
+  "safety": {
+    "stop_all": true,
+    "external_lock": true,
+    "automation": false,
+    "manual_production_approval": true,
+    "release_hold": true,
+    "production_or_live_execution_performed": false
+  },
+  "audit5024_finding": {
+    "test": "FocusedEtsyOrderReadinessAvailabilityTest::testEveryRequiredReadinessCountFailsClosedOnDatabaseFailure",
+    "error": "Call to undefined method class@anonymous::get_results()",
+    "ci_wordpress_tests": 2064,
+    "ci_wordpress_assertions": 77755,
+    "ci_errors": 1,
+    "ci_skips": 5,
+    "repair": "Replace obsolete count-only double with actual disposable WordPress/MariaDB positive fixture and seven injected failing queries. Production guards unchanged.",
+    "successor_exact_head_ci": "Required; automatic PR run pending after normal push.",
+    "metadata": "evidence/audit5024-result.json",
+    "excerpt": "evidence/audit5024-failure-excerpt-20261115.txt",
+    "excerpt_note": "Exact failure lines with trailing whitespace removed; complete decoded job log retained outside repository."
+  },
+  "evidence_sha256": {
+    "docs/engineering/shop2-platform-1266/evidence/audit5024-failure-excerpt-20261115.txt": "4e0b2705d634c5bb5fe6bc4f8f9d2124eb406845138bd17b4505b83cfc67869c",
+    "docs/engineering/shop2-platform-1266/evidence/audit5024-result.json": "11d9c0a0a705de7066e6cddb132c23e1c6ce319a439fd5d844bbfdbc456078ce",
+    "docs/engineering/shop2-platform-1266/evidence/p0-wordpress-integration-20261115.txt": "ca9c6408e18b5fbf8abaabeb3805f46262b11b0c8b886b35bf737fe852109f70",
+    "docs/engineering/shop2-platform-1266/evidence/p0-wordpress-regression-before-final-artifact-admission-20261115.txt": "93d6e6959e299bf03488fb3fa25553160462ed727aa9376f61bbbac95e83bada"
+  }
+}

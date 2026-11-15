@@ -1,0 +1,36 @@
+{
+  "baseline": "d46374057aa993dea5e863228be2c4d962a4f6bb",
+  "scope": "Owner-directed Lane B continued P0 engineering",
+  "exclusive_files": {
+    "order_operator_actions": [
+      "includes/Portal/OrderLocalWorkflow.php",
+      "includes/Portal/ReviewConfirmation.php",
+      "tests/wordpress/OrderLocalWorkflowTest.php"
+    ],
+    "identity_review": [
+      "includes/Portal/OrderArtifactInspection.php",
+      "tests/wordpress/OrderArtifactInspectionTest.php"
+    ],
+    "queue_recovery_review": [
+      "includes/Listings/EtsyOrderEventRepository.php",
+      "includes/Portal/OrderTrackingInspectionPanel.php",
+      "includes/Portal/Portal.php:shipmentEventReceipts only",
+      "tests/wordpress/EtsyTrackingCompletionIntegrityTest.php"
+    ],
+    "root": [
+      "includes/Portal/OrderHeldPreparationPanel.php:artifact inspection mount",
+      "tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php:Audit5024 real database regression repair",
+      "coordination, source receipts, integration verification, documentation, commit and normal push"
+    ]
+  },
+  "frozen": [
+    "Lane A renderer, verifier and preview source",
+    "API PR1260 source and independent issuer/sender/custody boundaries",
+    "Companion PR1263 source and source pins",
+    "Canonical native port1.0.0 bytes",
+    "Prior accepted webhook, order, immutable plan and W03 implementation"
+  ],
+  "wordPress_fixture": "Released7.1.4 disposable database; tests serialized by root",
+  "authority": "Local review and held preparation only; no native allocation or production authority",
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD"
+}
