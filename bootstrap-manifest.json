@@ -1,0 +1,17 @@
+{
+  "approved_target_build": "b0d29d9f7b362c420b5c56143315ebd1e0cde92d7f00fe4bdff3f46a9836ca1e",
+  "branch": "cloudflare-synthetic-deploy-execution",
+  "credential_references": [],
+  "environment": "cloudflare-synthetic-deploy",
+  "execution_authorized": false,
+  "future_executable_revision": "SEPARATE_REVIEW_AND_PROTECTION_CHANGE_APPROVAL_REQUIRED",
+  "global_safety": "STOP_ALL_ON_EXTERNAL_LOCK_ON_AUTOMATION_OFF_RELEASE_HOLD",
+  "member_sha256": {
+    ".github/workflows/cloudflare-stage-a-provision-disabled.yml": "e6b63692c3baed92c3c5933897c4e49abc4984b9009860cc48f47df700db3872",
+    "artifacts/digiforge-hosted-synthetic-pilot-readiness-200e6101.zip": "9e1bb9f85561351866d5bab37c8785024a3ec07fa788e3ee910632e92f0d505d"
+  },
+  "provisioning_implementation_present": false,
+  "schema": "DF_PROTECTED_BRANCH_BOOTSTRAP_1",
+  "source_sha": "200e6101bf8635453b2186be2f45ec87a5946465",
+  "status": "INERT_BOOTSTRAP_NOT_PROVISIONING_IMPLEMENTATION"
+}

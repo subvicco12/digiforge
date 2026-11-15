@@ -1,0 +1,16 @@
+name: DigiForge Synthetic Deployment Bootstrap (DISABLED)
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  bootstrap_disabled:
+    if: ${{ false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    environment: cloudflare-synthetic-deploy
+    steps:
+      - name: Bootstrap only; no credentials or deployment
+        run: echo BOOTSTRAP_ONLY_NO_CREDENTIALS_NO_DEPLOYMENT
