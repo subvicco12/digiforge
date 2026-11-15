@@ -7,19 +7,19 @@ use WP_Error;
 final class ArtworkPersonalizationRepository
 {
     private const PREFIX='digiforge_shop2_personalization_';
-    public function define(string $shop,string $factory,array $fields,?string $parent=null):array|WP_Error
+    public function define(string $shop,string $factory,array $fields,?string $parent=null,?string $datePolicy=null):array|WP_Error
     {
         $context=$this->context($shop,$factory);if(is_wp_error($context))return $context;
-        try{$fields=ArtworkPersonalizationContract::fields($context['record']['specification'],$fields);}catch(\Throwable){return self::error('Exact native text/date mapping required; image/crop fields require manual review.');}
+        try{$fields=ArtworkPersonalizationContract::fields($context['record']['specification'],$fields);ArtworkPersonalizationContract::datePolicy($context['record']['specification'],$fields,$datePolicy);}catch(\Throwable){return self::error('Exact native text/date mapping required; image/crop fields require manual review.');}
         if($parent!==null){$prior=$this->read($shop,$parent);if(is_wp_error($prior))return $prior;if($prior['record']['kind']!=='SCHEMA'||$prior['record']['workspace_id']!==$this->workspace($context))return self::error('Schema revision belongs to another workspace.');}
-        return $this->save($context,'SCHEMA',$parent,['fields'=>$fields]);
+        return $this->save($context,'SCHEMA',$parent,['fields'=>$fields]+($datePolicy===null?[]:['date_display_policy'=>$datePolicy]));
     }
     public function sample(string $shop,string $schema,array $values,?string $parent=null):array|WP_Error
     {
         $v=$this->read($shop,$schema);if(is_wp_error($v))return $v;if($v['record']['kind']!=='SCHEMA')return self::error('Exact schema version required.');
         $context=$this->context($shop,$v['record']['factory_hash']);if(is_wp_error($context))return $context;
         if($parent!==null){$prior=$this->read($shop,$parent);if(is_wp_error($prior))return $prior;if($prior['record']['kind']!=='PROOF'||$prior['record']['data']['schema_hash']!==$schema)return self::error('Sample revision must retain its exact schema.');}
-        try{$result=ArtworkPersonalizationContract::proof($context['record']['specification'],$context['record']['asset']['svg'],$v['record']['data']['fields'],$values);}catch(\Throwable){return self::error('Missing, invalid, over-cap or invalid-calendar customer input.');}
+        try{$result=ArtworkPersonalizationContract::proof($context['record']['specification'],$context['record']['asset']['svg'],$v['record']['data']['fields'],$values,$v['record']['data']['date_display_policy']??null);}catch(\Throwable){return self::error('Missing, invalid, over-cap or invalid-calendar customer input.');}
         return $this->save($context,'PROOF',$parent??$schema,['schema_hash'=>$schema,'result'=>$result]);
     }
     public function decide(string $shop,string $hash,string $decision,string $note):array|WP_Error
@@ -42,11 +42,13 @@ final class ArtworkPersonalizationRepository
         $review=null;
         try{
             if($r['kind']==='SCHEMA'){
-                if(array_keys($r['data'])!==['fields']||ArtworkPersonalizationContract::fields($context['record']['specification'],$r['data']['fields'])!==$r['data']['fields'])throw new \RuntimeException();
+                if(!in_array(array_keys($r['data']),[['fields'],['fields','date_display_policy']],true)||ArtworkPersonalizationContract::fields($context['record']['specification'],$r['data']['fields'])!==$r['data']['fields'])throw new \RuntimeException();
+                if(array_key_exists('date_display_policy',$r['data'])&&(!is_string($r['data']['date_display_policy'])||ArtworkPersonalizationContract::datePolicy($context['record']['specification'],$r['data']['fields'],$r['data']['date_display_policy'])!==$r['data']['date_display_policy']))throw new \RuntimeException();
             }elseif($r['kind']==='PROOF'){
                 if(array_keys($r['data'])!==['schema_hash','result']||!is_array($r['data']['result']))throw new \RuntimeException();
-                $schema=$this->record($r['data']['schema_hash']);if(is_wp_error($schema)||$schema['kind']!=='SCHEMA'||$schema['factory_hash']!==$r['factory_hash']||$schema['workspace_id']!==$r['workspace_id']||array_keys($schema['data'])!==['fields'])throw new \RuntimeException();
-                $expected=ArtworkPersonalizationContract::proof($context['record']['specification'],$context['record']['asset']['svg'],$schema['data']['fields'],$r['data']['result']['samples']);
+                $schema=$this->record($r['data']['schema_hash']);if(is_wp_error($schema)||$schema['kind']!=='SCHEMA'||$schema['factory_hash']!==$r['factory_hash']||$schema['workspace_id']!==$r['workspace_id']||!in_array(array_keys($schema['data']),[['fields'],['fields','date_display_policy']],true))throw new \RuntimeException();
+                if(array_key_exists('date_display_policy',$schema['data'])&&!is_string($schema['data']['date_display_policy']))throw new \RuntimeException();
+                $expected=ArtworkPersonalizationContract::proof($context['record']['specification'],$context['record']['asset']['svg'],$schema['data']['fields'],$r['data']['result']['samples'],$schema['data']['date_display_policy']??null);
                 if(CommercialResearchContract::json($expected)!==CommercialResearchContract::json($r['data']['result']))throw new \RuntimeException();
                 $pointer=$this->stored(self::PREFIX.'decision_'.$hash);if(is_wp_error($pointer))return $pointer;
                 if($pointer!==null){

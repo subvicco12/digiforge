@@ -1,0 +1,159 @@
+{
+  "scope": "Reusable Shop2 software only; no commercial/catalog work",
+  "audited_start_sha": "422cd01071489a06594552f26aeb78169e78a2b5",
+  "authorities": [
+    "Ultimate Master Blueprint v6.0",
+    "docs/launch/PERSONALIZED_POD_FOUR_DAY_MVP_BLUEPRINT_20261103.md",
+    "Development Operating Manual v1.0 draft; subordinate to governing blueprint"
+  ],
+  "evidence_policy": "Existing historical passes reused; source presence alone is not fresh execution or live-provider acceptance",
+  "features": [
+    {
+      "priority": 1,
+      "feature": "Shop-scoped opportunity/source/three-concept workflow",
+      "status": "IMPLEMENTED_VERIFIED_PREVIOUS_RECEIPTS",
+      "code": [
+        "includes/Research/CommercialResearchRepository.php",
+        "includes/Research/CommercialResearchContract.php",
+        "includes/Portal/CommercialResearchPanel.php"
+      ],
+      "tests": [
+        "tests/wordpress/CommercialResearchWorkflowTest.php",
+        "tests/wordpress/ResearchShopIsolationTest.php"
+      ],
+      "remaining": "Live research credentials/evidence separate; curated imports supported"
+    },
+    {
+      "priority": 2,
+      "feature": "Provider/model/budget/usage abstraction",
+      "status": "PARTIAL",
+      "code": [
+        "includes/Research/ResearchProvider.php",
+        "includes/Research/GovernedResearchProvider.php",
+        "includes/AI/GovernedGeneration.php",
+        "includes/AI/ShopAiGovernanceRepository.php",
+        "includes/AI/MonetaryReservationRepository.php"
+      ],
+      "tests": [
+        "tests/wordpress/AiWorkflowBudgetAcceptanceTest.php",
+        "tests/wordpress/AiProviderSettlementTest.php"
+      ],
+      "remaining": "Governed research exists; live design adapter unavailable. Mock execution is test-injected, not a live acceptance claim. No unified async research/design dispatch or production image budget qualification proven"
+    },
+    {
+      "priority": 3,
+      "feature": "Approved concept/specification/editable-art import",
+      "status": "IMPLEMENTED_VERIFIED_IMPORT_PROVIDER_BLOCKED_GENERATION",
+      "code": [
+        "includes/Research/DesignFactoryRepository.php",
+        "includes/Research/DesignFactoryContract.php",
+        "includes/Research/DesignGenerationProvider.php",
+        "includes/Research/DesignFactoryUnavailableProvider.php"
+      ],
+      "tests": [
+        "tests/wordpress/DesignFactoryWorkflowTest.php",
+        "tests/unit/DesignFactoryContractTest.php"
+      ],
+      "remaining": "Authorized real image integration absent; manual SVG/PNG import, provenance and nine-criterion review work"
+    },
+    {
+      "priority": 4,
+      "feature": "Reusable personalization engines",
+      "status": "PARTIAL",
+      "code": [
+        "includes/POD/DeterministicPersonalizationRenderer.php",
+        "includes/POD/PersonalizationPayloadContract.php",
+        "includes/Research/ArtworkPersonalizationContract.php"
+      ],
+      "tests": [
+        "tests/wordpress/PortalPersonalizationAcceptanceTest.php",
+        "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php"
+      ],
+      "remaining": "Order-bound text/photo engines exist; Shop2 local artwork sample portal deliberately supports text/date only. Native image crop and physical-output qualification not implied"
+    },
+    {
+      "priority": 5,
+      "feature": "Canonical version/art/source lineage",
+      "status": "IMPLEMENTED_VERIFIED_PREVIOUS_RECEIPTS",
+      "code": [
+        "includes/Research/ArtworkPersonalizationRepository.php",
+        "includes/Research/ArtworkPersonalizationIntake.php",
+        "includes/Research/DesignFactoryRepository.php"
+      ],
+      "tests": [
+        "tests/wordpress/ArtworkPersonalizationIntakeTest.php",
+        "tests/wordpress/ArtworkPersonalizationWorkflowTest.php"
+      ],
+      "remaining": "Canonical business/held-export join LaneB-owned; no replacement identity system needed"
+    },
+    {
+      "priority": 6,
+      "feature": "Deterministic rendering/versioned date-policy integration",
+      "status": "IMPLEMENTED_VERIFIED_OFFLINE",
+      "code": [
+        "includes/POD/OfflineDateDisplayProof.php",
+        "includes/Research/ArtworkPersonalizationRepository.php",
+        "includes/Portal/ArtworkPersonalizationPanel.php"
+      ],
+      "tests": [
+        "tests/unit/OfflineDateDisplayProofTest.php"
+      ],
+      "remaining": "Native/physical qualification remains separate; policy opt-in persists with canonical input and immutable review evidence",
+      "resolution": "IMPLEMENTED_OPT_IN_PERSISTED_POLICY; focused tests documented in handoff receipt"
+    },
+    {
+      "priority": 7,
+      "feature": "Operator approvals/history/failure recovery",
+      "status": "IMPLEMENTED_VERIFIED_PREVIOUS_RECEIPTS",
+      "code": [
+        "includes/Portal/ArtworkPersonalizationPanel.php",
+        "includes/Research/ArtworkPersonalizationRepository.php",
+        "includes/Research/CommercialResearchRepository.php"
+      ],
+      "tests": [
+        "tests/wordpress/ArtworkPersonalizationWorkflowTest.php",
+        "tests/wordpress/SupplierPersonalizationWorkflowTest.php"
+      ],
+      "remaining": "Fresh acceptance for new policy path; immutable intent and uncertain-write states must not auto-retry/approve"
+    },
+    {
+      "priority": 8,
+      "feature": "Secure async retry/observability",
+      "status": "PARTIAL",
+      "code": [
+        "includes/Queue/JobRepository.php",
+        "includes/Queue/Scheduler.php",
+        "includes/Queue/QueueFailurePolicy.php",
+        "includes/Queue/OperatorQueueReadModel.php"
+      ],
+      "tests": [
+        "tests/unit/JobEnqueueIdempotencyEvidenceContractTest.php",
+        "tests/wordpress/ProductFactorySchedulingAcceptanceTest.php"
+      ],
+      "remaining": "Shared queue exists with bounded retry/UNKNOWN holds; research/design repos are deliberately synchronous/one-attempt. No missing queue should be inferred; end-to-end Shop2 async adapters require separate bounded design/ownership review"
+    }
+  ],
+  "selected_slice": "Add explicit versioned spelled-month policy to persisted Shop2 text schemas/proofs/portal without changing old records or LaneB intake envelope",
+  "not_claimed": "Whole factory complete, production readiness, native/physical parity or live AI acceptance",
+  "verification": {
+    "wordpress_focused": {
+      "tests": 63,
+      "assertions": 535,
+      "result": "PASS"
+    },
+    "new_policy_wordpress": {
+      "tests": 8,
+      "assertions": 59,
+      "result": "PASS"
+    },
+    "unit_configured": {
+      "tests": 2215,
+      "assertions": 11943,
+      "errors": 0,
+      "skipped": 1,
+      "skip_reason": "ExperimentalMattingPipelineTest: owner-supplied pinned SAM runtime/weights absent"
+    },
+    "prior_run_limitations": "Initial test capability removal left role capability active (fixture corrected); initial shared DB disconnect, replaced by fresh private socket/database; initial full unit run lacked configured installed cutout Python path; failures retained in external logs",
+    "hosted_audit": "NOT_RUN_FOR_NEW_HEAD"
+  }
+}

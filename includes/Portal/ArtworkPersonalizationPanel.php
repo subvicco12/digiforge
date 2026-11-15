@@ -23,10 +23,14 @@ final class ArtworkPersonalizationPanel
             $selected=$repo->read($shop,$hash);
             if(is_wp_error($selected)||$selected['record']['factory_hash']!==$factory){echo '<p>Exact personalization version does not belong to this artwork.</p>';$selected=null;}
         }
+        $policySchema=$selected;
+        if($selected!==null&&$selected['record']['kind']==='PROOF')$policySchema=$repo->read($shop,$selected['record']['data']['schema_hash']);
+        if(is_wp_error($policySchema)){echo '<p>Source schema unavailable.</p></section>';return;}
         $fields=[];foreach($context['record']['specification']['layout']['native_regions']as $region)$fields[]=['key'=>$region['name'],'type'=>$region['name']==='date'?'date':'text','required'=>true,'max_length'=>$region['name']==='date'?10:20];
-        if($selected!==null&&$selected['record']['kind']==='SCHEMA')$fields=$selected['record']['data']['fields'];
+        if($policySchema!==null)$fields=$policySchema['record']['data']['fields'];
         $this->form('personalization_schema',$commercial,$factory);
         if($selected!==null&&$selected['record']['kind']==='SCHEMA')echo '<input type="hidden" name="parent_hash" value="'.esc_attr($selected['hash']).'">';
+        echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option></select></label><p>Spelled-month policy requires required first_name/second_name/date fields; name caps at most 13 for mug or 16 for poster. ISO date cap10 remains separate from native display caps18/24. Native typography/fit remain unverified.</p>';
         echo '<h4>Save customer-input schema</h4><p>Each key must match one recorded native text rectangle. Types: text/date; explicit character caps 1–80. Changing a schema creates another immutable version.</p><textarea name="fields_json" rows="6" maxlength="16000" required>'.esc_textarea(CommercialResearchContract::json($fields)).'</textarea><button class="df-button">Save field schema</button></form>';
         if($selected===null){echo '</section>';return;}
         $r=$selected['record'];$schema=$r['kind']==='SCHEMA'?$selected:$repo->read($shop,$r['data']['schema_hash']);
@@ -38,7 +42,7 @@ final class ArtworkPersonalizationPanel
         foreach($schema['record']['data']['fields']as $field){$value=$r['kind']==='PROOF'?($r['data']['result']['samples'][$field['key']]??''):'';echo '<p><label>'.esc_html(str_replace('_',' ',$field['key'])).' <input type="'.esc_attr($field['type']==='date'?'date':'text').'" name="samples['.esc_attr($field['key']).']" maxlength="'.esc_attr((string)$field['max_length']).'" value="'.esc_attr($value).'"'.($field['required']?' required':'').'></label></p>';}
         echo '<button class="df-button">Save immutable local proof</button></form>';
         if($r['kind']==='PROOF'){
-            $result=$r['data']['result'];echo '<h4>'.esc_html($result['state']).' — DO NOT IMPORT</h4>';
+            $result=$r['data']['result'];if(isset($result['date_display']))echo '<p>Date policy <code>'.esc_html($result['date_display']['policy']['id']).'</code> · Printed-date local sample: '.esc_html($result['date_display']['samples']['date']).' · Canonical ISO: '.esc_html($result['samples']['date']).'. Native/final print acceptance remains held.</p>';echo '<h4>'.esc_html($result['state']).' — DO NOT IMPORT</h4>';
             if(is_string($result['svg']))echo '<img alt="Local personalization proof — not production artwork" style="max-width:100%;width:600px" src="data:image/svg+xml;base64,'.esc_attr(base64_encode($result['svg'])).'">';
             else echo '<p>Manual HOLD: '.esc_html(implode(', ',$result['reasons'])).'. No output or substitution generated.</p>';
             echo '<p>Fixed-art SHA-256 <code>'.esc_html($result['artwork_sha256']).'</code> · Proof SHA-256 <code>'.esc_html($result['proof_sha256']??'NONE — HOLD').'</code></p>';
@@ -73,7 +77,7 @@ final class ArtworkPersonalizationPanel
         $repo=new ArtworkPersonalizationRepository();$result=null;
         try{
             $op=$post['operation']??null;$parent=($post['parent_hash']??'')===''?null:$post['parent_hash'];
-            if($op==='personalization_schema'){$raw=$post['fields_json']??null;if(!is_string($raw)||strlen($raw)>16000)throw new \RuntimeException();$fields=json_decode($raw,true,16,JSON_THROW_ON_ERROR);if(!is_array($fields))throw new \RuntimeException();$result=$repo->define('personalized_pod',$factory,$fields,$parent);}
+            if($op==='personalization_schema'){$raw=$post['fields_json']??null;if(!is_string($raw)||strlen($raw)>16000)throw new \RuntimeException();$fields=json_decode($raw,true,16,JSON_THROW_ON_ERROR);if(!is_array($fields))throw new \RuntimeException();$policy=$post['date_display_policy']??'';if(!is_string($policy))throw new \RuntimeException();$result=$repo->define('personalized_pod',$factory,$fields,$parent,$policy===''?null:$policy);}
             elseif(in_array($op,['personalization_sample','personalization_review'],true)){
                 $hash=$post[$op==='personalization_sample'?'schema_hash':'proof_hash']??null;if(!is_string($hash))throw new \RuntimeException();$source=$repo->read('personalized_pod',$hash);if(is_wp_error($source))return $source;if($source['record']['factory_hash']!==$factory)return $this->error();
                 if($op==='personalization_sample'){if(!is_array($post['samples']??null))throw new \RuntimeException();$result=$repo->sample('personalized_pod',$hash,$post['samples'],$parent);}
