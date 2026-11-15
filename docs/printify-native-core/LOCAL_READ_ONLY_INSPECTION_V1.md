@@ -1,0 +1,11 @@
+# Protected local inspection facade 1.0.0
+
+`NativeReadOnlyInspection::snapshot(ShopBinding, actor, panelContext, request)` returns DF_NATIVE_READ_ONLY_INSPECTION_1. This internal core API mounts no route and changes no canonical v1 capability advertisement. Companion PR1263 is untouched.
+
+Requests have exact keys: READINESS (`kind` only); HELD_OPERATION (`kind`, 64-hex `operation_id`); ORDER_OBSERVATIONS (`kind`, integer `limit` 1..20). The first two require the existing `unknown` panel context; orders require `orders`. Existing current-session, CSRF nonce, shop/module and independently reviewed provider-scope checks run before and after inspection. The caller supplies no URL, query, credential, epoch, reset or retry action.
+
+Held records are read through the existing audit-verified journal and matched to actor, exact current physical scope, integration/credential reference and authorization revision. Only local state/revision/time, event hash, fence-presence Boolean and manual-review flags leave the core. No raw fence, source payload or authentication value is exported. A local journal revision is not a native product version. Order views delegate to the existing scoped, dual-root/audit-verified snapshot; missing storage/evidence is denial, not an invented empty inventory. Empty is returned only when both real local inventory roots verify empty.
+
+Every response remains read_only=true, mutation_authorized=false, independent_checkpoint_verified=false, both epochs=null, network_request_permitted=false, external_execution_authorized=false, retry_permitted=false and release_hold=true. Its self-hash detects drift and is not independent authentication. Readiness reports capabilities of this local-only API, not live provider or hosted recovery readiness.
+
+The canonical WORKFLOW capability also gates writes and secret custody, so it remains unadvertised. REGISTER/CLAIM/receipt/publication/allocation/recovery remain denied. Native mutation/inspection responses requiring qualified epochs are not replaced with this local schema. The facade is additive preparation for a future separately reviewed protected operator integration, not a safety exception or installation authorization.
