@@ -1,0 +1,7 @@
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="DF_NATIVE_TEST_SHA" value="78e7f973455a3c89319be06f0907caf2103658a7" force="true"/><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Option B actual local inspection and canonical mutation denials">
+<file>/companionrepo/tests/contracts/NativeMutationWordPressAcceptance.php</file>
+<file>/feature/tests/wordpress/NativeHeldJournalWordPressTest.php</file>
+<file>/feature/tests/wordpress/NativeOrderSourceEvidenceTest.php</file>
+<file>/feature/tests/wordpress/NativeOrderSourceJournalTest.php</file>
+<file>/feature/tests/wordpress/NativeProductSourceEvidenceTest.php</file>
+<file>/feature/tests/wordpress/NativeReadOnlyInspectionTest.php</file></testsuite></testsuites></phpunit>
