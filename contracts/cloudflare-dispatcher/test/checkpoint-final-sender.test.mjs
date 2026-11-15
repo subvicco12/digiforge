@@ -198,3 +198,13 @@ for(const result of ['true','false','promise'])test('final witness boundary reje
   const f=await fresh();f.base.runtime.witness.currentGuard=()=>result==='promise'?Promise.resolve():result==='true';
   const r=await f.execute();assert.equal(r.receipt?.manifest.status||r.status,'UNKNOWN');assert.equal(f.base.calls.length,0);
 });
+test('guarded SESSION cannot create another authority scope around checkpoint admission',async()=>{
+  const f=await fresh(),payload=await f.base.ownerAdmission();await assert.rejects(()=>f.client.call('SESSION',payload));
+  assert.equal(f.base.calls.length,0);assert.equal(f.root.read().nonces.filter(n=>n.startsWith('checkpoint-intent:')).length,0);
+});
+test('standalone authority cannot execute CHECKPOINT_EXECUTE without the mandatory checkpoint gate',async()=>{
+  const {authorityFixture}=await import('./authority-support.mjs');
+  const f=await authorityFixture(),s=await f.client.call('SESSION',await f.base.ownerAdmission());
+  const payload={...await f.base.message(s,0),checkpoint:{}};
+  await assert.rejects(()=>f.client.call('CHECKPOINT_EXECUTE',payload));assert.equal(f.base.calls.length,0);
+});
