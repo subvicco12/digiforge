@@ -1,0 +1,65 @@
+{
+  "schema": "DF_PRINTIFY_API_SAFETY_CORRECTION_OVERLAY_1",
+  "starting_source_sha": "200e6101bf8635453b2186be2f45ec87a5946465",
+  "historical_manifest": "contracts/cloudflare-dispatcher/preservation-manifest.json",
+  "historical_manifest_sha256": "b7f3686f8c4a77351af6f4d0314c60ec502e2bb9eb7441e48d5bf3500cf8cdfb",
+  "historical_files": 489,
+  "unchanged_historical_files": 483,
+  "intentional_runtime_corrections": [
+    {
+      "path": "includes/POD/PrintifyApiReadWorkflow.php",
+      "historical_sha256": "d87f05039fff7e56bb6e782273e50474b81b42a04ada771836919dc7ac0d1639",
+      "starting_sha256": "d87f05039fff7e56bb6e782273e50474b81b42a04ada771836919dc7ac0d1639",
+      "corrected_sha256": "b746790071c768887531924a531a8143c5f7c1a79ce029b5b38fd8a7d1ed5bf5",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    },
+    {
+      "path": "includes/POD/PrintifyControlledTransport.php",
+      "historical_sha256": "960c4d9d81c1dd66c40dde5362e3c6cfcedb0cbe0365611599bd697f3719caff",
+      "starting_sha256": "960c4d9d81c1dd66c40dde5362e3c6cfcedb0cbe0365611599bd697f3719caff",
+      "corrected_sha256": "f257643a7ed290fd61e9613bb748be7bb009ab4e96faf547019879b1c9953d5d",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    },
+    {
+      "path": "includes/POD/PrintifyLifecycleWorkflow.php",
+      "historical_sha256": "69a627965a2cea00c9f5a49536591e22ff5dfeb7cf70e147c1105ec169212c46",
+      "starting_sha256": "69a627965a2cea00c9f5a49536591e22ff5dfeb7cf70e147c1105ec169212c46",
+      "corrected_sha256": "4c8b6b6d042a5851383cfd3ea2fdc22aa6e64697c5fd2254c575198267e522a1",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    },
+    {
+      "path": "includes/POD/PrintifyLiveTransportInterlock.php",
+      "historical_sha256": "370959b15581d65d2da5831db2cddb05a33bd5e8f0de0d2f99ba9f4f69016a13",
+      "starting_sha256": "370959b15581d65d2da5831db2cddb05a33bd5e8f0de0d2f99ba9f4f69016a13",
+      "corrected_sha256": "55db76992d1a003d1b4b5140848cb4906cff3ae6f68aba842a114594ed678145",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    },
+    {
+      "path": "includes/POD/PrintifyProductPipeline.php",
+      "historical_sha256": "c69ec2c3eb138a69f133e01409ffbe190e530526415efb0eb252800c002b7bc8",
+      "starting_sha256": "c69ec2c3eb138a69f133e01409ffbe190e530526415efb0eb252800c002b7bc8",
+      "corrected_sha256": "54c940f525154cc1e01d28904c4e7d4e5795ab115d2c538471c81236e35c0049",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    },
+    {
+      "path": "includes/POD/PrintifyScopedCredentialRetriever.php",
+      "historical_sha256": "24723c971ee99e7a448c0ba35af61ac540a20171bb3934c3b477d93c7692bd6a",
+      "starting_sha256": "24723c971ee99e7a448c0ba35af61ac540a20171bb3934c3b477d93c7692bd6a",
+      "corrected_sha256": "2f1c03c6c9bc4d4822fb47f7617c31bcfbb4ab30724f04f8e8f59039f7de15fb",
+      "reason": "Repeated server-owned lease admission at credential, final dispatch and response boundaries"
+    }
+  ],
+  "new_runtime_files": [
+    {
+      "path": "includes/POD/PrintifyAuthorizationLease.php",
+      "sha256": "e5de4d6a5a9cdb6e0b396f4889f4adc8421d729f74d32ddcc3c73bfba9db9b8a",
+      "purpose": "Negative-only, typed lease prerequisite; no approval/checkpoint authority"
+    }
+  ],
+  "production_equivalence": "NOT_ASSERTED",
+  "policy_changed": false,
+  "operational_epochs_issued": false,
+  "credential_admission_authorized": false,
+  "external_execution_authorized": false,
+  "frozen_stage_a_replacement_authorized": false
+}

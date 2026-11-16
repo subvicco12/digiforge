@@ -7,6 +7,16 @@ runtime instance. Serialized environment flags cannot construct that instance.
 There is no deployment configuration, production factory, live witness backend,
 real credential adapter, enabled WordPress bridge or automatic activation path.
 
+## 2026-11-16 API safety corrections
+
+The historical 489-file preservation manifest remains frozen evidence for its
+original checkpoint. The current API correction overlay records six intentional
+PHP runtime corrections, one new negative-only lease helper and 483 unchanged
+historical files. See `docs/engineering/printify-api/SAFETY-CORRECTION-OVERLAY-20261116.json`
+and its sprint qualification ledger. Approved frozen Stage A archives, protected
+branches and deployment approvals are unchanged; this source correction does not
+authorize replacing them or executing provider requests.
+
 ## Implemented boundary
 
 ```mermaid

@@ -139,16 +139,28 @@ export class IndependentAuthorityService {
     freshness(context.certificate.manifest, now, 60);
     freshness(context.custody.manifest, now, 60);
     freshness(context.authentication.manifest, now, 30);
+    freshness(context.payload.authority.manifest, now, 300);
+    freshness(context.payload.authentication.manifest, now, 30);
     // STOP may already have made the result UNKNOWN; do not prevent its safe completion.
+  }
+  #currentIdentity(id, root) {
+    const context=this.#contexts.get(id);
+    insist(context,'WORKLOAD_CONTEXT');
+    const certificate=context.certificate.manifest,custody=context.custody.manifest,grant=context.payload.authority.manifest;
+    for(const key of ['epoch','account','credential_binding'])
+      insist(certificate[key]===root[key]&&custody[key]===root[key]&&grant[key]===root[key],'ATTESTATION_BINDING');
+    insist(certificate.namespace===root.namespace&&certificate.code===root.code&&certificate.public_key===root.workload_key&&Number.isSafeInteger(certificate.version)&&certificate.version>=root.minimum_version,'WORKLOAD_FLOOR');
+    insist(grant.generation===root.generation,'ROOT_REVOKED');
   }
   async physical(id, send) {
     const checked=await this.guard(id);
     // Final independent root read and expiry checks are synchronous with physical callback invocation.
     const context = this.#contexts.get(id),
       d = this.#root.active();
+    this.#currentIdentity(id,d);
     freshness(context.certificate.manifest, this.#clock(), 60);
     freshness(context.custody.manifest, this.#clock(), 60);
-    freshness(context.authentication.manifest, this.#clock(), 30);
+    this.completion(id);
     insist(d.leases.includes(id), "ROOT_LEASE_MISSING");
     if(this.#checkpoint)this.#checkpointBoundary(id,checked,true);
     return send();
@@ -285,14 +297,18 @@ export class IndependentAuthorityService {
           await this.#checkpoint.prepare(id,input.payload.checkpoint,payload);
         }
         result = await this.#runtime.dispatch(payload);
+        if(result.receipt?.manifest.status==='OBSERVED'){
+          try{this.completion(id);this.#currentIdentity(id,this.#root.active());}
+          catch{result={status:'UNKNOWN',receipt_committed:false,retry_permitted:false};}
+        }
         if (this.#checkpoint) {
           try { this.#checkpoint.assert(id); }
           catch { result={status:'UNKNOWN',receipt_committed:false,retry_permitted:false}; }
         }
       }
       const d = this.#root.read();
-      const responseId=operation==='CHECKPOINT_EXECUTE'?input.payload.authority.manifest.session+':'+input.payload.authority.manifest.slot:null;
-      const responseSnapshot=responseId ? await this.#runtime.checked() : null;
+      const responseId=['EXECUTE','CHECKPOINT_EXECUTE'].includes(operation)?input.payload.authority.manifest.session+':'+input.payload.authority.manifest.slot:null;
+      const responseSnapshot=operation==='CHECKPOINT_EXECUTE' ? await this.#runtime.checked() : null;
       const response=await sign(this.#ports.responsePrivate, "authority-response", {
         protocol: "dg-authority-response-v1",
         nonce,
@@ -304,6 +320,10 @@ export class IndependentAuthorityService {
         expires_at: this.#clock() + 30,
         result,
       });
+      if(responseId&&result.receipt?.manifest.status==='OBSERVED'){
+        try{this.completion(responseId);this.#currentIdentity(responseId,this.#root.active());}
+        catch{return {status:'UNKNOWN',receipt_committed:false,retry_permitted:false};}
+      }
       if(responseSnapshot){
         try { this.#checkpointBoundary(responseId,responseSnapshot); }
         catch { return {status:'UNKNOWN',receipt_committed:false,retry_permitted:false}; }
