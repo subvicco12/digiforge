@@ -33,6 +33,16 @@ class ImageHttpBoundaryTest(unittest.TestCase):
         result = self.scan()
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
+    def test_optional_image_module_absence_preserves_the_existing_source_gates(self):
+        for path in (self.root / 'includes/AI').glob('ImageGeneration*.php'):
+            path.unlink()
+        (self.root / 'includes/AI/OfflineImageTransport.php').unlink()
+        (self.root / 'includes/Portal/ImageGenerationPanel.php').unlink()
+        result = self.scan()
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        result = self.artifact_scan()
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_another_sender_same_basename_or_duplicate_stays_denied(self):
         for relative in ('modules/Rogue.php', 'modules/ImageGenerationHttpClient.php',
                          'includes/AI/ImageGenerationHttpClientXphp'):
