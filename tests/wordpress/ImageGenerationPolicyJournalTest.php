@@ -21,4 +21,11 @@ final class ImageGenerationPolicyJournalTest extends WP_UnitTestCase {
 
  public function testAuthorizationFreshlyDetectsStoredRoleCapabilityRevocation():void {self::assertTrue(Access::authorize());global $wpdb;$key=$wpdb->prefix.'user_roles';$roles=get_option($key);$roles['administrator']['capabilities']['manage_digiforge_ai']=false;$wpdb->update($wpdb->options,['option_value'=>serialize($roles)],['option_name'=>$key]);self::assertWPError(Access::authorize());}
 
+ public function testRecentListsOnlyCurrentActorsJobsWithoutDisclosingOtherOperators():void {
+  $p=(new Policy())->review($this->policy);self::assertIsArray($p);$journal=new Journal();$identity=$this->identity($p['hash']);$original=$journal->create($identity);self::assertIsArray($original);$other=self::factory()->user->create(['role'=>'administrator']);wp_set_current_user($other);ShopAccessFixture::authorizeActor($other,['personalized_pod'],['manage_digiforge_pod','manage_digiforge_ai']);global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$identity['created_by']=$other;$mine=$journal->create($identity);self::assertIsArray($mine);
+  $recent=$journal->recent($identity['source_key']);self::assertIsArray($recent,'Another authorized creator must not block this actor from discovering their own image attempts.');self::assertSame([$mine['id']],array_column($recent,'id'));self::assertWPError($journal->read($original['id']));self::assertWPError($journal->history($original['id']));self::assertWPError($journal->append($original['id'],$original['event_sha256'],['state'=>'CANCELLED']));$identity['parent_job']=$original['id'];self::assertWPError($journal->create($identity));
+  // Foreign corruption must remain visible as a held source, not be silently ignored.
+  $wpdb->delete(DigiForge\Database\Tables::audit_log(),['event_type'=>'image_job_event','object_id'=>$original['id']]);self::assertWPError($journal->recent($identity['source_key']));
+ }
+
 }
