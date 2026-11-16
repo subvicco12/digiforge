@@ -27,7 +27,7 @@ final class DeterministicPersonalizationSourceIntegrityTest extends TestCase
         eval('namespace DigiForge\\POD; final class BusinessScopeRepository { public function assertActiveOwnershipForMapping(int $id):array { return ["business_key"=>BusinessScope::DIGICRAFTIFY_GOODS,"program_key"=>BusinessScope::PERSONALIZED_POD]; } } final class TemplateCycleRepository { public function assertOwner(string $shop,string $hash):true { return true; } }');
         if (!function_exists('trailingslashit')) eval('function trailingslashit(string $path):string { return rtrim($path,"/")."/"; }');
         if (!function_exists('wp_upload_dir')) eval('function wp_upload_dir():array { return ["basedir"=>$GLOBALS["source_integrity_uploads"]]; }');
-        foreach (['POD/ProductionTemplateContract','POD/RasterArtworkCodec','POD/RepeatLayout','POD/ArtworkGeometryQa','POD/PersonalizationPayloadContract','POD/DeterministicPersonalizationRenderer','POD/RenderArtifactVerifier','ProductFactory/AssetStorage','Database/QueryEvidence'] as $file) require_once dirname(__DIR__,2).'/includes/'.$file.'.php';
+        foreach (['POD/ProductionTemplateContract','POD/RasterArtworkCodec','POD/RepeatLayout','POD/ArtworkGeometryQa','POD/PersonalizationPayloadContract','POD/CustomerPhotoSelection','POD/DeterministicPersonalizationRenderer','POD/RenderArtifactVerifier','ProductFactory/AssetStorage','Database/QueryEvidence'] as $file) require_once dirname(__DIR__,2).'/includes/'.$file.'.php';
         $root=sys_get_temp_dir().'/df-source-integrity-'.bin2hex(random_bytes(6));
         $GLOBALS['source_integrity_uploads']=$root;
         $directory=$root.'/digiforge/product-factory/'.rtrim($folder,'/');
@@ -52,12 +52,14 @@ final class DeterministicPersonalizationSourceIntegrityTest extends TestCase
                 return ['provider'=>'synthetic','provider_variant_key'=>'2:3','provider_product_key'=>'1'];
             }
             public function get_var(string $sql):mixed {
+                if(str_contains($sql,'BINARY option_name'))return null;
+                if(str_contains($sql,"photo_input_selected"))return 0;
                 if(str_contains($sql,'option_value'))return json_encode($this->proof);
                 if(str_contains($sql,'shop_reference'))return 'personalized_pod';
                 if(str_contains($sql,'SELECT environment'))return 'test';
                 return 1;
             }
-            public function get_results(string $sql,mixed $mode):array { return [['canonical_payload'=>$this->payload,'payload_hash'=>hash('sha256',$this->payload),'field_definitions'=>'[{"key":"photo","type":"image_reference"}]','schema_state'=>'APPROVED','schema_reviewer'=>1,'schema_reviewed_at'=>'2026-10-20 00:00:00']]; }
+            public function get_results(string $sql,mixed $mode):array { if(str_contains($sql,'SELECT id,provider_mapping_id'))return [['id'=>1,'provider_mapping_id'=>1]];return [['canonical_payload'=>$this->payload,'payload_hash'=>hash('sha256',$this->payload),'field_definitions'=>'[{"key":"photo","type":"image_reference"}]','schema_state'=>'APPROVED','schema_reviewer'=>1,'schema_reviewed_at'=>'2026-10-20 00:00:00']]; }
         };
         $render=['template_key'=>'synthetic-source','template_version'=>'1','template_sha256'=>$template['fingerprint'],'provider_mapping_id'=>1,'order_id'=>1,'personalization_evidence_hash'=>hash('sha256',$payload)];
         try {

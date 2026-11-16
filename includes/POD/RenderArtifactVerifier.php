@@ -54,6 +54,7 @@ final class RenderArtifactVerifier
  }
  public function assertCertified(array $render):array|WP_Error {
   $receipt=$this->read('digiforge_render_artifact_'.(string)($render['evidence_hash']??''));if($receipt instanceof WP_Error)return $receipt;if($receipt===null)return $this->error('receipt_required','Actual artifact byte verification is required before human review.');
+  $selection=(new CustomerPhotoSelection())->forRender($render);if($selection instanceof WP_Error)return $selection;if($selection!==null&&($receipt['deterministic_personalization_verified']??null)!==true)return $this->error('selected_photo_requires_deterministic_render','Selected photo inputs require exact current deterministic artifact evidence.');
   $template=$this->certifiedTemplate($render);if($template instanceof WP_Error)return $template;
   if(($receipt['evidence_hash']??null)!==($render['evidence_hash']??null)||($receipt['template_sha256']??null)!==$template['fingerprint']||($receipt['output']['sha256']??null)!==($render['output_sha256']??null)||($receipt['buyer_preview']['sha256']??null)!==($render['output_sha256']??null))return $this->error('conflict','Stored artifact and render identities do not agree.');
   if(isset($receipt['outputs'])){
