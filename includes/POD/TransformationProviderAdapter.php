@@ -4,7 +4,7 @@ namespace DigiForge\POD;
 use DigiForge\AI\MonetaryReservationRepository;
 use WP_Error;
 
-/** Bounded request planning only. No credentials, HTTP transport, retries or spending authority. */
+/** Bounded planning and explicit synthetic-response execution. No live transport or spending authority. */
 final class TransformationProviderAdapter
 {
     public function plan(string $shop,array $request,array $configuration):array|WP_Error
@@ -20,6 +20,11 @@ final class TransformationProviderAdapter
             if(!in_array($request['engine_id']??null,TransformationEngineContract::ENGINES,true)||($request['contract_version']??null)!==TransformationEngineContract::VERSION)throw new \InvalidArgumentException();
             return ['state'=>'CONFIGURATION_PLAN_ONLY','shop_key'=>$shop,'engine_id'=>$request['engine_id'],'provider'=>$configuration['provider'],'model'=>$configuration['model'],'request_sha256'=>hash('sha256',\DigiForge\Orders\Validator::canonicalJson($request)),'configuration_sha256'=>hash('sha256',\DigiForge\Orders\Validator::canonicalJson($configuration)),'budget_reservation_required'=>true,'authoritative_inclusive_quote_required'=>true,'existing_reservation_boundary'=>MonetaryReservationRepository::class,'monetary_reservation_performed'=>false,'network_request_permitted'=>false,'external_execution_authorized'=>false];
         }catch(\InvalidArgumentException){return self::error('approved_provider_and_budget_configuration_required');}
+    }
+    /** Never selected by execute(); callers must explicitly request local fixture semantics. */
+    public function executeOfflineFixture(string $shop,string $jobKey,array $configuration,array $response):array|WP_Error
+    {
+        return (new TransformationFixtureExecution())->execute($shop,$jobKey,$configuration,$response);
     }
     public function execute(string $shop,array $request,array $configuration):WP_Error {return self::error('live_execution_forbidden');}
     private static function error(string $code):WP_Error{return new WP_Error('transformation_'.$code,'Reviewed provider/model/terms and owner ceilings cannot create live execution authority.',['status'=>409,'external_execution_authorized'=>false,'monetary_reservation_performed'=>false]);}
