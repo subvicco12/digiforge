@@ -4,7 +4,7 @@ namespace DigiForge\Queue;
 
 use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
-use DigiForge\Orders\HeldFulfillmentPreparation;
+use DigiForge\Orders\{HeldFulfillmentPreparation,PersonalizationReadContext};
 use DigiForge\Portal\ScopedCapabilityPolicy;
 use DigiForge\Portal\ScopedCapabilityPolicyRepository;
 use DigiForge\Security\ShopAccess;
@@ -14,13 +14,14 @@ use WP_Error;
 final class Shop2HeldPreparationDispatcher
 {
     private const TYPE='shop2_held_preparation';
+    public function __construct(private ?PersonalizationReadContext $personalizationContext=null) {}
 
     /** Queue references to exact currently approved evidence; never arms automation. */
     public function enqueue(string $shop,int $orderId,int $intentId,string $key,array $dependencies=[]):int|WP_Error
     {
         $access=$this->access($shop);if(is_wp_error($access))return $access;
         if($orderId<1||$intentId<1||$key===''||strlen($key)>191)return self::error('input','Exact bounded order, intent and idempotency identities are required.');
-        $prepared=(new HeldFulfillmentPreparation())->prepare($shop,$orderId,$intentId);
+        $prepared=(new HeldFulfillmentPreparation($this->personalizationContext))->prepare($shop,$orderId,$intentId);
         if(is_wp_error($prepared))return $prepared;
         if(!$this->held($prepared))return self::error('handler','Only held local preparation can enter this queue.');
         $payload=['schema'=>1,'shop_key'=>$shop,'actor_id'=>get_current_user_id(),'order_id'=>$orderId,

@@ -9,9 +9,9 @@
   "files": [
     {
       "path": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
-      "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
-      "source_blob": "77b12b45b77001083bdb4a0f6d7d6bfa3a9b9ef6",
-      "sha256": "76c662f38cb3222f3534abf2daf4141d24c50d2ac0e986b8a6f351e36ce5e8ab",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "a8c1235ae6c6dce280b0466596d2b9b05e79ddc0",
+      "sha256": "61fe31b67a0c3a0fe1af0b661a95fa8b692dd05c15dba11d45855850cd79bb6f",
       "prior_b_sha256": null,
       "base_comparison": "ABSENT",
       "source_history": [
@@ -24,16 +24,28 @@
           "source_commit": "8c1f4f98f7df4806504477ff5d91b9efb891cbc8",
           "source_blob": "74c2aab3d28e333dc4f619813468d44237b0cfd2",
           "sha256": "fb8ace148bfdaa338a0851229673449817fb533baf419670b6cd83665a0d82e4"
+        },
+        {
+          "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
+          "source_blob": "77b12b45b77001083bdb4a0f6d7d6bfa3a9b9ef6",
+          "sha256": "76c662f38cb3222f3534abf2daf4141d24c50d2ac0e986b8a6f351e36ce5e8ab"
         }
       ]
     },
     {
       "path": "includes/POD/CustomerEditorRepository.php",
-      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
-      "source_blob": "cdadf87ba890c7c26e380d25ef1a569009c50179",
-      "sha256": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "e5d2906e2c0a908e987da69c6d3d54b294335baf",
+      "sha256": "99654aa2e06d6a27378b0874663fbfa6b0df00e9f77389efbae260153e116bc4",
       "prior_b_sha256": "7383a810ad6b6f728157143e147a54fae073257240fafd3d0689fe4bf0c3e635",
-      "base_comparison": "EXACT_61D2"
+      "base_comparison": "EXACT_61D2",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "cdadf87ba890c7c26e380d25ef1a569009c50179",
+          "sha256": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db"
+        }
+      ]
     },
     {
       "path": "includes/POD/CustomerPhotoProducerFence.php",
@@ -83,9 +95,9 @@
     },
     {
       "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
-      "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
-      "source_blob": "1d51d4bd2bf8981906713e92d6f3d09d508fbf30",
-      "sha256": "8ccc4d7315ebfdee4dbf19565bb53aa257df75a3771600c18315257b0405ba16",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "aba1a1b7109fcdb8f8c65877e93e5242734838c5",
+      "sha256": "12cecac19f6f2f1cc98aa955e54c1c7b888a174e1645a52b0baec1785914b671",
       "prior_b_sha256": null,
       "base_comparison": "ABSENT",
       "source_history": [
@@ -103,6 +115,11 @@
           "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
           "source_blob": "3fff269c89490352aba9e66312c1c59f41f12c8d",
           "sha256": "3e325469fc823a38eb6d3428643a307e3383e94d696212c47444cd8ca39b2899"
+        },
+        {
+          "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+          "source_blob": "1d51d4bd2bf8981906713e92d6f3d09d508fbf30",
+          "sha256": "8ccc4d7315ebfdee4dbf19565bb53aa257df75a3771600c18315257b0405ba16"
         }
       ],
       "last_owner_change_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6"
@@ -201,5 +218,21 @@
     "file": "tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
     "scope": "Approved three-line TEST-only owned fixture COMMIT/autocommit setup; all actual security assertions retained.",
     "qualification": "PENDING_COMBINED_WEBSITE_SECURITY_FIRST_CURRENTREAD_LAST"
+  },
+  "operator_session_scope_950_update": {
+    "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+    "producer_parent": "551a7aa9c0a552c08e00588f338ce8924ce39820",
+    "primary_base": "9a9f316256429a9d997172f97ab9ddeb1032c000",
+    "issue_receipt": "6915044917",
+    "contract": "shop2-editor-session-scope-v1",
+    "api": "CustomerEditorRepository::targetShopForSession(string): string|WP_Error",
+    "files": [
+      "includes/POD/CustomerEditorRepository.php",
+      "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md"
+    ],
+    "base_comparison": "Repository/doc exact551parent; CurrentRead exact919ownerbase plus2additive dd04ca9a reviewer-revocation cases carried in950 exactblob; no B-owned test edits displaced.",
+    "scope": "Fresh plain POD target observation through existing operator/session/proof authority only; storage VERSION/callback/approval bodies unchanged.",
+    "qualification": "PENDING_B_STORED_SESSION_TARGET_RESOLVER_AND_FOCUSED_TESTS"
   }
 }

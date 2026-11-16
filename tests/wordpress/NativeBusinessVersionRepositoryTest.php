@@ -33,8 +33,30 @@ final class NativeBusinessVersionRepositoryTest extends WP_UnitTestCase {
   $this->install();$args=$this->reviewed();global $wpdb;$confirmed=false;$filter=static function($q)use(&$confirmed,$wpdb){if(str_contains($q,'INSERT INTO')&&str_contains($q,'local_business_order_version_confirmed'))$confirmed=true;if($q==='COMMIT'&&$confirmed){$confirmed=false;$wpdb->query('COMMIT');WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());}return $q;};add_filter('query',$filter);try{$r=(new NativeBusinessVersionRepository())->recordReviewedVersion(...[...$args,0,self::ZERO]);self::assertWPError($r);self::assertSame('UNKNOWN',$r->get_error_data()['outcome']);self::assertFalse($r->get_error_data()['external_execution_authorized']);}finally{remove_filter('query',$filter);}self::assertSame('CONFIRMED',$wpdb->get_var('SELECT confirmation_state FROM '.NativeBusinessVersionSchema::table()));
  }
  public function testThrowingRollbackStillAttemptsBothLockReleasesAndReturnsUnknown():void {
-  $this->install();$args=$this->reviewed();$releases=0;$filter=static function($q)use(&$releases){if(str_contains($q,'INSERT INTO')&&str_contains($q,'local_business_order_version_recorded'))throw new RuntimeException('Synthetic audit exception');if($q==='ROLLBACK')throw new RuntimeException('Synthetic rollback exception');if(str_contains($q,'SELECT RELEASE_LOCK(')){++$releases;if($releases===1)throw new RuntimeException('Synthetic release exception');}return $q;};add_filter('query',$filter);try{$r=(new NativeBusinessVersionRepository())->recordReviewedVersion(...[...$args,0,self::ZERO]);self::assertWPError($r);self::assertSame('UNKNOWN',$r->get_error_data()['outcome']);self::assertGreaterThanOrEqual(2,$releases);}finally{remove_filter('query',$filter);global $wpdb;$wpdb->query('ROLLBACK');$wpdb->query('SELECT RELEASE_ALL_LOCKS()');}
+  $this->install();$args=$this->reviewed();$scope=$args[0];
+  $source=PrintifyApiApprovalFixture::checked(\DigiForge\Connector\Printify\NativeOrderSourceEvidence::resolve($scope,$args[1],$args[3]));
+  $physical=[$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment];
+  $stream=\DigiForge\Connector\Printify\NativePortContract::hash(['schema'=>'DF_LOCAL_BUSINESS_ORDER_STREAM_1','physical_scope'=>$physical,'source_order_identity'=>$source['order_identity']]);
+  $local=\DigiForge\Connector\Printify\NativePortContract::hash(['schema'=>'DF_LOCAL_BUSINESS_ORDER_LOCK_1','physical_scope'=>$physical,'local_order_id'=>$args[2]]);
+  $expected=['df_bov_'.substr($stream,0,56),'df_bov_'.substr($local,0,56)];sort($expected);self::assertCount(2,array_unique($expected));
+  $auditFault=false;$rollbackFault=false;$releases=[];
+  $filter=static function($q)use(&$auditFault,&$rollbackFault,&$releases,$expected){
+   if(str_contains($q,'INSERT INTO')&&str_contains($q,'local_business_order_version_recorded')){$auditFault=true;throw new RuntimeException('Synthetic audit exception');}
+   // Earlier producer READ-lease cleanup is not this local repository's rollback fault.
+   if(!$auditFault)return $q;
+   if($q==='ROLLBACK'){$rollbackFault=true;throw new RuntimeException('Synthetic rollback exception');}
+   if(str_contains($q,'SELECT RELEASE_LOCK('))foreach($expected as $name)if(str_contains($q,$name)){$releases[]=$name;if(count($releases)===1)throw new RuntimeException('Synthetic release exception');}
+   return $q;
+  };
+  add_filter('query',$filter);
+  try{
+   $r=(new NativeBusinessVersionRepository())->recordReviewedVersion(...[...$args,0,self::ZERO]);self::assertWPError($r);
+   self::assertTrue($auditFault,'The fault must reach the actual local business-version audit INSERT.');self::assertTrue($rollbackFault,'The owned transaction rollback must be attempted.');
+   self::assertSame('UNKNOWN',$r->get_error_data()['outcome']);self::assertFalse($r->get_error_data()['retry_permitted']);
+   sort($releases);self::assertSame($expected,$releases,'Both distinct owned lock releases must be attempted despite the first throwing.');
+  }finally{remove_filter('query',$filter);global $wpdb;$wpdb->query('ROLLBACK');$wpdb->query('SELECT RELEASE_ALL_LOCKS()');}
  }
+
  public function testSeparateProcessReservationHasOnlyOneWinner():void {
   $this->install();$a=$this->reviewed();$source=PrintifyApiApprovalFixture::checked(\DigiForge\Connector\Printify\NativeOrderSourceEvidence::resolve($a[0],1,$a[3]));$scope=$a[0];$stream=\DigiForge\Connector\Printify\NativePortContract::hash(['schema'=>'DF_LOCAL_BUSINESS_ORDER_STREAM_1','physical_scope'=>[$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment],'source_order_identity'=>$source['order_identity']]);$name='df_bov_'.substr($stream,0,56);$parts=$GLOBALS['wpdb']->parse_db_host(DB_HOST);self::assertIsArray($parts);$script='$c=json_decode(fgets(STDIN),true);mysqli_report(MYSQLI_REPORT_ERROR|MYSQLI_REPORT_STRICT);$m=new mysqli($c["host"],$c["user"],$c["password"],$c["database"],$c["port"],$c["socket"]);$q=$m->prepare("SELECT GET_LOCK(?,0)");$q->bind_param("s",$c["lock"]);$q->execute();$r=$q->get_result()->fetch_row();echo $r[0]==1?"LOCKED\n":"DENIED\n";flush();fgets(STDIN);$q=$m->prepare("SELECT RELEASE_LOCK(?)");$q->bind_param("s",$c["lock"]);$q->execute();';$process=proc_open([PHP_BINARY,'-r',$script],[0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);self::assertIsResource($process);fwrite($pipes[0],wp_json_encode(['host'=>$parts[0],'port'=>$parts[1]??3306,'socket'=>$parts[2]??null,'user'=>DB_USER,'password'=>DB_PASSWORD,'database'=>DB_NAME,'lock'=>$name])."\n");stream_set_timeout($pipes[1],5);self::assertSame("LOCKED\n",fgets($pipes[1]));
   try{$denied=(new NativeBusinessVersionRepository())->recordReviewedVersion(...[...$a,0,self::ZERO]);self::assertWPError($denied);self::assertSame('native_business_version_lock_unavailable',$denied->get_error_code());global $wpdb;self::assertSame('0',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.NativeBusinessVersionSchema::table()));}finally{fwrite($pipes[0],"release\n");foreach($pipes as $pipe)fclose($pipe);self::assertSame(0,proc_close($process));}$winner=PrintifyApiApprovalFixture::checked((new NativeBusinessVersionRepository())->recordReviewedVersion(...[...$a,0,self::ZERO]));self::assertSame(1,$winner['local_business_version_number']);

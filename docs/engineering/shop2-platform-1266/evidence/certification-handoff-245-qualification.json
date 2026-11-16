@@ -1,0 +1,638 @@
+{
+  "status": "PASS_AFFECTED_COMPOSITION_ONLY",
+  "base_commit": "9a9f316256429a9d997172f97ab9ddeb1032c000",
+  "tests": 245,
+  "assertions": 10525,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 493.005,
+  "source_hash_count": 703,
+  "source_and_runner_hashes_unchanged": true,
+  "website_security_first": true,
+  "current_read_last": true,
+  "class_count": 29,
+  "classes": [
+    {
+      "name": "OperatorOverviewAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/OperatorOverviewAcceptanceTest.php",
+      "tests": "7",
+      "assertions": "123",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.661014"
+    },
+    {
+      "name": "PortalShopAccessAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PortalShopAccessAcceptanceTest.php",
+      "tests": "15",
+      "assertions": "160",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "3.349938"
+    },
+    {
+      "name": "PortalWorkflowAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PortalWorkflowAcceptanceTest.php",
+      "tests": "5",
+      "assertions": "463",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "8.376867"
+    },
+    {
+      "name": "ShopAccessAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessAcceptanceTest.php",
+      "tests": "1",
+      "assertions": "37",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.380574"
+    },
+    {
+      "name": "ShopAccessRestAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessRestAcceptanceTest.php",
+      "tests": "4",
+      "assertions": "27",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.487130"
+    },
+    {
+      "name": "ShopAccessRevocationIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessRevocationIntegrityTest.php",
+      "tests": "2",
+      "assertions": "13",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.152581"
+    },
+    {
+      "name": "ShopAccessWorkflowAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
+      "tests": "3",
+      "assertions": "38",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.412704"
+    },
+    {
+      "name": "TwoShopPortalAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/TwoShopPortalAcceptanceTest.php",
+      "tests": "6",
+      "assertions": "736",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.701126"
+    },
+    {
+      "name": "WebsiteOwnerAccessTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php",
+      "tests": "15",
+      "assertions": "239",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "3.018777"
+    },
+    {
+      "name": "CustomerEditorPhotoWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "tests": "1",
+      "assertions": "71",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.882389"
+    },
+    {
+      "name": "CustomerPhotoRenderWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "tests": "5",
+      "assertions": "518",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "71.911652"
+    },
+    {
+      "name": "CustomerPhotoSelectionAdmissionTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "tests": "2",
+      "assertions": "83",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.344164"
+    },
+    {
+      "name": "CustomerPhotoHeldIntegrationTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoHeldIntegrationTest.php",
+      "tests": "25",
+      "assertions": "317",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "78.617956"
+    },
+    {
+      "name": "ProductionPersonalizationCurrentnessTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ProductionPersonalizationCurrentnessTest.php",
+      "tests": "6",
+      "assertions": "176",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.897745"
+    },
+    {
+      "name": "HeldFulfillmentPreparationTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/HeldFulfillmentPreparationTest.php",
+      "tests": "9",
+      "assertions": "1746",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "15.627157"
+    },
+    {
+      "name": "OrderLocalWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/OrderLocalWorkflowTest.php",
+      "tests": "14",
+      "assertions": "128",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "67.529935"
+    },
+    {
+      "name": "FinalConvergenceScenarioTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FinalConvergenceScenarioTest.php",
+      "tests": "2",
+      "assertions": "112",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.239988"
+    },
+    {
+      "name": "EtsyTrackingRecentAdmissionTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/EtsyTrackingRecentAdmissionTest.php",
+      "tests": "5",
+      "assertions": "61",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.794137"
+    },
+    {
+      "name": "PrintifyWebhookReconciliationIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PrintifyWebhookReconciliationIntegrityTest.php",
+      "tests": "17",
+      "assertions": "281",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "6.607945"
+    },
+    {
+      "name": "PrintifyWebhookInboxTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PrintifyWebhookInboxTest.php",
+      "tests": "9",
+      "assertions": "41",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.452063"
+    },
+    {
+      "name": "FocusedEtsyOrderReadinessAvailabilityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php",
+      "tests": "2",
+      "assertions": "36",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.113902"
+    },
+    {
+      "name": "FinanceNativeEvidenceStoreTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FinanceNativeEvidenceStoreTest.php",
+      "tests": "26",
+      "assertions": "542",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "20.727181"
+    },
+    {
+      "name": "RenderSourceArtifactIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/RenderSourceArtifactIntegrityTest.php",
+      "tests": "1",
+      "assertions": "156",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.776885"
+    },
+    {
+      "name": "CustomerPhotoOwnerCurrentReadFailureReproTest",
+      "file": "/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php",
+      "tests": "2",
+      "assertions": "44",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "4.161288"
+    },
+    {
+      "name": "Shop2HeldJobRecoveryTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php",
+      "tests": "24",
+      "assertions": "356",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "111.702274"
+    },
+    {
+      "name": "OrderHeldJobWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/OrderHeldJobWorkflowTest.php",
+      "tests": "9",
+      "assertions": "105",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "39.471995"
+    },
+    {
+      "name": "NativeBusinessVersionRepositoryTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/NativeBusinessVersionRepositoryTest.php",
+      "tests": "1",
+      "assertions": "8",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "23.728409"
+    },
+    {
+      "name": "CustomerEditorOperatorTargetScopeTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php",
+      "tests": "5",
+      "assertions": "321",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "10.673709"
+    },
+    {
+      "name": "CustomerPhotoCurrentReadTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "tests": "22",
+      "assertions": "3587",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "14.918425"
+    }
+  ],
+  "audit5043_failure_mapping": [
+    {
+      "class": "NativeBusinessVersionRepositoryTest",
+      "case": "testThrowingRollbackStillAttemptsBothLockReleasesAndReturnsUnknown",
+      "new_result": "PASS"
+    },
+    {
+      "class": "OrderHeldJobWorkflowTest",
+      "case": "testActualRegisteredTwoStepEnqueueCreatesOnlyBlockedMetadataAndScopedInspection",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testActualEnqueueIsStableBlockedMetadataAndFreshKeyCannotRecreateIt",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExpiredActualLeaseQuarantinesOnceAndCannotBeReenqueued",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testLiveLeaseWrongTupleAndDifferentSignedActorCannotMutateJob",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testChangedSnapshotAndMalformedUnknownJobBlockFreshEnqueue",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExplicitNullDependenciesCannotMasqueradeAsReadyEvidence",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testQuarantineDoesNotRequireOrCertifyCurrentPlanApproval",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testOuterTransactionAndFailedAuditPreserveExpiredJob",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #0",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #1",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #2",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #3",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #4",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testConcurrentLineChangeCannotCommitAnApparentlyCurrentStaleEnqueue",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #0",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #1",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerStartsActualHeldJobAndCrashesBeforeCompletion",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerLostCommitAcknowledgementLeavesQuarantineConsumed",
+      "new_result": "PASS"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testDurableCommitWithFalseDriverResultIsExplicitlyUnknownAndCannotReplay",
+      "new_result": "PASS"
+    }
+  ],
+  "previous_17_fixture_failure_mapping": [
+    {
+      "class": "FinalConvergenceScenarioTest",
+      "case": "testPersonalizedPodReviewChainStopsBeforeExternalExecution",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testPublicReviewProofBindsIndependentReviewerAfterIdenticalPayloadReuse",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testReplacementCannotReturnOldSelectionFromActualRepeatableReadSnapshot",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testFirstManagedApprovalCannotRetainOldLegacyNull",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testProducerFenceBlocksActualSecondConnectionEditorAndSelectionMutations",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #0",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #1",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #2",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCallerOwnedWritesAreNeverCommittedByProducerMutations",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testMissingOrCorruptSourceBytesNeverBecomeLegacyFallback",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testDirectRenderWriterRetainsProducerFenceThroughActualWrite with data set #0",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testDirectRenderWriterRetainsProducerFenceThroughActualWrite with data set #1",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testProducerMutationReleaseAcknowledgementFailureDeniesCommittedResult",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #0",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #1",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #2",
+      "new_result": "PASS"
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #3",
+      "new_result": "PASS"
+    }
+  ],
+  "baseline201_all_case_ids_preserved_and_passed": true,
+  "baseline201_case_count": 201,
+  "native_scope": "Only changed testThrowingRollbackStillAttemptsBothLockReleasesAndReturnsUnknown ran; native app byte-identical to HEAD. Other12 cases reused priorCI, no wholeclass/fullrepo acceptance claim.",
+  "normal_methods_excluded": [],
+  "fresh_empty_verified_disposable_db": true,
+  "artifacts": [
+    {
+      "path": "/tmp/mission7-final245.log",
+      "sha256": "9a4a5347733555196f333b4cf047dfac8c5b1e9ca96e02198ac6b94998ae8aa6"
+    },
+    {
+      "path": "/tmp/mission7-final245.xml",
+      "sha256": "61149579c91eec285f7a273d60ae0fe61dcce4b6ff4e01772eaa739d342c582c"
+    },
+    {
+      "path": "/tmp/mission7-final245-source-receipt.json",
+      "sha256": "a2116f3d4dd87599bbf9205f1febb3f41670e1ea41d683e22a823263d3d59f35"
+    },
+    {
+      "path": "/tmp/mission7-final245-command.sh",
+      "sha256": "e95a9e1dd286018e9de0514ba9502e82ede08fe99b48fc99ceaffe802e60f558"
+    },
+    {
+      "path": "/tmp/mission7-final245-suite.xml",
+      "sha256": "0c665fa89fadc8e396e43514c6ed8121d164b7db344f21a4b4eb2860373bdd72"
+    },
+    {
+      "path": "/tmp/mission7-final245-bootstrap.php",
+      "sha256": "5e5530c65dcd73ef3bf771c325d6f2653917a436781785baf03c0d062422f23f"
+    },
+    {
+      "path": "/tmp/mission7-final245-loaded-paths.json",
+      "sha256": "b71b6eb2eb032855fa209b04dcc1d30541f6f7da486c65964d141f9127593888"
+    },
+    {
+      "path": "/tmp/mission7-final245-preflight.json",
+      "sha256": "8d7dea43a01c473c720108b3f8867350e0d5c31d41414e20134aaf42583d6b69"
+    },
+    {
+      "path": "/tmp/audit5043-failure-identities.json",
+      "sha256": "7c76c106c28bd6f62d0ba8ee5402ba4b6afaf315f58d598c5d46796a8335eeb2"
+    }
+  ],
+  "changed_new_files": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "sha256": "61fe31b67a0c3a0fe1af0b661a95fa8b692dd05c15dba11d45855850cd79bb6f",
+      "blob": "a8c1235ae6c6dce280b0466596d2b9b05e79ddc0"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/photo-retained-lease-candidate-import.json",
+      "sha256": "4eb533d3b476de5455a623770740ff5a3bf790ef500955102c3680d985fabbe1",
+      "blob": "49513c707a9274696e5c9895aa35b0350cff423e"
+    },
+    {
+      "path": "includes/POD/CustomerEditorRepository.php",
+      "sha256": "99654aa2e06d6a27378b0874663fbfa6b0df00e9f77389efbae260153e116bc4",
+      "blob": "e5d2906e2c0a908e987da69c6d3d54b294335baf"
+    },
+    {
+      "path": "includes/Queue/Shop2HeldJobRecovery.php",
+      "sha256": "b74a1b094b812bfd38df5e34186f036724b2d27fe5da244c0aa011276ef1c93b",
+      "blob": "0c9e51b0662e26004da62515cc1ed969f28af1fb"
+    },
+    {
+      "path": "includes/Queue/Shop2HeldPreparationDispatcher.php",
+      "sha256": "d21aba0bccf227a12da4f165f031aadabb7abf2afae290d06ba4d87765ee3a99",
+      "blob": "218b0599fee6be8a4889029a98334e902023ac9f"
+    },
+    {
+      "path": "includes/Security/ShopAccessTargetScope.php",
+      "sha256": "f5456a4c74c6ebf0df658c683139d10d1be7f03e5b32bdf9d8d42184898d46f8",
+      "blob": "a547dee35f70451d46d4a01d5d950f2925bee929"
+    },
+    {
+      "path": "tests/wordpress/CustomerEditorOperatorTargetScopeTest.php",
+      "sha256": "afded6b5d07d503ab8cb1e1b9b141c897832e52dc0e8700d3c15ee84016dc8f2",
+      "blob": "2d837058e4876d4b43da3b3f881d35d527643642"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "sha256": "12cecac19f6f2f1cc98aa955e54c1c7b888a174e1645a52b0baec1785914b671",
+      "blob": "aba1a1b7109fcdb8f8c65877e93e5242734838c5"
+    },
+    {
+      "path": "tests/wordpress/NativeBusinessVersionRepositoryTest.php",
+      "sha256": "5d32c1a3eaa7794ce9b7729446da980749e23f907fe7f726e8ebd968dc1c16b9",
+      "blob": "f8d4b8d9bc47dd55e7f47fdf1d17a3f445d48234"
+    },
+    {
+      "path": "tests/wordpress/Shop2HeldJobRecoveryTest.php",
+      "sha256": "92bc9c93576f5e1fcdb3f1c83717bf543c0dc9c5c96d55200bd49aaf47af88bc",
+      "blob": "67556eaedf0f7a1a68aec28780812a28f9d0355e"
+    }
+  ],
+  "runtime_paths": {
+    "cwd": "/workspace/digiforge-lane-b-sprint",
+    "classes": {
+      "DigiForge\\Orders\\PersonalizationCurrentness": "/workspace/digiforge-lane-b-sprint/includes/Orders/PersonalizationCurrentness.php",
+      "DigiForge\\Orders\\PersonalizationReadContext": "/workspace/digiforge-lane-b-sprint/includes/Orders/PersonalizationReadContext.php",
+      "DigiForge\\Orders\\Repository": "/workspace/digiforge-lane-b-sprint/includes/Orders/Repository.php",
+      "DigiForge\\Orders\\HeldFulfillmentPreparation": "/workspace/digiforge-lane-b-sprint/includes/Orders/HeldFulfillmentPreparation.php",
+      "DigiForge\\POD\\CustomerPhotoProducerFence": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerPhotoProducerFence.php",
+      "DigiForge\\POD\\CustomerPhotoSelection": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerPhotoSelection.php",
+      "DigiForge\\POD\\CustomerEditorRepository": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerEditorRepository.php",
+      "DigiForge\\POD\\RenderEvidenceRepository": "/workspace/digiforge-lane-b-sprint/includes/POD/RenderEvidenceRepository.php",
+      "DigiForge\\Queue\\Shop2HeldJobRecovery": "/workspace/digiforge-lane-b-sprint/includes/Queue/Shop2HeldJobRecovery.php",
+      "DigiForge\\Queue\\Shop2HeldPreparationDispatcher": "/workspace/digiforge-lane-b-sprint/includes/Queue/Shop2HeldPreparationDispatcher.php",
+      "DigiForge\\Security\\ShopAccessTargetScope": "/workspace/digiforge-lane-b-sprint/includes/Security/ShopAccessTargetScope.php",
+      "DigiForge\\Connector\\Printify\\NativeBusinessVersionRepository": "/workspace/digiforge-lane-b-sprint/includes/Connector/Printify/NativeBusinessVersionRepository.php"
+    }
+  },
+  "capability_promotion": false
+}

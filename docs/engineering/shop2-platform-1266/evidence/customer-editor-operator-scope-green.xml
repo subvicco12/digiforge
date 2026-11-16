@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" tests="5" assertions="321" errors="0" warnings="0" failures="0" skipped="0" time="16.886196">
+    <testcase name="testPodOnlyOperatorReachesAllThreeRealRegisteredCallbacks" class="CustomerEditorOperatorTargetScopeTest" classname="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" line="42" assertions="62" time="5.280161"/>
+    <testcase name="testConflictingClaimsCannotShadowRegisteredSessionOrShop" class="CustomerEditorOperatorTargetScopeTest" classname="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" line="48" assertions="69" time="2.654303"/>
+    <testcase name="testProducerErrorsAndCallerTransactionDenyWithoutGlobalFallback" class="CustomerEditorOperatorTargetScopeTest" classname="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" line="55" assertions="66" time="2.261810"/>
+    <testcase name="testNonceBuyerAndMissingGrantRemainDenied" class="CustomerEditorOperatorTargetScopeTest" classname="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" line="62" assertions="61" time="4.383253"/>
+    <testcase name="testBuyerAndUnregisteredRouteGrammarRemainOutsideTargetBridge" class="CustomerEditorOperatorTargetScopeTest" classname="CustomerEditorOperatorTargetScopeTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorOperatorTargetScopeTest.php" line="67" assertions="63" time="2.306669"/>
+  </testsuite>
+</testsuites>

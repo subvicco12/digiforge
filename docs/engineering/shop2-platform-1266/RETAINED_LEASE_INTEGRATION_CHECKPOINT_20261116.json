@@ -1,13 +1,16 @@
 {
   "schema": "shop2-lane-b-held-integration-checkpoint-v1",
-  "parent_commit": "72fe9b7dc04d5143387f401e67b59c61ce27be0c",
+  "parent_commit": "9a9f316256429a9d997172f97ab9ddeb1032c000",
   "disposition": "COMPOSED_OFFLINE_INTEGRATION_PASSED_EXACT_HEAD_CI_PENDING",
   "changes": [
     "Exact producer-owned c2f/8c/a100 source blobs; no full Lane A branch import",
     "Server-issued legacy-NULL read context retains actual producer lease across B local review transactions",
     "Current locked B identity, schema, listing and numeric shop metadata; shared material-derived validation prevents mixed-read ABA",
     "One-use acknowledgement survives rollback; checked original-session cleanup and UNKNOWN commit disposition; final response authorization preserved",
-    "Four historical scanner spans independently verified against exact typed Git/source evidence; default rules and full reachable history retained"
+    "Four historical scanner spans independently verified against exact typed Git/source evidence; default rules and full reachable history retained",
+    "Connect retained server-issued legacy-NULL context through actual queue recovery and dispatcher enqueue; retain current locked source, commit outcome, replay and final actor checks",
+    "Consume exact three-file A950 stored-session target handoff; restrict only anchored operator POST intake/publish/revoke to stored admitted POD scope",
+    "Phase-target the native business-version rollback fixture; preserve UNKNOWN and both actual lock release assertions"
   ],
   "verification": {
     "bounded_wordpress": {
@@ -50,17 +53,20 @@
       "remaining": "FinalConvergence invalid owned test frame; CurrentRead fixture inherits immutable template from preceding photo classes. Exclusive test-only owner handoff Issue1266 comment6913016582."
     },
     "composed_wordpress": {
-      "tests": 201,
-      "assertions": 8903,
+      "tests": 245,
+      "assertions": 10525,
       "failures": 0,
       "errors": 0,
       "skipped": 0,
-      "all_17_prior_failures_matched_to_passing_cases": true,
+      "all_20_audit5043_failure_identities_passed": true,
+      "all_17_prior_fixture_failures_passed": true,
+      "all_201_baseline_case_ids_preserved_and_passed": true,
       "website_security_first": true,
       "current_read_last": true,
-      "runtime_source_unchanged_from_parent": true,
+      "source_hashes": 703,
+      "source_hashes_unchanged_during_run": true,
       "fresh_empty_disposable_database": true,
-      "scope": "Complete affected composition; not whole-repository or installed-candidate certification"
+      "scope": "Complete affected composition, including actual separate PHP crash/recovery workers; not whole-repository or installed-candidate certification"
     },
     "wrong_type_negative_fixture": {
       "root_cause": "Generated Git identifier below the default entropy threshold was not emitted by the pinned scanner; actual raw reports ruled out finding deduplication",
@@ -75,16 +81,51 @@
       "existing_skips": 1
     },
     "latest_repository_audit": {
-      "number": 5041,
-      "run": 43851827574,
+      "number": 5043,
+      "run": 43853306761,
       "conclusion": "FAILURE",
-      "stage": "Legacy and unit tests",
-      "tests": 2275,
-      "assertions": 12061,
-      "failures": 5,
-      "existing_skip": 1
+      "wordpress_tests": 2215,
+      "assertions": 87025,
+      "errors": 1,
+      "failures": 19,
+      "existing_skips": 5,
+      "all_20_cases_passed_in_corrected_245_composition": true
     },
-    "source_contract_repair": "All five stale source-contract assertions repaired without removing human-review, hash, availability or failure-path guards. Full frozen-byte unit suite passed; new exact-head CI required."
+    "source_contract_repair": "All five stale source-contract assertions repaired without removing human-review, hash, availability or failure-path guards. Full frozen-byte unit suite passed; new exact-head CI required.",
+    "prior_201_composition": {
+      "tests": 201,
+      "assertions": 8903,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "all_17_prior_failures_matched_to_passing_cases": true,
+      "website_security_first": true,
+      "current_read_last": true,
+      "runtime_source_unchanged_from_parent": true,
+      "fresh_empty_disposable_database": true,
+      "scope": "Complete affected composition; not whole-repository or installed-candidate certification"
+    },
+    "queue_recovery": {
+      "tests": 33,
+      "assertions": 461,
+      "failures": 0,
+      "new_boundary_cases": 6,
+      "new_boundary_assertions": 67,
+      "default_dispatch_unchanged": true,
+      "independent_native_grant_issued": false
+    },
+    "pod_only_operator_rest": {
+      "tests": 5,
+      "assertions": 321,
+      "failures": 0,
+      "real_registered_callbacks": [
+        "intake",
+        "publish",
+        "revoke"
+      ],
+      "scope": "Stored admitted session, signed POD-only operator, nonce, claims and producer denials; no all-shop permission expansion",
+      "version_compatibility_negative": "Source-contract inspection only; no synthetic positive producer substituted"
+    }
   },
   "currentness_dispositions": [
     "Old managed selection in caller repeatable-read frame: exact denial; caller frame and pending marker preserved",
@@ -108,7 +149,9 @@
     6913016582,
     6913516564,
     6913679118,
-    6913984047
+    6913984047,
+    6917519905,
+    6917858021
   ],
   "holds": {
     "stop_all": true,
@@ -194,6 +237,46 @@
     {
       "file": "docs/engineering/shop2-platform-1266/evidence/context-contract-full-unit-green.txt",
       "digest": "4959d6831a6f022da06545c458c6c7fde6415d5be721c28c21512e1b4939fd56"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/certification-handoff-245-green.xml",
+      "digest": "61149579c91eec285f7a273d60ae0fe61dcce4b6ff4e01772eaa739d342c582c"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/certification-handoff-245-command.sh",
+      "digest": "e95a9e1dd286018e9de0514ba9502e82ede08fe99b48fc99ceaffe802e60f558"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/certification-handoff-full-unit-green.txt",
+      "digest": "5950bc91199cde05e83c24a1c57cae335727234ba5c3f94ab5b2d16fdac8275a"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/held-recovery-core-ui-green.xml",
+      "digest": "2722ef774292e19a18e2838ffb5dc1f8c9bd79dd332acbcae330e9b7fbe07c88"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/held-recovery-boundaries-green.xml",
+      "digest": "2266e055ce0e48b5297c9ed94bd2113ebf3f39c995db531e2a18b286b9256ff5"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/customer-editor-operator-scope-green.xml",
+      "digest": "613d9cc7d4ba9d949fbc0d8ed45f4eefe643e4d915f4439c22b3b056ba09d4e7"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/native-version-rollback-phase-red.json",
+      "digest": "b377686f78681fba860beb1ba64bf7f7f081614c00e060974752add9c281181a"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/native-version-partial-run-disposition.json",
+      "digest": "9d8128ec1770c092f2af094efaf30f5071e5d49226bc853cf6c316f7ad6374d9"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/certification-handoff-245-qualification.json",
+      "digest": "71afd0413c711e155410871811143c0e4ce1376321a6309ec034b106f966851b"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/certification-handoff-245-tested-source.json",
+      "digest": "5631c994731b7d77aed7c49975b891a1c01915e6a4ad08fc588667d5055faf51"
     }
   ],
   "owner_test_repairs": {
@@ -207,5 +290,48 @@
     "source_review": "CLEAR",
     "assertion_weakening": false,
     "whole_branch_imported": false
+  },
+  "managed_review": {
+    "status": "BLOCKED",
+    "reason": "A data lease and immutable reviewer proof do not retain current signed/native reviewer permission. Source-owned public security retention protocol is absent. Managed transaction admission remains denied."
+  },
+  "native_handoff": {
+    "status": "BLOCKED",
+    "observed_provider_plugin": {
+      "pull_request": 1260,
+      "source_commit": "99b84caa3c4f4cfe0bc15fc1e85b56e1676c272d",
+      "owner_reported_source_audit": 43845894901,
+      "disposition": "Protected lease and expiry correction; operational allocation authority remains unqualified"
+    },
+    "accepted_source_pin_changed": false,
+    "companion_pin_changed": false,
+    "requirements": [
+      "Independent authenticated checkpoint and witness",
+      "Actual transactional allocation/CAS and one-use consumption",
+      "Exclusive sender and usable credential custody",
+      "Durable journal, UNKNOWN recovery and revocation",
+      "Hosted durability, rollback/old-copy invalidation and operational qualification"
+    ]
+  },
+  "capability_gate_review": [
+    {
+      "id": "S2-ART-14",
+      "status": "NOT_ACCEPTED",
+      "remaining": "Independent complete buyer identity/mobile/editor workflow and current packaged candidate qualification"
+    },
+    {
+      "id": "S2-ORD-06",
+      "status": "NOT_ACCEPTED",
+      "remaining": "Managed reviewer permission retention and complete buyer-specific final source/art workflow acceptance"
+    }
+  ],
+  "engineering_estimate": {
+    "lane_b_certification_handoff_engineer_days": [
+      1,
+      3
+    ],
+    "assumptions": "Contingent on no further CI findings; external authority/hosted waiting is excluded.",
+    "full_151_completion_days": null,
+    "reason": "Qualified independent authority interfaces and complete requirement-level evidence are not available; a calendar completion claim is unsupported."
   }
 }

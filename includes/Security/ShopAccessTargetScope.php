@@ -12,6 +12,23 @@ final class ShopAccessTargetScope
     public static function forRequest(\WP_REST_Request $request, array $allowed): string|false|\WP_Error
     {
         $route=$request->get_route();$id=$request->get_param('id');$table=null;
+        if($request->get_method()==='POST'&&preg_match('#^/digiforge/v1/customer-editor/([A-Za-z0-9_-]{1,80})/(intake|publish|revoke)$#D',$route,$editor)){
+            // Only the registered operator routes use fresh stored-session discovery.
+            // Check admission and every parameter carrier before reading private access.
+            if(!in_array('personalized_pod',$allowed,true))return self::error();
+            $url=$request->get_url_params();if(($url['session']??null)!==$editor[1])return self::error();
+            $json=$request->get_json_params();if($json!==null&&!is_array($json))return self::error(400);
+            foreach([$url,$request->get_query_params(),$request->get_body_params(),$json??[],$request->get_params()]as $params){
+                foreach(['session'=>$editor[1],'shop'=>'personalized_pod','shop_key'=>'personalized_pod']as $field=>$expected){
+                    if(array_key_exists($field,$params)&&$params[$field]!==$expected)return self::error();
+                }
+            }
+            $class=\DigiForge\POD\CustomerEditorRepository::class;
+            if(!class_exists($class)||!defined($class.'::OPERATOR_SESSION_SCOPE_CONTRACT')||constant($class.'::OPERATOR_SESSION_SCOPE_CONTRACT')!=='shop2-editor-session-scope-v1'||!method_exists($class,'targetShopForSession'))return self::error(503);
+            try{$shop=(new $class())->targetShopForSession($editor[1]);}catch(\Throwable){return self::error(503);}
+            if($shop instanceof \WP_Error)return $shop;
+            return $shop==='personalized_pod'?$shop:self::error();
+        }
         if(\DigiForge\POD\PrintifyResearchDependencies::matchesRoute($route,$request->get_method())){
             if(!in_array('personalized_pod',$allowed,true))return self::error();
             foreach(['shop','shop_key'] as $field){$claim=$request->get_param($field);if($claim!==null&&$claim!=='personalized_pod')return self::error();}

@@ -45,6 +45,97 @@ final class Shop2HeldJobRecoveryTest extends WP_UnitTestCase
         self::assertArrayNotHasKey('payload',$job['job']);self::assertArrayNotHasKey('locked_by',$job['job']);self::assertTrue(Settings::safety_locked());
     }
 
+    public function testEnqueueRetainsActualPhotoReadLeaseUntilItsOwnedCommit():void
+    {
+        [$order,$intent]=$this->heldFixture();$prepared=$this->prepared($order,$intent);global $wpdb;$database=$wpdb;
+        $other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($database->prefix);
+        $name='df-photo-producer-'.substr(hash('sha256',$database->get_var('SELECT DATABASE()').'|'.$database->prefix),0,40);
+        $fired=false;$active=null;$blocked=null;$owner=null;
+        $observe=static function(string $sql)use($database,$other,$name,&$fired,&$active,&$blocked,&$owner):string{
+            if(!$fired&&str_starts_with($sql,'INSERT INTO `'.Tables::jobs().'`')){
+                $fired=true;$active=$database->get_var('SELECT @@session.in_transaction');
+                $owner=$database->get_var($database->prepare('SELECT IS_USED_LOCK(%s)',$name));
+                $blocked=$other->get_var($other->prepare('SELECT GET_LOCK(%s,0)',$name));
+            }return $sql;
+        };
+        add_filter('query',$observe);
+        try {$job=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$this->key($order,$intent,$prepared));}
+        finally {remove_filter('query',$observe);}
+        try {
+            self::assertTrue($fired);self::assertNotWPError($job);self::assertSame('1',(string)$active);self::assertSame('0',(string)$blocked);
+            self::assertSame((string)$database->get_var('SELECT CONNECTION_ID()'),(string)$owner);
+            self::assertSame('0',(string)$database->get_var('SELECT @@session.in_transaction'));
+            self::assertSame('1',(string)$other->get_var($other->prepare('SELECT GET_LOCK(%s,0)',$name)),'Actual A lease must be released only after the local transaction ends.');
+        }finally{$other->get_var($other->prepare('SELECT RELEASE_LOCK(%s)',$name));$other->close();}
+    }
+
+    public function testEnqueueCannotAdmitOrCommitCallerTransaction():void
+    {
+        [$order,$intent]=$this->heldFixture();$prepared=$this->prepared($order,$intent);global $wpdb;
+        $name='held-context-caller-'.wp_generate_uuid4();$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($wpdb->prefix);
+        self::assertNotFalse($wpdb->query('START TRANSACTION'));self::assertSame(1,$wpdb->insert($wpdb->options,['option_name'=>$name,'option_value'=>'uncommitted','autoload'=>'no']));
+        try {
+            $result=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$this->key($order,$intent,$prepared));
+            self::assertWPError($result);self::assertSame('NOT_ATTEMPTED',$result->get_error_data()['local_commit_state']);
+            self::assertSame('1',(string)$wpdb->get_var('SELECT @@session.in_transaction'));self::assertNull($other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$name)));
+        }finally{$wpdb->query('ROLLBACK');$other->close();}
+    }
+
+    public function testRevocationDuringFinalPhotoLeaseReleaseDeniesCommittedEnqueueResponse():void
+    {
+        [$order,$intent]=$this->heldFixture();$prepared=$this->prepared($order,$intent);$inserted=false;$fired=false;
+        $revoke=static function(string $sql)use(&$inserted,&$fired):string{
+            if(str_starts_with($sql,'INSERT INTO `'.Tables::jobs().'`'))$inserted=true;
+            if($inserted&&!$fired&&str_starts_with($sql,'SELECT RELEASE_LOCK(')&&str_contains($sql,'df-photo-producer-')){$fired=true;wp_get_current_user()->add_cap('manage_digiforge_orders',false);}return $sql;
+        };
+        add_filter('query',$revoke);
+        try {$result=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$this->key($order,$intent,$prepared));}
+        finally {remove_filter('query',$revoke);wp_get_current_user()->add_cap('manage_digiforge_orders',true);}
+        self::assertTrue($fired);self::assertWPError($result);self::assertSame('COMMITTED',$result->get_error_data()['local_commit_state']);self::assertTrue($result->get_error_data()['local_metadata_committed']);
+        $list=(new Shop2HeldJobRecovery())->forIntent('personalized_pod',$order,$intent);self::assertNotWPError($list);self::assertCount(1,$list['items']);self::assertSame('BLOCKED',$list['items'][0]['job']['state']);
+    }
+
+    /** @dataProvider lostEnqueueCommit */
+    public function testUnknownEnqueueCommitCleansOriginalFrameBeforeReleasingPhotoLease(bool $durable):void
+    {
+        [$order,$intent]=$this->heldFixture();$prepared=$this->prepared($order,$intent);global $wpdb;$original=$wpdb;$original->flush();
+        $lost=new class($original,$durable) extends wpdb {
+            public bool $intercepted=false;
+            public function __construct(wpdb $source,private bool $durable){foreach(get_object_vars($source)as $key=>$value)$this->$key=$value;$this->dbh=(new ReflectionProperty(wpdb::class,'dbh'))->getValue($source);}
+            public function query($query){if($query==='COMMIT'&&!$this->intercepted){$this->intercepted=true;if($this->durable)parent::query($query);return false;}return parent::query($query);}
+        };
+        $wpdb=$lost;
+        try {$result=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$this->key($order,$intent,$prepared));}
+        finally {$lost->flush();$wpdb=$original;}
+        self::assertTrue($lost->intercepted);self::assertWPError($result);self::assertSame('UNKNOWN',$result->get_error_data()['local_commit_state']);self::assertNull($result->get_error_data()['local_metadata_committed']);self::assertFalse($result->get_error_data()['replay_permitted']);
+        self::assertSame('0',(string)$original->get_var('SELECT @@session.in_transaction'));
+        $list=(new Shop2HeldJobRecovery())->forIntent('personalized_pod',$order,$intent);self::assertNotWPError($list);self::assertCount($durable?1:0,$list['items']);if($durable)self::assertSame('BLOCKED',$list['items'][0]['job']['state']);
+        $name='df-photo-producer-'.substr(hash('sha256',$original->get_var('SELECT DATABASE()').'|'.$original->prefix),0,40);$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($original->prefix);
+        try{self::assertSame('1',(string)$other->get_var($other->prepare('SELECT GET_LOCK(%s,0)',$name)));}finally{$other->get_var($other->prepare('SELECT RELEASE_LOCK(%s)',$name));$other->close();}
+    }
+    public static function lostEnqueueCommit():array{return ['durable lost acknowledgement'=>[true],'pending frame without acknowledgement'=>[false]];}
+
+    public function testActorChangedByLastNativeCapabilityCheckCannotReceiveCommittedJobMetadata():void
+    {
+        [$order,$intent]=$this->heldFixture();$prepared=$this->prepared($order,$intent);$key=$this->key($order,$intent,$prepared);$actor=get_current_user_id();
+        $released=false;$calls=0;
+        $phase=static function(string $sql)use(&$released):string{if(str_starts_with($sql,'SELECT RELEASE_LOCK(')&&str_contains($sql,'df-photo-producer-'))$released=true;return $sql;};
+        $count=static function(array $all,array $caps)use(&$released,&$calls):array{if($released&&in_array('manage_digiforge_pod',$caps,true))++$calls;return $all;};
+        add_filter('query',$phase);add_filter('user_has_cap',$count,10,2);
+        try {$job=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$key);}
+        finally {remove_filter('query',$phase);remove_filter('user_has_cap',$count);}
+        self::assertNotWPError($job);self::assertTrue($released);self::assertGreaterThan(0,$calls);
+        $released=false;$seen=0;$fired=false;
+        $change=static function(array $all,array $caps)use(&$released,&$seen,&$fired,$calls):array{
+            if($released&&in_array('manage_digiforge_pod',$caps,true)&&++$seen===$calls){$fired=true;wp_set_current_user(0);}return $all;
+        };
+        add_filter('query',$phase);add_filter('user_has_cap',$change,10,2);
+        try {$result=(new Shop2HeldJobRecovery())->enqueue('personalized_pod',$order,$intent,$prepared['current_evidence_hash'],$key);}
+        finally {remove_filter('query',$phase);remove_filter('user_has_cap',$change);wp_set_current_user($actor);}
+        self::assertTrue($fired);self::assertSame($calls,$seen);self::assertWPError($result);self::assertSame('COMMITTED',$result->get_error_data()['local_commit_state']);self::assertTrue($result->get_error_data()['local_metadata_committed']);self::assertFalse($result->get_error_data()['local_metadata_changed']);
+        self::assertSame($job['job_id'],(new Shop2HeldJobRecovery())->forIntent('personalized_pod',$order,$intent)['items'][0]['job_id']);
+    }
+
     public function testExpiredActualLeaseQuarantinesOnceAndCannotBeReenqueued():void
     {
         [$order,$intent]=$this->heldFixture();$job=$this->enqueue($order,$intent);$id=$job['job_id'];$this->start($id);$this->expire($id);

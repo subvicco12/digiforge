@@ -1,0 +1,9 @@
+{
+  "local_full_class_exit_code": 143,
+  "reason": "Root redirected priority after corrected target passed; remaining unchanged expensive cases stopped.",
+  "full_class_pass_claim": false,
+  "remaining_test_database_connections": 0,
+  "photo_read_lease_unowned": true,
+  "observed_progress_dots_before_termination": 4,
+  "phpunit_final_summary_present": false
+}

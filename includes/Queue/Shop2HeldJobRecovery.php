@@ -5,7 +5,7 @@ namespace DigiForge\Queue;
 use DigiForge\Connector\Printify\NativeSourceTransaction;
 use DigiForge\Database\Tables;
 use DigiForge\Listings\EtsyStoredShopScope;
-use DigiForge\Orders\{HeldFulfillmentPreparation,Validator};
+use DigiForge\Orders\{HeldFulfillmentPreparation,PersonalizationReadContext,Validator};
 use DigiForge\Security\{Logger,ShopAccess};
 use WP_Error;
 
@@ -45,14 +45,15 @@ final class Shop2HeldJobRecovery
 
     public function enqueue(string $shop,int $orderId,int $intentId,string $expectedPreparationHash,string $idempotencyKey):array|WP_Error
     {
-        $this->commitState='NOT_ATTEMPTED';$started=false;$committed=false;$changed=false;
+        $this->commitState='NOT_ATTEMPTED';$started=false;$committed=false;$changed=false;$context=null;
         try {
             $actor=get_current_user_id();$this->admit($shop,$actor);$this->fingerprint($expectedPreparationHash);$this->fingerprint($idempotencyKey);
             $initialScope=$this->scope($shop,$orderId,$intentId);
-            $this->begin(true);$started=true;$this->lockAdmission();$scope=$this->scope($shop,$orderId,$intentId,true,false);
+            $captured=PersonalizationReadContext::capture($shop,$orderId);$this->requireResult($captured);$context=$captured;
+            $this->begin(true,$context);$started=true;$this->lockAdmission();$scope=$this->scope($shop,$orderId,$intentId,true,false);
             if($scope!==$initialScope)throw new \RuntimeException('Order or intent changed before source locking.');
             $before=$this->inventory(true);$this->lockPreparationSource($scope);
-            $prepared=(new HeldFulfillmentPreparation())->prepare($shop,$orderId,$intentId);$this->requireResult($prepared);
+            $prepared=(new HeldFulfillmentPreparation($context))->prepare($shop,$orderId,$intentId);$this->requireResult($prepared);
             if(($prepared['current_evidence_hash']??null)!==$expectedPreparationHash||self::enqueueKey($shop,$orderId,$intentId,$prepared['plan_payload_hash'],$expectedPreparationHash,$actor)!==$idempotencyKey)throw new \RuntimeException('Current preparation and deterministic job identity must match.');
             $expected=['schema'=>1,'shop_key'=>$shop,'actor_id'=>$actor,'order_id'=>$orderId,'intent_id'=>$intentId,'plan_payload_hash'=>$prepared['plan_payload_hash'],'evidence_hash'=>$expectedPreparationHash];
             $existing=null;
@@ -61,19 +62,24 @@ final class Shop2HeldJobRecovery
                 $existing=$row;
             }
             $changed=$existing===null;$writeStart=current_time('mysql',true);
-            $id=(new Shop2HeldPreparationDispatcher())->enqueue($shop,$orderId,$intentId,$idempotencyKey);$this->requireResult($id);
+            $id=(new Shop2HeldPreparationDispatcher($context))->enqueue($shop,$orderId,$intentId,$idempotencyKey);$this->requireResult($id);
             if(!is_int($id)||$id<1)throw new \RuntimeException('Held job storage did not return an exact identity.');
             $after=$this->inventory(true);$new=null;$oldById=[];foreach($before as $row)$oldById[(int)$row['id']]=$row;
             foreach($after as $row){if((int)$row['id']===$id)$new=$row;if(isset($oldById[(int)$row['id']])&&$oldById[(int)$row['id']]!==$row)throw new \RuntimeException('Existing queue material changed outside the requested enqueue.');}
             if(!is_array($new)||$new['payload']!==wp_json_encode($expected)||count($after)!==count($before)+($existing===null?1:0)||($existing!==null&&(int)$existing['id']!==$id))throw new \RuntimeException('The exact enqueue effect could not be confirmed.');
             if($existing===null&&($new['state']!=='BLOCKED'||$new['idempotency_key']!=='shop2-held:'.hash('sha256',$idempotencyKey)||(int)$new['max_attempts']!==3||$new['locked_by']!==null||$new['locked_at']!==null||$new['lease_expires_at']!==null||(int)$new['attempts']!==0||$new['next_attempt_at']!==null||$new['scheduled_at']!==null||$new['completed_at']!==null||$new['dead_lettered_at']!==null||$new['last_error']!==''||$new['created_at']<$writeStart||$new['created_at']>current_time('mysql',true)||$new['updated_at']!==$new['created_at']))throw new \RuntimeException('New local held work must have the exact repository defaults and remain BLOCKED.');
-            $current=(new HeldFulfillmentPreparation())->prepare($shop,$orderId,$intentId);$this->requireResult($current);
+            $current=(new HeldFulfillmentPreparation($context))->prepare($shop,$orderId,$intentId);$this->requireResult($current);
             if(Validator::hash($prepared)!==Validator::hash($current))throw new \RuntimeException('Current preparation changed during enqueue.');
             if($existing===null&&!Logger::write('shop2_held_job_enqueued',['order_id'=>$orderId,'intent_id'=>$intentId,'payload_hash'=>hash('sha256',$new['payload']),'external_execution_authorized'=>false],'queue_job',(string)$id))throw new \RuntimeException('Held job audit persistence is unavailable.');
             $finalScope=$this->scope($shop,$orderId,$intentId,true);if(Validator::hash($scope)!==Validator::hash($finalScope))throw new \RuntimeException('Order or intent changed during enqueue.');
             $final=$this->load($finalScope,$id,true);if($final['row']!==$new)throw new \RuntimeException('The enqueued job changed before commit.');
-            $result=$this->view($final);$this->commit($shop,$actor);$committed=true;$this->admit($shop,$actor);return array_replace($result,self::flags(!$changed,$changed));
-        }catch(\Throwable $e){return self::error($e->getMessage(),$committed,$changed,$this->commitState);}finally{if($started&&!$committed){global $wpdb;$wpdb->query('ROLLBACK');}}
+            $this->requireResult($context->validate());$result=$this->view($final);$this->commit($shop,$actor);$committed=true;$this->admit($shop,$actor);return array_replace($result,self::flags(!$changed,$changed));
+        }catch(\Throwable $e){return self::error($e->getMessage(),$committed,$changed,$this->commitState);}finally{
+            $cleanupFailed=$started&&!$committed&&!$this->rollbackOriginal($changed);if($cleanupFailed)$this->commitState='UNKNOWN';
+            if($context!==null){$released=$context->release();if(is_wp_error($released))return self::error('The retained photo read lease release is uncertain; inspect stored work without replay.',$committed,$changed,$this->commitState);
+                try{$this->admit($shop,$actor);}catch(\Throwable){return self::error('Current access changed after releasing the retained photo read lease.',$committed,$changed,$this->commitState);}}
+            if($cleanupFailed)return self::error('The original local rollback cannot be confirmed; inspect stored work without replay.',false,$changed,'UNKNOWN');
+        }
     }
 
     public function quarantine(string $shop,int $orderId,int $intentId,int $jobId,string $expectedSnapshotHash):array|WP_Error
@@ -90,7 +96,7 @@ final class Shop2HeldJobRecovery
             $allowed=['state','last_error','locked_by','locked_at','lease_expires_at','updated_at'];
             if($scope!==$finalScope||$before['dependencies']!==$after['dependencies']||array_diff_key($before['row'],array_flip($allowed))!==array_diff_key($after['row'],array_flip($allowed))||$after['row']['state']!=='HUMAN_REVIEW'||$after['row']['last_error']!=='LEASE_EXPIRED'||$after['row']['locked_by']!==null||$after['row']['locked_at']!==null||$after['row']['lease_expires_at']!==null||$after['row']['updated_at']<$writeStart||$after['row']['updated_at']>current_time('mysql',true))throw new \RuntimeException('Queue changes exceeded the exact quarantine effect.');
             $result=$this->view($after);$this->commit($shop,$actor);$committed=true;$this->admit($shop,$actor);return array_replace($result,self::flags(false,true));
-        }catch(\Throwable $e){return self::error($e->getMessage(),$committed,$changed,$this->commitState);}finally{if($started&&!$committed){global $wpdb;$wpdb->query('ROLLBACK');}}
+        }catch(\Throwable $e){return self::error($e->getMessage(),$committed,$changed,$this->commitState);}finally{if($started&&!$committed&&!$this->rollbackOriginal($changed))return self::error('The original local rollback cannot be confirmed; inspect stored work without replay.',false,$changed,'UNKNOWN');}
     }
 
     private function scope(string $shop,int $orderId,int $intentId,bool $lock=false,bool $admit=true):array
@@ -145,16 +151,21 @@ final class Shop2HeldJobRecovery
     {
         if($shop!=='personalized_pod'||$actor<1||get_current_user_id()!==$actor||!is_user_logged_in())throw new \RuntimeException('An exact current Shop 2 actor is required.');
         foreach(['manage_digiforge_automation','manage_digiforge_orders','manage_digiforge_pod']as $cap)if(ShopAccess::authorize($shop,$cap)!==true)throw new \RuntimeException('Current signed shop and module access is required.');
-        if(get_current_user_id()!==$actor)throw new \RuntimeException('The current actor changed.');
+        if(get_current_user_id()!==$actor||!is_user_logged_in()||!current_user_can('manage_digiforge_automation')||!current_user_can('manage_digiforge_orders')||!current_user_can('manage_digiforge_pod'))throw new \RuntimeException('The current actor or module access changed.');
+        if(get_current_user_id()!==$actor||!is_user_logged_in())throw new \RuntimeException('The current actor changed during final module admission.');
     }
-    private function begin(bool $preparation=false):void
+    private function begin(bool $preparation=false,?PersonalizationReadContext $context=null):void
     {
         global $wpdb;$state=$this->rows('SELECT @@session.in_transaction AS active,@@session.autocommit AS autocommit');if(count($state)!==1||(string)$state[0]['active']!=='0'||(string)$state[0]['autocommit']!=='1')throw new \RuntimeException('A clean local transaction boundary is required.');
         $tables=[Tables::jobs(),Tables::orders(),Tables::fulfillment_plans(),Tables::fulfillment_intents(),Tables::audit_log(),$wpdb->options,$wpdb->users,$wpdb->usermeta];
         if($preparation)$tables=array_merge($tables,$this->preparationTables());
         foreach($tables as $table){$engines=$this->rows($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));if(count($engines)!==1||strtoupper((string)$engines[0]['ENGINE'])!=='INNODB')throw new \RuntimeException('Verified transactional local storage is required.');}
-        $wpdb->last_error='';if($wpdb->query('START TRANSACTION')===false||$wpdb->last_error!=='')throw new \RuntimeException('Local metadata transaction could not start.');
-        $id=NativeSourceTransaction::id();if(is_wp_error($id)){$wpdb->query('ROLLBACK');throw new \RuntimeException('A durable local metadata transaction is required.');}$this->transaction=$id;$this->database=$wpdb;
+        if($context!==null)$this->requireResult($context->validateBeforeTransaction());
+        $database=$wpdb;$database->last_error='';$boundary=$database->get_row('SELECT CONNECTION_ID() AS connection_id,@@session.in_transaction AS active,@@session.autocommit AS autocommit',ARRAY_A);
+        if($wpdb!==$database||$database->last_error!==''||!is_array($boundary)||(string)($boundary['active']??'')!=='0'||(string)($boundary['autocommit']??'')!=='1'||!preg_match('/^[1-9][0-9]*$/D',(string)($boundary['connection_id']??'')))throw new \RuntimeException('An unchanged fresh autocommit boundary is required.');
+        $this->transaction=(string)$boundary['connection_id'];$this->database=$database;
+        if($database->query('START TRANSACTION')===false||$database->last_error!==''){$this->rollbackOriginal(false);throw new \RuntimeException('Local metadata transaction could not start.');}
+        if(is_wp_error(NativeSourceTransaction::verify($database,$this->transaction))){$this->rollbackOriginal(false);throw new \RuntimeException('A durable local metadata transaction is required.');}
     }
     private string $transaction='';
     private string $commitState='NOT_ATTEMPTED';
@@ -202,7 +213,20 @@ final class Shop2HeldJobRecovery
         if($this->database===null||is_wp_error(NativeSourceTransaction::verify($this->database,$this->transaction)))throw new \RuntimeException('Local metadata transaction changed; inspect stored work before retry.');
         $this->admit($shop,$actor);
         if(is_wp_error(NativeSourceTransaction::verify($this->database,$this->transaction)))throw new \RuntimeException('Local metadata transaction changed during final admission.');
-        global $wpdb;$wpdb->last_error='';$this->commitState='UNKNOWN';if($wpdb->query('COMMIT')===false||$wpdb->last_error!=='')throw new \RuntimeException('Local commit acknowledgement is uncertain; inspect stored work without replay.');$this->commitState='COMMITTED';
+        global $wpdb;$database=$this->database;$database->last_error='';$this->commitState='UNKNOWN';if($database->query('COMMIT')===false||$database->last_error!=='')throw new \RuntimeException('Local commit acknowledgement is uncertain; inspect stored work without replay.');
+        $database->last_error='';$confirmed=$database->get_row('SELECT CONNECTION_ID() AS connection_id,@@session.in_transaction AS active,@@session.autocommit AS autocommit',ARRAY_A);
+        if($wpdb!==$database||$database->last_error!==''||!is_array($confirmed)||(string)($confirmed['connection_id']??'')!==$this->transaction||(string)($confirmed['active']??'')!=='0'||(string)($confirmed['autocommit']??'')!=='1')throw new \RuntimeException('The original committed session cannot be confirmed; inspect stored work without replay.');$this->commitState='COMMITTED';
+    }
+    /** Never roll back a replacement object or a reconnected session. */
+    private function rollbackOriginal(bool $changed):bool
+    {
+        $database=$this->database;if($database===null)return false;
+        $database->last_error='';$state=$database->get_row('SELECT CONNECTION_ID() AS connection_id,@@session.in_transaction AS active',ARRAY_A);
+        if($database->last_error!==''||!is_array($state)||(string)($state['connection_id']??'')!==$this->transaction)return false;
+        if((string)($state['active']??'')==='0')return $this->commitState==='UNKNOWN'||!$changed;
+        if((string)($state['active']??'')!=='1'||$database->query('ROLLBACK')===false)return false;
+        $database->last_error='';$after=$database->get_row('SELECT CONNECTION_ID() AS connection_id,@@session.in_transaction AS active',ARRAY_A);
+        return $database->last_error===''&&is_array($after)&&(string)($after['connection_id']??'')===$this->transaction&&(string)($after['active']??'')==='0';
     }
     private function rows(string $sql):array{global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($sql,ARRAY_A);if(!is_array($rows)||$wpdb->last_error!=='')throw new \RuntimeException('Current local metadata evidence is unavailable.');return $rows;}
     private function fingerprint(mixed $hash):void{if(!is_string($hash)||!preg_match('/^[a-f0-9]{64}$/D',$hash))throw new \RuntimeException('An exact server-derived source fingerprint is required.');}
