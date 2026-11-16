@@ -1,0 +1,123 @@
+{
+  "schema": "shop2-lane-b-held-integration-checkpoint-v1",
+  "parent_commit": "1be4dc9565d31683fdb5610bd8b71592c6df5a1d",
+  "disposition": "LOCAL_IMPLEMENTATION_PRESERVED_NOT_FULLY_QUALIFIED",
+  "changes": [
+    "Exact producer-owned c2f/8c/a100 source blobs; no full Lane A branch import",
+    "Server-issued legacy-NULL read context retains actual producer lease across B local review transactions",
+    "Current locked B identity, schema, listing and numeric shop metadata; shared material-derived validation prevents mixed-read ABA",
+    "One-use acknowledgement survives rollback; checked original-session cleanup and UNKNOWN commit disposition; final response authorization preserved",
+    "Four historical scanner spans independently verified against exact typed Git/source evidence; default rules and full reachable history retained"
+  ],
+  "verification": {
+    "bounded_wordpress": {
+      "tests": 12,
+      "assertions": 126,
+      "failures": 0
+    },
+    "focused_unit": {
+      "tests": 38,
+      "assertions": 134,
+      "skipped": 0,
+      "failures": 0
+    },
+    "credential_security": {
+      "tests": 49,
+      "failures": 0
+    },
+    "composed_wordpress": {
+      "tests": 142,
+      "assertions": 4692,
+      "failures": 17,
+      "skipped": 0,
+      "qualified": false,
+      "passing_subsets": {
+        "photo_context": [
+          25,
+          317
+        ],
+        "legacy_operator": [
+          14,
+          128
+        ],
+        "original_transaction_probes": [
+          2,
+          44
+        ]
+      },
+      "remaining": "FinalConvergence invalid owned test frame; CurrentRead fixture inherits immutable template from preceding photo classes. Exclusive test-only owner handoff Issue1266 comment6913016582."
+    }
+  },
+  "currentness_dispositions": [
+    "Old managed selection in caller repeatable-read frame: exact denial; caller frame and pending marker preserved",
+    "Legacy NULL followed by committed first selection: exact denial; caller frame and pending marker preserved",
+    "Legitimate legacy-NULL local order and plan workflow restored under retained A witness; managed transactions remain denied"
+  ],
+  "blockers": [
+    "A owner test-only fixture receipts and focused composition verification",
+    "Managed reviewer mutable signed authority retention; public provenance received but does not freeze authorization",
+    "Actual independent native authority/allocation/witness/sender/custody implementation and hosted qualification",
+    "New exact-head CI after the complete source is pushed"
+  ],
+  "acceptance": {
+    "independently_accepted": 32,
+    "total": 151,
+    "promoted": [],
+    "note": "S2-ORD-04 preserved. No managed-photo, native authority or full-platform acceptance inferred from test counts."
+  },
+  "coordination_comments": [
+    6912905663,
+    6912959580,
+    6913016582
+  ],
+  "holds": {
+    "stop_all": true,
+    "external_lock": true,
+    "automation": false,
+    "manual_production_approval": true,
+    "release_hold": true,
+    "external_execution_authorized": false
+  },
+  "artifacts": [
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/audit5037-terminal.json",
+      "digest": "f48a5c3892f43ad19f114a66615286bb0926893c9bcdd62dea859dced169b8b9"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/audit5037-credential-red.json",
+      "digest": "1fc74dc094a9c1583fb2a7377f6b47195e5e5f72c8637219894b3d9353956d74"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/audit5037-credential-green.json",
+      "digest": "934a0fd4f19d30da87c9a8d467e6ccb11947b4ddbf7071e2adb155464cc0a947"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-focused-unit.xml",
+      "digest": "845f2796b1ee00ca44c186782a335c4c2c13852c647463af8ff346b4c17acb18"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-composition-unqualified.xml",
+      "digest": "13e43c024a51d70738abf1fd7cff0b8784810bfc1a92d103ba6d869a6e62823c"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-bounded-green.xml",
+      "digest": "1c9e3c4361824589b946bd597bda52848ece97351782b3f7844126732193305e"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-aba-red.xml",
+      "digest": "77a8c4f023e675638a88764964d58945aa5756b44a71c463db9e947bd295741b"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-numeric-red.xml",
+      "digest": "1b162b8a5686587e261dc41ec7b3f115b652fca06cf43773533c16cbe8a5c8ab"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-transaction-red.xml",
+      "digest": "d82b3b5618a9b13bdadeb4ee5423e838ab246e983d642efbc297e575fe6f9713"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-cleanup-red.xml",
+      "digest": "2a641872c6218f414a1be9873a41524caff017e604b5310dc80c7cce589cc158"
+    }
+  ]
+}

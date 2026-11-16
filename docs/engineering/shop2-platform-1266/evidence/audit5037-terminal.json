@@ -1,0 +1,37 @@
+{
+  "schema": "digiforge-exact-head-ci-disposition-v1",
+  "head": "1be4dc9565d31683fdb5610bd8b71592c6df5a1d",
+  "audit": 5037,
+  "run": 43830652461,
+  "url": "https://github.com/subvicco12/digiforge/actions/runs/43830652461",
+  "conclusion": "FAILURE",
+  "failed_step": "Complete candidate-history credential scan",
+  "successful_checks": {
+    "unit": {
+      "tests": 2275,
+      "assertions": 12087,
+      "skipped": 1
+    },
+    "wordpress": {
+      "tests": 2179,
+      "assertions": 83930,
+      "skipped": 5
+    },
+    "catalog_wordpress": {
+      "tests": 58,
+      "assertions": 268557
+    },
+    "action_scheduler": {
+      "tests": 5,
+      "assertions": 87
+    }
+  },
+  "credential_gate": {
+    "finding_count": 4,
+    "raw_finding_count": 31,
+    "status": "FINDINGS_REVIEW_REQUIRED",
+    "scanner_version": "8.30.1",
+    "scope": "candidate_HEAD_reachable_history_default_rules"
+  },
+  "note": "Successful checks are reusable predecessor evidence, not certification of later source. Credential findings remain unresolved until individually verified and the unchanged default-rule history scan passes."
+}

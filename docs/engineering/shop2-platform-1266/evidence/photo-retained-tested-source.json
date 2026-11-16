@@ -1,0 +1,458 @@
+{
+  "candidate_root": "/workspace/digiforge-platform-sprint/photo-retained-lease-integration",
+  "base_commit": "1be4dc9565d31683fdb5610bd8b71592c6df5a1d",
+  "all_a_import_hashes_exact": true,
+  "changed_new_files": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "sha256": "76c662f38cb3222f3534abf2daf4141d24c50d2ac0e986b8a6f351e36ce5e8ab",
+      "blob": "77b12b45b77001083bdb4a0f6d7d6bfa3a9b9ef6",
+      "base_blob": null,
+      "status": "NEW"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php",
+      "sha256": "c896688dd18f63a1899fdb74c530865ae1b65c8bddfaee8bf9307f13b7f1e718",
+      "blob": "baa8b901f3c43d9043c061219a561cbaf74886b8",
+      "base_blob": "5c42bf2eccd297396e3296257b0c4f32fd66abe4",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/photo-retained-lease-candidate-import.json",
+      "sha256": "df715564102971e886bd9d7fcbf493cf4cad10fe5f3e2c4825ac88f94b17244f",
+      "blob": "8209bf4434fa80d4ea825c72a17b8dad6fe604e6",
+      "base_blob": null,
+      "status": "NEW"
+    },
+    {
+      "path": "includes/Orders/HeldFulfillmentPreparation.php",
+      "sha256": "b24019533886b3bd876ae16ecffd20f84f11ec326842ad25f35f9ae1ba829b8b",
+      "blob": "370515669c044f829d11771a5b3305798d8c89fe",
+      "base_blob": "bb4cd31b090546c3543810d54e57f83da6d4aba0",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/Orders/PersonalizationCurrentness.php",
+      "sha256": "ae9f1afa73fb45de5518850d3be18279df6f67092f04970dc50cd3328eab81a7",
+      "blob": "2c15c956541193186f32428867e6b730a9308f83",
+      "base_blob": "ee47f8035541c0cf529d1a167b45081f0b38fc06",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/Orders/PersonalizationReadContext.php",
+      "sha256": "dd459db27450adc9274f339cb2b16faa354e5c5a24248441cf7d16711bbb7a0e",
+      "blob": "3246b89182089f2bf341020b6aadd1dbc138fc56",
+      "base_blob": null,
+      "status": "NEW"
+    },
+    {
+      "path": "includes/Orders/Repository.php",
+      "sha256": "6dfcb56529c6fff618a3371b59851543fe3125ee6b903a81a4100abf63db60b2",
+      "blob": "99e2355606bc6ca55bfef1820f308a7c69c5c06d",
+      "base_blob": "8f1e2523b56628621af2e901d5c4eb3634c61c2d",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/POD/CustomerEditorRepository.php",
+      "sha256": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db",
+      "blob": "cdadf87ba890c7c26e380d25ef1a569009c50179",
+      "base_blob": "c1871dc9d32265422268e1d281171a5587a64209",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/POD/CustomerPhotoProducerFence.php",
+      "sha256": "ba417f69f6bc6b2d8e312c673bb5925629ba92e1b3f37bc264f30654529551d6",
+      "blob": "153eb7bc524ab5d2dc1095eba6b8edc922e6b0ea",
+      "base_blob": null,
+      "status": "NEW"
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "sha256": "8ea4dafac107195dbd705fcbbf39c63afed06c9ab5fecbe1f9f2e517e88f7006",
+      "blob": "0a3ca526458a2e0d5972a7606c789276aa6b6e22",
+      "base_blob": "c3c52e155a086eec09590697cad8f3f79bdeb6c4",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/POD/RenderEvidenceRepository.php",
+      "sha256": "965406e16c0d4c77f024f87f8f13d0614f15ba2f17b26e81afb37f7027f9ea81",
+      "blob": "9b2ac4156d38c9d69df71a201ed429ff5dfe52fe",
+      "base_blob": "93110ec15b9b8529ed83b97816778eb03c10c841",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/Portal/OrderLocalWorkflow.php",
+      "sha256": "283bef1a331c6d340a05f1eed5ad9d71406eac997717d6f72d7224f392cff092",
+      "blob": "6b11030176edadf73f08717dba331812843819c8",
+      "base_blob": "1c91c8b77e180c1bd2a07b0662d5bbfcdfa00c09",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "includes/Portal/ReviewConfirmation.php",
+      "sha256": "9f3d77919a161421361cea29bf509eae85c24500560a22a22b42edabfcb8e5d6",
+      "blob": "ade2b6832a78c4b3b601afcf737902f687a43f8b",
+      "base_blob": "333a668ba787d0e3cc4e56d8abe09f1f8beb142d",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php",
+      "sha256": "37aef912c0bda88ae803a143a55c6b6efa697760431a36c2797def89e4010eff",
+      "blob": "bb800d92a131b0c2265d48aa7b13a157383eda6b",
+      "base_blob": "c6abb3f25f6d490eb39829751b5b468431abbc73",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "sha256": "3e325469fc823a38eb6d3428643a307e3383e94d696212c47444cd8ca39b2899",
+      "blob": "3fff269c89490352aba9e66312c1c59f41f12c8d",
+      "base_blob": null,
+      "status": "NEW"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoHeldIntegrationTest.php",
+      "sha256": "d798a4945534bbb33cd401b20a16881b9662b8b86909be8b9768347a395b6304",
+      "blob": "5785a7f9a1e50e19752c3130fdc3cdca28e7eb95",
+      "base_blob": "7c5d332a42d67de65002acef8083996af2df84c8",
+      "status": "MODIFIED"
+    },
+    {
+      "path": "tests/wordpress/RenderArtifactCertificationTest.php",
+      "sha256": "cf60594e927e0a6ccc53d3d7f532de8045539af2d87d3516aa00d684f8b8c93a",
+      "blob": "17df90fc47dd2929127f4305312a6b1d9dedfca2",
+      "base_blob": "19adcf907a0222559d113731c3d876188de5c913",
+      "status": "MODIFIED"
+    }
+  ],
+  "source_sha256": [
+    {
+      "file": "assets/customer-editor.css",
+      "digest": "6889909a0c5b3ce22cdf8d2623cd35b2ba90a39cbc9586c47356dbcf242a9977"
+    },
+    {
+      "file": "assets/customer-editor.js",
+      "digest": "e43f7fb2fa87c1c44065a646e5833396e018b78349acbba43c1ed69c379d02ee"
+    },
+    {
+      "file": "docs/engineering/shop2-factory-1266/CAPABILITY_DELTA_20261116.json",
+      "digest": "49562d48f6956f1490a189e4c3c87d78de81075b11dab7ca7c343df8bf5ecb66"
+    },
+    {
+      "file": "docs/engineering/shop2-factory-1266/PHOTO_EDITOR_BATCH_20261116.md",
+      "digest": "17e7b07fbb4fb755b3c241b4d1676778d5557804d8a04d6a6824ecca21786bb8"
+    },
+    {
+      "file": "docs/engineering/shop2-factory-1266/PHOTO_RENDER_CAPABILITY_DELTA_20261116.json",
+      "digest": "59cab146e33f06c623ef8b0e2ae5a6a55e83f34e5a6beeb0ce3d00685c647b11"
+    },
+    {
+      "file": "docs/engineering/shop2-factory-1266/PHOTO_RENDER_SELECTION_HANDOFF_20261116.md",
+      "digest": "92fb6e4c4fa25d8211f1073e1712234d890d5f756ecdc499e471bfcaa3739e20"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "digest": "76c662f38cb3222f3534abf2daf4141d24c50d2ac0e986b8a6f351e36ce5e8ab"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php",
+      "digest": "c896688dd18f63a1899fdb74c530865ae1b65c8bddfaee8bf9307f13b7f1e718"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-lease-candidate-import.json",
+      "digest": "df715564102971e886bd9d7fcbf493cf4cad10fe5f3e2c4825ac88f94b17244f"
+    },
+    {
+      "file": "includes/Database/NativeFinanceEvidenceSchema.php",
+      "digest": "130e521f8e24c950f7ea699b06fb07ac27a0972d19e0fa5096c1690fcddaddaa"
+    },
+    {
+      "file": "includes/Finance/Admin.php",
+      "digest": "c2d7559b2f08ca164907f2af6cfc7a56273499e984322fc749d3757c52eabf3b"
+    },
+    {
+      "file": "includes/Finance/AllocationProfitabilityReadModel.php",
+      "digest": "6df32b47530ccbd91f674b089a76cc7b1ebd09daee2a180ff234a133983c7579"
+    },
+    {
+      "file": "includes/Finance/AllocationProposal.php",
+      "digest": "6f362788c931df7a45a50b3cd8f125037e273ec00e749c48674591871c07fba6"
+    },
+    {
+      "file": "includes/Finance/AllocationReadModel.php",
+      "digest": "a4fee0bc0090373bf5cd310823712d3134fd32cc3c6946f2fbfe1ab919a28164"
+    },
+    {
+      "file": "includes/Finance/AllocationReview.php",
+      "digest": "c50bde6b545e36399a750d442959de141cf3ff131da10405ed7511e086f2e78e"
+    },
+    {
+      "file": "includes/Finance/AllocationReviewPayload.php",
+      "digest": "156da3da8710bbdbe9ad8ddafd4e4cb686755c988fbe23213337af4dfaad6d87"
+    },
+    {
+      "file": "includes/Finance/AllocationStoredTargetReferences.php",
+      "digest": "dca53a9b3677538eaf87a75fcecf295e913878f8f7aac5117f88d37197f30f8b"
+    },
+    {
+      "file": "includes/Finance/AllocationTargetReferences.php",
+      "digest": "661434a7a7008acd8b0e51a25b662463d59ecf6ba03ccb9ba01d9923f36fc956"
+    },
+    {
+      "file": "includes/Finance/DeclarationContract.php",
+      "digest": "5409f9036d91298e9e2baf78e4025bdaaa92344c366dceae3fd1b0c2645d1f2c"
+    },
+    {
+      "file": "includes/Finance/DeclarationMatcher.php",
+      "digest": "2b85aad9fbf5c58e1d6064b913f35ca364464b179de2468d2c21131be3daf791"
+    },
+    {
+      "file": "includes/Finance/DeclarationReadModel.php",
+      "digest": "94d27601d95009b58c8110209c97350e726e31e08483a3bad1579f3d797b949c"
+    },
+    {
+      "file": "includes/Finance/DeclarationReferences.php",
+      "digest": "6b76f488bc592a4d9643991658ef8391da93cfc9d18a72fc1c45d420f29be57b"
+    },
+    {
+      "file": "includes/Finance/DigitalDeclarationReferences.php",
+      "digest": "ea22d75d8c4ea4d2171c6628198d02205ccef82a226007c696118b21cb671433"
+    },
+    {
+      "file": "includes/Finance/DigitalSourceBinding.php",
+      "digest": "9a34bb55db4b66ceee4b53a567a5a15eae22745ea88c9d78b1e966a39ad69b08"
+    },
+    {
+      "file": "includes/Finance/EtsyFinancialSourceParser.php",
+      "digest": "7815c00040c68e977c1e88b22caaa25994e31edc2c8756ab668f245e2f2cec25"
+    },
+    {
+      "file": "includes/Finance/EtsyNativeObservationStage.php",
+      "digest": "1733322cb130f9f62babcfa6cabbfd0f958da6c6f105d6a21303e01075df05c5"
+    },
+    {
+      "file": "includes/Finance/ExactDecimal.php",
+      "digest": "46c8ee1a5851a32e969ee7033a0bc01f78836111126927ad78dce0456d4a5178"
+    },
+    {
+      "file": "includes/Finance/Lifecycle.php",
+      "digest": "a96316295077489143ff30c1a0fdabcbcc8a079e3e891ae584201c47767fa3cd"
+    },
+    {
+      "file": "includes/Finance/NativeEvidenceAccess.php",
+      "digest": "34df603ccaf44a28581c7df0545f1a1c869474f3c1576ab3fd2c20701efeb47a"
+    },
+    {
+      "file": "includes/Finance/NativeEvidenceStore.php",
+      "digest": "d26afb8a7d51c4eb20f29ce097365ffcee248619f765f33f31b5912f0770ce64"
+    },
+    {
+      "file": "includes/Finance/OperationsReadModel.php",
+      "digest": "9cc6f848b6072ac2d598eafb08a985c9316b008d26cc6cf74129203ddae4ca60"
+    },
+    {
+      "file": "includes/Finance/OrderCostEvidence.php",
+      "digest": "ed2433de65f8116fa11fd3066bf2812b4bb676a35e096e8308f9a56f81623d3b"
+    },
+    {
+      "file": "includes/Finance/ProvisionalProfitMetrics.php",
+      "digest": "b580713e5272c46e20a7dfbe660017ff87c12552c74b70499e7665ae0934ff63"
+    },
+    {
+      "file": "includes/Finance/Repository.php",
+      "digest": "e394bd1ecf3063bd3c513495d3247d7a8542262ddcb946184cc279dea620b37e"
+    },
+    {
+      "file": "includes/Finance/SourceCompletenessReadModel.php",
+      "digest": "63643ab5613b9603115d71f0a862b8246edb2355a5d2e879a5c2bd7bb460cc5e"
+    },
+    {
+      "file": "includes/Finance/Validator.php",
+      "digest": "3cd5deb4d916e89534f2a3028296146895bd238f5e846bf543d687268458a6e5"
+    },
+    {
+      "file": "includes/Listings/EtsyOrderEventRepository.php",
+      "digest": "408c5ed074476b42d7ffaa21d5ceea33fb4716a66c4c99e904759fe8fc1af3f0"
+    },
+    {
+      "file": "includes/Orders/HeldFulfillmentPreparation.php",
+      "digest": "b24019533886b3bd876ae16ecffd20f84f11ec326842ad25f35f9ae1ba829b8b"
+    },
+    {
+      "file": "includes/Orders/PersonalizationCurrentness.php",
+      "digest": "ae9f1afa73fb45de5518850d3be18279df6f67092f04970dc50cd3328eab81a7"
+    },
+    {
+      "file": "includes/Orders/PersonalizationReadContext.php",
+      "digest": "dd459db27450adc9274f339cb2b16faa354e5c5a24248441cf7d16711bbb7a0e"
+    },
+    {
+      "file": "includes/Orders/Repository.php",
+      "digest": "6dfcb56529c6fff618a3371b59851543fe3125ee6b903a81a4100abf63db60b2"
+    },
+    {
+      "file": "includes/POD/CustomerEditorRepository.php",
+      "digest": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db"
+    },
+    {
+      "file": "includes/POD/CustomerEditorWorkflow.php",
+      "digest": "383e47e51b8ca6c48ee0e44d411ea60a9f985098e25b65b9ec9c58e7e9be71cd"
+    },
+    {
+      "file": "includes/POD/CustomerPhotoProducerFence.php",
+      "digest": "ba417f69f6bc6b2d8e312c673bb5925629ba92e1b3f37bc264f30654529551d6"
+    },
+    {
+      "file": "includes/POD/CustomerPhotoSelection.php",
+      "digest": "8ea4dafac107195dbd705fcbbf39c63afed06c9ab5fecbe1f9f2e517e88f7006"
+    },
+    {
+      "file": "includes/POD/DeterministicPersonalizationRenderer.php",
+      "digest": "cf7f0cc4c6865e2cf896cc9009c33324411bbacbd0617deb1b45bc6e489d0bc1"
+    },
+    {
+      "file": "includes/POD/PhotoCrop.php",
+      "digest": "f931a7ce6be6b8b55b5c7fbe34b9149ea2ac66024212705c3ec02adaaf22de3e"
+    },
+    {
+      "file": "includes/POD/PrintifyWebhookInbox.php",
+      "digest": "666ba8539758197febfa53f2eaaae12ab76e3b4377d13ef36c2690fccb354ca3"
+    },
+    {
+      "file": "includes/POD/ProductionAuthorizationRepository.php",
+      "digest": "6bd3fccb33afad88013bb34a8322d282af0be57cfa7a365fb99699378fdfbfa3"
+    },
+    {
+      "file": "includes/POD/RenderArtifactVerifier.php",
+      "digest": "244db91c0cbdf9f7e87b6c621d09cf7e406e1a021c73127fac90f53c7b650662"
+    },
+    {
+      "file": "includes/POD/RenderEvidenceRepository.php",
+      "digest": "965406e16c0d4c77f024f87f8f13d0614f15ba2f17b26e81afb37f7027f9ea81"
+    },
+    {
+      "file": "includes/Portal/OrderArtifactInspection.php",
+      "digest": "2106b7382ea5893b8cdc7f3876e57109b53585b20f6cf8573cfdeb266f185258"
+    },
+    {
+      "file": "includes/Portal/OrderLocalWorkflow.php",
+      "digest": "283bef1a331c6d340a05f1eed5ad9d71406eac997717d6f72d7224f392cff092"
+    },
+    {
+      "file": "includes/Portal/ReviewConfirmation.php",
+      "digest": "9f3d77919a161421361cea29bf509eae85c24500560a22a22b42edabfcb8e5d6"
+    },
+    {
+      "file": "tests/browser/customer-editor.cjs",
+      "digest": "5a434a8e89467681545f741826757bf5c1f49c57e5878f3b09d52b184707188c"
+    },
+    {
+      "file": "tests/browser/customer-photo-render.cjs",
+      "digest": "3aff3346e6c01903239359802e423444ba9760c323cefdd37216f208e80c773b"
+    },
+    {
+      "file": "tests/fixtures/customer-editor/README.txt",
+      "digest": "22c3e13e71a5437acaa122d237eb5e4b0a357f933220c44f3bd992df93598d53"
+    },
+    {
+      "file": "tests/fixtures/customer-editor/oriented-synthetic.jpg",
+      "digest": "fddff33cff661a7b808e58b0b8161610ddf7f159849458b403a410615f96b47d"
+    },
+    {
+      "file": "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php",
+      "digest": "37aef912c0bda88ae803a143a55c6b6efa697760431a36c2797def89e4010eff"
+    },
+    {
+      "file": "tests/unit/F4OrderFulfillmentHardeningStructureTest.php",
+      "digest": "c69eb8dfd8a45aa555344c0b17b97fe58e87bbe60a5ac24223380babb19d9af0"
+    },
+    {
+      "file": "tests/unit/F4OrdersFulfillmentSafetyStructureTest.php",
+      "digest": "b38367a83ab946ac8b8628120c8088d469c67956d00096b4605c13b933117d10"
+    },
+    {
+      "file": "tests/unit/Phase4ConvergenceStructureTest.php",
+      "digest": "ff0ada8313bc703bc9b07dd3a559fd7ba154bc895d508aa4a6c7985d5c274596"
+    },
+    {
+      "file": "tests/unit/PhotoCropTest.php",
+      "digest": "dfc56d9c78736c42fcb4c1ad310d8cfeb528df8567a96a83cc4b89c4e9c03db3"
+    },
+    {
+      "file": "tests/unit/PodReadinessEvidenceAvailabilityContractTest.php",
+      "digest": "5b5971292f21f6c771b98725e2d909cf4186899ca30841f1213930cd9fe93ea5"
+    },
+    {
+      "file": "tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "digest": "d7cb2346075e1ce359a1ac6577c6bdeead5eb8a1652b4f8e916cf08bcfc7f6db"
+    },
+    {
+      "file": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "digest": "3e325469fc823a38eb6d3428643a307e3383e94d696212c47444cd8ca39b2899"
+    },
+    {
+      "file": "tests/wordpress/CustomerPhotoHeldIntegrationTest.php",
+      "digest": "d798a4945534bbb33cd401b20a16881b9662b8b86909be8b9768347a395b6304"
+    },
+    {
+      "file": "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "digest": "4a5151c366b7c8a93979c7e54adf50b13283a1bce5e2124a7b15fc5a6fa2c674"
+    },
+    {
+      "file": "tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "digest": "08624c61f1415f3eca6c68c6a6408c92fd13ce5a711a308f59f1a66f5757f4ee"
+    },
+    {
+      "file": "tests/wordpress/EtsyTrackingRecentAdmissionTest.php",
+      "digest": "224430178f1301c88eb3163eaa41cd9f9cbc8bafffd3eb899b39ae370a5a8818"
+    },
+    {
+      "file": "tests/wordpress/FinalConvergenceScenarioTest.php",
+      "digest": "f1a98e9d3e74a5a536a9baa941f77db06e2b9f91e4e0c9be328b47fddc699023"
+    },
+    {
+      "file": "tests/wordpress/FinanceNativeEvidenceStoreTest.php",
+      "digest": "932643480ccd894f04d951251aa12061d06b26f74f8e400289e7d704b4158d17"
+    },
+    {
+      "file": "tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php",
+      "digest": "af83c0538128da161ff69638f89ef4005bb2c17685a4ae48054772f50e2d247f"
+    },
+    {
+      "file": "tests/wordpress/PrintifyWebhookInboxTest.php",
+      "digest": "d62ddc6f7e6d97448dff7299effb5513fd1e5e85a0801009294cd39e19805ca5"
+    },
+    {
+      "file": "tests/wordpress/PrintifyWebhookReconciliationIntegrityTest.php",
+      "digest": "c0e0d509e327a6e0a3876cdd6a77de56383b85d6d1303eeb9fec00885c0f1333"
+    },
+    {
+      "file": "tests/wordpress/RenderArtifactCertificationTest.php",
+      "digest": "cf60594e927e0a6ccc53d3d7f532de8045539af2d87d3516aa00d684f8b8c93a"
+    },
+    {
+      "file": "tests/wordpress/fixtures/NativeBusinessOrderFixture.php",
+      "digest": "8d29090b7f1fb22d51aa78e616b5894de1801f15a3a141d0c8e53b434146a8ff"
+    },
+    {
+      "file": "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "digest": "3440004ea70d1ffc9e578d28835cac2ce881e1d0f9272a8aaaa892f381528d59"
+    },
+    {
+      "file": "tests/wordpress/fixtures/PrintifyApiApprovalFixture.php",
+      "digest": "a82321a5f453cd90006d8ccfee0cccafcd16398974a24ae43751bda36bdda943"
+    }
+  ],
+  "runner_sha256": [
+    {
+      "file": "/tmp/photo-retained-final-candidate-suite.xml",
+      "digest": "d87e96b42b2ba7e148df6cde70aeb0bffc2e37b36dab4726364c6fb72553fdbe"
+    },
+    {
+      "file": "/tmp/photo-retained-final-candidate-command.sh",
+      "digest": "07c44ee0eafd0d81c6d79414db8cf2cbc77e1c64605111737c7f059defeb4522"
+    },
+    {
+      "file": "/tmp/photo-retained-final-candidate-bootstrap.php",
+      "digest": "2b59a0df0aac4f4d29dea62004192ce99ede3c9a98c50a7de2d3624c0f52ca95"
+    }
+  ]
+}

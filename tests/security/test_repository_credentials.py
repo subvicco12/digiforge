@@ -248,6 +248,62 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
+    def checkpoint_provenance_fixture(self, altered_source=False, altered_context=False, baseline_available=True):
+        project=SCRIPT.parent.parent
+        docs=[('8b38453e612833f240d792f97878e1025fe1b27e','docs/engineering/shop2-platform-1266/evidence/photo-inbox-source-hashes-20261116.json',['tests/wordpress/fixtures/PrintifyApiApprovalFixture.php']),
+              ('1be4dc9565d31683fdb5610bd8b71592c6df5a1d','docs/engineering/shop2-platform-1266/evidence/audit5034-primary-source-hashes-20261116.json',['includes/Finance/NativeEvidenceAccess.php','tests/wordpress/fixtures/PrintifyApiApprovalFixture.php']),
+              ('1be4dc9565d31683fdb5610bd8b71592c6df5a1d','docs/engineering/shop2-platform-1266/AUDIT5034_CROSS_LANE_CHECKPOINT_20261116.json',[])]
+        if baseline_available:
+            common=subprocess.check_output(['git','-C',str(project),'rev-parse','--git-common-dir'],text=True).strip()
+            alternate=self.root/'.git/objects/info/alternates';alternate.parent.mkdir(parents=True,exist_ok=True)
+            alternate.write_text(str((project/common).resolve()/'objects')+'\n')
+        for ref,document,sources in docs:
+            for name in sources+[document]:
+                raw=subprocess.check_output(['git','-C',str(project),'show',ref+':'+name])
+                if (altered_source and name in sources) or (altered_context and name==document):raw+=b'\n'
+                target=self.root/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+            self.git('add','.');self.git('commit','-qm','Reviewed historical checkpoint provenance fixture')
+
+    def test_checkpoint_provenance_exact_references_keep_all_raw_findings(self):
+        self.checkpoint_provenance_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual('PASS',evidence['status'])
+        self.assertEqual(4,evidence['raw_finding_count'])
+        self.assertEqual(4,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_checkpoint_provenance_missing_git_object_stays_actionable(self):
+        self.checkpoint_provenance_fixture(baseline_available=False)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_checkpoint_provenance_changed_historical_source_stays_actionable(self):
+        self.checkpoint_provenance_fixture(altered_source=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_checkpoint_provenance_changed_reviewed_context_stays_actionable(self):
+        self.checkpoint_provenance_fixture(altered_context=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_checkpoint_provenance_does_not_hide_same_file_additional_credential(self):
+        self.checkpoint_provenance_fixture()
+        canary='b7C9dE2fG5hJ8kM3'*3
+        target=self.root/'docs/engineering/shop2-platform-1266/AUDIT5034_CROSS_LANE_CHECKPOINT_20261116.json'
+        document=json.loads(target.read_text());document['api_key']=canary
+        target.write_text(json.dumps(document,indent=2)+'\n')
+        self.git('add','.');self.git('commit','-qm','Additional synthetic credential in reviewed checkpoint')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(4,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
     def reviewed_interface_fixture(self, baseline_available=True, changed=False):
         project=SCRIPT.parent.parent
         for ref,name in [('9d79f66868bafe7d43fedf5de1994eab787a6bf4','P0_CONTINUATION_DELIVERY_20261115.json'),
@@ -314,6 +370,57 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertEqual(1,evidence.get('verified_plan_state_phrase_count',0))
         self.assertGreater(evidence['finding_count'],0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+
+class ReviewedCheckpointProvenanceTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('checkpoint_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent;self.cases=[]
+        for commit,path,line,start,end,route in [
+            ('8b38453e612833f240d792f97878e1025fe1b27e','docs/engineering/shop2-platform-1266/evidence/photo-inbox-source-hashes-20261116.json',43,30,128,['tests/wordpress/fixtures/PrintifyApiApprovalFixture.php']),
+            ('1be4dc9565d31683fdb5610bd8b71592c6df5a1d','docs/engineering/shop2-platform-1266/evidence/audit5034-primary-source-hashes-20261116.json',27,22,114,['includes/Finance/NativeEvidenceAccess.php']),
+            ('1be4dc9565d31683fdb5610bd8b71592c6df5a1d','docs/engineering/shop2-platform-1266/evidence/audit5034-primary-source-hashes-20261116.json',72,30,128,['tests/wordpress/fixtures/PrintifyApiApprovalFixture.php']),
+            ('1be4dc9565d31683fdb5610bd8b71592c6df5a1d','docs/engineering/shop2-platform-1266/AUDIT5034_CROSS_LANE_CHECKPOINT_20261116.json',94,7,79,['coordination','separate_API_source_verified'])]:
+            raw=self.raw('show',commit+':'+path);document=json.loads(raw);value=document
+            for key in route:value=value[key]
+            # Gitleaks reports the basename suffix for path-valued member names.
+            masked=route[-1].split('/')[-1]+'": "REDACTED"'
+            finding={'File':path,'RuleID':'generic-api-key','Commit':commit,'Secret':'REDACTED','Match':masked,
+                     'StartLine':line,'EndLine':line,'StartColumn':start,'EndColumn':end}
+            self.cases.append((finding,raw,route,value))
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True).stdout
+    def verify(self,finding,git=None,raw=None):
+        self.assertTrue(hasattr(self.gate,'verified_checkpoint_provenance'),'Exact checkpoint provenance verification is required')
+        return self.gate.verified_checkpoint_provenance(finding,git or self.git,raw or self.raw)
+    def test_checkpoint_all_exact_reviewed_spans_require_independent_provenance(self):
+        for finding,_,_,_ in self.cases:
+            with self.subTest(path=finding['File'],line=finding['StartLine']):self.assertTrue(self.verify(finding))
+    def test_checkpoint_changed_rule_identity_span_type_and_redaction_stay_actionable(self):
+        for finding,_,_,_ in self.cases:
+            for key,value in [('File','other.json'),('RuleID','github-pat'),('StartLine',True),('EndLine',1),('StartColumn',0),('EndColumn',1),('Commit','f'*40),('Match','different masked span'),('Secret','unmasked')]:
+                changed=dict(finding);changed[key]=value
+                with self.subTest(path=finding['File'],field=key):self.assertFalse(self.verify(changed))
+    def test_checkpoint_changed_blob_context_or_duplicate_members_stay_actionable(self):
+        for finding,raw,_,_ in self.cases:
+            def wrong(*args):return 'f'*40 if args[0]=='rev-parse' else self.git(*args)
+            self.assertFalse(self.verify(finding,git=wrong))
+            self.assertFalse(self.verify(finding,raw=lambda *args:raw+b'\n'))
+            self.assertFalse(self.verify(finding,raw=lambda *args:b'{"duplicate":1,"duplicate":2}'))
+    def test_checkpoint_changed_missing_or_wrong_type_qualified_source_stays_actionable(self):
+        for finding,receipt,route,value in self.cases:
+            qualified=value if len(value)==40 else self.git('rev-parse',finding['Commit']+':'+route[0])
+            def wrong_type(*args):return 'tree' if args==('cat-file','-t',qualified) else self.git(*args)
+            def missing(*args):
+                if args==('cat-file','-t',qualified):raise OSError('Missing qualified provenance object')
+                return self.git(*args)
+            self.assertFalse(self.verify(finding,git=wrong_type));self.assertFalse(self.verify(finding,git=missing))
+            if len(value)==64:
+                def changed(*args):return b'changed historical source' if args==('cat-file','blob',qualified) else self.raw(*args)
+                self.assertFalse(self.verify(finding,raw=changed))
 
 
 class ReviewedReceiptSourceDigestTest(unittest.TestCase):

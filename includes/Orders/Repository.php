@@ -11,6 +11,7 @@ use WP_Error;
 
 final class Repository
 {
+    public function __construct(private ?PersonalizationReadContext $personalizationContext=null) {}
     public function createOrder(array $input, ?string $key = null): array|WP_Error
     {
         try {
@@ -81,26 +82,26 @@ final class Repository
         $order=$this->find(Tables::orders(),absint($input['order_id']??0));if(is_wp_error($order))return $order;if(!is_array($order))return $this->error('invalid_parent','Valid order_id is required.');
         try{$provider=sanitize_key((string)($input['provider']??''));$mapping=Validator::structured((array)($input['provider_mapping_snapshot']??[]));$print=Validator::structured((array)($input['print_area_snapshot']??[]));$shipping=Validator::structured((array)($input['shipping_method_metadata']??[]));$cost=Validator::structured((array)($input['cost_snapshot_metadata']??[]));}catch(\InvalidArgumentException $e){return $this->error('validation',$e->getMessage());}
         $readiness=$this->readiness((int)$order['id']);if(is_wp_error($readiness))return $readiness;if(empty($readiness['ready']))return $this->error('not_ready','Order must pass current readiness before a fulfillment plan can be created.',409);
-        $personalization=(new PersonalizationCurrentness())->forPlan((int)$order['id'],(int)$order['personalization_required']===1);if(is_wp_error($personalization))return $personalization;
+        $personalization=(new PersonalizationCurrentness($this->personalizationContext))->forPlan((int)$order['id'],(int)$order['personalization_required']===1);if(is_wp_error($personalization))return $personalization;
         $lineIdentity=$this->lineIdentitySnapshot((int)$order['id']);if(is_wp_error($lineIdentity))return $lineIdentity;
         $personalizationEvidenceHash=hash('sha256',Validator::canonicalJson($personalization));$payload=['order_id'=>(int)$order['id'],'provider'=>$provider,'mapping'=>$mapping,'print_area'=>$print,'personalization'=>$personalization,'personalization_evidence_hash'=>$personalizationEvidenceHash,'shipping'=>$shipping,'cost'=>$cost,'readiness'=>$readiness,'line_identity_snapshot'=>$lineIdentity];$canonical=Validator::canonicalJson($payload);
-        $confirmedPersonalization=(new PersonalizationCurrentness())->forPlan((int)$order['id'],(int)$order['personalization_required']===1);if(is_wp_error($confirmedPersonalization))return $confirmedPersonalization;if($confirmedPersonalization!==$personalization)return $this->error('personalization_changed','Current server-selected input changed while preparing the plan.',409);
+        $confirmedPersonalization=(new PersonalizationCurrentness($this->personalizationContext))->forPlan((int)$order['id'],(int)$order['personalization_required']===1);if(is_wp_error($confirmedPersonalization))return $confirmedPersonalization;if($confirmedPersonalization!==$personalization)return $this->error('personalization_changed','Current server-selected input changed while preparing the plan.',409);
         return $this->insert(Tables::fulfillment_plans(),$key,['order_id'=>(int)$order['id'],'plan_version'=>sanitize_text_field((string)($input['plan_version']??'v1')),'provider'=>$provider,'provider_mapping_snapshot'=>Validator::canonicalJson($mapping),'print_area_snapshot'=>Validator::canonicalJson($print),'personalization_snapshot'=>Validator::canonicalJson(['submissions'=>$personalization,'evidence_hash'=>$personalizationEvidenceHash,'human_review_required'=>true,'external_execution_performed'=>false]),'shipping_method_metadata'=>Validator::canonicalJson($shipping),'cost_snapshot_metadata'=>Validator::canonicalJson($cost),'canonical_payload'=>$canonical,'payload_hash'=>hash('sha256',$canonical),'readiness'=>Validator::canonicalJson($readiness),'readiness_hash'=>(string)$readiness['hash'],'state'=>'DRAFT','approved_by'=>0,'approved_at'=>null,'environment'=>(string)$order['environment'],'created_by'=>get_current_user_id(),'created_at'=>$this->now(),'updated_at'=>$this->now()],'fulfillment_plan');
     }
 
     /** Exact local material reviewed with new plans; historical approved plans are never rewritten. */
     private function lineIdentitySnapshot(int $orderId): array|WP_Error
     {
-        global $wpdb;$wpdb->last_error='';
-        $lines=$wpdb->get_results($wpdb->prepare('SELECT id,listing_id,product_version_id,provider_mapping_id,quantity,currency,environment,validation_status FROM '.Tables::order_line_items().' WHERE order_id=%d ORDER BY id LIMIT 101',$orderId),ARRAY_A);
+        global $wpdb;$suffix=$this->contextReadSuffix();if(is_wp_error($suffix))return $suffix;$wpdb->last_error='';
+        $lines=$wpdb->get_results($wpdb->prepare('SELECT id,listing_id,product_version_id,provider_mapping_id,quantity,currency,environment,validation_status FROM '.Tables::order_line_items().' WHERE order_id=%d ORDER BY id LIMIT 101'.$suffix,$orderId),ARRAY_A);
         if(!is_array($lines)||$wpdb->last_error!==''||count($lines)>100)return $this->error('plan_line_evidence_unavailable','Complete line identity evidence is required.',503);
         $snapshot=[];
         foreach($lines as $line){
             $mapping=null;$ownership=[];
             if((int)$line['provider_mapping_id']>0){
-                $wpdb->last_error='';$mapping=$wpdb->get_row($wpdb->prepare('SELECT id,product_version_id,production_plan_id,provider,environment,provider_product_key,provider_variant_key,mapping_version,state,approved_by,approved_at FROM '.Tables::pod_mappings().' WHERE id=%d',(int)$line['provider_mapping_id']),ARRAY_A);
+                $wpdb->last_error='';$mapping=$wpdb->get_row($wpdb->prepare('SELECT id,product_version_id,production_plan_id,provider,environment,provider_product_key,provider_variant_key,mapping_version,state,approved_by,approved_at FROM '.Tables::pod_mappings().' WHERE id=%d'.$suffix,(int)$line['provider_mapping_id']),ARRAY_A);
                 if($wpdb->last_error!=='')return $this->error('plan_line_evidence_unavailable','Current provider mapping evidence could not be read.',503);
-                $wpdb->last_error='';$ownership=$wpdb->get_results($wpdb->prepare('SELECT own.id,own.business_id,own.store_id,own.product_program_id,own.product_version_id,own.provider_mapping_id,own.state,own.approved_by,own.approved_at,b.business_key,b.status AS business_status,s.store_key,s.business_id AS store_business_id,s.status AS store_status,p.program_key,p.business_id AS program_business_id,p.store_id AS program_store_id,p.status AS program_status FROM '.Tables::pod_business_mappings().' own LEFT JOIN '.Tables::businesses().' b ON b.id=own.business_id LEFT JOIN '.Tables::stores().' s ON s.id=own.store_id LEFT JOIN '.Tables::product_programs().' p ON p.id=own.product_program_id WHERE own.provider_mapping_id=%d ORDER BY own.id LIMIT 101',(int)$line['provider_mapping_id']),ARRAY_A);
+                $wpdb->last_error='';$ownership=$wpdb->get_results($wpdb->prepare('SELECT own.id,own.business_id,own.store_id,own.product_program_id,own.product_version_id,own.provider_mapping_id,own.state,own.approved_by,own.approved_at,b.business_key,b.status AS business_status,s.store_key,s.business_id AS store_business_id,s.status AS store_status,p.program_key,p.business_id AS program_business_id,p.store_id AS program_store_id,p.status AS program_status FROM '.Tables::pod_business_mappings().' own LEFT JOIN '.Tables::businesses().' b ON b.id=own.business_id LEFT JOIN '.Tables::stores().' s ON s.id=own.store_id LEFT JOIN '.Tables::product_programs().' p ON p.id=own.product_program_id WHERE own.provider_mapping_id=%d ORDER BY own.id LIMIT 101'.$suffix,(int)$line['provider_mapping_id']),ARRAY_A);
                 if(!is_array($ownership)||$wpdb->last_error!==''||count($ownership)>100)return $this->error('plan_line_evidence_unavailable','Complete ownership identity evidence could not be read.',503);
             }
             $snapshot[]=['line'=>$line,'mapping'=>$mapping,'ownership'=>$ownership];
@@ -139,14 +140,14 @@ final class Repository
         $order=$this->find(Tables::orders(),$orderId);
         if(is_wp_error($order))return $order;
         if(!is_array($order))return $this->error('not_found','Order not found.',404);
-        global $wpdb;
+        global $wpdb;$suffix=$this->contextReadSuffix();if(is_wp_error($suffix))return $suffix;
         $lineCount=$this->readinessCount($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::order_line_items().' WHERE order_id=%d',$orderId));
         $listingShopScope=\DigiForge\Listings\EtsyStoredShopScope::matches('l.shop_reference',$wpdb->prepare('%s',(string)$order['shop_reference']),$wpdb->prepare('%s',(string)$order['environment']));
         $invalidSql=$wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li LEFT JOIN ".Tables::listings()." l ON l.id=li.listing_id WHERE li.order_id=%d AND (li.validation_status<>'VALIDATED' OR (li.listing_id>0 AND (l.id IS NULL OR l.product_version_id<>li.product_version_id OR BINARY l.environment<>BINARY %s OR BINARY l.channel<>BINARY %s OR l.shop_reference='' OR NOT ",$orderId,(string)$order['environment'],(string)$order['channel']).$listingShopScope.")))";
         $invalidLines=$this->readinessCount($invalidSql);
         if($lineCount===null||$invalidLines===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
         if($lineCount===0)return $this->error('order_line_items_missing','Order readiness requires at least one stored line item.',409);
-        $personalizationCurrent=(new PersonalizationCurrentness())->forOrder($orderId,(int)$order['personalization_required']===1);
+        $personalizationCurrent=(new PersonalizationCurrentness($this->personalizationContext))->forOrder($orderId,(int)$order['personalization_required']===1);
         if(is_wp_error($personalizationCurrent)&&(($personalizationCurrent->get_error_data()['status']??409)===503||in_array($personalizationCurrent->get_error_code(),['photo_selection_selection_read_failed','photo_selection_read_unavailable'],true)))return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
         $personalizationMissing=is_wp_error($personalizationCurrent)?1:0;
         $digitalLines=$this->readinessCount($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::order_line_items()." li WHERE li.order_id=%d AND EXISTS (SELECT 1 FROM ".Tables::digital_products()." dp WHERE dp.product_version_id=li.product_version_id)",$orderId));
@@ -156,7 +157,7 @@ final class Repository
         if($digitalLines===null||$podLines===null||$unmapped===null)return $this->error('order_readiness_evidence_unavailable','Order readiness evidence could not be read.',500);
         if($unmapped===0&&$podLines>0){
             $wpdb->last_error='';
-            $bindings=$wpdb->get_results($wpdb->prepare('SELECT b.provider_mapping_id,b.readiness_hash FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::listing_pod_bindings().' b ON b.listing_id=li.listing_id AND b.provider_mapping_id=li.provider_mapping_id WHERE li.order_id=%d AND li.listing_id>0',$orderId),ARRAY_A);
+            $bindings=$wpdb->get_results($wpdb->prepare('SELECT b.provider_mapping_id,b.readiness_hash FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::listing_pod_bindings().' b ON b.listing_id=li.listing_id AND b.provider_mapping_id=li.provider_mapping_id WHERE li.order_id=%d AND li.listing_id>0'.$suffix,$orderId),ARRAY_A);
             if(!is_array($bindings)||$wpdb->last_error!=='')return $this->error('order_readiness_evidence_unavailable','Current provider binding evidence could not be read.',500);
             foreach($bindings as $binding){$pod=new \DigiForge\POD\Repository();$current=$readOnly?$pod->readinessSnapshot((int)$binding['provider_mapping_id']):$pod->readiness((int)$binding['provider_mapping_id']);if(is_wp_error($current)||empty($current['ready'])||!hash_equals((string)$binding['readiness_hash'],hash('sha256',Validator::canonicalJson($current)))){$unmapped++;break;}}
         }
@@ -171,9 +172,9 @@ final class Repository
 
     private function readinessCount(string $sql): ?int
     {
-        global $wpdb;
+        global $wpdb;$suffix=$this->contextReadSuffix();if(is_wp_error($suffix))return null;
         $wpdb->last_error='';
-        $value=$wpdb->get_var($sql);
+        $value=$wpdb->get_var($sql.$suffix);
         return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;
     }
 
@@ -195,8 +196,9 @@ final class Repository
 
     private function find(string $table,int $id): array|WP_Error|null
     {
-        if($id<1)return null;global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d LIMIT 1",$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','Order authority evidence could not be read.',503);return is_array($row)?$row:null;
+        if($id<1)return null;global $wpdb;$suffix=$this->contextReadSuffix();if(is_wp_error($suffix))return $suffix;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d LIMIT 1".$suffix,$id),ARRAY_A);if(!empty($wpdb->last_error))return $this->error('order_evidence_unavailable','Order authority evidence could not be read.',503);return is_array($row)?$row:null;
     }
+    private function contextReadSuffix():string|WP_Error {return $this->personalizationContext===null?'':$this->personalizationContext->currentReadSuffix();}
     private function sameShop(array $listing,array $order):bool {
         if((string)$listing['shop_reference']===(string)$order['shop_reference'])return true;
         if(($order['channel']??'')!=='etsy')return false;

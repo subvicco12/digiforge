@@ -345,6 +345,114 @@ def verified_receipt_source_digest(finding, git, git_bytes):
         return False
 
 
+def verified_checkpoint_provenance(finding, git, git_bytes):
+    """Prove four exact reviewed historical source references, retaining raw findings.
+
+    Every reviewed blob, span, masked grammar and duplicate-free JSON location
+    must agree. Independently resolve the referenced commit or hash source bytes
+    at the finding's own historical commit, never current working-tree bytes.
+    """
+    reviewed = [{'path': 'docs/engineering/shop2-platform-1266/evidence/photo-inbox-source-hashes-20261116.json',
+      'blob': '48627b74361bd11021f1886c4bb2d7b7dc8bba21',
+      'content': 'af28e948e85f9ed897727a4f907d789c782a076d97dfb186fc130fa97305f669',
+      'route': ['tests/wordpress/fixtures/PrintifyApiApprovalFixture.php'],
+      'line': 43,
+      'start': 30,
+      'end': 128,
+      'kind': 'source'},
+     {'path': 'docs/engineering/shop2-platform-1266/AUDIT5034_CROSS_LANE_CHECKPOINT_20261116.json',
+      'blob': 'ad736bac98420766fdc8ec74f652314c1941e759',
+      'content': 'c8e257966638e70dabc4ea84fcb8441d68dd7f5f26c6c37f9559fedcee5f706d',
+      'route': ['coordination', 'separate_API_source_verified'],
+      'line': 94,
+      'start': 7,
+      'end': 79,
+      'kind': 'commit'},
+     {'path': 'docs/engineering/shop2-platform-1266/evidence/audit5034-primary-source-hashes-20261116.json',
+      'blob': '905a0f308f29e1f121a50ec42812b9acc19d6457',
+      'content': 'a26fcf67e02f56bd8b976e464012da5d19a903b1cba782af994b5652f0392721',
+      'route': ['includes/Finance/NativeEvidenceAccess.php'],
+      'line': 27,
+      'start': 22,
+      'end': 114,
+      'kind': 'source'},
+     {'path': 'docs/engineering/shop2-platform-1266/evidence/audit5034-primary-source-hashes-20261116.json',
+      'blob': '905a0f308f29e1f121a50ec42812b9acc19d6457',
+      'content': 'a26fcf67e02f56bd8b976e464012da5d19a903b1cba782af994b5652f0392721',
+      'route': ['tests/wordpress/fixtures/PrintifyApiApprovalFixture.php'],
+      'line': 72,
+      'start': 30,
+      'end': 128,
+      'kind': 'source'}]
+    try:
+        candidates = [spec for spec in reviewed if finding.get('File') == spec['path']
+                      and finding.get('StartLine') == spec['line']]
+        if len(candidates) != 1:
+            return False
+        spec = candidates[0]
+        commit = finding.get('Commit')
+        expected_match = spec['route'][-1].split('/')[-1] + '": "REDACTED"'
+        location = {'StartLine': spec['line'], 'EndLine': spec['line'],
+                    'StartColumn': spec['start'], 'EndColumn': spec['end']}
+        if (finding.get('RuleID') != 'generic-api-key' or finding.get('Secret') != 'REDACTED'
+                or finding.get('Match') != expected_match
+                or any(type(finding.get(key)) is not int or finding[key] != value
+                       for key, value in location.items())
+                or not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit)):
+            return False
+        if git('cat-file', '-t', commit) != 'commit':
+            return False
+        blob = git('rev-parse', '--verify', commit + ':' + spec['path'])
+        if blob != spec['blob'] or git('cat-file', '-t', blob) != 'blob':
+            return False
+        raw = git_bytes('cat-file', 'blob', blob)
+        if (not isinstance(raw, bytes) or len(raw) > 65536
+                or hashlib.sha256(raw).hexdigest() != spec['content']):
+            return False
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError('Duplicate JSON member')
+                result[key] = value
+            return result
+
+        text = raw.decode('utf-8')
+        document = json.loads(text, object_pairs_hook=unique_object)
+        canonical = json.dumps(document, indent=2).splitlines()
+        if canonical != text.splitlines():
+            return False
+        container = document
+        for key in spec['route'][:-1]:
+            container = container[key]
+        field = spec['route'][-1]
+        value = container[field]
+        width = 40 if spec['kind'] == 'commit' else 64
+        if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{' + str(width) + '}', value):
+            return False
+        line = canonical[spec['line'] - 1]
+        if re.fullmatch(r'\s*"' + re.escape(field) + r'": "' + value + r'",?', line) is None:
+            return False
+        if line.replace(value, 'REDACTED').count(expected_match) != 1:
+            return False
+        container[field] = '__reviewed_checkpoint_location__'
+        changed = json.dumps(document, indent=2).splitlines()
+        if [i + 1 for i, pair in enumerate(zip(canonical, changed)) if pair[0] != pair[1]] != [spec['line']]:
+            return False
+        if spec['kind'] == 'commit':
+            return git('cat-file', '-t', value) == 'commit'
+        source_blob = git('rev-parse', '--verify', commit + ':' + field)
+        if not isinstance(source_blob, str) or not re.fullmatch('[a-f0-9]{40}', source_blob):
+            return False
+        if git('cat-file', '-t', source_blob) != 'blob':
+            return False
+        source = git_bytes('cat-file', 'blob', source_blob)
+        return isinstance(source, bytes) and hashlib.sha256(source).hexdigest() == value
+    except (OSError, ValueError, TypeError, KeyError, IndexError, subprocess.SubprocessError):
+        return False
+
+
 def check(repository, scanner):
     evidence = {'schema': 'digiforge-repository-credential-evidence-v1',
                 'status': 'SCAN_UNAVAILABLE', 'scanner_version': VERSION,
@@ -409,6 +517,7 @@ def check(repository, scanner):
                       'source_digest' if verified_source_digest_reference(row, git, git_bytes) else
                       'interface_git' if verified_interface_git_reference(row, git, git_bytes) else
                       'receipt_source' if verified_receipt_source_digest(row, git, git_bytes) else
+                      'checkpoint_provenance' if verified_checkpoint_provenance(row, git, git_bytes) else
                       'actionable') for row in findings]
             actionable = [row for row, kind in zip(findings, kinds) if kind == 'actionable']
             evidence['raw_finding_count'] = len(findings)
@@ -417,6 +526,7 @@ def check(repository, scanner):
             evidence['verified_source_digest_reference_count'] = kinds.count('source_digest')
             evidence['verified_interface_git_reference_count'] = kinds.count('interface_git')
             evidence['verified_receipt_source_digest_count'] = kinds.count('receipt_source')
+            evidence['verified_checkpoint_provenance_count'] = kinds.count('checkpoint_provenance')
             evidence['raw_rules_with_findings'] = dict(collections.Counter(
                 str(row.get('RuleID', 'unknown')) for row in findings))
             evidence['finding_count'] = len(actionable)

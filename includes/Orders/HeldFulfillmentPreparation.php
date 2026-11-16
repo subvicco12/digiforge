@@ -13,6 +13,7 @@ use WP_Error;
 /** Current stored evidence for local review only; no execution permit is issued. */
 final class HeldFulfillmentPreparation
 {
+    public function __construct(private ?PersonalizationReadContext $personalizationContext=null) {}
     public function forOrder(string $shop,int $orderId): array|WP_Error
     {
         if(!ShopAccessPolicy::validShop($shop)||$orderId<1)return self::error('scope','Select one exact shop and order.',400);
@@ -40,7 +41,7 @@ final class HeldFulfillmentPreparation
             if(is_wp_error($ownership))return $ownership;
             $identities[]=['line'=>$identityLine,'mapping'=>$mapping[0],'ownership'=>$ownership];
         }
-        $readiness=(new Repository())->readinessSnapshot($orderId);
+        $readiness=(new Repository($this->personalizationContext))->readinessSnapshot($orderId);
         $reconciliation=(new ReconciliationReadModel())->forOrder($orderId);
         if(is_wp_error($readiness))return $readiness;
         if(($reconciliation['query_state']??'UNAVAILABLE')!=='AVAILABLE')return self::error('evidence_unavailable','Current reconciliation evidence is unavailable.',503);
@@ -70,7 +71,7 @@ final class HeldFulfillmentPreparation
                 $lineVersions[(int)$line['id']]=(int)$line['product_version_id'];
                 $lines[]=['line_item_id'=>(int)$line['id'],'listing_id'=>(int)$line['listing_id'],'product_version_id'=>(int)$line['product_version_id'],'provider_mapping_id'=>(int)$line['provider_mapping_id'],'quantity'=>Validator::quantity($line['quantity']),'provider_product_key'=>$line['provider_product_key'],'provider_variant_key'=>$line['provider_variant_key'],'mapping_version'=>$line['mapping_version'],'ownership_mapping_id'=>(int)$owner['id']];
             }
-            $approved=(new PersonalizationCurrentness())->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($approved))return $approved;
+            $approved=(new PersonalizationCurrentness($this->personalizationContext))->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($approved))return $approved;
             $personalHash=hash('sha256',Validator::canonicalJson($approved));$snapshot=self::document($plan['personalization_snapshot']);
             if(Validator::canonicalJson($approved)!==Validator::canonicalJson((array)($payload['personalization']??[]))||($payload['personalization_evidence_hash']??null)!==$personalHash||($snapshot['evidence_hash']??null)!==$personalHash||Validator::canonicalJson((array)($snapshot['submissions']??[]))!==Validator::canonicalJson($approved))throw new \InvalidArgumentException();
             if(isset($payload['cost']['currency'])&&$payload['cost']['currency']!==$order['currency'])throw new \InvalidArgumentException();
@@ -78,7 +79,7 @@ final class HeldFulfillmentPreparation
             $prepared=FulfillmentRoutePreparation::prepare($plan['provider'],$order['environment'],$intent['intent_type'],$routePayload,$payload['shipping'],$payload['cost'],$order['currency']);if(is_wp_error($prepared))return $prepared;
             $again=$this->forOrder($shop,$orderId);if(is_wp_error($again))return $again;
             if(Validator::canonicalJson($source)!==Validator::canonicalJson($again))return self::error('changed','Stored order dependencies changed during local preparation.');
-            $confirmedPersonalization=(new PersonalizationCurrentness())->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($confirmedPersonalization))return $confirmedPersonalization;if($confirmedPersonalization!==$approved)return self::error('changed','Current server-selected input changed during held preparation.');
+            $confirmedPersonalization=(new PersonalizationCurrentness($this->personalizationContext))->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($confirmedPersonalization))return $confirmedPersonalization;if($confirmedPersonalization!==$approved)return self::error('changed','Current server-selected input changed during held preparation.');
             if($actor<1||!is_user_logged_in()||get_current_user_id()!==$actor)return self::error('actor','The held preparation actor changed.',403);foreach(['manage_digiforge_orders','manage_digiforge_pod'] as $cap){$access=ShopAccess::authorize($shop,$cap,$actor);if(is_wp_error($access))return $access;}if(!is_user_logged_in()||get_current_user_id()!==$actor||!current_user_can('manage_digiforge_orders')||!current_user_can('manage_digiforge_pod'))return self::error('actor','Current held preparation admission changed.',403);if(!is_user_logged_in()||get_current_user_id()!==$actor)return self::error('actor','The held preparation actor changed during final admission.',403);
             return ['state'=>'HELD_FULFILLMENT_PREPARED','shop_key'=>$shop,'order_id'=>$orderId,'fulfillment_plan_id'=>(int)$plan['id'],'fulfillment_intent_id'=>$intentId,'plan_payload_hash'=>$plan['payload_hash'],'current_evidence_hash'=>Validator::hash($source),'preparation'=>$prepared,'render_artifact_recheck_required'=>true,'production_approval_required'=>true,'release_hold'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false,'external_execution_performed'=>false];
         }catch(\Throwable){return self::error('snapshot','Stored plan snapshots and current typed personalization must agree exactly.');}
@@ -86,7 +87,7 @@ final class HeldFulfillmentPreparation
 
     private function rows(string $sql): array|WP_Error
     {
-        global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($sql,ARRAY_A);
+        global $wpdb;if($this->personalizationContext!==null){$suffix=$this->personalizationContext->currentReadSuffix();if(is_wp_error($suffix))return $suffix;$sql.=$suffix;}$wpdb->last_error='';$rows=$wpdb->get_results($sql,ARRAY_A);
         return !is_array($rows)||$wpdb->last_error!==''||count($rows)>100?self::error('evidence_unavailable','Bounded current order evidence could not be read completely.',503):$rows;
     }
 

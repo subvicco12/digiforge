@@ -27,7 +27,7 @@ final class DeterministicPersonalizationSourceIntegrityTest extends TestCase
         eval('namespace DigiForge\\POD; final class BusinessScopeRepository { public function assertActiveOwnershipForMapping(int $id):array { return ["business_key"=>BusinessScope::DIGICRAFTIFY_GOODS,"program_key"=>BusinessScope::PERSONALIZED_POD]; } } final class TemplateCycleRepository { public function assertOwner(string $shop,string $hash):true { return true; } }');
         if (!function_exists('trailingslashit')) eval('function trailingslashit(string $path):string { return rtrim($path,"/")."/"; }');
         if (!function_exists('wp_upload_dir')) eval('function wp_upload_dir():array { return ["basedir"=>$GLOBALS["source_integrity_uploads"]]; }');
-        foreach (['POD/ProductionTemplateContract','POD/RasterArtworkCodec','POD/RepeatLayout','POD/ArtworkGeometryQa','POD/PersonalizationPayloadContract','POD/CustomerPhotoSelection','POD/DeterministicPersonalizationRenderer','POD/RenderArtifactVerifier','ProductFactory/AssetStorage','Database/QueryEvidence'] as $file) require_once dirname(__DIR__,2).'/includes/'.$file.'.php';
+        foreach (['POD/ProductionTemplateContract','POD/RasterArtworkCodec','POD/RepeatLayout','POD/ArtworkGeometryQa','POD/PersonalizationPayloadContract','POD/CustomerPhotoProducerFence','POD/CustomerPhotoSelection','POD/DeterministicPersonalizationRenderer','POD/RenderArtifactVerifier','ProductFactory/AssetStorage','Database/QueryEvidence'] as $file) require_once dirname(__DIR__,2).'/includes/'.$file.'.php';
         $root=sys_get_temp_dir().'/df-source-integrity-'.bin2hex(random_bytes(6));
         $GLOBALS['source_integrity_uploads']=$root;
         $directory=$root.'/digiforge/product-factory/'.rtrim($folder,'/');
@@ -44,14 +44,21 @@ final class DeterministicPersonalizationSourceIntegrityTest extends TestCase
         global $wpdb;
         $previous=$wpdb??null;
         $wpdb=new class($template,$proof,$payload) {
-            public string $prefix='wp_'; public string $options='wp_options'; public string $last_error='';
+            public string $prefix='wp_'; public string $options='wp_options'; public string $last_error=''; private int $fenceLocks=0;
             public function __construct(public array $template,public array $proof,public string $payload) {}
             public function prepare(string $sql,mixed ...$args):string { return $sql; }
             public function get_row(string $sql,mixed $mode):array {
+                if(str_contains($sql,'CONNECTION_ID()'))return ['connection_id'=>'77','active_transaction'=>'0','autocommit'=>'1'];
                 if(str_contains($sql,'pod_production_templates'))return array_replace($this->template,['variant_ids'=>json_encode($this->template['variant_ids']),'print_areas'=>json_encode($this->template['print_areas'])]);
                 return ['provider'=>'synthetic','provider_variant_key'=>'2:3','provider_product_key'=>'1'];
             }
             public function get_var(string $sql):mixed {
+                // This isolated unit supplies session/lock mechanics; real two-connection
+                // currentness and contention are exercised by CustomerPhotoCurrentReadTest.
+                if($sql==='SELECT DATABASE()')return 'source_integrity_unit';
+                if(str_contains($sql,'GET_LOCK(')){$this->fenceLocks++;return '1';}
+                if(str_contains($sql,'IS_USED_LOCK('))return $this->fenceLocks>0?'77':null;
+                if(str_contains($sql,'RELEASE_LOCK(')){if($this->fenceLocks<1)return null;$this->fenceLocks--;return '1';}
                 if(str_contains($sql,'BINARY option_name'))return null;
                 if(str_contains($sql,"photo_input_selected"))return 0;
                 if(str_contains($sql,'option_value'))return json_encode($this->proof);

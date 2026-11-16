@@ -62,18 +62,28 @@ final class CustomerPhotoSelection
   * A consumer expecting a positive selection revision can never fall back to legacy.
   */
  public function resolveForOrder(string $shop,int $order,int $line,?int $expectedRevision=null):array|WP_Error|null {
+  $fence=CustomerPhotoProducerFence::acquireRead();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->resolveForOrderSnapshot($shop,$order,$line,$expectedRevision);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;if(!self::operator())return self::error('operator_required',403);return $result;
+ }
+ private function resolveForOrderSnapshot(string $shop,int $order,int $line,?int $expectedRevision=null):array|WP_Error|null {
   if($shop!=='personalized_pod'||!self::operator())return self::error('operator_required',403);global $wpdb;$wpdb->last_error='';$found=$wpdb->get_var($wpdb->prepare('SELECT li.id FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::orders().' o ON o.id=li.order_id WHERE li.id=%d AND o.id=%d AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate('personalized_pod','o'),$line,$order));if($wpdb->last_error!==''||(int)$found!==$line||$line<1||$order<1)return self::error('line_scope_required',403);
   $r=$this->head($line);if($r instanceof WP_Error)return $r;if($r===null){$managed=$this->managedOrder($order);if($managed instanceof WP_Error)return $managed;if($managed)return self::error('managed_selection_missing');return $expectedRevision===null||$expectedRevision===0?null:self::error('stale_selection');}
-  if($r['snapshot']['order_id']!==$order||($expectedRevision!==null&&$r['revision']!==$expectedRevision))return self::error('stale_selection');return $this->readSelection($r,true);
+  if($r['snapshot']['order_id']!==$order||($expectedRevision!==null&&$r['revision']!==$expectedRevision))return self::error('stale_selection');return $this->readSelection($r,true,true);
  }
  private function managedOrder(int $order):bool|WP_Error {
   global $wpdb;$wpdb->last_error='';$n=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::audit_log()." WHERE event_type IN ('photo_input_selected','photo_editor_changed') AND object_type='photo_input' AND object_id=%s",(string)$order));if($wpdb->last_error!==''||!is_numeric($n))return self::error('selection_read_failed');return (int)$n>0;
  }
  public function forRender(array $render):array|WP_Error|null {
+  $fence=CustomerPhotoProducerFence::acquireRead();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->forRenderSnapshot($render);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function forRenderSnapshot(array $render):array|WP_Error|null {
   global $wpdb;$wpdb->last_error='';$lines=$wpdb->get_results($wpdb->prepare('SELECT id,provider_mapping_id FROM '.Tables::order_line_items().' WHERE order_id=%d',(int)($render['order_id']??0)),ARRAY_A);if($wpdb->last_error!==''||!is_array($lines))return self::error('selection_read_failed');
   $managed=[];foreach($lines as $line){$head=$this->head((int)$line['id']);if($head instanceof WP_Error)return $head;if($head!==null){if((int)$line['provider_mapping_id']!==(int)($render['provider_mapping_id']??0))continue;$managed[]=$head;}}
   if(!$managed){$marker=$this->managedOrder((int)($render['order_id']??0));return $marker instanceof WP_Error?$marker:($marker?self::error('managed_selection_missing'):null);}
-  if(count($managed)!==1)return self::error('ambiguous_selection');$r=$this->readSelection($managed[0],true);if($r instanceof WP_Error)return $r;
+  if(count($managed)!==1)return self::error('ambiguous_selection');$r=$this->readSelection($managed[0],true,true);if($r instanceof WP_Error)return $r;
   return hash_equals($r['snapshot']['payload_sha256'],(string)($render['personalization_evidence_hash']??''))?$r:self::error('stale_payload');
  }
  public function status(string $session):array|WP_Error {
@@ -96,10 +106,13 @@ final class CustomerPhotoSelection
   });
  }
  public function prepare(string $session,string $hash,int $revision,string $template,int $version):array|WP_Error {
+  $a=(new CustomerEditorRepository())->access($session,true);if($a instanceof WP_Error)return $a;
+  return $this->locked($a['line_item_id'],function()use($session,$hash,$revision,$template,$version):array|WP_Error {
   if(!self::operator())return self::error('operator_required',403);$r=$this->current($session,$hash,$revision,true);if($r instanceof WP_Error)return $r;
   $render=(new DeterministicRenderWorkflow())->prepare(['shop_key'=>'personalized_pod','decision'=>'PREPARE_LOCAL_ARTIFACTS','submission_id'=>$r['submission_id'],'template_key'=>$template,'template_version'=>$version,'artifact_format'=>'png']);if($render instanceof WP_Error)return $render;
   $again=$this->current($session,$hash,$revision,true);if($again instanceof WP_Error)return $again;
   $binding=self::seal(['selection_sha256'=>$hash,'render_id'=>(int)$render['id'],'panel'=>$this->panel($render),'template'=>$template,'template_version'=>$version]);$put=$this->put('df_photo_render_'.$hash,$binding);return $put instanceof WP_Error?$put:$render;
+  });
  }
  public function approveRender(string $session,string $hash,int $revision,string $note):array|WP_Error {
   if(!self::operator()||trim($note)===''||strlen($note)>2000)return self::error('independent_render_review_required');$r=$this->current($session,$hash,$revision,true);if($r instanceof WP_Error)return $r;
@@ -124,12 +137,16 @@ final class CustomerPhotoSelection
   $a=(new CustomerEditorRepository())->access($session,self::operator());if($a instanceof WP_Error)return $a;$r=$this->head($a['line_item_id']);if($r instanceof WP_Error)return $r;
   if($r===null||$r['sha256']!==$hash||$r['revision']!==$revision||$r['snapshot']['session_key']!==$session)return self::error('stale_selection');return $this->readSelection($r,$approved);
  }
- private function readSelection(array $r,bool $approved):array|WP_Error {
+ private function readSelection(array $r,bool $approved,bool $includeReviewProvenance=false):array|WP_Error {
   $s=(new CustomerEditorRepository())->photoSnapshot($r['snapshot']['session_key'],$r['snapshot']['editor_version'],self::operator());if($s instanceof WP_Error)return $s;if(Validator::canonicalJson($s)!==Validator::canonicalJson($r['snapshot']))return self::error('source_changed');
   global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::personalization_submissions().' WHERE id=%d',$r['submission_id']),ARRAY_A);if($wpdb->last_error!==''||!is_array($row)||(int)$row['order_line_item_id']!==$s['line_item_id']||(int)$row['personalization_schema_id']!==$s['schema_id']||$row['payload_hash']!==$s['payload_sha256']||$row['canonical_payload']!==Validator::canonicalJson($s['payload']))return self::error('canonical_input_changed');
   $review=$this->load('df_photo_review_'.$r['sha256']);if($review instanceof WP_Error)return $review;$state=$row['review_status'];if($review!==null&&($review['selection_sha256']!==$r['sha256']||$review['canonical_review_status']!==$state||(int)$row['reviewed_by']!==$review['canonical_reviewed_by']||$row['reviewed_at']!==$review['canonical_reviewed_at']))return self::error('review_changed');
   if($review!==null&&!$this->auditProof('photo_input_reviewed','review_sha256',$review['sha256'],$s['order_id']))return self::error('review_audit_missing');
-  if($approved&&($state!=='APPROVED'||$review===null||$review['decision']!=='APPROVED'||!user_can($review['reviewed_by'],'manage_digiforge_orders')||ShopAccess::authorize('personalized_pod','manage_digiforge_orders',$review['reviewed_by'])!==true||ShopAccess::authorize('personalized_pod','manage_digiforge_pod',$review['reviewed_by'])!==true))return self::error('approved_selection_required');return array_replace($r,['review_state'=>$review===null?'UNREVIEWED':$review['decision']]);
+  if($approved&&($state!=='APPROVED'||$review===null||$review['decision']!=='APPROVED'||!user_can($review['reviewed_by'],'manage_digiforge_orders')||ShopAccess::authorize('personalized_pod','manage_digiforge_orders',$review['reviewed_by'])!==true||ShopAccess::authorize('personalized_pod','manage_digiforge_pod',$review['reviewed_by'])!==true))return self::error('approved_selection_required');$result=array_replace($r,['review_state'=>$review===null?'UNREVIEWED':$review['decision']]);
+  // Emit only after approved admission has validated the independent review and its current authority.
+  // Canonical payload reuse can retain a different canonical reviewer; never substitute that actor.
+  if($approved&&$includeReviewProvenance&&self::operator())$result['review_provenance']=['version'=>'shop2-photo-review-proof-v1','selection_sha256'=>$r['sha256'],'selection_revision'=>$r['revision'],'reviewer_user_id'=>$review['reviewed_by'],'review_sha256'=>$review['sha256'],'decision'=>$review['decision'],'reviewed_at'=>$review['reviewed_at']];
+  return $result;
  }
  private function auditProof(string $event,string $field,string $sha,int $order):bool {
   if(!in_array($field,['selection_sha256','review_sha256'],true))return false;global $wpdb;$wpdb->last_error='';$n=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::audit_log()." WHERE event_type=%s AND object_type='photo_input' AND object_id=%s AND JSON_VALID(context) AND BINARY JSON_UNQUOTE(JSON_EXTRACT(context,'$.".$field."'))=BINARY %s",$event,(string)$order,$sha));return $wpdb->last_error===''&&is_numeric($n)&&(int)$n>0;
@@ -138,7 +155,8 @@ final class CustomerPhotoSelection
  private function panel(array $render):string {$t=(new RenderArtifactVerifier())->certifiedTemplate($render);return $t instanceof WP_Error?'':(count($t['print_areas'])===1?$t['print_areas'][0]['position']:'');}
  private function load(string $name):array|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare('SELECT option_value FROM '.$wpdb->options.' WHERE BINARY option_name=BINARY %s',$name));if($wpdb->last_error!=='')return self::error('read_unavailable');if($raw===null)return null;if(!is_string($raw)||strlen($raw)>65536)return self::error('record_invalid');$r=json_decode($raw,true);if(!is_array($r))return self::error('record_invalid');if(str_starts_with($name,'df_photo_head_'))return $r;return self::sealed($r)?$r:self::error('record_corrupt');}
  private function put(string $name,array $r):array|WP_Error {global $wpdb;$old=$this->load($name);if($old instanceof WP_Error)return $old;$raw=Validator::canonicalJson($r);if(strlen($raw)>65536)return self::error('record_limit');if($old!==null)return Validator::canonicalJson($old)===$raw?$old:self::error('immutable_conflict');$wpdb->last_error='';if($wpdb->insert($wpdb->options,['option_name'=>$name,'option_value'=>$raw,'autoload'=>'no'])!==1||$wpdb->last_error!==''||Validator::canonicalJson((array)$this->load($name))!==$raw)return self::error('write_uncertain');return $r;}
- private function locked(int $line,callable $fn):array|WP_Error {global $wpdb;$name='df-photo-line-'.$line;$got=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$name));if((string)$got!=='1')return self::error('busy');$active=false;try{$tables=[$wpdb->options,Tables::audit_log(),Tables::personalization_submissions(),Tables::pod_render_evidence()];$engines=$wpdb->get_col($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (%s,%s,%s,%s)',...$tables));if(count($engines)!==4||array_filter($engines,fn($e)=>strtoupper($e)!=='INNODB')||$wpdb->query('START TRANSACTION')===false)return self::error('transaction_required');$active=true;try{$r=$fn();}catch(\Throwable){$r=self::error('operation_failed');}if($r instanceof WP_Error){$wpdb->query('ROLLBACK');}elseif($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');$r=self::error('commit_unknown');}$active=false;return $r;}finally{if($active)$wpdb->query('ROLLBACK');$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));}}
+ private function locked(int $line,callable $fn):array|WP_Error {global $wpdb;$fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;try{$result=$this->mutationLocked($line,$fn,$fence);$valid=$fence->validate();}finally{$released=$fence->release();}if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;}
+ private function mutationLocked(int $line,callable $fn,CustomerPhotoProducerFence $fence):array|WP_Error {global $wpdb;$name='df-photo-line-'.$line;$got=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$name));if((string)$got!=='1')return self::error('busy');$active=false;try{$tables=[$wpdb->options,Tables::audit_log(),Tables::personalization_submissions(),Tables::pod_render_evidence()];$engines=$wpdb->get_col($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (%s,%s,%s,%s)',...$tables));if(count($engines)!==4||array_filter($engines,fn($e)=>strtoupper($e)!=='INNODB')||$fence->startMutationTransaction() instanceof WP_Error)return self::error('transaction_required');$active=true;try{$r=$fn();}catch(\Throwable){$r=self::error('operation_failed');}if($r instanceof WP_Error){$wpdb->query('ROLLBACK');}elseif($wpdb->query('COMMIT')===false){$wpdb->query('ROLLBACK');$r=self::error('commit_unknown');}$active=false;return $r;}finally{if($active)$wpdb->query('ROLLBACK');$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));}}
  private static function operator():bool{return get_current_user_id()>0&&current_user_can('manage_digiforge_pod')&&ShopAccess::authorize('personalized_pod','manage_digiforge_pod')===true;}
  private static function seal(array $r):array{$r['sha256']=hash('sha256',Validator::canonicalJson($r));return $r;}
  private static function sealed(array $r):bool{$sha=$r['sha256']??null;unset($r['sha256']);return is_string($sha)&&hash_equals($sha,hash('sha256',Validator::canonicalJson($r)));}
