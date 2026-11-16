@@ -1,0 +1,62 @@
+{
+  "schema": "digiforge-151-capability-promotion-overlay-v1",
+  "baseline_ledger": "docs/engineering/shop2-platform-1266/ORIGINAL_151_CAPABILITY_LEDGER_20261115.json",
+  "baseline_sha256": "4c683c3894ba1aee6ab920f617003af1d7194db070fbf57a605ca8a02e94d3bc",
+  "apply_rule": "Apply this single unique-ID delta once to the preserved original151 ledger. Earlier continuation/pending-gate records are historical snapshots. No other requirement is promoted.",
+  "promotions": [
+    {
+      "id": "S2-ORD-04",
+      "requirement": "Persist review-required and validated states without automatic approval",
+      "accepted_source_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+      "independent_acceptance": "E-ORD04-LOCAL-aa4e7f37-A5027",
+      "qualification_status": "VERIFIED_LOCAL_SOFTWARE",
+      "scope": "Persist review-required and validated intake states without automatic approval; independently executed local actual REST/persistence/denial composition plus exact-head successful CI. Not payment settlement, native execution or installed qualification.",
+      "implementation": "IMPLEMENTED",
+      "operational_qualification": "UNVERIFIED_CURRENT_CANDIDATE",
+      "installed_status": "UNKNOWN_CURRENT_BYTES",
+      "criteria_passed": [
+        "Real anonymous registered ingress authenticates raw signed requests through the server-only synthetic signing configuration",
+        "Real scoped physical POD listing/version/provider/active-owner joins persist VALIDATED; unmatched/malformed/ambiguous cases persist REVIEW_REQUIRED",
+        "Zero approval actor/time, no automatic production plans/intents/packages, no outboundHTTP and safety holds retained",
+        "Duplicate events/order identities avoid duplicate lines; conflicting signed body cannot rebind immutable event evidence",
+        "Invalid signatures/body/stale/missing headers/oversize/unsupported events deny before persistence",
+        "Actual insert/transition/completion failures remain failed/uncertain without success inference; incomplete intake cannot silently resume",
+        "Cancellation never approves; shipment events remain informational"
+      ],
+      "independent_witness": "docs/engineering/shop2-platform-1266/evidence/ord04-independent-20261116.json",
+      "focused_evidence": "docs/engineering/shop2-platform-1266/evidence/ord04-composition-20261116.xml",
+      "terminal_CI": "docs/engineering/shop2-platform-1266/evidence/audit5027-result-20261116.json",
+      "independent_final_review": "Separate capability reviewer approved exactaa4 bounded local software acceptance after terminal5027 success; CI archive readback/install/native qualification explicitly separate.",
+      "runtime_source_receipt": {
+        "includes/REST/EtsyWebhookController.php": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45",
+        "includes/Listings/EtsyWebhookVerifier.php": "46a3abf5a4e7958b73dde3a0c680f3210e3bc7ca6fc2411a7dc3c1af5d84a74b",
+        "includes/Listings/EtsyWebhookIntake.php": "70c38e7afc84722595a371475ff1795b3920cc3e5bfd65755132b3043b171be0",
+        "includes/Listings/EtsyOrderWebhookLifecycle.php": "13ed5eac1281d72343ece2893d94168935c2672d51cae61aff868afd3f6e3604",
+        "tests/wordpress/EtsyWebhookIngressAcceptanceTest.php": "6312f0afed6dc63f0a40f9fc1baf47effed769cd6da5acda0632a09f931cb033",
+        "tests/wordpress/fixtures/etsy-webhook-ingress-worker.php": "89fd7406a8663430305a5a16735fa2d4b0226bbeb0422929cabd4ab29e6dd4ea"
+      }
+    }
+  ],
+  "counts_before": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 31
+  },
+  "counts_after": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 32
+  },
+  "newer_candidate_note": "Subsequent reviewed local descendants contain recovery/intake-operator work and test-only authority-expiry correction. Push and new exact-head CI are required; this is not whole-candidate/whole151/installed certification of those descendants.",
+  "remaining_dependencies": [
+    "Native executable transactional allocation/CAS/issuer/witness/journal/UNKNOWN/mandatory sender/receipt/revocation/custody handoff",
+    "LaneA canonical buyer-input selection/supersession and final-render/preview currentness",
+    "Protected native shippingSource consumer handoff; retain existing shipping mapper rather than duplicating it",
+    "Final companion pairing qualification and hosted/current-installed acceptance"
+  ],
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deployment/live provider/credential/publication/financial execution."
+}
