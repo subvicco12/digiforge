@@ -34,7 +34,11 @@ final class ImageGenerationHttpClient
     $response=$this->custody->withExclusiveGeneration(['job_id'=>$id,'identity'=>$identity,'policy'=>$policy],function()use(&$invoked,$p,$identity,$wire,$options){
      if($invoked)return self::error('dispatch_already_claimed_or_unknown');$invoked=true;
      if(!ImageGenerationAccess::networkAllowed())return self::error('network_locked');$fresh=(new ImageGenerationPolicyRepository())->resolve($identity['policy_sha256']);if($fresh instanceof WP_Error)return self::error('credential_generation_changed');$secret=$this->secret($p['integration_id']);if($secret instanceof WP_Error)return $secret;
-     try{$options['headers']['Authorization']='Bearer '.$secret;return wp_remote_post($wire['url'],$options);}finally{unset($secret,$options['headers']['Authorization']);}
+     try{
+      $options['headers']['Authorization']='Bearer '.$secret;
+      $response=wp_remote_post($wire["url"],$options);
+      return $response;
+     }finally{unset($secret,$options['headers']['Authorization']);}
     });
     if(!$invoked&& !($response instanceof WP_Error))return self::error('custody_dispatch_unconfirmed');
    }
