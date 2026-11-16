@@ -9,6 +9,7 @@ use WP_Error;
 /** Authenticated local evidence only; never applies business or provider transitions. */
 final class PrintifyWebhookInbox
 {
+ private const RECONCILIATION_HISTORY_LIMIT=1000;
  public static function authenticate(string $binding,string $raw,string $signature):array|WP_Error {
   try{$entry=PrintifyWebhookRequest::binding($binding);$secrets=[$entry['current_secret']];if(isset($entry['previous_secret'])&&$entry['previous_valid_until']>=time())$secrets[]=$entry['previous_secret'];$verified=null;
    foreach($secrets as $secret){try{$verified=PrintifyWebhookEvidence::verify($raw,$signature,$secret,(string)$entry['provider_shop_id'],time());break;}catch(\InvalidArgumentException){}}
@@ -30,7 +31,42 @@ final class PrintifyWebhookInbox
  /** Explicit local retry/dead-letter evidence. No processing is scheduled. */
  public static function reconcile(string $dedupeKey,string $state,int $expectedRevision,string $note):array|WP_Error {
   if(!preg_match('/^[a-f0-9]{64}$/D',$dedupeKey)||!in_array($state,['RETRY_LOCAL','DEAD_LETTER','MANUALLY_RECONCILED'],true)||$expectedRevision<0||!preg_match('/^[a-zA-Z0-9 ._-]{1,160}$/D',$note))return self::error('manual_reconciliation',403);
-  return self::transaction($dedupeKey,function()use($dedupeKey,$state,$expectedRevision,$note){global $wpdb;$receipt=self::read('digiforge_pfy_hook_'.$dedupeKey);if($receipt instanceof WP_Error)return $receipt;if($receipt===null)return self::error('missing',404);if(!self::anchored($receipt,$dedupeKey))return self::error('corrupt_receipt',503);$shop=(string)($receipt['shop_key']??'');if(!current_user_can('manage_digiforge_connections')||Owner::require($shop)!==true||ShopAccess::authorize($shop,'manage_digiforge_connections')!==true)return self::error('manual_reconciliation',403);$key='digiforge_pfy_hook_state_'.$dedupeKey;$old=self::read($key);if($old instanceof WP_Error)return $old;$revision=(int)($old['revision']??0);if($revision!==$expectedRevision)return self::error('revision',409);$attempts=(int)($old['attempts']??0);if($attempts<0||$attempts>3)return self::error('corrupt_state',503);$attempts=min(3,$attempts+($state==='RETRY_LOCAL'?1:0));if($state==='RETRY_LOCAL'&&$attempts>=3)$state='DEAD_LETTER';$next=['state'=>$state,'revision'=>$revision+1,'attempts'=>$attempts,'note'=>$note,'updated_at'=>gmdate('c'),'scheduled'=>false,'business_transition_authorized'=>false];$ok=$old===null?$wpdb->insert($wpdb->options,['option_name'=>$key,'option_value'=>wp_json_encode($next),'autoload'=>'no']):$wpdb->update($wpdb->options,['option_value'=>wp_json_encode($next)],['option_name'=>$key]);if($ok!==1||!Logger::write('printify_webhook_reconciled',$next,'printify_webhook',$dedupeKey))return self::error('reconciliation_store',503);return $next;});
+  return self::transaction($dedupeKey,function()use($dedupeKey,$state,$expectedRevision,$note){
+   global $wpdb;$actor=get_current_user_id();$receipt=self::read('digiforge_pfy_hook_'.$dedupeKey);if($receipt instanceof WP_Error)return $receipt;if($receipt===null)return self::error('missing',404);if(!self::anchored($receipt,$dedupeKey))return self::error('corrupt_receipt',503);
+   $shop=(string)($receipt['shop_key']??'');if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);
+   $key='digiforge_pfy_hook_state_'.$dedupeKey;$old=self::read($key);if($old instanceof WP_Error)return $old;
+   $history=self::reconciliationHistory($dedupeKey,$old);if($history instanceof WP_Error)return $history;
+   $revision=$history['revision'];if($revision!==$expectedRevision)return self::error('revision',409);if($revision>=self::RECONCILIATION_HISTORY_LIMIT)return self::error('history_bound',503);
+   $attempts=min(3,$history['attempts']+($state==='RETRY_LOCAL'?1:0));if($state==='RETRY_LOCAL'&&$attempts>=3)$state='DEAD_LETTER';
+   $next=['state'=>$state,'revision'=>$revision+1,'attempts'=>$attempts,'note'=>$note,'updated_at'=>gmdate('c'),'scheduled'=>false,'business_transition_authorized'=>false];
+   if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);
+   $ok=$old===null?$wpdb->insert($wpdb->options,['option_name'=>$key,'option_value'=>wp_json_encode($next),'autoload'=>'no']):$wpdb->query($wpdb->prepare("UPDATE {$wpdb->options} SET option_value=%s WHERE BINARY option_name=BINARY %s AND BINARY option_value=BINARY %s",wp_json_encode($next),$key,wp_json_encode($old)));
+   if($ok!==1||!Logger::write('printify_webhook_reconciled',$next,'printify_webhook',$dedupeKey))return self::error('reconciliation_store',503);
+   $confirmed=self::read($key);if($confirmed instanceof WP_Error)return $confirmed;$verified=self::reconciliationHistory($dedupeKey,$confirmed);
+   if($verified instanceof WP_Error)return $verified;if($confirmed!==$next)return self::error('corrupt_state',503);if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);return $next;
+  });
+ }
+ private static function reconciliationAccess(string $shop,int $actor):bool{return $actor>0&&get_current_user_id()===$actor&&current_user_can('manage_digiforge_connections')&&Owner::require($shop)===true&&ShopAccess::authorize($shop,'manage_digiforge_connections')===true&&get_current_user_id()===$actor;}
+ /** Local retained-history consistency only; coordinated rollback of state AND every audit root is not detectable here. */
+ private static function reconciliationHistory(string $dedupeKey,?array $state):array|WP_Error {
+  if($state!==null&&!self::validReconciliationState($state))return self::error('corrupt_state',503);
+  global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($wpdb->prepare('SELECT id,actor_id,context FROM '.Tables::audit_log().' WHERE BINARY event_type=BINARY %s AND BINARY object_type=BINARY %s AND BINARY object_id=BINARY %s ORDER BY id ASC LIMIT %d FOR UPDATE','printify_webhook_reconciled','printify_webhook',$dedupeKey,self::RECONCILIATION_HISTORY_LIMIT+1),ARRAY_A);
+  if($wpdb->last_error!==''||!is_array($rows)||count($rows)>self::RECONCILIATION_HISTORY_LIMIT)return self::error('reconciliation_history_unavailable',503);
+  $revision=0;$attempts=0;$latest=null;
+  foreach($rows as $row){
+   if(!preg_match('/^[1-9][0-9]*$/D',(string)($row['actor_id']??''))||!is_string($row['context']??null)||strlen($row['context'])>2048)return self::error('corrupt_state',503);
+   try{$next=json_decode($row['context'],true,8,JSON_THROW_ON_ERROR);}catch(\Throwable){return self::error('corrupt_state',503);}
+   if(!is_array($next)||!self::validReconciliationState($next)||$next['revision']!==$revision+1)return self::error('corrupt_state',503);
+   $advanced=$next['attempts']===$attempts+1;
+   if(($next['state']==='RETRY_LOCAL'&&(!$advanced||$next['attempts']>=3))||($next['state']==='MANUALLY_RECONCILED'&&$next['attempts']!==$attempts)||($next['state']==='DEAD_LETTER'&&$next['attempts']!==$attempts&&!($advanced&&$next['attempts']===3)))return self::error('corrupt_state',503);
+   $revision=$next['revision'];$attempts=$next['attempts'];$latest=$next;
+  }
+  if(($state===null)!==($latest===null)||($state!==null&&\DigiForge\Listings\Validator::canonicalJson($state)!==\DigiForge\Listings\Validator::canonicalJson($latest)))return self::error('corrupt_state',503);
+  return ['revision'=>$revision,'attempts'=>$attempts];
+ }
+ private static function validReconciliationState(array $state):bool {
+  if(count($state)!==7||array_diff(array_keys($state),['state','revision','attempts','note','updated_at','scheduled','business_transition_authorized'])!==[]||!in_array($state['state']??null,['RETRY_LOCAL','DEAD_LETTER','MANUALLY_RECONCILED'],true)||!is_int($state['revision']??null)||$state['revision']<1||!is_int($state['attempts']??null)||$state['attempts']<0||$state['attempts']>3||!is_string($state['note']??null)||!preg_match('/^[a-zA-Z0-9 ._-]{1,160}$/D',$state['note'])||!is_string($state['updated_at']??null)||strlen($state['updated_at'])!==25||($state['scheduled']??null)!==false||($state['business_transition_authorized']??null)!==false)return false;
+  $time=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP',$state['updated_at']);return $time!==false&&$time->format('c')===$state['updated_at'];
  }
  private static function anchored(array $receipt,string $dedupeKey):bool {
   $sealed=$receipt;$seal=$sealed['receipt_sha256']??'';unset($sealed['receipt_sha256']);
