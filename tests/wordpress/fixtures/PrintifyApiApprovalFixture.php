@@ -13,7 +13,7 @@ final class PrintifyApiApprovalFixture
  private array $ownerCookies=[];
  private const PREFIXES=['digiforge_portal_','digiforge_shop_access_','digiforge_local_review_','digiforge_api_read_','digiforge_pfy_lifecycle_','digiforge_execution_nonce_','digiforge_pfy_intent_','df_pq_','df_catalog_'];
  public static function checked(mixed $result):mixed { if(is_wp_error($result))throw new RuntimeException($result->get_error_code().': '.$result->get_error_message());if($result===false)throw new RuntimeException('Synthetic fixture database write failed');return $result; }
- public function boot():void
+ public function boot(?string $businessKey=null):void
  {
   global $wpdb;
   $tables=\DigiForge\Database\Tables::class;
@@ -33,7 +33,7 @@ final class PrintifyApiApprovalFixture
   PortalAccessFixture::login($this->grantor);$acl=new \DigiForge\Security\ShopAccessRepository();$state=self::checked($acl->read('personalized_pod'));
   self::checked($acl->grant($this->reviewer,'personalized_pod','administrator',$caps,time()+1800,wp_generate_uuid4(),$state['revision']));$this->owner();
   $now=current_time('mysql',true);$key='api-test-'.wp_generate_uuid4();
-  self::checked($wpdb->insert($tables::businesses(),['business_key'=>$key,'display_name'=>'Synthetic API business','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$business=(int)$wpdb->insert_id;
+  self::checked($wpdb->insert($tables::businesses(),['business_key'=>$businessKey??$key,'display_name'=>'Synthetic API business','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$business=(int)$wpdb->insert_id;
   self::checked($wpdb->insert($tables::stores(),['business_id'=>$business,'store_key'=>$key,'display_name'=>'Synthetic API store','channel'=>'etsy','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]));$store=(int)$wpdb->insert_id;
   self::checked($wpdb->insert($tables::product_programs(),['business_id'=>$business,'store_id'=>$store,'program_key'=>'PERSONALIZED_POD','status'=>'ACTIVE','config'=>'{}','created_at'=>$now,'updated_at'=>$now]));
   $repo=new \DigiForge\Integrations\Repository();$i=self::checked($repo->create(['provider'=>'printify','environment'=>'test','connection_key'=>$key,'display_name'=>'Synthetic API connection','status'=>'CONFIGURED','enabled'=>false,'config'=>['shop_key'=>'personalized_pod','shop_id'=>'12','account_reference'=>$key,'catalog_read_scope'=>['business_id'=>(string)$business,'store_id'=>(string)$store,'product_program'=>'PERSONALIZED_POD']]]));$this->integration=$i['id'];
