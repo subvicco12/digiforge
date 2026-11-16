@@ -1,0 +1,12 @@
+{
+  "baseline_sha": "73d8d2a188797d93b1189379e9518898cfbf0c9f",
+  "scope": "Lane A ordinary photo canonical selection to reviewed deterministic local artifact",
+  "independent_capability_acceptance": "PENDING",
+  "rows": [
+    {"id":"S2-ART-14","candidate_progress":"Persisted PHOTO slots selected server-side; explicit input/layout/artifact reviews; identical preview/final local PNG bytes; buyer preference; stale/replaced/corrupt evidence denial","promoted":false,"remaining":"Independent complete normal-portal HTTP acceptance, qualified templates for supported products and external physical/provider gates"},
+    {"id":"S2-ORD-06","candidate_progress":"forOrder(shop,order,line,expectedRevision) and forRender(render) current selection interfaces; new review epoch and render evidence identity on identical-pixel reselection","promoted":false,"remaining":"Lane B consumer integration/pin and independent combined held-export acceptance"},
+    {"id":"S2-ART-15","promoted":false,"remaining":"Real buyer identity/order-link provisioning and independent operational acceptance"}
+  ],
+  "unchanged_gates":["STOP ALL ON","external lock ON","automation OFF","manual approval","RELEASE HOLD","no production/provider/owner certification"],
+  "not_claimed":["151 capability completion","native synchronization","physical print parity","live AI acceptance","arbitrary photo/text layout generation","five artistic engines completion"]
+}
