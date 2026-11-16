@@ -92,7 +92,7 @@ final class OrderArtifactInspection
             if((int)$package['order_id']!==$orderId||(int)$package['render_evidence_id']!==$renderId||(int)$package['provider_mapping_id']!==(int)$render['provider_mapping_id']||(int)$package['ownership_mapping_id']!==(int)$owners[0]['id']||(int)$package['external_execution_authorized']!==0||(int)$package['external_execution_performed']!==0)return self::error('package_scope','The held package must match this exact order, render, mapping and current ownership.');
             if(!in_array($package['state'],['REVIEW_REQUIRED','APPROVED_PACKAGE'],true)||!preg_match('/^[a-f0-9]{64}$/D',(string)$package['readiness_hash'])||!preg_match('/^[a-f0-9]{64}$/D',(string)$package['package_hash']))return self::error('package_identity','Stored held package metadata is invalid.');
         }
-        $current=(new PersonalizationCurrentness())->forRender($orderId,(int)$render['provider_mapping_id'],$render['personalization_evidence_hash']);
+        $current=(new PersonalizationCurrentness())->forRender($orderId,(int)$render['provider_mapping_id'],$render['personalization_evidence_hash'],$render);
         if(is_wp_error($current)){
             if(($current->get_error_data()['status']??409)===503)return self::error('evidence_unavailable','Current buyer-input evidence is unavailable.',503);
             $current=['state'=>'BLOCKED','code'=>$current->get_error_code()];

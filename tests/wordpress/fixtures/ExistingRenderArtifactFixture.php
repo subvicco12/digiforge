@@ -14,6 +14,8 @@ function digiforge_existing_render_fixture(string $method, array $arguments = []
 /** Same narrowly selected disposable fixture cleanup as the existing artifact test class. */
 function digiforge_reset_existing_render_fixture(): void
 {
+    require_once __DIR__.'/ShopAccessFixture.php';
+    ShopAccessFixture::reset();
     global $wpdb;
     $t = DigiForge\Database\Tables::class;
     $wpdb->query("DELETE usage_row FROM ".$t::shop_ai_usage()." usage_row INNER JOIN ".$t::pod_production_templates()." template ON template.fingerprint=usage_row.model_key WHERE template.template_id='personalized_pod' AND usage_row.workflow='production_template'");

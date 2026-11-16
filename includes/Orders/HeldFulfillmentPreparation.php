@@ -5,7 +5,6 @@ namespace DigiForge\Orders;
 use DigiForge\Database\Tables;
 use DigiForge\Listings\EtsyStoredShopScope;
 use DigiForge\POD\BusinessScopeRepository;
-use DigiForge\POD\PersonalizationPayloadContract;
 use DigiForge\POD\ScopedProviderConnection;
 use DigiForge\Security\ShopAccess;
 use DigiForge\Security\ShopAccessPolicy;
@@ -50,6 +49,7 @@ final class HeldFulfillmentPreparation
 
     public function prepare(string $shop,int $orderId,int $intentId): array|WP_Error
     {
+        $actor=get_current_user_id();
         $source=$this->forOrder($shop,$orderId);if(is_wp_error($source))return $source;
         $order=$source['order'];$intent=null;$plan=null;
         foreach($source['intents'] as $row)if((int)$row['id']===$intentId)$intent=$row;
@@ -70,16 +70,7 @@ final class HeldFulfillmentPreparation
                 $lineVersions[(int)$line['id']]=(int)$line['product_version_id'];
                 $lines[]=['line_item_id'=>(int)$line['id'],'listing_id'=>(int)$line['listing_id'],'product_version_id'=>(int)$line['product_version_id'],'provider_mapping_id'=>(int)$line['provider_mapping_id'],'quantity'=>Validator::quantity($line['quantity']),'provider_product_key'=>$line['provider_product_key'],'provider_variant_key'=>$line['provider_variant_key'],'mapping_version'=>$line['mapping_version'],'ownership_mapping_id'=>(int)$owner['id']];
             }
-            $approved=[];$latest=[];$seen=[];
-            foreach($source['personalization'] as $row){
-                $lineId=(int)$row['order_line_item_id'];$latest[$lineId]=$row['review_status'];
-                if($row['review_status']!=='APPROVED')continue;
-                if(isset($seen[$lineId])||$row['schema_state']!=='APPROVED'||(int)$row['schema_product_version_id']!==($lineVersions[$lineId]??0)||(int)$row['reviewed_by']<1||empty($row['reviewed_at'])||!hash_equals((string)$row['payload_hash'],hash('sha256',(string)$row['canonical_payload'])))throw new \InvalidArgumentException();
-                PersonalizationPayloadContract::validate(self::document($row['field_definitions']),self::document($row['canonical_payload']));$seen[$lineId]=true;
-                $approved[]=['submission_id'=>(int)$row['id'],'order_line_item_id'=>$lineId,'personalization_schema_id'=>(int)$row['personalization_schema_id'],'payload_hash'=>$row['payload_hash'],'review_status'=>'APPROVED','reviewed_by'=>(int)$row['reviewed_by'],'reviewed_at'=>$row['reviewed_at']];
-            }
-            foreach($latest as $state)if($state!=='APPROVED')throw new \InvalidArgumentException();
-            if((int)$order['personalization_required']===1&&count($seen)!==count($lines))throw new \InvalidArgumentException();
+            $approved=(new PersonalizationCurrentness())->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($approved))return $approved;
             $personalHash=hash('sha256',Validator::canonicalJson($approved));$snapshot=self::document($plan['personalization_snapshot']);
             if(Validator::canonicalJson($approved)!==Validator::canonicalJson((array)($payload['personalization']??[]))||($payload['personalization_evidence_hash']??null)!==$personalHash||($snapshot['evidence_hash']??null)!==$personalHash||Validator::canonicalJson((array)($snapshot['submissions']??[]))!==Validator::canonicalJson($approved))throw new \InvalidArgumentException();
             if(isset($payload['cost']['currency'])&&$payload['cost']['currency']!==$order['currency'])throw new \InvalidArgumentException();
@@ -87,6 +78,8 @@ final class HeldFulfillmentPreparation
             $prepared=FulfillmentRoutePreparation::prepare($plan['provider'],$order['environment'],$intent['intent_type'],$routePayload,$payload['shipping'],$payload['cost'],$order['currency']);if(is_wp_error($prepared))return $prepared;
             $again=$this->forOrder($shop,$orderId);if(is_wp_error($again))return $again;
             if(Validator::canonicalJson($source)!==Validator::canonicalJson($again))return self::error('changed','Stored order dependencies changed during local preparation.');
+            $confirmedPersonalization=(new PersonalizationCurrentness())->forPlan($orderId,(int)$order['personalization_required']===1);if(is_wp_error($confirmedPersonalization))return $confirmedPersonalization;if($confirmedPersonalization!==$approved)return self::error('changed','Current server-selected input changed during held preparation.');
+            if($actor<1||!is_user_logged_in()||get_current_user_id()!==$actor)return self::error('actor','The held preparation actor changed.',403);foreach(['manage_digiforge_orders','manage_digiforge_pod'] as $cap){$access=ShopAccess::authorize($shop,$cap,$actor);if(is_wp_error($access))return $access;}if(!is_user_logged_in()||get_current_user_id()!==$actor||!current_user_can('manage_digiforge_orders')||!current_user_can('manage_digiforge_pod'))return self::error('actor','Current held preparation admission changed.',403);if(!is_user_logged_in()||get_current_user_id()!==$actor)return self::error('actor','The held preparation actor changed during final admission.',403);
             return ['state'=>'HELD_FULFILLMENT_PREPARED','shop_key'=>$shop,'order_id'=>$orderId,'fulfillment_plan_id'=>(int)$plan['id'],'fulfillment_intent_id'=>$intentId,'plan_payload_hash'=>$plan['payload_hash'],'current_evidence_hash'=>Validator::hash($source),'preparation'=>$prepared,'render_artifact_recheck_required'=>true,'production_approval_required'=>true,'release_hold'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false,'external_execution_performed'=>false];
         }catch(\Throwable){return self::error('snapshot','Stored plan snapshots and current typed personalization must agree exactly.');}
     }

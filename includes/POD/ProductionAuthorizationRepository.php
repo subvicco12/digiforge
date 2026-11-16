@@ -36,7 +36,7 @@ final class ProductionAuthorizationRepository
   $wpdb->last_error='';$wpdb->flush();$queryResult=$wpdb->query($wpdb->prepare('SELECT * FROM '.Tables::pod_authorization_packages().' WHERE id=%d',$id));if($queryResult===false||!empty($wpdb->last_error))return new WP_Error('authorization_evidence_unavailable','Production authorization query failed closed.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);$approved=(isset($wpdb->last_result[0]) ? (array) $wpdb->last_result[0] : null);if(!is_array($approved)||!empty($wpdb->last_error))return new WP_Error('authorization_review_confirmation_unavailable','Authorization review update completed but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);$unchanged=$this->recheckPersonalization($render,$current);if(is_wp_error($unchanged))return $unchanged;return $approved;
  }
  private function currentPersonalization(array $render):array|WP_Error {
-  $current=(new PersonalizationCurrentness())->forRender((int)$render['order_id'],(int)$render['provider_mapping_id'],(string)$render['personalization_evidence_hash']);
+  $current=(new PersonalizationCurrentness())->forRender((int)$render['order_id'],(int)$render['provider_mapping_id'],(string)$render['personalization_evidence_hash'],$render);
   if(!is_wp_error($current))return $current;
   $unavailable=($current->get_error_data()['status']??409)===503;
   return new WP_Error($unavailable?'authorization_evidence_unavailable':'authorization_personalization_unverified',$current->get_error_message(),['status'=>$unavailable?503:409,'retry_permitted'=>false,'external_execution_authorized'=>false]);
