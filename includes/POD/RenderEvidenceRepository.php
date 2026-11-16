@@ -8,14 +8,29 @@ use WP_Error;
 final class RenderEvidenceRepository
 {
  public function createFromArtifacts(array $input,string $outputPath,string $previewPath):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFromArtifactsFenced($input,$outputPath,$previewPath);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFromArtifactsFenced(array $input,string $outputPath,string $previewPath):array|WP_Error {
   if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);
   $v=new RenderArtifactVerifier();$output=$v->readArtifact($outputPath);if($output instanceof WP_Error)return $output;$preview=$v->readArtifact($previewPath);if($preview instanceof WP_Error)return $preview;
   $input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordFromArtifacts($render,$outputPath,$previewPath);return $receipt instanceof WP_Error?$receipt:$render;
  }
  public function createFromPanelArtifacts(array $input,array $outputPaths,array $previewPaths):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFromPanelArtifactsFenced($input,$outputPaths,$previewPaths);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFromPanelArtifactsFenced(array $input,array $outputPaths,array $previewPaths):array|WP_Error {
   if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);$v=new RenderArtifactVerifier();$output=$v->readPanels($outputPaths);if($output instanceof WP_Error)return $output;$preview=$v->readPanels($previewPaths);if($preview instanceof WP_Error)return $preview;$input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordPanelArtifacts($render,$outputPaths,$previewPaths);return $receipt instanceof WP_Error?$receipt:$render;
  }
- public function create(array $input):array|WP_Error{
+ public function create(array $input):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFenced($input);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFenced(array $input):array|WP_Error {
   global $wpdb;$orderId=absint($input['order_id']??0);$mappingId=absint($input['provider_mapping_id']??0);
   $templateKey=sanitize_text_field((string)($input['template_key']??''));$version=sanitize_text_field((string)($input['template_version']??''));
   $templateHash=strtolower(trim((string)($input['template_sha256']??'')));$personalizationHash=strtolower(trim((string)($input['personalization_evidence_hash']??'')));$outputHash=strtolower(trim((string)($input['output_sha256']??'')));$previewHash=strtolower(trim((string)($input['buyer_preview_sha256']??'')));
@@ -36,7 +51,13 @@ final class RenderEvidenceRepository
   $wpdb->last_error='';$created=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',(int)$wpdb->insert_id),ARRAY_A);if(!is_array($created)||!empty($wpdb->last_error))return new WP_Error('render_evidence_confirmation_unavailable','Render evidence was persisted but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $created;
  }
  private static function evidenceUnavailable():WP_Error{return new WP_Error('render_evidence_unavailable','Render prerequisite evidence is unavailable; render certification is blocked.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
- public function approve(int $id):array|WP_Error{
+ public function approve(int $id):array|WP_Error {
+  if(get_current_user_id()<1||!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->approveFenced($id);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function approveFenced(int $id):array|WP_Error {
   global $wpdb;$reviewer=get_current_user_id();if($reviewer<1||!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);$now=current_time('mysql',true);
   $wpdb->last_error='';$render=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$id),ARRAY_A);if($wpdb->last_error!==''||!is_array($render))return self::evidenceUnavailable();$certified=(new RenderArtifactVerifier())->assertCertified($render);if($certified instanceof WP_Error)return $certified;
   $wpdb->last_error='';$ok=$wpdb->update(Tables::pod_render_evidence(),['review_status'=>'APPROVED','reviewed_by'=>$reviewer,'reviewed_at'=>$now],['id'=>$id,'review_status'=>'UNREVIEWED','external_execution_performed'=>0]);
