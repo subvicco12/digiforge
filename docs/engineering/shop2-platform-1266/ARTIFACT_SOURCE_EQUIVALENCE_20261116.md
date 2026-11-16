@@ -15,8 +15,10 @@ Local Git: `2.52.0`.
 - Independent inner ZIP SHA256: `956e36cdfc84aa3fc26c2ee3e3ae3ea8704c0f4bb322d97cb2dfc30e350e7681`.
 - Size: 3,471,665 bytes. All 826 exported regular files verified.
 - ZIP CRC passed. Exported path set equals the exact commit's Git archive export.
-- Every file's raw bytes produce the exact Git blob object ID and recorded SHA256;
-  modes are the expected `100644` or `100755`. No untracked working bytes included.
+- Every file's raw bytes produce the exact Git blob object ID and recorded SHA256.
+  The Git tree records source modes `100644` or `100755`; these ZIP entries omit
+  Unix permission metadata, so ZIP permission equivalence is not claimed.
+  No untracked working bytes included.
 - Release manifest identifies the same commit and ZIP digest, with external actions
   and production activation both false. Nothing was installed or deployed.
 - Full per-file verification receipt retained in the execution workspace at
