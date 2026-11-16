@@ -1,6 +1,6 @@
 {
   "schema": "shop2-lane-b-held-integration-checkpoint-v1",
-  "parent_commit": "066721d66944b4fa9a42f4f89db1e4df2b8c8814",
+  "parent_commit": "72fe9b7dc04d5143387f401e67b59c61ce27be0c",
   "disposition": "COMPOSED_OFFLINE_INTEGRATION_PASSED_EXACT_HEAD_CI_PENDING",
   "changes": [
     "Exact producer-owned c2f/8c/a100 source blobs; no full Lane A branch import",
@@ -66,7 +66,25 @@
       "root_cause": "Generated Git identifier below the default entropy threshold was not emitted by the pinned scanner; actual raw reports ruled out finding deduplication",
       "repair": "Fixed fixture-only Git timestamps, preserved the same invalid commit-to-blob substitution, and asserted emitted actionable evidence",
       "production_thresholds_changed": false
-    }
+    },
+    "full_unit": {
+      "tests": 2275,
+      "assertions": 12098,
+      "failures": 0,
+      "errors": 0,
+      "existing_skips": 1
+    },
+    "latest_repository_audit": {
+      "number": 5041,
+      "run": 43851827574,
+      "conclusion": "FAILURE",
+      "stage": "Legacy and unit tests",
+      "tests": 2275,
+      "assertions": 12061,
+      "failures": 5,
+      "existing_skip": 1
+    },
+    "source_contract_repair": "All five stale source-contract assertions repaired without removing human-review, hash, availability or failure-path guards. Full frozen-byte unit suite passed; new exact-head CI required."
   },
   "currentness_dispositions": [
     "Old managed selection in caller repeatable-read frame: exact denial; caller frame and pending marker preserved",
@@ -164,6 +182,18 @@
     {
       "file": "docs/engineering/shop2-platform-1266/evidence/credential-security-56-green.log",
       "digest": "9a31f1f01914c6c31ea3b1f984388fdef86aeac7accc42fa361c361fa54d2922"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/audit5041-context-contract-disposition.json",
+      "digest": "5219a90919dd3486a863df412b37d1d405d0236e56823f47bf439c28e779290d"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/context-contract-focused-green.xml",
+      "digest": "8877e4187aaf237f0fd6c428d4d57e704e2a1e6a185a66d8fd4a8a6b76f7d1ed"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/context-contract-full-unit-green.txt",
+      "digest": "4959d6831a6f022da06545c458c6c7fde6415d5be721c28c21512e1b4939fd56"
     }
   ],
   "owner_test_repairs": {

@@ -24,7 +24,7 @@ final class PodReadinessEvidenceAvailabilityContractTest extends TestCase {
     public function testFulfillmentPlanPersonalizationEvidenceQueryFailsClosed(): void
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');
-        self::assertStringContainsString('(new PersonalizationCurrentness())->forPlan(', $source);
+        self::assertStringContainsString('(new PersonalizationCurrentness($this->personalizationContext))->forPlan(', $source);
         self::assertStringContainsString('if(is_wp_error($personalization))return $personalization;', $source);
         $current=(string)file_get_contents(__DIR__.'/../../includes/Orders/PersonalizationCurrentness.php');
         self::assertStringContainsString("\$wpdb->last_error='';\$rows=\$wpdb->get_results", $current);
@@ -33,5 +33,19 @@ final class PodReadinessEvidenceAvailabilityContractTest extends TestCase {
         self::assertStringContainsString('if(is_wp_error($rows))return $rows;', $current);
     }
 
- public function testReadinessCountClearsStaleDatabaseErrorsBeforeEachCount():void{$s=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');self::assertStringContainsString("\$wpdb->last_error='';\n        \$value=\$wpdb->get_var(\$sql);",$s);}
+ public function testReadinessCountClearsStaleDatabaseErrorsBeforeEachCount():void
+ {
+  $source=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');
+  $start=strpos($source,'private function readinessCount(string $sql): ?int');
+  self::assertNotFalse($start);
+  $end=strpos($source,'public function list(',$start);
+  self::assertNotFalse($end);
+  $method=substr($source,$start,$end-$start);
+  // Only the validated context supplies the suffix; context/query failures must stay unavailable, not zero.
+  self::assertStringContainsString('$suffix=$this->contextReadSuffix();if(is_wp_error($suffix))return null;', $method);
+  self::assertStringContainsString("\$wpdb->last_error='';\n        \$value=\$wpdb->get_var(\$sql.\$suffix);", $method);
+  self::assertStringContainsString('return is_numeric($value)&&empty($wpdb->last_error)?(int)$value:null;', $method);
+  self::assertStringContainsString("return \$this->personalizationContext===null?'':\$this->personalizationContext->currentReadSuffix();", $source);
+ }
+
 }
