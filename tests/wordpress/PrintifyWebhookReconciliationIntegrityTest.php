@@ -112,6 +112,40 @@ final class PrintifyWebhookReconciliationIntegrityTest extends WP_UnitTestCase
         $retry=PrintifyWebhookInbox::reconcile($key,'RETRY_LOCAL',2,'explicit local retry review');self::assertNotWPError($retry);self::assertSame(1,$retry['attempts']);self::assertFalse($retry['scheduled']);self::assertFalse($retry['business_transition_authorized']);self::assertCount(3,$this->audits($key));
     }
 
+    public function testModuleRevokedDuringLastSignedAdmissionReadRollsBackReconciliation():void
+    {
+        $key=$this->receive();$lastRead=null;$lastSignedRead=null;$recording=true;
+        $observe=static function(string $sql)use(&$lastRead,&$lastSignedRead,&$recording):string{
+            if($recording&&str_starts_with($sql,'SELECT '))$lastRead=$sql;
+            if($recording&&$sql==='COMMIT'){$lastSignedRead=$lastRead;$recording=false;}
+            return $sql;
+        };
+        add_filter('query',$observe);
+        try {$first=PrintifyWebhookInbox::reconcile($key,'RETRY_LOCAL',0,'first local review');}
+        finally {remove_filter('query',$observe);}
+        self::assertNotWPError($first);self::assertIsString($lastSignedRead);
+        // Discover the real final authorization SELECT, without replacing its result.
+        self::assertStringNotContainsString('printify_webhook_reconciled',$lastSignedRead);
+        $matches=0;$fired=false;
+        // The same authorization query can occur in all three admission checks.
+        // Count its actual occurrences in an unchanged successful local operation.
+        $count=static function(string $sql)use($lastSignedRead,&$matches):string{if($sql===$lastSignedRead)++$matches;return $sql;};
+        add_filter('query',$count);
+        try {$second=PrintifyWebhookInbox::reconcile($key,'MANUALLY_RECONCILED',1,'second local review');}
+        finally {remove_filter('query',$count);}
+        self::assertNotWPError($second);self::assertGreaterThan(0,$matches);
+        $before=$this->state($key);$audits=$this->audits($key);$seen=0;
+        $revoke=static function(string $sql)use($lastSignedRead,$matches,&$seen,&$fired):string{
+            if(!$fired&&$sql===$lastSignedRead&&++$seen===$matches){$fired=true;wp_get_current_user()->add_cap('manage_digiforge_connections',false);}
+            return $sql;
+        };
+        add_filter('query',$revoke);
+        try {$result=PrintifyWebhookInbox::reconcile($key,'MANUALLY_RECONCILED',2,'review during final revocation');}
+        finally {remove_filter('query',$revoke);wp_get_current_user()->add_cap('manage_digiforge_connections',true);}
+        self::assertTrue($fired);self::assertSame($matches,$seen);self::assertWPError($result);
+        self::assertSame($before,$this->state($key));self::assertSame($audits,$this->audits($key));
+    }
+
     private function receive():string
     {
         $raw=(string)wp_json_encode(['id'=>wp_generate_uuid4(),'type'=>'order:shipment:created','created_at'=>gmdate('Y-m-d H:i:s+00:00'),'resource'=>['id'=>'synthetic-order','type'=>'order','data'=>['shop_id'=>'123']]]);

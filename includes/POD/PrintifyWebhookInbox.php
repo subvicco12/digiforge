@@ -46,7 +46,7 @@ final class PrintifyWebhookInbox
    if($verified instanceof WP_Error)return $verified;if($confirmed!==$next)return self::error('corrupt_state',503);if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);return $next;
   });
  }
- private static function reconciliationAccess(string $shop,int $actor):bool{return $actor>0&&get_current_user_id()===$actor&&current_user_can('manage_digiforge_connections')&&Owner::require($shop)===true&&ShopAccess::authorize($shop,'manage_digiforge_connections')===true&&get_current_user_id()===$actor;}
+ private static function reconciliationAccess(string $shop,int $actor):bool{return $actor>0&&get_current_user_id()===$actor&&current_user_can('manage_digiforge_connections')&&Owner::require($shop)===true&&ShopAccess::authorize($shop,'manage_digiforge_connections')===true&&get_current_user_id()===$actor&&is_user_logged_in()&&current_user_can('manage_digiforge_connections');}
  /** Local retained-history consistency only; coordinated rollback of state AND every audit root is not detectable here. */
  private static function reconciliationHistory(string $dedupeKey,?array $state):array|WP_Error {
   if($state!==null&&!self::validReconciliationState($state))return self::error('corrupt_state',503);
