@@ -122,6 +122,26 @@ final class CustomerPhotoCurrentReadTest extends WP_UnitTestCase {
   }finally{remove_filter('query',$capture);$wpdb=$primary;$primary->query('ROLLBACK');$primary->query('SET autocommit=1');self::assertTrue($fence->release());$other->close();wp_set_current_user($f['actor']);}self::assertWPError($fence->validateRetainedReadLease());self::assertNull($primary->get_var($primary->prepare('SELECT option_value FROM '.$primary->options.' WHERE option_name=%s',$probe)));
  }
 
+ public static function reviewerRevocations():array{return [['capability'],['signed_grants']];}
+ /** @dataProvider reviewerRevocations */
+ public function testRetainedPhotoLeaseNeverSubstitutesForCurrentReviewerAuthority(string $change):void {
+  $f=$this->fixture();$reviewer=$f['actor'];$consumer=self::factory()->user->create(['role'=>'administrator']);ShopAccessFixture::authorizeActor($consumer,['personalized_pod'],['manage_digiforge_pod','manage_digiforge_orders']);global $wpdb;self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('SET autocommit=1'));wp_set_current_user($consumer);$photo=new CustomerPhotoSelection();$fence=DigiForge\POD\CustomerPhotoProducerFence::acquireRead();self::assertNotWPError($fence);$primary=$wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($primary->prefix);$probe='review-authority-caller-'.wp_generate_uuid4();
+  try{
+   $before=$this->checked($photo->forOrder('personalized_pod',$f['order'],$f['line'],1));self::assertSame($reviewer,$before['review_provenance']['reviewer_user_id']);self::assertNotFalse($primary->query('START TRANSACTION WITH CONSISTENT SNAPSHOT'));self::assertSame(1,$primary->insert($primary->options,['option_name'=>$probe,'option_value'=>'uncommitted','autoload'=>'no']));
+   $wpdb=$other;
+   if($change==='capability'){
+    $user=get_user_by('id',$reviewer);self::assertInstanceOf(WP_User::class,$user);$user->add_cap('manage_digiforge_orders',false);$stored=$other->get_var($other->prepare('SELECT meta_value FROM '.$other->usermeta.' WHERE user_id=%d AND meta_key=%s',$reviewer,$other->prefix.'capabilities'));self::assertFalse(maybe_unserialize($stored)['manage_digiforge_orders']);
+   }else{
+    $acl=new DigiForge\Security\ShopAccessRepository();$state=$this->checked($acl->read('personalized_pod'));$revoked=0;
+    foreach($state['grants']as $id=>$grant){if($grant['actor_id']!==$reviewer||$grant['revoked'])continue;wp_set_current_user($grant['grantor_id']);$fresh=$this->checked($acl->read('personalized_pod'));$this->checked($acl->revoke('personalized_pod',$id,str_replace('-','_',wp_generate_uuid4()),$fresh['revision']));$revoked++;}
+    self::assertGreaterThan(0,$revoked);$fresh=$this->checked($acl->read('personalized_pod'));foreach($fresh['grants']as $grant)if($grant['actor_id']===$reviewer)self::assertTrue($grant['revoked']);
+   }
+   self::assertSame('0',(string)$other->get_var('SELECT @@session.in_transaction'),'Reviewer revocation must really be committed on the other connection.');self::assertNull($other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$probe)));
+   $wpdb=$primary;wp_set_current_user($consumer);self::assertTrue($fence->validateRetainedReadLease(),'A photo-byte lease remains valid; it does not freeze reviewer roles or signed grants.');self::assertWPError($photo->forOrder('personalized_pod',$f['order'],$f['line'],1),'A retained pre-transaction proof cannot authorize a managed read inside the caller transaction.');self::assertSame('1',(string)$primary->get_var('SELECT @@session.in_transaction'));self::assertNotFalse($primary->query('ROLLBACK'));
+   self::assertTrue(DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_pod',$consumer),'The consumer itself remains assigned; denial must concern the independent reviewer.');self::assertWPError(DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_orders',$reviewer));self::assertWPError($photo->forOrder('personalized_pod',$f['order'],$f['line'],1),'Fresh approved admission must deny the revoked independent reviewer.');self::assertTrue($fence->validateRetainedReadLease());
+  }finally{$wpdb=$primary;$primary->query('ROLLBACK');self::assertTrue($fence->release());$other->close();wp_set_current_user($f['actor']);}self::assertNull($primary->get_var($primary->prepare('SELECT option_value FROM '.$primary->options.' WHERE option_name=%s',$probe)));
+ }
+
  public function testRetainedWitnessRejectsMutationLeasesAndUncertainOwnership():void {
   global $wpdb;$mutation=DigiForge\POD\CustomerPhotoProducerFence::acquireMutation();self::assertNotWPError($mutation);try{self::assertWPError($mutation->validateRetainedReadLease());self::assertTrue($mutation->startMutationTransaction());self::assertTrue($mutation->validate());self::assertWPError($mutation->validateRetainedReadLease());}finally{$wpdb->query('ROLLBACK');self::assertTrue($mutation->release());}
   $read=DigiForge\POD\CustomerPhotoProducerFence::acquireRead();self::assertNotWPError($read);$fault=static fn($sql)=>str_starts_with($sql,'SELECT IS_USED_LOCK(')?'SELECT NULL':$sql;add_filter('query',$fault);try{self::assertWPError($read->validateRetainedReadLease());}finally{remove_filter('query',$fault);self::assertTrue($read->release());}self::assertWPError($read->validateRetainedReadLease());
