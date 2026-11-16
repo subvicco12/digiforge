@@ -1,0 +1,162 @@
+{
+  "transport": "actual loopback HTTP WordPress cookie+nonce",
+  "synthetic_only": true,
+  "cases": [
+    {
+      "name": "foreign_view",
+      "status": 403,
+      "error": "customer_editor_access_required"
+    },
+    {
+      "name": "bad_nonce",
+      "status": 403,
+      "error": "rest_cookie_invalid_nonce"
+    },
+    {
+      "name": "missing_nonce",
+      "status": 403,
+      "error": "rest_cookie_invalid_nonce"
+    },
+    {
+      "name": "buyer_upload",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_submit",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_cannot_operator_review",
+      "status": 403,
+      "error": "digiforge_portal_module_scope"
+    },
+    {
+      "name": "operator_view",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "operator_input_review",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "operator_layout",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "operator_prepare",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "operator_inspect_unreviewed_artifact",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_before_artifact_review",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "operator_artifact_review",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_reviewed_preview",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_preference",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_preference_replay",
+      "status": 409,
+      "error": "customer_editor_immutable_conflict"
+    },
+    {
+      "name": "buyer_replacement",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "old_preference_replay_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "stale_submit_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "operator_stale_prepare_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "replacement_preview_blocked",
+      "status": 200,
+      "error": null
+    }
+  ],
+  "render_id": "1",
+  "artifact_sha256": "b9290fc97d0a26efaf64a3427c0987156f72c2900a0174772fc07432c6c3402c",
+  "record_output_sha256": "e942ff74ec5e79036a540266ab369f5b3b8591052e6ff150b3c7696b7892c8ab",
+  "buyer_preference_replay": "409 immutable conflict after timestamp advances; stale replay denied after replacement",
+  "preview_fields": [
+    "sha256",
+    "bytes",
+    "width_px",
+    "height_px",
+    "mime",
+    "pixel_sha256",
+    "decoder_version",
+    "geometry_qa",
+    "visual_qa",
+    "position",
+    "available_panels",
+    "content_base64",
+    "external_execution_authorized",
+    "state",
+    "label",
+    "variant_key",
+    "artifact_sha256",
+    "context_sha256",
+    "customer_approved",
+    "selection_sha256",
+    "digital_only",
+    "supplier_certified"
+  ],
+  "holds": {
+    "artwork_certified": false,
+    "supplier_certified": false,
+    "external_execution_authorized": false
+  },
+  "wp_http_attempts": {
+    "loopback_blocked": 6,
+    "nonloopback_blocked": 0,
+    "actual_outbound_requests": 0
+  },
+  "source_head": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+  "runtime_source_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+  "working_diff_sha256": "202d28b8b6926e147234034e82a5484aaaf2bab98c736e4942fb9a8a79894466",
+  "preview_bytes_equal": true,
+  "independent_visual_review": "640x480 white canvas; contained 440x440 blue synthetic image; visible margins and no clipping.",
+  "scope": "SINGLE_PHOTO one ordinary PHOTO crop. HTTP API with cookie/nonce; no JS click/layout acceptance.",
+  "initial_failures": [
+    "Local socket denied until execution network permission used.",
+    "Fresh install needed WP_INSTALLING; first setup logged missing wp_options before core install.",
+    "Foreign wp-admin/profile.php returned 500 in minimal disposable site; switched to authenticated editor wrapper nonce.",
+    "Harness initially compared aggregate output hash to per-panel hash; corrected to actual per-panel served bytes.",
+    "Preference replay initially expected idempotence; actual later repeat denies 409 immutable conflict."
+  ]
+}

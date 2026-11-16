@@ -1,0 +1,76 @@
+{
+  "case": "PHOTO_COLLAGE4 actual browser JS clicks",
+  "transport": "real server, no request mocking",
+  "cases": [
+    {
+      "selector": "[data-upload]",
+      "keyboard": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-submit-photos]",
+      "keyboard": true,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-review-input]",
+      "keyboard": false,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-photo-layout]",
+      "keyboard": false,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-prepare-photo]",
+      "keyboard": false,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-approve-photo-render]",
+      "keyboard": false,
+      "status": 200,
+      "error": null
+    },
+    {
+      "selector": "[data-approve]",
+      "keyboard": true,
+      "status": 200,
+      "error": null
+    }
+  ],
+  "keyboard_submission": [
+    "upload",
+    "submit_for_review",
+    "buyer_preference"
+  ],
+  "artifact_sha256": "53e405e0f01bd09a0ed80d1e772f2091e8d80d40eb4c606915ba91b50ef67e51",
+  "preview_bytes_equal": true,
+  "browser_nonloopback_requests": 0,
+  "request_count": 57,
+  "page_errors": [],
+  "holds": {
+    "artwork_certified": false,
+    "supplier_certified": false,
+    "external_execution_authorized": false
+  },
+  "safety": {
+    "stop_all": true,
+    "automation_armed": false,
+    "activation_authorized": false,
+    "printify_activation_authorized": false,
+    "gelato_activation_authorized": false,
+    "etsy_publish_activation_authorized": false,
+    "order_automation_activation_authorized": false,
+    "external_safety_locked": true
+  },
+  "head": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+  "runtime_source_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+  "independent_visual_review": "Contained four-photo layout matches source order; original HTTP proof yellow/red/green/blue. Browser changed lower-right source to red. No clipping outside retained margins."
+}

@@ -53,15 +53,26 @@ final class CustomerPhotoSelection
    $saved=$this->put('df_photo_review_'.$hash,$review);if($saved instanceof WP_Error)return $saved;if(!Logger::write('photo_input_reviewed',['review_sha256'=>$review['sha256']],'photo_input',(string)$r['snapshot']['order_id']))return self::error('audit_uncertain');return $this->readSelection($r,false);
   });
  }
- /** Current approved selection or null for legacy unmanaged orders. Missing managed state never falls back. */
+ /** Strict selected-photo consumer. Missing selection is never a legacy signal. */
  public function forOrder(string $shop,int $order,int $line,?int $expectedRevision=null):array|WP_Error|null {
-  if($shop!=='personalized_pod'||!self::operator())return self::error('operator_required',403);global $wpdb;$wpdb->last_error='';$found=$wpdb->get_var($wpdb->prepare('SELECT li.id FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::orders().' o ON o.id=li.order_id WHERE li.id=%d AND o.id=%d AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate('personalized_pod','o'),$line,$order));if($wpdb->last_error!==''||(int)$found!==$line)return self::error('line_scope_required',403);
-  $r=$this->head($line);if($r instanceof WP_Error)return $r;if($r===null)return self::error('selection_required');if($r['snapshot']['order_id']!==$order||($expectedRevision!==null&&$r['revision']!==$expectedRevision))return self::error('stale_selection');return $this->readSelection($r,true);
+  $r=$this->resolveForOrder($shop,$order,$line,$expectedRevision);return $r===null?self::error('selection_required'):$r;
+ }
+ /** v1 authoritative discriminator: null only for exactly admitted unmanaged legacy orders.
+  * Historical markers are order-scoped, so ambiguity on another line holds the order.
+  * A consumer expecting a positive selection revision can never fall back to legacy.
+  */
+ public function resolveForOrder(string $shop,int $order,int $line,?int $expectedRevision=null):array|WP_Error|null {
+  if($shop!=='personalized_pod'||!self::operator())return self::error('operator_required',403);global $wpdb;$wpdb->last_error='';$found=$wpdb->get_var($wpdb->prepare('SELECT li.id FROM '.Tables::order_line_items().' li INNER JOIN '.Tables::orders().' o ON o.id=li.order_id WHERE li.id=%d AND o.id=%d AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate('personalized_pod','o'),$line,$order));if($wpdb->last_error!==''||(int)$found!==$line||$line<1||$order<1)return self::error('line_scope_required',403);
+  $r=$this->head($line);if($r instanceof WP_Error)return $r;if($r===null){$managed=$this->managedOrder($order);if($managed instanceof WP_Error)return $managed;if($managed)return self::error('managed_selection_missing');return $expectedRevision===null||$expectedRevision===0?null:self::error('stale_selection');}
+  if($r['snapshot']['order_id']!==$order||($expectedRevision!==null&&$r['revision']!==$expectedRevision))return self::error('stale_selection');return $this->readSelection($r,true);
+ }
+ private function managedOrder(int $order):bool|WP_Error {
+  global $wpdb;$wpdb->last_error='';$n=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::audit_log()." WHERE event_type IN ('photo_input_selected','photo_editor_changed') AND object_type='photo_input' AND object_id=%s",(string)$order));if($wpdb->last_error!==''||!is_numeric($n))return self::error('selection_read_failed');return (int)$n>0;
  }
  public function forRender(array $render):array|WP_Error|null {
   global $wpdb;$wpdb->last_error='';$lines=$wpdb->get_results($wpdb->prepare('SELECT id,provider_mapping_id FROM '.Tables::order_line_items().' WHERE order_id=%d',(int)($render['order_id']??0)),ARRAY_A);if($wpdb->last_error!==''||!is_array($lines))return self::error('selection_read_failed');
   $managed=[];foreach($lines as $line){$head=$this->head((int)$line['id']);if($head instanceof WP_Error)return $head;if($head!==null){if((int)$line['provider_mapping_id']!==(int)($render['provider_mapping_id']??0))continue;$managed[]=$head;}}
-  if(!$managed){$wpdb->last_error='';$n=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::audit_log()." WHERE event_type IN ('photo_input_selected','photo_editor_changed') AND object_type='photo_input' AND object_id=%s",(string)($render['order_id']??0)));if($wpdb->last_error!==''||!is_numeric($n))return self::error('selection_read_failed');return (int)$n>0?self::error('managed_selection_missing'):null;}
+  if(!$managed){$marker=$this->managedOrder((int)($render['order_id']??0));return $marker instanceof WP_Error?$marker:($marker?self::error('managed_selection_missing'):null);}
   if(count($managed)!==1)return self::error('ambiguous_selection');$r=$this->readSelection($managed[0],true);if($r instanceof WP_Error)return $r;
   return hash_equals($r['snapshot']['payload_sha256'],(string)($render['personalization_evidence_hash']??''))?$r:self::error('stale_payload');
  }

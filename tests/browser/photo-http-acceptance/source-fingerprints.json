@@ -1,0 +1,37 @@
+{
+  "head": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+  "runtime_sha256": {
+    "includes/POD/CustomerPhotoSelection.php": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+    "includes/POD/CustomerEditorWorkflow.php": "383e47e51b8ca6c48ee0e44d411ea60a9f985098e25b65b9ec9c58e7e9be71cd",
+    "includes/POD/CustomerEditorRepository.php": "7383a810ad6b6f728157143e147a54fae073257240fafd3d0689fe4bf0c3e635",
+    "includes/POD/DeterministicPersonalizationRenderer.php": "cf7f0cc4c6865e2cf896cc9009c33324411bbacbd0617deb1b45bc6e489d0bc1",
+    "assets/customer-editor.js": "e43f7fb2fa87c1c44065a646e5833396e018b78349acbba43c1ed69c379d02ee"
+  },
+  "proofs_sha256": {
+    "receipt/operator-unreviewed-artifact.png": "b9290fc97d0a26efaf64a3427c0987156f72c2900a0174772fc07432c6c3402c",
+    "receipt/buyer-preview.png": "b9290fc97d0a26efaf64a3427c0987156f72c2900a0174772fc07432c6c3402c",
+    "receipt/source-original.png": "936b2be62f6a1f7b2265605a8e1d4da8df797b3872f791d127875ce3ed8aa1ea",
+    "receipt-collage/buyer-collage.png": "c948d19714f81ce08068e36bdc4e081521b239534acd93436311534176b08bc1",
+    "receipt-collage/source-1.png": "631cdd1a6f37b55921a7266c71ea70cbf5fe9eabc1b391e602626f7dff52a14c",
+    "receipt-collage/source-2.png": "b04ab820cfa37d6146a47ea0289aca803421e0ebf68c2a5096599abcdde0bc80",
+    "receipt-collage/source-4.png": "990e0a627b7442192b464eb09e21e36b8b2a108b676fad065916d6fe4424f75d",
+    "receipt-collage/source-3.png": "8b0ae08cc0fb9e11f5b38912bba5a56b668a932f5aebe7fa160a7893f18a6b42",
+    "receipt-collage/operator-collage.png": "c948d19714f81ce08068e36bdc4e081521b239534acd93436311534176b08bc1",
+    "receipt-browser/buyer-reviewed.png": "53e405e0f01bd09a0ed80d1e772f2091e8d80d40eb4c606915ba91b50ef67e51",
+    "receipt-browser/operator-unreviewed.png.screen.png": "9d04ad26d68dacce0e4f84538bd5c1ab6e5cc17cea149540da007dffc4a1132a",
+    "receipt-browser/mobile390.screen.png": "1b85e30cdeea1fe322638ce45f3823bfa8e4582e60acac4e9080cc75fd17f0be",
+    "receipt-browser/buyer-submitted.png": "4cc1760d98f85020800ff7c6d4787c23026a6feee7a244ec34724ac1235d5b1e",
+    "receipt-browser/operator-unreviewed.png": "53e405e0f01bd09a0ed80d1e772f2091e8d80d40eb4c606915ba91b50ef67e51",
+    "receipt-browser/buyer-approved.screen.png": "c05111b6b6ab6a7889a22dabfeb8a57163d01be7163470b2247f9098adf9d040"
+  },
+  "harness_sha256": {
+    "mobile.cjs": "a51f7b58ab585bf0e5e9ea6e4c6c34c1a66b05c5515dd298fceb19a6d7bf872d",
+    "safety.php": "6dd2895bed4e9587abd93ace7c50a200ed55639a3dd627e5b15bdd0a0fd38d6d",
+    "journey.py": "09a7738a6027260ab622aca6924d35dc9029d3f1e2cdeca32c229ea24c619f02",
+    "scaffold.py": "898bb1d0924439169bad41d926d8c62245ee2c49c097a4f3c49b1118636a9dd1",
+    "router.php": "06a0b02b92d023047abb7f6d93767bff97c3b3916c84d9d5e1376c338ecc739f",
+    "browser.cjs": "ba67f2b94d9b01a39a7de96319774f0f186de2dcd26c33577b6a0fd0629f24aa",
+    "fixture.php": "b1367875311c8340bfc642f3bc8921aa2209ae00040feaec40860c2800b90e3b",
+    "collage.py": "7905b22c9e957d484c48e7c1d6e50b81d8cf0cd98d5146a1c13c65d42a1a5829"
+  }
+}

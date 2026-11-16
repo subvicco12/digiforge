@@ -1,0 +1,139 @@
+{
+  "case": "PHOTO_COLLAGE4 actual HTTP",
+  "cases": [
+    {
+      "name": "upload_slot_1",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "missing_slots_submit_denied",
+      "status": 409,
+      "error": "customer_editor_complete_photo_slots_required"
+    },
+    {
+      "name": "upload_slot_2",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "upload_slot_3",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "upload_slot_4",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "reorder_all_slots",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "inspect_reordered_slots",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "pre_reorder_head_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "submit_current_collage",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "review_four_inputs",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "review_collage_layout",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "prepare_collage",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "inspect_unreviewed_collage",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "approve_exact_collage_render",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_collage_preview",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "buyer_collage_preference",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "replace_fourth_slot",
+      "status": 200,
+      "error": null
+    },
+    {
+      "name": "old_collage_preference_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "old_collage_prepare_denied",
+      "status": 409,
+      "error": "customer_editor_stale_revision"
+    },
+    {
+      "name": "replacement_collage_blocked",
+      "status": 200,
+      "error": null
+    }
+  ],
+  "slot_source_sha256": [
+    "56cceab050194277a34aec8fa07c4ac7cc3ff99b7a690caa710369d511f1309b",
+    "bad0d82a90bf13df1014cfbf4c8367ad10af1d12533495065e55a54c8222304f",
+    "9995404c3c7127ca39b47a02f356ba8177622111ed9428213b8d5835c396c4f5",
+    "393fadd128ed066d2756415e466e275fcbef9e99c8d2d5a7443b8c476a5d0d64"
+  ],
+  "reorder": [
+    "photo_3",
+    "photo",
+    "photo_1",
+    "photo_2"
+  ],
+  "artifact_sha256": "c948d19714f81ce08068e36bdc4e081521b239534acd93436311534176b08bc1",
+  "preview_bytes_equal": true,
+  "holds": {
+    "artwork_certified": false,
+    "supplier_certified": false,
+    "external_execution_authorized": false
+  },
+  "safety": {
+    "stop_all": true,
+    "automation_armed": false,
+    "activation_authorized": false,
+    "printify_activation_authorized": false,
+    "gelato_activation_authorized": false,
+    "etsy_publish_activation_authorized": false,
+    "order_automation_activation_authorized": false,
+    "external_safety_locked": true
+  },
+  "nonloopback_http_attempts": 0,
+  "blocked_loopback_probes": 0,
+  "source_head": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+  "runtime_source_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+  "independent_visual_review": "Contained four-photo layout matches source order; original HTTP proof yellow/red/green/blue. Browser changed lower-right source to red. No clipping outside retained margins."
+}
