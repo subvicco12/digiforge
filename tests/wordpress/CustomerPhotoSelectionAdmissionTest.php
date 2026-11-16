@@ -2,7 +2,9 @@
 declare(strict_types=1);
 require_once __DIR__.'/RenderArtifactCertificationTest.php';
 use DigiForge\POD\CustomerPhotoSelection;
+require_once __DIR__.'/fixtures/PhotoWorkflowFixtureIsolation.php';
 final class CustomerPhotoSelectionAdmissionTest extends WP_UnitTestCase {
+ use PhotoWorkflowFixtureIsolation;
  protected function setUp():void {
   parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();global $wpdb;$t=DigiForge\Database\Tables::class;
   // Review/schema DDL may commit fixtures. Isolate this class's fixed synthetic identities between cases.
@@ -14,6 +16,7 @@ final class CustomerPhotoSelectionAdmissionTest extends WP_UnitTestCase {
   $wpdb->delete($t::pod_production_templates(),['template_id'=>'personalized_pod']);
   $wpdb->delete($t::personalization_schemas(),['product_version_id'=>1,'schema_key'=>'name','version_label'=>'1']);
   $wpdb->delete($t::businesses(),['business_key'=>'digicraftifygoods','display_name'=>'Fixture goods']);
+  $this->capturePhotoFixtureState();
  }
  private function fixture():array {DigiForge\Core\Activator::activate();ShopAccessFixture::reset();$f=new RenderArtifactCertificationTest();return (new ReflectionMethod($f,'deterministicFixture'))->invoke($f);}
  public function testAuthoritativeUnmanagedResultRequiresExactScopeAndNoRetainedManagedMarker():void {

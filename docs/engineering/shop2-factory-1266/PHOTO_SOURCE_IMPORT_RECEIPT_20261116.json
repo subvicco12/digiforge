@@ -7,9 +7,9 @@
   ],
   "b_head_at_import": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
   "method": "Exact final source blobs from bounded union of three photo commits; all existing files matched fc997474 baseline; no branch merge or unrelated source import.",
-  "file_count": 22,
+  "file_count": 23,
   "existing_baseline_count": 9,
-  "new_file_count": 13,
+  "new_file_count": 14,
   "consumer_integration": "PENDING_B_OWNER",
   "capability_acceptance": "PENDING_INDEPENDENT_COMBINED_TESTS",
   "source_pins_changed": false,
@@ -201,18 +201,25 @@
     },
     {
       "path": "tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
-      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
-      "source_blob": "88be9c3bc67e08c8b7211de47abb4d9066c4f941",
-      "source_sha256": "be4e388185a07de43d1a3b37326bc65e352df89a6ab1aae9cdf49380e9a27974",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "014a6d24c189e79194e4f40a2c867f711dcc5949",
+      "source_sha256": "d7cb2346075e1ce359a1ac6577c6bdeead5eb8a1652b4f8e916cf08bcfc7f6db",
       "previous_b_sha256": null,
       "previous_b_blob": null,
-      "comparison": "ABSENT"
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+          "source_blob": "88be9c3bc67e08c8b7211de47abb4d9066c4f941",
+          "source_sha256": "be4e388185a07de43d1a3b37326bc65e352df89a6ab1aae9cdf49380e9a27974"
+        }
+      ]
     },
     {
       "path": "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
-      "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
-      "source_blob": "f6c7d4286e8cc0314e96bfcc9117b26589e25747",
-      "source_sha256": "04e54c24d096fa9e49909f7c214c6d8026ab0458135d18bbe0c86cb0d3f87f92",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "05823b816bcb56d29b5285e777ee8b6f4e0c4dd4",
+      "source_sha256": "4a5151c366b7c8a93979c7e54adf50b13283a1bce5e2124a7b15fc5a6fa2c674",
       "previous_b_sha256": null,
       "previous_b_blob": null,
       "comparison": "ABSENT",
@@ -221,6 +228,11 @@
           "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
           "source_blob": "480ac577c1af47bac3f2775d97d0cfbff8644c67",
           "source_sha256": "2d1a74ef4434b8446ade6c7050d22f88e0677bbf35367f62eee2dcbde343923e"
+        },
+        {
+          "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+          "source_blob": "f6c7d4286e8cc0314e96bfcc9117b26589e25747",
+          "source_sha256": "04e54c24d096fa9e49909f7c214c6d8026ab0458135d18bbe0c86cb0d3f87f92"
         }
       ]
     },
@@ -229,10 +241,25 @@
       "previous_b_sha256": null,
       "previous_b_blob": null,
       "comparison": "ABSENT",
-      "source_history": [],
-      "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
-      "source_blob": "098794039e1f7721684380e225bc2a33fafa6cb9",
-      "source_sha256": "b688cc66afed31fe57787bf711d13c1f161270ee60ade9551f4034f9431410b9"
+      "source_history": [
+        {
+          "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+          "source_blob": "098794039e1f7721684380e225bc2a33fafa6cb9",
+          "source_sha256": "b688cc66afed31fe57787bf711d13c1f161270ee60ade9551f4034f9431410b9"
+        }
+      ],
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "c140cc1acf642c6754bbc145ec9a58d0608bf71a",
+      "source_sha256": "08624c61f1415f3eca6c68c6a6408c92fd13ce5a711a308f59f1a66f5757f4ee"
+    },
+    {
+      "path": "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "570f1935d9f27faf9c36e6e0513ce611c3776c64",
+      "source_sha256": "3440004ea70d1ffc9e578d28835cac2ce881e1d0f9272a8aaaa892f381528d59"
     }
   ],
   "resolver_update": {
@@ -247,5 +274,17 @@
     "excluded": "Unrelated transformation source/tests and standalone HTTP browser acceptance receipts.",
     "remaining": "Repeatable-read frontier/currentness and render epoch binding remain unresolved; B consumer acceptance pending."
   },
-  "source_commit_note": "Per-file source_commit is authoritative; original source_commit records initial full photo import."
+  "source_commit_note": "Per-file source_commit is authoritative; original source_commit records initial full photo import.",
+  "fixture_isolation_update": {
+    "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+    "files": [
+      "tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php"
+    ],
+    "purpose": "Restore committed photo fixture boundaries and prior AI policy rows after each isolated single-writer test.",
+    "excluded": "Unrelated standalone packaged-candidate.py acceptance runner.",
+    "verification": "PENDING serialized coupled photo and FinalConvergence regression."
+  }
 }
