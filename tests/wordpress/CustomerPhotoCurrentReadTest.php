@@ -8,7 +8,7 @@ use DigiForge\POD\{CustomerEditorRepository,CustomerPhotoSelection,RasterArtwork
 /** Real connections and public producer operations; no fabricated photo heads or resolver stand-ins. */
 final class CustomerPhotoCurrentReadTest extends WP_UnitTestCase {
  use PhotoWorkflowFixtureIsolation;
- protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();$this->capturePhotoFixtureState();global $wpdb;self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('SET autocommit=1'));}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();$this->capturePhotoFixtureState();$this->isolatePhotoFixtureIdentity();global $wpdb;self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('SET autocommit=1'));}
  private function fixture(bool $select=true):array {
   $f=new RenderArtifactCertificationTest();$input=(new ReflectionMethod($f,'deterministicFixture'))->invoke($f,'SINGLE_PHOTO',[['position'=>'front','decoration_method'=>'dtg','width_px'=>640,'height_px'=>480,'dpi'=>300,'qa_geometry'=>['safe_zone'=>['x'=>20,'y'=>20,'width'=>600,'height'=>440],'seam_exclusions'=>[],'min_image_dpi'=>72,'bleed'=>['trim_box'=>['x'=>10,'y'=>10,'width'=>620,'height'=>460],'margins_px'=>['left'=>10,'right'=>10,'top'=>10,'bottom'=>10]]]]]);
   $args=[$input,[['key'=>'photo','type'=>'image_reference','required'=>true],['key'=>'label','type'=>'text']],['photo'=>'digiforge/product-factory/source.png']];
