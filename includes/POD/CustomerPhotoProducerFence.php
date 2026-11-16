@@ -6,6 +6,7 @@ use WP_Error;
 /** Connection-bound fence for A-owned editor/selection mutations, never cross-owner transaction admission. */
 final class CustomerPhotoProducerFence
 {
+ public const RETAINED_READ_LEASE_CONTRACT='shop2-photo-retained-read-lease-v1';
  private static array $held=[];
  private bool $released=false;
  private function __construct(private object $db,private int $connection,private string $name,private string $generation) {}
@@ -40,6 +41,11 @@ final class CustomerPhotoProducerFence
  public function validate():true|WP_Error {
   global $wpdb;$held=self::$held[spl_object_id($this->db)]??null;$state=self::state($this->db);
   if($this->released||$wpdb!==$this->db||$held===null||$held['generation']!==$this->generation||$state instanceof WP_Error||$state['connection']!==$this->connection||!$state['autocommit']||($state['transaction']&&!$held['transaction'])||!self::owns($this->db,$this->name,$this->connection))return self::error('state_changed');return true;
+ }
+ /** Lease witness only: no photo/identity read, transaction change, actor admission or approval. */
+ public function validateRetainedReadLease():true|WP_Error {
+  global $wpdb;$held=self::$held[spl_object_id($this->db)]??null;$state=self::state($this->db);
+  if($this->released||$wpdb!==$this->db||$held===null||$held['generation']!==$this->generation||$held['mutation']||$held['transaction']||$state instanceof WP_Error||$state['connection']!==$this->connection||!self::owns($this->db,$this->name,$this->connection))return self::error('retained_read_lease_invalid');return true;
  }
  /** No COMMIT, ROLLBACK, isolation change, or connection substitution. */
  public function release():true|WP_Error {
