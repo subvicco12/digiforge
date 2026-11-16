@@ -16,6 +16,7 @@ final class OrderHeldPreparationPanel
         $raw=$_GET['df_order_id'];
         if(!is_string($raw)||!preg_match('/^[1-9][0-9]{0,9}$/D',$raw)){echo '<p role="alert">An exact stored order ID is required.</p></section>';return;}
         (new OrderHoldWorkflow())->render($shop,(int)$raw);
+        (new OrderIntakeEvidencePanel())->render($shop,(int)$raw);
         $service=new HeldFulfillmentPreparation();$source=$service->forOrder($shop,(int)$raw);
         if(is_wp_error($source)){echo '<div role="alert" class="df-notice df-notice-error">'.esc_html($source->get_error_message()).'</div>';
             $intent=$_GET['df_intent_id']??null;if(is_string($intent)&&preg_match('/^[1-9][0-9]{0,9}$/D',$intent)===1&&(int)$intent<=2147483647)(new OrderHeldJobWorkflow())->render($shop,(int)$raw,(int)$intent);
