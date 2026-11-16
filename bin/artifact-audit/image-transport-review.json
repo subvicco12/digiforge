@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "scope": "Exact reviewed image authority and single sender; NETWORK unsupported without coordinated custodian; no live or owner approval",
+  "source_sha256": {
+    "includes/AI/ImageGenerationAccess.php": "00cdedf3eec2e0ce8bb67da2572e4bff75e92dd0c15a0f54f9c957f09535f3ae",
+    "includes/AI/ImageGenerationCredentialCustody.php": "03e57ee1b543452abd4a1cbc7a47f26942f529c121bdad79cff16a22240ba3e2",
+    "includes/AI/ImageGenerationPolicyRepository.php": "dbe4e9e792593d9beb7d7f6201c8f1bf7f787840155feba094b2b5ebfe960d49",
+    "includes/AI/ImageGenerationJournal.php": "d832fb70c4081e206f2977ff4621ad4c45405475c673b28d535424f3697aed8e",
+    "includes/AI/ImageGenerationWireContract.php": "68515861e349c59a7b3fcea0853839c4fad28aaa819feffe79129c04422bc944",
+    "includes/AI/ImageGenerationHttpClient.php": "5f756be4a8e11076da830cec6c6b9953561fe54520640eb170abedbd332cc2ec",
+    "includes/AI/ImageGenerationExecution.php": "0b2303784890aa705520f7092dee4203b86d2b6f3f369094399a9ee9ba68f3da",
+    "includes/AI/OfflineImageTransport.php": "92e8a47975c28b309535c5d682b407ae632395d5fc1e6434db4f4c4721da04be",
+    "includes/AI/ProviderEvidenceRepository.php": "87eaeb91aaa73e5690df89a8668edcd8a380819bb69c80f51acd2e96ea6a870c"
+  },
+  "sender": {
+    "path": "includes/AI/ImageGenerationHttpClient.php",
+    "line": 39,
+    "code": "      $response=wp_remote_post($wire[\"url\"],$options);"
+  }
+}

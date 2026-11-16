@@ -200,15 +200,37 @@ jobs:
           python3 bin/check-repository-credentials.py --scanner "$DIGIFORGE_TEST_GITLEAKS" --report "$RUNNER_TEMP/digiforge-repository-credential-evidence.json"
 
       - name: Google HTTP boundary scanner regressions
-        run: python3 -m unittest discover -s tests/security -p 'test_google_http_boundary.py'
+        run: python3 -m unittest discover -s tests/security -p 'test_*_http_boundary.py'
 
       - name: External HTTP client scan
         shell: bash
         run: |
           set -e
-          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin | grep -vE '^includes/DigitalFactory/DriveWordPressGoogleHttp[.]php:[0-9]+:[[:space:]]*\$response=wp_remote_request\(\$url,\$args\);$'; then
+          if grep -RniE --exclude-dir=.git --exclude-dir=vendor --exclude='digiforge-foundation-audit.yml' --exclude='HostingerRecoveryProvider.php' --exclude='ConnectionTester.php' --exclude='RecoveryStagingClient.php' --exclude='EtsySellerTaxonomyClient.php' --exclude='EtsyOAuth.php' --exclude='EtsyTokenManager.php' --exclude='EtsyControlledHttpExecutor.php' --exclude='OpenAIClient.php' --exclude='PrintifyCatalogClient.php' --exclude='PrintifyControlledTransport.php' --exclude='PrintifyReconciliationLookup.php' --exclude='GelatoCatalogClient.php' '(wp_remote_(get|post|request|head)|curl_init|GuzzleHttp|Requests\\)' digiforge.php includes modules automation admin | grep -vE '^includes/DigitalFactory/DriveWordPressGoogleHttp[.]php:[0-9]+:[[:space:]]*\$response=wp_remote_request\(\$url,\$args\);$|^includes/AI/ImageGenerationHttpClient[.]php:[0-9]+:[[:space:]]*\$response=wp_remote_post\(\$wire\["url"\],\$options\);$'; then
             echo 'Unexpected external HTTP client usage found outside audited integration clients'
             exit 1
+          fi
+          if test -e includes/AI/ImageGenerationHttpClient.php || test -e includes/AI/ImageGenerationExecution.php || test -e includes/Portal/ImageGenerationPanel.php; then
+            # Exactly one reviewed image sender; no basename/whole-file exemption.
+            test "$(grep -c 'wp_remote_post(' includes/AI/ImageGenerationHttpClient.php)" -eq 1
+            ! grep -nE '(wp_remote_(get|request|head)|curl_init|GuzzleHttp|Requests\\)' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- 'Validator::canonicalJson($identity['"'"'wire_contract'"'"'])!==Validator::canonicalJson($contract)' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- https://api.openai.com/v1/images/generations includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- https://api.openai.com/v1/images/edits includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- '$this->custody===null' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- '$this->custody->withExclusiveGeneration(' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- 'ImageGenerationAccess::networkAllowed()' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- 'ImageGenerationAccess::authorize()' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- '$this->claim($job,$mode)' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'redirection'"'"'=>0' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'sslverify'"'"'=>true' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'reject_unsafe_urls'"'"'=>true' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'limit_response_size'"'"'=>' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'Accept-Encoding'"'"'=>'"'"'identity'"'"'' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- 'MonetaryReservationRepository()' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- ''"'"'image_dispatch_claimed'"'"'' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- '(string)$session['"'"'active'"'"']!=='"'"'0'"'"'' includes/AI/ImageGenerationHttpClient.php
+            grep -Fq -- DIGIFORGE_IMAGE_NETWORK_EXECUTION_AUTHORIZED===true includes/AI/ImageGenerationAccess.php
           fi
           # One exact Google sender line; all other paths/calls remain globally denied.
           test "$(grep -c 'wp_remote_request(' includes/DigitalFactory/DriveWordPressGoogleHttp.php)" -eq 1
