@@ -89,16 +89,18 @@ final class PrintifyApiReadWorkflow
         $current = $this->current($hash, $plan); if (is_wp_error($current)) { return $current; }
         $policy=ReviewedLocalEvidence::approved('policy',$plan['shop_key'],'printify-api-read:'.$hash);if(is_wp_error($policy))return $policy;
         $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session(get_current_user_id());if(is_wp_error($session))return $session;
-        return $this->save('authorization', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'actor'=>get_current_user_id(),'nonce'=>bin2hex(random_bytes(24)),'issued_at'=>time(),'expires_at'=>time()+300,'policy_revision'=>$policy['revision'],'policy_hash'=>$policy['proposal_hash'],'session_fingerprint'=>$session['fingerprint']]);
+        $now=time();
+        return $this->save('authorization', ['shop_key'=>$plan['shop_key'],'plan_hash'=>$hash,'actor'=>get_current_user_id(),'nonce'=>bin2hex(random_bytes(24)),'issued_at'=>$now,'expires_at'=>$now+300,'policy_revision'=>$policy['revision'],'policy_hash'=>$policy['proposal_hash'],'session_fingerprint'=>$session['fingerprint']]);
     }
     private function grantCurrent(string $hash,array $plan,array $auth):true|WP_Error
     {
-        if(($auth['actor']??null)!==get_current_user_id()||!is_int($auth['issued_at']??null)||!is_int($auth['expires_at']??null)||$auth['issued_at']>time()||$auth['expires_at']<=$auth['issued_at']||$auth['expires_at']-$auth['issued_at']>300||$auth['expires_at']<=time())return self::error('authorization_expired');
+        if(!PrintifyAuthorizationLease::isCurrent($auth,$hash,get_current_user_id())||($auth['shop_key']??null)!==$plan['shop_key'])return self::error('authorization_expired');
         $session=\DigiForge\Connector\Printify\NativeAuthorityAdapter::session($auth['actor']);if(is_wp_error($session)||($auth['session_fingerprint']??null)!==$session['fingerprint'])return self::error('authorization_session');
         $current=$this->current($hash,$plan);if(is_wp_error($current))return $current;
         $policy=ReviewedLocalEvidence::approved('policy',$plan['shop_key'],'printify-api-read:'.$hash);
         if(is_wp_error($policy)||($auth['policy_revision']??null)!==$policy['revision']||($auth['policy_hash']??null)!==$policy['proposal_hash'])return self::error('authorization_revision');
-        return true;
+        // Session, native source and approval reads can outlast the original check.
+        return PrintifyAuthorizationLease::isCurrent($auth,$hash,get_current_user_id())?true:self::error('authorization_expired');
     }
     /** Atomic claim: wp add_option uses an upsert and cannot protect racing writers. */
     private function claimIndex(string $key,string $value):bool
@@ -203,7 +205,8 @@ final class PrintifyApiReadWorkflow
         $plan = $this->load('plan', $hash); $auth = $this->load('authorization', $authorization);
         if (is_wp_error($plan) || is_wp_error($auth)) { return self::error('record'); }
         if (($auth['plan_hash'] ?? null) !== $hash || ($auth['actor'] ?? null) !== get_current_user_id() || ($auth['expires_at'] ?? 0) < time()) { return self::error('authorization'); }
-        $current = $this->grantCurrent($hash, $plan, $auth); if (is_wp_error($current)) { return $current; }
+        $guard=fn()=>$this->grantCurrent($hash,$plan,$auth);
+        $current = $guard(); if (is_wp_error($current)) { return $current; }
         try { $request = PrintifyApiRequest::prepare($plan['request']['operation'], $plan['provider_shop_id'], $plan['input']); } catch (\Throwable) { return self::error('contract'); }
         if (Validator::canonicalJson($request) !== Validator::canonicalJson($plan['request']) || $request['method'] !== 'GET' || (!PrintifyApiReadEvidence::supported($request['operation'])&&!isset($plan['native_sources']))) { return self::error('read_confinement'); }
         // Claim before sending. Any interruption remains consumed, requiring a new reviewed plan.
@@ -213,17 +216,17 @@ final class PrintifyApiReadWorkflow
         $catalogAuthority=null;
         if(($plan['native_sources']['type']??null)==='catalog'){$src=$plan['native_sources'];$catalogAuthority=(new PrintifyCatalogReadRepository())->reserveNative($src['grant_sha256'],$src['request_index'],$plan['shop_key'],$plan['integration_id'],$request['endpoint'],hash('sha256',$hash.':'.$authorization));if(is_wp_error($catalogAuthority))return $catalogAuthority;}
         $attempted = false;
-        $result = (new PrintifyScopedCredentialRetriever())->consume($plan['integration_id'], function (string $token) use ($hash, $plan, $request, $sender, $auth, $catalogAuthority, &$attempted) {
-            $current = $this->grantCurrent($hash, $plan, $auth); if (is_wp_error($current)) { return $current; }
+        $result = (new PrintifyScopedCredentialRetriever())->consume($plan['integration_id'], function (string $token) use ($hash, $plan, $request, $sender, $guard, $catalogAuthority, &$attempted) {
+            $current = $guard(); if (is_wp_error($current)) { return $current; }
             $material = PrintifyConnectionBoundary::material($plan['integration_id'], $token); if (is_wp_error($material)) { return $material; }
             $durable = PrintifyProductPipeline::durableDispatchSession(); if (is_wp_error($durable)) { return $durable; }
             $response = null;
             for ($attempt=1; $attempt<=($catalogAuthority===null?3:1); $attempt++) {
                 if($attempt>1)usleep(100000*($attempt-1));
-                $fresh=$this->grantCurrent($hash,$plan,$auth);if(is_wp_error($fresh))return $fresh;
+                $fresh=$guard();if(is_wp_error($fresh))return $fresh;
                 $correlation=$hash.':'.$attempt;$quota=PrintifyAccountQuota::reserve($plan['connection_scope'],$request['endpoint'],'GET',$correlation);if(is_wp_error($quota))return $quota;
                 if($catalogAuthority!==null){$admitted=(new PrintifyCatalogReadRepository())->authorizeReservedAttempt($catalogAuthority,$plan['native_sources']['source']['request'],$token,true);if(is_wp_error($admitted))return $admitted;}
-                $fresh=$this->grantCurrent($hash,$plan,$auth);if(is_wp_error($fresh))return $fresh;
+                $fresh=$guard();if(is_wp_error($fresh))return $fresh;
                 $attempted=true;
                 try{$response=$sender('https://api.printify.com'.$request['endpoint'],['method'=>'GET','timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577,'headers'=>['Authorization'=>'Bearer '.$token,'User-Agent'=>'DigiForge/PrintifyApi','Accept'=>'application/json']]);}catch(\Throwable){$response=new WP_Error('printify_transport_unknown');}
                 $status=is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response);$headers=is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')];
@@ -241,10 +244,10 @@ final class PrintifyApiReadWorkflow
                 if (!is_array($decoded) || PrintifyCatalogReadContract::containsProtectedMaterial($decoded, $token)) { return ['status'=>'RESPONSE_REJECTED','data'=>null]; }
                 $data = isset($plan['native_sources'])?PrintifyNativeReadSources::project($plan,$decoded):PrintifyApiReadEvidence::project($request['operation'], $decoded, $plan['provider_shop_id'], $plan['input']);
                 if($catalogAuthority!==null&&(new PrintifyCatalogReadRepository())->authorizeReservedAttempt($catalogAuthority,$plan['native_sources']['source']['request'],$token,false)!==true)return ['status'=>'UNKNOWN','data'=>null];
-                if ($this->grantCurrent($hash, $plan, $auth) !== true) { return ['status'=>'UNKNOWN','data'=>null]; }
+                if ($guard() !== true) { return ['status'=>'UNKNOWN','data'=>null]; }
                 return ['status'=>'SUCCEEDED','data'=>$data,'response_sha256'=>hash('sha256',$raw)];
             } catch (\Throwable) { return ['status'=>'UNKNOWN','data'=>null]; } finally { $token = ''; }
-        }, $plan['connection_scope']);
+        }, $plan['connection_scope'],$guard);
         $status = is_wp_error($result) ? 'UNKNOWN' : ($result['status'] ?? 'UNKNOWN');
         $data = is_wp_error($result) ? null : ($result['data'] ?? null);
         $reason = is_wp_error($result) ? 'ADMISSION_OR_EVIDENCE' : ($result['reason_code'] ?? ($result['status'] ?? 'UNKNOWN'));

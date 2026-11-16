@@ -63,7 +63,13 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
  public static function actions():array{return [['PROVIDER_ORDER_SUBMIT'],['PROVIDER_PRODUCTION_AUTHORIZE']];}
  public function testPostDispatchRevocationIsUnknownAndCannotRetry():void {
   [$permit,$payload,$review]=$this->request();$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(function()use(&$calls,$payload,$review){++$calls;$this->revoke($payload['integration_id'],$review);return ['response'=>['code'=>200],'body'=>'{"id":"synthetic-provider-order"}'];});global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');
-  $out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertWPError($out);self::assertTrue($out->get_error_data()['network_request_attempted']);self::assertWPError($this->simulated(fn()=>$transport->execute($permit,$payload)));self::assertSame(1,$calls);
+  $request=DigiForge\POD\PrintifyMutationRequest::prepare($permit,$payload);self::assertNotWPError($request);
+  $out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertIsArray($out);self::assertSame('UNKNOWN',$out['status']);
+  foreach(['action','authorization_hash','evidence_hash']as $key)self::assertSame($permit[$key],$out[$key]);
+  self::assertSame($request['request_fingerprint'],$out['request_fingerprint']);self::assertSame($request['reconciliation_identity'],$out['reconciliation_identity']);self::assertFalse($out['retry_permitted']);
+  // The real transaction consumer requires structured UNKNOWN after any possible send.
+  $normalized=DigiForge\POD\ExecutionAdapterResult::normalize($permit,$out);self::assertNotWPError($normalized);self::assertSame('UNKNOWN',$normalized['status']);self::assertTrue($normalized['reconciliation_required']);self::assertFalse($normalized['retry_permitted']);
+  self::assertStringNotContainsString('synthetic-cross-transport-material',wp_json_encode($out));self::assertWPError($this->simulated(fn()=>$transport->execute($permit,$payload)));self::assertSame(1,$calls);
  }
  public function testChangedScopeInvalidatesApprovedRequestFingerprint():void {
   [$permit,$payload]=$this->request();$payload['connection_scope']['business_id']++;$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});self::assertWPError($this->simulated(fn()=>$transport->execute($permit,$payload)));self::assertSame(0,$calls);
@@ -119,7 +125,8 @@ final class PrintifyCrossTransportOwnershipTest extends WP_UnitTestCase {
  }
  public function testExpiredConsumedAuthorizationCannotDispatch():void {
   [$permit,$payload]=$this->request();global $wpdb;$old=$permit['authorization_hash'];$permit['authorization']['issued_at']=time()-301;$permit['authorization']['expires_at']=time()-1;$canonical=$permit['authorization'];ksort($canonical);$permit['authorization_hash']=hash('sha256',wp_json_encode($canonical));
-  foreach([Tables::pod_execution_nonces(),Tables::pod_authorization_bindings()]as $table)self::assertSame(1,$wpdb->update($table,['authorization_hash'=>$permit['authorization_hash']],['authorization_hash'=>$old]));$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});$out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertWPError($out);self::assertSame('digiforge_execution_expired',$out->get_error_code());self::assertSame(0,$calls);
+  // The new pre-credential lease guard rejects this before the durable permit verifier.
+  foreach([Tables::pod_execution_nonces(),Tables::pod_authorization_bindings()]as $table)self::assertSame(1,$wpdb->update($table,['authorization_hash'=>$permit['authorization_hash']],['authorization_hash'=>$old]));$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});$out=$this->simulated(fn()=>$transport->execute($permit,$payload));self::assertWPError($out);self::assertSame('digiforge_printify_interlock_expired',$out->get_error_code());self::assertSame(0,$calls);
  }
  public function testDispatchAuditFailureRollsBackAndNeverSends():void {
   [$permit,$payload]=$this->request();global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$calls=0;$transport=new DigiForge\POD\PrintifyControlledTransport(static function()use(&$calls){++$calls;return [];});$fault=static fn(string $q):string=>str_starts_with($q,'INSERT INTO `'.Tables::audit_log().'`')&&str_contains($q,'printify_dispatch_claimed')?'SELECT FROM /* synthetic audit failure */':$q;$prior=$wpdb->suppress_errors(true);add_filter('query',$fault);

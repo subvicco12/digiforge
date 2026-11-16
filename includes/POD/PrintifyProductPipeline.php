@@ -133,7 +133,13 @@ final class PrintifyProductPipeline {
  /** Explicit owner invocation only; no portal page calls this automatically. */
  public function authorize(string $hash):array|WP_Error {
   if(self::locked())return self::error('locked');$p=$this->plan($hash);if(is_wp_error($p))return $p;$policy=$this->current($hash,$p);if(is_wp_error($policy))return $policy;
-  return $this->put('authorization',['plan_hash'=>$hash,'fingerprint'=>$p['request']['fingerprint'],'policy_hash'=>$policy['proposal_hash'],'actor'=>get_current_user_id(),'nonce'=>wp_generate_password(48,false,false),'issued_at'=>time(),'expires_at'=>time()+300]);
+  $now=time();return $this->put('authorization',['plan_hash'=>$hash,'fingerprint'=>$p['request']['fingerprint'],'policy_hash'=>$policy['proposal_hash'],'actor'=>get_current_user_id(),'nonce'=>wp_generate_password(48,false,false),'issued_at'=>$now,'expires_at'=>$now+300]);
+ }
+ private function authorizationCurrent(string $hash,array $p,array $a):true|WP_Error {
+  if(!PrintifyAuthorizationLease::isCurrent($a,$hash,get_current_user_id())||($a['fingerprint']??null)!==$p['request']['fingerprint'])return self::error('authorization');
+  $policy=$this->current($hash,$p);if(is_wp_error($policy))return $policy;
+  if(($a['policy_hash']??null)!==$policy['proposal_hash'])return self::error('authorization_revision');
+  return PrintifyAuthorizationLease::isCurrent($a,$hash,get_current_user_id())?true:self::error('authorization');
  }
  /** Never dispatch on an outer transaction or non-durable tables. No caller work is committed. */
  public static function durableDispatchSession():true|WP_Error {
@@ -144,26 +150,27 @@ final class PrintifyProductPipeline {
  /** Called only by the existing authenticated transport sender; one request per explicit invocation. */
  public function execute(string $hash,string $authorization,callable $sender):array|WP_Error {
   if(self::locked())return self::error('locked');$durable=self::durableDispatchSession();if(is_wp_error($durable))return $durable;$p=$this->plan($hash);if(is_wp_error($p))return $p;$policy=$this->current($hash,$p);if(is_wp_error($policy))return $policy;$a=$this->get('authorization',$authorization);if(is_wp_error($a))return $a;
-  if($a['plan_hash']!==$hash||$a['fingerprint']!==$p['request']['fingerprint']||$a['policy_hash']!==$policy['proposal_hash']||$a['actor']!==get_current_user_id()||$a['issued_at']>time()||$a['expires_at']<=time()||$a['expires_at']-$a['issued_at']>300)return self::error('authorization');
+  $guard=fn()=>$this->authorizationCurrent($hash,$p,$a);$fresh=$guard();if(is_wp_error($fresh))return $fresh;
   $request=$p['request'];if($request['operation']==='PRODUCT_CREATE'){$intent=PrintifyOperationClaim::claim($p['connection_scope'],'PRODUCT_CREATE',$request['fingerprint'],$request['fingerprint']);if(is_wp_error($intent))return $intent;}$claim=$request['method']==='GET'?$hash:hash('sha256',$p['package'].':'.$p['integration_id'].':'.$request['fingerprint']);
-  if(!add_option('digiforge_pp_claim_'.$claim,$authorization,'',false))return self::error('already_claimed');
+  if(!PrintifyOperationClaim::reserveIndex('digiforge_pp_claim_'.$claim,$authorization))return self::error('already_claimed');
   $consumed=ExecutionNonceLedger::consume($a['nonce'],$authorization,get_current_user_id());if(is_wp_error($consumed))return $consumed;
-  $slot=false;for($n=0;$n<10;$n++)if(add_option('digiforge_pp_rate_'.$p['integration_id'].'_'.intdiv(time(),60).'_'.$n,$hash,'',false)){$slot=true;break;}if(!$slot)return self::error('rate_limit');
+  $slot=false;for($n=0;$n<10;$n++)if(PrintifyOperationClaim::reserveIndex('digiforge_pp_rate_'.$p['integration_id'].'_'.intdiv(time(),60).'_'.$n,$hash)){$slot=true;break;}if(!$slot)return self::error('rate_limit');
   if(!Logger::write('printify_product_dispatch_reserved',['plan_hash'=>$hash,'authorization_hash'=>$authorization,'request_fingerprint'=>$request['fingerprint']],'printify_product',$hash))return self::error('audit');
   $attempted=false;
-  $result=(new PrintifyScopedCredentialRetriever())->consume($p['integration_id'],function(string $token)use($hash,$p,$request,$sender,&$attempted){
+  $result=(new PrintifyScopedCredentialRetriever())->consume($p['integration_id'],function(string $token)use($hash,$p,$request,$sender,$guard,&$attempted){
    $fresh=$this->current($hash,$p);if(is_wp_error($fresh))return $fresh;$material=PrintifyConnectionBoundary::material($p['integration_id'],$token);if(is_wp_error($material))return $material;
    $args=['method'=>$request['method'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577,'headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json','Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyApi']];if($request['body']!==[])$args['body']=json_encode($request['body'],JSON_THROW_ON_ERROR);
    $durable=self::durableDispatchSession();if(is_wp_error($durable))return $durable;
    $correlation='product:'.$hash;$quota=PrintifyAccountQuota::reserve($p['connection_scope'],$request['endpoint'],$request['method'],$correlation);if(is_wp_error($quota))return $quota;
+   $fresh=$guard();if(is_wp_error($fresh))return $fresh;
    $attempted=true;try{$response=$sender('https://api.printify.com'.$request['endpoint'],$args);}catch(\Throwable){PrintifyAccountQuota::observe($p['connection_scope'],0,[],$correlation);return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];}
    $quotaStatus=is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response);$quotaObserved=PrintifyAccountQuota::observe($p['connection_scope'],$quotaStatus,is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')],$correlation);if(is_wp_error($quotaObserved))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];
    if(is_wp_error($response))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];$code=(int)wp_remote_retrieve_response_code($response);$raw=(string)wp_remote_retrieve_body($response);$digest=hash('sha256',$raw);
    if($code<200||$code>=300)return ['status'=>in_array($code,[400,401,403,404,422,429],true)?'FAILED':'UNKNOWN','http_status'=>$code,'data'=>[],'response_sha256'=>$digest];
    $data=json_decode($raw,true,32);if(!is_array($data)||strlen($raw)>1048576||PrintifyCatalogReadContract::containsProtectedMaterial($data,$token))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>$digest];
    try{$projected=PrintifyProductResponse::project($p,$data);}catch(\Throwable){return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>$digest];}
-   $fresh=$this->current($hash,$p);if(is_wp_error($fresh))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>$digest];return ['status'=>'SUCCEEDED','data'=>$projected,'response_sha256'=>$digest];
-  },$p['connection_scope']);
+   $fresh=$guard();if(is_wp_error($fresh))return ['status'=>'UNKNOWN','data'=>[],'response_sha256'=>$digest];return ['status'=>'SUCCEEDED','data'=>$projected,'response_sha256'=>$digest];
+  },$p['connection_scope'],$guard);
   if(is_wp_error($result)){if(!$attempted)return $result;$result=['status'=>'UNKNOWN','data'=>[],'response_sha256'=>null];}
   $saved=$this->put('receipt',$result+['plan_hash'=>$hash,'workflow'=>$p['workflow'],'package'=>$p['package'],'integration_id'=>$p['integration_id'],'operation'=>$request['operation'],'shop_id'=>$p['shop_id'],'connection_binding_hash'=>$p['connection_scope']['binding_hash'],'observed_at'=>gmdate('c'),'audit_required'=>true,'network_request_attempted'=>$attempted,'retry_permitted'=>false]);
   if(is_wp_error($saved)||!Logger::write('printify_product_receipt',['receipt_hash'=>$saved['hash'],'plan_hash'=>$hash,'operation'=>$request['operation'],'status'=>$result['status']],'printify_product',$hash))return new WP_Error('printify_product_receipt_unknown','Provider attempt requires reconciliation; receipt persistence unavailable.',['network_request_attempted'=>$attempted,'plan_hash'=>$hash,'retry_permitted'=>false]);return $saved;

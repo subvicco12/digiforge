@@ -18,6 +18,7 @@ final class PrintifyControlledTransport{
   $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
   $claimed=PrintifyDispatchClaim::claim($permit,$request);if(is_wp_error($claimed))return $claimed;
   $identity=(string)($request['reconciliation_identity']['external_reference']??'');$intent=PrintifyOperationClaim::claim($request['connection_scope'],$request['action'],$identity,$request['request_fingerprint']);if(is_wp_error($intent))return $intent;
+  $guard=static function()use($permit,$request){$result=PrintifyLiveTransportInterlock::authorize($permit,$request);return is_wp_error($result)?$result:true;};
   $sender=$this->sender;$attempted=false;
   $out=(new PrintifyScopedCredentialRetriever())->consume((int)$request['integration_id'],static function(string $token)use($sender,$request,$permit,$payload,&$attempted){
    $args=['method'=>'POST','headers'=>['Authorization'=>'Bearer '.$token,'Content-Type'=>'application/json;charset=utf-8','Accept'=>'application/json','User-Agent'=>'DigiForge/PrintifyApi'],'timeout'=>20,'redirection'=>0,'sslverify'=>true,'reject_unsafe_urls'=>true,'limit_response_size'=>1048577];
@@ -25,6 +26,7 @@ final class PrintifyControlledTransport{
    $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
    $quotaScope=is_array($request['connection_scope'])?$request['connection_scope']:[];$correlation='mutation:'.$permit['authorization_hash'];$quota=PrintifyAccountQuota::reserve($quotaScope,'/v1'.$request['endpoint'],'POST',$correlation);if(is_wp_error($quota))return $quota;
    $dependency=self::nativeDependencies($permit,$payload,$request);if(is_wp_error($dependency))return $dependency;
+   $fresh=PrintifyLiveTransportInterlock::authorize($permit,$request);if(is_wp_error($fresh))return $fresh;
    $attempted=true;try{$response=$sender('https://api.printify.com/v1'.$request['endpoint'],$args);}catch(\Throwable){PrintifyAccountQuota::observe($quotaScope,0,[],$correlation);$token='';return self::unknown($permit,$request,'transport_exception');}$token='';
    $quotaObserved=PrintifyAccountQuota::observe($quotaScope,is_wp_error($response)?0:(int)wp_remote_retrieve_response_code($response),is_wp_error($response)?[]:['retry-after'=>(string)wp_remote_retrieve_header($response,'retry-after')],$correlation);if(is_wp_error($quotaObserved))return self::unknown($permit,$request,'quota_evidence_unknown');
    if(is_wp_error($response))return self::unknown($permit,$request,'transport_error');
@@ -37,7 +39,7 @@ final class PrintifyControlledTransport{
    }
    if(in_array($status,[400,401,403,404,422],true))return ['status'=>'FAILED','action'=>$permit['action'],'authorization_hash'=>$permit['authorization_hash'],'evidence_hash'=>$permit['evidence_hash'],'failure_category'=>'PROVIDER_REJECTED','failure_code'=>'http_'.$status];
    return ['status'=>'UNKNOWN','action'=>$permit['action'],'authorization_hash'=>$permit['authorization_hash'],'evidence_hash'=>$permit['evidence_hash'],'failure_category'=>'AMBIGUOUS_HTTP','failure_code'=>'http_'.$status,'request_fingerprint'=>$request['request_fingerprint'],'reconciliation_identity'=>$request['reconciliation_identity']];
-  },is_array($request['connection_scope'])?$request['connection_scope']:[]);
+  },is_array($request['connection_scope'])?$request['connection_scope']:[],$guard);
   // A post-dispatch credential/redaction/revocation error cannot erase pinned recovery identity.
   if(is_wp_error($out)&&$attempted&&($out->get_error_data()['network_request_attempted']??false)!==true)return self::unknown($permit,$request,'post_dispatch_evidence_changed');
   return $out;

@@ -7,6 +7,23 @@ use WP_Error;
 /** Permanent creation intent across packages, approvals, tokens and connection revisions. */
 final class PrintifyOperationClaim
 {
+ /** Insert-only fence in existing options storage; never approval, epoch or dispatch authority. */
+ public static function reserveIndex(string $key,string $value):bool {
+  if(strlen($key)>191||(!preg_match('/^digiforge_(?:api_read_claim_|pfy_lifecycle_claim_|pp_claim_)[a-f0-9]{64}$/D',$key)&&!preg_match('/^digiforge_pp_rate_[1-9][0-9]*_[0-9]+_[0-9]$/D',$key))||!preg_match('/^[a-f0-9]{64}$/D',$value))return false;
+  global $wpdb;
+  try{
+   if(!is_string($wpdb->options)||preg_match('/^[A-Za-z0-9_]+$/D',$wpdb->options)!==1)return false;
+   $wpdb->last_error='';$indexes=$wpdb->get_results('SHOW INDEX FROM '.$wpdb->options.' WHERE Non_unique=0',ARRAY_A);
+   if($wpdb->last_error!==''||!is_array($indexes))return false;$groups=[];
+   foreach($indexes as $index){if(!is_array($index)||!is_string($index['Key_name']??null)||!array_key_exists('Sub_part',$index))return false;$groups[$index['Key_name']][]=$index;}
+   $unique=false;foreach($groups as $columns)if(count($columns)===1&&($columns[0]['Column_name']??null)==='option_name'&&$columns[0]['Sub_part']===null)$unique=true;
+   if(!$unique)return false;
+   $wpdb->last_error='';$ok=$wpdb->query($wpdb->prepare('INSERT IGNORE INTO '.$wpdb->options.' (option_name,option_value,autoload) VALUES (%s,%s,%s)',$key,$value,'no'));
+   // Zero, failure or lost acknowledgement never grants a claim, even if storage committed it.
+   if($wpdb->last_error!==''||$ok!==1)return false;
+   wp_cache_delete($key,'options');wp_cache_delete('notoptions','options');return true;
+  }catch(\Throwable){return false;}
+ }
  public static function claim(array $scope,string $operation,string $identity,string $fingerprint):true|WP_Error{
   $account=$scope['external_account_reference']??null;$shop=$scope['external_shop_reference']??null;
   if(!is_string($account)||$account===''||!is_string($shop)||$shop===''||$identity===''||strlen($identity)>512||!in_array($operation,['PRODUCT_CREATE','PROVIDER_ORDER_SUBMIT','PROVIDER_PRODUCTION_AUTHORIZE','WEBHOOK_CREATE','IMAGE_ARCHIVE','SUPPORT_REPRINT','SUPPORT_REFUND','SUPPORT_ADDRESS_CHANGE'],true)||!preg_match('/^[a-f0-9]{64}$/D',$fingerprint))return self::error('scope');
