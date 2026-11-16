@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoCandidateConsumerBoundaryTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoCandidateConsumerBoundaryTest.php" tests="1" assertions="14" errors="0" warnings="0" failures="0" skipped="0" time="2.191367">
+    <testcase name="testStableManagedCallerTransactionIsExplicitlyDeniedWithoutFinishingCallerFrame" class="CustomerPhotoCandidateConsumerBoundaryTest" classname="CustomerPhotoCandidateConsumerBoundaryTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoCandidateConsumerBoundaryTest.php" line="7" assertions="14" time="2.191367"/>
+  </testsuite>
+</testsuites>

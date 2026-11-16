@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" tests="2" assertions="22" errors="0" warnings="0" failures="2" skipped="0" time="4.340171">
+    <testcase name="testActualProducerSelectionCannotRemainOldAcrossCommittedSamePixelRevision" class="CustomerPhotoOwnerCurrentReadFailureReproTest" classname="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" line="8" assertions="14" time="2.492006">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoOwnerCurrentReadFailureReproTest::testActualProducerSelectionCannotRemainOldAcrossCommittedSamePixelRevision
+An authoritative current selection must not return epoch1 from an old real RR snapshot after epoch2 committed on another connection.
+Failed asserting that false is true.
+
+/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php:12</failure>
+    </testcase>
+    <testcase name="testLegacyNullCannotRemainAfterFirstManagedSelectionCommitted" class="CustomerPhotoOwnerCurrentReadFailureReproTest" classname="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" line="15" assertions="8" time="1.848165">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoOwnerCurrentReadFailureReproTest::testLegacyNullCannotRemainAfterFirstManagedSelectionCommitted
+An old nullable legacy snapshot must not authorize legacy input after the first managed selection commits.
+Failed asserting that Array (...) is an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:879
+/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php:19</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

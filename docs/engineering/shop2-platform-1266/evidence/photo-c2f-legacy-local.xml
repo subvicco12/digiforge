@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" tests="14" assertions="50" errors="0" warnings="0" failures="8" skipped="0" time="28.601649">
+    <testcase name="testRegisteredPostPreviewAndConfirmationApproveOrderThenCreateDraftWithoutHttp" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="12" assertions="8" time="2.039524">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testRegisteredPostPreviewAndConfirmationApproveOrderThenCreateDraftWithoutHttp
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "Local order entered review".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:17</failure>
+    </testcase>
+    <testcase name="testEvidenceAndFormTamperingRequireFreshPreview" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="28" assertions="5" time="2.266286"/>
+    <testcase name="testFailedBusinessWriteConsumesConfirmationAndCannotBeReplayed" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="34" assertions="4" time="3.790246"/>
+    <testcase name="testActorAndTargetCannotBeSubstitutedAfterPreview" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="42" assertions="4" time="1.586488"/>
+    <testcase name="testUnavailableOrNontransactionalStorageCannotConfirm" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="48" assertions="6" time="1.796608"/>
+    <testcase name="testActorRevocationAfterWriteRollsBackBeforeCommit" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="52" assertions="1" time="2.736892">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testActorRevocationAfterWriteRollsBackBeforeCommit
+Failed asserting that false is true.
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:55</failure>
+    </testcase>
+    <testcase name="testFreshSecondPlanGetsAnImmutableDistinctVersion" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="57" assertions="1" time="2.652072">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testFreshSecondPlanGetsAnImmutableDistinctVersion
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:58</failure>
+    </testcase>
+    <testcase name="testExistingTransactionIsDeniedWithoutCommittingCallerWrites" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="60" assertions="3" time="1.037168"/>
+    <testcase name="testWrongScopeModuleAnonymousAndNonceCannotWrite" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="63" assertions="7" time="0.955498"/>
+    <testcase name="testExistingDraftHasSeparateLocalPlanReviewApprovalAndBlockedHeldIntentActions" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="71" assertions="4" time="1.743118">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testExistingDraftHasSeparateLocalPlanReviewApprovalAndBlockedHeldIntentActions
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:103
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:73</failure>
+    </testcase>
+    <testcase name="testPlanReviewDeniesStaleFrozenQuantityCorruptSnapshotsAndForeignPlan" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="82" assertions="2" time="1.664604">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testPlanReviewDeniesStaleFrozenQuantityCorruptSnapshotsAndForeignPlan
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:103
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:83</failure>
+    </testcase>
+    <testcase name="testPlanSelectionCannotBeChangedToAnotherValidPlanAfterPreview" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="89" assertions="2" time="1.616976">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testPlanSelectionCannotBeChangedToAnotherValidPlanAfterPreview
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:103
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:90</failure>
+    </testcase>
+    <testcase name="testFailedHeldIntentWriteConsumesConfirmationAndLeavesApprovedPlanHeld" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="93" assertions="2" time="2.081517">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testFailedHeldIntentWriteConsumesConfirmationAndLeavesApprovedPlanHeld
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:103
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:94</failure>
+    </testcase>
+    <testcase name="testPlanTransitionsDenyUnexpectedApprovalMetadataFromActualWrite" class="OrderLocalWorkflowTest" classname="OrderLocalWorkflowTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php" line="98" assertions="1" time="2.634651">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">OrderLocalWorkflowTest::testPlanTransitionsDenyUnexpectedApprovalMetadataFromActualWrite
+Failed asserting that '&lt;section class="df-panel"&gt;&lt;p role="alert"&gt;Current order readiness must pass before local review.&lt;/p&gt;&lt;/section&gt;' contains "DRAFT fulfillment plan created".
+
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:103
+/workspace/digiforge-platform-sprint/photo-c2f-integration/tests/wordpress/OrderLocalWorkflowTest.php:99</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
