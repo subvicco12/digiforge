@@ -540,11 +540,59 @@
       "file": "core-printify-lint.log",
       "sha256": "83d1e6b139a38c45af810a8ed3f0883de97478ea9fcfbaaa7127d09346bd3c3e",
       "bytes": 30
+    },
+    {
+      "file": "core-d039-ci-failures.txt",
+      "sha256": "43e78ec6baa8249bd487395948a25fa07d599e467437b2b5c7c84e9e35646ad3",
+      "bytes": 1001
+    },
+    {
+      "file": "core-lock-fixtures-red.log",
+      "sha256": "9a9aba59e1db65ad76306ff5a926f99cc00a23511baaca06a98038c5b64b84ce",
+      "bytes": 1321
+    },
+    {
+      "file": "core-lock-fixtures-green.log",
+      "sha256": "9395b4d526496e2da2e4f4f2b1b8083b5f7ec78250bb70627062aabce9007ebb",
+      "bytes": 559
     }
   ],
   "ci_reconciliation": {
     "api_workflow": "Retains API-only332Node tests and artifact-admission controls; exact09de CI passed.",
     "core_workflow": "Retains180-minute audit, pinned MariaDB, core native/unit/WP/catalog and extracted-package checks; no YAML replacement or gate suppression.",
     "source_workflows": "Read and product PHP workflows manually reconciled; retained all native additions."
+  },
+  "followup_exact_head_ci": {
+    "source_sha": "d03954dd647927b4d2d6330d14d7d1b12059bcd9",
+    "run": 43889567141,
+    "conclusion": "FAILURE",
+    "stage": "WordPress database integration tests",
+    "tests": 2255,
+    "assertions": 81690,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 5,
+    "original_twenty_failures_recurred": false,
+    "root_cause": "Two additional negative lock-boundary fixtures omitted the now-mandatory lease prerequisite; runtime correctly rejected earlier as expired.",
+    "cases": [
+      "ComposedPersonalizedOrderAcceptanceTest::testReviewedPackageCannotBypassProductionActionScopeExpiryReplayOrGlobalLocks",
+      "PrintifyEnabledStopAllIsolationTest::testEnabledConfiguredConnectorDoesNotUnlockOrdinaryPrintifyPaths"
+    ],
+    "correction": "Fixture-only: supply the exact issued lease in the composed negative test and a bounded synthetic current lease in enabled/STOP isolation. Keep exact locked errors, scope/expiry/replay and zero-HTTP assertions.",
+    "runtime_or_gate_changes": false
+  },
+  "future_core_owned_requirement": {
+    "component": "ExecutionOrchestrator::prepare -> provider permit composition",
+    "observation": "The generic future orchestrator currently returns the consumed gate permit without forwarding its issued authorization record. Negative direct-interlock fixtures do not demonstrate a working positive orchestrated provider path.",
+    "disposition": "Remains denied. Any future forwarding/permit composition must be core-owned and jointly qualified with independent checkpoint, journal, identity and custody joins; no raw approval or synthetic epoch may create execution authority.",
+    "implemented_here": false
+  },
+  "followup_focused_verification": {
+    "red_log": "core-lock-fixtures-red.log",
+    "green_log": "core-lock-fixtures-green.log",
+    "runtime_files_changed_after_d039": 0,
+    "status": "PASS",
+    "tests": 58,
+    "assertions": 1146
   }
 }

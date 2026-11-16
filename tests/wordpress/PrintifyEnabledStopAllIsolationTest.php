@@ -61,12 +61,15 @@ final class PrintifyEnabledStopAllIsolationTest extends WP_UnitTestCase {
             self::assertWPError($test);
             self::assertSame('printify_scoped_authorization_required', $test->get_error_code());
 
+            // A current synthetic lease reaches the ordinary STOP/external-lock gate.
+            $now = time();
             foreach (['PROVIDER_ORDER_SUBMIT', 'PROVIDER_PRODUCTION_AUTHORIZE'] as $action) {
                 $permit = [
                     'state' => 'ADAPTER_CALL_PERMITTED',
                     'nonce_consumed' => true,
                     'external_execution_performed' => false,
                     'action' => $action,
+                    'authorization' => ['issued_at' => $now - 1, 'expires_at' => $now + 60],
                 ];
                 $denied = PrintifyLiveTransportInterlock::authorize($permit, ['action' => $action]);
                 self::assertWPError($denied);
