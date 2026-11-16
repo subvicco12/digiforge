@@ -401,7 +401,16 @@ def verified_checkpoint_provenance(finding, git, git_bytes):
       'start': 19,
       'end': 123,
       'kind': 'source',
-      'version': 1}]
+      'version': 1},
+     {'path': 'docs/engineering/printify-api/CORE-RECOVERY-PORT-20261116.json',
+      'blob': '05a51f0176645f432733ffc8c512685b4880f7b7',
+      'content': '3305902fd787b2cda6ae71af8f20b267b631d89330cd8155647395a008dd5058',
+      'route': ['api_preserved_sha'],
+      'line': 3,
+      'start': 5,
+      'end': 66,
+      'kind': 'commit',
+      'document_schema': 'DF_PRINTIFY_INTEGRATION_RECOVERY_1'}]
     try:
         candidates = [spec for spec in reviewed if finding.get('File') == spec['path']
                       and finding.get('StartLine') == spec['line']]
@@ -443,6 +452,10 @@ def verified_checkpoint_provenance(finding, git, git_bytes):
                     or document['version'] != spec['version']
                     or set(document) != {'version', 'scope', 'source_sha256', 'sender'}
                     or not isinstance(document.get('source_sha256'), dict)):
+                return False
+        if 'document_schema' in spec:
+            if (not isinstance(document, dict) or not isinstance(document.get('schema'), str)
+                    or document['schema'] != spec['document_schema']):
                 return False
         canonical = json.dumps(document, indent=2).splitlines()
         if canonical != text.splitlines():

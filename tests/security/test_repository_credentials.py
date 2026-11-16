@@ -1,5 +1,6 @@
 """Real offline scanner acceptance; synthetic canary is never a usable credential."""
 import json
+import hashlib
 import importlib.util
 import os
 from pathlib import Path
@@ -253,6 +254,55 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         result,evidence=self.scan()
         self.assertNotEqual(0,result.returncode)
         self.assertEqual(2,evidence.get('verified_receipt_source_digest_count'))
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+    def recovery_port_reference_fixture(self, available=True, context_changed=False, value_changed=False):
+        project=SCRIPT.parent.parent;ref='d03954dd647927b4d2d6330d14d7d1b12059bcd9'
+        path='docs/engineering/printify-api/CORE-RECOVERY-PORT-20261116.json'
+        raw=subprocess.check_output(['git','-C',str(project),'show',ref+':'+path])
+        if context_changed:raw+=b'\n'
+        if value_changed:
+            doc=json.loads(raw);doc['api_preserved_sha']=hashlib.sha1(b'Synthetic non-authorizing changed reference fixture').hexdigest()
+            raw=(json.dumps(doc,indent=2)+'\n').encode()
+        target=self.root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+        if available:
+            common=subprocess.check_output(['git','-C',str(project),'rev-parse','--git-common-dir'],text=True).strip()
+            alternate=self.root/'.git/objects/info/alternates';alternate.parent.mkdir(parents=True,exist_ok=True)
+            alternate.write_text(str((project/common).resolve()/'objects')+'\n')
+        self.git('add','.');self.git('commit','-qm','Reviewed historical recovery-port source reference')
+
+    def test_recovery_port_reference_requires_exact_history_and_actual_commit(self):
+        self.recovery_port_reference_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual('PASS',evidence['status'])
+        self.assertEqual(1,evidence['raw_finding_count'])
+        self.assertEqual(1,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_recovery_port_reference_missing_object_remains_actionable(self):
+        self.recovery_port_reference_fixture(available=False)
+        result,evidence=self.scan();self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['raw_finding_count'],0);self.assertGreater(evidence['finding_count'],0)
+
+    def test_recovery_port_reference_changed_context_remains_actionable(self):
+        self.recovery_port_reference_fixture(context_changed=True)
+        result,evidence=self.scan();self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['raw_finding_count'],0);self.assertGreater(evidence['finding_count'],0)
+
+    def test_recovery_port_reference_changed_value_remains_actionable(self):
+        self.recovery_port_reference_fixture(value_changed=True)
+        result,evidence=self.scan();self.assertNotEqual(0,result.returncode)
+        self.assertGreater(evidence['raw_finding_count'],0);self.assertGreater(evidence['finding_count'],0)
+
+    def test_recovery_port_reference_never_hides_an_added_same_file_credential(self):
+        self.recovery_port_reference_fixture()
+        target=self.root/'docs/engineering/printify-api/CORE-RECOVERY-PORT-20261116.json'
+        doc=json.loads(target.read_text());canary='b7C9dE2fG5hJ8kM3'*3;doc['api_key']=canary
+        target.write_text(json.dumps(doc,indent=2)+'\n');self.git('add','.');self.git('commit','-qm','Additional synthetic recovery receipt credential')
+        result,evidence=self.scan();self.assertNotEqual(0,result.returncode)
+        self.assertEqual(1,evidence.get('verified_checkpoint_provenance_count'))
         self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
@@ -510,6 +560,39 @@ class ReviewedImageTransportProvenanceTest(unittest.TestCase):
                 return self.git(*args)
             def wrong_type(*args):return 'commit' if args==('cat-file','-t',blob) else self.git(*args)
             self.assertFalse(self.verify(finding,raw=changed));self.assertFalse(self.verify(finding,git=missing));self.assertFalse(self.verify(finding,git=wrong_type))
+
+
+class ReviewedRecoveryPortReferenceTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('recovery_port_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent;self.ref='d03954dd647927b4d2d6330d14d7d1b12059bcd9'
+        self.path='docs/engineering/printify-api/CORE-RECOVERY-PORT-20261116.json';self.content=self.raw('show',self.ref+':'+self.path)
+        self.reference=json.loads(self.content)['api_preserved_sha']
+        self.finding={'File':self.path,'RuleID':'generic-api-key','Commit':self.ref,'StartLine':3,'EndLine':3,'StartColumn':5,'EndColumn':66,'Secret':'REDACTED','Match':'api_preserved_sha": "REDACTED"'}
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True).stdout
+    def verify(self,finding=None,git=None,raw=None):
+        return self.gate.verified_checkpoint_provenance(self.finding if finding is None else finding,git or self.git,raw or self.raw)
+    def test_recovery_port_exact_reviewed_reference_is_an_actual_commit(self):
+        self.assertEqual('commit',self.git('cat-file','-t',self.reference));self.assertTrue(self.verify())
+    def test_recovery_port_wrong_metadata_or_historical_context_is_not_verified(self):
+        for key,value in [('File','other.json'),('RuleID','github-pat'),('StartLine',3.0),('EndLine',4),('StartColumn',True),('EndColumn',67),('Secret','unmasked'),('Match','different'),('Commit','f'*40)]:
+            finding=dict(self.finding);finding[key]=value
+            with self.subTest(field=key):self.assertFalse(self.verify(finding))
+        self.assertFalse(self.verify(raw=lambda *args:self.content+b'\n'))
+        self.assertFalse(self.verify(raw=lambda *args:self.content.replace(b'"schema": "DF_PRINTIFY_INTEGRATION_RECOVERY_1"',b'"schema": false')))
+        self.assertFalse(self.verify(raw=lambda *args:self.content.replace(b'"api_preserved_sha":',b'"api_preserved_sha": "duplicate", "api_preserved_sha":')))
+        self.assertFalse(self.verify(raw=lambda *args:self.content.replace(self.reference.encode(),b'f'*40)))
+    def test_recovery_port_missing_wrong_type_or_wrong_blob_stays_actionable(self):
+        def missing(*args):
+            if args==('cat-file','-t',self.reference):raise OSError('Missing independently resolved commit')
+            return self.git(*args)
+        def wrong_type(*args):return 'blob' if args==('cat-file','-t',self.reference) else self.git(*args)
+        def wrong_blob(*args):return 'f'*40 if args[0]=='rev-parse' else self.git(*args)
+        self.assertFalse(self.verify(git=missing));self.assertFalse(self.verify(git=wrong_type));self.assertFalse(self.verify(git=wrong_blob))
 
 
 class ReviewedReceiptSourceDigestTest(unittest.TestCase):

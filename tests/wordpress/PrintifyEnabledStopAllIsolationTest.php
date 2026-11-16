@@ -61,19 +61,27 @@ final class PrintifyEnabledStopAllIsolationTest extends WP_UnitTestCase {
             self::assertWPError($test);
             self::assertSame('printify_scoped_authorization_required', $test->get_error_code());
 
-            // A current synthetic lease reaches the ordinary STOP/external-lock gate.
-            $now = time();
             foreach (['PROVIDER_ORDER_SUBMIT', 'PROVIDER_PRODUCTION_AUTHORIZE'] as $action) {
                 $permit = [
                     'state' => 'ADAPTER_CALL_PERMITTED',
                     'nonce_consumed' => true,
                     'external_execution_performed' => false,
                     'action' => $action,
-                    'authorization' => ['issued_at' => $now - 1, 'expires_at' => $now + 60],
                 ];
+                $missingLease = PrintifyLiveTransportInterlock::authorize($permit, ['action' => $action]);
+                self::assertWPError($missingLease);
+                self::assertSame('digiforge_printify_interlock_expired', $missingLease->get_error_code());
+                // Synthetic lease shape only: this cannot establish dispatch authority.
+                // It isolates the global lock predicate after its current-lease precondition.
+                $now = time();
+                $permit['authorization'] = ['issued_at' => $now - 1, 'expires_at' => $now + 60];
                 $denied = PrintifyLiveTransportInterlock::authorize($permit, ['action' => $action]);
                 self::assertWPError($denied);
                 self::assertSame('digiforge_printify_interlock_locked', $denied->get_error_code());
+                $permit['authorization']['expires_at'] = $now;
+                $expiredLease = PrintifyLiveTransportInterlock::authorize($permit, ['action' => $action]);
+                self::assertWPError($expiredLease);
+                self::assertSame('digiforge_printify_interlock_expired', $expiredLease->get_error_code());
             }
             $preflight = (new DigiForge\Launch\PrintifyActivationPreflight())->report();
             self::assertSame('BLOCKED', $preflight['status']);

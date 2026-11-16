@@ -101,9 +101,11 @@ final class ComposedPersonalizedOrderAcceptanceTest extends WP_UnitTestCase
         self::assertTrue(ExecutionAuthorizationVerifier::verify($authorization,'PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],time(),[ExecutionNonceLedger::class,'unused'],$fingerprint));
         foreach([['PROVIDER_ORDER_SUBMIT',$package['package_hash'],time(),$fingerprint],['PROVIDER_PRODUCTION_AUTHORIZE',hash('sha256','different package'),time(),$fingerprint],['PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],$authorization['authorization']['expires_at'],$fingerprint],['PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],$authorization['authorization']['expires_at']+1,$fingerprint],['PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],time(),hash('sha256','different request')]] as $bad){self::assertWPError(ExecutionAuthorizationVerifier::verify($authorization,$bad[0],$bad[1],$bad[2],[ExecutionNonceLedger::class,'unused'],$bad[3]));}
         $permit=DigiForge\POD\ControlledExecutionGate::authorize($authorization,'PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],$actor,time(),$fingerprint);self::assertNotWPError($permit);self::assertFalse($permit['external_execution_performed']);
-        // Supply the exact issued lease so its prerequisite cannot hide the global-lock denial.
-        $permit['authorization']=$authorization['authorization'];
+        self::assertArrayHasKey('authorization',$permit,'The gate must retain the verified original lease for downstream revalidation.');
+        self::assertSame($authorization['authorization'],$permit['authorization']);self::assertSame($authorization['authorization_hash'],$permit['authorization_hash']);
         $blocked=DigiForge\POD\PrintifyLiveTransportInterlock::authorize($permit,['action'=>'PROVIDER_PRODUCTION_AUTHORIZE','integration_id'=>1,'request_fingerprint'=>$fingerprint]);self::assertWPError($blocked);self::assertSame('digiforge_printify_interlock_locked',$blocked->get_error_code());
+        $expired=$permit;$expired['authorization']['issued_at']=time()-60;$expired['authorization']['expires_at']=time();
+        $denied=DigiForge\POD\PrintifyLiveTransportInterlock::authorize($expired,['action'=>'PROVIDER_PRODUCTION_AUTHORIZE','integration_id'=>1,'request_fingerprint'=>$fingerprint]);self::assertWPError($denied);self::assertSame('digiforge_printify_interlock_expired',$denied->get_error_code());
         self::assertWPError(DigiForge\POD\ControlledExecutionGate::authorize($authorization,'PROVIDER_PRODUCTION_AUTHORIZE',$package['package_hash'],$actor,time(),$fingerprint));
     }
 }
