@@ -1,0 +1,10 @@
+#df-design-factory { min-width: 0; overflow-wrap: anywhere; }
+#df-design-factory form, #df-design-factory fieldset { min-width: 0; max-width: 100%; box-sizing: border-box; }
+#df-design-factory label { display: block; margin-block: .65rem; }
+#df-design-factory input:not([type=checkbox]):not([type=hidden]), #df-design-factory select, #df-design-factory textarea { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; font-size: 1rem; }
+#df-design-factory input:not([type=hidden]), #df-design-factory select, #df-design-factory button { min-height: 44px; }
+#df-design-factory .df-region-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .5rem 1rem; margin-block: 1rem; }
+#df-design-factory .df-region-row legend { font-weight: 600; }
+#df-design-factory .df-region-row label { margin: 0; }
+#df-design-factory [data-df-region-status], #df-design-factory [data-df-upload-status] { min-height: 1.5em; }
+@media (max-width: 480px) { #df-design-factory .df-region-row { grid-template-columns: minmax(0,1fr); padding: .75rem; } #df-design-factory button { max-width: 100%; white-space: normal; } }

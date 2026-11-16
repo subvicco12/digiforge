@@ -10,11 +10,26 @@ final class ProviderEvidenceRepository
 {
     public function recordOutcome(int $usageId, string $shop, array $response): array|WP_Error
     {
-        return $this->locked($shop, function () use ($usageId, $shop, $response): array|WP_Error {
+        return $this->recordNormalizedOutcome($usageId,$shop,$response,false);
+    }
+
+    /** Images observe an HTTP request ID and request-bound model, never an invented Responses ID. */
+    public function recordImageOutcome(int $usageId,string $shop,string $requestId,string $model,string $body,string $requestHash,string $mode):array|WP_Error
+    {
+        if($shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_ai')||\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_ai')!==true)return $this->error('scope','Exact current Shop 2 AI operator required.',403);
+        if(!preg_match('/^req_[A-Za-z0-9_-]{1,180}$/D',$requestId)||$model!=='gpt-image-1'||!preg_match('/^[a-f0-9]{64}$/D',$requestHash)||!in_array($mode,['NETWORK','OFFLINE_SIMULATOR'],true)||strlen($body)>2830000)return $this->error('invalid','Bounded observed image identity required.');
+        try{$raw=json_decode($body,true,32,JSON_THROW_ON_ERROR);if(!is_array($raw)||!is_int($raw['created']??null)||$raw['created']<1||$raw['created']>time()+300)throw new \InvalidArgumentException();$tokens=ImageGenerationWireContract::usage($raw['usage']??null);}catch(\Throwable){return $this->error('invalid','Actual image usage evidence is missing or malformed.');}
+        $hold=(new MonetaryReservationRepository())->reservation($usageId);if($hold instanceof WP_Error)return $hold;if(!is_array($hold)||$hold['shop_key']!==$shop||$hold['request_sha256']!==$requestHash||$hold['model']!==$model)return $this->error('identity_conflict','Image usage must bind its exact durable request reservation.');
+        return $this->recordNormalizedOutcome($usageId,$shop,['response_id'=>$requestId,'model'=>$model,'usage'=>$tokens,'status'=>'image_http_observed','provider_response_sha256'=>hash('sha256',$body),'response_identity_kind'=>'IMAGE_HTTP_REQUEST_ID','model_evidence'=>'REQUEST_BOUND_IMAGE_MODEL','request_sha256'=>$requestHash,'observation_mode'=>$mode,'provider_created'=>$raw['created']],true);
+    }
+
+    private function recordNormalizedOutcome(int $usageId,string $shop,array $response,bool $image):array|WP_Error
+    {
+        return $this->locked($shop, function () use ($usageId, $shop, $response,$image): array|WP_Error {
             $usage = $this->usage($usageId, $shop);
             if ($usage instanceof WP_Error) return $usage;
             $id = (string) ($response['response_id'] ?? '');
-            if (!preg_match('/^resp_[A-Za-z0-9_-]{1,180}$/D', $id)) return $this->error('invalid', 'Exact provider response identity required.');
+            if (!preg_match($image?'/^req_[A-Za-z0-9_-]{1,180}$/D':'/^resp_[A-Za-z0-9_-]{1,180}$/D', $id)) return $this->error('invalid', 'Exact provider response identity required.');
             $binding = ['provider'=>'openai', 'response_id'=>$id, 'usage_id'=>$usageId, 'shop_key'=>$shop];
             $bound = $this->put('response_' . hash('sha256', $id), $binding);
             if ($bound instanceof WP_Error) return $bound;
@@ -41,6 +56,7 @@ final class ProviderEvidenceRepository
                 if (!is_string($response['provider_response_sha256']) || !preg_match('/^[a-f0-9]{64}$/D',$response['provider_response_sha256'])) return $this->error('invalid','Provider response hash is invalid.');
                 $receipt['provider_response_sha256']=$response['provider_response_sha256'];$receipt['provenance']='PROVIDER_HTTP_BODY';
             }
+            if($image){foreach(['response_identity_kind','model_evidence','request_sha256','observation_mode','provider_created']as $field)$receipt[$field]=$response[$field];$receipt['registered_model_key']=(string)$usage['model_key'];$receipt['usage']=ImageGenerationWireContract::usage($response['usage']);if($response['observation_mode']==='OFFLINE_SIMULATOR')$receipt['cost_state']='SIMULATED_USAGE_NO_PROVIDER_CHARGE';}
             // Preserve every transport observation; equivalent POST/GET serialization must not rewrite or conflict with metering.
             $observation=$this->put('observation_'.$usageId.'_'.$receipt['provider_response_sha256'],$receipt);
             if($observation instanceof WP_Error)return $observation;
@@ -49,11 +65,14 @@ final class ProviderEvidenceRepository
                 $identity=$receipt;$previous=$existing;
                 unset($identity['provider_response_sha256'],$identity['provenance'],$previous['provider_response_sha256'],$previous['provenance']);
                 if($identity!==$previous)return $this->error('conflict','Immutable provider metering identity conflict.',409);
-                if((string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Metering proof and model projection disagree; automatic repair is withheld.',503);
+                if((string)$usage['model_key']!==($existing['registered_model_key']??$model))return $this->error('reconciliation_required','Metering proof and model projection disagree; automatic repair is withheld.',503);
                 return $existing+['idempotent_replay'=>true];
             }
             $saved=$this->put('completion_' . $usageId, $receipt);if($saved instanceof WP_Error)return $saved;
             $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&!self::matchesBound($bound,$model,$meter))return $this->error('reconciliation_required','Provider model or token metering exceeds its authoritative request ceiling; metering proof is retained.',503);
+            // Registered routing keys and provider model identifiers are distinct namespaces.
+            // Image requests already bind the provider model in their durable monetary hold.
+            if($image)return $saved;
             global $wpdb;
             if((string)$usage['model_key']!==''&&(string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Existing model projection conflicts with provider metering.',503);
             $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage()." SET model_key=%s WHERE id=%d AND shop_key=%s AND model_key=''",$model,$usageId,$shop));
@@ -81,7 +100,8 @@ final class ProviderEvidenceRepository
             $usage=$this->usage($usageId,$shop);if($usage instanceof WP_Error)return $usage;
             $meter=$this->read('completion_'.$usageId);if($meter instanceof WP_Error)return $meter;
             if($meter===null)return $this->error('metering_missing','Provider completion evidence is required before charge settlement.');
-            if((string)$usage['model_key']!==$meter['model'])return $this->error('reconciliation_required','Provider model must agree with the cost projection before charge settlement.',503);
+            if(($meter['observation_mode']??null)==='OFFLINE_SIMULATOR')return $this->error('simulation_settlement_forbidden','Offline simulator observations cannot become actual provider spend.');
+            if((string)$usage['model_key']!==($meter['registered_model_key']??$meter['model']))return $this->error('reconciliation_required','Provider model must agree with the cost projection before charge settlement.',503);
             $amount=$evidence['amount']??null;$currency=$evidence['currency']??null;
             if(!is_string($amount)||!preg_match('/^(?:0|[1-9][0-9]{0,7})(?:\.[0-9]{1,6})?$/D',$amount))return $this->error('invalid','Provider amount requires a bounded decimal string, never a derived token estimate.');
             $parts=explode('.',$amount);$amount=$parts[0].'.'.str_pad($parts[1]??'',6,'0');
@@ -133,8 +153,9 @@ final class ProviderEvidenceRepository
         $charge=$this->read('settlement_'.$usageId);if($charge instanceof WP_Error)return $charge;
         $state=$meter===null?'PENDING_PROVIDER_COMPLETION':'AWAITING_PROVIDER_CHARGE';
         if($charge!==null)$state=(string)$usage['actual_cost']===(string)$charge['charge']['amount']?'REVIEWED_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
-        if($meter!==null&&(string)$usage['model_key']!==$meter['model'])$state='RECONCILIATION_REQUIRED';
+        if($meter!==null&&(string)$usage['model_key']!==($meter['registered_model_key']??$meter['model']))$state='RECONCILIATION_REQUIRED';
         $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&$charge!==null&&!is_string($charge['source_document']??null))$state='RECONCILIATION_REQUIRED';if($bound!==null&&$meter!==null&&!self::matchesBound($bound,$meter['model'],$meter['usage']))$state='RECONCILIATION_REQUIRED';if($bound!==null&&MonetaryReservationRepository::micros((string)$usage['actual_cost'])>MonetaryReservationRepository::micros($bound['maximum_charge']))$state='RESERVATION_BOUND_EXCEEDED';
+        if(($meter['observation_mode']??null)==='OFFLINE_SIMULATOR')$state=(string)$usage['actual_cost']==='0.000000'?'SIMULATED_USAGE_NO_PROVIDER_CHARGE':'RECONCILIATION_REQUIRED';
         $attribution=(new CostAttributionRepository())->forUsage($usageId,$shop);if($attribution instanceof WP_Error)return $attribution;
         return ['usage_id'=>$usageId,'shop_key'=>$shop,'attribution'=>$attribution,'cost_state'=>$state,'metering'=>$meter,'settlement'=>$charge,'reservation'=>$bound,'external_execution_authorized'=>false];
     }

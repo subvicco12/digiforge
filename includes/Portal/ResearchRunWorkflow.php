@@ -102,13 +102,36 @@ final class ResearchRunWorkflow
     private function evidence(array $input,?array &$plan=null):string|WP_Error
     {
         if(!Settings::is_enabled('research')||!Settings::is_enabled('ai'))return new WP_Error('manual_research_locked','STOP ALL / external safety lock or effective Research/AI controls block this request.');
+        $generation=$this->connectorGeneration();if(is_wp_error($generation))return $generation;
         $contract=(new ExecutionEngine())->researchPlan($input);if(is_wp_error($contract))return $contract;$plan=$contract;
         global $wpdb;$wpdb->last_error='';$row=$wpdb->get_row($wpdb->prepare("SELECT policy,policy_hash,state FROM ".Tables::shop_ai_policies()." WHERE BINARY shop_key=BINARY %s AND environment='production'",$input['shop']),ARRAY_A);
         if($this->databaseFailed()||!is_array($row)||$row['state']!=='ACTIVE'||!hash_equals((string)$row['policy_hash'],hash('sha256',(string)$row['policy'])))return new WP_Error('manual_research_policy','Current reviewed policy evidence is unavailable.');
         try{$policy=json_decode((string)$row['policy'],true,16,JSON_THROW_ON_ERROR);}catch(\Throwable){return new WP_Error('manual_research_policy','Current policy is not valid typed evidence.');}if(!is_array($policy)||($policy['shop_key']??null)!==$input['shop'])return new WP_Error('manual_research_policy','Current policy shop identity is invalid.');
         $wpdb->last_error='';$usage=$wpdb->get_results($wpdb->prepare('SELECT BINARY stage stage,COUNT(*) records,MAX(id) latest,SUM(quantity) quantity,SUM(actual_cost) recorded_cost FROM '.Tables::shop_ai_usage().' WHERE BINARY shop_key=BINARY %s AND occurred_at>=%s GROUP BY BINARY stage ORDER BY BINARY stage',$input['shop'],gmdate('Y-m-01 00:00:00')),ARRAY_A);
         if($this->databaseFailed()||!is_array($usage))return new WP_Error('manual_research_usage','Current usage evidence is unavailable.');
-        return hash('sha256',(string)wp_json_encode(['input'=>$input,'request'=>$contract,'policy_hash'=>$row['policy_hash'],'usage'=>$usage,'month'=>gmdate('Y-m'),'research_enabled'=>Settings::is_enabled('research'),'ai_enabled'=>Settings::is_enabled('ai')]));
+        return hash('sha256',(string)wp_json_encode(['input'=>$input,'request'=>$contract,'connector_generation_sha256'=>$generation,'policy_hash'=>$row['policy_hash'],'usage'=>$usage,'month'=>gmdate('Y-m'),'research_enabled'=>Settings::is_enabled('research'),'ai_enabled'=>Settings::is_enabled('ai')]));
+    }
+    /** Pin the sender's current connector selection using bounded public metadata only.
+     * This refreshes pre-confirmation consent, not the later HTTP dispatch boundary.
+     */
+    private function connectorGeneration():string|WP_Error
+    {
+        global $wpdb;$wpdb->last_error='';
+        $row=$wpdb->get_row("SELECT id,provider,environment,connection_key,display_name,status,enabled,config,created_by,created_at,updated_at FROM ".Tables::integrations()." WHERE provider='ai' AND environment='production' AND status='CONFIGURED' AND enabled=1 ORDER BY id ASC LIMIT 1",ARRAY_A);
+        if($this->databaseFailed())return new WP_Error('manual_research_connector','Current selected connector metadata is unavailable.');
+        // Absence is an explicit generation too: adding a connector makes an old
+        // planning receipt stale. The existing sender still rejects absence.
+        if($row===null)return hash('sha256','research-connector-generation-v1:none');
+        if(!is_array($row)||!ctype_digit((string)($row['id']??''))||(int)$row['id']<1)return new WP_Error('manual_research_connector','Current selected connector identity is invalid.');
+        foreach($row as $value)if(!is_scalar($value)||strlen((string)$value)>8192)return new WP_Error('manual_research_connector','Selected connector metadata exceeds the bounded consent contract.');
+        $wpdb->last_error='';
+        $credentials=$wpdb->get_results($wpdb->prepare('SELECT secret_name,fingerprint,updated_at FROM '.Tables::integration_secrets().' WHERE integration_id=%d ORDER BY secret_name LIMIT 31',(int)$row['id']),ARRAY_A);
+        if($this->databaseFailed()||!is_array($credentials)||count($credentials)>30)return new WP_Error('manual_research_connector','Current credential generation metadata is unavailable.');
+        foreach($credentials as $credential){
+            foreach(['secret_name'=>64,'fingerprint'=>128,'updated_at'=>32]as $key=>$limit)if(!is_string($credential[$key]??null)||strlen($credential[$key])>$limit)return new WP_Error('manual_research_connector','Credential generation metadata is invalid.');
+        }
+        $json=wp_json_encode(['version'=>1,'selected_connector'=>$row,'credential_metadata'=>$credentials]);
+        return is_string($json)&&strlen($json)<=16384?hash('sha256',$json):new WP_Error('manual_research_connector','Selected connector generation cannot be encoded within its consent bound.');
     }
     private function pending(string $id,int $now):?array
     {
