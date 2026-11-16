@@ -1,0 +1,206 @@
+{
+  "requirement_id": "S2-ORD-03",
+  "verdict": "REVISE_FULL_ROW_NOT_INDEPENDENTLY_ACCEPTED",
+  "exact_candidate_commit": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+  "worktree": "/workspace/digiforge-platform-sprint/ord03-exact4ef",
+  "scope": "61/1312 exact4ef local intake/identity prerequisite tests pass. Full original S2-ORD-03 includes explicit native order consumer exact-identity join; missing real registered native integration remains a software gap.",
+  "original_row": {
+    "id": "S2-ORD-03",
+    "domain": "Orders and controlled production preparation",
+    "requirement": "Shop listing product version currency provider personalization lineage",
+    "document_anchors": "V6 P0281-0282,P0437-0443,P0455-0460,P0524-0526; MVP P0080-0082",
+    "implementation": "IMPLEMENTED",
+    "owner": "Lane B",
+    "priority": "P0",
+    "source": "Orders/Repository.php",
+    "test": "ComposedPersonalizedOrderAcceptanceTest.php",
+    "independent_acceptance": "NOT_ESTABLISHED",
+    "remaining": "Native order consumer must use exact identities; never trust webhook internal IDs.",
+    "operational_qualification": "UNVERIFIED_CURRENT_CANDIDATE",
+    "installed_status": "UNKNOWN_CURRENT_BYTES",
+    "source_sha": "78e7f973455a3c89319be06f0907caf2103658a7",
+    "source_sha256": "234afada801af6d0e574897752d8e8533e1c134e572a13064ce1dcea27144121",
+    "source_url": "https://github.com/subvicco12/digiforge/blob/78e7f973455a3c89319be06f0907caf2103658a7/includes/Orders/Repository.php",
+    "test_url": "https://github.com/subvicco12/digiforge/blob/78e7f973455a3c89319be06f0907caf2103658a7/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php",
+    "test_evidence_kind": "EXISTING_TEST_SOURCE_INSPECTED_NOT_RERUN",
+    "qualification_status": "PARTIAL",
+    "blocker_categories": "INDEPENDENT_AND_INSTALLED_ACCEPTANCE"
+  },
+  "original_151_sha256": "4c683c3894ba1aee6ab920f617003af1d7194db070fbf57a605ca8a02e94d3bc",
+  "census_unchanged": {
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 32
+  },
+  "governing_acceptance": {
+    "V6_P0441": "Preserve shop/listing/product version/provider mapping/currency/personalization; derive internal IDs from exactly one approved external listing/product resolution.",
+    "V6_P0442": "Digital-only needs no POD mapping; POD unique approved mapping/binding; hybrid ambiguity fails closed.",
+    "V6_P0282_P0443_P0460": "Paid/prepared states never production authorization; review states persisted; exact reviewed version/payload boundary."
+  },
+  "evidence": [
+    {
+      "log": "/workspace/digiforge-platform-sprint/ord03-independent-4ef.log",
+      "junit": "/workspace/digiforge-platform-sprint/ord03-independent-4ef.xml",
+      "tests": 56,
+      "assertions": 1132,
+      "errors": 0,
+      "failures": 0,
+      "warnings": 0,
+      "skipped": 0
+    },
+    {
+      "log": "/workspace/digiforge-platform-sprint/ord03-composed-discovery-4ef.log",
+      "junit": "/workspace/digiforge-platform-sprint/ord03-composed-discovery-4ef.xml",
+      "tests": 5,
+      "assertions": 180,
+      "errors": 0,
+      "failures": 0,
+      "warnings": 0,
+      "skipped": 0
+    }
+  ],
+  "total_tests": 61,
+  "total_assertions": 1312,
+  "loaded_class_reflection": {
+    "DigiForge\\REST\\EtsyWebhookController": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/REST/EtsyWebhookController.php",
+      "sha256": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45"
+    },
+    "DigiForge\\Listings\\EtsyWebhookVerifier": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/EtsyWebhookVerifier.php",
+      "sha256": "46a3abf5a4e7958b73dde3a0c680f3210e3bc7ca6fc2411a7dc3c1af5d84a74b"
+    },
+    "DigiForge\\Listings\\EtsyWebhookIntake": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/EtsyWebhookIntake.php",
+      "sha256": "70c38e7afc84722595a371475ff1795b3920cc3e5bfd65755132b3043b171be0"
+    },
+    "DigiForge\\Listings\\EtsyOrderWebhookLifecycle": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/EtsyOrderWebhookLifecycle.php",
+      "sha256": "13ed5eac1281d72343ece2893d94168935c2672d51cae61aff868afd3f6e3604"
+    },
+    "DigiForge\\Listings\\EtsyOrderListingResolver": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/EtsyOrderListingResolver.php",
+      "sha256": "db70d9b402976259edc0a1c4739efbda7b61432d42528ca4fc24463c6faf51db"
+    },
+    "DigiForge\\Orders\\Repository": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Orders/Repository.php",
+      "sha256": "943523e307aa7b4039e49051beb998045e2f521a8a6aa0498ed7eb53deadc4cf"
+    },
+    "DigiForge\\Listings\\Repository": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/Repository.php",
+      "sha256": "ee48848ae03045b1f879745045eedfcb1f213b5532c41f83eb595094026b22f5"
+    },
+    "DigiForge\\Orders\\ApprovedPodMappingResolver": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Orders/ApprovedPodMappingResolver.php",
+      "sha256": "959b164bb1539b569ded0e744a7fe5bcf526a955d5a12b94cf1e10df17218d5e"
+    },
+    "DigiForge\\POD\\BusinessScopeRepository": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/POD/BusinessScopeRepository.php",
+      "sha256": "b55be9a531a832f8fe8d9d9e18ef63df400ca92283d01b56dd557ce3cfe541b9"
+    },
+    "plugin": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/digiforge.php",
+      "sha256": "05b6410012845df6cde802d7252a172a6690a9db5231cfe115fd3561628adf75"
+    }
+  },
+  "actual_existing_child_worker_loaded_class_reflection": {
+    "DigiForge\\REST\\EtsyWebhookController": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/REST/EtsyWebhookController.php",
+      "sha256": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45"
+    },
+    "DigiForge\\Listings\\EtsyOrderListingResolver": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/EtsyOrderListingResolver.php",
+      "sha256": "db70d9b402976259edc0a1c4739efbda7b61432d42528ca4fc24463c6faf51db"
+    },
+    "DigiForge\\Orders\\Repository": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Orders/Repository.php",
+      "sha256": "943523e307aa7b4039e49051beb998045e2f521a8a6aa0498ed7eb53deadc4cf"
+    },
+    "DigiForge\\Listings\\Repository": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/includes/Listings/Repository.php",
+      "sha256": "ee48848ae03045b1f879745045eedfcb1f213b5532c41f83eb595094026b22f5"
+    },
+    "plugin": {
+      "path": "/workspace/digiforge-platform-sprint/ord03-exact4ef/digiforge.php",
+      "sha256": "05b6410012845df6cde802d7252a172a6690a9db5231cfe115fd3561628adf75"
+    }
+  },
+  "loaded_class_and_test_bytes_match_exact_git": true,
+  "tracked_worktree_clean_after_runs": true,
+  "test_sha256": {
+    "tests/wordpress/EtsyWebhookIngressAcceptanceTest.php": "98fd1301199d7ad8480e300871d821a7d03534991e9d44165f04da93e3cf0381",
+    "tests/wordpress/fixtures/etsy-webhook-ingress-worker.php": "89fd7406a8663430305a5a16735fa2d4b0226bbeb0422929cabd4ab29e6dd4ea",
+    "tests/wordpress/EtsyListingIdentityAcceptanceTest.php": "ae2e153c28b0165a81f7a8179359b1b0f3fb752441091886370432c17717b390",
+    "tests/wordpress/BusinessScopeOwnershipIntegrityTest.php": "b0b166e7b1d44cb82a344802e1ee5d46f96a244636083cd7b26037308d2dd9f7",
+    "tests/wordpress/EtsyPersonalizationIntakeAcceptanceTest.php": "2a6fdbda7b328b44c38937d8b16e4119e05a2f67a4244826a24e12b126eab60c",
+    "tests/wordpress/HybridReconciliationIdentityTest.php": "f3fc3f03137636312a128709275ad4ba7e4ec982c0b28fce0e24dab17e7ca503",
+    "tests/wordpress/OfflineListingOrderLineageTest.php": "ef34dc04fcd8400d307a97233d5eef54ac9469e2c68f289d4718fb6792d3f91f",
+    "tests/wordpress/OrderCurrencyAcceptanceTest.php": "3018a336a1ddc9edfd5db298d281ecc459167908ac861cd8c1bfb893cc10318a",
+    "tests/wordpress/EtsyWebhookCurrencyInheritanceTest.php": "7a262c753e5a715b506639ee6fc2450541f616f1877bf6955a0257191ec690f3",
+    "tests/wordpress/AcceptanceEvidenceClosureTest.php": "d2e0d97ca59f229fad55ad6bfb7dc5e0da7f3e6e35b1b9d49829e3b7d6b61fc4",
+    "tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php": "deaf8323f3a9b057d640e6cbaa00b17927511e719310733976cac333b0c58c82"
+  },
+  "criteria_evaluation": {
+    "external_internal_identity": "Actual registered anonymous REST ingress ignores plausible forged internal listing/product/version/mapping/business/store/program IDs; persists exactly derived approved tuple.",
+    "business_ownership": "Actual physical ingestion asserts ACTIVE exact owner; business integrity cases reject missing mapping, version drift and second conflicting owner.",
+    "listing_ambiguity_and_currentness": "17 exact listing tests cover distinct-vs-duplicate evidence, approval changes, wrong shop/environment/channel, missing version and unavailable reads.",
+    "provider_mapping": "Actual ingress ambiguity cannot accept payload-selected mapping; persisted REVIEW_REQUIRED mapping0; explicit digital/POD/hybrid reconciliation cases preserve distinctions.",
+    "currency_quantity": "Original EUR and quantity preserved on actual ingress; GBP and zero-amount inheritance/explicit mismatch identity cases tested without conversion.",
+    "personalization": "Actual ingress preserves canonical Unicode/string/integer/boolean/null answers with no fabricated reviewed submission; typed/absent/malformed payload cases plus original named composed review/render/package identity tests pass.",
+    "replay_and_failures": "Actual REST duplicate/event-body conflict, nine authenticity/body denials and three storage faults retained; histories/reviews never authorize provider writes.",
+    "current_scope_denials": "Readiness detects changed listing ownership; wrong channel/environment blocked; provider mapping drift invalidates queue readiness without rewriting approval history.",
+    "authority": "No production grants/providerHTTP; STOP/locks remain in tested fixtures."
+  },
+  "retained_initial_failures": [
+    {
+      "receipt": "/workspace/digiforge-platform-sprint/ord03-composed-personalized-4ef.log",
+      "result": "Direct-file invocation5errors/0assertions: existing suite relies on ShopAccessFixture loaded by full test discovery. Supported discovery rerun passes5/180; source untouched."
+    },
+    {
+      "receipt": "/workspace/digiforge-platform-sprint/ord03-child-reflection-4ef.log",
+      "result": "Optional inspection-only shutdown reflection first attempt overescaped namespace strings; corrected command produced exact worker class path/hash proof. No tests/source changed."
+    }
+  ],
+  "ci_binding": {
+    "workflow": "Audit5031",
+    "exact_candidate": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+    "terminal_status": "SUCCESS_REPORTED_BY_ROOT",
+    "note": "Root owns terminal workflow/log verification. This reviewer independently verified all selected loaded runtime/test bytes at exact4ef, not later8b3."
+  },
+  "recommendation": "Do not promote S2-ORD-03. Retain independently accepted count32/151, original implementation100/43/8 and original row qualificationPARTIAL. Successful Audit5031 and local intake evidence do not implement the missing native consumer. No further tests can establish an unconditional-denial positive path.",
+  "excluded_row": "S2-ORD-05 is Lane A owned full text/date/image/crop semantic normalization; no promotion or source change made.",
+  "installed_status": "UNKNOWN_CURRENT_BYTES",
+  "repository_source_edits": false,
+  "disjoint_test_ids_verified": true,
+  "test_id_overlap": 0,
+  "evidence_file_sha256": {
+    "ord03-independent-4ef.log": "3a8074745aaff59e97fe7f61cbde1ab30fd9eeb8c029742560375c16a011b02a",
+    "ord03-independent-4ef.xml": "daef31d0fb540a372003e47d34adb42e202c5d98692409e1dc6a4158e73c6854",
+    "ord03-composed-discovery-4ef.log": "d5382c3ef37e5ec91aa2d0cc425a81871c1aaa339245e43f40f32fdd831309e3",
+    "ord03-composed-discovery-4ef.xml": "5bb04ae9826180adf04c4c016c658dd2ffe8e4f528e4fe77236b0b4d81d9a503",
+    "ord03-reflected-runtime-4ef.json": "a456e7cbf5c1e0081d10078565cfe9962b0c4f3650a9f017abde470873816782",
+    "ord03-child-reflected-runtime-4ef.json": "9b89419e32e10891d3be3ed29c705ad0319cb2dfa9276ebcc73a86ca67963bb6"
+  },
+  "superseded_assessment": {
+    "verdict": "PASS_BOUNDED_LOCAL_SOFTWARE_INDEPENDENT_WITNESS",
+    "recommendation": "Root may accept S2-ORD-03 only after confirming Audit5031 terminal SUCCESS on exact4ef and reviewing this independent witness; then32\u219233 independent local requirements via candidate overlay. This receipt itself does not promote a ledger row.",
+    "reason": "Reviewer incorrectly excluded original explicit remaining native-consumer requirement and narrowed the full row to local intake. Tests remain valid prerequisite evidence; full-row acceptance recommendation withdrawn."
+  },
+  "native_consumer_review": {
+    "same_source_at_4ef_and_8b38453e": true,
+    "NativeCorePort.php:19": "Manifest capabilities PANEL and GET_READ only.",
+    "NativeCorePort.php:53": "recordWorkflow unconditionally denies atomic_workflow_identity_join_required.",
+    "NativeBusinessOrderEvidence.php:7,28,59": "Local association proposal/review only; native_order_versionNULL/native_allocation_receipt_issuedFALSE/external_execution_authorizedFALSE.",
+    "NativeBusinessVersionRepository.php:8,122": "Deliberately unregistered: no NativeCorePort capability/migration/dispatcher. Confirmed local domain version still native_order_versionNULL; no allocation receipt.",
+    "NativeOrderSourceJournal.php:38,60,86": "Real register/read/snapshot validates source observations with native_business_version_verifiedFALSE; single read method explicitly does not qualify WORKFLOW.",
+    "existing_test_limits": "NativeBusinessOrderEvidenceTest/NativeBusinessVersionRepositoryTest/NativeOrderSourceJournalTest exercise real local association/version/observation implementations and fail-closed controls. They do not provide a registered authoritative business-order native consumer.",
+    "tests_rerun_for_native_review": false
+  },
+  "native_boundary_source_sha256": {
+    "includes/Connector/Printify/NativeCorePort.php": "17f44d8bb8ac6ee55eb3e8a40f9e4fa12fe5da5ad50681144f136b692fbd2515",
+    "includes/Connector/Printify/NativeBusinessOrderEvidence.php": "3027ff0096776c491e4cae619855207a09858dba710f3fd20ec98bbe78d31dcc",
+    "includes/Connector/Printify/NativeBusinessVersionRepository.php": "2e29b164b472c15eb8abcdc832b2bdb4902da648c47921e3260ecd3f48b147f7",
+    "includes/Connector/Printify/NativeOrderSourceJournal.php": "3cee7db74985cd409d8c7fb419a7cec0d42486929838b8af830156762e0e708c"
+  }
+}

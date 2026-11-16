@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="" tests="5" assertions="180" errors="0" warnings="0" failures="0" skipped="0" time="2.892981">
+    <testsuite name="DigiForge WordPress integration" tests="5" assertions="180" errors="0" warnings="0" failures="0" skipped="0" time="2.892981">
+      <testsuite name="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" tests="5" assertions="180" errors="0" warnings="0" failures="0" skipped="0" time="2.892981">
+        <testcase name="testPreparedPersonalizationEntersOnlySelectedQueueAndActualPortalReviewPersistsOnce" class="ComposedPersonalizedOrderAcceptanceTest" classname="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" line="58" assertions="43" time="1.021473"/>
+        <testcase name="testForeignAndRevokedOperatorsCannotAcceptPreparedPackage" class="ComposedPersonalizedOrderAcceptanceTest" classname="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" line="68" assertions="30" time="0.414036"/>
+        <testcase name="testProviderIdentityDriftInvalidatesQueueReadinessWithoutRewritingReviewHistory" class="ComposedPersonalizedOrderAcceptanceTest" classname="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" line="77" assertions="33" time="0.538577"/>
+        <testcase name="testMockupPanelAndExplicitDisplayRightsCannotBeReboundByRehashing" class="ComposedPersonalizedOrderAcceptanceTest" classname="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" line="85" assertions="35" time="0.441406"/>
+        <testcase name="testReviewedPackageCannotBypassProductionActionScopeExpiryReplayOrGlobalLocks" class="ComposedPersonalizedOrderAcceptanceTest" classname="ComposedPersonalizedOrderAcceptanceTest" file="/workspace/digiforge-platform-sprint/ord03-exact4ef/tests/wordpress/ComposedPersonalizedOrderAcceptanceTest.php" line="96" assertions="39" time="0.477489"/>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

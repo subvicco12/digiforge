@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoNativeAssociationIdentityFailureReproTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoNativeAssociationIdentityFailureReproTest.php" tests="1" assertions="3" errors="0" warnings="0" failures="1" skipped="0" time="8.030229">
+    <testcase name="testCatalogPhotoMappingCannotBeAssumedSavedProviderProductIdentity" class="CustomerPhotoNativeAssociationIdentityFailureReproTest" classname="CustomerPhotoNativeAssociationIdentityFailureReproTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoNativeAssociationIdentityFailureReproTest.php" line="8" assertions="3" time="8.030229">
+      <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoNativeAssociationIdentityFailureReproTest::testCatalogPhotoMappingCannotBeAssumedSavedProviderProductIdentity
+A managed photo requires a source-established catalog-to-saved-product bridge; do not strip provider identity or equate blueprint with saved product to satisfy this assertion. Native Printify authority unavailable: order_product_mismatch.
+Failed asserting that WP_Error Object (...) is not an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:893
+/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoNativeAssociationIdentityFailureReproTest.php:12</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
