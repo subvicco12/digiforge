@@ -25,11 +25,15 @@ final class EtsyOrderEventRepository
     /** Only admitted private operators can query the bounded receipt projection. */
     public function recent(?string $shop=null,int $limit=50):array
     {
-        $deny=['query_state'=>'UNAVAILABLE','items'=>[],'external_execution_authorized'=>false];
+        $deny=['query_state'=>'UNAVAILABLE','items'=>[],'external_execution_authorized'=>false];$actor=get_current_user_id();
         if(!is_user_logged_in()||!current_user_can('manage_digiforge'))return $deny;
         $allowed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_orders');if($allowed instanceof WP_Error||($shop===null?count($allowed)!==4:!in_array($shop,$allowed,true)))return $deny;
         global $wpdb;$predicates=[];foreach($shop===null?$allowed:[$shop]as $canonical)$predicates[]=EtsyStoredShopScope::orderPredicate($canonical,'e');$scope=' WHERE ('.implode(' OR ',$predicates).')';$limit=max(1,min(100,$limit));
-        return $this->project($scope,[],$limit);
+        $projection=$this->project($scope,[],$limit);
+        if(get_current_user_id()!==$actor||!is_user_logged_in()||!current_user_can('manage_digiforge')||!current_user_can('manage_digiforge_orders'))return $deny;
+        $confirmed=\DigiForge\Security\ShopAccess::allowedShops('manage_digiforge_orders');
+        if($confirmed instanceof WP_Error||($shop===null?count($confirmed)!==4:!in_array($shop,$confirmed,true))||get_current_user_id()!==$actor||!is_user_logged_in()||!current_user_can('manage_digiforge')||!current_user_can('manage_digiforge_orders'))return $deny;
+        return $projection;
     }
     /** Exact current order inspection, independent of the recent shop-wide receipt window. */
     public function forOrder(string $shop,int $orderId,int $limit=50):array
