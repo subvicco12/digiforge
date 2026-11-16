@@ -30,9 +30,12 @@ final class F4OrdersFulfillmentSafetyStructureTest extends TestCase
         self::assertStringContainsString("'review_status'=>'UNREVIEWED'",$repo);
         self::assertStringContainsString("['APPROVED','REJECTED']",$repo);
         self::assertStringContainsString('Authenticated human reviewer required.',$repo);
-        self::assertStringContainsString("ps.review_status='APPROVED'",$repo);
-        self::assertStringContainsString('ps.reviewed_by>0',$repo);
-        self::assertStringContainsString('ps.reviewed_at IS NOT NULL',$repo);
+        self::assertStringContainsString('(new PersonalizationCurrentness())->forPlan(', $repo);
+        self::assertStringContainsString('if(is_wp_error($personalization))return $personalization;', $repo);
+        $current=(string)file_get_contents(__DIR__.'/../../includes/Orders/PersonalizationCurrentness.php');
+        self::assertStringContainsString("\$matches[0]['review_status']!=='APPROVED'", $current);
+        self::assertStringContainsString("(int)\$row['reviewed_by']<1", $current);
+        self::assertStringContainsString("empty(\$row['reviewed_at'])", $current);
     }
 
     public function testPlanCreationAndApprovalRequireCurrentReadiness(): void

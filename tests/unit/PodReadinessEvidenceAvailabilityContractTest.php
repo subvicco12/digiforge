@@ -24,9 +24,13 @@ final class PodReadinessEvidenceAvailabilityContractTest extends TestCase {
     public function testFulfillmentPlanPersonalizationEvidenceQueryFailsClosed(): void
     {
         $source=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');
-        self::assertStringContainsString("\$wpdb->last_error='';\$rows=\$wpdb->get_results", $source);
-        self::assertStringContainsString("personalization_evidence_unavailable", $source);
-        self::assertStringContainsString("!is_array(\$rows)||!empty(\$wpdb->last_error)", $source);
+        self::assertStringContainsString('(new PersonalizationCurrentness())->forPlan(', $source);
+        self::assertStringContainsString('if(is_wp_error($personalization))return $personalization;', $source);
+        $current=(string)file_get_contents(__DIR__.'/../../includes/Orders/PersonalizationCurrentness.php');
+        self::assertStringContainsString("\$wpdb->last_error='';\$rows=\$wpdb->get_results", $current);
+        self::assertStringContainsString("self::error('evidence_unavailable'", $current);
+        self::assertStringContainsString("!is_array(\$rows)||\$wpdb->last_error!==''||count(\$rows)>100", $current);
+        self::assertStringContainsString('if(is_wp_error($rows))return $rows;', $current);
     }
 
  public function testReadinessCountClearsStaleDatabaseErrorsBeforeEachCount():void{$s=(string)file_get_contents(__DIR__.'/../../includes/Orders/Repository.php');self::assertStringContainsString("\$wpdb->last_error='';\n        \$value=\$wpdb->get_var(\$sql);",$s);}

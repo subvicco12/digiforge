@@ -32,7 +32,9 @@ final class Phase4ConvergenceStructureTest extends TestCase
     {
         $s=file_get_contents(dirname(__DIR__,2).'/includes/Orders/Repository.php');
         self::assertIsString($s);
-        foreach(['personalization_submissions()',"review_status='APPROVED'",'reviewed_by>0','reviewed_at IS NOT NULL',"'payload_hash'=>\$hash",'personalizationEvidenceHash',"'personalization_snapshot'=>Validator::canonicalJson(['submissions'=>\$personalization", "'human_review_required'=>true", "'external_execution_performed'=>false"] as $n)self::assertStringContainsString($n,$s);
+        foreach(['(new PersonalizationCurrentness())->forPlan(', 'if(is_wp_error($personalization))return $personalization;', 'personalizationEvidenceHash',"'personalization_snapshot'=>Validator::canonicalJson(['submissions'=>\$personalization", "'human_review_required'=>true", "'external_execution_performed'=>false"] as $n)self::assertStringContainsString($n,$s);
+        $current=(string)file_get_contents(dirname(__DIR__,2).'/includes/Orders/PersonalizationCurrentness.php');
+        foreach(['Tables::personalization_submissions()', "\$matches[0]['review_status']!=='APPROVED'", "(int)\$row['reviewed_by']<1", "empty(\$row['reviewed_at'])", "'payload_hash'=>\$row['payload_hash']", '$current=$this->forOrder($orderId,$requireEveryLine);if(is_wp_error($current))return $current;'] as $n)self::assertStringContainsString($n,$current);
         self::assertStringNotContainsString('personalization_snapshot]??[]', $s);
     }
 
