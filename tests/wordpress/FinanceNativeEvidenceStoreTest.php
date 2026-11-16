@@ -102,7 +102,7 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
     {
         $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
         if($missing==='claims')$wpdb->delete(NativeFinanceEvidenceSchema::claims(),['record_hash'=>$a['record_hash']]);
-        elseif($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']]);
+        elseif($missing==='audit')$this->deleteSyntheticAudit($a['record_hash'],$f['actors']['author']);
         else $wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$a['record_hash']]);
         self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
     }
@@ -168,7 +168,7 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
         $b=$store->append($this->document($f,'correction-b'),$f['scope'],$a['record_hash']);self::assertNotWPError($b);
         $c=$store->append($this->document($f,'correction-c'),$f['scope'],$b['record_hash']);self::assertNotWPError($c);
         $doc=$this->document($f,'correction-d');$d=$store->append($doc,$f['scope'],$c['record_hash']);self::assertNotWPError($d);global $wpdb;
-        if($missing==='audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'finance_native_evidence','object_id'=>$b['record_hash']]);
+        if($missing==='audit')$this->deleteSyntheticAudit($b['record_hash'],$f['actors']['author']);
         elseif($missing==='row')$wpdb->delete(NativeFinanceEvidenceSchema::records(),['record_hash'=>$b['record_hash']]);
         else $wpdb->update(NativeFinanceEvidenceSchema::records(),['source_hash'=>str_repeat('0',64)],['record_hash'=>$b['record_hash']]);
         self::assertWPError($store->receipt($d['record_hash'],$f['scope']));self::assertWPError($store->append($doc,$f['scope'],$c['record_hash']));
@@ -246,8 +246,24 @@ final class FinanceNativeEvidenceStoreTest extends WP_UnitTestCase
     public function testAuditCreatorMustMatchEncryptedOriginalProvenance():void
     {
         $f=$this->fixture();$store=new NativeEvidenceStore();$a=$store->append($f['document'],$f['scope']);self::assertNotWPError($a);global $wpdb;
-        self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::audit_log(),['actor_id'=>$f['actors']['reviewer']],['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']]));
+        $table=DigiForge\Database\Tables::audit_log();
+        $auditSql=$wpdb->prepare('SELECT actor_id FROM '.$table.' WHERE object_type=%s AND object_id=%s','finance_native_evidence',$a['record_hash']);
+        self::assertNotSame($f['actors']['author'],$f['actors']['reviewer']);
+        self::assertSame([(string)$f['actors']['author']],$wpdb->get_col($auditSql),'The exact synthetic record must retain its original creator before tampering.');
+        // WordPress defaults object_id to %d; native record hashes must remain textual identities.
+        self::assertSame(1,$wpdb->update($table,['actor_id'=>$f['actors']['reviewer']],['object_type'=>'finance_native_evidence','object_id'=>$a['record_hash']],['%d'],['%s','%s']));
+        self::assertSame([(string)$f['actors']['reviewer']],$wpdb->get_col($auditSql),'Only the exact synthetic audit creator is changed.');
         self::assertWPError($store->receipt($a['record_hash'],$f['scope']));self::assertWPError($store->append($f['document'],$f['scope']));
+    }
+
+    /** Remove only the exact synthetic creator/hash audit requested by a fault case. */
+    private function deleteSyntheticAudit(string $recordHash,int $author):void
+    {
+        global $wpdb;$table=DigiForge\Database\Tables::audit_log();
+        $sql=$wpdb->prepare('SELECT actor_id FROM '.$table.' WHERE object_type=%s AND object_id=%s','finance_native_evidence',$recordHash);
+        self::assertSame([(string)$author],$wpdb->get_col($sql),'The exact synthetic audit must exist before deleting its evidence.');
+        self::assertSame(1,$wpdb->delete($table,['object_type'=>'finance_native_evidence','object_id'=>$recordHash,'actor_id'=>$author],['%s','%s','%d']));
+        self::assertSame([],$wpdb->get_col($sql),'The intended synthetic hash audit must be absent after the fault.');
     }
 
 }
