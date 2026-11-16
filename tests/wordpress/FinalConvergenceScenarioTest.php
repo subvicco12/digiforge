@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/PhotoWorkflowFixtureIsolation.php';
 final class FinalConvergenceScenarioTest extends WP_UnitTestCase {
- protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate(); wp_set_current_user(self::factory()->user->create(['role'=>'administrator'])); }
+ use PhotoWorkflowFixtureIsolation;
+ protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate();$this->capturePhotoFixtureState();$this->isolatePhotoFixtureRows(DigiForge\Database\Tables::businesses(),['business_key'=>'digicraftifygoods']);$this->isolatePhotoFixtureRows(DigiForge\Database\Tables::pod_production_templates(),['template_id'=>'final-template']); wp_set_current_user(self::factory()->user->create(['role'=>'administrator'])); }
  public function testPersonalizedPodReviewChainStopsBeforeExternalExecution():void {
   global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);
   $wpdb->insert($t::orders(),['channel'=>'etsy','environment'=>'sandbox','external_order_reference'=>'final-e2e-'.wp_generate_uuid4(),'shop_reference'=>'personalized_pod','currency'=>'USD','personalization_required'=>1,'state'=>'APPROVED','approved_by'=>get_current_user_id(),'approved_at'=>$now,'created_by'=>get_current_user_id(),'created_at'=>$now,'updated_at'=>$now]);$order=(int)$wpdb->insert_id;
@@ -14,6 +16,8 @@ final class FinalConvergenceScenarioTest extends WP_UnitTestCase {
   $wpdb->insert($t::pod_business_mappings(),['provider_mapping_id'=>$mapping,'business_id'=>$business,'store_id'=>$store,'product_program_id'=>$program,'product_version_id'=>1,'state'=>'APPROVED','approved_by'=>get_current_user_id(),'approved_at'=>$now,'created_at'=>$now,'updated_at'=>$now]);
   (new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>'personalized_pod','template_cap'=>['limit'=>8,'duration_seconds'=>604800,'anchor_utc'=>'2026-01-05 00:00:00']]);
   $templateInput=digiforge_test_printify_template(['shop_key'=>'personalized_pod','template_id'=>'final-template','template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>101,'provider_id'=>2,'variant_ids'=>[202],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>1,'height_px'=>1]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'PHOTO_TEXT','template_status'=>'VALIDATED']);self::assertFalse(is_wp_error($templateInput));$template=(new DigiForge\POD\ProductionTemplateRepository())->save($templateInput);self::assertFalse(is_wp_error($template));
+  // Close only this synthetic fixture's frame; production must never reset a caller transaction.
+  self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('SET autocommit=1'));
   $artifact=tempnam(sys_get_temp_dir(),'df-render-');file_put_contents($artifact,DigiForge\POD\RasterArtworkCodec::encode(1,1,"\xff\xff\xff\xff"));
   try{$render=(new DigiForge\POD\RenderEvidenceRepository())->createFromArtifacts(['order_id'=>$order,'provider_mapping_id'=>$mapping,'template_key'=>'final-template','template_version'=>'1','template_sha256'=>$template['fingerprint'],'personalization_evidence_hash'=>$ph,'render_mode'=>'DETERMINISTIC','output_sha256'=>hash('sha256','preview'),'buyer_preview_sha256'=>hash('sha256','preview')],$artifact,$artifact);}finally{unlink($artifact);}self::assertFalse(is_wp_error($render));
   $render=(new DigiForge\POD\RenderEvidenceRepository())->approve((int)$render['id']);self::assertSame('APPROVED',$render['review_status']);self::assertSame('0',(string)$render['external_execution_performed']);
