@@ -43,6 +43,9 @@ final class ShopAccessWorkflowAcceptanceTest extends WP_UnitTestCase
         DigiForge\ProductFactory\AssetStorage::ensureProtectedRoot();$path=wp_upload_dir()['basedir'].'/'.$ref;wp_mkdir_p(dirname($path));
         file_put_contents($path,wp_json_encode(['schema'=>1,'shop_key'=>'personalized_pod','order_id'=>(int)$order['id'],'line_item_id'=>$line,'customer_user_id'=>$customer,'buyer_reference'=>$order['buyer_reference'],'local_personalization_access_authorized'=>true]));
         try{
+            // Close this synthetic fixture's own frame; production never resets a caller transaction.
+            self::assertNotFalse($wpdb->query('COMMIT'));
+            self::assertNotFalse($wpdb->query('SET autocommit=1'));
             $repo=new DigiForge\POD\CustomerEditorRepository();$grant=$repo->grant(['shop_key'=>'personalized_pod','session_key'=>$session,'order_id'=>(int)$order['id'],'line_item_id'=>$line,'customer_user_id'=>$customer,'proof_reference'=>$ref,'proof_sha256'=>hash_file('sha256',$path)]);self::assertNotWPError($grant);
             wp_set_current_user($foreign);self::assertWPError($repo->access($session,true));self::assertWPError((new DigiForge\POD\DeterministicRenderWorkflow())->customerPreview(1,'',$session));
             wp_set_current_user($customer);$access=$repo->access($session);self::assertNotWPError($access);self::assertSame($customer,$access['customer_user_id']);

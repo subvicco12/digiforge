@@ -346,7 +346,7 @@ def verified_receipt_source_digest(finding, git, git_bytes):
 
 
 def verified_checkpoint_provenance(finding, git, git_bytes):
-    """Prove four exact reviewed historical source references, retaining raw findings.
+    """Prove exact reviewed historical source references, retaining raw findings.
 
     Every reviewed blob, span, masked grammar and duplicate-free JSON location
     must agree. Independently resolve the referenced commit or hash source bytes
@@ -383,7 +383,25 @@ def verified_checkpoint_provenance(finding, git, git_bytes):
       'line': 72,
       'start': 30,
       'end': 128,
-      'kind': 'source'}]
+      'kind': 'source'},
+     {'path': 'bin/artifact-audit/image-transport-review.json',
+      'blob': '76ba226486821af3fb5bd3739e61e78142098328',
+      'content': '62e6be96c8acaea8b72881a2b6eec2e1ed62cbe4fdab0c5931ca294dd319a116',
+      'route': ['source_sha256', 'includes/AI/ImageGenerationAccess.php'],
+      'line': 5,
+      'start': 19,
+      'end': 112,
+      'kind': 'source',
+      'version': 1},
+     {'path': 'bin/artifact-audit/image-transport-review.json',
+      'blob': '76ba226486821af3fb5bd3739e61e78142098328',
+      'content': '62e6be96c8acaea8b72881a2b6eec2e1ed62cbe4fdab0c5931ca294dd319a116',
+      'route': ['source_sha256', 'includes/AI/ImageGenerationCredentialCustody.php'],
+      'line': 6,
+      'start': 19,
+      'end': 123,
+      'kind': 'source',
+      'version': 1}]
     try:
         candidates = [spec for spec in reviewed if finding.get('File') == spec['path']
                       and finding.get('StartLine') == spec['line']]
@@ -420,6 +438,12 @@ def verified_checkpoint_provenance(finding, git, git_bytes):
 
         text = raw.decode('utf-8')
         document = json.loads(text, object_pairs_hook=unique_object)
+        if 'version' in spec:
+            if (not isinstance(document, dict) or type(document.get('version')) is not int
+                    or document['version'] != spec['version']
+                    or set(document) != {'version', 'scope', 'source_sha256', 'sender'}
+                    or not isinstance(document.get('source_sha256'), dict)):
+                return False
         canonical = json.dumps(document, indent=2).splitlines()
         if canonical != text.splitlines():
             return False

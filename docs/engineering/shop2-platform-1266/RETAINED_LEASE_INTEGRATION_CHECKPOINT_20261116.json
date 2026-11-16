@@ -1,7 +1,7 @@
 {
   "schema": "shop2-lane-b-held-integration-checkpoint-v1",
-  "parent_commit": "1be4dc9565d31683fdb5610bd8b71592c6df5a1d",
-  "disposition": "LOCAL_IMPLEMENTATION_PRESERVED_NOT_FULLY_QUALIFIED",
+  "parent_commit": "066721d66944b4fa9a42f4f89db1e4df2b8c8814",
+  "disposition": "COMPOSED_OFFLINE_INTEGRATION_PASSED_EXACT_HEAD_CI_PENDING",
   "changes": [
     "Exact producer-owned c2f/8c/a100 source blobs; no full Lane A branch import",
     "Server-issued legacy-NULL read context retains actual producer lease across B local review transactions",
@@ -22,10 +22,12 @@
       "failures": 0
     },
     "credential_security": {
-      "tests": 49,
-      "failures": 0
+      "tests": 56,
+      "failures": 0,
+      "default_rules_unchanged": true,
+      "complete_history_scanning_preserved": true
     },
-    "composed_wordpress": {
+    "prior_composition": {
       "tests": 142,
       "assertions": 4692,
       "failures": 17,
@@ -46,6 +48,24 @@
         ]
       },
       "remaining": "FinalConvergence invalid owned test frame; CurrentRead fixture inherits immutable template from preceding photo classes. Exclusive test-only owner handoff Issue1266 comment6913016582."
+    },
+    "composed_wordpress": {
+      "tests": 201,
+      "assertions": 8903,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "all_17_prior_failures_matched_to_passing_cases": true,
+      "website_security_first": true,
+      "current_read_last": true,
+      "runtime_source_unchanged_from_parent": true,
+      "fresh_empty_disposable_database": true,
+      "scope": "Complete affected composition; not whole-repository or installed-candidate certification"
+    },
+    "wrong_type_negative_fixture": {
+      "root_cause": "Generated Git identifier below the default entropy threshold was not emitted by the pinned scanner; actual raw reports ruled out finding deduplication",
+      "repair": "Fixed fixture-only Git timestamps, preserved the same invalid commit-to-blob substitution, and asserted emitted actionable evidence",
+      "production_thresholds_changed": false
     }
   },
   "currentness_dispositions": [
@@ -54,10 +74,9 @@
     "Legitimate legacy-NULL local order and plan workflow restored under retained A witness; managed transactions remain denied"
   ],
   "blockers": [
-    "A owner test-only fixture receipts and focused composition verification",
-    "Managed reviewer mutable signed authority retention; public provenance received but does not freeze authorization",
+    "Managed reviewer mutable signed authority retention; public provenance and A-byte lease do not retain current authority",
     "Actual independent native authority/allocation/witness/sender/custody implementation and hosted qualification",
-    "New exact-head CI after the complete source is pushed"
+    "Fresh exact-head repository CI after normal push"
   ],
   "acceptance": {
     "independently_accepted": 32,
@@ -68,7 +87,10 @@
   "coordination_comments": [
     6912905663,
     6912959580,
-    6913016582
+    6913016582,
+    6913516564,
+    6913679118,
+    6913984047
   ],
   "holds": {
     "stop_all": true,
@@ -118,6 +140,42 @@
     {
       "file": "docs/engineering/shop2-platform-1266/evidence/photo-retained-cleanup-red.xml",
       "digest": "2a641872c6218f414a1be9873a41524caff017e604b5310dc80c7cce589cc158"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-fixture-919b-composition-green.xml",
+      "digest": "692e687cfe78a3d8f1d9aaf4d6c43da02ef82079d10b1bc891947fd842b106ce"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/photo-fixture-919b-composition-command.sh",
+      "digest": "d835fba5932d40a4a7f8bd5e067038f0cf375460805c4c59d206ed6453e7be8d"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/credential-a919-history-red.json",
+      "digest": "53e2e8f2edb8634b74450523cc7eabc2b7b119976a3556f45becb02c36b19d8c"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/credential-a919-history-green.json",
+      "digest": "eec435dd5c02d7054841ba68e66f87294205e7cb3d11ecfe5068a0d96660255f"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/credential-b066-history-green.json",
+      "digest": "7e6cfa27810ec0e39078b5240185c2dcaf09d616c5492c2ef1ffe42a043a00e7"
+    },
+    {
+      "file": "docs/engineering/shop2-platform-1266/evidence/credential-security-56-green.log",
+      "digest": "9a31f1f01914c6c31ea3b1f984388fdef86aeac7accc42fa361c361fa54d2922"
     }
-  ]
+  ],
+  "owner_test_repairs": {
+    "source_head": "919b488a29260dfa4151049e18afba48649fa6ac",
+    "commits": [
+      "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "919b488a29260dfa4151049e18afba48649fa6ac",
+      "52e363fda6c484ca9854ff831a574683e8a2479b"
+    ],
+    "exact_test_files": 5,
+    "source_review": "CLEAR",
+    "assertion_weakening": false,
+    "whole_branch_imported": false
+  }
 }

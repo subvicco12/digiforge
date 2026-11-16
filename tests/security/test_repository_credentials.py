@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'bin/check-repository-credentials.py'
 
@@ -119,12 +120,19 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
     def test_wrong_blob_at_same_metadata_key_is_not_classified(self):
-        p,m=self.manifest_fixture()
+        # Keep the SAME aliased commit reference above the pinned default rule's
+        # entropy floor; a wall-clock-dependent Git ID may never be emitted.
+        with patch.dict(os.environ, {'GIT_AUTHOR_DATE':'@1794825381 +0000',
+                                     'GIT_COMMITTER_DATE':'@1794825381 +0000'}):
+            p,m=self.manifest_fixture()
+        self.assertEqual('commit',self.git('cat-file','-t',m['refs']['api_1253_start']))
         m['api_lane_files'][0]['api_start_blob']=m['refs']['api_1253_start']
         p.write_text(json.dumps(m,indent=2)+'\n');self.git('add','.');self.git('commit','-qm','Wrong object identity fixture')
         result,evidence=self.scan()
         self.assertNotEqual(0,result.returncode)
-        self.assertGreater(evidence['finding_count'],0)
+        self.assertEqual(1,evidence['finding_count'])
+        self.assertGreater(evidence['raw_finding_count'],evidence['verified_git_identifier_count'],
+                           'The actual default scanner must emit the wrong-type alias finding.')
 
     def test_known_git_key_outside_reviewed_structural_location_remains_actionable(self):
         p, m = self.manifest_fixture()
@@ -245,6 +253,50 @@ class RepositoryCredentialAcceptanceTest(unittest.TestCase):
         result,evidence=self.scan()
         self.assertNotEqual(0,result.returncode)
         self.assertEqual(2,evidence.get('verified_receipt_source_digest_count'))
+        self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
+        self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
+
+    def image_transport_review_fixture(self, altered_source=False, altered_context=False):
+        ref='d988c9a826369a2adbf4f956aa2f689425fb6d54';project=SCRIPT.parent.parent
+        receipt='bin/artifact-audit/image-transport-review.json'
+        for name in ['includes/AI/ImageGenerationAccess.php','includes/AI/ImageGenerationCredentialCustody.php',receipt]:
+            raw=subprocess.check_output(['git','-C',str(project),'show',ref+':'+name])
+            if (altered_source and name.endswith('ImageGenerationAccess.php')) or (altered_context and name==receipt):raw+=b'\n'
+            target=self.root/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+        self.git('add','.');self.git('commit','-qm','Exact reviewed historical image source digests')
+
+    def test_image_transport_review_exact_sources_preserve_raw_findings(self):
+        self.image_transport_review_fixture()
+        result,evidence=self.scan()
+        self.assertEqual(0,result.returncode,result.stderr)
+        self.assertEqual('PASS',evidence['status'])
+        self.assertEqual(2,evidence['raw_finding_count'])
+        self.assertEqual(2,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertEqual(0,evidence['finding_count'])
+
+    def test_image_transport_review_changed_source_stays_actionable(self):
+        self.image_transport_review_fixture(altered_source=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(1,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_image_transport_review_changed_context_stays_actionable(self):
+        self.image_transport_review_fixture(altered_context=True)
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(0,evidence.get('verified_checkpoint_provenance_count'))
+        self.assertGreater(evidence['finding_count'],0)
+
+    def test_image_transport_review_does_not_hide_added_same_file_credential(self):
+        self.image_transport_review_fixture()
+        target=self.root/'bin/artifact-audit/image-transport-review.json'
+        document=json.loads(target.read_text());canary='b7C9dE2fG5hJ8kM3'*3;document['api_key']=canary
+        target.write_text(json.dumps(document,indent=2)+'\n')
+        self.git('add','.');self.git('commit','-qm','Additional synthetic image review credential')
+        result,evidence=self.scan()
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual(2,evidence.get('verified_checkpoint_provenance_count'))
         self.assertGreater(evidence['rules_with_findings'].get('generic-api-key',0),0)
         self.assertNotIn(canary,result.stdout+result.stderr+json.dumps(evidence))
 
@@ -421,6 +473,43 @@ class ReviewedCheckpointProvenanceTest(unittest.TestCase):
             if len(value)==64:
                 def changed(*args):return b'changed historical source' if args==('cat-file','blob',qualified) else self.raw(*args)
                 self.assertFalse(self.verify(finding,raw=changed))
+
+
+class ReviewedImageTransportProvenanceTest(unittest.TestCase):
+    def setUp(self):
+        spec=importlib.util.spec_from_file_location('image_transport_gate',SCRIPT)
+        self.gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.gate)
+        self.repo=SCRIPT.parent.parent;self.ref='d988c9a826369a2adbf4f956aa2f689425fb6d54'
+        self.path='bin/artifact-audit/image-transport-review.json';self.content=self.raw('show',self.ref+':'+self.path);self.cases=[]
+        for source,line,end in [('includes/AI/ImageGenerationAccess.php',5,112),('includes/AI/ImageGenerationCredentialCustody.php',6,123)]:
+            finding={'File':self.path,'RuleID':'generic-api-key','Commit':self.ref,'Secret':'REDACTED',
+                     'Match':source.split('/')[-1]+'": "REDACTED"','StartLine':line,'EndLine':line,'StartColumn':19,'EndColumn':end}
+            self.cases.append((source,finding))
+    def git(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True,text=True).stdout.strip()
+    def raw(self,*args):
+        return subprocess.run(['git','-C',str(self.repo),*args],check=True,capture_output=True).stdout
+    def verify(self,finding,git=None,raw=None):
+        return self.gate.verified_checkpoint_provenance(finding,git or self.git,raw or self.raw)
+    def test_image_transport_both_exact_historical_refs_require_real_source_bytes(self):
+        for _,finding in self.cases:self.assertTrue(self.verify(finding))
+    def test_image_transport_wrong_rule_path_span_mask_commit_or_context_is_not_verified(self):
+        for _,finding in self.cases:
+            for key,value in [('File','other.json'),('RuleID','github-pat'),('StartLine',True),('StartColumn',19.0),('EndLine',1),('EndColumn',0),('Secret','unmasked'),('Match','different'),('Commit','f'*40)]:
+                changed=dict(finding);changed[key]=value
+                with self.subTest(field=key):self.assertFalse(self.verify(changed))
+            self.assertFalse(self.verify(finding,raw=lambda *args:self.content+b'\n'))
+            self.assertFalse(self.verify(finding,raw=lambda *args:self.content.replace(b'"version": 1',b'"version": true')))
+            self.assertFalse(self.verify(finding,raw=lambda *args:self.content.replace(b'"version": 1',b'"version": 1, "version": 1')))
+    def test_image_transport_changed_missing_or_wrong_type_source_is_not_verified(self):
+        for source,finding in self.cases:
+            blob=self.git('rev-parse',self.ref+':'+source)
+            def changed(*args):return b'changed historical source' if args==('cat-file','blob',blob) else self.raw(*args)
+            def missing(*args):
+                if args==('rev-parse','--verify',self.ref+':'+source):raise OSError('Missing historical source')
+                return self.git(*args)
+            def wrong_type(*args):return 'commit' if args==('cat-file','-t',blob) else self.git(*args)
+            self.assertFalse(self.verify(finding,raw=changed));self.assertFalse(self.verify(finding,git=missing));self.assertFalse(self.verify(finding,git=wrong_type))
 
 
 class ReviewedReceiptSourceDigestTest(unittest.TestCase):

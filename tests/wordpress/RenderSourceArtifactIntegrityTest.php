@@ -3,21 +3,14 @@ declare(strict_types=1);
 require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 require_once __DIR__.'/PortalActionAcceptanceFixture.php';
+require_once __DIR__.'/fixtures/PhotoWorkflowFixtureIsolation.php';
 
 /** Synthetic local evidence only; no supplier or rights certification. */
 final class RenderSourceArtifactIntegrityTest extends WP_UnitTestCase
 {
+ use PhotoWorkflowFixtureIsolation;
  protected function setUp():void {
-  parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();global $wpdb;$t=DigiForge\Database\Tables::class;
-  // Review/schema DDL may commit fixtures. Isolate this class's fixed synthetic identities between cases.
-  $wpdb->query("DELETE usage_row FROM ".$t::shop_ai_usage()." usage_row INNER JOIN ".$t::pod_production_templates()." template ON template.fingerprint=usage_row.model_key WHERE template.template_id='personalized_pod' AND usage_row.workflow='production_template'");
-  $wpdb->query("DELETE ps FROM ".$t::personalization_submissions()." ps INNER JOIN ".$t::order_line_items()." li ON li.id=ps.order_line_item_id INNER JOIN ".$t::orders()." o ON o.id=li.order_id WHERE o.external_order_reference='personalized_pod' AND o.shop_reference='personalized_pod'");
-  $wpdb->query("DELETE li FROM ".$t::order_line_items()." li INNER JOIN ".$t::orders()." o ON o.id=li.order_id WHERE o.external_order_reference='personalized_pod' AND o.shop_reference='personalized_pod'");
-  $wpdb->delete($t::orders(),['external_order_reference'=>'personalized_pod','shop_reference'=>'personalized_pod']);
-  $wpdb->delete($t::pod_mappings(),['mapping_version'=>'personalized_pod','provider_product_key'=>'101','product_version_id'=>1]);
-  $wpdb->delete($t::pod_production_templates(),['template_id'=>'personalized_pod']);
-  $wpdb->delete($t::personalization_schemas(),['product_version_id'=>1,'schema_key'=>'name','version_label'=>'1']);
-  $wpdb->delete($t::businesses(),['business_key'=>'digicraftifygoods','display_name'=>'Fixture goods']);
+  parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();$this->capturePhotoFixtureState();$this->isolatePhotoFixtureIdentity();
  }
  private function fixture(string $engine='PHOTO_TEXT',int $width=1,int $height=1,array $panels=[]):array {
   wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$shop='personalized_pod';
@@ -31,6 +24,8 @@ final class RenderSourceArtifactIntegrityTest extends WP_UnitTestCase
   $wpdb->insert($t::stores(),['business_id'=>$business,'store_key'=>'fixture-etsy','display_name'=>'Fixture','channel'=>'etsy','status'=>'ACTIVE','created_at'=>$now,'updated_at'=>$now]);$store=(int)$wpdb->insert_id;
   $wpdb->insert($t::product_programs(),['business_id'=>$business,'store_id'=>$store,'program_key'=>'PERSONALIZED_POD','status'=>'ACTIVE','config'=>'{}','created_at'=>$now,'updated_at'=>$now]);$program=(int)$wpdb->insert_id;
   $wpdb->insert($t::pod_business_mappings(),['provider_mapping_id'=>$mapping,'business_id'=>$business,'store_id'=>$store,'product_program_id'=>$program,'product_version_id'=>1,'state'=>'APPROVED','approved_by'=>get_current_user_id(),'approved_at'=>$now,'created_at'=>$now,'updated_at'=>$now]);
+  // Close only this synthetic fixture's frame before entering strict production boundaries.
+  self::assertNotFalse($wpdb->query('COMMIT'));self::assertNotFalse($wpdb->query('SET autocommit=1'));
   return ['order_id' =>$order,'provider_mapping_id'=>$mapping,'template_key'=>$shop,'template_version'=>'1','template_sha256'=>$template['fingerprint'],'personalization_evidence_hash'=>$ph,'render_mode'=>'DETERMINISTIC','output_sha256'=>hash('sha256','asserted'),'buyer_preview_sha256'=>hash('sha256','asserted')];
  }
  private function deterministicFixture(string $engine='NAME_MONOGRAM',array $panels=[]):array {
