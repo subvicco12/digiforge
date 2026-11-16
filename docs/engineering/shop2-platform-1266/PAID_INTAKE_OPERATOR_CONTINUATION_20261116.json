@@ -89,6 +89,10 @@
     {
       "path": "tests/wordpress/OrderIntakeEvidencePanelTest.php",
       "sha256": "c76a7d4c17ec1ae236e2f9d5ce25d8bc30f2c2a4362f528d6122dd1feb569a29"
+    },
+    {
+      "path": "tests/wordpress/WebsiteOwnerAccessTest.php",
+      "sha256": "5a1805d235d5d80cd799c98688dd7570789da8873a27eddf7af5c0565e991f83"
     }
   ],
   "evidence_manifest": [
@@ -107,6 +111,18 @@
     {
       "path": "docs/engineering/shop2-platform-1266/evidence/paid-intake-security-red-20261116.txt",
       "sha256": "4ead11ce4313f62f31597ce7f59cbcf25b764e1d4d41216668b5f95106be9b83"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/owner-assignment-20261116.txt",
+      "sha256": "e1a20d63a70a03ad336983b038bf7d4b57a62a25aa113fa600cae222f4504116"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/owner-assignment-20261116.xml",
+      "sha256": "bd74a4d965759467be43c954ee7f25bd66b6efd0d8013c8e43c0e6dedcc89fe9"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/owner-assignment-timing-20261116.txt",
+      "sha256": "92aad3c3c8f1666584f38f3bec2a822968aa4f732bf0ce2ffbd4369075a3e38b"
     }
   ],
   "audit_and_gate": {
@@ -135,5 +151,24 @@
     "shipping": "Existing catalog shipping parsing/research mapping already present. Native SHIPPING_READ consumption additionally needs protected shippingSource equivalent; raw export/hash insufficient. No duplicate parser or invented units/USproduction/processing/Choice/route/price/margin facts added.",
     "exclusive_sources_or_pins_changed": false
   },
-  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deploy/production DB/live provider/credential/publication/financial execution."
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deploy/production DB/live provider/credential/publication/financial execution.",
+  "shared_owner_assignment_fixture_repair": {
+    "request": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6906123422",
+    "receipt": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6906884126",
+    "failing_lane_a_run": 43794635160,
+    "failing_lane_a_head": "73d8d2a188797d93b1189379e9518898cfbf0c9f",
+    "source_comparison": "Original A/B test, actual ShopAccessPanel and ShopAccessFixture bytes matched exactly; not an A-exclusive source change.",
+    "root_cause": "authorizeActor persists a grant bound to an issued grantor record. Reconstructing authority with default time()+3600 on another second changes its hash; production correctly denies.",
+    "repair": "Retain exact ShopAccessAuthority::records() already used by persisted grant; append target actor authority, then provision. Test only; no production authorization changes.",
+    "counterfactual": "Actual1.1second delay only in isolated scratch reproduction: original fixture RED1/1 with exact Aerror; same delayed corrected fixture GREEN1/4. No sleep in repository.",
+    "final_class": {
+      "tests": 15,
+      "assertions": 239,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "diagnostic": "Expected injected AUDIT_WRITE_FAILED rollback diagnostic in existing negative test.",
+    "ownership": "Only B-owned WebsiteOwnerAccessTest.php edited; A branch and production panel/fixture untouched."
+  }
 }

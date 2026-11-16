@@ -1,0 +1,37 @@
+Deterministic delayed original fixture
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.38 by Sebastian Bergmann and contributors.
+
+F                                                                   1 / 1 (100%)
+
+Time: 00:01.194, Memory: 50.50 MB
+
+There was 1 failure:
+
+1) WebsiteOwnerAccessTimingReproTest::testWebsiteOperatorAssignmentUsesExistingRoleAndExactScope
+Exact current scope, authenticated confirmation and current role are required.
+Failed asserting that WP_Error Object (...) is not an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:893
+/workspace/digiforge-platform-sprint/identity-review/WebsiteOwnerAccessTimingReproTest.php:71
+
+FAILURES!
+Tests: 1, Assertions: 1, Failures: 1.
+
+Same delayed fixture with issued authority retained
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.38 by Sebastian Bergmann and contributors.
+
+.                                                                   1 / 1 (100%)
+
+Time: 00:01.197, Memory: 50.50 MB
+
+OK (1 test, 4 assertions)

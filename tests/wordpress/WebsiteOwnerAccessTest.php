@@ -61,8 +61,13 @@ final class WebsiteOwnerAccessTest extends WP_UnitTestCase
     {
         $p = $this->input();
         $caps = ['manage_digiforge', 'manage_digiforge_digital', 'manage_digiforge_settings'];
-        $owner = ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], $caps);
-        ShopAccessFixture::provision([ShopAccessFixture::authority($owner, 'digital', $caps), ShopAccessFixture::authority(get_current_user_id(), 'digital', $caps)]);
+        ShopAccessFixture::authorizeActor(get_current_user_id(), ['digital'], $caps);
+        // Preserve the exact signed grantor record already bound into the persisted grant.
+        // Rebuilding its default expiry after a second boundary changes its authority hash.
+        $authorities = DigiForge\Security\ShopAccessAuthority::records();
+        self::assertIsArray($authorities);
+        $authorities[] = ShopAccessFixture::authority(get_current_user_id(), 'digital', $caps);
+        ShopAccessFixture::provision($authorities);
         $p['expected_revision'] = '1';
         $subject = self::factory()->user->create(['role'=>'administrator']);
         $p['operation']='GRANT'; $p['subject_id']=(string)$subject;
