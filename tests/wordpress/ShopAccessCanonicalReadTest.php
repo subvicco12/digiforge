@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/fixtures/PortalAccessFixture.php';
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 
 final class ShopAccessCanonicalReadTest extends WP_UnitTestCase
 {
@@ -38,8 +39,13 @@ final class ShopAccessCanonicalReadTest extends WP_UnitTestCase
         foreach($options as $row){$v=json_decode($row['option_value'],true);if(is_array($v)&&isset($v['grants'][$id]))$key=$row['option_name'];}
         if($mode==='missing_event')$wpdb->delete($wpdb->options,['option_name'=>$event]);
         elseif($mode==='changed_event')$wpdb->update($wpdb->options,['option_value'=>'{}'],['option_name'=>$event]);
-        elseif($mode==='missing_audit')$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'shop_access','object_id'=>$id]);
-        elseif($mode==='changed_audit')$wpdb->update(DigiForge\Database\Tables::audit_log(),['context'=>'{}'],['object_type'=>'shop_access','object_id'=>$id]);
+        // WordPress defaults object_id to %d; these retained audit IDs are textual hashes.
+        elseif($mode==='missing_audit'){
+            $deleted=$wpdb->delete(DigiForge\Database\Tables::audit_log(),['object_type'=>'shop_access','object_id'=>$id],['%s','%s']);
+            self::assertSame($wpdb->prepare('DELETE FROM `'.DigiForge\Database\Tables::audit_log().'` WHERE `object_type` = %s AND `object_id` = %s','shop_access',$id),$wpdb->last_query,'Corruption must target the exact textual grant identity.');
+            self::assertSame(1,$deleted,'Exactly the retained grant audit must be removed.');
+        }
+        elseif($mode==='changed_audit')self::assertSame(1,$wpdb->update(DigiForge\Database\Tables::audit_log(),['context'=>'{}'],['object_type'=>'shop_access','object_id'=>$id],['%s'],['%s','%s']),'Exactly the retained grant audit must be corrupted.');
         elseif($mode==='missing_snapshot')$wpdb->delete($wpdb->options,['option_name'=>$key]);
         elseif($mode==='foreign_snapshot')$wpdb->update($wpdb->options,['option_value'=>wp_json_encode($repo->read('jewelry'))],['option_name'=>$key]);
         else $wpdb->update($wpdb->options,['option_value'=>'not-json'],['option_name'=>$key]);
