@@ -125,9 +125,9 @@ final class PrintifyProductPipeline {
   if(self::locked())return self::error('locked');$durable=self::durableDispatchSession();if(is_wp_error($durable))return $durable;$p=$this->plan($hash);if(is_wp_error($p))return $p;$policy=$this->current($hash,$p);if(is_wp_error($policy))return $policy;$a=$this->get('authorization',$authorization);if(is_wp_error($a))return $a;
   $guard=fn()=>$this->authorizationCurrent($hash,$p,$a);$fresh=$guard();if(is_wp_error($fresh))return $fresh;
   $request=$p['request'];if($request['operation']==='PRODUCT_CREATE'){$intent=PrintifyOperationClaim::claim($p['connection_scope'],'PRODUCT_CREATE',$request['fingerprint'],$request['fingerprint']);if(is_wp_error($intent))return $intent;}$claim=$request['method']==='GET'?$hash:hash('sha256',$p['package'].':'.$p['integration_id'].':'.$request['fingerprint']);
-  if(!add_option('digiforge_pp_claim_'.$claim,$authorization,'',false))return self::error('already_claimed');
+  if(!PrintifyOperationClaim::reserveIndex('digiforge_pp_claim_'.$claim,$authorization))return self::error('already_claimed');
   $consumed=ExecutionNonceLedger::consume($a['nonce'],$authorization,get_current_user_id());if(is_wp_error($consumed))return $consumed;
-  $slot=false;for($n=0;$n<10;$n++)if(add_option('digiforge_pp_rate_'.$p['integration_id'].'_'.intdiv(time(),60).'_'.$n,$hash,'',false)){$slot=true;break;}if(!$slot)return self::error('rate_limit');
+  $slot=false;for($n=0;$n<10;$n++)if(PrintifyOperationClaim::reserveIndex('digiforge_pp_rate_'.$p['integration_id'].'_'.intdiv(time(),60).'_'.$n,$hash)){$slot=true;break;}if(!$slot)return self::error('rate_limit');
   if(!Logger::write('printify_product_dispatch_reserved',['plan_hash'=>$hash,'authorization_hash'=>$authorization,'request_fingerprint'=>$request['fingerprint']],'printify_product',$hash))return self::error('audit');
   $attempted=false;
   $result=(new PrintifyScopedCredentialRetriever())->consume($p['integration_id'],function(string $token)use($hash,$p,$request,$sender,$guard,&$attempted){

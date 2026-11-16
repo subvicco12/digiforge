@@ -1,0 +1,53 @@
+{
+  "schema": "DF_PRINTIFY_INSERT_ONLY_CLAIM_CORRECTION_1",
+  "qualified_parent_sha": "99b84caa3c4f4cfe0bc15fc1e85b56e1676c272d",
+  "disposition": "LOCAL_ONLY_FOCUSED_TESTED_NOT_PUBLISHED",
+  "defect": "WordPress add_option upserts overwrite a concurrently inserted option value and can admit both separately reviewed identical lifecycle intents. The same-plan read quota already denied the second sender but not the overwritten claim.",
+  "correction": "Reuse existing PrintifyOperationClaim/options storage with full unique option_name validation and insert-only exact-one-row reservation for existing plan and rate keys. No independent authority added.",
+  "runtime_files": [
+    {
+      "path": "includes/POD/PrintifyApiReadWorkflow.php",
+      "qualified_parent_sha256": "b746790071c768887531924a531a8143c5f7c1a79ce029b5b38fd8a7d1ed5bf5",
+      "local_corrected_sha256": "cebca39983f44c6d7b0b06d8e93978ee6ac050aa14769b13a897f643a815010c"
+    },
+    {
+      "path": "includes/POD/PrintifyLifecycleWorkflow.php",
+      "qualified_parent_sha256": "4c8b6b6d042a5851383cfd3ea2fdc22aa6e64697c5fd2254c575198267e522a1",
+      "local_corrected_sha256": "1e2923b9bfdc99fcb4060ffac08d43fd3c5725a89720cb6090996a6464ac0541"
+    },
+    {
+      "path": "includes/POD/PrintifyProductPipeline.php",
+      "qualified_parent_sha256": "54c940f525154cc1e01d28904c4e7d4e5795ab115d2c538471c81236e35c0049",
+      "local_corrected_sha256": "28769139740ae329c387542766f13ef5110678bb7b23776b07e454300c403648"
+    },
+    {
+      "path": "includes/POD/PrintifyOperationClaim.php",
+      "qualified_parent_sha256": "e57a6bd1a5e9476a32bec99f78a1239700a1609695dc3672eca1e587bbcc4434",
+      "local_corrected_sha256": "646831b6cf3d083a049de4751040310793975280fc117d96effe4bbea596016a"
+    }
+  ],
+  "tests": {
+    "wordpress_focused_tests": 40,
+    "wordpress_assertions": 183,
+    "unit_focused_tests": 12,
+    "unit_assertions": 60,
+    "new_atomic_cases": 9,
+    "red_before_correction": true,
+    "lost_ack_replay_and_index_failures": "PASS",
+    "security_and_changed_lint": "PASS",
+    "broad_unchanged_suites": "REUSED_NOT_RERUN_PER_OWNER_DIRECTIVE",
+    "new_exact_head_ci": "NOT_RUN_LOCAL_ONLY"
+  },
+  "technical_review": "No Critical/Important findings. Product pipeline workflow-level interleaving remains coverage limitation; primitive rate/claim collisions and real read/cancel workflows covered. Not human deployment authorization.",
+  "preserved": {
+    "ordinary_safety_controls": true,
+    "canonical_native_v1_contract": true,
+    "UNKNOWN_without_replay": true,
+    "no_new_schema_or_transaction_authority": true,
+    "no_operational_epoch": true,
+    "core_and_companion_branches_untouched": true,
+    "historical_safety_overlay": "docs/engineering/printify-api/SAFETY-CORRECTION-OVERLAY-20261116.json remains frozen; apply this delta after its qualified parent."
+  },
+  "runtime_dispatch_authorized": false,
+  "release_hold": true
+}

@@ -107,7 +107,7 @@ final class PrintifyApiReadWorkflow
         try { $request = PrintifyApiRequest::prepare($plan['request']['operation'], $plan['provider_shop_id'], $plan['input']); } catch (\Throwable) { return self::error('contract'); }
         if (Validator::canonicalJson($request) !== Validator::canonicalJson($plan['request']) || $request['method'] !== 'GET' || !PrintifyApiReadEvidence::supported($request['operation'])) { return self::error('read_confinement'); }
         // Claim before sending. Any interruption remains consumed, requiring a new reviewed plan.
-        if (!add_option('digiforge_api_read_claim_' . $hash, $authorization, '', false)) { return self::error('consumed'); }
+        if (!PrintifyOperationClaim::reserveIndex('digiforge_api_read_claim_' . $hash, $authorization)) { return self::error('consumed'); }
         $nonce = ExecutionNonceLedger::consume($auth['nonce'], $authorization, get_current_user_id()); if (is_wp_error($nonce)) { return $nonce; }
         if (!Logger::write('printify_api_read_reserved', ['plan_sha256'=>$hash,'authorization_sha256'=>$authorization,'max_requests'=>3], 'printify_api', $hash)) { return self::error('audit'); }
         $attempted = false;
