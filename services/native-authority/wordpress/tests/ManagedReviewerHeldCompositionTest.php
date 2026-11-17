@@ -179,6 +179,40 @@ final class ManagedReviewerHeldCompositionTest extends WP_UnitTestCase
             self::assertFalse($result->get_error_data()['retry_permitted']);self::assertFalse($result->get_error_data()['replay_permitted']);
         }finally{$wpdb->query('ROLLBACK');}
     }
+    public function testActualMappingAbaCannotMixProducerSnapshotAndDifferentLockedMapping():void {
+        $f=$this->foreignReviewedPhoto();$this->install();global $wpdb;$primary=$wpdb;
+        $mapping=(int)$f['selection']['snapshot']['provider_mapping_id'];$table=Tables::pod_mappings();
+        $original=$primary->get_row($primary->prepare('SELECT * FROM '.$table.' WHERE id=%d',$mapping),ARRAY_A);
+        $other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($primary->prefix);$other->suppress_errors(true);
+        self::assertNotSame($primary->get_var('SELECT CONNECTION_ID()'),$other->get_var('SELECT CONNECTION_ID()'));
+        $candidate='actual-current-mapping-with-different-source-digest';
+        self::assertSame(1,$other->update($table,['mapping_version'=>$candidate],['id'=>$mapping]));
+        self::assertWPError((new CustomerPhotoSelection())->resolveForOrder('personalized_pod',$f['order'],$f['line']),'Actual producer must deny this different full mapping before the race.');
+        $repaired=false;$restored=false;$context=null;
+        $race=static function(string $sql)use($other,$primary,$table,$mapping,$original,$candidate,&$repaired,&$restored):string{
+            if(!$repaired&&str_starts_with($sql,'SELECT * FROM '.$table.' WHERE id=')&&str_contains($sql,' AND product_version_id=')){
+                $repaired=true;if($other->update($table,['mapping_version'=>$original['mapping_version']],['id'=>$mapping])!==1)throw new RuntimeException('Actual producer-read mapping repair failed.');
+            }
+            // This bridge-table metadata query occurs only AFTER the actual A resolver returns.
+            if($repaired&&!$restored&&str_starts_with($sql,'SELECT ENGINE FROM information_schema.TABLES')&&str_contains($sql,OfflineSchema::generationTable($primary))){
+                $restored=true;if($other->update($table,['mapping_version'=>$candidate],['id'=>$mapping])!==1)throw new RuntimeException('Actual mapping ABA restoration failed.');
+            }
+            return $sql;
+        };
+        add_filter('query',$race);
+        try{
+            $context=PersonalizationReadContext::capture('personalized_pod',$f['order']);
+            if(is_wp_error($context))$result=$context;
+            else{$primary->query('START TRANSACTION');$result=$context->forOrder($f['order']);}
+            self::assertTrue($repaired);self::assertTrue($restored);
+            self::assertSame($candidate,$primary->get_var($primary->prepare('SELECT mapping_version FROM '.$table.' WHERE id=%d',$mapping)));
+            self::assertWPError($result,'Captured material and current locked material may agree while the authoritative photo snapshot binds a different full mapping.');
+            self::assertSame('personalization_currentness_selection_identity',$result->get_error_code());
+        }finally{
+            remove_filter('query',$race);$primary->query('ROLLBACK');if($context instanceof PersonalizationReadContext)$context->release(false);
+            $other->update($table,['mapping_version'=>$original['mapping_version']],['id'=>$mapping]);$other->close();
+        }
+    }
  protected function photo(bool $select=true):array {
   [, $mapping,$version,$owner]=$this->product();global $wpdb;$planId=(int)$wpdb->get_var($wpdb->prepare('SELECT production_plan_id FROM '.Tables::pod_mappings().' WHERE id=%d',$mapping));$owned=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_business_mappings().' WHERE id=%d',$owner),ARRAY_A);$pod=new \DigiForge\POD\Repository();$newMap=PrintifyApiApprovalFixture::checked($pod->createMapping(['product_version_id'=>$version,'production_plan_id'=>$planId,'provider'=>'printify','environment'=>'test','provider_product_key'=>'101','provider_variant_key'=>'2:202','mapping_version'=>'actual-photo-consumer-v1']));$business=new BusinessScopeRepository();$newOwner=PrintifyApiApprovalFixture::checked($business->createMapping(['product_version_id'=>$version,'provider_mapping_id'=>$newMap['id'],'business_id'=>(int)$owned['business_id'],'store_id'=>(int)$owned['store_id'],'product_program'=>'PERSONALIZED_POD']));PrintifyApiApprovalFixture::checked($business->approveMapping((int)$newOwner['id']));foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED']as $state)PrintifyApiApprovalFixture::checked($pod->transition('mapping',(int)$newMap['id'],$state));
   $repo=new Repository();$order=PrintifyApiApprovalFixture::checked($repo->createOrder(['channel'=>'etsy','environment'=>'test','shop_reference'=>'personalized_pod','currency'=>'USD','personalization_required'=>true]));$line=PrintifyApiApprovalFixture::checked($repo->addLineItem(['order_id'=>$order['id'],'product_version_id'=>$version,'provider_mapping_id'=>$newMap['id'],'quantity'=>1]));$schema=PrintifyApiApprovalFixture::checked($pod->createPersonalizationSchema(['product_version_id'=>$version,'schema_key'=>'actual-photo-consumer','version_label'=>'1','field_definitions'=>[['key'=>'photo','type'=>'image_reference','required'=>true]]]));foreach(['VALIDATED','REVIEW_REQUIRED','APPROVED']as $state)PrintifyApiApprovalFixture::checked($pod->transition('personalization',(int)$schema['id'],$state));$seed=PrintifyApiApprovalFixture::checked($repo->createPersonalization(['order_line_item_id'=>$line['id'],'personalization_schema_id'=>$schema['id'],'payload'=>['photo'=>'digiforge/product-factory/source.png']]));PrintifyApiApprovalFixture::checked($repo->reviewPersonalization((int)$seed['id'],'APPROVED'));foreach(['REVIEW_REQUIRED','APPROVED']as $state)PrintifyApiApprovalFixture::checked($repo->transition('order',(int)$order['id'],$state));

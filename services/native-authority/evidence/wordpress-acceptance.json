@@ -1,13 +1,13 @@
 {
   "schema": "DF_MANAGED_REVIEWER_INDEPENDENT_RUN_1",
   "command": "phpunit -c phpunit.wordpress.xml.dist services/native-authority/wordpress/tests",
-  "tests": 36,
-  "assertions": 361,
+  "tests": 37,
+  "assertions": 379,
   "failures": 0,
   "skipped": 0,
   "source_unchanged_during_execution": true,
   "source_sha256": {
-    "includes/Orders/PersonalizationCurrentness.php": "446b0f075ea904346ca647c0f95be8d8f1e727a8f6fdf5f43653cd6b3cf065dd",
+    "includes/Orders/PersonalizationCurrentness.php": "5b4c6c4e2b8d1e68fb8ec4f40076e053170d3cc19f925a6436aecd422fe217b5",
     "includes/Orders/PersonalizationReadContext.php": "9c7a2e0f29f8275a315d06e9d396b4d1056cb0f5a6a13a3ca1846438a70603b8",
     "includes/Portal/OrderLocalWorkflow.php": "90fe4c576020be6cc8d37d4233813f4a5bd1e411d50c5253aaff878ad877295d",
     "includes/Queue/Shop2HeldJobRecovery.php": "d0a2bb84f13a3d55e7ad5e0bef74bf532f1c96e6cac188ea92cac4af9ca959d1",
@@ -16,10 +16,10 @@
     "services/native-authority/wordpress/RetainedReviewerLease.php": "6bbe32835869316745b055e85048faba628f0026f4aa96d1ea44d674f976b95a",
     "services/native-authority/wordpress/Runtime.php": "87058e4a0c8b0c1abd607aef41ae83b096e73c65f8c6819ed83023c390641cb4",
     "services/native-authority/wordpress/bootstrap.php": "316a2462025ad8f7db7ed2f25898c20c6cdacb849c145b770897a94820f8fb07",
-    "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php": "72ea999b57caef4cb8c3f4923a4192cf57a1cc337cb6de1e75a5ccef2f27570c",
+    "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php": "bce7d67983bbc62ee806390a2f53e580d52d9b8c2a16838c81afb507eaee81cd",
     "services/native-authority/wordpress/tests/RetainedReviewerAuthorityTest.php": "0c595cc2c5287d65cc92c7872a642686a2c8fc2c5d3662fd0281e5f831bbb790"
   },
-  "junit_sha256": "deb6a4513c7d6cb6bc8e9630aec7cb65ce7c69fb5b948cda7f1201d6be02806d",
+  "junit_sha256": "16b93e5249d2adff602e600bd0df425fac4f0b3ad014793929847d0cd8e098ca",
   "deployment_qualified": false,
   "newly_accepted_capabilities": []
 }
