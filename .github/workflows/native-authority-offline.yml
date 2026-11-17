@@ -9,6 +9,10 @@ on:
       - 'includes/Orders/PersonalizationReadContext.php'
       - 'includes/Portal/OrderLocalWorkflow.php'
       - 'includes/Queue/Shop2HeldJobRecovery.php'
+      - 'includes/Connector/Printify/NativeBusinessOrderEvidence.php'
+      - 'includes/Connector/Printify/NativeBusinessVersionRepository.php'
+      - 'tests/wordpress/NativeManagedOrderAssociationCompositionTest.php'
+      - 'phpunit.wordpress.xml.dist'
       - 'tests/unit/Phase4ConvergenceStructureTest.php'
       - '.gitattributes'
       - '.github/workflows/native-authority-offline.yml'
@@ -26,7 +30,7 @@ concurrency:
 jobs:
   actual-offline-composition:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 60
     services:
       mariadb:
         image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2
@@ -94,7 +98,12 @@ jobs:
       - name: Existing Lane B consumers with optional bridge absent
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist --filter 'CustomerPhotoHeldIntegrationTest|OrderLocalWorkflowTest|Shop2HeldJobRecoveryTest' --log-junit evidence/consumer-regression-junit.xml
+        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist --filter 'CustomerPhotoHeldIntegrationTest|OrderLocalWorkflowTest|Shop2HeldJobRecoveryTest|NativeBusinessOrderEvidenceTest|NativeBusinessVersionRepositoryTest|PrintifyWebhookTransactionBoundaryTest' --log-junit evidence/consumer-regression-junit.xml
+
+      - name: Governed managed order-association producer with qualified review backend
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist tests/wordpress/NativeManagedOrderAssociationCompositionTest.php --log-junit evidence/managed-producer-junit.xml
 
       - name: Verify service remains outside WordPress export
         run: |

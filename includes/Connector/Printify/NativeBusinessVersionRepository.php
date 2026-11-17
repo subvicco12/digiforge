@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace DigiForge\Connector\Printify;
 use DigiForge\Database\Tables;
 use DigiForge\Listings\Validator;
+use DigiForge\Orders\{PersonalizationReadContext,PersonalizationCurrentness};
 /**
  * Protected LOCAL business-order domain entities, not native allocation epochs.
  * Deliberately unregistered: no NativeCorePort capability, migration or dispatcher.
@@ -20,32 +21,32 @@ final class NativeBusinessVersionRepository {
   if($scope->shopId!==2||$scope->shopKey!=='personalized_pod')return self::deny('shop_scope');
   $initial=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(is_wp_error($initial))return $initial;
   $ready=self::storage();if(is_wp_error($ready))return $ready;
-  $resolve=static function()use($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject){try{return NativeBusinessOrderEvidence::resolveReviewed($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject);}catch(\Throwable){return self::unknown('source_resolution');}};
+  global $wpdb;$database=$wpdb;$connection=self::idleConnection();if(is_wp_error($connection))return $connection;
+  $resolve=static function(?PersonalizationReadContext $context=null)use($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject){try{return NativeBusinessOrderEvidence::resolveReviewed($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject,$context);}catch(\Throwable){return self::unknown('source_resolution');}};
   $association=$resolve();if(is_wp_error($association))return $association;
-  $source=NativeOrderSourceEvidence::resolve($scope,$actor,$sourceReceipt);if(is_wp_error($source)||$source['evidence_hash']!==$association['prepared_evidence']['source_evidence_hash'])return self::deny('source_identity');$stream=self::stream($scope,$source['order_identity']);$lock=self::lock($stream,self::localLock($scope,$localOrderId));if(is_wp_error($lock))return $lock;$transaction=false;
+  $source=NativeOrderSourceEvidence::resolve($scope,$actor,$sourceReceipt);if(is_wp_error($source)||$source['evidence_hash']!==$association['prepared_evidence']['source_evidence_hash'])return self::deny('source_identity');
+  if(!self::sameSession($database,$connection,false))return self::unknown('source_connection');
+  $stream=self::stream($scope,$source['order_identity']);$lock=self::lock($stream,self::localLock($scope,$localOrderId));if(is_wp_error($lock))return $lock;$phase=[];$responding=false;
   try {
    $ready=self::storage();if(is_wp_error($ready))return $ready;
-   // Source resolution must remain outside our transaction: its producers reject
-   // caller transactions and perform their own protected read-only snapshots.
-   $current=$resolve();$session=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(!self::same($association,$current,$initial,$session))return self::deny('currentness');
-   if(!self::statement('START TRANSACTION'))return self::unknown('begin');$transaction=true;if(!self::guard($lock,true))return self::unknown('transaction_lost');
+   $opened=self::openPhase($phase,$database,$connection,$scope,$actor,$localOrderId,$approvedPlanId,$lineAssociations,$association,$initial,$resolve);if(is_wp_error($opened))return $opened;
    $history=self::history($stream,true);if(is_wp_error($history))return $history;$head=$history===[]?null:$history[count($history)-1];
    if($head!==null&&$head['confirmation_state']!=='CONFIRMED')return self::unknown('unconfirmed_head');
-   global $wpdb;$localHeads=self::rows($wpdb->prepare('SELECT stream_key FROM '.NativeBusinessVersionSchema::table().' WHERE local_order_id=%d AND head_marker=1 LIMIT 2 FOR UPDATE',$localOrderId));if(is_wp_error($localHeads))return $localHeads;if(count($localHeads)>1)return self::deny('ambiguous_local_head');if($localHeads!==[]&&$localHeads[0]['stream_key']!==$stream)return self::deny('split_source_unsupported');
+   $localHeads=self::rows($wpdb->prepare('SELECT stream_key FROM '.NativeBusinessVersionSchema::table().' WHERE local_order_id=%d AND head_marker=1 LIMIT 2 FOR UPDATE',$localOrderId));if(is_wp_error($localHeads))return $localHeads;if(count($localHeads)>1)return self::deny('ambiguous_local_head');if($localHeads!==[]&&$localHeads[0]['stream_key']!==$stream)return self::deny('split_source_unsupported');
    $associationHash=$association['evidence_hash'];if($head!==null&&$head['payload']['local_order_id']!==$localOrderId)return self::deny('source_reassociation');$headVersion=$head===null?0:(int)$head['version_number'];$headHash=$head===null?self::ZERO:$head['record_hash'];
    if($head!==null&&$head['reviewed_association_hash']===$associationHash){
     $original=$head['payload']['parent_version_number']===$expectedVersionNumber&&$head['parent_version_hash']===$expectedVersionHash;
     $currentExpected=$headVersion===$expectedVersionNumber&&$headHash===$expectedVersionHash;
     if(!$original&&!$currentExpected)return self::deny('replay_head');
-    if(!self::guard($lock,true))return self::unknown('transaction_lost');if(!self::statement('COMMIT'))return self::unknown('replay_commit');$transaction=false;
-    $finalStorage=self::storage();if(!self::guard($lock,false)||is_wp_error($finalStorage))return self::unknown('replay_storage');$final=$resolve();$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);$confirmed=self::history($stream,false);$checkedStorage=self::storage();$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
-    if(!self::same($association,$final,$initial,$last)||is_wp_error($confirmed)||is_wp_error($checkedStorage)||$confirmed!==$history||!self::guard($lock,false))return self::unknown('replay_currentness');
-    return self::output($head,true);
+    $committed=self::commitPhase($phase,$scope,$actor,$localOrderId,$approvedPlanId);if(is_wp_error($committed))return $committed;
+    $finalStorage=self::storage();if(!self::guard($lock,false)||is_wp_error($finalStorage))return self::unknown('replay_storage');$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);$confirmed=self::history($stream,false);$checkedStorage=self::storage();$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
+    if(is_wp_error($last)||$last['scope']!==$initial['scope']||$last['session_fingerprint']!==$initial['session_fingerprint']||is_wp_error($confirmed)||is_wp_error($checkedStorage)||$confirmed!==$history||!self::guard($lock,false)||!self::sameSession($database,$connection,false))return self::unknown('replay_currentness');
+    $admitted=$phase['context']->finalAdmission(true);if(is_wp_error($admitted))return self::unknown('replay_response_authority');$responding=true;return self::output($head,true);
    }
    if($expectedVersionNumber!==$headVersion||!hash_equals($headHash,$expectedVersionHash))return self::deny('head_conflict');
    if($headVersion>=self::LIMIT)return self::deny('history_limit');
    if($head!==null&&($association['policy_subject']!==$head['payload']['policy_subject']||$association['policy_revision']<=$head['payload']['policy_revision']||$association['policy_proposal_hash']===$head['payload']['policy_proposal_hash']))return self::deny('review_lineage');
-   global $wpdb;$table=NativeBusinessVersionSchema::table();
+   $table=NativeBusinessVersionSchema::table();
    if($head!==null){$sql=$wpdb->prepare('UPDATE '.$table.' SET head_marker=NULL WHERE entity_id=%d AND stream_key=%s AND version_number=%d AND record_hash=%s AND head_marker=1 AND confirmation_state=%s',(int)$head['entity_id'],$stream,$headVersion,$headHash,'CONFIRMED');if(!self::statement($sql)||$wpdb->rows_affected!==1)return self::deny('head_conflict');}
    $reservationHash=NativePortContract::hash(['schema'=>'DF_LOCAL_BUSINESS_VERSION_RESERVATION_1','stream_key'=>$stream,'version_number'=>$headVersion+1,'reviewed_association_hash'=>$associationHash]);$now=current_time('mysql',true);$provisional=['stream_key'=>$stream,'local_order_id'=>(string)$localOrderId,'version_number'=>(string)($headVersion+1),'parent_version_hash'=>$headHash,'reviewed_association_hash'=>$associationHash,'record_payload'=>'','record_hash'=>$reservationHash,'record_seal'=>self::ZERO,'head_marker'=>'1','confirmation_state'=>'PENDING','confirmation_seal'=>self::ZERO,'created_by'=>(string)$actor,'created_at'=>$now];
    $wpdb->last_error='';$inserted=$wpdb->insert($table,$provisional,array_fill(0,count($provisional),'%s'));$entityId=$wpdb->insert_id;if($inserted!==1||$wpdb->last_error!==''||!is_int($entityId)||$entityId<1)return self::deny('reservation_failed');
@@ -56,33 +57,107 @@ final class NativeBusinessVersionRepository {
    if(!self::guard($lock,true))return self::unknown('write_transaction_lost');
    if(!self::audit(self::ISSUED,$entityId,$actor,$stream,$headVersion+1,$recordHash,$seal))return self::deny('audit_failed');
    $persisted=self::history($stream,true,true);if(is_wp_error($persisted))return $persisted;
-   if(!self::guard($lock,true))return self::unknown('transaction_lost');if(!self::statement('COMMIT'))return self::unknown('record_commit');$transaction=false;if(!self::guard($lock,false))return self::unknown('record_connection_lost');
-   // A durable PENDING entity is not an acknowledged version. Failed postcommit
-   // checks leave it pending; ordinary retries must deny and require inspection.
-   $post=$resolve();$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(!self::same($association,$post,$initial,$last))return self::unknown('postcommit_currentness');
+   $committed=self::commitPhase($phase,$scope,$actor,$localOrderId,$approvedPlanId);if(is_wp_error($committed))return $committed;
+   // PENDING is durable, but never a private confirmed version or native receipt.
+   $last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(is_wp_error($last)||$last['scope']!==$initial['scope']||$last['session_fingerprint']!==$initial['session_fingerprint'])return self::unknown('postcommit_currentness');
+   $admitted=$phase['context']->finalAdmission(true);if(is_wp_error($admitted))return self::unknown('record_response_authority');$phase=[];
    $ready=self::storage();if(is_wp_error($ready))return self::unknown('confirmation_storage');
-   if(!self::statement('START TRANSACTION'))return self::unknown('confirmation_begin');$transaction=true;if(!self::guard($lock,true))return self::unknown('confirmation_transaction_lost');
+   // A fresh server-issued context owns this second frame. Never repin phase one.
+   $opened=self::openPhase($phase,$database,$connection,$scope,$actor,$localOrderId,$approvedPlanId,$lineAssociations,$association,$initial,$resolve);if(is_wp_error($opened))return self::unknown('confirmation_authority');
    $readback=self::history($stream,true,true);if(is_wp_error($readback)||$readback!==$persisted)return self::unknown('confirmation_readback');$head=$readback[count($readback)-1];
    $confirmationSeal=self::seal('confirmation',$recordHash);
    $wpdb->last_error='';$confirmed=$wpdb->update($table,['confirmation_state'=>'CONFIRMED','confirmation_seal'=>$confirmationSeal],['entity_id'=>$entityId,'record_hash'=>$recordHash,'confirmation_state'=>'PENDING','head_marker'=>1],['%s','%s'],['%d','%s','%s','%d']);if($confirmed!==1||$wpdb->last_error!==''||!self::guard($lock,true)||!self::audit(self::CONFIRMED,$entityId,$actor,$stream,$headVersion+1,$recordHash,$confirmationSeal))return self::unknown('confirmation_persistence');
-   if(!self::guard($lock,true))return self::unknown('transaction_lost');if(!self::statement('COMMIT'))return self::unknown('confirmation_commit');$transaction=false;
-   $finalStorage=self::storage();if(!self::guard($lock,false)||is_wp_error($finalStorage))return self::unknown('final_storage');$finalHistory=self::history($stream,false);$final=$resolve();$checkedHistory=self::history($stream,false);$checkedStorage=self::storage();$finalSession=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
-   if(is_wp_error($finalHistory)||is_wp_error($checkedHistory)||is_wp_error($checkedStorage)||$checkedHistory!==$finalHistory||!self::guard($lock,false)||!self::same($association,$final,$initial,$finalSession)||count($finalHistory)!==$headVersion+1||$finalHistory[count($finalHistory)-1]['record_hash']!==$recordHash)return self::unknown('confirmation_final_readback');
-   return self::output($finalHistory[count($finalHistory)-1],false);
+   $committed=self::commitPhase($phase,$scope,$actor,$localOrderId,$approvedPlanId);if(is_wp_error($committed))return $committed;
+   $finalStorage=self::storage();if(!self::guard($lock,false)||is_wp_error($finalStorage))return self::unknown('final_storage');$finalHistory=self::history($stream,false);$checkedHistory=self::history($stream,false);$checkedStorage=self::storage();$finalSession=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
+   if(is_wp_error($finalHistory)||is_wp_error($checkedHistory)||is_wp_error($checkedStorage)||$checkedHistory!==$finalHistory||!self::guard($lock,false)||is_wp_error($finalSession)||$finalSession['scope']!==$initial['scope']||$finalSession['session_fingerprint']!==$initial['session_fingerprint']||count($finalHistory)!==$headVersion+1||$finalHistory[count($finalHistory)-1]['record_hash']!==$recordHash||!self::sameSession($database,$connection,false))return self::unknown('confirmation_final_readback');
+   $admitted=$phase['context']->finalAdmission(true);if(is_wp_error($admitted))return self::unknown('confirmation_response_authority');$responding=true;return self::output($finalHistory[count($finalHistory)-1],false);
   }catch(\Throwable){return self::unknown('exception');}
-  finally {if(!self::cleanup($transaction,$lock))return self::unknown('transaction_or_lock_cleanup');}
+  finally {
+   $clean=self::closeFailedPhase($phase);
+   if(!self::sameSession($database,$connection,null)||!self::unlock($lock))$clean=false;
+   if(!$clean)return self::unknown('transaction_or_lock_cleanup');
+   if($responding){try{
+    $fresh=$resolve();if(!is_array($fresh)||$fresh!==$association)return self::unknown('response_source');
+    $authority=self::responseAuthority($scope,$actor,$initial);if(is_wp_error($authority))return $authority;
+    if(!self::sameSession($database,$connection,false))return self::unknown('response_connection');
+    $admitted=$phase['context']->finalAdmission(true);if(is_wp_error($admitted))return self::unknown('response_reviewer_authority');
+    if(!self::pureActor($actor))return self::unknown('response_actor');
+   }catch(\Throwable){return self::unknown('response_authority');}}
+  }
  }
  public function readCurrent(ShopBinding $scope,int $actor,int $localOrderId,string $sourceReceipt,int $approvedPlanId,array $lineAssociations,string $policySubject):array|\WP_Error {
   if($scope->shopId!==2||$scope->shopKey!=='personalized_pod')return self::deny('shop_scope');
   $initial=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(is_wp_error($initial))return $initial;
   $ready=self::storage();if(is_wp_error($ready))return $ready;
   $resolve=static function()use($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject){try{return NativeBusinessOrderEvidence::resolveReviewed($scope,$actor,$localOrderId,$sourceReceipt,$approvedPlanId,$lineAssociations,$policySubject);}catch(\Throwable){return self::unknown('source_resolution');}};$association=$resolve();if(is_wp_error($association))return $association;
-  $source=NativeOrderSourceEvidence::resolve($scope,$actor,$sourceReceipt);if(is_wp_error($source)||$source['evidence_hash']!==$association['prepared_evidence']['source_evidence_hash'])return self::deny('source_identity');$stream=self::stream($scope,$source['order_identity']);$lock=self::lock($stream,self::localLock($scope,$localOrderId));if(is_wp_error($lock))return $lock;
+  $source=NativeOrderSourceEvidence::resolve($scope,$actor,$sourceReceipt);if(is_wp_error($source)||$source['evidence_hash']!==$association['prepared_evidence']['source_evidence_hash'])return self::deny('source_identity');$stream=self::stream($scope,$source['order_identity']);$lock=self::lock($stream,self::localLock($scope,$localOrderId));if(is_wp_error($lock))return $lock;$responding=false;
   try {
    $ready=self::storage();if(is_wp_error($ready))return $ready;$history=self::history($stream,false);if(is_wp_error($history))return $history;if($history===[])return self::deny('not_recorded');$head=$history[count($history)-1];if($head['confirmation_state']!=='CONFIRMED')return self::unknown('unconfirmed_head');if($head['payload']['local_order_id']!==$localOrderId||$head['reviewed_association_hash']!==$association['evidence_hash'])return self::deny('current_association');
-   $last=$resolve();$session=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);$again=self::history($stream,false);$checkedStorage=self::storage();$session=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(!self::same($association,$last,$initial,$session)||is_wp_error($again)||is_wp_error($checkedStorage)||$again!==$history||!self::guard($lock,false))return self::unknown('read_currentness');return self::output($head,false);
+   $last=$resolve();$session=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);$again=self::history($stream,false);$checkedStorage=self::storage();$session=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(!self::same($association,$last,$initial,$session)||is_wp_error($again)||is_wp_error($checkedStorage)||$again!==$history||!self::guard($lock,false))return self::unknown('read_currentness');$fresh=$resolve();if(!is_array($fresh)||$fresh!==$association)return self::unknown('read_response_authority');$responding=true;return self::output($head,false);
   }catch(\Throwable){return self::unknown('read_exception');}
-  finally {if(!self::cleanup(false,$lock))return self::unknown('lock_release');}
+  finally {
+   if(!self::cleanup(false,$lock))return self::unknown('lock_release');
+   if($responding){try{$fresh=$resolve();if(!is_array($fresh)||$fresh!==$association)return self::unknown('read_released_source');$authority=self::responseAuthority($scope,$actor,$initial);if(is_wp_error($authority))return $authority;}catch(\Throwable){return self::unknown('read_released_authority');}}
+  }
+ }
+ /** Source getters run only in autocommit. The owned frame uses retained/current Core reads. */
+ private static function openPhase(array &$phase,object $database,string $connection,ShopBinding $scope,int $actor,int $order,int $plan,array $lines,array $expected,array $session,callable $resolve):true|\WP_Error {
+  if(!self::sameSession($database,$connection,false))return self::unknown('phase_connection');
+  $local=self::localMaterial($order,$plan,false);if(is_wp_error($local))return $local;$business=[];
+  foreach($lines as $line){$mapping=$line['provider_mapping_id'];if(!isset($business[$mapping])){$read=NativeBusinessEvidence::product($scope,$actor,$mapping);if(is_wp_error($read))return $read;$business[$mapping]=$read;}}
+  // Context-free Core pre-reads do not consume the bounded retained lease.
+  $context=PersonalizationReadContext::capture($scope->shopKey,$order);if(is_wp_error($context))return $context;
+  $phase=['context'=>$context,'database'=>$database,'connection'=>$connection,'active'=>false,'committed'=>false,'released'=>false,'savepoint'=>null];
+  $current=$resolve($context);$last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(!self::same($expected,$current,$session,$last))return self::deny('phase_source_changed');
+  $again=self::localMaterial($order,$plan,false);if(is_wp_error($again)||$again!==$local)return self::deny('phase_local_changed');
+  foreach($lines as $line){$read=$business[$line['provider_mapping_id']];$observation=$current['prepared_evidence']['product_observations'][(string)$line['local_line_id']]??null;$hash=$observation===null?$read['evidence_hash']:NativePortContract::hash([$read['evidence_hash'],$observation]);if(($current['prepared_evidence']['product_dependency_hashes'][(string)$line['local_line_id']]??null)!==$hash)return self::deny('phase_business_changed');}
+  $phase['local']=$local;$phase['business']=$business;
+  $valid=$context->validateBeforeTransaction();if(is_wp_error($valid))return $valid;
+  if(!self::sameSession($database,$connection,false))return self::unknown('phase_start_connection');
+  if(!self::statement('START TRANSACTION'))return self::unknown('phase_begin');$phase['active']=true;
+  if(!self::sameSession($database,$connection,true))return self::unknown('phase_start_changed');
+  $point='df_local_bv_'.bin2hex(random_bytes(12));if(!self::statement('SAVEPOINT '.$point))return self::unknown('phase_savepoint');$phase['savepoint']=$point;
+  return self::pinPhase($phase,$scope,$actor,$order,$plan);
+ }
+ private static function pinPhase(array $phase,ShopBinding $scope,int $actor,int $order,int $plan):true|\WP_Error {
+  $snapshot=(new PersonalizationCurrentness($phase['context']))->forPlan($order,true);if(is_wp_error($snapshot))return $snapshot;
+  $local=self::localMaterial($order,$plan,true);if(is_wp_error($local)||$local!==$phase['local'])return self::deny('phase_local_changed');
+  $payload=json_decode($local['plan']['canonical_payload'],true);if(!is_array($payload)||!is_array($payload['personalization']??null)||Validator::canonicalJson($payload['personalization'])!==Validator::canonicalJson($snapshot))return self::deny('phase_personalization_changed');
+  foreach($phase['business']as $mapping=>$read){$locked=NativeBusinessEvidence::lockCurrent($scope,$actor,$mapping,$read['dependency_hashes']);if(is_wp_error($locked))return $locked;}
+  $valid=$phase['context']->validate();if(is_wp_error($valid))return $valid;
+  return NativeSourceTransaction::verify($phase['database'],$phase['connection']);
+ }
+ private static function commitPhase(array &$phase,ShopBinding $scope,int $actor,int $order,int $plan):true|\WP_Error {
+  $valid=self::pinPhase($phase,$scope,$actor,$order,$plan);if(is_wp_error($valid))return $valid;
+  if(!self::statement('COMMIT'))return self::unknown('phase_commit');
+  if(!self::sameSession($phase['database'],$phase['connection'],false))return self::unknown('phase_commit_connection');
+  $phase['active']=false;$phase['committed']=true;
+  $released=$phase['context']->release(true);$phase['released']=true;
+  return is_wp_error($released)?self::unknown('phase_release') : true;
+ }
+ private static function closeFailedPhase(array $phase):bool {
+  if($phase===[])return true;$clean=true;
+  if($phase['active']){
+   // A missing savepoint or changed physical session is a different caller frame.
+   // Never ROLLBACK that frame simply because @@in_transaction still says 1.
+   $owned=$phase['savepoint']!==null&&self::sameSession($phase['database'],$phase['connection'],true);
+   if($owned){$prior=$phase['database']->suppress_errors(true);try{$owned=self::statement('ROLLBACK TO SAVEPOINT '.$phase['savepoint']);}finally{$phase['database']->suppress_errors($prior);}}
+   if(!$owned||!self::sameSession($phase['database'],$phase['connection'],true)||!self::statement('ROLLBACK')||!self::sameSession($phase['database'],$phase['connection'],false))$clean=false;
+  }
+  if(!$phase['released']){try{$released=$phase['context']->release($phase['committed']);if(is_wp_error($released))$clean=false;}catch(\Throwable){$clean=false;}}
+  return $clean;
+ }
+ private static function localMaterial(int $order,int $plan,bool $lock):array|\WP_Error {
+  global $wpdb;$suffix=$lock?' FOR UPDATE':'';$orders=self::rows($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE id=%d'.$suffix,$order));$plans=self::rows($wpdb->prepare('SELECT * FROM '.Tables::fulfillment_plans().' WHERE id=%d AND order_id=%d'.$suffix,$plan,$order));
+  if(is_wp_error($orders)||is_wp_error($plans)||count($orders)!==1||count($plans)!==1)return self::deny('phase_local_source');return ['order'=>$orders[0],'plan'=>$plans[0]];
+ }
+ private static function idleConnection():string|\WP_Error {
+  global $wpdb;$database=$wpdb;$rows=self::rows('SELECT CONNECTION_ID() AS local_business_connection,@@session.in_transaction AS active,@@session.autocommit AS autocommit');
+  if($wpdb!==$database||is_wp_error($rows)||count($rows)!==1||!self::id($rows[0]['local_business_connection']??null)||(string)$rows[0]['active']!=='0'||(string)$rows[0]['autocommit']!=='1')return self::deny('caller_transaction');return (string)$rows[0]['local_business_connection'];
+ }
+ private static function sameSession(object $database,string $connection,?bool $active):bool {
+  global $wpdb;if($wpdb!==$database)return false;$rows=self::rows('SELECT CONNECTION_ID() AS local_business_connection,@@session.in_transaction AS active,@@session.autocommit AS autocommit');
+  return $wpdb===$database&&!is_wp_error($rows)&&count($rows)===1&&(string)($rows[0]['local_business_connection']??'')===$connection&&(string)$rows[0]['autocommit']==='1'&&($active===null||((string)$rows[0]['active']===($active?'1':'0')));
  }
  private static function storage():true|\WP_Error {
   try { $durable=\DigiForge\POD\PrintifyProductPipeline::durableDispatchSession();if(is_wp_error($durable))return $durable;global $wpdb;
@@ -126,6 +201,14 @@ final class NativeBusinessVersionRepository {
   foreach(['stream_key','source_order_identity','parent_version_hash','scope_fingerprint','session_fingerprint','reviewed_association_hash','prepared_evidence_hash','source_receipt','source_evidence_hash','approved_plan_payload_hash','policy_proposal_hash','local_dependency_hash']as $k)if(!self::digest($p[$k]))return false;
   $physical=$p['physical_scope'];if(!is_array($physical)||!array_is_list($physical)||count($physical)!==4||$physical[0]!=='personalized_pod'||!is_int($physical[1])||$physical[1]<1||!is_string($physical[2])||$physical[2]===''||strlen($physical[2])>191||!in_array($physical[3],['sandbox','test','production'],true)||$p['shop_key']!==$physical[0]||$p['environment']!==$physical[3])return false;
   if(!is_string($p['policy_subject'])||preg_match('/^[A-Za-z0-9_:.-]{1,240}$/D',$p['policy_subject'])!==1||!is_string($p['recorded_at'])||preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/D',$p['recorded_at'])!==1||!is_array($p['product_dependency_hashes'])||count($p['product_dependency_hashes'])<1||count($p['product_dependency_hashes'])>50)return false;foreach($p['product_dependency_hashes']as $id=>$hash)if(!self::id($id)||!self::digest($hash))return false;return true;
+ }
+ private static function pureActor(int $actor):bool {
+  foreach(['manage_digiforge','manage_digiforge_connections','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']as $cap)if(!current_user_can($cap))return false;
+  return get_current_user_id()===$actor&&is_user_logged_in();
+ }
+ private static function responseAuthority(ShopBinding $scope,int $actor,array $initial):true|\WP_Error {
+  $last=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
+  return is_array($last)&&$last['scope']===$initial['scope']&&$last['session_fingerprint']===$initial['session_fingerprint']&&self::pureActor($actor)?true:self::unknown('response_scope');
  }
  private static function same(array $expected,mixed $actual,array $session,mixed $last):bool {return is_array($actual)&&$actual===$expected&&is_array($last)&&$last['scope']===$session['scope']&&$last['session_fingerprint']===$session['session_fingerprint'];}
  private static function stream(ShopBinding $scope,string $identity):string {return NativePortContract::hash(['schema'=>'DF_LOCAL_BUSINESS_ORDER_STREAM_1','physical_scope'=>[$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment],'source_order_identity'=>$identity]);}
