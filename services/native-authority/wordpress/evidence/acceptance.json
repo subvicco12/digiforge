@@ -1,0 +1,145 @@
+{
+  "protocol_version": "db-gpo-native-reviewer-v1",
+  "baseline_source_commit": "b367652c8d1ae1448cf4da286a8959fe32204b25",
+  "scope": "OFFLINE_NATIVE_DB_REVIEWER_AND_MANAGED_B_CONSUMER_COMPOSITION",
+  "managed_held_plan_M01": "ACTUAL_OFFLINE_POSITIVE_PENDING_INDEPENDENT_ACCEPTANCE",
+  "deployment": "NOT_PERFORMED_MANUAL_DISPOSABLE_SCHEMA_ONLY",
+  "verification": [
+    {
+      "scope": "full new directory before last queue failure-cleanup branch",
+      "tests": 35,
+      "assertions": 345,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "log": "composition-35-green.log",
+      "xml": "composition-35-green.xml",
+      "queue_source_sha256": "e8963b9a09411d9de9481141579911693bbacc6bfefa666012579c2bdbf2fe75"
+    },
+    {
+      "scope": "last queue failure-cleanup branch on final frozen application source",
+      "tests": 1,
+      "assertions": 16,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "log": "queue-pin-cleanup-green.log",
+      "xml": "queue-pin-cleanup-green.xml"
+    },
+    {
+      "scope": "existing LocalWorkflow and HeldJobRecovery regression in a separate bridge-absent process; before managed-only UNKNOWN/failure cleanup refinements",
+      "tests": 38,
+      "assertions": 484,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "log": "existing-consumers-green.log",
+      "xml": "existing-consumers-green.xml",
+      "diagnostics": "Existing legacy filename/class deprecation notices and expected AUDIT_WRITE_FAILED fault diagnostic retained."
+    }
+  ],
+  "independent_final_directory": "PENDING_ROOT_RUN_36_CASES",
+  "actual_red_cases": [
+    {
+      "case": "missing_component",
+      "tests": 1,
+      "assertions": 3,
+      "failures": 1,
+      "log": "missing-component-red.log"
+    },
+    {
+      "case": "managed_context_feature_absent",
+      "tests": 1,
+      "assertions": 12,
+      "failures": 1,
+      "log": "managed-context-red.log"
+    },
+    {
+      "case": "unrelated_subject_file_grant_unnecessarily_blocks_GPO_subject",
+      "tests": 1,
+      "assertions": 12,
+      "failures": 1,
+      "log": "unrelated-grant-red.log"
+    },
+    {
+      "case": "private_commit_witness_contradicts_claimed_commit",
+      "tests": 2,
+      "assertions": 29,
+      "failures": 2,
+      "log": "commit-truth-red.log"
+    },
+    {
+      "case": "queue_failed_pin_leaves_owned_frame_active",
+      "tests": 1,
+      "assertions": 13,
+      "failures": 1,
+      "log": "queue-pin-cleanup-red.log"
+    },
+    {
+      "case": "queue_pins_after_old_RR_snapshot",
+      "tests": 2,
+      "assertions": 55,
+      "errors": 1,
+      "log": "queue-pin-ordering-red.redacted.log"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "includes/Orders/PersonalizationCurrentness.php",
+      "sha256": "446b0f075ea904346ca647c0f95be8d8f1e727a8f6fdf5f43653cd6b3cf065dd"
+    },
+    {
+      "path": "includes/Orders/PersonalizationReadContext.php",
+      "sha256": "9c7a2e0f29f8275a315d06e9d396b4d1056cb0f5a6a13a3ca1846438a70603b8"
+    },
+    {
+      "path": "includes/Portal/OrderLocalWorkflow.php",
+      "sha256": "90fe4c576020be6cc8d37d4233813f4a5bd1e411d50c5253aaff878ad877295d"
+    },
+    {
+      "path": "includes/Queue/Shop2HeldJobRecovery.php",
+      "sha256": "d0a2bb84f13a3d55e7ad5e0bef74bf532f1c96e6cac188ea92cac4af9ca959d1"
+    },
+    {
+      "path": "services/native-authority/wordpress/OfflineSchema.php",
+      "sha256": "356eb24331096c70d3e387d1898fcfb0c9b9e9e6219824f192f6852854baf7f6"
+    },
+    {
+      "path": "services/native-authority/wordpress/README.md",
+      "sha256": "ece1e575b4dfa8f64086384dc650a944ffba2f466b7c1e4c69b774765b91953f"
+    },
+    {
+      "path": "services/native-authority/wordpress/RetainedReviewerAuthority.php",
+      "sha256": "1159e2044b6b16a9ece7154524e19566e0cb9c5304e314a1a370004f2e6a1656"
+    },
+    {
+      "path": "services/native-authority/wordpress/RetainedReviewerLease.php",
+      "sha256": "6bbe32835869316745b055e85048faba628f0026f4aa96d1ea44d674f976b95a"
+    },
+    {
+      "path": "services/native-authority/wordpress/Runtime.php",
+      "sha256": "87058e4a0c8b0c1abd607aef41ae83b096e73c65f8c6819ed83023c390641cb4"
+    },
+    {
+      "path": "services/native-authority/wordpress/bootstrap.php",
+      "sha256": "316a2462025ad8f7db7ed2f25898c20c6cdacb849c145b770897a94820f8fb07"
+    },
+    {
+      "path": "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php",
+      "sha256": "72ea999b57caef4cb8c3f4923a4192cf57a1cc337cb6de1e75a5ccef2f27570c"
+    },
+    {
+      "path": "services/native-authority/wordpress/tests/RetainedReviewerAuthorityTest.php",
+      "sha256": "0c595cc2c5287d65cc92c7872a642686a2c8fc2c5d3662fd0281e5f831bbb790"
+    }
+  ],
+  "claims_excluded": [
+    "No production install/migration or bridge deployment",
+    "No native allocation or provider execution grant",
+    "No whole M01-M09/21-case acceptance or capability-count promotion",
+    "No root/DDL/physical restore protection",
+    "No through-COMMIT clock freeze",
+    "No fabricated historical reviewer login",
+    "No automatic replay of uncertain local effects"
+  ]
+}

@@ -76,8 +76,9 @@ final class Shop2HeldJobRecovery
             $this->requireResult($context->validate());$result=$this->view($final);$this->commit($shop,$actor);$committed=true;$this->admit($shop,$actor);return array_replace($result,self::flags(!$changed,$changed));
         }catch(\Throwable $e){return self::error($e->getMessage(),$committed,$changed,$this->commitState);}finally{
             $cleanupFailed=$started&&!$committed&&!$this->rollbackOriginal($changed);if($cleanupFailed)$this->commitState='UNKNOWN';
-            if($context!==null){$released=$context->release();if(is_wp_error($released))return self::error('The retained photo read lease release is uncertain; inspect stored work without replay.',$committed,$changed,$this->commitState);
-                try{$this->admit($shop,$actor);}catch(\Throwable){return self::error('Current access changed after releasing the retained photo read lease.',$committed,$changed,$this->commitState);}}
+            if($context!==null){$released=$context->release($committed);if(is_wp_error($released)){if(($released->get_error_data()['transaction_outcome']??null)==='UNKNOWN')$this->commitState='UNKNOWN';return self::error('The retained photo read lease release is uncertain; inspect stored work without replay.',$committed,$changed,$this->commitState);}
+                try{$this->admit($shop,$actor);}catch(\Throwable){return self::error('Current access changed after releasing the retained photo read lease.',$committed,$changed,$this->commitState);}
+                $admitted=$context->finalAdmission($committed);if(is_wp_error($admitted))return self::error('Current retained reviewer authority changed after local enqueue.',$committed,$changed,$this->commitState);}
             if($cleanupFailed)return self::error('The original local rollback cannot be confirmed; inspect stored work without replay.',false,$changed,'UNKNOWN');
         }
     }
@@ -166,6 +167,7 @@ final class Shop2HeldJobRecovery
         $this->transaction=(string)$boundary['connection_id'];$this->database=$database;
         if($database->query('START TRANSACTION')===false||$database->last_error!==''){$this->rollbackOriginal(false);throw new \RuntimeException('Local metadata transaction could not start.');}
         if(is_wp_error(NativeSourceTransaction::verify($database,$this->transaction))){$this->rollbackOriginal(false);throw new \RuntimeException('A durable local metadata transaction is required.');}
+        if($context!==null){$valid=$context->validate();if(is_wp_error($valid)){if(!$this->rollbackOriginal(false))$this->commitState='UNKNOWN';$this->requireResult($valid);}}
     }
     private string $transaction='';
     private string $commitState='NOT_ATTEMPTED';

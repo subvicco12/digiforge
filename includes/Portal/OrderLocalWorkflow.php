@@ -133,10 +133,12 @@ final class OrderLocalWorkflow
    }
   }
   }finally{
-   $released=$context->release();$outcome=$committed?'COMMITTED':(($commitAttempted||$rollbackUncertain||$transactionUncertain)?'UNKNOWN':'NOT_COMMITTED');
+   $released=$context->release($committed);$outcome=$committed?'COMMITTED':(($commitAttempted||$rollbackUncertain||$transactionUncertain)?'UNKNOWN':'NOT_COMMITTED');
+   if(is_wp_error($released)&&($released->get_error_data()['transaction_outcome']??null)==='UNKNOWN')$outcome='UNKNOWN';
    if(is_wp_error($released))return self::outcomeError('lease_release','The photo read lease release could not be confirmed. Inspect stored evidence before another decision.',$outcome);
    foreach(['manage_digiforge_orders','manage_digiforge_pod']as $cap){$admitted=\DigiForge\Security\ShopAccess::authorize($shop,$cap,$decisionActor);if(is_wp_error($admitted))return self::outcomeError('response_access','Current access changed after local review. Inspect the stored decision with an authorized reviewer.',$outcome);}
    if(!is_user_logged_in()||get_current_user_id()!==$decisionActor||!current_user_can('manage_digiforge_orders')||!current_user_can('manage_digiforge_pod')||get_current_user_id()!==$decisionActor)return self::outcomeError('response_access','The current actor changed after local review. Inspect the stored decision with an authorized reviewer.',$outcome);
+   $admitted=$context->finalAdmission($committed);if(is_wp_error($admitted))return self::outcomeError('response_authority','Current retained review authority changed after local review. Inspect stored evidence without replay.',$outcome);
   }
  }
  public function handle():void {
