@@ -6,6 +6,11 @@ use DigiForge\Core\Settings;
 use DigiForge\Database\Tables;
 use DigiForge\POD\PrintifyWebhookInbox;
 
+/** Real SQL still works internally; unsupported public driver custody must deny. */
+final class PrintifyUnsupportedDriverWpdb extends wpdb {
+ public function __get($name){return $name==='dbh'?null:parent::__get($name);}
+}
+
 /** Real local SQL boundaries and signed synthetic ingress; no adapter/authority stand-in. */
 final class PrintifyWebhookTransactionBoundaryTest extends WP_UnitTestCase
 {
@@ -123,5 +128,65 @@ final class PrintifyWebhookTransactionBoundaryTest extends WP_UnitTestCase
   add_filter('query',$revoke);
   try{$result=PrintifyWebhookInbox::reconcile($key,'RETRY_LOCAL',0,'synthetic final response revocation');}finally{remove_filter('query',$revoke);if($had)$user->add_cap($cap,$old);else $user->remove_cap($cap);}
   try{self::assertTrue($fired);$state=json_decode((string)$database->get_var($database->prepare('SELECT option_value FROM '.$database->options.' WHERE option_name=%s','digiforge_pfy_hook_state_'.$key)),true);self::assertSame(1,$state['revision']);self::assertSame(1,$state['attempts']);self::assertSame('RETRY_LOCAL',$state['state']);self::assertSame('1',(string)$database->get_var($database->prepare('SELECT COUNT(*) FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s','printify_webhook_reconciled','printify_webhook',$key)));self::assertSame('0',(string)$database->get_var('SELECT @@session.in_transaction'));self::assertWPError($result,'A committed private decision must not be returned after current module authority is lost.');self::assertSame(403,$result->get_error_data()['status']);}finally{PortalAccessFixture::reset();}
+ }
+ public function testCallerTransactionOpenedInsideStartQueryCannotBeImplicitlyCommitted():void {
+  global $wpdb;$database=$wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($database->prefix);$other->query('SET SESSION innodb_lock_wait_timeout=2');
+  $raw=(string)wp_json_encode(['id'=>wp_generate_uuid4(),'type'=>'order:shipment:created','created_at'=>gmdate('Y-m-d H:i:s+00:00'),'resource'=>['id'=>'synthetic-boundary-order','type'=>'order','data'=>['shop_id'=>'123']]]);
+  $signature='sha256='.hash_hmac('sha256',$raw,str_repeat('a',32));$event=PrintifyWebhookInbox::authenticate($this->binding,$raw,$signature);self::assertNotWPError($event);$key=$event['dedupe_key'];$this->keys[]=$key;
+  $marker='df_test_inbox_caller_'.str_replace('-','_',wp_generate_uuid4());$this->markers[]=$marker;$fired=false;$opened=null;$inserted=null;
+  $interleave=static function(string $sql)use($database,$marker,&$fired,&$opened,&$inserted):string {
+   if(!$fired&&$sql==='START TRANSACTION'){$fired=true;$opened=$database->query('START TRANSACTION');$inserted=$database->insert($database->options,['option_name'=>$marker,'option_value'=>'caller-pending','autoload'=>'no']);}
+   return $sql;
+  };
+  add_filter('query',$interleave);
+  try {
+   $result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);
+   $observed=['active_after'=>(string)$database->get_var('SELECT @@session.in_transaction'),'primary_marker'=>$database->get_var($database->prepare('SELECT option_value FROM '.$database->options.' WHERE option_name=%s',$marker)),'independent_before_rollback'=>$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker))];
+   self::assertNotFalse($database->query('ROLLBACK'));
+   $observed['independent_after_rollback']=$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker));
+   $observed['receipt_after_rollback']=$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s','digiforge_pfy_hook_'.$key));
+  }finally{remove_filter('query',$interleave);$database->query('ROLLBACK');$other->close();}
+  self::assertTrue($fired);self::assertNotFalse($opened);self::assertSame(1,$inserted);self::assertSame('caller-pending',$observed['primary_marker']);
+  $diagnostic=$observed;unset($diagnostic['receipt_after_rollback']);$diagnostic['receipt_persisted']=$observed['receipt_after_rollback']!==null;$diagnostic['result_state']=is_wp_error($result)?$result->get_error_code():($result['state']??null);
+  self::assertNull($observed['independent_after_rollback'],'Caller work must remain rollbackable: '.wp_json_encode($diagnostic));
+  self::assertWPError($result);self::assertSame('digiforge_printify_webhook_transaction_active',$result->get_error_code());self::assertSame('1',$observed['active_after']);self::assertNull($observed['independent_before_rollback']);self::assertNull($observed['receipt_after_rollback']);
+ }
+
+ public function testUnsupportedDriverDeniesBeforeNamedLockWithoutLeakingOwnership():void {
+  global $wpdb;$original=$wpdb;[$raw,$signature,$key]=$this->event();$replacement=new PrintifyUnsupportedDriverWpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$replacement->set_prefix($original->prefix);$lockCalls=0;
+  $trace=static function(string $sql)use(&$lockCalls):string{if(str_starts_with($sql,'SELECT GET_LOCK(')&&str_contains($sql,'df_pfy_hook_'))++$lockCalls;return $sql;};add_filter('query',$trace);$wpdb=$replacement;
+  try{$result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);$owner=$original->get_var($original->prepare('SELECT IS_USED_LOCK(%s)','df_pfy_hook_'.substr($key,0,48)));}
+  finally{$wpdb=$original;remove_filter('query',$trace);$replacement->close();}
+  self::assertWPError($result);self::assertSame('digiforge_printify_webhook_transaction_driver',$result->get_error_code());self::assertSame(0,$lockCalls);self::assertNull($owner);
+ }
+ public function testDriverLinkSwapCleansCapturedFrameAndLockWithoutTouchingReplacement():void {
+  global $wpdb;$database=$wpdb;$driver=$database->dbh;$replacement=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$replacement->set_prefix($database->prefix);$replacementDriver=$replacement->dbh;$observer=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$observer->set_prefix($database->prefix);[$raw,$signature,$key]=$this->event();$marker='df_test_driver_swap_'.str_replace('-','_',wp_generate_uuid4());$this->markers[]=$marker;$fired=false;
+  self::assertNotFalse($replacement->query('START TRANSACTION'));self::assertSame(1,$replacement->insert($replacement->options,['option_name'=>$marker,'option_value'=>'caller-pending','autoload'=>'no']));
+  $swap=static function(string $sql)use($database,$replacementDriver,$key,&$fired):string{if(!$fired&&str_starts_with($sql,'SELECT option_value FROM ')&&str_contains($sql,'digiforge_pfy_hook_'.$key)){$fired=true;$database->dbh=$replacementDriver;}return $sql;};add_filter('query',$swap);
+  try{$result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);$q=\mysqli_query($driver,'SELECT @@session.in_transaction');$originalActive=(string)\mysqli_fetch_row($q)[0];\mysqli_free_result($q);$observed=['replacement_active'=>(string)$replacement->get_var('SELECT @@session.in_transaction'),'marker'=>$observer->get_var($observer->prepare('SELECT option_value FROM '.$observer->options.' WHERE option_name=%s',$marker)),'lock'=>$observer->get_var($observer->prepare('SELECT IS_USED_LOCK(%s)','df_pfy_hook_'.substr($key,0,48)))];}
+  finally{remove_filter('query',$swap);$database->dbh=$driver;$database->query('ROLLBACK');$database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)','df_pfy_hook_'.substr($key,0,48)));$replacement->query('ROLLBACK');$replacement->close();$observer->close();}
+  self::assertTrue($fired);self::assertWPError($result);self::assertSame('0',$originalActive,'Captured original transaction must be cleaned');self::assertSame('1',$observed['replacement_active']);self::assertNull($observed['marker']);self::assertNull($observed['lock'],'Release the captured physical session lock');
+ }
+ public function testDriverSwapDuringLockAdmissionCannotAcquireOnReplacement():void {
+  global $wpdb;$database=$wpdb;$driver=$database->dbh;$replacement=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$replacement->set_prefix($database->prefix);$replacementDriver=$replacement->dbh;$observer=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$observer->set_prefix($database->prefix);[$raw,$signature,$key]=$this->event();$fired=false;
+  self::assertNotFalse($replacement->query('START TRANSACTION'));
+  $swap=static function(string $sql)use($database,$replacementDriver,&$fired):string{if(!$fired&&str_starts_with($sql,'SELECT GET_LOCK(')&&str_contains($sql,'df_pfy_hook_')){$fired=true;$database->dbh=$replacementDriver;}return $sql;};add_filter('query',$swap);
+  try{$result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);$owner=$observer->get_var($observer->prepare('SELECT IS_USED_LOCK(%s)','df_pfy_hook_'.substr($key,0,48)));$replacementActive=(string)$replacement->get_var('SELECT @@session.in_transaction');}
+  finally{remove_filter('query',$swap);$database->dbh=$driver;$replacement->get_var($replacement->prepare('SELECT RELEASE_LOCK(%s)','df_pfy_hook_'.substr($key,0,48)));$replacement->query('ROLLBACK');$replacement->close();$observer->close();}
+  self::assertTrue($fired);self::assertWPError($result);self::assertSame('digiforge_printify_webhook_transaction_active',$result->get_error_code());self::assertNull($owner,'A replacement driver must never acquire the helper named lock');self::assertSame('1',$replacementActive);
+ }
+ public function testCommitAdmissionCannotCommitReplacementCallerFrame():void {
+  global $wpdb;$database=$wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($database->prefix);[$raw,$signature,$key]=$this->event();$marker='df_test_commit_frame_'.str_replace('-','_',wp_generate_uuid4());$this->markers[]=$marker;$fired=false;
+  $replace=static function(string $sql)use($database,$marker,&$fired):string{if(!$fired&&$sql==='COMMIT'){$fired=true;$database->query('ROLLBACK');$database->query('START TRANSACTION');$database->insert($database->options,['option_name'=>$marker,'option_value'=>'caller-pending','autoload'=>'no']);}return $sql;};add_filter('query',$replace);
+  try{$result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);$observed=['active'=>(string)$database->get_var('SELECT @@session.in_transaction'),'independent'=>$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker))];$database->query('ROLLBACK');$after=$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker));}
+  finally{remove_filter('query',$replace);$database->query('ROLLBACK');$other->close();}
+  self::assertTrue($fired);self::assertNull($after,'Commit admission must not commit replacement caller work');self::assertWPError($result);self::assertSame('digiforge_printify_webhook_commit_unknown',$result->get_error_code());self::assertSame('1',$observed['active']);self::assertNull($observed['independent']);
+ }
+ public function testSameConnectionFrameReplacementInsideCallbackCannotAcknowledgeOrRollbackCallerWork():void {
+  global $wpdb;$database=$wpdb;$other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($database->prefix);[$raw,$signature,$key]=$this->event();$marker='df_test_callback_frame_'.str_replace('-','_',wp_generate_uuid4());$this->markers[]=$marker;$fired=false;
+  $replace=static function(string $sql)use($database,$marker,$key,&$fired):string{if(!$fired&&str_starts_with($sql,'SELECT option_value FROM ')&&str_contains($sql,'digiforge_pfy_hook_'.$key)){$fired=true;$database->query('ROLLBACK');$database->query('START TRANSACTION');$database->insert($database->options,['option_name'=>$marker,'option_value'=>'caller-pending','autoload'=>'no']);}return $sql;};add_filter('query',$replace);
+  try{$result=PrintifyWebhookInbox::receive($this->binding,$raw,$signature);$observed=['active'=>(string)$database->get_var('SELECT @@session.in_transaction'),'independent'=>$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker))];$database->query('ROLLBACK');$after=$other->get_var($other->prepare('SELECT option_value FROM '.$other->options.' WHERE option_name=%s',$marker));}
+  finally{remove_filter('query',$replace);$database->query('ROLLBACK');$other->close();}
+  self::assertTrue($fired);self::assertNull($after,'Lost ownership must leave replacement work rollbackable');self::assertWPError($result);self::assertSame('digiforge_printify_webhook_transaction_changed',$result->get_error_code());self::assertSame('1',$observed['active']);self::assertNull($observed['independent']);
  }
 }

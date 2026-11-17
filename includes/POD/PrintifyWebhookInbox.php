@@ -83,29 +83,98 @@ final class PrintifyWebhookInbox
   global $wpdb;$database=$wpdb;$database->last_error='';$session=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);if($database->last_error!==''||!is_array($session)||preg_match('/^[1-9][0-9]*$/D',(string)($session['connection_id']??''))!==1||(string)($session['autocommit']??'')!=='1'||(string)($session['active']??'')!=='0')return self::error('transaction_active',503);
   $sessionId=(string)$session['connection_id'];
   foreach([$database->options,Tables::audit_log()] as $table){$database->last_error='';$engine=$database->get_var($database->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));if($database->last_error!==''||strtoupper((string)$engine)!=='INNODB')return self::error('durable_storage',503);}
-  $lock='df_pfy_hook_'.substr($key,0,48);if((string)$database->get_var($database->prepare('SELECT GET_LOCK(%s, 0)',$lock))!=='1')return self::error('busy',503);
-  $started=false;$acknowledged=false;try{
+  $driver=self::driver($database);if($driver===null)return self::error('transaction_driver',503);
+  $lock='df_pfy_hook_'.substr($key,0,48);$acquired=self::acquireLock($database,$driver,$sessionId,$lock);if($acquired instanceof WP_Error)return $acquired;
+  $started=false;$acknowledged=false;$fence=null;try{
    // Storage and named-lock reads can run hooks; never implicitly commit a new caller frame.
    $database->last_error='';$boundary=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
    if($wpdb!==$database||$database->last_error!==''||!is_array($boundary)||(string)($boundary['connection_id']??'')!==$sessionId||(string)($boundary['autocommit']??'')!=='1'||(string)($boundary['active']??'')!=='0')return self::error('transaction_active',503);
-   if($database->query('START TRANSACTION')===false)return self::error('transaction',503);$started=true;
-   if(!self::currentTransaction($database,$sessionId))return self::error('transaction_changed',503);
-   $result=$callback();if(!self::currentTransaction($database,$sessionId))return self::error('transaction_changed',503);if($result instanceof WP_Error)return $result;
+   // Filters remain admission hooks, but cannot run between the last frame check
+   // and the physical fixed control statement. No driver reconnect or retry.
+   if(!self::controlAdmission($database,'START TRANSACTION'))return self::error('transaction',503);
+   $idle=self::driverFrame($database,$driver,$sessionId);if($wpdb!==$database||$idle===null||(string)$idle['autocommit']!=='1'||(string)$idle['active']!=='0')return self::error('transaction_active',503);
+   if(!self::controlSql($driver,'START TRANSACTION'))return self::error('transaction',503);$started=true;
+   // Volatile SQL ownership only: this is not an independent recovery checkpoint.
+   $fence='df_pfy_hook_owner_'.bin2hex(random_bytes(12));
+   if(!self::controlSql($driver,'SAVEPOINT '.$fence)||!self::currentTransaction($database,$driver,$sessionId,$fence))return self::error('transaction_changed',503);
+   $result=$callback();if(!self::currentTransaction($database,$driver,$sessionId,$fence))return self::error('transaction_changed',503);if($result instanceof WP_Error)return $result;
    if($finalAdmission!==null&&!$finalAdmission())return self::error('manual_reconciliation',403);if($wpdb!==$database)return self::error('transaction_changed',503);
-   if($database->query('COMMIT')===false)return self::error('commit_unknown',503);
-   $database->last_error='';$confirmed=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
-   if($wpdb!==$database||$database->last_error!==''||!is_array($confirmed)||(string)($confirmed['connection_id']??'')!==$sessionId||(string)($confirmed['autocommit']??'')!=='1'||(string)($confirmed['active']??'')!=='0')return self::error('commit_unknown',503);
+   if(!self::controlAdmission($database,'COMMIT'))return self::error('commit_unknown',503);
+   if($finalAdmission!==null&&!$finalAdmission())return self::error('manual_reconciliation',403);
+   if(!self::currentTransaction($database,$driver,$sessionId,$fence)||!self::controlSql($driver,'COMMIT'))return self::error('commit_unknown',503);
+   $confirmed=self::driverFrame($database,$driver,$sessionId);
+   if($wpdb!==$database||$confirmed===null||(string)$confirmed['autocommit']!=='1'||(string)$confirmed['active']!=='0')return self::error('commit_unknown',503);
    $started=false;$acknowledged=true;return $result;
   }catch(\Throwable){return self::error('persistence',503);}finally{
-   if($started){$database->last_error='';$cleanup=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.in_transaction AS active',ARRAY_A);if($database->last_error===''&&is_array($cleanup)&&(string)($cleanup['connection_id']??'')===$sessionId&&(string)($cleanup['active']??'')==='1')$database->query('ROLLBACK');}
-   $database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)',$lock));
+   $cleanupFailed=false;
+   // Cleanup alone may use the captured original connection after a global
+   // wpdb swap. Its private fence must still exist; replacement frames survive.
+   try{if($started&&$fence!==null&&apply_filters('query','ROLLBACK')==='ROLLBACK'&&self::ownedTransaction($driver,$sessionId,$fence)&&!self::controlSql($driver,'ROLLBACK'))$cleanupFailed=true;}catch(\Throwable){$cleanupFailed=true;}
+   if(!self::releaseLock($driver,$sessionId,$lock))$cleanupFailed=true;
    // A durable decision remains committed; current admission still gates its private response.
-   if($acknowledged&&$finalAdmission!==null){if(!$finalAdmission())return self::error('manual_reconciliation',403);if($wpdb!==$database)return self::error('transaction_changed',503);}
+   if($acknowledged&&$finalAdmission!==null){try{if(!$finalAdmission())return self::error('manual_reconciliation',403);if($wpdb!==$database||!self::sameDriver($database,$driver,$sessionId))return self::error('transaction_changed',503);}catch(\Throwable){return self::error('persistence',503);}}
+   if($acknowledged&&$cleanupFailed)return self::error('persistence',503);
   }
  }
- private static function currentTransaction(\wpdb $database,string $sessionId):bool {
-  global $wpdb;$database->last_error='';$frame=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
-  return $wpdb===$database&&$database->last_error===''&&is_array($frame)&&(string)($frame['connection_id']??'')===$sessionId&&(string)($frame['autocommit']??'')==='1'&&(string)($frame['active']??'')==='1';
+ private static function driver(\wpdb $database):?\mysqli {
+  try{$driver=$database->dbh;return $driver instanceof \mysqli?$driver:null;}catch(\Throwable){return null;}
+ }
+ private static function sameDriver(\wpdb $database,\mysqli $driver,string $sessionId):bool {
+  try{return self::driver($database)===$driver&&(string)\mysqli_thread_id($driver)===$sessionId;}catch(\Throwable){return false;}
+ }
+ private static function driverFrame(\wpdb $database,\mysqli $driver,string $sessionId):?array {
+  if(!self::sameDriver($database,$driver,$sessionId))return null;
+  return self::capturedFrame($driver,$sessionId);
+ }
+ private static function capturedFrame(\mysqli $driver,string $sessionId):?array {
+  try{if((string)\mysqli_thread_id($driver)!==$sessionId)return null;}catch(\Throwable){return null;}
+  try{$result=\mysqli_query($driver,'SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active');if(!$result instanceof \mysqli_result)return null;try{$frame=\mysqli_fetch_assoc($result);}finally{\mysqli_free_result($result);}return is_array($frame)&&(string)($frame['connection_id']??'')===$sessionId?$frame:null;}catch(\Throwable){return null;}
+ }
+ private static function releaseLock(\mysqli $driver,string $sessionId,string $lock):bool {
+  if(preg_match('/^df_pfy_hook_[a-f0-9]{48}$/D',$lock)!==1)return false;
+  $sql="SELECT RELEASE_LOCK('".$lock."')";$admitted=false;
+  try{$admitted=apply_filters('query',$sql)===$sql;}catch(\Throwable){}
+  // Even a rejected cleanup hook cannot redirect release to a replacement link.
+  // Release only the captured session's fixed lock; rejection still denies ACK.
+  if(self::capturedFrame($driver,$sessionId)===null)return false;
+  try{$result=\mysqli_query($driver,$sql);if(!$result instanceof \mysqli_result)return false;try{$row=\mysqli_fetch_row($result);}finally{\mysqli_free_result($result);}return $admitted&&is_array($row)&&(string)$row[0]==='1';}catch(\Throwable){return false;}
+ }
+ private static function acquireLock(\wpdb $database,\mysqli $driver,string $sessionId,string $lock):true|WP_Error {
+  global $wpdb;if(preg_match('/^df_pfy_hook_[a-f0-9]{48}$/D',$lock)!==1)return self::error('busy',503);
+  $sql="SELECT GET_LOCK('".$lock."', 0)";
+  try{
+   if(apply_filters('query',$sql)!==$sql)return self::error('busy',503);
+   $idle=self::driverFrame($database,$driver,$sessionId);if($wpdb!==$database||$idle===null||(string)$idle['autocommit']!=='1'||(string)$idle['active']!=='0')return self::error('transaction_active',503);
+   $before=self::lockOwner($driver,$sessionId,$lock);if($before===false||$before===$sessionId)return self::error('busy',503);
+   $result=\mysqli_query($driver,$sql);$value=null;
+   if($result instanceof \mysqli_result){try{$row=\mysqli_fetch_row($result);$value=is_array($row)?$row[0]:null;}finally{\mysqli_free_result($result);}}
+   if((string)$value==='1')return true;
+   // A single uncertain acquisition is never retried. Release only if this
+   // previously unowned captured session is now observed owning the exact lock.
+   if(self::lockOwner($driver,$sessionId,$lock)===$sessionId)self::releaseLock($driver,$sessionId,$lock);
+   return self::error('busy',503);
+  }catch(\Throwable){return self::error('busy',503);}
+ }
+ private static function lockOwner(\mysqli $driver,string $sessionId,string $lock):string|false|null {
+  if(preg_match('/^df_pfy_hook_[a-f0-9]{48}$/D',$lock)!==1||self::capturedFrame($driver,$sessionId)===null)return false;
+  try{$result=\mysqli_query($driver,"SELECT IS_USED_LOCK('".$lock."')");if(!$result instanceof \mysqli_result)return false;try{$row=\mysqli_fetch_row($result);}finally{\mysqli_free_result($result);}return is_array($row)?($row[0]===null?null:(string)$row[0]):false;}catch(\Throwable){return false;}
+ }
+ private static function controlAdmission(\wpdb $database,string $sql):bool {
+  global $wpdb;return $wpdb===$database&&apply_filters('query',$sql)===$sql&&$wpdb===$database;
+ }
+ /** Closed grammar; never executes caller SQL, rewritten filter output or provider requests. */
+ private static function controlSql(\mysqli $driver,string $sql):bool {
+  if(!in_array($sql,['START TRANSACTION','COMMIT','ROLLBACK'],true)&&preg_match('/^(?:SAVEPOINT|RELEASE SAVEPOINT) df_pfy_hook_owner_[a-f0-9]{24}$/D',$sql)!==1)return false;
+  try{return \mysqli_query($driver,$sql)===true;}catch(\Throwable){return false;}
+ }
+ private static function currentTransaction(\wpdb $database,\mysqli $driver,string $sessionId,string $fence):bool {
+  global $wpdb;return $wpdb===$database&&self::sameDriver($database,$driver,$sessionId)&&self::ownedTransaction($driver,$sessionId,$fence)&&$wpdb===$database;
+ }
+ private static function ownedTransaction(\mysqli $driver,string $sessionId,string $fence):bool {
+  $frame=self::capturedFrame($driver,$sessionId);
+  // COMMIT/ROLLBACK erases the private marker even if the same connection starts
+  // another transaction. Never roll back or acknowledge that replacement frame.
+  return $frame!==null&&(string)$frame['autocommit']==='1'&&(string)$frame['active']==='1'&&self::controlSql($driver,'RELEASE SAVEPOINT '.$fence)&&self::controlSql($driver,'SAVEPOINT '.$fence);
  }
  private static function error(string $code,int $status):WP_Error{return new WP_Error('digiforge_printify_webhook_'.$code,'Webhook evidence unavailable.',['status'=>$status,'business_transition_authorized'=>false]);}
 }
