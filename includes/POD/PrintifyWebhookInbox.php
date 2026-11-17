@@ -31,9 +31,11 @@ final class PrintifyWebhookInbox
  /** Explicit local retry/dead-letter evidence. No processing is scheduled. */
  public static function reconcile(string $dedupeKey,string $state,int $expectedRevision,string $note):array|WP_Error {
   if(!preg_match('/^[a-f0-9]{64}$/D',$dedupeKey)||!in_array($state,['RETRY_LOCAL','DEAD_LETTER','MANUALLY_RECONCILED'],true)||$expectedRevision<0||!preg_match('/^[a-zA-Z0-9 ._-]{1,160}$/D',$note))return self::error('manual_reconciliation',403);
-  return self::transaction($dedupeKey,function()use($dedupeKey,$state,$expectedRevision,$note){
+  $finalAdmission=null;
+  return self::transaction($dedupeKey,function()use($dedupeKey,$state,$expectedRevision,$note,&$finalAdmission){
    global $wpdb;$actor=get_current_user_id();$receipt=self::read('digiforge_pfy_hook_'.$dedupeKey);if($receipt instanceof WP_Error)return $receipt;if($receipt===null)return self::error('missing',404);if(!self::anchored($receipt,$dedupeKey))return self::error('corrupt_receipt',503);
    $shop=(string)($receipt['shop_key']??'');if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);
+   $finalAdmission=static fn():bool=>self::reconciliationAccess($shop,$actor);
    $key='digiforge_pfy_hook_state_'.$dedupeKey;$old=self::read($key);if($old instanceof WP_Error)return $old;
    $history=self::reconciliationHistory($dedupeKey,$old);if($history instanceof WP_Error)return $history;
    $revision=$history['revision'];if($revision!==$expectedRevision)return self::error('revision',409);if($revision>=self::RECONCILIATION_HISTORY_LIMIT)return self::error('history_bound',503);
@@ -44,7 +46,7 @@ final class PrintifyWebhookInbox
    if($ok!==1||!Logger::write('printify_webhook_reconciled',$next,'printify_webhook',$dedupeKey))return self::error('reconciliation_store',503);
    $confirmed=self::read($key);if($confirmed instanceof WP_Error)return $confirmed;$verified=self::reconciliationHistory($dedupeKey,$confirmed);
    if($verified instanceof WP_Error)return $verified;if($confirmed!==$next)return self::error('corrupt_state',503);if(!self::reconciliationAccess($shop,$actor))return self::error('manual_reconciliation',403);return $next;
-  });
+  },static function()use(&$finalAdmission):bool{return is_callable($finalAdmission)&&$finalAdmission();});
  }
  private static function reconciliationAccess(string $shop,int $actor):bool{return $actor>0&&get_current_user_id()===$actor&&current_user_can('manage_digiforge_connections')&&Owner::require($shop)===true&&ShopAccess::authorize($shop,'manage_digiforge_connections')===true&&get_current_user_id()===$actor&&is_user_logged_in()&&current_user_can('manage_digiforge_connections');}
  /** Local retained-history consistency only; coordinated rollback of state AND every audit root is not detectable here. */
@@ -77,11 +79,33 @@ final class PrintifyWebhookInbox
   foreach($rows as $raw){$anchor=json_decode($raw,true);if(is_array($anchor)&&isset($anchor['receipt_sha256'])&&is_string($anchor['receipt_sha256'])&&hash_equals($seal,$anchor['receipt_sha256']))return true;}return false;
  }
  private static function read(string $key):array|WP_Error|null {global $wpdb;$wpdb->last_error='';$raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$key));if($wpdb->last_error!=='')return self::error('read',503);if($raw===null)return null;$value=json_decode($raw,true);return is_array($value)?$value:self::error('corrupt',503);}
- private static function transaction(string $key,callable $callback):array|WP_Error {
-  global $wpdb;$wpdb->last_error='';$session=$wpdb->get_row('SELECT @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);if($wpdb->last_error!==''||!is_array($session)||(string)($session['autocommit']??'')!=='1'||(string)($session['active']??'')!=='0')return self::error('transaction_active',503);
-  foreach([$wpdb->options,Tables::audit_log()] as $table){$wpdb->last_error='';$engine=$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));if($wpdb->last_error!==''||strtoupper((string)$engine)!=='INNODB')return self::error('durable_storage',503);}
-  $lock='df_pfy_hook_'.substr($key,0,48);if((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 0)',$lock))!=='1')return self::error('busy',503);
-  $started=false;try{if($wpdb->query('START TRANSACTION')===false)return self::error('transaction',503);$started=true;$result=$callback();if($result instanceof WP_Error){$wpdb->query('ROLLBACK');$started=false;return $result;}if($wpdb->query('COMMIT')===false)return self::error('commit_unknown',503);$started=false;return $result;}catch(\Throwable){return self::error('persistence',503);}finally{if($started)$wpdb->query('ROLLBACK');$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
+ private static function transaction(string $key,callable $callback,?callable $finalAdmission=null):array|WP_Error {
+  global $wpdb;$database=$wpdb;$database->last_error='';$session=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);if($database->last_error!==''||!is_array($session)||preg_match('/^[1-9][0-9]*$/D',(string)($session['connection_id']??''))!==1||(string)($session['autocommit']??'')!=='1'||(string)($session['active']??'')!=='0')return self::error('transaction_active',503);
+  $sessionId=(string)$session['connection_id'];
+  foreach([$database->options,Tables::audit_log()] as $table){$database->last_error='';$engine=$database->get_var($database->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));if($database->last_error!==''||strtoupper((string)$engine)!=='INNODB')return self::error('durable_storage',503);}
+  $lock='df_pfy_hook_'.substr($key,0,48);if((string)$database->get_var($database->prepare('SELECT GET_LOCK(%s, 0)',$lock))!=='1')return self::error('busy',503);
+  $started=false;$acknowledged=false;try{
+   // Storage and named-lock reads can run hooks; never implicitly commit a new caller frame.
+   $database->last_error='';$boundary=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
+   if($wpdb!==$database||$database->last_error!==''||!is_array($boundary)||(string)($boundary['connection_id']??'')!==$sessionId||(string)($boundary['autocommit']??'')!=='1'||(string)($boundary['active']??'')!=='0')return self::error('transaction_active',503);
+   if($database->query('START TRANSACTION')===false)return self::error('transaction',503);$started=true;
+   if(!self::currentTransaction($database,$sessionId))return self::error('transaction_changed',503);
+   $result=$callback();if(!self::currentTransaction($database,$sessionId))return self::error('transaction_changed',503);if($result instanceof WP_Error)return $result;
+   if($finalAdmission!==null&&!$finalAdmission())return self::error('manual_reconciliation',403);if($wpdb!==$database)return self::error('transaction_changed',503);
+   if($database->query('COMMIT')===false)return self::error('commit_unknown',503);
+   $database->last_error='';$confirmed=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
+   if($wpdb!==$database||$database->last_error!==''||!is_array($confirmed)||(string)($confirmed['connection_id']??'')!==$sessionId||(string)($confirmed['autocommit']??'')!=='1'||(string)($confirmed['active']??'')!=='0')return self::error('commit_unknown',503);
+   $started=false;$acknowledged=true;return $result;
+  }catch(\Throwable){return self::error('persistence',503);}finally{
+   if($started){$database->last_error='';$cleanup=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.in_transaction AS active',ARRAY_A);if($database->last_error===''&&is_array($cleanup)&&(string)($cleanup['connection_id']??'')===$sessionId&&(string)($cleanup['active']??'')==='1')$database->query('ROLLBACK');}
+   $database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)',$lock));
+   // A durable decision remains committed; current admission still gates its private response.
+   if($acknowledged&&$finalAdmission!==null){if(!$finalAdmission())return self::error('manual_reconciliation',403);if($wpdb!==$database)return self::error('transaction_changed',503);}
+  }
+ }
+ private static function currentTransaction(\wpdb $database,string $sessionId):bool {
+  global $wpdb;$database->last_error='';$frame=$database->get_row('SELECT CONNECTION_ID() AS connection_id, @@session.autocommit AS autocommit, @@session.in_transaction AS active',ARRAY_A);
+  return $wpdb===$database&&$database->last_error===''&&is_array($frame)&&(string)($frame['connection_id']??'')===$sessionId&&(string)($frame['autocommit']??'')==='1'&&(string)($frame['active']??'')==='1';
  }
  private static function error(string $code,int $status):WP_Error{return new WP_Error('digiforge_printify_webhook_'.$code,'Webhook evidence unavailable.',['status'=>$status,'business_transition_authorized'=>false]);}
 }

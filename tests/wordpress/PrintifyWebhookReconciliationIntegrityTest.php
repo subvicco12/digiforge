@@ -127,9 +127,10 @@ final class PrintifyWebhookReconciliationIntegrityTest extends WP_UnitTestCase
         // Discover the real final authorization SELECT, without replacing its result.
         self::assertStringNotContainsString('printify_webhook_reconciled',$lastSignedRead);
         $matches=0;$fired=false;
-        // The same authorization query can occur in all three admission checks.
-        // Count its actual occurrences in an unchanged successful local operation.
-        $count=static function(string $sql)use($lastSignedRead,&$matches):string{if($sql===$lastSignedRead)++$matches;return $sql;};
+        // Count the repeated admission query only before COMMIT: response admission
+        // after a durable decision cannot exercise this rollback assertion.
+        $beforeCommit=true;
+        $count=static function(string $sql)use($lastSignedRead,&$matches,&$beforeCommit):string{if($sql==='COMMIT')$beforeCommit=false;if($beforeCommit&&$sql===$lastSignedRead)++$matches;return $sql;};
         add_filter('query',$count);
         try {$second=PrintifyWebhookInbox::reconcile($key,'MANUALLY_RECONCILED',1,'second local review');}
         finally {remove_filter('query',$count);}
