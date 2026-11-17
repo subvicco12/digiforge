@@ -36,9 +36,19 @@
       "log": "existing-consumers-green.log",
       "xml": "existing-consumers-green.xml",
       "diagnostics": "Existing legacy filename/class deprecation notices and expected AUDIT_WRITE_FAILED fault diagnostic retained."
+    },
+    {
+      "scope": "mapping capture ABA on final source; two actual DB connections and real public producer resolver",
+      "tests": 1,
+      "assertions": 18,
+      "failures": 0,
+      "errors": 0,
+      "exit_code": 0,
+      "log": "mapping-aba-green.log",
+      "xml": "mapping-aba-green.xml"
     }
   ],
-  "independent_final_directory": "PENDING_ROOT_RUN_36_CASES",
+  "independent_final_directory": "ROOT_INDEPENDENT36_PASS_BEFORE_MAPPING_FOLLOW_UP_FINAL37_PENDING",
   "actual_red_cases": [
     {
       "case": "missing_component",
@@ -81,12 +91,19 @@
       "assertions": 55,
       "errors": 1,
       "log": "queue-pin-ordering-red.redacted.log"
+    },
+    {
+      "case": "raw_mapping_capture_vs_authoritative_producer_mapping_ABA",
+      "tests": 1,
+      "assertions": 17,
+      "failures": 1,
+      "log": "mapping-aba-red.log"
     }
   ],
   "source_files": [
     {
       "path": "includes/Orders/PersonalizationCurrentness.php",
-      "sha256": "446b0f075ea904346ca647c0f95be8d8f1e727a8f6fdf5f43653cd6b3cf065dd"
+      "sha256": "5b4c6c4e2b8d1e68fb8ec4f40076e053170d3cc19f925a6436aecd422fe217b5"
     },
     {
       "path": "includes/Orders/PersonalizationReadContext.php",
@@ -126,7 +143,7 @@
     },
     {
       "path": "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php",
-      "sha256": "72ea999b57caef4cb8c3f4923a4192cf57a1cc337cb6de1e75a5ccef2f27570c"
+      "sha256": "bce7d67983bbc62ee806390a2f53e580d52d9b8c2a16838c81afb507eaee81cd"
     },
     {
       "path": "services/native-authority/wordpress/tests/RetainedReviewerAuthorityTest.php",
@@ -141,5 +158,15 @@
     "No through-COMMIT clock freeze",
     "No fabricated historical reviewer login",
     "No automatic replay of uncertain local effects"
-  ]
+  ],
+  "follow_up_base_source_commit": "98f4c2f243de9707c6d9657cf1294f5c260f4301",
+  "independent_baseline36": {
+    "tests": 36,
+    "assertions": 361,
+    "failures": 0,
+    "errors": 0,
+    "reported_by": "root",
+    "scope": "before mapping digest follow-up",
+    "xml_observed": "/tmp/root-native-retained-independent36.xml"
+  }
 }

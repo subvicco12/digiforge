@@ -11,7 +11,7 @@
         "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch"
       ],
       "observed": "Actual canonical business precedes reviewed connection; foreign-selected review author differs from canonical-input author; actual A selection/layout/render/package, retained owned-TX plan/review/intent, held bundle and BLOCKED queue job.",
-      "remaining_gate": "Deployment/backend qualification remains pending; independent final-source directory verification passed 36 tests/361 assertions."
+      "remaining_gate": "Deployment/backend qualification remains pending; independent final-source directory verification passed 37 tests/379 assertions."
     },
     {
       "id": "M02",
@@ -54,10 +54,11 @@
       "expected": "Stale selection/render/schema/version, replaced photo or revoked approval denies without substituting canonical reviewer or old asset.",
       "disposition": "PARTIAL_ACTUAL_COMPOSED_STALE_EPOCH_DENIAL",
       "actual_named_tests": [
-        "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch"
+        "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch",
+        "ManagedReviewerHeldCompositionTest::testActualMappingAbaCannotMixProducerSnapshotAndDifferentLockedMapping"
       ],
-      "observed": "After real revision3 with identical pixel/payload identity, old actual render/package/held plan deny, old package remains immutable, and queue remains BLOCKED. Canonical submission reviewer is never substituted.",
-      "remaining_gate": "Other schema/version/mapping/revoked-approval drift variants have not all been recomposed under the new managed positive; baseline data guards remain unchanged."
+      "observed": "After real revision3 with identical pixel/payload identity, old actual render/package/held plan deny, old package remains immutable, and queue remains BLOCKED. Canonical submission reviewer is never substituted. Actual two-connection mapping ABA also denies: the public producer full mapping SHA must match the exact captured/current raw mapping.",
+      "remaining_gate": "Other schema/version/mapping/revoked-approval drift variants have not all been recomposed under the new managed positive; baseline data guards remain unchanged. Canonical review-metadata raw corruption is outside ordinary supported writers and needs the additive public producer fields described in canonical-review-provenance-handoff.json; no A source was changed."
     },
     {
       "id": "M06",
@@ -111,8 +112,8 @@
   "newly_accepted_capabilities": [],
   "independent_final_source_run": {
     "path": "services/native-authority/evidence/wordpress-acceptance.json",
-    "tests": 36,
-    "assertions": 361,
+    "tests": 37,
+    "assertions": 379,
     "failures": 0
   }
 }

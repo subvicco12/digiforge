@@ -54,6 +54,12 @@ final class PersonalizationCurrentness
         $current=[];$counts=[];$order=$material['order'];foreach($material['lines']as $line){$id=(int)$line['provider_mapping_id'];if($id>0)$counts[$id]=($counts[$id]??0)+1;}
         foreach($material['lines']as $raw){
             $mapping=$material['graph']['mappings'][(int)$raw['provider_mapping_id']][0]??[];
+            $selection=$selections[(int)$raw['id']];
+            if($selection!==null){
+                $expectedMapping=$selection['snapshot']['provider_mapping_sha256']??null;
+                try{$actualMapping=hash('sha256',Validator::canonicalJson($mapping));}catch(\Throwable){return self::error('selection_identity','The retained full mapping source is unavailable.');}
+                if(!is_string($expectedMapping)||preg_match('/^[a-f0-9]{64}$/D',$expectedMapping)!==1||!hash_equals($expectedMapping,$actualMapping))return self::error('selection_identity','The retained producer snapshot must bind the exact full current mapping.');
+            }
             $line=array_merge($raw,['channel'=>$order['channel'],'order_environment'=>$order['environment'],'mapping_id'=>$mapping['id']??null,'mapping_product_version_id'=>$mapping['product_version_id']??null,'mapping_environment'=>$mapping['environment']??null]);$rows=[];
             foreach($material['graph']['submissions'][(int)$raw['id']]as $ps){$schema=$material['graph']['schemas'][(int)$ps['personalization_schema_id']][0]??[];$rows[]=array_merge($ps,['schema_id'=>$schema['id']??null,'schema_product_version_id'=>$schema['product_version_id']??null,'field_definitions'=>$schema['field_definitions']??null,'schema_state'=>$schema['state']??null,'schema_approved_by'=>$schema['approved_by']??null,'schema_approved_at'=>$schema['approved_at']??null]);}
             $entry=self::validateLine((int)$order['id'],$line,$rows,$selections[(int)$raw['id']],$counts,$requireEveryLine);if(is_wp_error($entry))return $entry;if($entry!==null)$current[]=$entry;

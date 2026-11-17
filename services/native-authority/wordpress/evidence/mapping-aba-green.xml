@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="ManagedReviewerHeldCompositionTest" file="/workspace/digiforge-platform-sprint/native-authority-20261117/services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php" tests="1" assertions="18" errors="0" warnings="0" failures="0" skipped="0" time="3.041542">
+    <testcase name="testActualMappingAbaCannotMixProducerSnapshotAndDifferentLockedMapping" class="ManagedReviewerHeldCompositionTest" classname="ManagedReviewerHeldCompositionTest" file="/workspace/digiforge-platform-sprint/native-authority-20261117/services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php" line="182" assertions="18" time="3.041542"/>
+  </testsuite>
+</testsuites>
