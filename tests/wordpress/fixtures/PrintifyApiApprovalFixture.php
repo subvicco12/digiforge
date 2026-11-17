@@ -25,6 +25,9 @@ final class PrintifyApiApprovalFixture
   // Exact snapshots are restored below; the runtime ambiguity denial is unchanged.
   self::checked($wpdb->query('DELETE FROM '.$tables::integration_secrets()));
   self::checked($wpdb->query('DELETE FROM '.$tables::integrations()));
+  // Fixed canonical identities need the same isolation as synthetic connections.
+  // The captured business rows, including their original IDs, are restored below.
+  if($businessKey!==null)self::checked($wpdb->delete($tables::businesses(),['business_key'=>$businessKey],['%s']));
   PortalAccessFixture::reset();PortalAccessFixture::enroll();$this->ownerCookies=$_COOKIE;
   $this->reviewer=(int)self::checked(wp_insert_user(['user_login'=>'df_api_review_'.wp_generate_uuid4(),'user_pass'=>wp_generate_password(32),'role'=>'administrator']));
   $caps=\DigiForge\Core\Capabilities::ALL;$user=get_userdata($this->reviewer);foreach($caps as $cap)$user->add_cap($cap);

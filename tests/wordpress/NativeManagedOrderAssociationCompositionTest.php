@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use DigiForge\Connector\Printify\{NativeBusinessOrderEvidence,NativeBusinessVersionRepository,NativeBusinessVersionSchema};
 use DigiForge\Database\Tables;
-use DigiForge\Orders\HeldFulfillmentPreparation;
+use DigiForge\Orders\{HeldFulfillmentPreparation,PersonalizationCurrentness,PersonalizationReadContext};
 use DigiForge\Portal\OrderLocalWorkflow;
 use DigiForge\POD\{PrintifyApiReadWorkflow,PrintifyControlledTransport};
 use DigiForge\Security\ReviewedLocalEvidence;
@@ -161,6 +161,83 @@ final class NativeManagedOrderAssociationCompositionTest extends WP_UnitTestCase
             self::assertTrue($rolled);self::assertWPError($result);self::assertSame('UNKNOWN',$result->get_error_data()['outcome']);self::assertSame('0',$primary->get_var('SELECT COUNT(*) FROM '.NativeBusinessVersionSchema::table()));self::assertFalse($result->get_error_data()['retry_permitted']);
         }finally{$primary->query('ROLLBACK');$other->close();}
     }
+    public function testFixedCanonicalBusinessFixtureRestoresIncomingIdentityExactly():void
+    {
+        global $wpdb;$table=Tables::businesses();
+        $original=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE business_key=%s','digicraftifygoods'),ARRAY_A);
+        self::assertIsArray($original);
+        $nested=new PrintifyApiApprovalFixture();$failure=null;
+        try{
+            $nested->boot('digicraftifygoods');
+            $current=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE business_key=%s','digicraftifygoods'),ARRAY_A);
+            self::assertIsArray($current);self::assertNotSame($original['id'],$current['id'],'A prior business must not silently become the new fixture authority.');
+        }catch(\Throwable $error){$failure=$error->getMessage();}
+        finally{$nested->restore();}
+        self::assertSame($original,$wpdb->get_row($wpdb->prepare('SELECT * FROM '.$table.' WHERE id=%d',(int)$original['id']),ARRAY_A),'The original business ID and every field must survive the nested fixture.');
+        self::assertNull($failure,'Fixed-identity fixture must isolate incoming rows before boot: '.($failure??''));
+    }
+
+    public function testPublishedCanonicalReceiptRejectsMissingMalformedAndSubstitutedCurrentnessEvidence():void
+    {
+        $f=$this->helper('managedApprovedPhoto');
+        $selected=PrintifyApiApprovalFixture::checked((new \DigiForge\POD\CustomerPhotoSelection())->resolveForOrder('personalized_pod',$f['order'],$f['line']));
+        $material=PrintifyApiApprovalFixture::checked((new ReflectionMethod(PersonalizationReadContext::class,'readMaterial'))->invoke(null,$f['order'],false));
+        $project=static fn(array $candidate)=>PersonalizationCurrentness::projectRetainedMaterial($material,[$f['line']=>$candidate],true);
+        self::assertNotWPError($project($selected),'Actual published owner receipt must compose with current canonical material.');
+        $proof=$selected['review_provenance'];
+        self::assertNotSame($proof['reviewer_user_id'],$proof['canonical_reviewed_by']);
+        foreach(['canonical_review_status','canonical_reviewed_by','canonical_reviewed_at']as $field){
+            $bad=$selected;unset($bad['review_provenance'][$field]);
+            self::assertWPError($project($bad),'Missing public canonical identity must not be inferred: '.$field);
+        }
+        foreach([
+            ['canonical_review_status','REJECTED'],
+            ['canonical_reviewed_by',$proof['reviewer_user_id']],
+            ['canonical_reviewed_by',(string)$proof['canonical_reviewed_by']],
+            ['canonical_reviewed_by',0],
+            ['canonical_reviewed_at','2001-01-01 00:00:00'],
+            ['canonical_reviewed_at',0],
+            ['version','shop2-photo-review-proof-unknown'],
+            ['selection_sha256',str_repeat('f',64)],
+            ['selection_revision',$selected['revision']+1],
+            ['review_sha256','unverified-review'],
+        ]as [$field,$value]){
+            $bad=$selected;$bad['review_provenance'][$field]=$value;
+            self::assertWPError($project($bad),'Tampered copies of the real owner receipt must deny: '.$field);
+        }
+    }
+
+    public function testActualCanonicalReviewMetadataAbaCannotMixPublicReceiptAndLockedMaterial():void
+    {
+        $f=$this->helper('managedApprovedPhoto');global $wpdb;$primary=$wpdb;
+        $table=Tables::personalization_submissions();$id=$f['selection']['submission_id'];
+        $original=$primary->get_row($primary->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id),ARRAY_A);
+        $other=new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);$other->set_prefix($primary->prefix);$other->suppress_errors(true);
+        self::assertNotSame($primary->get_var('SELECT CONNECTION_ID()'),$other->get_var('SELECT CONNECTION_ID()'));
+        $candidate='2001-01-01 00:00:00';self::assertNotSame($candidate,$original['reviewed_at']);
+        self::assertSame(1,$other->update($table,['reviewed_at'=>$candidate],['id'=>$id]));
+        self::assertWPError((new \DigiForge\POD\CustomerPhotoSelection())->resolveForOrder('personalized_pod',$f['order'],$f['line']));
+        $target=$primary->prepare('SELECT * FROM '.$table.' WHERE id=%d',$id);$repaired=false;$restored=false;$context=null;
+        $race=static function(string $sql)use($other,$primary,$table,$id,$original,$candidate,$target,&$repaired,&$restored):string{
+            if(!$repaired&&$sql===$target){$repaired=true;if($other->update($table,['reviewed_at'=>$original['reviewed_at']],['id'=>$id])!==1)throw new RuntimeException('Canonical producer-read repair failed.');}
+            if($repaired&&!$restored&&str_starts_with($sql,'SELECT ENGINE FROM information_schema.TABLES')&&str_contains($sql,\DigiForge\NativeAuthority\WordPress\OfflineSchema::generationTable($primary))){$restored=true;if($other->update($table,['reviewed_at'=>$candidate],['id'=>$id])!==1)throw new RuntimeException('Canonical metadata ABA restoration failed.');}
+            return $sql;
+        };
+        add_filter('query',$race);
+        try{
+            $context=PersonalizationReadContext::capture('personalized_pod',$f['order']);
+            if(is_wp_error($context))$result=$context;
+            else{$primary->query('START TRANSACTION');$result=$context->forOrder($f['order']);}
+            self::assertTrue($repaired);self::assertTrue($restored);
+            self::assertSame($candidate,$primary->get_var($primary->prepare('SELECT reviewed_at FROM '.$table.' WHERE id=%d',$id)));
+            self::assertWPError($result,'Exact current locked canonical review must match the actual immutable public owner receipt.');
+            self::assertSame('personalization_currentness_selection_review_changed',$result->get_error_code());
+        }finally{
+            remove_filter('query',$race);$primary->query('ROLLBACK');if($context instanceof PersonalizationReadContext)$context->release(false);
+            $other->update($table,['reviewed_at'=>$original['reviewed_at']],['id'=>$id]);$other->close();
+        }
+    }
+
     public function testReviewerRevocationAfterConfirmedCommitDeniesPrivateVersionResponse():void
     {
         $f=$this->fixture();$args=$this->reviewed($f);$this->installVersions();$confirmed=false;$released=false;$revoked=false;$releases=0;

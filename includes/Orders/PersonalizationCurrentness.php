@@ -78,6 +78,7 @@ final class PersonalizationCurrentness
         if(($selection['shop_key']??null)!=='personalized_pod'||($selection['review_state']??null)!=='APPROVED'||!is_int($selection['revision']??null)||$selection['revision']<1||!is_string($selection['sha256']??null)||preg_match('/^[a-f0-9]{64}$/D',$selection['sha256'])!==1||!is_int($selection['submission_id']??null)||!is_array($selection['snapshot']??null))return self::error('selection_identity','The authoritative selected-photo identity is invalid.');
         $matches=array_values(array_filter($rows,static fn(array $row):bool=>(int)$row['id']===$selection['submission_id']));if(count($matches)!==1||$matches[0]['review_status']!=='APPROVED')return self::error('selection_identity','The selected canonical submission is unavailable or no longer approved.');$row=$matches[0];$selected=$selection['snapshot'];
         if(($selected['order_id']??null)!==$orderId||($selected['line_item_id']??null)!==(int)$line['id']||($selected['product_version_id']??null)!==(int)$line['product_version_id']||($selected['provider_mapping_id']??null)!==$mapping||($selected['schema_id']??null)!==(int)$row['personalization_schema_id']||($selected['payload_sha256']??null)!==$row['payload_hash']||($selected['schema_sha256']??null)!==hash('sha256',(string)$row['field_definitions'])||!is_array($selected['payload']??null)||Validator::canonicalJson($selected['payload'])!==$row['canonical_payload'])return self::error('selection_identity','Exact selected order, line, version, mapping, typed schema and canonical payload must still match.');
+        if(!self::canonicalReviewMatches($row,$selection))return self::error('selection_review_changed','The approved photo review no longer matches the current canonical buyer input.');
     }
     if((int)$row['reviewed_by']<1||empty($row['reviewed_at'])||$row['environment']!==$line['environment']||(int)$row['schema_id']!==(int)$row['personalization_schema_id']||(int)$row['schema_product_version_id']!==(int)$line['product_version_id']||$row['schema_state']!=='APPROVED'||(int)$row['schema_approved_by']<1||empty($row['schema_approved_at']))return self::error('schema','The exact current human-approved typed schema and input are required.');
     try{
@@ -87,6 +88,24 @@ final class PersonalizationCurrentness
         PersonalizationPayloadContract::validate($fields,$payload);
     }catch(\Throwable){return self::error('payload','Current buyer values must match their exact canonical hash and typed schema.');}
     $entry=['order_line_item_id'=>(int)$line['id'],'product_version_id'=>(int)$line['product_version_id'],'provider_mapping_id'=>$mapping,'submission_id'=>(int)$row['id'],'personalization_schema_id'=>(int)$row['personalization_schema_id'],'payload_hash'=>$row['payload_hash'],'schema_sha256'=>hash('sha256',(string)$row['field_definitions']),'reviewed_by'=>(int)$row['reviewed_by'],'reviewed_at'=>$row['reviewed_at'],'schema_approved_by'=>(int)$row['schema_approved_by'],'schema_approved_at'=>$row['schema_approved_at']];if($selection!==null)$entry+=['selection_sha256'=>$selection['sha256'],'selection_revision'=>$selection['revision']];return $entry;
+    }
+
+    /** Compare owner-verified identity; retain the selected reviewer as a separate authority. */
+    private static function canonicalReviewMatches(array $row,array $selection):bool
+    {
+        $proof=$selection['review_provenance']??null;
+        return is_array($proof)
+            &&($proof['version']??null)==='shop2-photo-review-proof-v1'
+            &&($proof['selection_sha256']??null)===$selection['sha256']
+            &&($proof['selection_revision']??null)===$selection['revision']
+            &&($proof['decision']??null)==='APPROVED'
+            &&is_int($proof['reviewer_user_id']??null)&&$proof['reviewer_user_id']>0
+            &&is_string($proof['review_sha256']??null)&&preg_match('/^[a-f0-9]{64}$/D',$proof['review_sha256'])===1
+            &&is_string($proof['reviewed_at']??null)&&$proof['reviewed_at']!==''
+            &&($proof['canonical_review_status']??null)==='APPROVED'&&$proof['canonical_review_status']===$row['review_status']
+            &&is_int($proof['canonical_reviewed_by']??null)&&$proof['canonical_reviewed_by']>0&&$proof['canonical_reviewed_by']===(int)$row['reviewed_by']
+            &&is_string($proof['canonical_reviewed_at']??null)&&preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/D',$proof['canonical_reviewed_at'])===1
+            &&$proof['canonical_reviewed_at']===$row['reviewed_at'];
     }
 
     /** Canonical plan/held projection from server-resolved current input, never caller selection JSON. */
