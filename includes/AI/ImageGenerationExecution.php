@@ -73,6 +73,7 @@ final class ImageGenerationExecution
    if(!$sim&&is_array($meter)&&(($meter['observation_mode']??null)!=='NETWORK'||($meter['response_identity_kind']??null)!=='IMAGE_HTTP_REQUEST_ID'||($meter['request_sha256']??null)!==$h['request_sha256']||$meter['model']!==$h['model']))return self::error('cost_metering_identity');
    $out=array_replace($out,['reserved_maximum'=>$h['maximum_charge'],'currency'=>$h['currency'],'actual_charge'=>$sim?null:($snap['settlement']['charge']['amount']??null),'charge_finality'=>$sim?'NOT_PROVIDER_USAGE':FinalProviderStatement::finality($snap['settlement']),'observed_provider_usage'=>$sim?null:($meter['usage']??null),'simulated_usage'=>$sim?($meter['usage']??null):null,'cost_state'=>$sim?'SIMULATED_USAGE_NOT_PROVIDER_CHARGE_RESERVATION_RETAINED':$snap['cost_state'],'statement_review_available'=>!$sim&&is_array($meter)]);
   }
+  $history=(new ImageGenerationJournal())->executionEvidence($id,$job['event_sha256']);if($history instanceof WP_Error)return $history;$out['execution_history']=$history;
   $fresh=$this->access($shop);return $fresh instanceof WP_Error?$fresh:$out;
  }
  /** Only a human-reviewed final provider statement can lower exposure. UNKNOWN is never refunded. */
