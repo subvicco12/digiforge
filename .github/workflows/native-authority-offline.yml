@@ -61,6 +61,21 @@ jobs:
           coverage: none
           tools: composer:v2
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prepare existing pinned offline artwork processor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/digiforge-cutout-runtime"
+          "$RUNNER_TEMP/digiforge-cutout-runtime/bin/pip" install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=$RUNNER_TEMP/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$("$RUNNER_TEMP/digiforge-cutout-runtime/bin/python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Audit the existing offline processor dependencies
+        run: python3 bin/audit-cutout-dependencies.py
+
       - name: Prepare existing disposable WordPress harness
         run: |
           composer install --no-interaction --prefer-dist --no-progress
