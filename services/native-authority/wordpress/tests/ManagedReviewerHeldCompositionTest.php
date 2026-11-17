@@ -3,6 +3,11 @@ declare(strict_types=1);
 require_once dirname(__DIR__,4).'/tests/wordpress/CustomerPhotoHeldIntegrationTest.php';
 require_once dirname(__DIR__,4).'/tests/wordpress/OrderLocalWorkflowTest.php';
 require_once dirname(__DIR__).'/bootstrap.php';
+require_once __DIR__.'/Support/ManagedExpiryCases.php';
+require_once __DIR__.'/Support/ManagedScopeCases.php';
+require_once __DIR__.'/Support/ManagedCallerFrameCases.php';
+require_once __DIR__.'/Support/ManagedRevocationCases.php';
+require_once __DIR__.'/Support/ManagedCrashCases.php';
 
 use DigiForge\NativeAuthority\WordPress\OfflineSchema;
 use DigiForge\Orders\{PersonalizationReadContext,PersonalizationCurrentness,HeldFulfillmentPreparation,Repository};
@@ -15,6 +20,11 @@ use DigiForge\Database\Tables;
 final class ManagedReviewerHeldCompositionTest extends WP_UnitTestCase
 {
     use NativeBusinessOrderFixture;
+    use ManagedExpiryCases;
+    use ManagedScopeCases;
+    use ManagedCallerFrameCases;
+    use ManagedRevocationCases;
+    use ManagedCrashCases;
     private array $photoOptions=[];
     private array $customerIds=[];
     private $denyHttp;
@@ -51,6 +61,17 @@ final class ManagedReviewerHeldCompositionTest extends WP_UnitTestCase
         global $wpdb;$canonical=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::personalization_submissions().' WHERE id=%d',$selection['submission_id']),ARRAY_A);
         self::assertNotSame($reviewer,(int)$canonical['reviewed_by'],'Canonical-input reviewer must not be substituted for actual selected-review provenance.');
         return $f;
+    }
+    /** Actual managed positive setup shared by the acceptance-only Support traits. */
+    private function managedApprovedPhoto():array {
+        $f=$this->foreignReviewedPhoto();$photo=new CustomerPhotoSelection();$selection=$f['selection'];$revision=$selection['revision'];
+        PrintifyApiApprovalFixture::checked($photo->approvePhotoLayout($f['session'],$selection['sha256'],$revision,$f['template'],1,'Actual managed acceptance layout'));
+        $render=PrintifyApiApprovalFixture::checked($photo->prepare($f['session'],$selection['sha256'],$revision,$f['template'],1));
+        PrintifyApiApprovalFixture::checked($photo->approveRender($f['session'],$selection['sha256'],$revision,'Actual managed acceptance visual review'));
+        $package=PrintifyApiApprovalFixture::checked((new ProductionAuthorizationRepository())->create($f['order'],(int)$render['id']));
+        $package=PrintifyApiApprovalFixture::checked((new ProductionAuthorizationRepository())->approveForReview((int)$package['id']));
+        self::assertSame('APPROVED_PACKAGE',$package['state']);$this->install();
+        return $f+['render'=>$render,'package'=>$package];
     }
     private function install():void {
         remove_filter('query',[$this,'_create_temporary_tables']);remove_filter('query',[$this,'_drop_temporary_tables']);

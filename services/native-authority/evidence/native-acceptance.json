@@ -223,5 +223,11 @@
       "path": "services/native-authority/test/store.test.mjs",
       "sha256": "988cac7ee1dccd1ae6fda9d7f5ba60fcd6098f690549c5bbf21173dd74c7e53d"
     }
-  ]
+  ],
+  "successful_focused_ci": {
+    "head_sha": "efb907550dbadf78d74f6bddfb8f15d69315ddf3",
+    "run_id": 44017664794,
+    "conclusion": "SUCCESS",
+    "scope": "Native165, WordPress37, projection4 and existing bridge-absent consumers at this unchanged application source; expanded51 WordPress tests are separate local final-source evidence."
+  }
 }

@@ -45,7 +45,7 @@ Audit #5050 remains the preserved certified baseline. This new source needs its 
 ## Frozen-source evidence
 
 - [Native tests and N01–N12 dispositions](evidence/native-acceptance.json): 165 passing tests, including actual separate-process CAS, SIGKILL, readback, rotation and held recovery. Eight scenarios are demonstrated offline; N05/N09/N12 remain partial and N11 still requires the canonical tracking receipt consumer.
-- [Independent WordPress composition](evidence/wordpress-acceptance.json): 37 tests / 379 assertions, with unchanged PHP source hashes during execution. Actual foreign-reviewed selection reaches plan review, BLOCKED intent/job and held metadata; stale same-pixel revision, final reviewer revocation, contradictory COMMIT and failed pin cleanup are denied.
+- [Independent WordPress composition](evidence/wordpress-acceptance.json): 51 tests / 843 assertions, with unchanged PHP source hashes during execution. Actual foreign-reviewed selection reaches plan review, BLOCKED intent/job and held metadata; stale same-pixel revision, seven mutable revocation paths, natural expiry, scope/caller substitutions, contradictory COMMIT and failed pin cleanup are denied. Actual SIGKILL before/after COMMIT preserves the durable nonce and witness and prevents replay.
 - [M01–M09 scope and remaining gates](wordpress/evidence/m01-m09-disposition.json): component and composed evidence are distinguished. Remaining permutations are not promoted to complete requirement acceptance.
 - The existing shared-projection regression passes 4 tests / 41 assertions. All 32 previously accepted capabilities are preserved; no new 151-ledger promotion is claimed.
 
