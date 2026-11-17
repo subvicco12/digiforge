@@ -1,3 +1,7 @@
+# Approved Core pin promotion — 17 November 2026
+
+The current shipped Companion pin is `862caef4c69552f501efc1d959a1de92d8b88ca9`. See `CORE_PIN_PROMOTION_20261117.json` for the exact-source qualification, unchanged contract digest and retained operational blockers. The earlier pin reports below are historical evidence. The explicit `native-artifact-integrity.xml` fault profile is separate from normal GET acceptance. It requires a disposable extracted Core copy, a `.digiforge-disposable-native-fixture` marker and `DF_NATIVE_MUTABLE_FIXTURE` set to that copy’s canonical path; a Git checkout is rejected. Faults restore every modified member and never target the frozen archive. This engineering promotion grants no installation, credential, policy or provider-execution authority.
+
 # Current paired sprint qualification
 
 The current reviewed core pin is7d624512a0fab416278b7d8f88208c9463224b6f. See COMPLETION_SPRINT.md and COMPLETION_SPRINT_LEDGER.json for the current exact-head audit, preserved GET/source/held qualification and release blockers. The earlier05091b95 qualification below is retained as history; it does not override the current pin.

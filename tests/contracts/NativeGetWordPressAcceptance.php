@@ -22,7 +22,7 @@ final class NativeGetWordPressAcceptance extends WP_UnitTestCase {
    'order'=>['ORDER_READ',['order_id'=>'synthetic_order'],['order_id'=>'synthetic_order'],$order,'/v1/shops/12/orders/synthetic_order.json'],
   ];
  }
- private function reader():NativePortAdapter{return new NativePortAdapter(NativeBridge::connect('1.0.0'),getenv('DF_NATIVE_TEST_SHA'));}
+ private function reader():NativePortAdapter{return DigiForgePrintifyConnector\Plugin::nativePort();}
  public function testCompanionDiscoversReadManifestWithoutUnimplementedInspectionCapability():void {
   $p=NativeBridge::connect('1.0.0');try{$m=$this->reader()->contractManifest();}catch(RuntimeException){self::fail('Reviewed GET/PANEL manifest discovery must not require INSPECTION.');}self::assertSame(['PANEL','GET_READ'],$m['capabilities']);self::assertSame(getenv('DF_NATIVE_TEST_SHA'),$m['core_source_sha']);self::assertFalse($m['external_execution_authorized']);$this->expectException(RuntimeException::class);(new NativePortAdapter($p,str_repeat('0',40)))->contractManifest();
  }

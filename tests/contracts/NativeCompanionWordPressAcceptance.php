@@ -29,7 +29,7 @@ final class NativeCompanionWordPressAcceptance extends WP_UnitTestCase {
  }
  private function context(ShopBinding $s,string $view):array{return ['version'=>'1.0.0','view'=>$view,'session_fingerprint'=>hash('sha256',wp_get_session_token()),'csrf_token'=>wp_create_nonce(NativePanelAccessAdapter::nonceAction($s,$view))];}
  private function port():NativeCorePortInterface {$p=NativeBridge::connect('1.0.0');self::assertInstanceOf(NativeCorePortInterface::class,$p);return $p;}
- private function adapter():NativePortAdapter {return new NativePortAdapter($this->port(),getenv('DF_NATIVE_TEST_SHA'));}
+ private function adapter():NativePortAdapter {return DigiForgePrintifyConnector\Plugin::nativePort();}
  public function testExactManifestAndFiveActualNativePanelViews():void {
   $s=$this->scope();$p=$this->port();$m=$p->contractManifest();self::assertSame(getenv('DF_NATIVE_TEST_SHA'),$m['core_source_sha']);self::assertTrue(NativePortSchema::valid('manifest',$m));self::assertSame(['PANEL','GET_READ'],$m['capabilities']);
   foreach(['publication','orders','fulfillment','conflicts','unknown']as $view){$r=$this->adapter()->panelAccess($s,get_current_user_id(),$this->context($s,$view));self::assertNotWPError($r);self::assertTrue($r['read_only']);self::assertFalse($r['external_execution_authorized']);}
