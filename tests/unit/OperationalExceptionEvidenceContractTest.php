@@ -17,6 +17,7 @@ final class OperationalExceptionEvidenceContractTest extends TestCase {
   require_once __DIR__.'/../../includes/Operations/OperationalExceptionReadModel.php';
   $previous=$GLOBALS['wpdb']??null;
   $GLOBALS['wpdb']=new class {
+ public string $last_error='';
    public string $prefix='wp_';
    public string $countQuery='';
    public function prepare(string $query,int $limit):string{return str_replace('%d',(string)$limit,$query);}

@@ -1,0 +1,1 @@
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Actual core approved wire descriptor integration"><file>/companionrepo/tests/contracts/NativeCoreUploadWireAcceptance.php</file></testsuite></testsuites></phpunit>

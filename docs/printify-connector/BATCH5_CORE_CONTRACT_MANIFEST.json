@@ -1,0 +1,19 @@
+{
+  "source_sha": "702a4d078555ac9cb75fd115357db5387281c74a",
+  "source": "PR1264",
+  "files": {
+    "includes/PortalAccess/Owner.php": "82250e45c405064c477b2ef2ab24f1c3610446dd77d471a0ef8314dcb511aaa8",
+    "includes/Security/ShopAccess.php": "8be00b0389317c9ac3881c9c581c1ced40a4e172b12bcef5df8100d3677bee85",
+    "includes/POD/ScopedProviderConnection.php": "68ce534d270346b614b71ae040956bd6bc486d1d3abe9afb3147c4794ee34c95",
+    "includes/POD/ControlledExecutionTransaction.php": "c95830fa26cefeaac5ff04dd74123dfa171f1dece1a636bf792adb5d8aab3378",
+    "includes/Listings/PublishReviewRepository.php": "b57da11a9f1c7f4a02ff9d69a5f2d31c1bae59d5b0a6da7ec498a343d6e8c6eb",
+    "includes/Security/ReviewedLocalEvidence.php": "9b1acf6263bd3bb7b40f78ee56c8100f74dbb63436bf7eb2bca14c12fb3bad51",
+    "includes/Orders/FulfillmentEvidence.php": "08c6bd5525bb7a15ef860b7f5cefe4851a9f7c9a798a75607e5750e377f56bdc",
+    "includes/Orders/Validator.php": "f99ef56f942b23db75f45f3911cd09c549bb66041e8786ffa0bd92b242451747"
+  },
+  "missing_paths": [
+    "includes/Connector/Printify/MutationBridge.php",
+    "includes/Connector/Printify/Bridge.php"
+  ],
+  "execution_authorized": false
+}

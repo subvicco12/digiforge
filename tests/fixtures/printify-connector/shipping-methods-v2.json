@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "type": "shipping_method",
+      "id": "1",
+      "attributes": {
+        "name": "standard"
+      }
+    },
+    {
+      "type": "shipping_method",
+      "id": "2",
+      "attributes": {
+        "name": "priority"
+      }
+    },
+    {
+      "type": "shipping_method",
+      "id": "3",
+      "attributes": {
+        "name": "express"
+      }
+    },
+    {
+      "type": "shipping_method",
+      "id": "4",
+      "attributes": {
+        "name": "economy"
+      }
+    }
+  ],
+  "links": {
+    "standard": "https://api.printify.com/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/standard.json",
+    "priority": "https://api.printify.com/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/priority.json",
+    "express": "https://api.printify.com/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/express.json",
+    "economy": "https://api.printify.com/v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/economy.json"
+  }
+}

@@ -1,0 +1,2422 @@
+{
+  "contract": "DF_NATIVE_CORE_PORT_1",
+  "version": "1.0.0",
+  "core_reference_sha": "702a4d078555ac9cb75fd115357db5387281c74a",
+  "schema_dialect": "bounded-json-schema-subset-v1",
+  "limits": {
+    "document_bytes": 65536,
+    "value_bytes": 4194304,
+    "depth": 32
+  },
+  "factory": "DigiForge\\Connector\\Printify\\NativeBridge::connect(1.0.0)",
+  "$defs": {
+    "json_object": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_NATIVE_CORE_MANIFEST_1"
+          ]
+        },
+        "contract_version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "spec_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "core_source_sha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "authority": {
+          "type": "string",
+          "enum": [
+            "DIGIFORGE_CORE"
+          ]
+        },
+        "protocols": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            },
+            "inspection": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            },
+            "publication": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            },
+            "workflow": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            },
+            "operations": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            },
+            "native": {
+              "type": "string",
+              "enum": [
+                "1.0.0"
+              ]
+            }
+          },
+          "required": [
+            "base",
+            "inspection",
+            "publication",
+            "workflow",
+            "operations",
+            "native"
+          ],
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "GET_READ",
+              "MUTATION_ADMISSION",
+              "JOURNAL",
+              "INSPECTION",
+              "PUBLICATION_ADMISSION",
+              "WORKFLOW",
+              "OPERATIONS",
+              "ORDER_ALLOCATION",
+              "RECOVERY",
+              "PANEL"
+            ]
+          },
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "contract_version",
+        "spec_sha256",
+        "core_source_sha",
+        "authority",
+        "protocols",
+        "capabilities",
+        "external_execution_authorized"
+      ],
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "payload_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "intent_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "approval_reference": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "shop_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "integration_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "credential_reference": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shop_key": {
+          "type": "string",
+          "enum": [
+            "personalized_pod",
+            "standard_pod"
+          ]
+        },
+        "provider_shop_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "test",
+            "sandbox",
+            "production"
+          ]
+        },
+        "product_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_product_version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "operation_id",
+        "payload_fingerprint",
+        "intent_fingerprint",
+        "scope_fingerprint",
+        "approval_reference",
+        "shop_id",
+        "integration_id",
+        "credential_reference",
+        "actor_id",
+        "authorization_revision",
+        "shop_key",
+        "provider_shop_id",
+        "environment",
+        "product_version",
+        "expected_product_version"
+      ],
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "logical_reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "approval_reference": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "product_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_product_version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actor_id",
+        "logical_reference",
+        "approval_reference",
+        "authorization_revision",
+        "product_version",
+        "expected_product_version"
+      ],
+      "additionalProperties": false
+    },
+    "mutation_request": {
+      "type": "object",
+      "properties": {
+        "contract_version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "AUTHORIZE",
+            "REGISTER",
+            "CLAIM",
+            "RECOVER",
+            "CANCEL",
+            "RECEIPT_READ",
+            "RECONCILE",
+            "OUTCOME"
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/binding"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "evidence_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "maxItems": 20
+        },
+        "duplicate_key": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "data": {
+          "$ref": "#/$defs/json_object"
+        }
+      },
+      "required": [
+        "contract_version",
+        "action",
+        "binding",
+        "context",
+        "evidence_references",
+        "duplicate_key",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "mutation_response": {
+      "type": "object",
+      "properties": {
+        "contract_version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "AUTHORIZE",
+            "REGISTER",
+            "CLAIM",
+            "RECOVER",
+            "CANCEL",
+            "RECEIPT_READ",
+            "RECONCILE",
+            "OUTCOME"
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/binding"
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "journal_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "data": {
+          "$ref": "#/$defs/json_object"
+        },
+        "journal_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "contract_version",
+        "action",
+        "binding",
+        "recovery_epoch",
+        "checkpoint_epoch",
+        "journal_revision",
+        "data",
+        "journal_hash"
+      ],
+      "additionalProperties": false
+    },
+    "local_authority": {
+      "type": "object",
+      "properties": {
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "record_order",
+            "receive_webhook",
+            "inspect_workflows",
+            "inspect_reviews",
+            "record_review",
+            "record_fulfillment",
+            "inspect_fulfillment",
+            "inspect_allocations",
+            "inspect_recovery",
+            "panel_access"
+          ]
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "local_evidence_authorized": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_writes_denied": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "scope_fingerprint",
+        "actor_id",
+        "action",
+        "authorization_revision",
+        "local_evidence_authorized",
+        "external_writes_denied",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "review_item": {
+      "type": "object",
+      "properties": {
+        "subject_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "payload_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "PUBLICATION",
+            "ORDER",
+            "FULFILLMENT"
+          ]
+        },
+        "operation_state": {
+          "type": "string",
+          "enum": [
+            "PUBLICATION_PENDING",
+            "ORDER_REVIEW",
+            "FULFILLMENT_REVIEW",
+            "UNKNOWN",
+            "CONFLICTING",
+            "CANCELLED",
+            "FULFILLED",
+            "EXCEPTION"
+          ]
+        },
+        "review_state": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACKNOWLEDGED",
+            "CHANGES_REQUESTED",
+            "REJECTED",
+            "REVIEWED_LOCAL"
+          ]
+        },
+        "review_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "product_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "order_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "PROOF_MISSING",
+              "VERSION_STALE",
+              "APPROVAL_REVOKED",
+              "SNAPSHOT_STALE",
+              "UNRESOLVED_UNKNOWN",
+              "EVENT_CONFLICT",
+              "LINEAGE_UNVERIFIED"
+            ]
+          },
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "subject_hash",
+        "payload_hash",
+        "scope_fingerprint",
+        "kind",
+        "operation_state",
+        "review_state",
+        "review_revision",
+        "product_version",
+        "order_version",
+        "authorization_revision",
+        "recovery_epoch",
+        "blockers"
+      ],
+      "additionalProperties": false
+    },
+    "review_queue": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_REVIEW_QUEUE_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/review_item"
+          },
+          "maxItems": 20
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "evidence_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "checkpoint_epoch",
+        "items",
+        "read_only",
+        "external_execution_authorized",
+        "evidence_hash"
+      ],
+      "additionalProperties": false
+    },
+    "review_decision": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_LOCAL_REVIEW_DECISION_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "item": {
+          "$ref": "#/$defs/review_item"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "ACKNOWLEDGE",
+            "REQUEST_CORRECTION",
+            "REJECT",
+            "REVIEW_LOCAL"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "EVIDENCE_CHECKED",
+            "PROOF_MISSING",
+            "CORRECTION_REQUIRED",
+            "UNCERTAINTY_RETAINED"
+          ]
+        },
+        "next_review_state": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACKNOWLEDGED",
+            "CHANGES_REQUESTED",
+            "REJECTED",
+            "REVIEWED_LOCAL"
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "request_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "item",
+        "decision",
+        "reason",
+        "next_review_state",
+        "external_execution_authorized",
+        "request_hash"
+      ],
+      "additionalProperties": false
+    },
+    "review_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_LOCAL_REVIEW_RECEIPT_1"
+          ]
+        },
+        "request_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "subject_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "operation_state": {
+          "type": "string",
+          "enum": [
+            "PUBLICATION_PENDING",
+            "ORDER_REVIEW",
+            "FULFILLMENT_REVIEW",
+            "UNKNOWN",
+            "CONFLICTING",
+            "CANCELLED",
+            "FULFILLED",
+            "EXCEPTION"
+          ]
+        },
+        "review_state": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ACKNOWLEDGED",
+            "CHANGES_REQUESTED",
+            "REJECTED",
+            "REVIEWED_LOCAL"
+          ]
+        },
+        "review_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "request_hash",
+        "scope_fingerprint",
+        "actor_id",
+        "subject_hash",
+        "operation_state",
+        "review_state",
+        "review_revision",
+        "recovery_epoch",
+        "receipt_hash",
+        "external_execution_authorized"
+      ],
+      "additionalProperties": false
+    },
+    "allocation_request": {
+      "type": "object",
+      "properties": {
+        "order_identity": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "order_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "order_identity",
+        "order_version"
+      ],
+      "additionalProperties": false
+    },
+    "allocation_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_NATIVE_ALLOCATION_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "order_identity": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "order_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "approval_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "allocations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tracking_key": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "line_item_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "quantity": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "line_item_id",
+                    "quantity"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 100
+              }
+            },
+            "required": [
+              "tracking_key",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "order_identity",
+        "order_version",
+        "authorization_revision",
+        "approval_revision",
+        "allocations",
+        "recovery_epoch",
+        "checkpoint_epoch",
+        "read_only",
+        "external_execution_authorized",
+        "receipt_hash"
+      ],
+      "additionalProperties": false
+    },
+    "recovery_request": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "INSPECT"
+          ]
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "recovery_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_NATIVE_RECOVERY_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "journal_state": {
+          "type": "string",
+          "enum": [
+            "MISSING",
+            "PREPARED",
+            "FENCED",
+            "UNKNOWN",
+            "RECONCILED",
+            "CONFLICTING",
+            "CANCELLED"
+          ]
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "checkpoint_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "emergency_requested": {
+          "type": "boolean"
+        },
+        "emergency_acknowledged": {
+          "type": "boolean"
+        },
+        "pending_leases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_required": {
+          "type": "boolean"
+        },
+        "stop_all": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_lock": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "automation": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "release_hold": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "journal_state",
+        "generation",
+        "checkpoint_generation",
+        "recovery_epoch",
+        "checkpoint_epoch",
+        "emergency_requested",
+        "emergency_acknowledged",
+        "pending_leases",
+        "recovery_required",
+        "stop_all",
+        "external_lock",
+        "automation",
+        "release_hold",
+        "read_only",
+        "external_execution_authorized",
+        "receipt_hash"
+      ],
+      "additionalProperties": false
+    },
+    "panel_context": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "publication",
+            "orders",
+            "fulfillment",
+            "conflicts",
+            "unknown"
+          ]
+        },
+        "session_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "csrf_token": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{8,64}$"
+        }
+      },
+      "required": [
+        "version",
+        "view",
+        "session_fingerprint",
+        "csrf_token"
+      ],
+      "additionalProperties": false
+    },
+    "panel_access": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_NATIVE_PANEL_ACCESS_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "publication",
+            "orders",
+            "fulfillment",
+            "conflicts",
+            "unknown"
+          ]
+        },
+        "session_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "csrf_valid": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "access_granted": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "view",
+        "session_fingerprint",
+        "csrf_valid",
+        "access_granted",
+        "authorization_revision",
+        "expires_at",
+        "read_only",
+        "external_execution_authorized",
+        "receipt_hash"
+      ],
+      "additionalProperties": false
+    },
+    "inspection_response": {
+      "type": "object",
+      "properties": {
+        "inspection_version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/binding"
+        },
+        "read_authorized": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "observed_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "journal": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "PREPARED",
+                "FENCED",
+                "UNKNOWN",
+                "METADATA_RECONCILED",
+                "REJECTED",
+                "CONFLICTING",
+                "CANCELLED"
+              ]
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "minLength": 64,
+              "maxLength": 64
+            },
+            "approval_state": {
+              "type": "string",
+              "enum": [
+                "VALID",
+                "REVOKED",
+                "EXPIRED",
+                "UNKNOWN"
+              ]
+            },
+            "receipt_reference": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "event_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fence_present": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "state",
+            "revision",
+            "epoch",
+            "approval_state",
+            "receipt_reference",
+            "event_count",
+            "fence_present"
+          ],
+          "additionalProperties": false
+        },
+        "audit_events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "PREPARED",
+                  "FENCED",
+                  "UNKNOWN",
+                  "METADATA_RECONCILED",
+                  "REJECTED",
+                  "CONFLICTING",
+                  "CANCELLED"
+                ]
+              },
+              "occurred_at": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "event_hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              }
+            },
+            "required": [
+              "sequence",
+              "state",
+              "occurred_at",
+              "event_hash"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 20
+        },
+        "evidence_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "inspection_version",
+        "binding",
+        "read_authorized",
+        "observed_at",
+        "checkpoint_epoch",
+        "journal",
+        "audit_events",
+        "evidence_hash"
+      ],
+      "additionalProperties": false
+    },
+    "workflow_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_WORKFLOW_RECEIPT_1"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ORDER_OBSERVATION",
+            "WEBHOOK_EVIDENCE",
+            "WEBHOOK_REJECTION"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "identity": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "RECORDED",
+            "DUPLICATE",
+            "CONFLICT",
+            "OUT_OF_ORDER",
+            "REJECTED"
+          ]
+        },
+        "journal_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "kind",
+        "scope_fingerprint",
+        "actor_id",
+        "identity",
+        "content_hash",
+        "disposition",
+        "journal_revision",
+        "recovery_epoch",
+        "checkpoint_epoch",
+        "external_execution_authorized",
+        "receipt_hash"
+      ],
+      "additionalProperties": false
+    },
+    "workflow_view": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_WORKFLOW_VIEW_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scope_fingerprint": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "ORDER_OBSERVATION",
+                  "WEBHOOK_EVIDENCE",
+                  "WEBHOOK_REJECTION",
+                  "PUBLICATION"
+                ]
+              },
+              "identity": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "minLength": 64,
+                "maxLength": 64
+              },
+              "disposition": {
+                "type": "string",
+                "enum": [
+                  "RECORDED",
+                  "DUPLICATE",
+                  "CONFLICT",
+                  "OUT_OF_ORDER",
+                  "REJECTED",
+                  "PENDING",
+                  "UNKNOWN"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "ORDER_REVIEW_REQUIRED",
+                  "AUTHORITATIVE_READBACK_REQUIRED",
+                  "EVENT_CONFLICT",
+                  "EVENT_OUT_OF_ORDER",
+                  "WEBHOOK_REJECTED",
+                  "PUBLICATION_PENDING",
+                  "UNRESOLVED_UNKNOWN"
+                ]
+              },
+              "manual_review_required": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            },
+            "required": [
+              "scope_fingerprint",
+              "kind",
+              "identity",
+              "disposition",
+              "reason",
+              "manual_review_required"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 20
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "evidence_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "items",
+        "read_only",
+        "external_execution_authorized",
+        "evidence_hash"
+      ],
+      "additionalProperties": false
+    },
+    "fulfillment_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_FULFILLMENT_RECEIPT_1"
+          ]
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "order_identity": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "order_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "RECORDED",
+            "DUPLICATE",
+            "CONFLICT",
+            "OUT_OF_ORDER"
+          ]
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "checkpoint_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "external_execution_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "scope_fingerprint",
+        "actor_id",
+        "order_identity",
+        "content_hash",
+        "order_version",
+        "disposition",
+        "recovery_epoch",
+        "checkpoint_epoch",
+        "receipt_hash",
+        "external_execution_authorized"
+      ],
+      "additionalProperties": false
+    },
+    "get_receipt": {
+      "type": "object",
+      "properties": {
+        "intent_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "shop_key": {
+          "type": "string",
+          "enum": [
+            "personalized_pod",
+            "standard_pod"
+          ]
+        },
+        "integration_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "OBSERVED"
+          ]
+        },
+        "status": {
+          "type": "integer",
+          "enum": [
+            200
+          ]
+        },
+        "request_attempted": {
+          "type": "boolean"
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "binding_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "observed_at": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "response_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "intent_id",
+        "operation",
+        "shop_key",
+        "integration_id",
+        "outcome",
+        "status",
+        "request_attempted",
+        "request_sha256",
+        "binding_sha256",
+        "observed_at",
+        "response_sha256",
+        "duration_ms"
+      ],
+      "additionalProperties": false
+    },
+    "mutation_authority": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "payload_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "intent_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "approval_reference": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "current_product_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_verified": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "approved": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "stop_all": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "external_lock": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        },
+        "evidence_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "maxItems": 20
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "operation_id",
+        "payload_fingerprint",
+        "intent_fingerprint",
+        "scope_fingerprint",
+        "approval_reference",
+        "actor_id",
+        "authorization_revision",
+        "current_product_version",
+        "evidence_verified",
+        "approved",
+        "stop_all",
+        "external_lock",
+        "evidence_references",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "journal_data": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "PREPARED",
+            "FENCED",
+            "UNKNOWN",
+            "CANCELLED",
+            "METADATA_RECONCILED"
+          ]
+        },
+        "fence_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "receipt_reference": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "provider_receipt_body": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,160}$"
+        },
+        "file_name": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}\\.png$"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shop_id": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        },
+        "blueprint_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "print_provider_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "is_locked": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "provider_receipt": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "DF_PRINTIFY_RECEIPT_1"
+          ]
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "payload_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "intent_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "scope_fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "approval_reference": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "fence_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "recovery_epoch": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "receipt_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "shop_key": {
+          "type": "string",
+          "enum": [
+            "personalized_pod",
+            "standard_pod"
+          ]
+        },
+        "integration_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "credential_reference": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider_shop_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "authorization_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "product_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "RESPONSE",
+            "UNKNOWN"
+          ]
+        },
+        "http_status": {
+          "type": "integer",
+          "enum": [
+            0,
+            200
+          ]
+        },
+        "sent_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "received_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "body": {
+          "$ref": "#/$defs/provider_receipt_body"
+        }
+      },
+      "required": [
+        "schema",
+        "operation_id",
+        "payload_fingerprint",
+        "intent_fingerprint",
+        "scope_fingerprint",
+        "approval_reference",
+        "event_id",
+        "fence_id",
+        "recovery_epoch",
+        "receipt_hash",
+        "shop_key",
+        "integration_id",
+        "credential_reference",
+        "provider_shop_id",
+        "authorization_revision",
+        "product_version",
+        "sequence",
+        "kind",
+        "http_status",
+        "sent_at",
+        "received_at",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "receipt_data": {
+      "type": "object",
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/provider_receipt"
+        }
+      },
+      "required": [
+        "receipt"
+      ],
+      "additionalProperties": false
+    },
+    "get_request": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shop_key": {
+          "type": "string",
+          "enum": [
+            "personalized_pod",
+            "standard_pod"
+          ]
+        },
+        "integration_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "SHOPS_READ",
+            "BLUEPRINTS_READ",
+            "PROVIDERS_READ",
+            "BLUEPRINT_READ",
+            "PROVIDER_READ",
+            "VARIANTS_READ",
+            "SHIPPING_READ",
+            "PRODUCTS_READ",
+            "ORDERS_READ",
+            "UPLOADS_READ",
+            "PRODUCT_READ",
+            "ORDER_READ",
+            "UPLOAD_READ"
+          ]
+        },
+        "input": {
+          "type": "object",
+          "properties": {
+            "blueprint_id": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "minimum": 1
+            },
+            "provider_id": {
+              "type": [
+                "string",
+                "integer"
+              ],
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "minimum": 1
+            },
+            "product_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,160}$"
+            },
+            "order_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,160}$"
+            },
+            "upload_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,160}$"
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "shipping_method": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "priority",
+                "express",
+                "economy"
+              ]
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "intent_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "source_references": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "maxItems": 10,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "actor_id",
+        "shop_key",
+        "integration_id",
+        "operation",
+        "input",
+        "intent_id",
+        "source_references"
+      ],
+      "additionalProperties": false
+    },
+    "get_response": {
+      "type": "object",
+      "properties": {
+        "interface_version": {
+          "type": "string",
+          "enum": [
+            "1.0.0"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/json_object"
+        },
+        "receipt": {
+          "$ref": "#/$defs/get_receipt"
+        },
+        "read_only": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "mutation_authorized": {
+          "type": "boolean",
+          "enum": [
+            false
+          ]
+        }
+      },
+      "required": [
+        "interface_version",
+        "data",
+        "receipt",
+        "read_only",
+        "mutation_authorized"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "methods": {
+    "read": {
+      "capability": "GET_READ",
+      "request": "get_request",
+      "response": "get_response",
+      "semantic": [
+        "PrintifyConnectorReadContract::prepare",
+        "ReadProjection",
+        "GET_ONLY",
+        "CORE_SAFETY_LOCKS"
+      ]
+    },
+    "exchange": {
+      "capability": "MUTATION_ADMISSION",
+      "request": "mutation_request",
+      "response": "mutation_response",
+      "semantic": [
+        "MutationIntent",
+        "VersionedMutationHost",
+        "ProviderReceipt",
+        "ATOMIC_AUTHORITY_AND_JOURNAL",
+        "NO_COMPANION_SENDER"
+      ]
+    },
+    "inspect": {
+      "capability": "INSPECTION",
+      "request": "binding",
+      "response": "inspection_response",
+      "semantic": [
+        "OperationInspection",
+        "CURRENT_LOCAL_READ_AUTHORITY"
+      ]
+    },
+    "authorizePublication": {
+      "capability": "PUBLICATION_ADMISSION",
+      "request": "PublicationContract + binding",
+      "response": "true or WP_Error",
+      "semantic": [
+        "GLOBAL_PRIMARY_OWNER",
+        "FRESH_STEP_UP",
+        "CURRENT_APPROVAL_AND_VERSION",
+        "STOP_ALL_DENY",
+        "EXTERNAL_LOCK_DENY"
+      ]
+    },
+    "authorizeWorkflow": {
+      "capability": "WORKFLOW",
+      "request": "ShopBinding + actor + fixed local action",
+      "response": "local_authority",
+      "semantic": [
+        "CURRENT_SESSION",
+        "EXACT_SHOP_MODULE",
+        "NO_EXTERNAL_GRANT"
+      ]
+    },
+    "withWebhookSecret": {
+      "capability": "WORKFLOW",
+      "request": "ShopBinding + trusted callback",
+      "response": "WebhookContract evidence or WP_Error",
+      "semantic": [
+        "CORE_EXCLUSIVE_CUSTODY",
+        "NO_SECRET_RETURN",
+        "HMAC_SHA256_RAW_BODY"
+      ]
+    },
+    "recordWorkflow": {
+      "capability": "WORKFLOW",
+      "request": "DF_WORKFLOW_INTAKE_1",
+      "response": "workflow_receipt",
+      "semantic": [
+        "WebhookContract",
+        "OrderReadModel",
+        "ATOMIC_EVENT_CLAIM_AUDIT",
+        "DUPLICATE_CONFLICT_ORDERING"
+      ]
+    },
+    "inspectWorkflows": {
+      "capability": "WORKFLOW",
+      "request": "ShopBinding + actor + limit<=20",
+      "response": "workflow_view",
+      "semantic": [
+        "CURRENT_LOCAL_READ_AUTHORITY",
+        "REDACTION"
+      ]
+    },
+    "reviewQueue": {
+      "capability": "OPERATIONS",
+      "request": "ShopBinding + actor + limit<=20",
+      "response": "review_queue",
+      "semantic": [
+        "ReviewContract",
+        "CONSISTENT_SNAPSHOT"
+      ]
+    },
+    "decideReview": {
+      "capability": "OPERATIONS",
+      "request": "review_decision",
+      "response": "review_receipt",
+      "semantic": [
+        "ReviewContract::transition",
+        "ATOMIC_CAS_VERSION_APPROVAL_EPOCH",
+        "NO_OPERATIONAL_STATE_CHANGE"
+      ]
+    },
+    "recordFulfillment": {
+      "capability": "OPERATIONS",
+      "request": "DF_FULFILLMENT_INTAKE_1",
+      "response": "fulfillment_receipt",
+      "semantic": [
+        "ShipmentReadModel",
+        "FulfillmentReconciler",
+        "CORE_READ_RECEIPT_ALLOCATION_LINEAGE"
+      ]
+    },
+    "inspectFulfillment": {
+      "capability": "OPERATIONS",
+      "request": "ShopBinding + actor + order_identity",
+      "response": "ShipmentReadModel 1.0.0 or WP_Error",
+      "semantic": [
+        "CURRENT_LOCAL_READ_AUTHORITY",
+        "CURRENT_ORDER_PRODUCT_VERSIONS"
+      ]
+    },
+    "allocation": {
+      "capability": "ORDER_ALLOCATION",
+      "request": "allocation_request",
+      "response": "allocation_receipt",
+      "semantic": [
+        "CORE_OWNED_ALLOCATION",
+        "NO_INFERRED_QUANTITIES",
+        "VERSION_APPROVAL_EPOCH_CHECK"
+      ]
+    },
+    "recovery": {
+      "capability": "RECOVERY",
+      "request": "recovery_request",
+      "response": "recovery_receipt",
+      "semantic": [
+        "SELECT_ONLY",
+        "NO_REARM",
+        "EMERGENCY_ALWAYS_INCREMENTS_GENERATION",
+        "ACK_AFTER_DRAIN",
+        "INDEPENDENT_CHECKPOINT"
+      ]
+    },
+    "panelAccess": {
+      "capability": "PANEL",
+      "request": "panel_context",
+      "response": "panel_access",
+      "semantic": [
+        "CURRENT_WORDPRESS_ACTOR_SESSION",
+        "CORE_NONCE_VALIDATION",
+        "EXACT_SHOP_MODULE",
+        "NO_AUTH_VALUES_IN_EXPORT"
+      ]
+    }
+  },
+  "invariants": [
+    "NO_PROVIDER_TRANSPORT_IN_COMPANION",
+    "STOP_ALL_AND_EXTERNAL_LOCK_DENY_PROVIDER_CALLS",
+    "GET_NEEDS_EXISTING_INDEPENDENT_OPERATIONAL_AUTHORITY",
+    "LOCAL_REVIEW_IS_NOT_EXECUTION_APPROVAL",
+    "DURABLE_CORE_JOURNAL_BEFORE_ACK",
+    "UNKNOWN_NEVER_REARMS_OR_RETRIES",
+    "NO_CREDENTIAL_OR_BUYER_DATA_EXPORT",
+    "EMERGENCY_EVENT_REVOKES_EVEN_IF_STOP_BOOLEAN_ALREADY_TRUE",
+    "FAILED_PERSISTENCE_DENIES_ACK",
+    "ALL_TRUSTED_ROOT_ROLLBACK_REMAINS_UNQUALIFIED"
+  ],
+  "schema_semantics": "All listed semantic validators are mandatory in addition to structural schemas. json_object fields are bounded typed-service payloads, never arbitrary HTTP requests or credentials."
+}

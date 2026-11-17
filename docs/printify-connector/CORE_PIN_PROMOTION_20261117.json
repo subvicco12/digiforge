@@ -1,0 +1,98 @@
+{
+  "schema": "DF_COMPANION_CORE_PIN_PROMOTION_1",
+  "date": "2026-11-17",
+  "companion_base_sha": "4da802a1568b13bcf1bbca28eba009b8b6148ef1",
+  "approved_core_sha": "862caef4c69552f501efc1d959a1de92d8b88ca9",
+  "previous_core_sha": "78e7f973455a3c89319be06f0907caf2103658a7",
+  "api_sha_preserved": "09de933114f98a66b52647b41e0903dc8d5aaa4f",
+  "authority": "Owner-approved source compatibility promotion only; no operational authority",
+  "core_exact_head_ci": {
+    "run": 43905825313,
+    "conclusion": "SUCCESS"
+  },
+  "canonical_contract_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "native_interface_fingerprint": "31b796a5d4dc65491e076fd18ba59a3edc074ea1ebf11a24e984150c93463902",
+  "core_offline_artifact_sha256": "6efe43424baa4f45933674bc92260eb18edcd113f9bb656e3c21c340e8b02729",
+  "artifact_inventory_members_verified": 36,
+  "red_evidence": [
+    "Unit test expected 862caef4 but observed 78e7f973",
+    "Actual new-Core default-discovery positive assertion returned WP_Error under old pin before promotion"
+  ],
+  "fresh_native_result": {
+    "tests": 45,
+    "assertions": 548,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "discovery": "Plugin::nativePort with no test-only expected-source override"
+  },
+  "unit": {
+    "tests": 1756,
+    "assertions": 9400,
+    "result": "PASS"
+  },
+  "focused_unit": {
+    "tests": 97,
+    "assertions": 321,
+    "result": "PASS"
+  },
+  "offline": {
+    "tests": 74,
+    "skips": 4,
+    "result": "PASS",
+    "skip_reason": "Private exact-baseline package input not supplied; historical package qualification preserved"
+  },
+  "static": {
+    "phpstan": "PASS serial --debug after sandbox loopback restriction in parallel mode",
+    "phpcs": "PASS"
+  },
+  "negative_cases": [
+    "Previous Core identity",
+    "Wrong native build schema",
+    "Altered native member",
+    "Mismatched canonical contract",
+    "Unexpected extra runtime inventory member",
+    "Wrong source/spec/version fixtures",
+    "Stale approval, session revocation, wrong shop/account/credential",
+    "Malformed response, rate limits and non-replayable UNKNOWN"
+  ],
+  "composition": "One DigiForge Core runtime plus actual Companion; no additional vault, mapping, sender, authority store or scheduler",
+  "capabilities": [
+    "PANEL",
+    "GET_READ"
+  ],
+  "mutation_activation": false,
+  "historical_reports_preserved": true,
+  "pr_scope": "1263 only; no API/Core source or CI workflow changes",
+  "new_companion_exact_head_ci": "Required after committing; terminal result recorded in final post-commit receipt, not predeclared here",
+  "fault_profile": {
+    "profile": "tests/contracts/native-artifact-integrity.xml",
+    "separate_from_normal_get_profile": true,
+    "requires": [
+      "Disposable extracted artifact only",
+      "DF_NATIVE_MUTABLE_FIXTURE equals real core root",
+      ".digiforge-disposable-native-fixture marker",
+      "No .git file or directory"
+    ],
+    "restores_mutated_members": true
+  },
+  "remaining_blockers": [
+    "Independent monotonic checkpoint/revocation authority outside supported coordinated rollback/admin domains",
+    "Exclusive usable credential custody, historical-copy invalidation and mandatory physical sender",
+    "Hosted durability, emergency drain and recovery qualification",
+    "Production identity/binding evidence and separate release/installation/provider acceptance approvals",
+    "Canonical REGISTER/CLAIM/publication/allocation/recovery remain denied where independent authority is required"
+  ],
+  "safety": {
+    "stop_all": "ON",
+    "external_lock": "ON",
+    "automation": "OFF",
+    "release_hold": "ACTIVE",
+    "production_changes": false,
+    "provider_requests": false,
+    "real_credentials": false,
+    "deployments": false,
+    "merges": false,
+    "historical_unknown_replay": false
+  }
+}

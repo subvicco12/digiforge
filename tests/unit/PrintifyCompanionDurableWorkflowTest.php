@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+use PHPUnit\Framework\TestCase;
+use DigiForgePrintifyConnector\Preparation\WorkflowCoordinator;
+require_once __DIR__.'/../fixtures/printify-connector/stage34/companion-test-bootstrap.php';
+final class PrintifyCompanionDurableWorkflowTest extends TestCase {
+ private string $path;protected function setUp():void{require_once __DIR__.'/../fixtures/printify-connector/batch4/DurableSyntheticWorkflowCore.php';$this->path=tempnam(sys_get_temp_dir(),'df-workflow-');unlink($this->path);}protected function tearDown():void{foreach(['','.lock','.tmp','.event']as $s)@unlink($this->path.$s);}
+ public function testCrashAfterCommitAndLostAckCannotDuplicateEvent():void{[$s,,,,,,$event,$secret]=(require __DIR__.'/../fixtures/printify-connector/batch4/fixture.php')();$raw=json_encode($event);$sig='sha256='.hash_hmac('sha256',$raw,$secret);$c=new DurableSyntheticWorkflowCore($this->path);$c->fault='lost_ack';self::assertInstanceOf(WP_Error::class,(new WorkflowCoordinator($c))->webhook($s,1,$raw,$sig));$w=new WorkflowCoordinator(new DurableSyntheticWorkflowCore($this->path));self::assertSame('DUPLICATE',$w->webhook($s,1,$raw,$sig)['disposition']);self::assertFalse($w->snapshot($s,1)['external_execution_authorized']);}
+ public function testConcurrentDuplicateEventsHaveOneRecordedWinner():void{[$s,,,,,,$event]=(require __DIR__.'/../fixtures/printify-connector/batch4/fixture.php')();file_put_contents($this->path.'.event',json_encode($event));$children=[];for($n=0;$n<2;$n++){$pipes=[];$p=proc_open([PHP_BINARY,__DIR__.'/../fixtures/printify-connector/batch4/event-worker.php',$this->path,$this->path.'.event'],[1=>['pipe','w'],2=>['pipe','w']],$pipes);self::assertIsResource($p);$children[]=[$p,$pipes];}$states=[];foreach($children as [$p,$pipes]){$out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);self::assertSame(0,proc_close($p),$out.$err);$states[]=$out;}sort($states);self::assertSame(['DUPLICATE','RECORDED'],$states);}
+}
