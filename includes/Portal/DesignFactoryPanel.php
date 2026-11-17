@@ -10,6 +10,7 @@ use WP_Error;
 /** Uses the already registered CommercialResearchPanel action; no new route or registration. */
 final class DesignFactoryPanel
 {
+    public function __construct(private ?\DigiForge\AI\ImageGenerationExecution $imageExecution=null){}
     public function render(string $shop,string $commercialHash,?array $supplierTemplate=null,bool $manualOnly=false): void
     {
         $commercial=(new CommercialResearchRepository())->read($shop,$commercialHash);if($commercial instanceof WP_Error||$commercial['record']['stage']!=='DESIGN_SELECTED')return;
@@ -34,7 +35,7 @@ final class DesignFactoryPanel
         }
         if($r['kind']==='SPEC_READY'){
             $status=$repo->providerStatus();echo '<p>Image provider: '.esc_html($status['reason']??'UNVERIFIED').'. Original editable artwork import is available; no paid API dependency is added.</p>';
-            if(!$manualOnly&&class_exists(ImageGenerationPanel::class))(new ImageGenerationPanel())->render($shop,$commercialHash,$hash);
+            if(!$manualOnly&&class_exists(ImageGenerationPanel::class))(new ImageGenerationPanel($this->imageExecution))->render($shop,$commercialHash,$hash);
             if(!$manualOnly&&!class_exists(ImageGenerationPanel::class)){$this->form('design_generate',$commercialHash,$hash);$this->check('confirm','Request one authorized design-provider attempt; STOP ALL still blocks dispatch');echo '<button class="df-button"'.(($status['available']??false)?'':' disabled').'>Request provider artwork</button></form>';}
             $this->form('design_import',$commercialHash,$hash);echo '<h4>Import actual original artwork</h4><label>Editable SVG file (maximum 60000 bytes, exact width/height/viewBox)<input type="file" name="artwork_svg" accept=".svg,image/svg+xml" required></label><label>Optional supplemental PNG files (up to three, maximum 2 MiB each)<input type="file" name="artwork_pngs[]" accept=".png,image/png" multiple></label><p>Complete non-interlaced 8-bit PNGs require exact canvas dimensions and embedded 300-DPI density. PNGs remain raster assets and are not embedded into the vector-only listing handoff.</p><p data-df-upload-status role="status" aria-live="polite"></p>';$this->field('rights_note','Original artwork / font licensing evidence');$this->field('source_note','Creation/import provenance and tool reference');echo '<button class="df-button">Import original editable artwork</button></form>';
         }
@@ -42,6 +43,7 @@ final class DesignFactoryPanel
             if(($r['provenance']['method']??null)==='GENERATED_RASTER_EDITABLE_DERIVATIVE'){
                 $origin=$r['provenance']['generated_source'];$png=$repo->generatedRaster($shop,$hash);
                 echo '<details open><summary>Generated source and editable adaptation review</summary><p>'.esc_html($origin['mode'].' · '.$origin['provider'].' / '.$origin['model']).'. Raster source is not editable vector. The imported SVG is a human-declared adaptation; visual fidelity, rights and native/physical output are separate review gates.</p><p>Request '.esc_html($origin['request_sha256']).' · source PNG '.esc_html($origin['raster_sha256']).'</p>';
+                if(isset($origin['artistic_binding'])){$b=$origin['artistic_binding'];$input=$repo->generatedInput($shop,$hash);echo '<p>'.esc_html($b['engine'].' · original product version '.$b['product_version_id'].' · input '.$b['input_sha256']).'. Original source/reference rights do not approve this generated output. Target geometry is an operator adaptation, not supplier qualification.</p>';if($input instanceof WP_Error)echo '<p role="alert">Original artistic input is unavailable. Review is held.</p>';else echo '<img alt="Exact original artistic input for independent identity review" style="max-width:100%;width:600px;height:auto" src="data:image/png;base64,'.esc_attr($input['base64']).'">';}
                 if($png instanceof WP_Error)echo '<p role="alert">Generated source is unavailable. Review is held.</p>';
                 else echo '<img alt="Exact generated raster source for independent human adaptation review" style="max-width:100%;width:600px;height:auto" src="data:image/png;base64,'.esc_attr($png['base64']).'">';
                 echo '<p>Approval requires confirmed adoption of this exact derivative. Interrupted adoption must be inspected/recovered; no checkbox overrides source admission.</p></details>';
@@ -103,7 +105,7 @@ final class DesignFactoryPanel
         else {
             $hash=$post['factory_hash']??null;if(!is_string($hash))return new WP_Error('design_factory_input','Exact design version required.');$current=$repo->read('personalized_pod',$hash);if($current instanceof WP_Error)return $current;if($current['record']['commercial_hash']!==$commercial)return new WP_Error('design_factory_input','Design belongs to another selected concept.');
             try {
-                if(is_string($op)&&str_starts_with($op,'design_image_')&&class_exists(ImageGenerationPanel::class))return (new ImageGenerationPanel())->process($post);
+                if(is_string($op)&&str_starts_with($op,'design_image_')&&class_exists(ImageGenerationPanel::class))return (new ImageGenerationPanel($this->imageExecution))->process($post);
                 if($op==='design_inspect')$result=$current;
                 elseif($op==='design_prepare'){
                     $regions=array_key_exists('native_regions',$post)?self::regions($post['native_regions']):self::json($post['native_regions_json']??null,16000);if(!is_string($post['palette']??null)||!is_string($post['asset_requirements']??null)||!is_string($post['profile']??null))throw new \InvalidArgumentException();

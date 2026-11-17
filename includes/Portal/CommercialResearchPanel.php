@@ -10,7 +10,7 @@ use WP_Error;
 final class CommercialResearchPanel
 {
     private const ACTION='digiforge_commercial_research';
-    public function __construct(private ?\DigiForge\Research\ResearchExecution $researchExecution=null){}
+    public function __construct(private ?\DigiForge\Research\ResearchExecution $researchExecution=null,private ?\DigiForge\AI\ImageGenerationExecution $imageExecution=null){}
     public function register(): void {add_action('admin_post_'.self::ACTION,[$this,'submit']);}
     public function render(string $shop,?array $supplierTemplate=null,bool $manualOnly=false,bool $supplierBound=false): void
     {
@@ -36,7 +36,7 @@ final class CommercialResearchPanel
         if($r['stage']==='RESEARCH_READY')$this->conceptIntake($r,$hash,$manualOnly);
         if(is_array($r['response']))$this->conceptCards($r,$hash);
         if($r['stage']==='DESIGN_SELECTED'){
-            (new DesignFactoryPanel())->render($shop,$hash,$supplierTemplate,$manualOnly);
+            (new DesignFactoryPanel($this->imageExecution))->render($shop,$hash,$supplierTemplate,$manualOnly);
             echo '<h3>Artwork prompt for selected concept '.esc_html((string)$r['selected_concept']).'</h3><textarea readonly rows="8">'.esc_textarea($r['design_prompt']).'</textarea><p>Use your authorized art tool or create original SVG source manually. This prompt is not artwork. Use the approved-concept workflow above for actual editable artwork intake.</p>';
             echo '<p>New concept artwork intake uses the approved-concept Design Factory above. Existing historical artwork evidence remains inspectable.</p>';
         }
@@ -125,7 +125,7 @@ final class CommercialResearchPanel
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
         if(is_string($op)&&str_starts_with($op,'research_queue_'))return (new ResearchExecutionPanel($this->researchExecution))->process($post);
         if(is_string($op)&&str_starts_with($op,'personalization_'))return (new ArtworkPersonalizationPanel())->process($post);
-        if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel())->process($post);
+        if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel($this->imageExecution))->process($post);
         if(is_string($op)&&str_starts_with($op,'package_'))return (new ProductPackagePanel())->process($post);
         if($op==='research_import'){
             $raw=$post['research_json']??null;

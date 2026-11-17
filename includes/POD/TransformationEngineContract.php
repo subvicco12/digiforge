@@ -9,7 +9,7 @@ final class TransformationEngineContract
     public const ENGINES=['PET_PORTRAIT','WATERCOLOR','LINE_ART','VINTAGE_PORTRAIT','AI_TRANSFORM'];
     public static function capabilities():array
     {
-        $out=[];foreach(self::ENGINES as $engine)$out[$engine]=['contract_version'=>self::VERSION,'design_direction'=>'OWNER_APPROVED','adapter'=>'REVIEWED_STORED_RESULT_IMPORT','deterministic_artistic_transform'=>false,'catalog_activation_allowed'=>false,'catalog_blocker'=>$engine==='VINTAGE_PORTRAIT'?'FIRST_APPROVED_PRODUCT_AND_STYLE_REQUIRED':'LICENSED_FIXTURES_AND_SEPARATE_PROMOTION_REQUIRED','certification'=>'NOT_CERTIFIED','external_execution_authorized'=>false];return $out;
+        $out=[];foreach(self::ENGINES as $engine)$out[$engine]=['contract_version'=>self::VERSION,'design_direction'=>'OWNER_APPROVED','adapter'=>'REVIEWED_STORED_RESULT_IMPORT','governed_candidate_adapter'=>\DigiForge\AI\ImageGenerationExecution::class,'editable_derivative_review'=>'SEPARATE_MANUAL_SVG_AND_HUMAN_REVIEW','governed_network_default'=>'DISABLED_CUSTODY_REQUIRED','deterministic_artistic_transform'=>false,'catalog_activation_allowed'=>false,'catalog_blocker'=>$engine==='VINTAGE_PORTRAIT'?'FIRST_APPROVED_PRODUCT_AND_STYLE_REQUIRED':'LICENSED_FIXTURES_AND_SEPARATE_PROMOTION_REQUIRED','certification'=>'NOT_CERTIFIED','external_execution_authorized'=>false];return $out;
     }
     public static function token(mixed $value):string
     {

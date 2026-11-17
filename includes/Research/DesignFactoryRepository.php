@@ -158,6 +158,10 @@ final class DesignFactoryRepository
         return $this->append($v,['kind'=>'SPEC_READY','specification'=>$spec,'asset'=>null,'provenance'=>null,'decision'=>null,'criteria'=>null,'note'=>$note]);
     }
     /** Source preview for a currently admitted human reviewer, resolved only from the saved derivative lineage. */
+    public function generatedInput(string $shop,string $hash):array|WP_Error
+    {
+        $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;$origin=$this->generatedSource($v,true);if($origin instanceof WP_Error)return $origin;if(!isset($origin['artistic_binding']))return self::error('No artistic input belongs to this version.');$b=$origin['artistic_binding'];$input=(new \DigiForge\POD\TransformationWorkflow())->artifact($shop,$b['source_key'],'source');if($input instanceof WP_Error)return $input;if($input['sha256']!==$b['input_sha256'])return self::error('Artistic input bytes changed.');return ['base64'=>base64_encode($input['bytes']),'mime_type'=>'image/png','sha256'=>$input['sha256'],'supplier_certified'=>false];
+    }
     public function generatedRaster(string $shop,string $hash):array|WP_Error
     {
         $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;$origin=$this->generatedSource($v);if($origin instanceof WP_Error)return $origin;if($origin===null)return self::error('No generated source is bound to this version.');

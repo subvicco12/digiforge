@@ -9,13 +9,14 @@ use WP_Error;
 /** Typed controls on the existing commercial-research action; no provider or route registration. */
 final class ImageGenerationPanel
 {
+    public function __construct(private ?ImageGenerationExecution $execution=null){$this->execution??=new ImageGenerationExecution();}
     public function render(string $shop,string $commercialHash,string $factorySpecHash):void
     {
         $source=$this->source($shop,$commercialHash,$factorySpecHash);
         if($source instanceof WP_Error)return;
         echo '<section class="df-image-generation"><h4>Governed original image generation</h4><p>Prepare an immutable request, review its exact inclusive provider quote, then request one independently authorized attempt. Raster candidates remain unapproved and not editable vector. STOP ALL and RELEASE HOLD remain.</p>';
         if(ImageGenerationAccess::authorize() instanceof WP_Error){echo '<p>Current Shop 2 AI authorization is required to inspect image policies and jobs. Network execution is held.</p></section>';return;}
-        $policies=(new ImageGenerationPolicyRepository())->recent();$jobs=(new ImageGenerationJournal())->recent($factorySpecHash);
+        $policies=(new ImageGenerationPolicyRepository())->recent();$jobs=(new ImageGenerationJournal())->forDesign($factorySpecHash);
         if($policies instanceof WP_Error||$jobs instanceof WP_Error){echo '<p>Image policy or job evidence is unavailable. Network execution is held.</p></section>';return;}
         echo '<p>Network execution is held: NETWORK_CUSTODY_UNAVAILABLE. This server has no reviewed credential custodian. Preparation, quote review and inspection do not enable automation or authorize spending.</p>';
         $available=[];
@@ -24,9 +25,10 @@ final class ImageGenerationPanel
             $this->form('prepare',$commercialHash,$factorySpecHash);echo '<label>Reviewed image policy <select name="policy_hash" required>';
             foreach($available as $policy){$p=$policy['policy'];echo '<option value="'.esc_attr($policy['hash']).'">'.esc_html($p['policy_key'].' / '.$p['version'].' · '.$p['size'].' · '.$p['quality'].' · maximum '.$p['currency'].' '.$p['maximum_task_charge'].($p['enabled']?' · reviewed enabled policy':' · disabled policy')).'</option>';}
             echo '</select></label><label>Previous attempt (optional successor) <select name="parent_job"><option value="">New independent request</option>';
-            foreach($jobs as $job)if($this->matches($job,$factorySpecHash)&&in_array($job['state'],['SUCCEEDED','CANCELLED'],true))echo '<option value="'.esc_attr($job['id']).'">'.esc_html($job['state'].' · '.substr($job['id'],0,12)).'</option>';
+            foreach($jobs as $job)if(($job['identity']['source_type']??null)==='DESIGN'&&$this->matches($job,$factorySpecHash)&&in_array($job['state'],['SUCCEEDED','CANCELLED'],true))echo '<option value="'.esc_attr($job['id']).'">'.esc_html($job['state'].' · '.substr($job['id'],0,12)).'</option>';
             echo '</select></label>';$this->field('run_id','Run reference','image-'.wp_generate_uuid4());$this->field('started_at','Run start (UTC)',gmdate('Y-m-d H:i:s'));$this->confirm('Prepare this exact request only; this does not dispatch or approve artwork');echo '<button class="df-button">Prepare image request</button></form>';
         }else echo '<p>No current reviewed original-artwork image policy is available. Review an existing registered route below; new policies are saved disabled.</p>';
+        $artistic=[];foreach($policies as $item){$v=(new ImageGenerationPolicyRepository())->resolve($item['hash']);if(is_array($v)&&array_intersect($v['policy']['engines'],\DigiForge\POD\TransformationEngineContract::ENGINES)!==[])$artistic[]=$v;}if($artistic!==[]){echo '<details><summary>Adapt a verified artistic input into this approved design</summary><p>The existing input must already have verified source rights, product/template and personalization evidence. This selects an editable adaptation target; it does not certify supplier geometry or inherit output licensing.</p>';$this->form('prepare_artistic',$commercialHash,$factorySpecHash);$this->field('transformation_key','Existing verified artistic input reference');echo '<label>Reviewed artistic policy<select name="policy_hash" required>';foreach($artistic as $v)echo '<option value="'.esc_attr($v['hash']).'">'.esc_html($v['policy']['policy_key'].' · '.implode(', ',$v['policy']['engines'])).'</option>';echo '</select></label>';$this->field('run_id','Run reference','artistic-'.wp_generate_uuid4());$this->field('started_at','Run start (UTC)',gmdate('Y-m-d H:i:s'));$this->confirm('Bind this current input to this exact approved design; output rights and editable adaptation require separate human review');echo '<button class="df-button">Prepare bound artistic request</button></form></details>';}
         $this->policyForm($commercialHash,$factorySpecHash);
         echo '<h5>Image attempts for this exact specification (latest 30)</h5>';
         if($jobs===[])echo '<p>No saved image attempts.</p>';
@@ -40,28 +42,30 @@ final class ImageGenerationPanel
         if(!is_string($shop)||!is_string($commercial)||!is_string($spec))return self::error('scope');
         $source=$this->source($shop,$commercial,$spec);if($source instanceof WP_Error)return $source;
         $gate=ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;
-        $op=$post['operation']??null;$service=new ImageGenerationExecution();$result=null;
+        $op=$post['operation']??null;$service=$this->execution;$result=null;
         try{
             if($op==='design_image_review_policy'){
                 if(($post['confirm']??null)!=='1')return self::error('confirmation');
                 $model=self::positiveInteger($post['model_id']??null);
-                $policy=(new ImageGenerationPolicyRepository())->review(['policy_key'=>$post['policy_key']??null,'version'=>$post['policy_version']??null,'binding'=>['task_id'=>self::positiveInteger($post['task_id']??null),'provider_models'=>[$model=>'gpt-image-1']],'integration_id'=>self::positiveInteger($post['integration_id']??null),'size'=>$post['size']??null,'quality'=>$post['quality']??null,'maximum_task_charge'=>$post['maximum_task_charge']??null,'currency'=>$post['currency']??null,'timeout_seconds'=>self::positiveInteger($post['timeout_seconds']??null),'max_output_bytes'=>self::positiveInteger($post['max_output_bytes']??null),'engines'=>['ORIGINAL_ARTWORK'],'prompt_version'=>$post['prompt_version']??null,'terms_source_sha256'=>$post['terms_source_sha256']??null,'enabled'=>false]);
+                $policy=(new ImageGenerationPolicyRepository())->review(['policy_key'=>$post['policy_key']??null,'version'=>$post['policy_version']??null,'binding'=>['task_id'=>self::positiveInteger($post['task_id']??null),'provider_models'=>[$model=>'gpt-image-1']],'integration_id'=>self::positiveInteger($post['integration_id']??null),'size'=>$post['size']??null,'quality'=>$post['quality']??null,'maximum_task_charge'=>$post['maximum_task_charge']??null,'currency'=>$post['currency']??null,'timeout_seconds'=>self::positiveInteger($post['timeout_seconds']??null),'max_output_bytes'=>self::positiveInteger($post['max_output_bytes']??null),'engines'=>$post['engines']??['ORIGINAL_ARTWORK'],'prompt_version'=>$post['prompt_version']??null,'terms_source_sha256'=>$post['terms_source_sha256']??null,'enabled'=>false]);
                 return $policy instanceof WP_Error?$policy:['hash'=>$commercial,'design_factory_hash'=>$spec,'image_policy'=>$policy];
             }
-            if($op==='design_image_prepare'){
+            if($op==='design_image_prepare_artistic'){
+                if(($post['confirm']??null)!=='1'||!is_string($post['transformation_key']??null)||!is_string($post['policy_hash']??null)||!is_string($post['run_id']??null)||!is_string($post['started_at']??null))return self::error('confirmation');$input=(new \DigiForge\POD\TransformationWorkflow())->read($shop,$post['transformation_key']);if($input instanceof WP_Error)return $input;$result=$service->prepareTransformationDesign($shop,$post['transformation_key'],$input['event_sha256'],$spec,$post['policy_hash'],['run_id'=>$post['run_id'],'started_at'=>$post['started_at']],true);
+            }elseif($op==='design_image_prepare'){
                 if(($post['confirm']??null)!=='1'||!is_string($post['policy_hash']??null)||!is_string($post['run_id']??null)||!is_string($post['started_at']??null))return self::error('confirmation');
                 $parent=$post['parent_job']??'';if(!is_string($parent))return self::error('parent');
                 if($parent!==''){$job=$service->read($shop,$parent);if($job instanceof WP_Error)return $job;if(!$this->matches($job,$spec))return self::error('job_source');}
                 $result=$service->prepareDesign($shop,$spec,$post['policy_hash'],['run_id'=>$post['run_id'],'started_at'=>$post['started_at']],$parent===''?null:$parent);
             }else{
                 if(!is_string($post['image_job_id']??null))return self::error('job');
-                $job=$service->read($shop,$post['image_job_id']);if($job instanceof WP_Error)return $job;if(!$this->matches($job,$spec))return self::error('job_source');
+                $job=in_array($op,['design_image_cancel','design_image_recover'],true)?(new ImageGenerationJournal())->read($post['image_job_id']):$service->read($shop,$post['image_job_id']);if($job instanceof WP_Error)return $job;if(!$this->matches($job,$spec))return self::error('job_source');
                 if($op==='design_image_inspect')$result=$job;
                 else{
                     if(($post['confirm']??null)!=='1')return self::error('confirmation');
                     if($op==='design_image_run'){
                         $policy=(new ImageGenerationPolicyRepository())->resolve($job['identity']['policy_sha256']);if($policy instanceof WP_Error)return $policy;
-                        if($job['identity']['mode']!=='NETWORK'||!$policy['policy']['enabled']||!ImageGenerationAccess::networkAllowed())return self::error('network_held');
+                        if($job['identity']['mode']==='OFFLINE_SIMULATOR'&&$service->simulationOnly()){$result=$service->run($shop,$job['id']);return $result instanceof WP_Error?$result:['hash'=>$commercial,'design_factory_hash'=>$spec,'image_job'=>$result];}if($job['identity']['mode']!=='NETWORK'||!$policy['policy']['enabled']||!ImageGenerationAccess::networkAllowed())return self::error('network_held');
                         // This default service has no server custodian; request data cannot supply one.
                         return new WP_Error('image_panel_network_custody_unavailable','NETWORK_CUSTODY_UNAVAILABLE: a reviewed server credential custodian is required before network execution.',['status'=>409,'retry_permitted'=>false,'external_execution_authorized'=>false]);
                     }elseif($op==='design_image_cancel')$result=$service->cancel($shop,$job['id']);
@@ -89,17 +93,19 @@ final class ImageGenerationPanel
     }
     private function matches(array $job,string $spec):bool
     {
+        if(($job['identity']['source_type']??null)==='TRANSFORMATION')return ($job['identity']['shop_key']??null)==='personalized_pod'&&($job['identity']['artistic_binding']['specification_sha256']??null)===$spec;
         return ($job['identity']['shop_key']??null)==='personalized_pod'&&($job['identity']['source_type']??null)==='DESIGN'&&($job['identity']['source_key']??null)===$spec&&($job['identity']['source_version']??null)===$spec&&($job['identity']['engine']??null)==='ORIGINAL_ARTWORK';
     }
     private function job(array $job,string $commercial,string $spec):void
     {
         $id=$job['id'];echo '<details><summary>'.esc_html($job['state'].' · '.substr($id,0,12).' · '.$job['recorded_at']).'</summary><p>Exact image attempt <code>'.esc_html($id).'</code>. Request <code>'.esc_html($job['identity']['wire_contract']['request_sha256']).'</code>; model '.esc_html($job['identity']['wire_contract']['model']).'.</p><p>Actual provider charge is not assumed. Reserved or unknown amounts require monetary reconciliation; cancellation does not refund a hold.</p>';
+        if($job['identity']['mode']==='OFFLINE_SIMULATOR')echo '<p role="status">SYNTHETIC OFFLINE simulation — not live AI, provider cost or artwork approval.</p>';
         if(isset($job['error_class']))echo '<p>Held reason: '.esc_html($job['error_class']).'</p>';
         $this->form('inspect',$commercial,$spec,$id);echo '<button class="df-button">Inspect exact image attempt</button></form>';
         if($job['state']==='PREPARED'){
             $this->form('quote',$commercial,$spec,$id);echo '<label>Provider quote document file (JSON, up to 32768 bytes)<input type="file" name="quote_file" accept=".json,application/json" required></label>';$this->confirm('I reviewed this provider-issued inclusive quote for the exact request fingerprint, model, currency and validity interval');echo '<button class="df-button">Record reviewed provider quote</button></form>';
-            $p=(new ImageGenerationPolicyRepository())->resolve($job['identity']['policy_sha256']);$allowed=false; // Default server service intentionally has no reviewed credential custodian.
-            $this->form('run',$commercial,$spec,$id);$this->confirm('Request one provider attempt against the reviewed quote and hard budgets; candidate remains unapproved');echo '<button class="df-button"'.($allowed?'':' disabled').'>Request one network image attempt</button></form>';
+            $p=(new ImageGenerationPolicyRepository())->resolve($job['identity']['policy_sha256']);$allowed=$job['identity']['mode']==='OFFLINE_SIMULATOR'&&$this->execution->simulationOnly(); // Server injection only; default network remains disabled.
+            $this->form('run',$commercial,$spec,$id);$this->confirm('Request one provider attempt against the reviewed quote and hard budgets; candidate remains unapproved');echo '<button class="df-button"'.($allowed?'':' disabled').'>'.($allowed?'Execute SYNTHETIC OFFLINE simulation':'Request one network image attempt').'</button></form>';
         }
         if(in_array($job['state'],['PREPARED','RESERVED','BLOCKED','UNKNOWN','HELD'],true)){$this->form('cancel',$commercial,$spec,$id);$this->confirm('Cancel this attempt; existing monetary holds remain for reconciliation');echo '<button class="df-button">Cancel exact attempt</button></form>';}
         if(in_array($job['state'],['RESERVED','DISPATCHING','ADOPTING'],true)){$this->form('recover',$commercial,$spec,$id);$this->confirm('Record interrupted execution as unknown, without retry or assumed refund');echo '<button class="df-button">Record interrupted attempt</button></form>';}
@@ -128,6 +134,7 @@ final class ImageGenerationPanel
         echo '</select></label>';
         foreach(['policy_key'=>'Policy reference','policy_version'=>'Immutable policy version','prompt_version'=>'Prompt instruction version','terms_source_sha256'=>'Reviewed provider terms / pricing source SHA-256','maximum_task_charge'=>'Inclusive maximum task charge (decimal)','currency'=>'Original currency (three uppercase letters)']as $key=>$label)$this->field($key,$label,$key==='currency'?'USD':'');
         echo '<p>Only 1024×1024 candidates fit the current bounded local raster verifier. Larger provider sizes are unavailable.</p><label>Candidate size <select name="size"><option>1024x1024</option></select></label><label>Candidate quality <select name="quality"><option>low</option><option>medium</option><option>high</option></select></label><label>Request timeout (seconds, 1–120)<input name="timeout_seconds" type="number" inputmode="numeric" min="1" max="120" step="1" value="20" required></label><label>Maximum candidate PNG bytes (1–2097152)<input name="max_output_bytes" type="number" inputmode="numeric" min="1" max="2097152" step="1" value="2097152" required></label>';
+        echo '<fieldset><legend>Allowed artistic tasks</legend>';foreach(ImageGenerationPolicyRepository::ENGINES as $engine)echo '<label><input type="checkbox" name="engines[]" value="'.esc_attr($engine).'"'.($engine==='ORIGINAL_ARTWORK'?' checked':'').'> '.esc_html($engine).'</label>';echo '</fieldset>';
         $this->confirm('I reviewed the exact registered image route, credential metadata and source terms; save a disabled policy');echo '<button class="df-button">Review and save disabled image policy</button></form></details>';
     }
     private function form(string $operation,string $commercial,string $spec,?string $job=null):void
