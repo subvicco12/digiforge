@@ -1,7 +1,7 @@
 {
   "schema": "db-gpo-native-managed-case-disposition-v1",
   "original_inventory_path": "/workspace/digiforge-platform-sprint/postcert-handoff-20261117/authority-integration-test-readiness.json",
-  "purpose": "Bounded actual evidence and explicit gaps, not whole-case independent acceptance or capability promotion",
+  "purpose": "Actual supported-backend offline evidence and explicit external/producer gates; no whole-platform or 151-capability promotion.",
   "cases": [
     {
       "id": "M01",
@@ -11,29 +11,31 @@
         "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch"
       ],
       "observed": "Actual canonical business precedes reviewed connection; foreign-selected review author differs from canonical-input author; actual A selection/layout/render/package, retained owned-TX plan/review/intent, held bundle and BLOCKED queue job.",
-      "remaining_gate": "Deployment/backend qualification remains pending; independent final-source directory verification passed 37 tests/379 assertions."
+      "remaining_gate": "Deployment/backend qualification remains pending; independent final-source directory verification passed 51 tests/843 assertions."
     },
     {
       "id": "M02",
       "expected": "Independent connection revokes native role/capability, scoped grant, profile, grantor or global-owner dependency; final response cannot claim private success.",
-      "disposition": "PARTIAL_COMPOSED_AND_COMPONENT_EVIDENCE",
+      "disposition": "ACTUAL_MANAGED_REVOCATION_MATRIX_DEMONSTRATED",
       "actual_named_tests": [
         "RetainedReviewerAuthorityTest::testActualSecondConnectionAuthorityWritesInvalidateCapture",
         "RetainedReviewerAuthorityTest::testPinnedGenerationBlocksRealWriterButBusinessAuditDoesNotTouchGeneration",
-        "ManagedReviewerHeldCompositionTest::testFinalSignedReadReviewerRevocationDeniesPrivateCommittedSuccess"
+        "ManagedReviewerHeldCompositionTest::testFinalSignedReadReviewerRevocationDeniesPrivateCommittedSuccess",
+        "ManagedReviewerHeldCompositionTest::testManagedCapturedPermissionMutationCannotPrepareAPlan"
       ],
-      "observed": "Real second-connection native role/cap/profile/ACL/grantor/GPO/authority-audit invalidation and a real blocked permission writer; composed final-read foreign-reviewer revocation returns COMMITTED denial.",
-      "remaining_gate": "Every revocation variant has not been exercised at every managed commit/final-response boundary; do not mark full case accepted."
+      "observed": "Seven actual second-connection writers mutate native capability, role option, profile, ACL, GPO, grantor or authority audit after retained capture and before the owned frame. Each denies the original decision and replay with zero plans. Final signed-read reviewer withdrawal also denies private committed success.",
+      "remaining_gate": "Supported DB/GPO/native writer inventory only; independent hosted/deployment qualification remains pending."
     },
     {
       "id": "M03",
       "expected": "Authority expires without a SQL write; chosen owner linearization/commit rule is enforced.",
-      "disposition": "COMPONENT_ONLY_DEFINED_LINEARIZATION",
+      "disposition": "ACTUAL_MANAGED_NATURAL_EXPIRY_DEMONSTRATED",
       "actual_named_tests": [
-        "RetainedReviewerAuthorityTest::testExpiryWithoutSqlAndPostcommitExpiryDenyPrivateAcknowledgement"
+        "RetainedReviewerAuthorityTest::testExpiryWithoutSqlAndPostcommitExpiryDenyPrivateAcknowledgement",
+        "ManagedReviewerHeldCompositionTest::testManagedNaturalExpiryAtPrepinPrecommitAndPostcommitAcknowledgement"
       ],
-      "observed": "Real session expiry advances without authority SQL; postcommit private admission denies. Rule is valid-at-pin/precommit validation plus postcommit acknowledgement check, no clock freeze.",
-      "remaining_gate": "Managed full-plan decision crossing expiry boundary and deployed owner acceptance remain pending."
+      "observed": "Real stock native session expires without authority DML or generation change. Managed prepin/precommit and postcommit acknowledgement deny; caller frame and known committed DRAFT truth remain correct.",
+      "remaining_gate": "Explicit precommit/acknowledgement linearization rule; no clock freeze, clock rollback or unsupported provider qualification."
     },
     {
       "id": "M04",
@@ -63,37 +65,44 @@
     {
       "id": "M06",
       "expected": "Foreign actor/shop/order/line and misleading caller claims deny before private lookup or export.",
-      "disposition": "PARTIAL_COMPONENT_IDENTITY_AND_SOURCE_INVARIANTS",
+      "disposition": "ACTUAL_MANAGED_SCOPE_AND_CALLER_DENIAL_DEMONSTRATED",
       "actual_named_tests": [
-        "RetainedReviewerAuthorityTest::testLeaseCannotBeClonedSerializedOrUsedByDifferentActor"
+        "RetainedReviewerAuthorityTest::testLeaseCannotBeClonedSerializedOrUsedByDifferentActor",
+        "ManagedReviewerHeldCompositionTest::testManagedForeignActorShopOrderLineAndSignedCallerClaimsDenyBeforePrivateExport"
       ],
-      "observed": "Actual wrong actor denies one-use private lease; constructors are private, cloning/serialization rejected; context binds exact captured order/lines/shop/review provenance.",
-      "remaining_gate": "Full managed cross-shop/order/line and misleading-caller adversarial matrix is pending."
+      "observed": "Foreign shop/order/line, retargeted opaque context, real different session and forged signed caller claims deny without exporting the foreign sentinel. Wrong shop/context/actor deny before private queries; genuine original confirmation still produces one DRAFT.",
+      "remaining_gate": "Supported source and native session backend only; hosted/deployment qualification remains pending."
     },
     {
       "id": "M07",
       "expected": "Caller transaction/pending writes survive denied preparation; no implicit commit/rollback or connection replacement.",
-      "disposition": "PARTIAL_COMPONENT_AND_EXISTING_WORKFLOW_EVIDENCE",
+      "disposition": "ACTUAL_MANAGED_CALLER_FRAME_PRESERVATION_DEMONSTRATED",
       "actual_named_tests": [
         "RetainedReviewerAuthorityTest::testCaptureDenialPreservesActualCallerPendingWrite",
-        "OrderLocalWorkflowTest::testExistingTransactionIsDeniedWithoutCommittingCallerWrites",
-        "ManagedReviewerHeldCompositionTest::testFailedManagedQueuePinRollsBackOnlyItsStartedFrame"
+        "ManagedReviewerHeldCompositionTest::testFailedManagedQueuePinRollsBackOnlyItsStartedFrame",
+        "ManagedReviewerHeldCompositionTest::testManagedConsumerDenialPreservesExistingCallerFrameAndPendingBusinessWrite",
+        "ManagedReviewerHeldCompositionTest::testManagedContextPhysicalReconnectDenialNeverResetsTheNewCallerFrame"
       ],
-      "observed": "Actual caller pending write survives capture denial; existing workflow caller-TX denial still passes; new queue-owned START is rolled back on pin failure, never a preexisting caller frame.",
-      "remaining_gate": "All managed denial paths with caller pending writes and physical reconnection have not been composed."
+      "observed": "Actual operator and queue denial preserves the same physical caller frame and pending write (original-visible/auxiliary-invisible), without hidden frame controls. Explicit rollback permits the genuine fresh autocommit path. Physical reconnect invalidates the old context while preserving the new pending frame.",
+      "remaining_gate": "No claim for privileged database restore or unsupported connection/cache providers.",
+      "retained_baseline_tests": [
+        "OrderLocalWorkflowTest::testExistingTransactionIsDeniedWithoutCommittingCallerWrites"
+      ]
     },
     {
       "id": "M08",
       "expected": "Crash, lost COMMIT acknowledgement, lease release failure and replay preserve one-use UNKNOWN/denial; no automatic retry.",
-      "disposition": "PARTIAL_ACTUAL_COMMIT_CONTRADICTION_AND_RELEASE_EVIDENCE",
+      "disposition": "ACTUAL_MANAGED_SIGKILL_COMMIT_AND_REPLAY_DEMONSTRATED",
       "actual_named_tests": [
         "ManagedReviewerHeldCompositionTest::testActualRollbackCannotBeLabeledCommittedWhenPrivateWitnessContradicts",
         "RetainedReviewerAuthorityTest::testRollbackAndNewTransactionCannotReusePinnedProofOrAcknowledgeCommit",
         "RetainedReviewerAuthorityTest::testUnconfirmedReleaseCannotBeRetriedOrReturnPrivateAdmission",
-        "RetainedReviewerAuthorityTest::testDroppedAuxiliaryConnectionPermanentlyDeniesWithoutResettingCallerFrame"
+        "RetainedReviewerAuthorityTest::testDroppedAuxiliaryConnectionPermanentlyDeniesWithoutResettingCallerFrame",
+        "ManagedReviewerHeldCompositionTest::testActualManagedProcessKilledBeforeCommitKeepsNonceAndRollsBackOnlyPlan",
+        "ManagedReviewerHeldCompositionTest::testActualManagedProcessKilledAfterCommitKeepsOnePlanAndRejectsReplay"
       ],
-      "observed": "Actual COMMIT-to-ROLLBACK variants for operator+queue now propagate sticky UNKNOWN/nulls/no retry; durable one-use pin, rollback/new-TX reuse, lost release ACK and dropped aux deny.",
-      "remaining_gate": "Out-of-process WordPress crash/recovery, every lost-COMMIT-ACK/restore scenario and managed multi-reviewer cleanup fault permutations remain pending."
+      "observed": "Actual SIGKILL9 before COMMIT leaves zero plans and PINNED/null-marker journal; after actual COMMIT before ACK leaves exactly one DRAFT and PINNED/committed marker. Both retain exactly one accepted nonce, deny replay, preserve witness/settings/jobs and perform zero HTTP. Existing rollback contradiction/release-loss denials remain covered.",
+      "remaining_gate": "Supported isolated native DB transactions only; privileged restore, hostile PHP/runtime and hosted authority qualification remain outside this evidence."
     },
     {
       "id": "M09",
@@ -112,8 +121,8 @@
   "newly_accepted_capabilities": [],
   "independent_final_source_run": {
     "path": "services/native-authority/evidence/wordpress-acceptance.json",
-    "tests": 37,
-    "assertions": 379,
+    "tests": 51,
+    "assertions": 843,
     "failures": 0
   }
 }

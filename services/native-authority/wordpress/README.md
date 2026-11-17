@@ -1,6 +1,6 @@
-# DB_GPO_NATIVE retained reviewer prototype
+# DB_GPO_NATIVE retained reviewer offline backend
 
-This opt-in component retains **existing public WordPress/DigiForge reviewer authorization** across a caller-owned local transaction. It neither creates a reviewer permission nor substitutes for independent issuer, custody, provider or allocation authority. There is no activation hook, production migration, HTTP route or managed-photo consumer adoption.
+This opt-in component retains **existing public WordPress/DigiForge reviewer authorization** across a caller-owned local transaction. It neither creates a reviewer permission nor substitutes for independent issuer, custody, provider or allocation authority. There is no activation hook, production migration, HTTP route or automatic production adoption. The opt-in consumer composition is tested below.
 
 ## Exports and required sequence
 
@@ -44,19 +44,20 @@ Natural authority/session/grant expiry is checked afresh, bounded by a maximum 3
 
 The actual composition tests cover a foreign reviewer different from the canonical submission reviewer, with zero reviewer sessions during B consumption, real photo selection/layout/render review, APPROVED_PACKAGE, signed local plan review, BLOCKED intent/held bundle and BLOCKED local queue job. They also deny same-pixel stale render/package/held material after a new real producer epoch, deny private committed success when the selected reviewer loses native access during the final signed read, and report UNKNOWN/nulls when actual ROLLBACK contradicts a claimed COMMIT.
 
-This is not provider execution or native allocation acceptance. M02–M08 have explicit partial/component-only gates in `evidence/m01-m09-disposition.json`; process-crash/restore and every authorization/data backend are not claimed covered. No 151-ledger count or whole 21-case matrix has been promoted.
+The final supported-backend directory passes 51 tests / 843 assertions. It includes seven real managed revocation paths, natural expiry, foreign scopes, caller-frame/reconnect preservation and actual SIGKILL before/after COMMIT. M05 retains the explicit producer/canonical-review metadata handoff; privileged restore, unsupported backends, hosted independence and provider/native allocation qualification remain outside this evidence. No 151-ledger capability is promoted. See `evidence/m01-m09-disposition.json` for the bounded case receipts.
 
 ## Reproduction
 
-From this repository, run the new test directory with the isolated local fixture configuration. The temporary preloader selects a separate disposable database; it does not change the existing test configuration. CI uses its normal WordPress test configuration and runs this same directory without a local preloader:
+Prepare the existing disposable WordPress/MariaDB harness and Composer tools as specified in `.github/workflows/native-authority-offline.yml`. The same pinned offline artwork runtime is required by the real photo fixtures; omitting it correctly denies upload. With that disposable harness available:
 
 ```sh
-PATH=/workspace/.onboarding/bin:$PATH \
-WP_TESTS_DIR=/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit \
-/workspace/.onboarding/bin/php \
-  -d auto_prepend_file=/tmp/retained-authority-wp-preload.php \
-  /workspace/digiforge/vendor/bin/phpunit -c phpunit.wordpress.xml.dist \
-  services/native-authority/wordpress/tests
+python3 -m venv /tmp/digiforge-cutout-runtime
+/tmp/digiforge-cutout-runtime/bin/pip install -r includes/POD/offline/requirements.txt
+WP_TESTS_DIR=/tmp/wordpress-tests-lib \
+DIGIFORGE_CUTOUT_PYTHON=/tmp/digiforge-cutout-runtime/bin/python \
+vendor/bin/phpunit -c phpunit.wordpress.xml.dist services/native-authority/wordpress/tests
 ```
+
+The managed SIGKILL worker reads that test harness's existing configuration, shares its temporary upload custody and skips installation. It never selects a production `wp-config.php`. Local private preloaders may select another disposable database without changing the existing test configuration.
 
 Keys and signed host/delegate fixture files are generated only in the existing private temporary fixture locations. No credentials, cookies, private keys or raw lease IDs are exported in evidence.

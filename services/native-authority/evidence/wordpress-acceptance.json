@@ -1,8 +1,8 @@
 {
   "schema": "DF_MANAGED_REVIEWER_INDEPENDENT_RUN_1",
   "command": "phpunit -c phpunit.wordpress.xml.dist services/native-authority/wordpress/tests",
-  "tests": 37,
-  "assertions": 379,
+  "tests": 51,
+  "assertions": 843,
   "failures": 0,
   "skipped": 0,
   "source_unchanged_during_execution": true,
@@ -16,10 +16,17 @@
     "services/native-authority/wordpress/RetainedReviewerLease.php": "6bbe32835869316745b055e85048faba628f0026f4aa96d1ea44d674f976b95a",
     "services/native-authority/wordpress/Runtime.php": "87058e4a0c8b0c1abd607aef41ae83b096e73c65f8c6819ed83023c390641cb4",
     "services/native-authority/wordpress/bootstrap.php": "316a2462025ad8f7db7ed2f25898c20c6cdacb849c145b770897a94820f8fb07",
-    "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php": "bce7d67983bbc62ee806390a2f53e580d52d9b8c2a16838c81afb507eaee81cd",
-    "services/native-authority/wordpress/tests/RetainedReviewerAuthorityTest.php": "0c595cc2c5287d65cc92c7872a642686a2c8fc2c5d3662fd0281e5f831bbb790"
+    "services/native-authority/wordpress/tests/ManagedReviewerHeldCompositionTest.php": "f219c8fdf225a0a4c15a37a70fec3357778ab4d389021590bf880ce5d8e20a2e",
+    "services/native-authority/wordpress/tests/RetainedReviewerAuthorityTest.php": "0c595cc2c5287d65cc92c7872a642686a2c8fc2c5d3662fd0281e5f831bbb790",
+    "services/native-authority/wordpress/tests/Support/ManagedCallerFrameCases.php": "35ec614cc0cdff4b1fccc8d60337df9876817b7c70a01641c059e9a61f153496",
+    "services/native-authority/wordpress/tests/Support/ManagedCrashCases.php": "0cc3a0b1a8cab81712544000e68a0a754a73bbd963169c0205e68d2ec747106d",
+    "services/native-authority/wordpress/tests/Support/ManagedExpiryCases.php": "f970c3a26e9dd9c180144c6e2d95d4f9af4c61a154161298e1ba613778c975f8",
+    "services/native-authority/wordpress/tests/Support/ManagedRevocationCases.php": "46e2b473c2c45b25acc587e0ddf1218127f9bbe55acf622b948910c53fb39ecb",
+    "services/native-authority/wordpress/tests/Support/ManagedScopeCases.php": "8be8cea72afc8f1e5e5c98434e5f68114b96c16627337bf3730f44f008b7bc73",
+    "services/native-authority/wordpress/tests/Support/managed-crash-worker.php": "5df89c7732c6bbb93f0322535ce56b64362bdf2b5232981652de0dabad3568ad"
   },
-  "junit_sha256": "16b93e5249d2adff602e600bd0df425fac4f0b3ad014793929847d0cd8e098ca",
+  "junit_sha256": "57d4b0dcabff4447a4652f768ea608e7e358427b040be2723844a9307b77a381",
   "deployment_qualified": false,
-  "newly_accepted_capabilities": []
+  "newly_accepted_capabilities": [],
+  "unchanged_application_source_since_successful_ci": "efb907550dbadf78d74f6bddfb8f15d69315ddf3"
 }
