@@ -39,10 +39,12 @@ final class Phase4ConvergenceStructureTest extends TestCase
         self::assertStringContainsString('public function __construct(private ?PersonalizationReadContext $personalizationContext=null)', $s);
         self::assertStringContainsString('if($this->context!==null)return $this->context->forOrder($orderId,$requireEveryLine);', $current);
         self::assertStringContainsString('$entry=self::validateLine($orderId,$line,$rows,$selection,$mappingCounts,$requireEveryLine);', $current);
-        self::assertStringContainsString("\$entry=self::validateLine((int)\$order['id'],\$line,\$rows,null,\$counts,\$requireEveryLine);", $current);
+        self::assertStringContainsString("\$selections=[];foreach(\$material['lines']as \$line)\$selections[(int)\$line['id']]=null;", $current);
+        self::assertStringContainsString('return self::projectRetainedMaterial($material,$selections,$requireEveryLine);', $current);
+        self::assertStringContainsString("\$entry=self::validateLine((int)\$order['id'],\$line,\$rows,\$selections[(int)\$raw['id']],\$counts,\$requireEveryLine);", $current);
         $context=(string)file_get_contents(dirname(__DIR__,2).'/includes/Orders/PersonalizationReadContext.php');
         self::assertStringContainsString('private function __construct(', $context);
-        self::assertStringContainsString('PersonalizationCurrentness::projectLegacyMaterial($current,$requireEveryLine)', $context);
+        self::assertStringContainsString('PersonalizationCurrentness::projectRetainedMaterial($current,$this->selections,$requireEveryLine)', $context);
         self::assertStringNotContainsString('personalization_snapshot]??[]', $s);
     }
 

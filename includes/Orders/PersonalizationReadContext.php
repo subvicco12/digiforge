@@ -8,11 +8,14 @@ use DigiForge\POD\{CustomerPhotoProducerFence,CustomerPhotoSelection};
 use DigiForge\Security\ShopAccess;
 use WP_Error;
 
-/** Server-issued retained legacy-NULL dependency, never an execution or transaction permit. */
+/** Server-issued retained photo/material dependency, never an execution or transaction permit. */
 final class PersonalizationReadContext
 {
     private bool $closed=false;
     private bool $poisoned=false;
+    private bool $reviewersPinned=false;
+    private bool $releasedSuccessfully=false;
+    private bool $committedOutcome=false;
     private function __construct(
         private CustomerPhotoProducerFence $lease,
         private object $database,
@@ -20,7 +23,8 @@ final class PersonalizationReadContext
         private int $orderId,
         private array $material,
         private array $projection,
-        private array $selections
+        private array $selections,
+        private array $reviewerLeases
     ) {}
     private function __clone() {}
     public function __serialize():array {throw new \LogicException('A server photo context cannot be serialized.');}
@@ -34,7 +38,7 @@ final class PersonalizationReadContext
         global $wpdb;$wpdb->last_error='';$session=$wpdb->get_row('SELECT @@session.in_transaction AS active,@@session.autocommit AS autocommit',ARRAY_A);if($wpdb->last_error!==''||!is_array($session)||(string)($session['active']??'')!=='0'||(string)($session['autocommit']??'')!=='1')return self::error('caller_transaction');
         $actor=get_current_user_id();foreach(['manage_digiforge_orders','manage_digiforge_pod']as $cap){$admitted=ShopAccess::authorize($shop,$cap,$actor);if(is_wp_error($admitted))return $admitted;}
         $lease=CustomerPhotoProducerFence::acquireRead();if(is_wp_error($lease))return $lease;
-        $issued=false;
+        $issued=false;$reviewerLeases=[];
         try{
             $valid=$lease->validateRetainedReadLease();if(is_wp_error($valid))return $valid;
             $database=$wpdb;
@@ -43,17 +47,20 @@ final class PersonalizationReadContext
             foreach($material['lines']as $line){
                 $selected=(new CustomerPhotoSelection())->resolveForOrder($shop,$orderId,(int)$line['id']);if(is_wp_error($selected))return $selected;
                 $selections[(int)$line['id']]=$selected;if($selected===null)continue;
-                // Producer provenance is public, but B reviewer-authorization retention is not integrated.
-                // Preserve the existing managed transaction denial until that protocol is validated.
-                return self::error('managed_review_provenance_required');
+                $bridge=\DigiForge\NativeAuthority\WordPress\RetainedReviewerAuthority::class;
+                if(!class_exists($bridge)||!defined($bridge.'::ABI_VERSION')||$bridge::ABI_VERSION!=='db-gpo-native-reviewer-v1'||!method_exists(\DigiForge\NativeAuthority\WordPress\RetainedReviewerLease::class,'validateBeforePin'))return self::error('managed_review_provenance_required');
+                $proof=$selected['review_provenance']??null;
+                if(!is_array($proof)||($proof['version']??null)!=='shop2-photo-review-proof-v1'||($proof['selection_sha256']??null)!==($selected['sha256']??null)||($proof['selection_revision']??null)!==($selected['revision']??null)||!is_int($proof['reviewer_user_id']??null)||$proof['reviewer_user_id']<1||($proof['decision']??null)!=='APPROVED'||!is_string($proof['review_sha256']??null)||preg_match('/^[a-f0-9]{64}$/D',$proof['review_sha256'])!==1||!is_string($proof['reviewed_at']??null)||$proof['reviewed_at']==='')return self::error('managed_review_provenance_required');
+                $reviewer=$proof['reviewer_user_id'];
+                if(!isset($reviewerLeases[$reviewer])){$retained=$bridge::capture($shop,$reviewer);if(is_wp_error($retained))return $retained;$reviewerLeases[$reviewer]=$retained;}
 
             }
-            $projection=PersonalizationCurrentness::projectLegacyMaterial($material,false);if(is_wp_error($projection))return $projection;
+            $projection=PersonalizationCurrentness::projectRetainedMaterial($material,$selections,false);if(is_wp_error($projection))return $projection;
             $valid=$lease->validate();if(is_wp_error($valid))return $valid;
-            $context=new self($lease,$database,$actor,$orderId,$material,$projection,$selections);
-            $valid=$context->signedActorCurrent();if(is_wp_error($valid))return $valid;
+            $context=new self($lease,$database,$actor,$orderId,$material,$projection,$selections,$reviewerLeases);
+            $valid=$context->validateBeforeTransaction();if(is_wp_error($valid))return $valid;
             $issued=true;return $context;
-        }finally{if(!$issued){$released=$lease->release();if(is_wp_error($released))return $released;}}
+        }finally{if(!$issued){$failure=null;foreach($reviewerLeases as $retained){$released=$retained->release(false);if(is_wp_error($released))$failure=$released;}$released=$lease->release();if(is_wp_error($released))$failure=$released;if($failure!==null)return $failure;}}
     }
 
     /** Only B current locking reads may justify the pinned projection inside a B transaction. */
@@ -68,9 +75,9 @@ final class PersonalizationReadContext
         }
         $current=self::readMaterial($orderId,(string)$active==='1');if(is_wp_error($current))return $this->invalidate($current);
         if($current!==$this->material)return $this->invalidate(self::error('changed'));
-        $projection=PersonalizationCurrentness::projectLegacyMaterial($current,$requireEveryLine);if(is_wp_error($projection))return $this->invalidate($projection);if($projection!==$this->projection)return $this->invalidate(self::error('changed'));
-        $valid=$this->validate();if(is_wp_error($valid))return $this->invalidate($valid);
+        $projection=PersonalizationCurrentness::projectRetainedMaterial($current,$this->selections,$requireEveryLine);if(is_wp_error($projection))return $this->invalidate($projection);if($projection!==$this->projection)return $this->invalidate(self::error('changed'));
         $valid=$this->signedActorCurrent();if(is_wp_error($valid))return $this->invalidate($valid);
+        $valid=$this->validate();if(is_wp_error($valid))return $this->invalidate($valid);
         return $projection;
     }
 
@@ -79,12 +86,21 @@ final class PersonalizationReadContext
     {
         global $wpdb;if($this->closed||$this->poisoned||$wpdb!==$this->database)return $this->invalidate(self::error('invalidated'));
         $valid=$this->lease->validateRetainedReadLease();if(is_wp_error($valid))return $this->invalidate($valid);
+        if($this->reviewerLeases!==[]){
+            $wpdb->last_error='';$active=$wpdb->get_var('SELECT @@session.in_transaction');if($wpdb->last_error!==''||!in_array((string)$active,['0','1'],true))return $this->invalidate(self::error('transaction'));
+            foreach($this->reviewerLeases as $retained){$valid=(string)$active==='1'?($this->reviewersPinned?$retained->validate():$retained->pin()):$retained->validateBeforePin();if(is_wp_error($valid))return $this->invalidate($valid);}
+            if((string)$active==='1')$this->reviewersPinned=true;
+        }
         $actor=$this->actorCurrent();return is_wp_error($actor)?$this->invalidate($actor):$actor;
     }
     /** The producer's strict autocommit validation still applies immediately before B starts its frame. */
     public function validateBeforeTransaction():true|WP_Error
     {
-        global $wpdb;if($this->closed||$this->poisoned||$wpdb!==$this->database)return $this->invalidate(self::error('invalidated'));$valid=$this->lease->validate();if(is_wp_error($valid))return $this->invalidate($valid);$actor=$this->signedActorCurrent();return is_wp_error($actor)?$this->invalidate($actor):$actor;
+        global $wpdb;if($this->closed||$this->poisoned||$wpdb!==$this->database)return $this->invalidate(self::error('invalidated'));
+        $valid=$this->lease->validate();if(is_wp_error($valid))return $this->invalidate($valid);
+        $actor=$this->signedActorCurrent();if(is_wp_error($actor))return $this->invalidate($actor);
+        foreach($this->reviewerLeases as $retained){$valid=$retained->validateBeforePin();if(is_wp_error($valid))return $this->invalidate($valid);}
+        return $this->actorCurrent();
     }
     /** Current B reads only, under the caller's verified existing transaction. */
     public function currentReadSuffix():string|WP_Error
@@ -92,11 +108,24 @@ final class PersonalizationReadContext
         $valid=$this->validate();if(is_wp_error($valid))return $valid;global $wpdb;$wpdb->last_error='';$active=$wpdb->get_var('SELECT @@session.in_transaction');if($wpdb->last_error!==''||!in_array((string)$active,['0','1'],true))return $this->invalidate(self::error('transaction'));if((string)$active==='0')return '';
         $transaction=\DigiForge\Connector\Printify\NativeSourceTransaction::id();return is_wp_error($transaction)?$this->invalidate($transaction):' FOR UPDATE';
     }
-    public function release():true|WP_Error
+    public function release(bool $committed=false):true|WP_Error
     {
-        if($this->closed)return true;$this->closed=true;return $this->lease->release();
+        if($this->closed)return $this->releasedSuccessfully?true:self::error('release_unknown');$this->closed=true;$this->committedOutcome=$committed;
+        $failure=null;$unknown=false;$released=$this->lease->release();if(is_wp_error($released))$failure=$released;
+        foreach($this->reviewerLeases as $retained){$released=$retained->release($committed);if(is_wp_error($released)){$failure=$released;if(($released->get_error_data()['transaction_outcome']??null)==='UNKNOWN')$unknown=true;}}
+        // Contradicting transaction evidence outranks later cleanup errors from another lease.
+        if($unknown){$error=self::error('commit_outcome_unknown');$error->add_data($error->get_error_data()+['transaction_outcome'=>'UNKNOWN','committed'=>null,'changed'=>null]);return $error;}
+        if($failure!==null)return $failure;$this->releasedSuccessfully=true;return true;
     }
-    public function __destruct(){if(!$this->closed)$this->lease->release();}
+    /** Last private-response check, after every consumer release and signed authorization SQL. */
+    public function finalAdmission(bool $committed):true|WP_Error
+    {
+        if(!$committed)return true;
+        if(!$this->closed||!$this->releasedSuccessfully||!$this->committedOutcome||$this->poisoned)return self::error('final_admission');
+        foreach($this->reviewerLeases as $retained){$valid=$retained->finalAdmission();if(is_wp_error($valid))return $this->invalidate($valid);}
+        return $this->actorCurrent();
+    }
+    public function __destruct(){if(!$this->closed)$this->release(false);}
 
     // Preserve the existing signed admission predicates; this is not a claim that
     // arbitrary external authorization writers are locked or linearizable.

@@ -42,12 +42,21 @@ final class PersonalizationCurrentness
     /** Pure shared validation, not a source/admission grant. The context supplies its own current SQL material. */
     public static function projectLegacyMaterial(array $material,bool $requireEveryLine):array|WP_Error
     {
+        $selections=[];foreach($material['lines']as $line)$selections[(int)$line['id']]=null;
+        return self::projectRetainedMaterial($material,$selections,$requireEveryLine);
+    }
+
+    /** Pure projection only: selection provenance/authority is retained by the issuing context. */
+    public static function projectRetainedMaterial(array $material,array $selections,bool $requireEveryLine):array|WP_Error
+    {
+        $expected=array_map(static fn(array $line):int=>(int)$line['id'],$material['lines']);$keys=array_keys($selections);sort($expected);sort($keys);
+        if($expected!==$keys)return self::error('selection_identity','Every exact material line requires its captured authoritative selection or absence.');
         $current=[];$counts=[];$order=$material['order'];foreach($material['lines']as $line){$id=(int)$line['provider_mapping_id'];if($id>0)$counts[$id]=($counts[$id]??0)+1;}
         foreach($material['lines']as $raw){
             $mapping=$material['graph']['mappings'][(int)$raw['provider_mapping_id']][0]??[];
             $line=array_merge($raw,['channel'=>$order['channel'],'order_environment'=>$order['environment'],'mapping_id'=>$mapping['id']??null,'mapping_product_version_id'=>$mapping['product_version_id']??null,'mapping_environment'=>$mapping['environment']??null]);$rows=[];
             foreach($material['graph']['submissions'][(int)$raw['id']]as $ps){$schema=$material['graph']['schemas'][(int)$ps['personalization_schema_id']][0]??[];$rows[]=array_merge($ps,['schema_id'=>$schema['id']??null,'schema_product_version_id'=>$schema['product_version_id']??null,'field_definitions'=>$schema['field_definitions']??null,'schema_state'=>$schema['state']??null,'schema_approved_by'=>$schema['approved_by']??null,'schema_approved_at'=>$schema['approved_at']??null]);}
-            $entry=self::validateLine((int)$order['id'],$line,$rows,null,$counts,$requireEveryLine);if(is_wp_error($entry))return $entry;if($entry!==null)$current[]=$entry;
+            $entry=self::validateLine((int)$order['id'],$line,$rows,$selections[(int)$raw['id']],$counts,$requireEveryLine);if(is_wp_error($entry))return $entry;if($entry!==null)$current[]=$entry;
         }return $current;
     }
     private static function validateLine(int $orderId,array $line,array $rows,?array $selection,array $mappingCounts,bool $requireEveryLine):array|WP_Error|null
