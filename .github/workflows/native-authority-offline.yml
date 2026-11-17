@@ -13,6 +13,9 @@ on:
       - 'includes/Connector/Printify/NativeBusinessVersionRepository.php'
       - 'tests/wordpress/NativeManagedOrderAssociationCompositionTest.php'
       - 'phpunit.wordpress.xml.dist'
+      - 'phpunit.wordpress.authority.xml.dist'
+      - 'composer.json'
+      - 'tests/offline/test_wordpress_environment_profiles.py'
       - 'tests/unit/Phase4ConvergenceStructureTest.php'
       - '.gitattributes'
       - '.github/workflows/native-authority-offline.yml'
@@ -103,7 +106,7 @@ jobs:
       - name: Governed managed order-association producer with qualified review backend
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
-        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist tests/wordpress/NativeManagedOrderAssociationCompositionTest.php --log-junit evidence/managed-producer-junit.xml
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.authority.xml.dist --log-junit evidence/managed-producer-junit.xml
 
       - name: Verify service remains outside WordPress export
         run: |

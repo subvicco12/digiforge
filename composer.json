@@ -34,7 +34,8 @@
     "standards": "phpcs --standard=phpcs.xml.dist",
     "test:wordpress": [
       "phpunit --configuration phpunit.wordpress.xml.dist",
-      "phpunit --configuration phpunit.wordpress.catalog.xml.dist"
+      "phpunit --configuration phpunit.wordpress.catalog.xml.dist",
+      "phpunit --configuration phpunit.wordpress.authority.xml.dist"
     ]
   },
   "config": {

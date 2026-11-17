@@ -10,11 +10,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 class WordPressEnvironmentCoverageTests(unittest.TestCase):
     def test_standard_ci_runs_every_wordpress_file_once_without_relaxing_checks(self):
         scripts = json.loads((ROOT / 'composer.json').read_text())['scripts']['test:wordpress']
-        self.assertIsInstance(scripts, list, 'Both mandatory environments must run in the standard command.')
+        self.assertIsInstance(scripts, list, 'All mandatory profiles must run in the standard command.')
         selected = []
         environments = set()
         for command in scripts:
-            self.assertRegex(command, r'^phpunit --configuration phpunit\.wordpress(?:\.catalog)?\.xml\.dist$')
+            self.assertRegex(command, r'^phpunit --configuration phpunit\.wordpress(?:\.(?:catalog|authority))?\.xml\.dist$')
             profile = ET.parse(ROOT / command.split()[-1]).getroot()
             self.assertEqual('true', profile.attrib['failOnWarning'])
             self.assertEqual('true', profile.attrib['failOnRisky'])
