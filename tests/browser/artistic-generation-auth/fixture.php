@@ -13,3 +13,6 @@ final class ArtisticHttpFixture {
   }$base=ImagePanelFixture::policy();$p=$base['policy'];$p['policy_key']='artistic-http-'.wp_generate_uuid4();$p['engines']=DigiForge\AI\ImageGenerationPolicyRepository::ENGINES;$policy=$check((new DigiForge\AI\ImageGenerationPolicyRepository())->review($p));return ['cases'=>$out,'policy'=>$policy];
  }
 }
+
+// Test-only causal revocation at the last image execution lock release. Never loaded by production.
+if(function_exists('add_filter'))add_filter('query',static function($sql){$dir=$GLOBALS['artistic_fixture_dir']??null;if(is_string($dir)&&($_POST['operation']??null)==='image_charge_reconcile'&&str_contains($sql,'RELEASE_LOCK')&&str_contains($sql,'df-image-exec-')&&is_file($dir.'/arm-billing-research-revocation')){unlink($dir.'/arm-billing-research-revocation');wp_get_current_user()->add_cap('manage_digiforge_research',false);file_put_contents($dir.'/late-billing-revocation.json',json_encode(['research_revoked_at_final_image_lock'=>true,'synthetic_fixture_only'=>true]));}return $sql;});

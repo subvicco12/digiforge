@@ -20,10 +20,21 @@ try{
   file_put_contents($dir.'/state.json',wp_json_encode((['id'=>$id]+$prepared)));chmod($dir.'/state.json',0600);
   wp_set_auth_cookie($id,false,false);wp_safe_redirect(home_url('/'));exit;
  }
+ if($path==='/setup-image-statement'){
+  $state=image_auth_state();if(get_current_user_id()!==$state['id']){http_response_code(403);exit;}if(is_file($dir.'/image-statement-state.json'))throw new RuntimeException('Image statement fixture already exists');require_once $repo.'/tests/browser/artistic-generation-auth/image-statement-fixture.php';$bill=ImageStatementHttpFixture::create($state);file_put_contents($dir.'/image-statement-state.json',wp_json_encode($bill));chmod($dir.'/image-statement-state.json',0600);wp_safe_redirect(home_url('/'));exit;
+ }
  if($path==='/setup-reconciliation'){
   if(is_file($dir.'/statement-state.json'))throw new RuntimeException('Statement evidence already exists');$state=image_auth_state();wp_set_current_user($state['id']);require_once $repo.'/tests/wordpress/fixtures/ShopAccessFixture.php';$acl=(new DigiForge\Security\ShopAccessRepository())->read('personalized_pod');if(is_wp_error($acl))throw new RuntimeException($acl->get_error_code());$oldGrant=null;foreach($acl['grants']as $grant)if($grant['actor_id']===$state['id']&&!$grant['revoked']){$oldGrant=$grant;break;}if(!is_array($oldGrant))throw new RuntimeException('Synthetic grant absent');ShopAccessFixture::grant($oldGrant['grantor_id'],$state['id'],'personalized_pod',$oldGrant['caps'],$oldGrant['role']);require_once $repo.'/tests/browser/artistic-generation-auth/statement-fixture.php';$statement=StatementHttpFixture::create($state['policy']['policy']['binding']);file_put_contents($dir.'/statement-state.json',wp_json_encode($statement));chmod($dir.'/statement-state.json',0600);wp_set_auth_cookie($state['id'],false,false);wp_safe_redirect(add_query_arg(['df_research_version'=>$statement['source']],home_url('/')));exit;
  }
  $state=image_auth_state();
+ if(in_array($path,['/image-statement-status','/invalidate-image-statement-source'],true)){
+  if(get_current_user_id()!==$state['id']){http_response_code(403);exit;}$bill=json_decode(file_get_contents($dir.'/image-statement-state.json'),true);if(!is_array($bill))throw new RuntimeException('Image bill fixture missing');
+  if($path==='/invalidate-image-statement-source'){global $wpdb;$prefix=(new ReflectionClass(DigiForge\Research\DesignFactoryRepository::class))->getConstant('PREFIX');if($wpdb->delete($wpdb->options,['option_name'=>$prefix.'version_'.$bill['spec_hash']])!==1)throw new RuntimeException('Synthetic source already missing');}
+  $cost=(new DigiForge\AI\ImageGenerationExecution())->costEvidence('personalized_pod',$bill['job_id']);$job=(new DigiForge\AI\ImageGenerationJournal())->read($bill['job_id']);if(is_wp_error($cost)||is_wp_error($job)){http_response_code(403);exit;}$source=(new DigiForge\Research\DesignFactoryRepository())->read('personalized_pod',$bill['spec_hash']);header('Content-Type: application/json');echo wp_json_encode(['cost'=>$cost,'job_state'=>$job['state'],'document'=>$bill['document'],'source_unavailable'=>is_wp_error($source)]);exit;
+ }
+ if(in_array($path,['/arm-image-billing-research-revocation','/restore-image-billing-research'],true)){
+  if(get_current_user_id()!==$state['id']){http_response_code(403);exit;}if($path==='/arm-image-billing-research-revocation')file_put_contents($dir.'/arm-billing-research-revocation','SYNTHETIC ONLY');else wp_get_current_user()->add_cap('manage_digiforge_research',true);header('Content-Type: application/json');echo wp_json_encode(['synthetic_fixture_only'=>true]);exit;
+ }
  if($path==='/statement-status'){
   if(get_current_user_id()!==$state['id']){http_response_code(403);exit;}$proof=json_decode(file_get_contents($dir.'/statement-state.json'),true);$cost=(new DigiForge\Research\ResearchExecution())->costEvidence('personalized_pod',$proof['job_id']);if(is_wp_error($cost)){http_response_code(403);exit;}header('Content-Type: application/json');echo wp_json_encode(['cost'=>$cost,'document'=>$proof['document']]);exit;
  }

@@ -36,6 +36,32 @@ final class ImageGenerationPanel
         echo '</section>';
     }
 
+    /** Local financial evidence stays reachable even when the artwork source is unavailable. */
+    public function renderReconciliation(string $shop):void
+    {
+        if($this->billingAccess($shop) instanceof WP_Error)return;$jobs=(new ImageGenerationJournal())->forReconciliation();
+        ob_start();
+        echo '<section id="df-image-charge-review"><h3>Image charge reconciliation</h3><p>Latest 30 owned attempts. This financial evidence view cannot dispatch, retry, adopt artwork or approve a design. Unknown exposure and unsupported statements remain held.</p>';
+        if($jobs instanceof WP_Error){ob_end_clean();echo '<p>Charge discovery is unavailable; no amount is assumed.</p>';return;}
+        foreach($jobs as $job){$cost=$this->execution->costEvidence($shop,$job['id']);if($cost instanceof WP_Error){echo '<p>Exact charge evidence unavailable; exposure remains unresolved.</p>';continue;}if($cost['usage_id']<1)continue;
+            echo '<details><summary>'.esc_html($job['state'].' · '.substr($job['id'],0,12).' · '.$cost['model']).'</summary><p>Recorded charge '.esc_html($cost['actual_charge']??'UNKNOWN').'; reserved maximum '.esc_html(($cost['currency']??'').' '.($cost['reserved_maximum']??'UNKNOWN')).'; finality '.esc_html($cost['charge_finality']).'.</p>';
+            if($cost['statement_review_available']){echo '<form method="post" enctype="multipart/form-data" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="digiforge_commercial_research"><input type="hidden" name="operation" value="image_charge_reconcile"><input type="hidden" name="shop_key" value="personalized_pod"><input type="hidden" name="image_job_id" value="'.esc_attr($job['id']).'"><input type="hidden" name="expected_event" value="'.esc_attr($job['event_sha256']).'"><input type="hidden" name="statement_policy" value="'.esc_attr(\DigiForge\AI\FinalProviderStatement::POLICY_VERSION).'"><input type="hidden" name="return_url" value="'.esc_attr($this->baseUrl()).'">';wp_nonce_field('digiforge_commercial_research');echo '<label>Original final provider statement (JSON, up to 32768 bytes)<input type="file" name="statement_file" accept=".json,application/json" required></label><p>Unsupported originals remain blocked; do not edit them to manufacture finality claims.</p>';$this->confirm('I reviewed the authentic final statement for this exact metered request and confirmed no further charge is possible; this is not a refund or artwork approval');echo '<button class="df-button">Review final image statement</button></form>';}
+            echo '</details>';
+        }
+        echo '</section>';$html=ob_get_clean();if($this->billingAccess($shop)===true)echo $html;
+    }
+    public function processReconciliation(array $post):array|WP_Error
+    {
+        $shop=$post['shop_key']??null;if(!is_string($shop))return self::error('scope');$gate=$this->billingAccess($shop);if($gate instanceof WP_Error)return $gate;
+        if(($post['operation']??null)!=='image_charge_reconcile'||($post['confirm']??null)!=='1'||($post['statement_policy']??null)!==\DigiForge\AI\FinalProviderStatement::POLICY_VERSION||!is_string($post['image_job_id']??null)||!is_string($post['expected_event']??null))return self::error('statement_admission');
+        try{$raw=self::upload($_FILES['statement_file']??null,'json',32768);}catch(\Throwable){return self::error('statement_upload');}
+        $result=$this->execution->reconcile($shop,$post['image_job_id'],$post['expected_event'],$raw,true);$fresh=$this->billingAccess($shop);return $fresh instanceof WP_Error?$fresh:($result instanceof WP_Error?$result:['hash'=>null,'image_cost'=>$result]);
+    }
+    private function billingAccess(string $shop):true|WP_Error
+    {
+        if($shop!=='personalized_pod')return self::error('scope');$gate=ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;
+        return current_user_can('manage_digiforge_research')&&\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_research')===true?true:self::error('scope');
+    }
     public function process(array $post):array|WP_Error
     {
         $shop=$post['shop_key']??null;$commercial=$post['workflow_hash']??null;$spec=$post['factory_hash']??null;
@@ -59,7 +85,7 @@ final class ImageGenerationPanel
                 $result=$service->prepareDesign($shop,$spec,$post['policy_hash'],['run_id'=>$post['run_id'],'started_at'=>$post['started_at']],$parent===''?null:$parent);
             }else{
                 if(!is_string($post['image_job_id']??null))return self::error('job');
-                $job=in_array($op,['design_image_cancel','design_image_recover'],true)?(new ImageGenerationJournal())->read($post['image_job_id']):$service->read($shop,$post['image_job_id']);if($job instanceof WP_Error)return $job;if(!$this->matches($job,$spec))return self::error('job_source');
+                $job=in_array($op,['design_image_cancel','design_image_recover','design_image_statement'],true)?(new ImageGenerationJournal())->read($post['image_job_id']):$service->read($shop,$post['image_job_id']);if($job instanceof WP_Error)return $job;if(!$this->matches($job,$spec))return self::error('job_source');
                 if($op==='design_image_inspect')$result=$job;
                 else{
                     if(($post['confirm']??null)!=='1')return self::error('confirmation');
@@ -68,6 +94,8 @@ final class ImageGenerationPanel
                         if($job['identity']['mode']==='OFFLINE_SIMULATOR'&&$service->simulationOnly()){$result=$service->run($shop,$job['id']);return $result instanceof WP_Error?$result:['hash'=>$commercial,'design_factory_hash'=>$spec,'image_job'=>$result];}if($job['identity']['mode']!=='NETWORK'||!$policy['policy']['enabled']||!ImageGenerationAccess::networkAllowed())return self::error('network_held');
                         // This default service has no server custodian; request data cannot supply one.
                         return new WP_Error('image_panel_network_custody_unavailable','NETWORK_CUSTODY_UNAVAILABLE: a reviewed server credential custodian is required before network execution.',['status'=>409,'retry_permitted'=>false,'external_execution_authorized'=>false]);
+                    }elseif($op==='design_image_statement'){
+                        if(($post['statement_policy']??null)!==\DigiForge\AI\FinalProviderStatement::POLICY_VERSION||!is_string($post['expected_event']??null))return self::error('statement_event');$cost=$service->reconcile($shop,$job['id'],$post['expected_event'],self::upload($_FILES['statement_file']??null,'json',32768),true);if($cost instanceof WP_Error)return $cost;$fresh=$this->billingAccess($shop);if($fresh instanceof WP_Error)return $fresh;$result=$job;
                     }elseif($op==='design_image_cancel')$result=$service->cancel($shop,$job['id']);
                     elseif($op==='design_image_recover')$result=$service->recover($shop,$job['id']);
                     elseif($op==='design_image_quote'){
@@ -99,6 +127,14 @@ final class ImageGenerationPanel
     private function job(array $job,string $commercial,string $spec):void
     {
         $id=$job['id'];echo '<details><summary>'.esc_html($job['state'].' · '.substr($id,0,12).' · '.$job['recorded_at']).'</summary><p>Exact image attempt <code>'.esc_html($id).'</code>. Request <code>'.esc_html($job['identity']['wire_contract']['request_sha256']).'</code>; model '.esc_html($job['identity']['wire_contract']['model']).'.</p><p>Actual provider charge is not assumed. Reserved or unknown amounts require monetary reconciliation; cancellation does not refund a hold.</p>';
+        $cost=$this->execution->costEvidence('personalized_pod',$id);$billingGate=$this->billingAccess('personalized_pod');if($billingGate instanceof WP_Error)$cost=$billingGate;
+        if($cost instanceof WP_Error)echo '<p>Cost evidence is unavailable; existing exposure remains held.</p>';
+        else{
+            echo '<p>Reserved maximum: '.esc_html(($cost['currency']??'').' '.($cost['reserved_maximum']??'no reservation')).'. Recorded charge: '.esc_html($cost['actual_charge']??'UNKNOWN / not established').'. Finality: '.esc_html($cost['charge_finality']).'. Cost state: '.esc_html($cost['cost_state']).'.</p>';
+            if($cost['statement_review_available']){
+                $this->form('statement',$commercial,$spec,$id);echo '<input type="hidden" name="statement_policy" value="'.esc_attr(\DigiForge\AI\FinalProviderStatement::POLICY_VERSION).'"><input type="hidden" name="expected_event" value="'.esc_attr($job['event_sha256']).'"><label>Final statement — original provider JSON file, up to 32768 bytes<input type="file" name="statement_file" accept=".json,application/json" required></label><p>Only a compatible original final statement can be accepted. Provisional, unsupported or uncertain evidence stays held. Do not rewrite source files to add finality claims.</p>';$this->confirm('I reviewed the authentic final provider statement for this exact metered request and confirmed no further charge remains possible. This is not a refund or artwork approval');echo '<button class="df-button">Record final image charge evidence</button></form>';
+            }
+        }
         if($job['identity']['mode']==='OFFLINE_SIMULATOR')echo '<p role="status">SYNTHETIC OFFLINE simulation — not live AI, provider cost or artwork approval.</p>';
         if(isset($job['error_class']))echo '<p>Held reason: '.esc_html($job['error_class']).'</p>';
         $this->form('inspect',$commercial,$spec,$id);echo '<button class="df-button">Inspect exact image attempt</button></form>';

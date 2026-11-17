@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+/** Recorded NETWORK-mode image metering only; no transport or provider credential execution. */
+final class ImageStatementHttpFixture
+{
+ public static function create(array $state):array {
+  $check=ImagePanelFixture::check(...);$spec=$state['cases']['PET_PORTRAIT']['spec'];$s=new DigiForge\AI\ImageGenerationExecution();$j=$check($s->prepareDesign('personalized_pod',$spec['hash'],$state['policy']['hash'],['run_id'=>'synthetic-image-statement-'.wp_generate_uuid4(),'started_at'=>gmdate('Y-m-d H:i:s')]));$money=new DigiForge\AI\MonetaryReservationRepository();$check($money->reviewQuote('personalized_pod',ImagePanelFixture::quote($j),'CONFIRM_PROVIDER_QUOTE'));$q=$check($money->findQuote('personalized_pod',$j['identity']['wire_contract']));$u=$check((new DigiForge\AI\ShopAiGovernanceRepository())->reserveGeneration('personalized_pod','render','image-'.$j['id'],$j['identity']['run_context'],$q));$jr=new DigiForge\AI\ImageGenerationJournal();$j=$check($jr->append($j['id'],$j['event_sha256'],['state'=>'RESERVED','usage_id'=>(int)$u['id']]));$j=$check($jr->append($j['id'],$j['event_sha256'],['state'=>'DISPATCHING']));$id='req_synthetic_image_statement_http';$body=json_encode(['created'=>time(),'data'=>[['b64_json'=>'AA==']],'usage'=>['input_tokens'=>4,'output_tokens'=>3,'total_tokens'=>7,'input_tokens_details'=>['text_tokens'=>2,'image_tokens'=>2]]]);$check((new DigiForge\AI\ProviderEvidenceRepository())->recordImageOutcome((int)$u['id'],'personalized_pod',$id,'gpt-image-1',$body,$j['identity']['wire_contract']['request_sha256'],'NETWORK'));$j=$check($jr->append($j['id'],$j['event_sha256'],['state'=>'UNKNOWN','error_class'=>'SYNTHETIC_METERED_INVALID_ARTWORK_NO_PROVIDER_CALL']));
+  return ['job_id'=>$j['id'],'event_sha256'=>$j['event_sha256'],'spec_hash'=>$spec['hash'],'document'=>['provider'=>'openai','invoice_id'=>'SYNTHETIC-IMAGE-STATEMENT-NO-ACTUAL-BILL','evidence_kind'=>'SYNTHETIC_TEST_ONLY','finality'=>['status'=>'FINAL','additional_charges_possible'=>false],'lines'=>[['line_id'=>'one','response_id'=>$id,'model'=>'gpt-image-1','currency'=>'USD','amount'=>'0.010000']]]];
+ }
+}

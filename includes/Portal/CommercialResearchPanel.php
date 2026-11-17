@@ -17,6 +17,7 @@ final class CommercialResearchPanel
         if ($shop!=='personalized_pod') return;
         if(!\DigiForge\Security\PersonalizedPodAccess::allows()||$shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
+        if(class_exists(ImageGenerationPanel::class))(new ImageGenerationPanel($this->imageExecution))->renderReconciliation($shop);
         if(!$supplierBound){
         (new ResearchExecutionPanel($this->researchExecution))->render($shop);
         $this->researchForm();
@@ -123,6 +124,7 @@ final class CommercialResearchPanel
         if(!\DigiForge\Security\PersonalizedPodAccess::allows()||($post['shop_key']??null)!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return new WP_Error('commercial_scope','Authenticated personalized-POD reviewer required.');
         try {if(strlen(CommercialResearchContract::json($post))>(is_string($post['operation']??null)&&str_starts_with($post['operation'],'design_')?8500000:500000))throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
+        if($op==='image_charge_reconcile')return class_exists(ImageGenerationPanel::class)?(new ImageGenerationPanel($this->imageExecution))->processReconciliation($post):new WP_Error('image_reconciliation_unavailable','Image reconciliation is unavailable; exposure remains unresolved.');
         if(is_string($op)&&str_starts_with($op,'research_queue_'))return (new ResearchExecutionPanel($this->researchExecution))->process($post);
         if(is_string($op)&&str_starts_with($op,'personalization_'))return (new ArtworkPersonalizationPanel())->process($post);
         if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel($this->imageExecution))->process($post);

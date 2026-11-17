@@ -61,6 +61,37 @@ final class ImageGenerationExecution
   $i=$job['identity'];if($i['source_type']==='DESIGN'){$v=(new DesignFactoryRepository())->read('personalized_pod',$i['source_key']);return $v instanceof WP_Error?$v:($v['record']['kind']==='SPEC_READY'&&$v['hash']===$i['source_version']?['png'=>null]:self::error('source_changed'));}
   if(isset($i['artistic_binding'])){$b=(new ImageGenerationJournal())->artisticBinding('personalized_pod',$i['source_key'],$i['artistic_binding']['specification_sha256']);if($b instanceof WP_Error)return $b;if($b!==$i['artistic_binding'])return self::error('artistic_binding_changed');}$w=new TransformationWorkflow();$v=$w->read('personalized_pod',$i['source_key']);if($v instanceof WP_Error)return $v;if($v['state']!=='INPUT_VERIFIED'||$v['event_sha256']!==$i['source_version']||$v['source']['sha256']!==$i['source_asset']['sha256'])return self::error('source_changed');$a=$w->artifact('personalized_pod',$i['source_key'],'source');return $a instanceof WP_Error?$a:['png'=>$a['bytes']];
  }
+ /** Financial inspection does not require a still-adoptable source. It cannot approve or retry artwork. */
+ public function costEvidence(string $shop,string $id):array|WP_Error {
+  $gate=$this->access($shop);if($gate instanceof WP_Error)return $gate;$job=(new ImageGenerationJournal())->read($id);if($job instanceof WP_Error)return $job;
+  $i=$job['identity'];$out=['statement_policy_version'=>FinalProviderStatement::POLICY_VERSION,'image_job_id'=>$id,'usage_id'=>$job['usage_id'],'mode'=>$i['mode'],'provider'=>'openai','model'=>$i['wire_contract']['model'],'request_sha256'=>$i['wire_contract']['request_sha256'],'reserved_maximum'=>null,'currency'=>null,'actual_charge'=>null,'charge_finality'=>'UNKNOWN','observed_provider_usage'=>null,'simulated_usage'=>null,'cost_state'=>'NO_RESERVATION','statement_review_available'=>false,'refund_assumed'=>false,'external_execution_authorized'=>false];
+  if($job['usage_id']>0){
+   $h=(new MonetaryReservationRepository())->reservation($job['usage_id']);if($h instanceof WP_Error)return $h;
+   if(!is_array($h)||$h['shop_key']!==$shop||$h['attempt_key']!=='image-'.$id||$h['run_id']!==$i['run_context']['run_id']||$h['request_sha256']!==$i['wire_contract']['request_sha256']||$h['model']!==$i['wire_contract']['model'])return self::error('cost_identity');
+   $snap=(new ProviderEvidenceRepository())->snapshot($job['usage_id'],$shop);if($snap instanceof WP_Error)return $snap;$meter=$snap['metering'];$sim=$i['mode']==='OFFLINE_SIMULATOR';
+   if($sim&&($snap['settlement']!==null||(is_array($meter)&&($meter['observation_mode']??null)!=='OFFLINE_SIMULATOR')))return self::error('simulation_charge_conflict');
+   if(!$sim&&is_array($meter)&&(($meter['observation_mode']??null)!=='NETWORK'||($meter['response_identity_kind']??null)!=='IMAGE_HTTP_REQUEST_ID'||($meter['request_sha256']??null)!==$h['request_sha256']||$meter['model']!==$h['model']))return self::error('cost_metering_identity');
+   $out=array_replace($out,['reserved_maximum'=>$h['maximum_charge'],'currency'=>$h['currency'],'actual_charge'=>$sim?null:($snap['settlement']['charge']['amount']??null),'charge_finality'=>$sim?'NOT_PROVIDER_USAGE':FinalProviderStatement::finality($snap['settlement']),'observed_provider_usage'=>$sim?null:($meter['usage']??null),'simulated_usage'=>$sim?($meter['usage']??null):null,'cost_state'=>$sim?'SIMULATED_USAGE_NOT_PROVIDER_CHARGE_RESERVATION_RETAINED':$snap['cost_state'],'statement_review_available'=>!$sim&&is_array($meter)]);
+  }
+  $fresh=$this->access($shop);return $fresh instanceof WP_Error?$fresh:$out;
+ }
+ /** Only a human-reviewed final provider statement can lower exposure. UNKNOWN is never refunded. */
+ public function reconcile(string $shop,string $id,string $event,string $document,bool $confirmed):array|WP_Error {
+  $gate=$this->access($shop);if($gate instanceof WP_Error)return $gate;global $wpdb;$name=ImageGenerationHttpClient::lockName($id);$connection=$wpdb->get_var('SELECT CONNECTION_ID()');$wpdb->last_error='';$lock=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$name));if($wpdb->last_error!==''||(string)$lock!=='1')return self::error('busy');
+  try{
+   $job=(new ImageGenerationJournal())->read($id);
+   if($job instanceof WP_Error)$result=$job;
+   elseif(!$confirmed||$job['event_sha256']!==$event||$job['identity']['mode']!=='NETWORK'||strlen($document)<2||strlen($document)>32768)$result=self::error('statement_admission');
+   else $result=$this->settleStatement($shop,$job,$document);
+  }catch(\Throwable){$result=self::error('statement_unknown');}
+  finally{$wpdb->last_error='';$owned=$wpdb->get_var($wpdb->prepare('SELECT IS_USED_LOCK(%s)',$name));$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$name));if($wpdb->last_error!==''||(string)$owned!==(string)$connection||(string)$released!=='1')$result=self::error('release_unknown');}
+  $fresh=$this->access($shop);return $fresh instanceof WP_Error?$fresh:$result;
+ }
+ private function settleStatement(string $shop,array $job,string $document):array|WP_Error {
+  $cost=$this->costEvidence($shop,$job['id']);if($cost instanceof WP_Error)return $cost;if(!$cost['statement_review_available'])return self::error('statement_metering_required');$snap=(new ProviderEvidenceRepository())->snapshot($job['usage_id'],$shop);if($snap instanceof WP_Error)return $snap;$meter=$snap['metering'];
+  $e=FinalProviderStatement::evidence($document,$meter['response_id']);if($e instanceof WP_Error)return $e;
+  $fresh=$this->access($shop);if($fresh instanceof WP_Error)return $fresh;$receipt=(new ProviderEvidenceRepository())->settle($job['usage_id'],$shop,$e);return $receipt instanceof WP_Error?$receipt:$this->costEvidence($shop,$job['id']);
+ }
  public function cancel(string $shop,string $id):array|WP_Error {$gate=$this->access($shop);if($gate instanceof WP_Error)return $gate;$job=(new ImageGenerationJournal())->read($id);if($job instanceof WP_Error)return $job;if(!in_array($job['state'],['PREPARED','RESERVED','BLOCKED','UNKNOWN','HELD'],true))return self::error('cancellation_requires_review');return (new ImageGenerationJournal())->append($id,$job['event_sha256'],['state'=>'CANCELLED','error_class'=>'CANCELLED_HOLDS_NOT_REFUNDED']);}
  public function recover(string $shop,string $id):array|WP_Error {
   $gate=$this->access($shop);if($gate instanceof WP_Error)return $gate;global $wpdb;$name=ImageGenerationHttpClient::lockName($id);$wpdb->last_error='';$lock=$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$name));if($wpdb->last_error!==''||(string)$lock!=='1')return self::error('busy');

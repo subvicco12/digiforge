@@ -145,7 +145,7 @@ final class CustomerPhotoSelection
   if($approved&&($state!=='APPROVED'||$review===null||$review['decision']!=='APPROVED'||!user_can($review['reviewed_by'],'manage_digiforge_orders')||ShopAccess::authorize('personalized_pod','manage_digiforge_orders',$review['reviewed_by'])!==true||ShopAccess::authorize('personalized_pod','manage_digiforge_pod',$review['reviewed_by'])!==true))return self::error('approved_selection_required');$result=array_replace($r,['review_state'=>$review===null?'UNREVIEWED':$review['decision']]);
   // Emit only after approved admission has validated the independent review and its current authority.
   // Canonical payload reuse can retain a different canonical reviewer; never substitute that actor.
-  if($approved&&$includeReviewProvenance&&self::operator())$result['review_provenance']=['version'=>'shop2-photo-review-proof-v1','selection_sha256'=>$r['sha256'],'selection_revision'=>$r['revision'],'reviewer_user_id'=>$review['reviewed_by'],'review_sha256'=>$review['sha256'],'decision'=>$review['decision'],'reviewed_at'=>$review['reviewed_at']];
+  if($approved&&$includeReviewProvenance&&self::operator())$result['review_provenance']=['version'=>'shop2-photo-review-proof-v1','selection_sha256'=>$r['sha256'],'selection_revision'=>$r['revision'],'reviewer_user_id'=>$review['reviewed_by'],'review_sha256'=>$review['sha256'],'decision'=>$review['decision'],'reviewed_at'=>$review['reviewed_at'],'canonical_review_status'=>$review['canonical_review_status'],'canonical_reviewed_by'=>$review['canonical_reviewed_by'],'canonical_reviewed_at'=>$review['canonical_reviewed_at']];
   return $result;
  }
  private function auditProof(string $event,string $field,string $sha,int $order):bool {

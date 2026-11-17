@@ -16,6 +16,14 @@ final class ImageGenerationJournal
   });
  }
  public function read(string $id):array|WP_Error {$gate=ImageGenerationAccess::authorize();return $gate instanceof WP_Error?$gate:$this->latest($id);}
+ /** Creator-scoped billing discovery only. It never requires artwork adoption eligibility. */
+ public function forReconciliation():array|WP_Error {
+  $gate=ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;global $wpdb;$actor=get_current_user_id();$wpdb->last_error='';
+  $rows=$wpdb->get_col($wpdb->prepare("SELECT option_value FROM ".$wpdb->options." WHERE option_name LIKE %s AND JSON_VALID(option_value) AND JSON_EXTRACT(option_value,'$.revision')=0 AND JSON_EXTRACT(option_value,'$.identity.created_by')=%d ORDER BY option_id DESC LIMIT 30",$wpdb->esc_like('digiforge_image_job_event_').'%',$actor));
+  if($wpdb->last_error!==''||!is_array($rows))return ImageGenerationEvidenceStore::error('reconciliation_discovery');$items=[];
+  foreach($rows as $raw){$initial=json_decode($raw,true);$chain=$this->chain((string)($initial['id']??''),false);if($chain instanceof WP_Error)return $chain;$last=$chain[count($chain)-1];if($last['identity']['created_by']!==$actor)return ImageGenerationEvidenceStore::error('reconciliation_discovery');$items[]=$last;}
+  $fresh=ImageGenerationAccess::authorize();return $fresh instanceof WP_Error?$fresh:$items;
+ }
  public function append(string $id,string $expectedEvent,array $patch):array|WP_Error {
   $gate=ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;if(!ImageGenerationEvidenceStore::hash($id)||!ImageGenerationEvidenceStore::hash($expectedEvent)||!$this->patch($patch))return ImageGenerationEvidenceStore::error('journal_patch');
   return ImageGenerationEvidenceStore::locked($id,function()use($id,$expectedEvent,$patch):array|WP_Error {
