@@ -41,7 +41,9 @@ crash/concurrency tests are reused, rather than duplicated here.
 
 Start/end hashes must match for runtime and harness bytes; every requested
 viewport must finish. Results distinguish the HEAD runtime from an uncommitted
-test harness. Screenshots contain disposable fixture data only. The existing
+test harness. CI's generated, untracked `composer.lock` is separately fingerprinted
+and must remain unchanged; tracked manifest/lock edits and untracked application
+files still deny acceptance. Screenshots contain disposable fixture data only. The existing
 native focused workflow runs this harness and retains its sanitized receipts.
 
 This is bounded acceptance evidence. Supplier/catalog observations and buyer

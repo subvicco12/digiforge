@@ -7,7 +7,7 @@ const repo=path.resolve(__dirname,'../..'),support=path.join(__dirname,'shop2-bu
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 function git(args){const r=spawnSync('git',args,{cwd:repo,encoding:'utf8'});assert.equal(r.status,0,'Source identity must be available.');return r.stdout;}
 const harnessFiles=['tests/browser/shop2-buyer-held.cjs',...fs.readdirSync(support).sort().map(x=>'tests/browser/shop2-buyer-held/'+x),'tests/wordpress/CustomerPhotoHeldIntegrationTest.php'];
-const sourceFiles=git(['ls-files','-z','--','includes','assets','services','digiforge.php','composer.lock']).split('\0').filter(Boolean).sort();
+const sourceFiles=git(['ls-files','-z','--','includes','assets','services','digiforge.php','composer.json','composer.lock']).split('\0').filter(Boolean).sort();
 const hashes=files=>Object.fromEntries(files.map(p=>[p,digest(path.join(repo,p))]));
 function phpRun(php,file,env,args=[]){
  const r=spawnSync(php,[file,...args],{env,encoding:'utf8',timeout:180000,maxBuffer:4*1024*1024});
@@ -21,7 +21,11 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
  assert.equal(process.env.DF_LOCAL_BROWSER_DISPOSABLE,'1','Explicit disposable fixture required.');
  const widths=(process.env.DF_SHOP2_BROWSER_WIDTHS||'390,768,1280').split(',').map(Number);
  assert(widths.length>0&&new Set(widths).size===widths.length&&widths.every(w=>[390,768,1280].includes(w)),'Choose unique supported viewport widths: 390,768,1280.');
- assert.equal(git(['status','--porcelain','--','includes','assets','services','digiforge.php','composer.lock']),'','Runtime source must match HEAD.');
+ const runtimeChanges=git(['status','--porcelain','--','includes','assets','services','digiforge.php','composer.json','composer.lock']).split('\n').filter(Boolean);
+ // This repository does not track a lockfile; the existing CI Composer install
+ // generates one. Fingerprint it separately, while rejecting every other edit.
+ assert.deepEqual(runtimeChanges.filter(line=>line!=='?? composer.lock'),[],'Runtime source must match HEAD.');
+ const lockPath=path.join(repo,'composer.lock'),dependencyLock=fs.existsSync(lockPath)?digest(lockPath):null;
  const baseline=git(['rev-parse','HEAD']).trim(),harnessStart=hashes(harnessFiles),sourceStart=hashes(sourceFiles),harnessUncommitted=git(['status','--porcelain','--',...harnessFiles])!=='';
  for(const p of [path.join(source||'','wp-settings.php'),path.join(library||'','includes/bootstrap.php'),config||''])assert(fs.statSync(p).isFile(),'Existing local core/library/config required.');
  assert(!/-src['"]/.test(fs.readFileSync(path.join(source,'wp-includes/version.php'),'utf8')),'Released WordPress core with built frontend assets required.');
@@ -122,7 +126,8 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
   assert.deepEqual(assetErrors,[],'Every requested application stylesheet/script must actually load.');
   assert.equal(journeys.length,widths.length,'Every requested viewport must complete its actual workflow.');assert.deepEqual(journeys.map(j=>j.width).sort(),[...widths].sort());
   assert.equal(git(['rev-parse','HEAD']).trim(),baseline);assert.deepEqual(hashes(harnessFiles),harnessStart,'Harness bytes must remain unchanged during execution.');assert.deepEqual(hashes(sourceFiles),sourceStart,'Runtime source bytes must remain unchanged during execution.');
-  const result={schema:'shop2-real-http-acceptance-v1',baseline_source_sha:fixture.source_sha,test_harness_uncommitted:harnessUncommitted,runtime_git_dirty:false,harness_sha256:harnessStart,runtime_tree_sha256:crypto.createHash('sha256').update(JSON.stringify(sourceStart)).digest('hex'),phase:'BUYER_EDITOR_REVIEW_APPROVED_PLAN_BLOCKED_HELD_JOB',checks,requests,viewports:widths,journeys,databaseEvidence,proofs,transport:'REAL_WORDPRESS_HTTP',backend_mocked:false,supplier_evidence:'DISPOSABLE_FIXTURE',buyer_identity_authority:fixture.buyer_identity_authority,native_order_version:null,native_allocation_execution_authorized:false,external_requests:blocked,production_activation_authorized:false};
+  assert.equal(fs.existsSync(lockPath)?digest(lockPath):null,dependencyLock,'Resolved dependency lock bytes must remain unchanged during execution.');
+  const result={schema:'shop2-real-http-acceptance-v1',baseline_source_sha:fixture.source_sha,test_harness_uncommitted:harnessUncommitted,runtime_git_dirty:false,harness_sha256:harnessStart,runtime_tree_sha256:crypto.createHash('sha256').update(JSON.stringify(sourceStart)).digest('hex'),dependency_lock_sha256:dependencyLock,dependency_lock_tracked:sourceFiles.includes('composer.lock'),phase:'BUYER_EDITOR_REVIEW_APPROVED_PLAN_BLOCKED_HELD_JOB',checks,requests,viewports:widths,journeys,databaseEvidence,proofs,transport:'REAL_WORDPRESS_HTTP',backend_mocked:false,supplier_evidence:'DISPOSABLE_FIXTURE',buyer_identity_authority:fixture.buyer_identity_authority,native_order_version:null,native_allocation_execution_authorized:false,external_requests:blocked,production_activation_authorized:false};
   const output=process.env.DF_SHOP2_BROWSER_EVIDENCE;if(output)fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
   console.log(JSON.stringify(result));success=true;
  }catch(e){if(browser){let i=0;for(const c of browser.contexts())for(const p of c.pages())try{fs.writeFileSync(path.join(dir,'failure-'+(i++)+'.html'),await p.content(),{mode:0o600});}catch{}}console.error('Private disposable diagnostics: '+dir);throw e;}
