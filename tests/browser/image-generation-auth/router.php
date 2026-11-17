@@ -39,5 +39,5 @@ try{
  if(!is_user_logged_in()){http_response_code(401);echo 'Private fixture requires an actual WordPress authentication cookie.';exit;}
  echo '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Private synthetic authenticated image acceptance</title><link rel="stylesheet" href="/df-assets/design-factory-controls.css"></head><body><main id="df-design-factory"><h1>Private synthetic authenticated image acceptance</h1>';
  if(isset($_GET['df_message']))echo '<p role="status">'.esc_html(is_string($_GET['df_message'])?$_GET['df_message']:'').'</p>';
- (new DigiForge\Portal\ImageGenerationPanel())->render('personalized_pod',$state['spec']['record']['commercial_hash'],$state['spec']['hash']);echo '</main></body></html>';
+ if(!isset($_GET['df_factory_version']))$_GET['df_factory_version']=$state['spec']['hash'];(new DigiForge\Portal\DesignFactoryPanel())->render('personalized_pod',$state['spec']['record']['commercial_hash']);echo '</main></body></html>';
 }catch(Throwable $e){http_response_code(500);header('Content-Type: application/json');echo wp_json_encode(['fixture_error'=>$e->getMessage()]);}

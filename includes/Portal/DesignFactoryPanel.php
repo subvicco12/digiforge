@@ -39,6 +39,14 @@ final class DesignFactoryPanel
             $this->form('design_import',$commercialHash,$hash);echo '<h4>Import actual original artwork</h4><label>Editable SVG file (maximum 60000 bytes, exact width/height/viewBox)<input type="file" name="artwork_svg" accept=".svg,image/svg+xml" required></label><label>Optional supplemental PNG files (up to three, maximum 2 MiB each)<input type="file" name="artwork_pngs[]" accept=".png,image/png" multiple></label><p>Complete non-interlaced 8-bit PNGs require exact canvas dimensions and embedded 300-DPI density. PNGs remain raster assets and are not embedded into the vector-only listing handoff.</p><p data-df-upload-status role="status" aria-live="polite"></p>';$this->field('rights_note','Original artwork / font licensing evidence');$this->field('source_note','Creation/import provenance and tool reference');echo '<button class="df-button">Import original editable artwork</button></form>';
         }
         if(is_array($r['asset'])){
+            if(($r['provenance']['method']??null)==='GENERATED_RASTER_EDITABLE_DERIVATIVE'){
+                $origin=$r['provenance']['generated_source'];$png=$repo->generatedRaster($shop,$hash);
+                echo '<details open><summary>Generated source and editable adaptation review</summary><p>'.esc_html($origin['mode'].' · '.$origin['provider'].' / '.$origin['model']).'. Raster source is not editable vector. The imported SVG is a human-declared adaptation; visual fidelity, rights and native/physical output are separate review gates.</p><p>Request '.esc_html($origin['request_sha256']).' · source PNG '.esc_html($origin['raster_sha256']).'</p>';
+                if($png instanceof WP_Error)echo '<p role="alert">Generated source is unavailable. Review is held.</p>';
+                else echo '<img alt="Exact generated raster source for independent human adaptation review" style="max-width:100%;width:600px;height:auto" src="data:image/png;base64,'.esc_attr($png['base64']).'">';
+                echo '<p>Approval requires confirmed adoption of this exact derivative. Interrupted adoption must be inspected/recovered; no checkbox overrides source admission.</p></details>';
+            }
+
             echo '<h4>Fixed artwork preview</h4><p>Native buyer text/photos are not applied in this preview. This is not proof of supplier print-output parity.</p><img alt="Approved-source fixed artwork preview" style="max-width:100%;width:600px;height:auto" src="data:image/svg+xml;base64,'.esc_attr(base64_encode($r['asset']['svg'])).'">';
             foreach($r['asset']['raster_references']as $ref){$png=$repo->raster($shop,$hash,$ref['reference']);
                 if($png instanceof WP_Error)echo '<p>'.esc_html($png->get_error_message()).'</p>';

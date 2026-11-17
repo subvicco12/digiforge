@@ -6,7 +6,7 @@ use WP_Error;
 /** Bounded, audit-proven event chains. Ambiguous execution retains holds and cannot retry. */
 final class ImageGenerationJournal
 {
- private const TRANSITIONS=['PREPARED'=>['RESERVED','CANCELLED','BLOCKED'],'RESERVED'=>['DISPATCHING','UNKNOWN','BLOCKED','CANCELLED'],'DISPATCHING'=>['SUCCEEDED','UNKNOWN','HELD'],'SUCCEEDED'=>['DERIVATIVE_LINKED','HELD'],'HELD'=>['CANCELLED'],'UNKNOWN'=>['CANCELLED'],'BLOCKED'=>['CANCELLED'],'CANCELLED'=>[],'DERIVATIVE_LINKED'=>[]];
+ private const TRANSITIONS=['PREPARED'=>['RESERVED','CANCELLED','BLOCKED'],'RESERVED'=>['DISPATCHING','UNKNOWN','BLOCKED','CANCELLED'],'DISPATCHING'=>['SUCCEEDED','UNKNOWN','HELD'],'SUCCEEDED'=>['ADOPTING','DERIVATIVE_LINKED','HELD'],'ADOPTING'=>['DERIVATIVE_LINKED','UNKNOWN','HELD'],'HELD'=>['CANCELLED'],'UNKNOWN'=>['CANCELLED'],'BLOCKED'=>['CANCELLED'],'CANCELLED'=>[],'DERIVATIVE_LINKED'=>[]];
  public function create(array $identity):array|WP_Error {
   $gate=ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;$identity=$this->identity($identity);if($identity instanceof WP_Error)return $identity;$id=ImageGenerationEvidenceStore::digest($identity);
   return ImageGenerationEvidenceStore::locked($id,function()use($identity,$id):array|WP_Error {
@@ -22,6 +22,17 @@ final class ImageGenerationJournal
    $old=$this->latest($id);if($old instanceof WP_Error)return $old;if($old['event_sha256']!==$expectedEvent)return ImageGenerationEvidenceStore::error('journal_cas');if(!in_array($patch['state'],self::TRANSITIONS[$old['state']],true)||$old['revision']>=15)return ImageGenerationEvidenceStore::error('journal_transition');
    $next=array_replace($old,$patch);unset($next['event_sha256']);$next['revision']=$old['revision']+1;$next['previous_event_sha256']=$old['event_sha256'];$next['recorded_by']=get_current_user_id();$next['recorded_at']=gmdate('Y-m-d H:i:s');$next=ImageGenerationEvidenceStore::seal($next,'event_sha256');$saved=$this->save($next,['revision'=>$old['revision'],'event_sha256'=>$old['event_sha256']]);return $saved instanceof WP_Error?$saved:$this->public($next);
   });
+ }
+ /** Minimal source evidence for an independently authorized artwork reviewer; never exposes prompts or credentials. */
+ public function derivativeEvidence(string $shop,string $id,string $spec):array|WP_Error {
+  class_exists(ImageGenerationAccess::class); // Load the existing internal persistence primitives without granting AI authority.
+  if($shop!=='personalized_pod'||!\DigiForge\Security\PersonalizedPodAccess::allows()||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return ImageGenerationEvidenceStore::error('derivative_scope');
+  $events=$this->chain($id,false);if($events instanceof WP_Error)return $events;$job=$events[count($events)-1];$i=$job['identity'];
+  if($i['shop_key']!==$shop||$i['source_type']!=='DESIGN'||$i['source_key']!==$spec||$i['source_version']!==$spec||$i['engine']!=='ORIGINAL_ARTWORK')return ImageGenerationEvidenceStore::error('derivative_source');
+  $generation=null;$adoption=null;foreach($events as $e){if($e['state']==='SUCCEEDED')$generation=$e;if($e['state']==='ADOPTING')$adoption=$e;}
+  if(!is_array($generation)||!is_array($adoption)||!is_array($generation['result'])||($adoption['observation']['adoption_source_event_sha256']??null)!==$generation['event_sha256']||!ImageGenerationEvidenceStore::hash($adoption['observation']['adoption_payload_sha256']??null))return ImageGenerationEvidenceStore::error('derivative_receipt');
+  $meta=$generation['result'];unset($meta['editable_vector'],$meta['supplier_certified'],$meta['provenance_kind']);if(!str_starts_with((string)($meta['storage_reference']??''),'digiforge/product-factory/pod-render-artifacts/shop-personalized_pod/'))return ImageGenerationEvidenceStore::error('derivative_asset_scope');$verified=(new \DigiForge\POD\RenderArtifactStore())->verify($meta);if($verified instanceof WP_Error)return $verified;
+  return ['state'=>$job['state'],'derivative_hash'=>$job['derivative_hash'],'artifact'=>$meta,'origin'=>['version'=>'shop2-generated-derivative-v1','image_job_id'=>$id,'generation_event_sha256'=>$generation['event_sha256'],'specification_sha256'=>$spec,'request_sha256'=>$i['wire_contract']['request_sha256'],'raster_sha256'=>$generation['result']['sha256'],'policy_sha256'=>$i['policy_sha256'],'prompt_sha256'=>hash('sha256',$i['prompt']),'mode'=>$i['mode'],'provider'=>'openai','model'=>$i['wire_contract']['model'],'usage_id'=>$generation['usage_id'],'generation_actor_id'=>$i['created_by'],'provider_response_sha256'=>$generation['observation']['provider_response_sha256'],'derivative_payload_sha256'=>$adoption['observation']['adoption_payload_sha256'],'raster_is_editable'=>false]];
  }
  public function history(string $id):array|WP_Error {$gate=ImageGenerationAccess::authorize();return $gate instanceof WP_Error?$gate:$this->chain($id);}
  public function recent(string $sourceKey):array|WP_Error {

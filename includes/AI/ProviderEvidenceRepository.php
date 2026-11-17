@@ -56,6 +56,11 @@ final class ProviderEvidenceRepository
                 if (!is_string($response['provider_response_sha256']) || !preg_match('/^[a-f0-9]{64}$/D',$response['provider_response_sha256'])) return $this->error('invalid','Provider response hash is invalid.');
                 $receipt['provider_response_sha256']=$response['provider_response_sha256'];$receipt['provenance']='PROVIDER_HTTP_BODY';
             }
+            $researchBinding=null;
+            if(!$image&&$shop==='personalized_pod'&&$usage['stage']==='research'){
+                $researchBinding=(new \DigiForge\Research\ResearchExecutionJournal())->meteringBinding($usageId,$shop);if($researchBinding instanceof WP_Error)return $researchBinding;
+                if(is_array($researchBinding)){$bound=(new MonetaryReservationRepository())->reservation($usageId);if(!is_array($bound)||$researchBinding['registered_model_key']!==$usage['model_key']||$researchBinding['provider_model']!==$model||$researchBinding['request_sha256']!==$bound['request_sha256']||$bound['model']!==$model)return $this->error('identity_conflict','Bound research model/request identity differs.');$receipt['registered_model_key']=$researchBinding['registered_model_key'];}
+            }
             if($image){foreach(['response_identity_kind','model_evidence','request_sha256','observation_mode','provider_created']as $field)$receipt[$field]=$response[$field];$receipt['registered_model_key']=(string)$usage['model_key'];$receipt['usage']=ImageGenerationWireContract::usage($response['usage']);if($response['observation_mode']==='OFFLINE_SIMULATOR')$receipt['cost_state']='SIMULATED_USAGE_NO_PROVIDER_CHARGE';}
             // Preserve every transport observation; equivalent POST/GET serialization must not rewrite or conflict with metering.
             $observation=$this->put('observation_'.$usageId.'_'.$receipt['provider_response_sha256'],$receipt);
@@ -72,7 +77,7 @@ final class ProviderEvidenceRepository
             $bound=(new MonetaryReservationRepository())->reservation($usageId);if($bound instanceof WP_Error)return $bound;if($bound!==null&&!self::matchesBound($bound,$model,$meter))return $this->error('reconciliation_required','Provider model or token metering exceeds its authoritative request ceiling; metering proof is retained.',503);
             // Registered routing keys and provider model identifiers are distinct namespaces.
             // Image requests already bind the provider model in their durable monetary hold.
-            if($image)return $saved;
+            if($image||is_array($researchBinding))return $saved;
             global $wpdb;
             if((string)$usage['model_key']!==''&&(string)$usage['model_key']!==$model)return $this->error('reconciliation_required','Existing model projection conflicts with provider metering.',503);
             $wpdb->last_error='';$updated=$wpdb->query($wpdb->prepare('UPDATE '.Tables::shop_ai_usage()." SET model_key=%s WHERE id=%d AND shop_key=%s AND model_key=''",$model,$usageId,$shop));

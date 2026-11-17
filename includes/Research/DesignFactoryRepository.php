@@ -77,11 +77,31 @@ final class DesignFactoryRepository
                 }
             }
         }
-        return ['hash'=>$hash,'record'=>$record,'review_state'=>$state,'review_hash'=>$reviewHash,'artwork'=>$artwork];
+        $v=['hash'=>$hash,'record'=>$record,'review_state'=>$state,'review_hash'=>$reviewHash,'artwork'=>$artwork];$origin=$this->generatedSource($v,$state==='HUMAN_APPROVED');if($origin instanceof WP_Error)return $origin;return $v;
     }
     public function importArtwork(string $shop,string $specHash,array $payload): array|WP_Error
     {
         return $this->accept($shop,$specHash,$payload,['method'=>'MANUAL_ARTWORK_IMPORT','actor_id'=>get_current_user_id(),'imported_at'=>gmdate('c')]);
+    }
+    /** Called only after the image journal's durable adoption intent; all provenance is resolved server-side. */
+    public function importGeneratedDerivative(string $shop,string $specHash,string $jobId,array $payload):array|WP_Error
+    {
+        $gate=\DigiForge\AI\ImageGenerationAccess::authorize();if($gate instanceof WP_Error)return $gate;
+        $job=(new \DigiForge\AI\ImageGenerationJournal())->read($jobId);if($job instanceof WP_Error)return $job;
+        $evidence=(new \DigiForge\AI\ImageGenerationJournal())->derivativeEvidence($shop,$jobId,$specHash);if($evidence instanceof WP_Error)return $evidence;
+        if($job['state']!=='ADOPTING'||$evidence['origin']['derivative_payload_sha256']!==hash('sha256',\DigiForge\Orders\Validator::canonicalJson($payload)))return self::error('Exact pending generated-derivative payload required.');
+        return $this->accept($shop,$specHash,$payload,['method'=>'GENERATED_RASTER_EDITABLE_DERIVATIVE','actor_id'=>get_current_user_id(),'imported_at'=>gmdate('c'),'generated_source'=>$evidence['origin']]);
+    }
+    private function generatedSource(array $v,bool $requireLinked=false):array|null|WP_Error
+    {
+        $p=$v['record']['provenance'];if(($p['method']??null)!=='GENERATED_RASTER_EDITABLE_DERIVATIVE')return null;
+        $origin=$p['generated_source']??null;if(!is_array($origin)||!is_string($origin['image_job_id']??null)||!is_string($origin['specification_sha256']??null))return self::error('Generated source lineage missing.');
+        $e=(new \DigiForge\AI\ImageGenerationJournal())->derivativeEvidence('personalized_pod',$origin['image_job_id'],$origin['specification_sha256']);if($e instanceof WP_Error)return $e;
+        if($e['origin']!==$origin||$v['record']['parent_hash']!==$origin['specification_sha256']&&$v['record']['kind']==='ASSET_READY')return self::error('Generated source lineage conflict.');
+        $asset=$v['record']['asset'];$uploads=[];foreach($asset['raster_references']as $ref){$r=$this->rasterData($ref['reference'],$v['record']['specification']);if($r instanceof WP_Error)return $r;$uploads[]=['mime_type'=>'image/png','base64'=>$r['base64']];}
+        $payload=['svg'=>$asset['svg'],'raster_uploads'=>$uploads,'rights_note'=>$asset['rights_note'],'source_note'=>$asset['source_note']];if(hash('sha256',\DigiForge\Orders\Validator::canonicalJson($payload))!==$origin['derivative_payload_sha256'])return self::error('Generated derivative payload changed.');
+        if($requireLinked){$assetHash=$v['record']['kind']==='ASSET_READY'?$v['hash']:$v['record']['parent_hash'];if($e['state']!=='DERIVATIVE_LINKED'||$e['derivative_hash']!==$assetHash)return self::error('Generated derivative adoption is not confirmed; inspect or recover the image attempt.');}
+        return $origin;
     }
     public function generate(string $shop,string $specHash): array|WP_Error
     {
@@ -119,6 +139,7 @@ final class DesignFactoryRepository
     {
         $v=$this->read($shop,$assetHash);if($v instanceof WP_Error)return $v;
         if($v['record']['kind']!=='ASSET_READY'||$v['review_state']!==null||!in_array($decision,['APPROVE','REJECT'],true)||!self::text($note))return self::error('Exact unreviewed asset and explicit human decision/note required.');
+        $origin=$this->generatedSource($v,true);if($origin instanceof WP_Error)return $origin;
         try {DesignFactoryContract::review($criteria,$decision==='APPROVE');}catch(\Throwable){return self::error('All human commercial/originality/licensing/mockup criteria must pass before approval.');}
         $intent=$this->append($v,['kind'=>'REVIEW_INTENT','decision'=>$decision,'criteria'=>$criteria,'note'=>$note]);if($intent instanceof WP_Error)return $intent;
         $pointer=self::PREFIX.'decision_'.$assetHash;if(!add_option($pointer,$intent['hash'],'',false)||$this->stored($pointer)!==$intent['hash'])return self::error('Another review exists or decision receipt uncertain; inspect before retry.');
@@ -136,11 +157,19 @@ final class DesignFactoryRepository
         try {$spec=DesignFactoryContract::specification($v['record']['context'],$v['record']['specification']['profile'],$choices??$v['record']['specification']['layout']);}catch(\Throwable){return self::error('Valid revised specification required.');}
         return $this->append($v,['kind'=>'SPEC_READY','specification'=>$spec,'asset'=>null,'provenance'=>null,'decision'=>null,'criteria'=>null,'note'=>$note]);
     }
+    /** Source preview for a currently admitted human reviewer, resolved only from the saved derivative lineage. */
+    public function generatedRaster(string $shop,string $hash):array|WP_Error
+    {
+        $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;$origin=$this->generatedSource($v);if($origin instanceof WP_Error)return $origin;if($origin===null)return self::error('No generated source is bound to this version.');
+        $e=(new \DigiForge\AI\ImageGenerationJournal())->derivativeEvidence($shop,$origin['image_job_id'],$origin['specification_sha256']);if($e instanceof WP_Error)return $e;$path=\DigiForge\ProductFactory\AssetStorage::absolutePath($e['artifact']['storage_reference']);$bytes=$path===null?false:file_get_contents($path,false,null,0,2097153);
+        if(!is_string($bytes)||strlen($bytes)>2097152||hash('sha256',$bytes)!==$origin['raster_sha256'])return self::error('Generated source bytes changed.');return ['mime_type'=>'image/png','base64'=>base64_encode($bytes),'sha256'=>$origin['raster_sha256'],'editable'=>false,'supplier_certified'=>false];
+    }
     public function handoff(string $shop,string $hash): array|WP_Error
     {
         $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;if($v['review_state']!=='HUMAN_APPROVED'||!is_array($v['artwork']))return self::error('Confirmed immutable artwork approval required; prompts, intents and raster-only output cannot be handed off.');
         $intent=$this->record($v['review_hash']);if($intent instanceof WP_Error)return $intent;
-        return ['artwork'=>$v['artwork'],'design_metadata'=>['design_hash'=>$hash,'concept_approval_hash'=>$v['record']['concept_approval_hash'],'commercial_hash'=>$v['record']['commercial_hash'],'specification'=>$v['record']['specification'],'geometry'=>$v['record']['specification']['geometry'],'raster_references'=>$v['record']['asset']['raster_references'],'human_review'=>['review_hash'=>$v['review_hash'],'decision'=>$intent['decision'],'criteria'=>$intent['criteria'],'reviewed_by'=>$intent['created_by'],'reviewed_at'=>$intent['created_at'],'note'=>$intent['note']],'supplemental_rasters_in_listing_envelope'=>false,'supplier_certified'=>false,'release_hold'=>true]];
+        $origin=$this->generatedSource($v,true);if($origin instanceof WP_Error)return $origin;
+        return ['artwork'=>$v['artwork'],'design_metadata'=>['design_hash'=>$hash,'concept_approval_hash'=>$v['record']['concept_approval_hash'],'commercial_hash'=>$v['record']['commercial_hash'],'specification'=>$v['record']['specification'],'geometry'=>$v['record']['specification']['geometry'],'raster_references'=>$v['record']['asset']['raster_references'],'human_review'=>['review_hash'=>$v['review_hash'],'decision'=>$intent['decision'],'criteria'=>$intent['criteria'],'reviewed_by'=>$intent['created_by'],'reviewed_at'=>$intent['created_at'],'note'=>$intent['note']],'generated_source'=>$origin,'supplemental_rasters_in_listing_envelope'=>false,'supplier_certified'=>false,'release_hold'=>true]];
     }
     public function raster(string $shop,string $hash,string $reference): array|WP_Error
     {

@@ -71,14 +71,14 @@ final class ImageGenerationPanel
                         if(!is_array($quote)||($quote['model']??null)!==$job['identity']['wire_contract']['model']||($quote['request_sha256']??null)!==$job['identity']['wire_contract']['request_sha256']||($quote['currency']??null)!==$policy['policy']['currency'])return self::error('quote_source');
                         $saved=(new MonetaryReservationRepository())->reviewQuote($shop,$document,'CONFIRM_PROVIDER_QUOTE');if($saved instanceof WP_Error)return $saved;$result=$job;
                     }elseif($op==='design_image_derivative'){
-                        if(!is_string($post['source_sha256']??null)||!is_string($post['rights_note']??null)||!is_string($post['source_note']??null))return self::error('derivative');
-                        $result=$service->linkDerivative($shop,$job['id'],$post['source_sha256'],['svg'=>self::upload($_FILES['derivative_svg']??null,'svg',60000),'raster_uploads'=>[],'rights_note'=>$post['rights_note'],'source_note'=>$post['source_note']],true);
+                        if(!is_string($post['expected_event']??null)||!preg_match('/^[a-f0-9]{64}$/D',$post['expected_event'])||!is_string($post['source_sha256']??null)||!is_string($post['rights_note']??null)||!is_string($post['source_note']??null))return self::error('derivative');
+                        $result=$service->linkDerivative($shop,$job['id'],$post['source_sha256'],['svg'=>self::upload($_FILES['derivative_svg']??null,'svg',60000),'raster_uploads'=>[],'rights_note'=>$post['rights_note'],'source_note'=>$post['source_note']],true,$post['expected_event']);
                     }
                 }
             }
         }catch(\Throwable){return self::error('input');}
         if($result instanceof WP_Error)return $result;if(!is_array($result))return self::error('operation');
-        return ['hash'=>$commercial,'design_factory_hash'=>$spec,'image_job'=>$result];
+        return ['hash'=>$commercial,'design_factory_hash'=>($result['state']??null)==='DERIVATIVE_LINKED'?$result['derivative_hash']:$spec,'image_job'=>$result];
     }
 
     private function source(string $shop,string $commercial,string $spec):array|WP_Error
@@ -102,14 +102,14 @@ final class ImageGenerationPanel
             $this->form('run',$commercial,$spec,$id);$this->confirm('Request one provider attempt against the reviewed quote and hard budgets; candidate remains unapproved');echo '<button class="df-button"'.($allowed?'':' disabled').'>Request one network image attempt</button></form>';
         }
         if(in_array($job['state'],['PREPARED','RESERVED','BLOCKED','UNKNOWN','HELD'],true)){$this->form('cancel',$commercial,$spec,$id);$this->confirm('Cancel this attempt; existing monetary holds remain for reconciliation');echo '<button class="df-button">Cancel exact attempt</button></form>';}
-        if(in_array($job['state'],['RESERVED','DISPATCHING'],true)){$this->form('recover',$commercial,$spec,$id);$this->confirm('Record interrupted execution as unknown, without retry or assumed refund');echo '<button class="df-button">Record interrupted attempt</button></form>';}
+        if(in_array($job['state'],['RESERVED','DISPATCHING','ADOPTING'],true)){$this->form('recover',$commercial,$spec,$id);$this->confirm('Record interrupted execution as unknown, without retry or assumed refund');echo '<button class="df-button">Record interrupted attempt</button></form>';}
         if(is_array($job['result']??null)){
             $artifact=(new ImageGenerationExecution())->artifact('personalized_pod',$id);
             if(is_array($artifact))echo '<p>Unapproved raster candidate — not editable vector; composition, rights, print parity and supplier suitability require human review.</p><img alt="Unapproved raster candidate" style="max-width:100%;height:auto" src="data:image/png;base64,'.esc_attr(base64_encode($artifact['bytes'])).'">';
             else echo '<p>Candidate bytes are unavailable or changed; preview is held.</p>';
         }
         if($job['state']==='SUCCEEDED'){
-            $this->form('derivative',$commercial,$spec,$id);echo '<input type="hidden" name="source_sha256" value="'.esc_attr($job['result']['sha256']).'"><label>Human-adapted editable SVG file (up to 60000 bytes, exact design canvas)<input type="file" name="derivative_svg" accept=".svg,image/svg+xml" required></label>';$this->field('rights_note','Originality / artwork and font licensing evidence');$this->field('source_note','Human adaptation provenance and tool reference','',1500);$this->confirm('I adapted this exact raster source into actual editable SVG. This declaration is not artwork approval');echo '<button class="df-button">Link manual editable derivative for human artwork review</button></form>';
+            $this->form('derivative',$commercial,$spec,$id);echo '<input type="hidden" name="expected_event" value="'.esc_attr($job['event_sha256']).'"><input type="hidden" name="source_sha256" value="'.esc_attr($job['result']['sha256']).'"><label>Human-adapted editable SVG file (up to 60000 bytes, exact design canvas)<input type="file" name="derivative_svg" accept=".svg,image/svg+xml" required></label>';$this->field('rights_note','Originality / artwork and font licensing evidence');$this->field('source_note','Human adaptation provenance and tool reference','',1500);$this->confirm('I adapted this exact raster source into actual editable SVG. This declaration is not artwork approval');echo '<button class="df-button">Link manual editable derivative for human artwork review</button></form>';
         }
         if(is_string($job['derivative_hash']??null))echo '<p><a href="'.esc_url(add_query_arg(['df_view'=>'research','df_shop'=>'personalized_pod','df_research_version'=>$commercial,'df_factory_version'=>$job['derivative_hash']],$this->baseUrl())).'#df-design-factory">Open linked editable derivative for separate human artwork review</a></p>';
         echo '</details>';

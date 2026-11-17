@@ -5,12 +5,12 @@
     "includes/AI/ImageGenerationAccess.php": "00cdedf3eec2e0ce8bb67da2572e4bff75e92dd0c15a0f54f9c957f09535f3ae",
     "includes/AI/ImageGenerationCredentialCustody.php": "03e57ee1b543452abd4a1cbc7a47f26942f529c121bdad79cff16a22240ba3e2",
     "includes/AI/ImageGenerationPolicyRepository.php": "dbe4e9e792593d9beb7d7f6201c8f1bf7f787840155feba094b2b5ebfe960d49",
-    "includes/AI/ImageGenerationJournal.php": "de590cf4af5ea44c54b4ce279dd9034bab2157070b04e2c14ac8e48b15259db4",
+    "includes/AI/ImageGenerationJournal.php": "8ac198f4cbc64f4140c831d100c60d9e881c508d93969b255702fddf1637db5f",
     "includes/AI/ImageGenerationWireContract.php": "68515861e349c59a7b3fcea0853839c4fad28aaa819feffe79129c04422bc944",
     "includes/AI/ImageGenerationHttpClient.php": "5f756be4a8e11076da830cec6c6b9953561fe54520640eb170abedbd332cc2ec",
-    "includes/AI/ImageGenerationExecution.php": "0b2303784890aa705520f7092dee4203b86d2b6f3f369094399a9ee9ba68f3da",
+    "includes/AI/ImageGenerationExecution.php": "384fae34aabcd57d42ed6cf0c4dc19929b9fdab88e2465dda01c941fbe447c94",
     "includes/AI/OfflineImageTransport.php": "92e8a47975c28b309535c5d682b407ae632395d5fc1e6434db4f4c4721da04be",
-    "includes/AI/ProviderEvidenceRepository.php": "87eaeb91aaa73e5690df89a8668edcd8a380819bb69c80f51acd2e96ea6a870c"
+    "includes/AI/ProviderEvidenceRepository.php": "2de22168528510fd1d092d26ac6b203098e92015ca401961832f496b6bf06acf"
   },
   "sender": {
     "path": "includes/AI/ImageGenerationHttpClient.php",

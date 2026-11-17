@@ -10,6 +10,7 @@ use WP_Error;
 final class CommercialResearchPanel
 {
     private const ACTION='digiforge_commercial_research';
+    public function __construct(private ?\DigiForge\Research\ResearchExecution $researchExecution=null){}
     public function register(): void {add_action('admin_post_'.self::ACTION,[$this,'submit']);}
     public function render(string $shop,?array $supplierTemplate=null,bool $manualOnly=false,bool $supplierBound=false): void
     {
@@ -17,6 +18,7 @@ final class CommercialResearchPanel
         if(!\DigiForge\Security\PersonalizedPodAccess::allows()||$shop!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return;
         echo '<section class="df-panel" id="df-commercial-research"><h2>Research → Opportunity → Three concepts → Design → Artwork → Approval</h2><p>Source-led commercial design workspace. Imports and scores are unverified evidence for human review. Prompts are not finished artwork. STOP ALL, external lock and RELEASE HOLD remain unchanged.</p>';
         if(!$supplierBound){
+        (new ResearchExecutionPanel($this->researchExecution))->render($shop);
         $this->researchForm();
         echo '<details'.(isset($_GET['df_research_version'])?'':' open').'><summary>Import source-backed research JSON</summary>';
         $this->form('research_import');echo '<p>Paste a research object with shop_key, title, product_family and 1–10 sources (id, kind, url, observed_at, excerpt, provenance). Work imports remain unverified evidence; no concept selection or approval is imported. Source dates and limitations are preserved exactly. Import the separate scores/concepts response after opening the saved workflow.</p><label>Research JSON<textarea name="research_json" rows="8" maxlength="200000" required></textarea></label><button class="df-button">Import research evidence</button></form></details>';
@@ -103,6 +105,7 @@ final class CommercialResearchPanel
         if($result instanceof WP_Error){$args+=['df_message'=>$result->get_error_message(),'df_error'=>'1'];$data=$result->get_error_data();if(is_array($data)&&is_string($data['review_intent_hash']??null))$args['df_research_version']=$data['review_intent_hash'];}else $args+=['df_research_version'=>$result['hash'],'df_message'=>'Immutable research/design evidence saved. Release remains held.'];
         $factoryHash=$result instanceof WP_Error?($result->get_error_data()['design_factory_hash']??null):($result['design_factory_hash']??null);
         if(is_string($factoryHash)&&preg_match('/^[a-f0-9]{64}$/D',$factoryHash)){$args['df_factory_version']=$factoryHash;if($result instanceof WP_Error&&is_string($_POST['workflow_hash']??null))$args['df_research_version']=wp_unslash($_POST['workflow_hash']);}
+        if(is_array($result)&&is_int($result['research_job_id']??null))$args['df_research_job_id']=$result['research_job_id'];
         if(is_array($result)&&is_string($result['personalization_hash']??null))$args['df_personalization_version']=$result['personalization_hash'];
         if(is_array($result)&&is_string($result['package_hash']??null))$args['df_package_version']=$result['package_hash'];
         if($result instanceof WP_Error&&is_string($_POST['operation']??null)&&str_starts_with($_POST['operation'],'package_')){
@@ -120,6 +123,7 @@ final class CommercialResearchPanel
         if(!\DigiForge\Security\PersonalizedPodAccess::allows()||($post['shop_key']??null)!=='personalized_pod'||get_current_user_id()<1||!current_user_can('manage_digiforge_research')||!current_user_can('manage_digiforge_pod'))return new WP_Error('commercial_scope','Authenticated personalized-POD reviewer required.');
         try {if(strlen(CommercialResearchContract::json($post))>(is_string($post['operation']??null)&&str_starts_with($post['operation'],'design_')?8500000:500000))throw new \RuntimeException();}catch(\Throwable){return new WP_Error('commercial_input','Bounded valid request required.');}
         $repo=new CommercialResearchRepository();$op=$post['operation']??null;
+        if(is_string($op)&&str_starts_with($op,'research_queue_'))return (new ResearchExecutionPanel($this->researchExecution))->process($post);
         if(is_string($op)&&str_starts_with($op,'personalization_'))return (new ArtworkPersonalizationPanel())->process($post);
         if(is_string($op)&&str_starts_with($op,'design_'))return (new DesignFactoryPanel())->process($post);
         if(is_string($op)&&str_starts_with($op,'package_'))return (new ProductPackagePanel())->process($post);

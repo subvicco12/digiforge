@@ -50,7 +50,15 @@ final class CommercialResearchRepository
         if(!is_string($result['raw']??null)||!is_array($result['provenance']??null)||($result['provenance']['method']??null)!=='governed_ai')return self::error('Provider output/provenance malformed.');
         return $this->concepts($shop,$hash,$result['raw'],$result['provenance']);
     }
-    private function concepts(string $shop,string $hash,string $raw,array $provenance): array|WP_Error
+    /** Deferred completion is resolved from an authenticated immutable server job, never caller response metadata. */
+    public function importQueuedResult(string $shop,int $jobId,string $sourceHash,string $expectedEvent):array|WP_Error
+    {
+        $gate=ResearchExecutionJournal::access($shop);if($gate instanceof WP_Error)return $gate;$job=(new ResearchExecutionJournal())->read($jobId);if($job instanceof WP_Error)return $job;
+        if($job['state']!=='INTAKING'||$job['event_sha256']!==$expectedEvent||($job['identity']['sources'][$job['index']]??null)!==$sourceHash||!is_array($job['result_payload']??null))return self::error('Exact current queued research completion required.');
+        $simulated=$job['identity']['mode']==='OFFLINE_SIMULATOR';$origin=['version'=>'shop2-research-result-v1','job_id'=>$jobId,'source_sha256'=>$sourceHash,'intake_event_sha256'=>$expectedEvent,'mode'=>$job['identity']['mode'],'usage_id'=>$job['usage_id'],'response_id'=>$job['response_id'],'provider_response_sha256'=>$job['provider_response_sha256'],'timestamp_basis'=>'LOCAL_CAPTURE_NOT_PROVIDER_CREATION'];
+        return $this->concepts($shop,$sourceHash,CommercialResearchContract::json($job['result_payload']),['method'=>$simulated?'ai_import':'governed_ai','provider'=>$simulated?'SIMULATED_OFFLINE_RESEARCH':'openai_background_capture','model'=>$job['result_model'],'response_id'=>$job['response_id'],'generated_at'=>gmdate('Y-m-d\TH:i:s\Z')],$origin);
+    }
+    private function concepts(string $shop,string $hash,string $raw,array $provenance,?array $executionOrigin=null): array|WP_Error
     {
         $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;
         if($v['record']['stage']!=='RESEARCH_READY')return self::error('Create a research revision before replacing concepts.');
@@ -59,11 +67,20 @@ final class CommercialResearchRepository
         $date=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z',$provenance['generated_at'],new \DateTimeZone('UTC'));
         if(!$date||$date->format('Y-m-d\TH:i:s\Z')!==$provenance['generated_at']||$date->getTimestamp()>time())return self::error('Exact non-future response timestamp required.');
         try {$response=CommercialResearchContract::response($raw,$v['record']['research']);}catch(\Throwable){return self::error('AI/manual response rejected: malformed, ungrounded, duplicated or unsupported fields.');}
-        return $this->append($v,['stage'=>'CONCEPTS_READY','response'=>$response,'provenance'=>$provenance]);
+        return $this->append($v,['stage'=>'CONCEPTS_READY','response'=>$response,'provenance'=>$provenance,'execution_origin'=>$executionOrigin]);
     }
     public function select(string $shop,string $hash,int $concept): array|WP_Error
     {
         $v=$this->read($shop,$hash);if($v instanceof WP_Error)return $v;
+        if(is_array($v['record']['execution_origin']??null)){
+            $o=$v['record']['execution_origin'];$e=(new ResearchExecutionJournal())->intakeEvidence($shop,$o['job_id'],$o['source_sha256']);if($e instanceof WP_Error)return $e;$cursor=$v;$match=false;
+            // Explicit family reuse may change title/family, never the underlying source/concepts or intake receipt.
+            for($n=0;$n<50;$n++){
+                if(($cursor['record']['execution_origin']??null)!==$o||$cursor['record']['research']['sources']!==$v['record']['research']['sources']||$cursor['record']['response']!==$v['record']['response'])break;
+                foreach($e['results']as $r)if($r['result_sha256']===$cursor['hash']&&$r['intake_event_sha256']===$o['intake_event_sha256'])$match=true;if($match||$cursor['record']['parent_hash']===null)break;$cursor=$this->read($shop,$cursor['record']['parent_hash']);if($cursor instanceof WP_Error)return $cursor;
+            }
+            if(!$match)return self::error('Queued result intake not confirmed; review the run before selection.');
+        }
         if($v['record']['stage']!=='CONCEPTS_READY'||!in_array($concept,[1,2,3],true))return self::error('Select one of this version’s three concepts.');
         return $this->append($v,['stage'=>'DESIGN_SELECTED','selected_concept'=>$concept,'design_prompt'=>CommercialResearchContract::designPrompt($v['record']['research'],$v['record']['response']['concepts'][$concept-1])]);
     }

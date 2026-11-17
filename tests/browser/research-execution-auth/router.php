@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+$evidence=getenv('PORTAL_CONTROLS_EVIDENCE');if($evidence!=='/workspace/lane-a-ai-research-http-20261117'||($_SERVER['REMOTE_ADDR']??'')!=='127.0.0.1'||!is_file($evidence.'/research-auth/ready.marker')){http_response_code(403);exit;}$dir=$evidence.'/research-auth';$repo=dirname(__DIR__,3);$path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);
+if($path==='/wp-admin/admin-post.php'){if($_SERVER['REQUEST_METHOD']!=='POST'||($_POST['action']??null)!=='digiforge_commercial_research'){http_response_code(405);exit;}define('ABSPATH',$dir.'/core/');require ABSPATH.'wp-admin/admin-post.php';exit;}
+if($_SERVER['REQUEST_METHOD']!=='GET'){http_response_code(405);exit;}
+require $dir.'/core/wp-config.php';
+try {
+ if($path==='/setup'){
+  if(is_file($dir.'/state.json'))throw new RuntimeException('Existing evidence cannot be replaced');require_once $repo.'/tests/wordpress/fixtures/ShopAccessFixture.php';$id=wp_create_user('synthetic_research_cookie_actor',wp_generate_password(40));if(is_wp_error($id))throw new RuntimeException($id->get_error_code());$u=new WP_User($id);$u->set_role('administrator');wp_set_current_user($id);ShopAccessFixture::reset();ShopAccessFixture::authorizeActor($id,['personalized_pod'],['manage_digiforge_ai','manage_digiforge_pod','manage_digiforge_research']);global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');$source=ResearchHttpFixture::source();
+  copy(DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE,$dir.'/authority.json');chmod($dir.'/authority.json',0600);file_put_contents($dir.'/authority.php',"<?php\ndefine('DIGIFORGE_SHOP_ACCESS_TRUST_KEY',".var_export(DIGIFORGE_SHOP_ACCESS_TRUST_KEY,true).");\ndefine('DIGIFORGE_SHOP_ACCESS_AUTHORITY_FILE',".var_export($dir.'/authority.json',true).");\n");chmod($dir.'/authority.php',0600);file_put_contents($dir.'/state.json',wp_json_encode(compact('id','source')));chmod($dir.'/state.json',0600);wp_set_auth_cookie($id,false,false);wp_safe_redirect(home_url('/'));exit;
+ }
+ $state=json_decode(file_get_contents($dir.'/state.json'),true);if(get_current_user_id()!==$state['id']){http_response_code(401);exit;}
+ if($path==='/status'){
+  $jobs=(new DigiForge\Research\ResearchExecutionJournal())->recent();if(is_wp_error($jobs)){http_response_code(403);echo wp_json_encode(['error'=>$jobs->get_error_code()]);exit;}$j=$jobs[0]??null;$quote=null;if($j&&$j['state']==='QUEUED'){$c=$j['identity']['contracts'][0];$quote=['provider'=>'openai','quote_id'=>'synthetic-http-'.wp_generate_uuid4(),'model'=>$c['model'],'request_sha256'=>$c['request_sha256'],'currency'=>'USD','maximum_charge'=>'0.020000','inclusive_all_charges'=>true,'valid_from'=>gmdate('Y-m-d\TH:i:s\Z',time()-10),'valid_until'=>gmdate('Y-m-d\TH:i:s\Z',time()+3600),'evidence_kind'=>'SYNTHETIC_TEST_ONLY'];}header('Content-Type: application/json');echo wp_json_encode(['job'=>$j,'quote'=>$quote,'http_calls'=>$GLOBALS['image_auth_http_calls']]);exit;
+ }
+ if($path==='/revoke'){wp_get_current_user()->add_cap('manage_digiforge_ai',false);header('Content-Type: application/json');echo '{"revoked":true}';exit;}
+ if($path!=='/'){http_response_code(404);exit;}
+ echo '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{max-width:100%;margin:12px}input,textarea,select,button{max-width:100%;box-sizing:border-box}label{display:block}code{overflow-wrap:anywhere}fieldset{min-width:0}textarea{width:100%}</style><title>Synthetic recorded research HTTP</title></head><body><main>';if(isset($_GET['df_message']))echo '<p role="status">'.esc_html((string)$_GET['df_message']).'</p>';(new DigiForge\Portal\CommercialResearchPanel(ResearchHttpFixture::service()))->render('personalized_pod');echo '</main></body></html>';
+}catch(Throwable $e){http_response_code(500);header('Content-Type: application/json');echo wp_json_encode(['fixture_error'=>$e->getMessage()]);}
