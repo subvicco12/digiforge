@@ -12,6 +12,9 @@ on:
       - 'includes/Connector/Printify/NativeBusinessOrderEvidence.php'
       - 'includes/Connector/Printify/NativeBusinessVersionRepository.php'
       - 'tests/wordpress/NativeManagedOrderAssociationCompositionTest.php'
+      - 'tests/browser/shop2-buyer-held.cjs'
+      - 'tests/browser/shop2-buyer-held/**'
+      - 'tests/wordpress/CustomerPhotoHeldIntegrationTest.php'
       - 'phpunit.wordpress.xml.dist'
       - 'phpunit.wordpress.authority.xml.dist'
       - 'composer.json'
@@ -107,6 +110,24 @@ jobs:
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
         run: vendor/bin/phpunit --configuration phpunit.wordpress.authority.xml.dist --log-junit evidence/managed-producer-junit.xml
+
+      - name: Real WordPress buyer editor and held-order browser composition
+        timeout-minutes: 25
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/shop2-browser-cache
+          DF_LOCAL_BROWSER_DISPOSABLE: '1'
+          DF_BROWSER_CORE: /tmp/wordpress
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          DF_BROWSER_TEST_CONFIG: /tmp/wordpress-tests-lib/wp-tests-config.php
+          DF_BROWSER_NO_SANDBOX: '1'
+          DF_SHOP2_BROWSER_EVIDENCE: evidence/shop2-browser.json
+        run: |
+          runtime="$RUNNER_TEMP/shop2-browser"
+          npm install --prefix "$runtime" --ignore-scripts --save-exact playwright@1.62.1
+          node "$runtime/node_modules/playwright/cli.js" install --with-deps chromium
+          export NODE_PATH="$runtime/node_modules"
+          export DF_BROWSER_EXECUTABLE="$(node -e 'process.stdout.write(require("playwright").chromium.executablePath())')"
+          node tests/browser/shop2-buyer-held.cjs
 
       - name: Verify service remains outside WordPress export
         run: |
