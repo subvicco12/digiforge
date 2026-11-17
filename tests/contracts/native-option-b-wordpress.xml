@@ -1,4 +1,4 @@
-<phpunit failOnWarning="true" failOnRisky="true"><php><env name="DF_NATIVE_TEST_SHA" value="862caef4c69552f501efc1d959a1de92d8b88ca9" force="true"/><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Option B actual local inspection and canonical mutation denials">
+<phpunit failOnWarning="true" failOnRisky="true"><php><env name="DF_NATIVE_TEST_SHA" value="d64d32159bea4832b962acb6b4c08fa6fbeae910" force="true"/><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php><testsuites><testsuite name="Option B actual local inspection and canonical mutation denials">
 <file>/companionrepo/tests/contracts/NativeMutationWordPressAcceptance.php</file>
 <file>/feature/tests/wordpress/NativeHeldJournalWordPressTest.php</file>
 <file>/feature/tests/wordpress/NativeOrderSourceEvidenceTest.php</file>

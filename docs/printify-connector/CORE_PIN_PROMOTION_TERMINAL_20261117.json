@@ -1,0 +1,95 @@
+{
+  "schema": "DF_COMPANION_CORRECTIVE_CORE_PIN_1",
+  "purpose": "SOURCE_COMPATIBILITY_ONLY_RELEASE_HELD",
+  "companion_base_sha": "d4ab1f7b6dd6238430cad065bf826c86a2cfd7ae",
+  "previous_core_pin": "862caef4c69552f501efc1d959a1de92d8b88ca9",
+  "trusted_core_sha": "d64d32159bea4832b962acb6b4c08fa6fbeae910",
+  "rejected_unfixed_core_shas": [
+    "862caef4c69552f501efc1d959a1de92d8b88ca9",
+    "b367652c8d1ae1448cf4da286a8959fe32204b25"
+  ],
+  "core_ci": {
+    "run_id": 44015020722,
+    "head_sha": "d64d32159bea4832b962acb6b4c08fa6fbeae910",
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/44015020722",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "contract_version": "1.0.0",
+  "canonical_contract_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "advertised_capabilities": [
+    "PANEL",
+    "GET_READ"
+  ],
+  "external_execution_authorized": false,
+  "runtime_composition": "One corrected integrated Core plus standalone Companion. API09 is preserved upstream evidence; its older standalone webhook runtime is superseded, not installation-eligible.",
+  "core_correction": "Capture the physical mysqli session; fixed control SQL after filter admission; private volatile savepoint detects transaction replacement. This is not independent checkpoint/recovery authority. Preserve caller frames, local receipt/audit consistency and UNKNOWN acknowledgements.",
+  "conformance": {
+    "source_pair": {
+      "tests": 116,
+      "assertions": 1331,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    "extracted_pair": {
+      "tests": 116,
+      "assertions": 1331,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    "get_operations": 13,
+    "positive_source_pin_overrides": false,
+    "test_assertions_removed": 0,
+    "default_pre_promotion_denial": {
+      "tests": 1,
+      "assertions": 5
+    },
+    "companion_unit": {
+      "tests": 1756,
+      "assertions": 9400
+    },
+    "offline_unique_cases": 74,
+    "offline_accounting": "Full74 suite:4 existing baseline-dependent skips; all4 subsequently passed with hash-verified private baseline. No cases omitted.",
+    "runtime_preservation": {
+      "core_members": 832,
+      "companion_members": 48,
+      "all_unchanged_after_faults": true
+    }
+  },
+  "package_evidence": {
+    "core_native_zip_sha256": "2f6af053549cef09c151133eaf0daab23c0ee8848a0f6bdbf2f33c851d2de72e",
+    "companion_exact_proposal_zip_sha256": "c0b20eb2cbdd7ab598d2975b1233ceefd2bf8bd49471ad7d2916c22e55d7e3dd",
+    "status": "LOCALLY_REBUILT_PACKAGE_VERIFIED; CI_ARTIFACT_READBACK_BLOCKED; INSTALLATION_NOT_VERIFIED"
+  },
+  "companion_ci_policy": "Normal exact-head Engineering & Safety CI is required for the resulting immutable commit; no self-referential or pending run is predeclared successful. Consult PR1263 checks and the final external integration freeze receipt.",
+  "historical_receipt_preserved": {
+    "path": "docs/printify-connector/CORE_PIN_PROMOTION_20261117.json",
+    "sha256": "5575370137878a25fea8d591067f751fddc48f1357c5b115daa728fbb0da5a57"
+  },
+  "remaining_operational_gates": [
+    "Independent rollback-resistant checkpoint/revocation authority",
+    "Exclusive usable provider credential custody and historical-token invalidation",
+    "Hosted durability and emergency-drain qualification",
+    "Production account/credential scope/expiry and reviewed Shop2 binding",
+    "Separate installation, release, policy and provider acceptance approvals"
+  ],
+  "mutation_denials": [
+    "REGISTER",
+    "CLAIM",
+    "publication",
+    "allocation",
+    "recovery"
+  ],
+  "safety": {
+    "STOP_ALL": "ON",
+    "external_lock": "ON",
+    "automation": "OFF",
+    "RELEASE_HOLD": "ACTIVE",
+    "production_or_staging_installation": false,
+    "real_credential_access": false,
+    "provider_requests": false,
+    "merge_or_deployment": false
+  }
+}

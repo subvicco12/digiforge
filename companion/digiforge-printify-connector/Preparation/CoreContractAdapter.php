@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace DigiForgePrintifyConnector\Preparation;
 /** Fixed, non-dispatching adapter to inspected native contracts. Source pin is not runtime attestation. */
 final class CoreContractAdapter {
- public const REFERENCE_SHA='862caef4c69552f501efc1d959a1de92d8b88ca9';
+ public const REFERENCE_SHA='d64d32159bea4832b962acb6b4c08fa6fbeae910';
  public static function inspect():array {
   $surface=['DigiForge\\Security\\ShopAccess'=>['authorize',3],'DigiForge\\PortalAccess\\Owner'=>['forActor',2],'DigiForge\\POD\\ScopedProviderConnection'=>['verified',3],'DigiForge\\POD\\ControlledExecutionTransaction'=>['execute',7],'DigiForge\\Listings\\PublishReviewRepository'=>['inspect',1],'DigiForge\\Orders\\FulfillmentEvidence'=>['validate',3]];$missing=[];
   foreach($surface as $class=>[$method,$count])try{if(!class_exists($class)||!method_exists($class,$method)||(new \ReflectionMethod($class,$method))->getNumberOfParameters()!==$count)$missing[]=$class.'::'.$method;}catch(\Throwable){$missing[]=$class.'::'.$method;}

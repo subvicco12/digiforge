@@ -1,6 +1,6 @@
-# Approved Core pin promotion — 17 November 2026
+# Corrective Core pin promotion — 17 November 2026
 
-The current shipped Companion pin is `862caef4c69552f501efc1d959a1de92d8b88ca9`. See `CORE_PIN_PROMOTION_20261117.json` for the exact-source qualification, unchanged contract digest and retained operational blockers. The earlier pin reports below are historical evidence. The explicit `native-artifact-integrity.xml` fault profile is separate from normal GET acceptance. It requires a disposable extracted Core copy, a `.digiforge-disposable-native-fixture` marker and `DF_NATIVE_MUTABLE_FIXTURE` set to that copy’s canonical path; a Git checkout is rejected. Faults restore every modified member and never target the frozen archive. This engineering promotion grants no installation, credential, policy or provider-execution authority.
+The current shipped Companion pin is `d64d32159bea4832b962acb6b4c08fa6fbeae910`. See `CORE_PIN_PROMOTION_TERMINAL_20261117.json` for the exact-source qualification, unchanged contract digest and retained operational blockers. The earlier pin reports below are historical evidence. The explicit `native-artifact-integrity.xml` fault profile is separate from normal GET acceptance. It requires a disposable extracted Core copy, a `.digiforge-disposable-native-fixture` marker and `DF_NATIVE_MUTABLE_FIXTURE` set to that copy’s canonical path; a Git checkout is rejected. Faults restore every modified member and never target the frozen archive. This engineering promotion grants no installation, credential, policy or provider-execution authority.
 
 # Current paired sprint qualification
 
