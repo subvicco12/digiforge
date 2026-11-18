@@ -29,6 +29,12 @@ The optional evidence directory must exist and have fresh screenshot paths.
 containers. `DF_SHOP2_BROWSER_WIDTHS` may select unique members of `390,768,1280`;
 the default requires all three. The 390 context enables mobile/touch emulation.
 
+The official WordPress sample's eight public cookie/nonce-salt placeholders are
+replaced with independent random values in the private disposable copy before
+bootstrap. Existing non-placeholder values and the input configuration stay
+unchanged. Generated values stay in 0600 fixture files; the receipt records only
+the replacement count. Native backend salt checks remain enabled.
+
 Each viewport exercises real buyer authentication and nonce denial, crop/upload,
 separate operator input/layout/render review, exact PNG preview parity, buyer
 digital preference, explicit plan review/approval, BLOCKED intent and held-job

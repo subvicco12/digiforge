@@ -36,6 +36,13 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
  let text=fs.readFileSync(config,'utf8').replace(/define\(\s*'WP_CONTENT_DIR'\s*,[^;]+;/g,'');
  text=text.replace(/define\(\s*'ABSPATH'\s*,[^;]+;/,"if(!defined('ABSPATH'))define('ABSPATH', "+JSON.stringify(core+'/')+");").replace(/\$table_prefix\s*=\s*'[^']*'/,"$table_prefix = 'b"+crypto.randomBytes(2).toString('hex').slice(0,3)+"_'");
  assert(text.includes(core+'/')&&text.includes("$table_prefix = 'b"),'Supported isolated configuration template required.');
+ // The official test template's public cookie salts cannot qualify retained review.
+ // Replace only those placeholders in the private disposable copy before bootstrap.
+ const cookieSaltReplacements=new Set();
+ text=text.replace(/define\(\s*(['"])(AUTH_KEY|SECURE_AUTH_KEY|LOGGED_IN_KEY|NONCE_KEY|AUTH_SALT|SECURE_AUTH_SALT|LOGGED_IN_SALT|NONCE_SALT)\1\s*,\s*(['"])put your unique phrase here\3\s*\)\s*;/g,(_definition,_quote,name)=>{
+  assert(!cookieSaltReplacements.has(name),'Duplicate disposable cookie-salt placeholder.');cookieSaltReplacements.add(name);
+  return 'define('+JSON.stringify(name)+','+JSON.stringify(crypto.randomBytes(32).toString('hex'))+');';
+ });
  fs.mkdirSync(path.join(content,'mu-plugins'),{recursive:true});fs.mkdirSync(path.join(content,'themes/df-shop2-browser'),{recursive:true});
  text+="\ndefine('WP_HOME',"+JSON.stringify(base)+");define('WP_SITEURL',"+JSON.stringify(base)+");define('WP_CONTENT_DIR',"+JSON.stringify(content)+");define('WP_CONTENT_URL',"+JSON.stringify(base+'/wp-content')+");define('AUTOMATIC_UPDATER_DISABLED',true);define('WP_HTTP_BLOCK_EXTERNAL',true);define('WP_ENVIRONMENT_TYPE','local');define('DIGIFORGE_CREDENTIAL_KEY',str_repeat('synthetic-browser-only-',2));\n";
  fs.writeFileSync(path.join(dir,'test-config.php'),text,{mode:0o600});
@@ -145,6 +152,7 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
   assert.equal(git(['rev-parse','HEAD']).trim(),baseline);assert.deepEqual(hashes(harnessFiles),harnessStart,'Harness bytes must remain unchanged during execution.');assert.deepEqual(hashes(sourceFiles),sourceStart,'Runtime source bytes must remain unchanged during execution.');
   assert.equal(fs.existsSync(lockPath)?digest(lockPath):null,dependencyLock,'Resolved dependency lock bytes must remain unchanged during execution.');
   const result={schema:'shop2-real-http-acceptance-v1',baseline_source_sha:fixture.source_sha,test_harness_uncommitted:harnessUncommitted,runtime_git_dirty:false,harness_sha256:harnessStart,runtime_tree_sha256:crypto.createHash('sha256').update(JSON.stringify(sourceStart)).digest('hex'),dependency_lock_sha256:dependencyLock,dependency_lock_tracked:sourceFiles.includes('composer.lock'),phase:'BUYER_EDITOR_REVIEW_APPROVED_PLAN_BLOCKED_HELD_JOB',checks,requests,viewports:widths,journeys,databaseEvidence,proofs,transport:'REAL_WORDPRESS_HTTP',backend_mocked:false,supplier_evidence:'DISPOSABLE_FIXTURE',buyer_identity_authority:fixture.buyer_identity_authority,native_order_version:null,native_allocation_execution_authorized:false,external_requests:blocked,production_activation_authorized:false};
+  result.disposable_cookie_salt_placeholders_replaced=cookieSaltReplacements.size;
   const output=process.env.DF_SHOP2_BROWSER_EVIDENCE;if(output)fs.writeFileSync(output,JSON.stringify(result,null,2)+'\n');
   console.log(JSON.stringify(result));success=true;
  }catch(e){if(browser){let i=0;for(const c of browser.contexts())for(const p of c.pages())try{fs.writeFileSync(path.join(dir,'failure-'+(i++)+'.html'),await p.content(),{mode:0o600});}catch{}}console.error('Private disposable diagnostics: '+dir);throw e;}
