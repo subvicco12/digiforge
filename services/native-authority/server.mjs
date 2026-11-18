@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
-import { loadConfig, initializeStore, verifyControl } from './config.mjs';
+import { loadConfig, initializeStore, verifyControl, verifyProvenanceControl } from './config.mjs';
 import { CustodySender } from './sender.mjs';
 import { WitnessStoreGateway } from './gateway.mjs';
 import { VERSION, PURPOSE, canonical, parseCanonical, sign, signWitness, verify, verifyWitness } from './protocol.mjs';
@@ -19,7 +19,7 @@ function authenticate(config, envelope) {
   // must verify before an authenticated request reaches durable state.
   const request = envelope?.message;
   validateRequest(request);
-  const role = ['currentCheckpoint','admitOperation'].includes(request.method) ? 'workload'
+  const role = ['currentCheckpoint','admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method) ? 'workload'
     : request.method === 'requestEmergency' ? 'emergency' : 'recovery';
   const keys = request.method === 'readDrain' ? new Map([...config.keys.emergency, ...config.keys.recovery]) : config.keys[role];
   verify(PURPOSE[request.method], envelope, keys);
@@ -63,6 +63,11 @@ function post(url, envelope) {
 }
 
 function released(config) { const h=config.holds; return h.stop_all===false && h.external_lock===false && h.automation===true && h.release_hold===false; }
+function offlineHeld(config){
+ const h=config.holds;
+ return config.mode==='OFFLINE_TEST'&&h.stop_all===true&&h.external_lock===true
+  &&h.automation===false&&h.release_hold===true;
+}
 function rootGate(config, store) { const state=store.state();need(state.root_set_digest===config.identity.root_set_digest && state.root_set_revision===config.identity.root_set_revision,'root_configuration_stale');return state; }
 function operationView(op) {
   if (!op) return null;
@@ -74,9 +79,17 @@ function originalMatchesOperation(request,op) {
   for(const key of ['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision'])need(request.method_body[key]===op[key],'operation_request_binding');
   need(request.method_body.expected_epoch===op.epoch&&request.method_body.expected_generation===op.generation,'operation_request_binding');
 }
+function heldReceipt(store,op){
+ const {journal_sequence,...provenance}=op.provenance;
+ const journal_event_hash=store.heldJournalHash(journal_sequence);
+ need(digestValue(journal_event_hash),'provenance_journal');
+ return {...operationView(op),...provenance,journal_event_hash,
+  schema:'DF_NATIVE_PROVENANCE_RECEIPT_1',version:'1.0.0',request_id:op.request_id,
+  challenge:op.challenge,release_hold:true,external_execution_authorized:false,retry_permitted:false};
+}
 function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null) {
   const state=store.state(), time=now();
-  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
+  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:operation?.provenance?heldReceipt(store,operation):operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
   return signWitness('witness.response.v1',{version:VERSION,request_bindings:request,authority_id:request.authority_id,key_id:config.keyId,root_set_revision:state.root_set_revision,recovery_epoch:state.recovery_epoch,checkpoint_epoch:state.epoch,generation:state.generation,recovery_revision:state.recovery_revision,issued_at:time,expires_at:time+30,disposition,evidence_reference:'witness-event-'+state.witness_sequence,witness_id:state.witness_id,witness_head:state.witness_head,witness_sequence:state.witness_sequence,result},config.privateKey,config.keyId);
 }
 function verifiedResponse(config, envelope, request) {
@@ -105,7 +118,12 @@ function controlRegistry(config) {
 }
 
 function controlAction(config,store,registry,envelope) {
-  rootGate(config,store);const c=verifyControl(config,envelope),d=c.data;
+  rootGate(config,store);
+  if(envelope?.owner?.message?.schema==='DF_NATIVE_PROVENANCE_CONTROL_1'){
+    need(offlineHeld(config),'provenance_hold_required');
+    return store.applyHeldProvenanceControl(verifyProvenanceControl(config,envelope),now());
+  }
+  const c=verifyControl(config,envelope),d=c.data;
   switch(c.type) {
     case 'REGISTER_GRANT': return store.registerGrant(d);
     case 'REGISTER_APPROVAL': return store.registerApproval(d);
@@ -129,9 +147,11 @@ function witnessCall(config,store,registry,request) {
   rootGate(config,store);
   try {
     const body=request.method_body,time=now();let op=null,drain=null,state;
-    if(request.method!=='admitOperation')store.claimRequest(request.request_id,request.challenge,request.method,time);
+    if(!['admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method))store.claimRequest(request.request_id,request.challenge,request.method,time);
     switch(request.method) {
       case 'currentCheckpoint': { const s=store.state();store.currentGrant(body.grant_reference,time);need(body.expected_epoch===s.epoch&&body.expected_generation===s.generation,'checkpoint_stale');state=s.paused?'HELD':'CURRENT';break; }
+      case 'commitHeldProvenanceV1': need(offlineHeld(config),'provenance_hold_required');op=store.commitHeldProvenanceV1(request,time);state='HELD';break;
+      case 'readHeldProvenanceV1': op=store.readHeldProvenanceV1(request,time);state='HELD';break;
       case 'admitOperation': {
         if(!released(config)){store.claimRejectedAdmission(request.request_id,request.challenge,time);state='HELD';break;}
         try {op=store.admit(request,time);state='ADMITTED';}

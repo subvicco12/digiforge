@@ -3,6 +3,8 @@ import { PURPOSE, VERSION } from './protocol.mjs';
 
 export const BINDING_FIELDS = Object.freeze(['authority_id', 'installation_id', 'owner_id', 'owner_proof_reference', 'workload_id', 'deployment_digest', 'compatibility_floor', 'provider', 'provider_account_reference', 'environment', 'integration_id', 'credential_reference', 'shop_id', 'shop_key']);
 export const BODY_FIELDS = Object.freeze({
+  commitHeldProvenanceV1: ['snapshot_json','producer_signature','allocation_revision','order_version','grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision','expected_epoch','expected_generation'],
+  readHeldProvenanceV1: ['operation_id','snapshot_hash'],
   currentCheckpoint: ['grant_reference', 'expected_epoch', 'expected_generation'],
   admitOperation: ['grant_reference', 'operation_id', 'payload_fingerprint', 'product_version', 'expected_product_version', 'approval_reference', 'approval_revision', 'policy_revision', 'expected_epoch', 'expected_generation'],
   requestEmergency: ['emergency_authority_reference', 'emergency_event_id', 'scope_of_revocation', 'expected_generation'],
@@ -40,7 +42,10 @@ export function validateRequest(request) {
   requireAuthority(token(request.request_id) && token(request.challenge) && request.request_id !== request.challenge, 'fresh_challenge');
   exactFields(request.method_body, BODY_FIELDS[request.method], 'method_body');
   for (const [key, value] of Object.entries(request.method_body)) {
-    if (['expected_epoch', 'previous_epoch', 'expected_witness_head', 'outstanding_lease_inventory_hash', 'payload_fingerprint', 'new_root_set_digest', 'operation_id'].includes(key)) requireAuthority(digestValue(value), 'method_digest');
+    if (key === 'snapshot_json') requireAuthority(typeof value === 'string' && Buffer.byteLength(value) <= 4096, 'provenance_size');
+    else if (key === 'producer_signature') requireAuthority(typeof value === 'string' && /^[A-Za-z0-9_-]{86}$/.test(value), 'provenance_signature');
+    else if (['allocation_revision','order_version'].includes(key)) requireAuthority(integer(value), 'method_revision');
+    else if (['snapshot_hash','expected_epoch', 'previous_epoch', 'expected_witness_head', 'outstanding_lease_inventory_hash', 'payload_fingerprint', 'new_root_set_digest', 'operation_id'].includes(key)) requireAuthority(digestValue(value), 'method_digest');
     else if (['product_version', 'expected_product_version'].includes(key)) requireAuthority(integer(value, 0), 'product_version');
     else if (['expected_generation', 'generation', 'approval_revision', 'policy_revision', 'previous_root_set_revision', 'new_root_set_revision'].includes(key)) requireAuthority(integer(value), 'method_revision');
     else requireAuthority(reference(value), 'method_reference');

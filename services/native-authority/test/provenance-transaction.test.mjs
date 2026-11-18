@@ -53,3 +53,115 @@ test('denies caller-supplied buyer assertions and duplicate JSON fields', () => 
   assert.throws(() => authenticateProvenanceV1(duplicate, proof(duplicate), pin, 120),
     { code: 'provenance_signature' });
 });
+
+import { createServer } from 'node:http';
+import { DatabaseSync } from 'node:sqlite';
+import { AuthorityClient } from '../client.mjs';
+import { AuthorityStore } from '../store.mjs';
+import { startAuthorityServer } from '../server.mjs';
+import { digest, sign as signEnvelope } from '../protocol.mjs';
+import { post, witnessFixture } from './server-fixtures.mjs';
+
+async function nativeFixture(t) {
+  const f = witnessFixture(t, { native: true });
+  const witness = await startAuthorityServer(f.path, 'witness');
+  t.after(() => witness.close());
+  const issuerPath = f.write('issuer.json', {
+    ...f.config, role: 'issuer', database_path: null, witness_url: witness.address,
+    credentials_path: f.write('credentials.json', []), payloads_path: f.write('payloads.json', []),
+    keys: {...f.config.keys, signing_key_id: 'issuer', signing_private_key_path: f.write('issuer.pem',
+      f.pairs.issuer.privateKey.export({type:'pkcs8',format:'pem'}))},
+  });
+  const issuer = await startAuthorityServer(issuerPath, 'issuer');
+  t.after(() => issuer.close());
+  const clientFor = url => new AuthorityClient({url,binding:f.binding,keyId:'workload',
+    privateKey:f.pairs.workload.privateKey,issuerKeys:new Map([['issuer',f.pairs.issuer.publicKey]]),
+    witnessKeys:new Map([['witness',f.pairs.witness.publicKey]])});
+  const time = Math.floor(Date.now()/1000);
+  const snapshot = {...fixture,order_id:'etsy-order',line_id:'etsy-line',listing_id:'etsy-listing',product_id:'source-product',issued_at:time-1,expires_at:time+45};
+  const snapshot_json = JSON.stringify(snapshot);
+  const snapshot_hash = createHash('sha256').update(snapshot_json).digest('hex');
+  const generation = f.state.generation;
+  const mapping_id = digest([pin.producer,snapshot.order_id,snapshot.line_id]);
+  const control = async (type, reference, data) => {
+    const message = {schema:'DF_NATIVE_PROVENANCE_CONTROL_1',version:'1.0.0',reference,
+      binding:f.binding,issued_at:time-1,expires_at:time+60,type,data:{producer:pin.producer,generation,...data}};
+    return post(witness.address,'/control',{
+      owner:signEnvelope('held.provenance.control.owner.v1',message,f.pairs.owner.privateKey,'owner'),
+      recovery:signEnvelope('held.provenance.control.recovery.v1',message,f.pairs.recovery.privateKey,'recovery'),
+    });
+  };
+  assert.equal((await control('ENROLL','enroll',{source_sha:pin.sourceSha,
+    key_der:publicKey.export({type:'spki',format:'der'}).toString('base64url'),
+    key_pin:pin.keySha256,business_id:1,etsy_shop_id:pin.etsyShopId})).status,200);
+  assert.equal((await control('MAP','map',{mapping_id,expected_revision:0,snapshot_hash,
+    snapshot_revision:1,order_id:snapshot.order_id,order_version:1,line_id:snapshot.line_id,
+    listing_id:snapshot.listing_id,product_id:snapshot.product_id,native_order_id:'order',
+    native_line_id:'line',native_listing_id:'listing',native_product_id:'product',product_version:1,artwork_source_hash:snapshot.artwork_source_hash,
+    expires_at:snapshot.expires_at})).status,200);
+  const body = {snapshot_json,producer_signature:proof(snapshot_json),allocation_revision:1,
+    order_version:1,grant_reference:'grant',operation_id:digest('operation'),payload_fingerprint:digest('payload'),
+    product_version:1,expected_product_version:1,approval_reference:'approval',approval_revision:1,
+    policy_revision:1,expected_epoch:f.state.epoch,expected_generation:generation};
+  return {f,client:clientFor(issuer.address),clientFor,issuer,body,snapshot_hash,control,mapping_id,time};
+}
+
+test('concurrent held commit yields one signed receipt, durable readback and no sender eligibility', async t=>{
+  const {f,client,body,snapshot_hash,time}=await nativeFixture(t);
+  const results=await Promise.all([client.call('commitHeldProvenanceV1',body),client.call('commitHeldProvenanceV1',body)]);
+  assert.deepEqual(results.map(x=>x.disposition).sort(),['DENIED','HELD']);
+  const receipt=results.find(x=>x.disposition==='HELD').result.operation;
+  assert.equal(receipt.schema,'DF_NATIVE_PROVENANCE_RECEIPT_1');
+  assert.equal(receipt.allocation_revision,2);
+  assert.equal(receipt.external_execution_authorized,false);
+  const store=new AuthorityStore(f.config.database_path);
+  try {
+    assert.throws(()=>store.markSending(body.operation_id,body.expected_generation,time),{code:'operation_not_admitted'});
+    assert.equal(store.operation(body.operation_id).state,'HELD');
+    const state=store.state();
+    store.recover(state.witness_head,state.inventory_hash,time);
+  } finally { store.close(); }
+  const read=await client.call('readHeldProvenanceV1',{operation_id:body.operation_id,snapshot_hash});
+  assert.deepEqual(read.result.operation,receipt);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+});
+
+test('blocked mapping and revoked enrollment deny inside the witness transaction', async t=>{
+  const {client,body,control,mapping_id}=await nativeFixture(t);
+  assert.equal((await client.call('commitHeldProvenanceV1',{...body,order_version:2})).disposition,'DENIED');
+  assert.equal((await control('BLOCK','block',{mapping_id,expected_revision:1})).status,200);
+  assert.equal((await control('BLOCK','block',{mapping_id,expected_revision:1})).status,503);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+  assert.equal((await control('REVOKE','revoke',{})).status,200);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+});
+
+test('journal failure rolls back CAS; a lost committed reply resolves only through readback', async t=>{
+  const {f,client,clientFor,issuer,body,snapshot_hash}=await nativeFixture(t);
+  const db=new DatabaseSync(f.config.database_path);
+  t.after(()=>db.close());
+  db.exec("CREATE TRIGGER fail_held BEFORE INSERT ON witness_events WHEN json_extract(NEW.event,'$.type')='OPERATION_HELD_PROVENANCE' BEGIN SELECT RAISE(ABORT,'injected'); END");
+  await assert.rejects(client.call('commitHeldProvenanceV1',body));
+  assert.equal(db.prepare('SELECT consumed FROM approvals').get().consumed,0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM operations').get().count,0);
+  db.exec('DROP TRIGGER fail_held');
+
+  // Drop the transport only after the issuer returns the committed receipt.
+  const relay = createServer(async (req,res)=>{
+    try {
+      const chunks=[];
+      for await (const chunk of req) chunks.push(chunk);
+      await post(issuer.address,'/rpc',JSON.parse(Buffer.concat(chunks).toString()));
+    } finally { res.destroy(); }
+  });
+  await new Promise(resolve=>relay.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>relay.close(resolve)));
+  await assert.rejects(clientFor('http://127.0.0.1:'+relay.address().port)
+    .call('commitHeldProvenanceV1',body));
+  assert.equal(db.prepare('SELECT consumed FROM approvals').get().consumed,1);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+  const recovered=await client.call('readHeldProvenanceV1',{operation_id:body.operation_id,snapshot_hash});
+  assert.equal(recovered.result.operation.state,'HELD');
+  assert.equal(recovered.result.operation.retry_permitted,false);
+  assert.equal((await client.call('readHeldProvenanceV1',{operation_id:body.operation_id,snapshot_hash:digest('wrong')})).disposition,'DENIED');
+});

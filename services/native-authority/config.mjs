@@ -102,3 +102,13 @@ export function initializeStore(config){
  }catch(e){try{db?.exec('ROLLBACK');}catch{}try{db?.close();}catch{}try{store?.close();}catch{}if(e instanceof AuthorityError)throw e;throw new AuthorityError('provisioning_unavailable');}
 }
 export function verifyControl(config,envelope){need(loaded.has(config),'loaded_configuration_required');const r=dual(config,envelope,'control');exactFields(r,['schema','version','reference','binding','issued_at','expires_at','data','type']);need(r.schema==='DF_NATIVE_CONTROL_1'&&r.version==='1.0.0'&&reference(r.reference)&&controls.includes(r.type)&&r.data&&Object.getPrototypeOf(r.data)===Object.prototype,'control_record');sameBinding(r.binding,config);lifetime(r);return r;}
+
+/** Separate offline control purpose. Existing provisioning and v1 controls are unchanged. */
+export function verifyProvenanceControl(config,envelope){
+ need(loaded.has(config)&&config.mode==='OFFLINE_TEST','provenance_offline_only');
+ const r=dual(config,envelope,'held.provenance.control');
+ exactFields(r,['schema','version','reference','binding','issued_at','expires_at','data','type']);
+ need(r.schema==='DF_NATIVE_PROVENANCE_CONTROL_1'&&r.version==='1.0.0'&&reference(r.reference)
+   &&['ENROLL','MAP','BLOCK','REVOKE'].includes(r.type),'provenance_control');
+ sameBinding(r.binding,config);lifetime(r);return r;
+}

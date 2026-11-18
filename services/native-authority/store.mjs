@@ -1,9 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createPublicKey, randomBytes, randomUUID } from 'node:crypto';
 import { closeSync, constants, existsSync, lstatSync, openSync, chmodSync } from 'node:fs';
 import { canonical, digest } from './protocol.mjs';
 import { AuthorityError, requireAuthority as need } from './errors.mjs';
 import { BINDING_FIELDS, validateBinding } from './schema.mjs';
+
+import { authenticateProvenanceV1 } from './provenance-contract.mjs';
 
 const FIELDS=BINDING_FIELDS;
 const UNRESOLVED=new Set(['ADMITTED','SENDING','UNKNOWN']);
@@ -138,20 +140,105 @@ export class AuthorityStore {
   const grant=this.#get('grants',op.grant_reference,'reference');need(grant&&!grant.revoked&&grant.issued_at<=now&&now<grant.expires_at,'grant_not_current');this.#sameBinding(grant.binding,s);
   const row=this.#db.prepare('SELECT * FROM approvals WHERE reference=?').get(op.approval_reference);need(row,'approval_missing');const a=JSON.parse(row.payload);need(!a.revoked&&a.approval_revision===op.approval_revision&&a.policy_revision===op.policy_revision&&a.operation_id===op.operation_id&&a.payload_fingerprint===op.payload_fingerprint&&row.allocation_id===op.allocation_id,'approval_not_current');this.#source(a,s);return row;
  }
- admit(request,now){
-  integer(now);need(object(request)&&request.method==='admitOperation'&&request.version==='1.0.0','request_method');nonce(request.request_id);nonce(request.challenge);need(request.request_id!==request.challenge,'request_nonce');const body=request.method_body;
-  keys(body,['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision','expected_epoch','expected_generation']);ref(body.grant_reference);ref(body.approval_reference);hash(body.operation_id);hash(body.payload_fingerprint);hash(body.expected_epoch);for(const k of ['product_version','expected_product_version','approval_revision','policy_revision','expected_generation'])integer(body[k]);
+ /** Only the witness server may supply authenticated offline control records. */
+ applyHeldProvenanceControl(control,now){
+  const d=control.data;
+  return this.#tx(()=>{
+   const s=this.#state();this.#sameBinding(control.binding,s);
+   need(s.identity.environment==='test'&&control.issued_at<=now&&now<control.expires_at,'provenance_offline_only');
+   need(d.generation===s.generation,'checkpoint_stale');
+   const registry=s.held_provenance??={producers:[],mappings:[],controls:[]};
+   need(registry.controls.length<1024&&!registry.controls.includes(control.reference),'provenance_control_replay');
+   ref(d.producer);
+   const producer=registry.producers.find(x=>x.producer===d.producer);
+   if(control.type==='ENROLL'){
+    keys(d,['producer','source_sha','key_der','key_pin','business_id','etsy_shop_id','generation']);
+    need(!producer&&/^[a-f0-9]{40}$/.test(d.source_sha),'provenance_enrollment');
+    integer(d.business_id);ref(d.etsy_shop_id);hash(d.key_pin);
+    need(typeof d.key_der==='string'&&/^[A-Za-z0-9_-]{59}$/.test(d.key_der),'provenance_pin');
+    const der=Buffer.from(d.key_der,'base64url');
+    const key=createPublicKey({key:der,format:'der',type:'spki'});
+    need(der.toString('base64url')===d.key_der&&key.asymmetricKeyType==='ed25519'
+      &&key.export({format:'der',type:'spki'}).equals(der)
+      &&createHash('sha256').update(der).digest('hex')===d.key_pin,'provenance_pin');
+    registry.producers.push({...d,revoked:false});
+   }else{
+    need(producer&&!producer.revoked,'provenance_revoked');
+    if(control.type==='REVOKE'){
+     keys(d,['producer','generation']);producer.revoked=true;
+    }else{
+     hash(d.mapping_id);integer(d.expected_revision,0);
+     const m=registry.mappings.find(x=>x.mapping_id===d.mapping_id);
+     need((m?.revision??0)===d.expected_revision&&(!m||m.producer===d.producer),'provenance_mapping_cas');
+     if(control.type==='BLOCK'){
+      keys(d,['producer','mapping_id','expected_revision','generation']);
+      need(m?.active===true,'provenance_mapping_state');m.active=false;m.revision=next(m.revision);
+     }else{
+      need(control.type==='MAP'&&(!m||m.active===false),'provenance_mapping_state');
+      keys(d,['producer','mapping_id','expected_revision','generation','snapshot_hash','snapshot_revision','order_id','line_id','listing_id','product_id','native_order_id','native_line_id','native_listing_id','native_product_id','order_version','product_version','artwork_source_hash','expires_at']);
+      for(const k of ['order_id','line_id','listing_id','product_id','native_order_id','native_line_id','native_listing_id','native_product_id'])ref(d[k]);
+      for(const k of ['snapshot_revision','order_version','product_version','expires_at'])integer(d[k]);
+      for(const k of ['snapshot_hash','artwork_source_hash'])hash(d[k]);
+      need(d.mapping_id===digest([d.producer,d.order_id,d.line_id])&&now<d.expires_at
+        &&(!m||d.snapshot_revision>m.snapshot_revision),'provenance_mapping_identity');
+      const record={...d,revision:d.expected_revision===0?1:next(d.expected_revision),active:true};
+      if(m)Object.assign(m,record);else registry.mappings.push(record);
+     }
+    }
+   }
+   registry.controls.push(control.reference);
+   this.#event(s,'HELD_PROVENANCE_CONTROL',{reference:control.reference,type:control.type,digest:digest(d)},now);
+   return {reference:control.reference,witness_head:s.witness_head};
+  });
+ }
+ commitHeldProvenanceV1(request,now){return this.#admit(request,now,true);}
+ readHeldProvenanceV1(request,now){
+  return this.#tx(()=>{
+   const s=this.#state();this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
+   const op=this.#get('operations',hash(request.method_body.operation_id),'operation_id');
+   need(s.identity.environment==='test'&&op?.state==='HELD'&&op.provenance
+     &&op.provenance.snapshot_hash===request.method_body.snapshot_hash,'provenance_readback');
+   this.#claimTokens(request.request_id,request.challenge,'readHeldProvenanceV1',now);
+   return op;
+  });
+ }
+ admit(request,now){return this.#admit(request,now,false);}
+ #admit(request,now,held){
+  integer(now);need(object(request)&&request.method===(held?'commitHeldProvenanceV1':'admitOperation')&&request.version==='1.0.0','request_method');nonce(request.request_id);nonce(request.challenge);need(request.request_id!==request.challenge,'request_nonce');const body=request.method_body;
+  keys(body,['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision','expected_epoch','expected_generation',...(held?['snapshot_json','producer_signature','allocation_revision','order_version']:[])]);ref(body.grant_reference);ref(body.approval_reference);hash(body.operation_id);hash(body.payload_fingerprint);hash(body.expected_epoch);for(const k of ['product_version','expected_product_version','approval_revision','policy_revision','expected_generation'])integer(body[k]);
   return this.#tx(()=>{const s=this.#state();need(!s.paused,'authority_paused');need(body.expected_epoch===s.epoch&&body.expected_generation===s.generation,'checkpoint_stale');const b=this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
    need(!this.#db.prepare('SELECT operation_id FROM operations WHERE operation_id=? OR request_id=? OR challenge=?').get(body.operation_id,request.request_id,request.challenge),'operation_consumed');
    const row=this.#db.prepare('SELECT * FROM approvals WHERE reference=?').get(body.approval_reference);need(row,'approval_missing');const a=JSON.parse(row.payload);
    const grant=this.#get('grants',body.grant_reference,'reference');need(grant,'grant_not_current');
-   const op={...b,binding:b,...a,grant_reference:body.grant_reference,issued_at:grant.issued_at,expires_at:grant.expires_at,request_id:request.request_id,challenge:request.challenge,allocation_id:row.allocation_id,allocation_revision:next(row.allocation_revision),generation:s.generation,epoch:s.epoch,recovery_epoch:s.recovery_epoch,state:'ADMITTED',created_at:now,updated_at:now};
+   const op={...b,binding:b,...a,grant_reference:body.grant_reference,issued_at:grant.issued_at,expires_at:grant.expires_at,request_id:request.request_id,challenge:request.challenge,allocation_id:row.allocation_id,allocation_revision:next(row.allocation_revision),generation:s.generation,epoch:s.epoch,recovery_epoch:s.recovery_epoch,state:held?'HELD':'ADMITTED',created_at:now,updated_at:now};
    for(const k of ['operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision'])need(body[k]===a[k],'approval_binding_mismatch');this.#currentApproval(op,s,now);
-   this.#claimTokens(request.request_id,request.challenge,'admitOperation',now);
+   if(held){
+    need(s.identity.environment==='test'&&row.allocation_revision===body.allocation_revision
+      &&a.order_version===body.order_version,'provenance_allocation_cas');
+    // Locate the pin by the approved mapping, never by an untrusted signature claim.
+    const snapshotHash=createHash('sha256').update(body.snapshot_json).digest('hex');
+    const m=s.held_provenance?.mappings.find(x=>x.active&&x.snapshot_hash===snapshotHash);
+    const p=s.held_provenance?.producers.find(x=>x.producer===m?.producer);
+    need(m&&p&&!p.revoked&&m.generation===s.generation&&now<m.expires_at,'provenance_not_current');
+    const key=createPublicKey({key:Buffer.from(p.key_der,'base64url'),format:'der',type:'spki'});
+    const {snapshot}=authenticateProvenanceV1(body.snapshot_json,body.producer_signature,
+      {key,keySha256:p.key_pin,producer:p.producer,sourceSha:p.source_sha,businessId:p.business_id,etsyShopId:p.etsy_shop_id},now);
+    need(snapshot.snapshot_revision===m.snapshot_revision&&snapshot.order_id===m.order_id
+      &&snapshot.line_id===m.line_id&&snapshot.listing_id===m.listing_id
+      &&snapshot.product_id===m.product_id&&snapshot.product_version===m.product_version
+      &&snapshot.artwork_source_hash===m.artwork_source_hash&&a.order_identity===m.native_order_id
+      &&a.order_version===m.order_version&&a.listing_identity===m.native_listing_id
+      &&a.product_identity===m.native_product_id&&a.product_version===m.product_version
+      &&a.lines.some(line=>line.line_identity===m.native_line_id),'provenance_native_join');
+    op.provenance={snapshot_hash:snapshotHash,snapshot_revision:m.snapshot_revision,
+      producer_source_sha:p.source_sha,mapping_revision:m.revision,journal_sequence:next(s.witness_sequence)};
+   }
+   this.#claimTokens(request.request_id,request.challenge,request.method,now);
    const cas=this.#db.prepare('UPDATE approvals SET consumed=1,allocation_revision=? WHERE reference=? AND allocation_revision=? AND consumed=0').run(op.allocation_revision,a.approval_reference,row.allocation_revision);need(cas.changes===1,'allocation_consumed');
-   this.#db.prepare('INSERT INTO operations(operation_id,request_id,challenge,allocation_id,payload) VALUES(?,?,?,?,?)').run(op.operation_id,op.request_id,op.challenge,op.allocation_id,canonical(op));this.#event(s,'OPERATION_ADMITTED',{operation_id:op.operation_id,allocation_id:op.allocation_id,allocation_revision:op.allocation_revision,generation:op.generation},now);return op;
+   this.#db.prepare('INSERT INTO operations(operation_id,request_id,challenge,allocation_id,payload) VALUES(?,?,?,?,?)').run(op.operation_id,op.request_id,op.challenge,op.allocation_id,canonical(op));this.#event(s,held?'OPERATION_HELD_PROVENANCE':'OPERATION_ADMITTED',{operation_id:op.operation_id,allocation_id:op.allocation_id,allocation_revision:op.allocation_revision,generation:op.generation,...(held?{snapshot_hash:op.provenance.snapshot_hash}:{})},now);return op;
   });
  }
+ heldJournalHash(sequence){return this.#db.prepare('SELECT head FROM witness_events WHERE sequence=?').get(sequence)?.head;}
  operation(operationId){hash(operationId);try{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
  markSending(operationId,expectedGeneration,now){
   hash(operationId);integer(expectedGeneration);integer(now);return this.#tx(()=>{const s=this.#state();const op=this.operation(operationId);need(!s.paused&&s.generation===expectedGeneration&&op.generation===s.generation,'generation_revoked');need(op.state==='ADMITTED','operation_not_admitted');this.#currentApproval(op,s,now);op.state='SENDING';op.updated_at=now;this.#put('operations',operationId,op,'operation_id');this.#event(s,'OPERATION_SENDING',{operation_id:operationId,generation:op.generation},now);return op;});

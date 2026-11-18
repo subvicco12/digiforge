@@ -1,4 +1,4 @@
-import { randomBytes, createPrivateKey, createPublicKey } from 'node:crypto';
+import { createHash, randomBytes, createPrivateKey, createPublicKey } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { AuthorityError, requireAuthority as need } from './errors.mjs';
@@ -134,9 +134,35 @@ export class AuthorityClient {
     exactFields(result, RESULT_FIELDS, 'response_result');
     need(result.schema === 'DF_NATIVE_AUTHORITY_RESULT_1' && result.method === request.method && result.state === message.disposition && result.external_execution_authorized === false, 'result_binding');
     need(result.reason === null || reference(result.reason), 'result_reason');
+    if (['commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method))
+      need((message.disposition==='HELD'&&result.operation!==null)||(message.disposition==='DENIED'&&result.operation===null),'provenance_disposition');
     if (result.operation !== null) {
       const operation = result.operation;
-      exactFields(operation, OPERATION_FIELDS, 'operation_fields');
+      const held=['commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method);
+      exactFields(operation, held?[...OPERATION_FIELDS,'schema','version','request_id','challenge',
+        'snapshot_hash','snapshot_revision','producer_source_sha','mapping_revision','journal_event_hash',
+        'release_hold','external_execution_authorized','retry_permitted']:OPERATION_FIELDS, 'operation_fields');
+      if(held){
+        need(operation.schema==='DF_NATIVE_PROVENANCE_RECEIPT_1'&&operation.version==='1.0.0'
+          &&operation.state==='HELD'&&message.disposition==='HELD'&&operation.release_hold===true
+          &&operation.external_execution_authorized===false&&operation.retry_permitted===false
+          &&operation.provider_reference===null&&operation.operation_id===request.method_body.operation_id
+          &&digestValue(operation.snapshot_hash)&&digestValue(operation.journal_event_hash)
+          &&integer(operation.snapshot_revision)&&integer(operation.mapping_revision)
+          &&typeof operation.producer_source_sha==='string'&&/^[a-f0-9]{40}$/.test(operation.producer_source_sha),
+        'provenance_receipt');
+        if(request.method==='readHeldProvenanceV1')need(operation.snapshot_hash===request.method_body.snapshot_hash,'provenance_readback');
+        else {
+          const body=request.method_body;
+          for(const k of ['product_version','order_version','approval_reference','approval_revision','policy_revision','payload_fingerprint'])
+            need(operation[k]===body[k],'provenance_receipt_binding');
+          need(operation.snapshot_hash===createHash('sha256').update(body.snapshot_json).digest('hex')
+            &&operation.request_id===request.request_id&&operation.challenge===request.challenge
+            &&operation.allocation_revision===body.allocation_revision+1&&operation.generation===body.expected_generation
+            &&operation.checkpoint_epoch===body.expected_epoch,'provenance_receipt_binding');
+        }
+        Object.freeze(operation);
+      }
       for (const field of ['allocation_id', 'product_identity', 'order_identity', 'approval_reference']) need(reference(operation[field]), 'operation_reference');
       for (const field of ['allocation_revision', 'product_version', 'order_version', 'approval_revision', 'policy_revision', 'generation']) need(integer(operation[field]), 'operation_revision');
       for (const field of ['operation_id', 'payload_fingerprint', 'checkpoint_epoch']) need(digestValue(operation[field]), 'operation_digest');
