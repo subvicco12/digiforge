@@ -9,6 +9,13 @@ final class ResearchExecutionPanel {
  public function __construct(private ?ResearchExecution $execution=null){$this->execution??=new ResearchExecution();}
  public function render(string $shop):void {
   if(ResearchExecutionJournal::access($shop) instanceof WP_Error){echo '<p>Queued research needs current Shop 2 research and AI authorization. Manual research remains available.</p>';return;}
+  $actor=get_current_user_id();ob_start();
+  try{$this->renderCurrent($shop);}finally{$html=ob_get_clean();}
+  // No job/source metadata or controls are emitted until all reads retain admission.
+  if(ResearchExecutionJournal::access($shop) instanceof WP_Error||get_current_user_id()!==$actor){echo '<p role="alert">Queued research authorization changed. Reload after current Shop 2 access is restored.</p>';return;}
+  echo $html;
+ }
+ private function renderCurrent(string $shop):void {
   echo '<section id="df-queued-research"><h3>Queued source-grounded research</h3><p>Recorded/manual source acquisition → freshness checks → bounded background concepts → human selection and approval. Sources are declarations, not verified demand. No automatic scheduler activation. Network execution is disabled by default and STOP ALL remains effective.</p>';
   $sources=(new CommercialResearchRepository())->recent($shop,50);$jobs=(new ResearchExecutionJournal())->recent();if($sources instanceof WP_Error||$jobs instanceof WP_Error){echo '<p role="alert">Queued research evidence is unavailable. Execution is held.</p></section>';return;}
   $run='research-'.wp_generate_uuid4();$started=gmdate('Y-m-d H:i:s');$this->form('enqueue');echo '<input type="hidden" name="request_key" value="'.esc_attr(wp_generate_uuid4()).'"><input type="hidden" name="run_id" value="'.esc_attr($run).'"><input type="hidden" name="started_at" value="'.esc_attr($started).'"><fieldset><legend>Saved opportunities (choose up to five)</legend>';
