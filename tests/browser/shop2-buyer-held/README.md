@@ -45,6 +45,11 @@ test harness. CI's generated, untracked `composer.lock` is separately fingerprin
 and must remain unchanged; tracked manifest/lock edits and untracked application
 files still deny acceptance. Screenshots contain disposable fixture data only. The existing
 native focused workflow runs this harness and retains its sanitized receipts.
+Operator confirmation failures report only the fixed action label, HTTP status
+and bounded server alert, never form values, cookies or raw HTML. Confirmation
+navigation has a separate two-minute browser deadline; application lease,
+currentness, authorization and replay deadlines remain unchanged. A denial or
+missing success link still fails acceptance.
 
 This is bounded acceptance evidence. Supplier/catalog observations and buyer
 assignment are disposable local fixtures, **not verified Etsy buyer identity**.

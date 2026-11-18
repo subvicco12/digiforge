@@ -54,7 +54,24 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
   async function login(c,actor,target){const p=await c.newPage();await p.goto(base+'/wp-login.php?redirect_to='+encodeURIComponent(target));await p.locator('#user_login').fill(actor.login);await p.locator('#user_pass').fill(actor.password);await Promise.all([p.waitForURL(u=>u.pathname!=='/wp-login.php'),p.locator('#wp-submit').click()]);assert((await c.cookies()).some(x=>x.name.startsWith('wordpress_logged_in_')));checks++;return p;}
   async function rest(p,action,body){return p.evaluate(async({action,body})=>{const root=document.querySelector('[data-df-editor],[data-df-photo-review]');const r=await fetch(root.dataset.endpoint+action,{method:body===undefined?'GET':'POST',headers:{'X-WP-Nonce':root.dataset.nonce,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:r.status,data:await r.json()};},{action,body});}
   async function clickResponse(p,selector,action){const response=p.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith('/'+action));await p.locator(selector).click();const r=await response;const data=await r.json();assert.equal(r.status(),200,action+': '+(data.code||data.message||'denied'));checks++;return data;}
-  async function localAction(label){await operator.getByRole('button',{name:label,exact:true}).last().click();await operator.locator('[name=df_confirm_review]').check();const payload=await operator.locator('form').evaluate(form=>new URLSearchParams(new FormData(form)).toString());await operator.getByRole('button',{name:'Confirm local action',exact:true}).click();await operator.getByRole('link',{name:'Return to this order',exact:true}).waitFor();const replay=await operator.evaluate(async payload=>{const r=await fetch('/wp-admin/admin-post.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:payload});const doc=new DOMParser().parseFromString(await r.text(),'text/html');return {alert:doc.querySelector('[role=alert]')?.textContent,success:doc.body.textContent.includes('Return to this order')};},payload);assert(replay.alert&&!replay.success,'Replayed operator confirmation must deny a second effect.');await operator.getByRole('link',{name:'Return to this order',exact:true}).click();checks+=2;}
+  async function confirmAction(label,button,successLink){
+   let status=null;
+   try{
+    // Wait for the actual POST navigation independently of click's default wait.
+    // Database freshness/lease deadlines remain enforced by the application.
+    const [response]=await Promise.all([operator.waitForNavigation({timeout:120000}),operator.getByRole('button',{name:button,exact:true}).click({noWaitAfter:true})]);
+    status=response?.status()??null;
+    const alert=(await operator.locator('[role=alert]').allTextContents()).join(' ').trim().slice(0,512);
+    assert.equal(alert,'',label+': server denied confirmation: '+alert);
+    assert.equal(status,200,label+': confirmation HTTP status');
+    await operator.getByRole('link',{name:successLink,exact:true}).waitFor();
+   }catch(error){
+    const alert=await operator.locator('[role=alert]').allTextContents().then(x=>x.join(' ').trim().slice(0,512)).catch(()=> 'unavailable');
+    // Only fixed action labels/status/alerts: never form values, cookies or HTML.
+    throw Error(JSON.stringify({action:label,http_status:status,server_alert:alert})+' '+error.message);
+   }
+  }
+  async function localAction(label){await operator.getByRole('button',{name:label,exact:true}).last().click();await operator.locator('[name=df_confirm_review]').check();const payload=await operator.locator('form').evaluate(form=>new URLSearchParams(new FormData(form)).toString());await confirmAction(label,'Confirm local action','Return to this order');const replay=await operator.evaluate(async payload=>{const r=await fetch('/wp-admin/admin-post.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:payload});const doc=new DOMParser().parseFromString(await r.text(),'text/html');return {alert:doc.querySelector('[role=alert]')?.textContent,success:doc.body.textContent.includes('Return to this order')};},payload);assert(replay.alert&&!replay.success,'Replayed operator confirmation must deny a second effect.');await operator.getByRole('link',{name:'Return to this order',exact:true}).click();checks+=2;}
   const operatorContext=await context(1280),operator=await operatorContext.newPage();
   await operator.goto(base+'/?df_auth=login&redirect_to='+encodeURIComponent(base+'/?df_view=orders&df_shop=personalized_pod'));
   await operator.getByLabel('Email address').fill(fixture.operator.email);
@@ -112,7 +129,7 @@ async function freePort(){const s=net.createServer();await new Promise((r,j)=>{s
    await localAction('Preview DRAFT fulfillment plan');await localAction('Preview local fulfillment plan review entry');await localAction('Preview local fulfillment plan approval');await localAction('Preview BLOCKED fulfillment preparation intent');
    await operator.getByRole('link',{name:'Inspect held preparation',exact:true}).first().click();await operator.getByText('HELD_FULFILLMENT_PREPARED',{exact:true}).waitFor();
    const intent=Number(new URL(operator.url()).searchParams.get('df_intent_id'));assert(intent>0);
-   await operator.getByRole('button',{name:'Preview BLOCKED held-job metadata',exact:true}).click();await operator.locator('[name=df_confirm_review]').check();await operator.getByRole('button',{name:'Confirm local held-job action',exact:true}).click();await operator.getByRole('link',{name:'Inspect this order’s held-job metadata',exact:true}).click();await operator.getByRole('heading',{name:/Held job #[0-9]+ \/ BLOCKED/}).first().waitFor();checks++;
+   await operator.getByRole('button',{name:'Preview BLOCKED held-job metadata',exact:true}).click();await operator.locator('[name=df_confirm_review]').check();await confirmAction('BLOCKED held-job metadata','Confirm local held-job action','Inspect this order’s held-job metadata');await operator.getByRole('link',{name:'Inspect this order’s held-job metadata',exact:true}).click();await operator.getByRole('heading',{name:/Held job #[0-9]+ \/ BLOCKED/}).first().waitFor();checks++;
    assert.equal(await operator.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2),false,'Styled operator held-job inspection must fit the viewport.');checks++;
    const job=Number(new URL(operator.url()).searchParams.get('df_held_job_id')),previewSha=crypto.createHash('sha256').update(previewBytes).digest('hex');assert(job>0);await verify(intent,'POSITIVE',job,previewSha);
    await proof(operator,'operator-'+f.width+'-blocked-held-job');
