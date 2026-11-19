@@ -69,11 +69,22 @@ final class Runtime
         if (self::canValidate(self::shop())) {
             $status['capabilities'][] = 'OFFLINE_CATALOG_VALIDATE';
             require_once __DIR__ . '/OfflineLifecycle.php';
-            if (OfflineLifecycle::available()) {
+            if (self::fixtureAccount() !== null && OfflineLifecycle::available()) {
                 $status['capabilities'][] = 'OFFLINE_LIFECYCLE_REVIEW';
             }
         }
         return $status;
+    }
+
+    private static function fixtureAccount(): ?string
+    {
+        $value = \defined('DIGIFORGE_PRINTIFY_OFFLINE_ACCOUNT') ? \constant('DIGIFORGE_PRINTIFY_OFFLINE_ACCOUNT') : null;
+        return is_string($value) && preg_match('/^[A-Za-z0-9_-]{1,100}$/D', $value) === 1 ? $value : null;
+    }
+
+    public static function permitsFixtureAccount(string $shop, string $account): bool
+    {
+        return self::permitsFixtureShop($shop) && self::fixtureAccount() === $account;
     }
 
     public static function permitsFixtureShop(string $shop): bool
@@ -83,7 +94,7 @@ final class Runtime
 
     public static function reviewLifecycle(string $shop, array $intent, array $fixture): array
     {
-        if (!self::canValidate(self::shop()) || self::shop() !== $shop) {
+        if (!is_string($intent['account_reference'] ?? null) || !self::permitsFixtureAccount($shop, $intent['account_reference'])) {
             return ['state' => 'DENIED', 'provider_execution_authorized' => false];
         }
         require_once __DIR__ . '/OfflineLifecycle.php';

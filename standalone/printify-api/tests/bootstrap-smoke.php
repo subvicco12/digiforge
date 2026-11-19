@@ -23,6 +23,7 @@ function update_option(...$args): never { throw new RuntimeException('Unexpected
 $GLOBALS['fixture_hooks'] = [];
 $GLOBALS['fixture_caps'] = [];
 define('DIGIFORGE_PRINTIFY_OFFLINE_SHOP', '107');
+define('DIGIFORGE_PRINTIFY_OFFLINE_ACCOUNT', 'fixture-account');
 define('ABSPATH', __DIR__ . '/synthetic-wordpress/');
 $plugin = $argv[1] ?? __DIR__ . '/../digiforge-printify-api/digiforge-printify-api.php';
 $autoloaders = spl_autoload_functions();

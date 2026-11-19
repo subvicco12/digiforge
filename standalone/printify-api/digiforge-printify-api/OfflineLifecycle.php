@@ -50,7 +50,8 @@ final class OfflineLifecycle
         foreach (['account_reference','product_id','order_id'] as $key) {
             self::require(is_string($i[$key]) && preg_match('/^[A-Za-z0-9_-]{1,100}$/D', $i[$key]) === 1);
         }
-        self::require(is_int($i['version']) && $i['version'] > 0);
+        self::require(is_int($i['version']) && $i['version'] > 0
+            && Runtime::permitsFixtureAccount($shop, $i['account_reference']));
         self::require($f['scope'] === ['shop'=>$shop,'account_reference'=>$i['account_reference'],
             'version'=>$i['version'],'operation_id'=>$i['operation_id'],'approval_sha256'=>$i['approval_sha256']]);
         $product = PrintifyProductRequest::prepare('PRODUCT_CREATE', $shop, $f['product']);
