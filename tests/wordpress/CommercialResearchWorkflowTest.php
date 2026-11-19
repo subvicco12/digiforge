@@ -37,6 +37,30 @@ final class CommercialResearchWorkflowTest extends WP_UnitTestCase
   $_GET['df_research_version']=$v['hash'];ob_start();$panel->render('personalized_pod');$html=ob_get_clean();unset($_GET['df_research_version']);self::assertStringContainsString('UNTRUSTED SOURCE DATA',$html);self::assertStringContainsString('Import concepts',$html);self::assertStringContainsString('STOP_ALL_OR_UNAUTHORIZED',$html);
   self::assertWPError($panel->process(['operation'=>'approve','shop_key'=>'personalized_pod','workflow_hash'=>$v['hash']]));
  }
+ public function testSavedSourceExportRoundTripsThroughStrictImport():void
+ {
+  $research=$this->fixture()['research'];
+  $research['sources'][0]['excerpt']='Example </textarea><script>synthetic</script>';
+  $repo=new Repo();
+  $saved=$repo->create($research);
+  self::assertNotWPError($saved);
+  $_GET['df_research_version']=$saved['hash'];
+  ob_start();
+  try {
+   (new \DigiForge\Portal\CommercialResearchPanel())->render('personalized_pod');
+   $html=ob_get_contents();
+  } finally {
+   ob_end_clean();
+   unset($_GET['df_research_version']);
+  }
+  self::assertSame(1,preg_match('~Source evidence JSON<textarea readonly rows="8" spellcheck="false">(.*?)</textarea>~s',$html,$match));
+  $json=html_entity_decode($match[1],ENT_QUOTES,'UTF-8');
+  self::assertStringNotContainsString('<script>synthetic</script>',$html);
+  self::assertStringContainsString(hash('sha256',$json),$html);
+  $imported=$repo->create(json_decode($json,true,32,JSON_THROW_ON_ERROR));
+  self::assertNotWPError($imported);
+  self::assertSame($saved['hash'],$imported['hash']);
+ }
  private function enableOnlyInTestDatabase():void {
   \DigiForge\Core\Settings::ensure_defaults();global $wpdb;foreach(['activation_authorized','automation_armed','research','ai','research_activation_authorized','ai_activation_authorized']as $key)$wpdb->update(\DigiForge\Database\Tables::settings(),['setting_value'=>'true'],['setting_key'=>$key]);
   $wpdb->update(\DigiForge\Database\Tables::settings(),['setting_value'=>'false'],['setting_key'=>'stop_all']);wp_get_current_user()->add_cap('manage_digiforge_ai');ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research','manage_digiforge_ai']);

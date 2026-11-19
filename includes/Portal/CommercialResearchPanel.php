@@ -33,6 +33,7 @@ final class CommercialResearchPanel
         $r=$v['record'];
         echo '<h3>'.esc_html($r['research']['title']).' · '.esc_html($r['research']['product_family']).'</h3><p>Stage: '.esc_html($r['stage']).' · Version <code>'.esc_html($hash).'</code> · Human '.esc_html((string)$r['created_by']).' · '.esc_html($r['created_at']).'</p>';
         foreach($r['research']['sources']as $source)echo '<details><summary>'.esc_html($source['id'].' · '.$source['kind'].' · '.$source['observed_at']).'</summary><p><a href="'.esc_url($source['url']).'" rel="noopener noreferrer">Source</a></p><p>'.esc_html($source['excerpt']).'</p><p>Provenance: '.esc_html($source['provenance']).'</p></details>';
+        $this->renderSourceExport($r['research']);
         $this->researchForm($r['research'],$hash);
         if($r['stage']==='RESEARCH_READY')$this->conceptIntake($r,$hash,$manualOnly);
         if(is_array($r['response']))$this->conceptCards($r,$hash);
@@ -54,6 +55,15 @@ final class CommercialResearchPanel
         else foreach($history as $item)echo '<p><a href="'.esc_url(add_query_arg(['df_view'=>'research','df_shop'=>$shop,'df_research_version'=>$item['hash']],$this->baseUrl())).'">'.esc_html($item['stage'].' · '.$item['created_at']).'</a> · '.esc_html($item['note']).'</p>';
         echo '</section>';
     }
+    private function renderSourceExport(array $research): void
+    {
+        $json = \DigiForge\Research\CommercialResearchContract::json($research);
+        echo '<details><summary>Export saved source evidence</summary>';
+        echo '<p>Copy this packet into the Shop 2 research importer. It contains the saved source declarations and their original timestamps. The SHA-256 covers the JSON exactly as shown.</p>';
+        echo '<p>Source packet SHA-256 <code>'.esc_html(hash('sha256', $json)).'</code></p>';
+        echo '<label>Source evidence JSON<textarea readonly rows="8" spellcheck="false">'.esc_textarea($json).'</textarea></label></details>';
+    }
+
     private function researchForm(?array $research=null,?string $hash=null): void
     {
         echo '<details><summary>1. Capture or revise source evidence</summary>';$this->form($hash===null?'research':'revise_research',$hash);$this->field('title','Opportunity/product title',true,$research['title']??'');echo '<label>Product family <select name="product_family"><option value="mug"'.(($research['product_family']??'')==='mug'?' selected':'').'>Mug</option><option value="poster"'.(($research['product_family']??'')==='poster'?' selected':'').'>Poster</option></select></label><p>Add at least one observed source. Empty categories remain unknown; no demand or sales volume is inferred. Dates use UTC YYYY-MM-DDTHH:MM:SSZ. Use a fresh capture for a changed observation.</p>';
