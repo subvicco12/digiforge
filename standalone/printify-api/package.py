@@ -14,7 +14,7 @@ import zipfile
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN = "digiforge-printify-api"
 SOURCE = f"standalone/printify-api/{PLUGIN}"
-MEMBERS = ("Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
+MEMBERS = ("FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
 
 
 def git(*args: str) -> bytes:
@@ -30,20 +30,35 @@ def build(source: str) -> bytes:
     if not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("Expected an exact SHA-1 Git commit")
     blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in MEMBERS}
-    contract_path = "includes/POD/PrintifyCatalogReadContract.php"
-    contract = git("show", f"{commit}:{contract_path}")
-    original_namespace = b"namespace DigiForge\\POD;"
-    if contract.count(original_namespace) != 1:
-        raise ValueError("Unexpected catalog contract namespace")
-    # Keep standalone symbol names disjoint from Core in the same PHP process.
-    blobs["Engine/PrintifyCatalogReadContract.php"] = contract.replace(
-        original_namespace, b"namespace DigiForgePrintifyApi\\Engine;", 1
+    contracts = (
+        ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),
+        ("POD/PrintifyProductRequest.php", "Engine/POD/PrintifyProductRequest.php"),
+        ("POD/PrintifyOrderEvidence.php", "Engine/POD/PrintifyOrderEvidence.php"),
+        ("POD/PrintifyApiOutcome.php", "Engine/POD/PrintifyApiOutcome.php"),
+        ("Research/DesignFactoryContract.php", "Engine/Research/DesignFactoryContract.php"),
     )
+    upstream = {}
+    for relative, member in contracts:
+        path = "includes/" + relative
+        data = git("show", f"{commit}:{path}")
+        namespace = b"namespace DigiForge\\"
+        if data.count(namespace) != 1:
+            raise ValueError(f"Unexpected namespace in {path}")
+        relocated = data.replace(namespace, b"namespace DigiForgePrintifyApi\\Engine\\", 1)
+        relocated = relocated.replace(
+            b"\\DigiForge\\Research\\DesignFactoryContract::",
+            b"\\DigiForgePrintifyApi\\Engine\\Research\\DesignFactoryContract::",
+        )
+        if member == "Engine/PrintifyCatalogReadContract.php":
+            relocated = relocated.replace(b"namespace DigiForgePrintifyApi\\Engine\\POD;",
+                                          b"namespace DigiForgePrintifyApi\\Engine;")
+        blobs[member] = relocated
+        upstream[path] = sha256(data)
     manifest = {
         "schema": "DF_STANDALONE_PRINTIFY_PACKAGE_1",
         "source_sha": commit,
         "mode": "DEGRADED_READ_ONLY",
-        "upstream_contracts": {contract_path: sha256(contract)},
+        "upstream_contracts": upstream,
         "members": {f"{PLUGIN}/{name}": sha256(data) for name, data in blobs.items()},
     }
     blobs["source-manifest.json"] = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()

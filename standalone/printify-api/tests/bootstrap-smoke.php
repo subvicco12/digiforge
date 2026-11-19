@@ -35,7 +35,7 @@ check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.2.0',
+    'version' => '0.3.0',
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,
@@ -61,7 +61,7 @@ check(str_contains(ob_get_clean(), 'Provider dispatch'), 'Diagnostics panel miss
 check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS'], 'Unscoped catalog advertised');
 $GLOBALS['fixture_caps'][] = 'digiforge_printify_review_shop_107';
 if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
-    check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS', 'OFFLINE_CATALOG_VALIDATE'], 'Packaged capability missing');
+    check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS', 'OFFLINE_CATALOG_VALIDATE', 'OFFLINE_LIFECYCLE_REVIEW'], 'Packaged capability missing');
     $bp = ['kind' => 'blueprint', 'blueprint_id' => 42];
     $fixtures = [
         [['kind' => 'blueprints'], [['id' => 42]]],
@@ -87,6 +87,7 @@ if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
     check(Runtime::validateCatalog('107', $bp, '{"id":42,"last_page":2}')['state'] === 'DENIED', 'Partial pagination accepted');
     check(Runtime::validateCatalog('107', $bp, str_repeat(' ', 262145))['state'] === 'DENIED', 'Oversize body accepted');
     check(Runtime::validateCatalog('107', $bp, '{broken')['state'] === 'DENIED', 'Malformed body accepted');
+    require __DIR__.'/lifecycle-fixture.php';
     check(!class_exists('DigiForge\\POD\\PrintifyCatalogReadContract', false), 'Loaded a Core symbol');
 } else {
     check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS'], 'Missing engine was advertised');

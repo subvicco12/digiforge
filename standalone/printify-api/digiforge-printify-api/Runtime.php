@@ -68,8 +68,26 @@ final class Runtime
         $status['mode'] = 'DEGRADED_READ_ONLY';
         if (self::canValidate(self::shop())) {
             $status['capabilities'][] = 'OFFLINE_CATALOG_VALIDATE';
+            require_once __DIR__ . '/OfflineLifecycle.php';
+            if (OfflineLifecycle::available()) {
+                $status['capabilities'][] = 'OFFLINE_LIFECYCLE_REVIEW';
+            }
         }
         return $status;
+    }
+
+    public static function permitsFixtureShop(string $shop): bool
+    {
+        return self::shop() === $shop && self::canValidate($shop);
+    }
+
+    public static function reviewLifecycle(string $shop, array $intent, array $fixture): array
+    {
+        if (!self::canValidate(self::shop()) || self::shop() !== $shop) {
+            return ['state' => 'DENIED', 'provider_execution_authorized' => false];
+        }
+        require_once __DIR__ . '/OfflineLifecycle.php';
+        return OfflineLifecycle::review($shop, $intent, $fixture);
     }
 
     /**
