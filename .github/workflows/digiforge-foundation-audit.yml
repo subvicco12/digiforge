@@ -10,6 +10,11 @@ on:
       - 'phase-**'
       - 'feature/**'
   workflow_dispatch:
+    inputs:
+      wordpress_diagnostic:
+        description: Reproduce WordPress database failures at the frozen source SHA
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,7 +45,7 @@ jobs:
       - name: Checkout exact candidate source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.wordpress_diagnostic == true && '762228a6dbc74f6a716059497f717671b37ce0af' || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Set up PHP 8.3
@@ -132,11 +137,115 @@ jobs:
         run: mkdir -p "$RUNNER_TEMP/google-portal-fixtures"
 
       - name: WordPress database integration tests
+        if: inputs.wordpress_diagnostic != true
         env:
           WP_TESTS_DIR: /tmp/wordpress-tests-lib
           DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
         # Keep the job ceiling unchanged; identify and fail any individual overrun.
         run: composer test:wordpress -- --debug --enforce-time-limit --default-time-limit 600
+
+      - name: Run pinned WordPress failure diagnostics
+        if: inputs.wordpress_diagnostic == true
+        shell: bash
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+          DF_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -eu
+          expected=762228a6dbc74f6a716059497f717671b37ce0af
+          test "$(git rev-parse HEAD)" = "$expected"
+          raw="$(mktemp -d "$RUNNER_TEMP/wp-diag-raw.XXXXXX")"
+          trap 'rm -rf "$raw"' EXIT
+          evidence="$RUNNER_TEMP/wp-diagnostics"
+          mkdir -p "$evidence"
+          {
+            printf 'Application SHA: %s\nWorkflow SHA: %s\n' "$expected" "$DF_WORKFLOW_SHA"
+            php -r 'echo "PHP: ", PHP_VERSION, PHP_EOL;'
+            php -r 'require "/tmp/wordpress/wp-includes/version.php"; echo "WordPress: ", $wp_version, PHP_EOL;'
+            mysql --protocol=tcp -h127.0.0.1 -uroot -proot --skip-column-names -e 'SELECT VERSION()' | sed 's/^/MariaDB: /'
+          } >"$evidence/environment.txt"
+          set +e
+          vendor/bin/phpunit --configuration phpunit.wordpress.xml.dist --filter NativeProducerSynchronizationTest --log-junit "$raw/focused.xml" >"$raw/focused.log" 2>&1
+          focused=$?
+          composer test:wordpress -- --debug --enforce-time-limit --default-time-limit 600 >"$raw/reproduction.log" 2>&1
+          reproduction=$?
+          set -e
+          printf 'Focused exit: %s\nOriginal command exit: %s\n' "$focused" "$reproduction" >"$evidence/exit-codes.txt"
+          python3 - "$raw" "$evidence" <<'PY'
+          import collections
+          import pathlib
+          import re
+          import sys
+          import xml.etree.ElementTree as ET
+
+          raw, out = map(pathlib.Path, sys.argv[1:])
+          root = pathlib.Path.cwd()
+          # Keep only PHPUnit status, code locations, and fixed assertion phrases.
+          # Never retain printed values, request data, configs, or raw XML.
+          safe = re.compile(
+              r'^(?:[0-9]+\) [A-Za-z0-9_\\:]+(?: with data set #[0-9]+)?'
+              r'|Test (?:Failed|Errored|Finished|Passed|Preparation Started) \([A-Za-z0-9_\\:]+\)'
+              r'|Failed asserting that (?:false is true|true is false|null is not null|an array is an instance of class "WP_Error")\.'
+              r'|(?:Expected|Actual) (?:status|exit) (?:code )?[0-9]+'
+              r'|Tests: [0-9]+(?:, [A-Za-z]+: [0-9]+)*\.'
+              r'|(?:tests|includes|services)/[A-Za-z0-9_./-]+\.php:[0-9]+'
+              r'|FAILURES!|ERRORS!|OK \([0-9]+ tests?, [0-9]+ assertions?\))$'
+          )
+          identifiers = re.compile(r'^[A-Za-z0-9_\\:.-]{1,200}$')
+          for name in ('focused', 'reproduction'):
+              recent = collections.deque(maxlen=30)
+              failures = collections.deque(maxlen=160)
+              with (raw / (name + '.log')).open(errors='replace') as stream:
+                  for line in stream:
+                      line = line.strip().replace(str(root) + '/', '')
+                      if safe.fullmatch(line) and len(line) <= 300:
+                          if ('Failed' in line or 'Errored' in line or
+                                  line.startswith(('Failed asserting', 'tests/', 'includes/', 'services/')) or
+                                  re.match(r'^[0-9]+\)', line)):
+                              failures.append(line)
+                          else:
+                              recent.append(line)
+              (out / (name + '.txt')).write_text('\n'.join((*failures, *recent)) + '\n')
+          xml = raw / 'focused.xml'
+          if xml.exists() and xml.stat().st_size <= 1_000_000:
+              try:
+                  source = ET.parse(xml)
+              except ET.ParseError:
+                  source = None
+              if source is not None:
+                  report = ET.Element('testsuite', name='Focused WordPress diagnostic')
+                  for case in list(source.iter('testcase'))[:100]:
+                      attrs = {k: v for k, v in case.attrib.items()
+                               if k in ('name', 'class', 'classname', 'assertions', 'time') and identifiers.fullmatch(v)}
+                      rebuilt = ET.SubElement(report, 'testcase', attrs)
+                      for child in case:
+                          if child.tag in ('failure', 'error', 'skipped'):
+                              ET.SubElement(rebuilt, child.tag)
+                  ET.ElementTree(report).write(out / 'focused.junit.xml', encoding='utf-8', xml_declaration=True)
+          PY
+          {
+            echo '### Pinned WordPress diagnostics'
+            echo '```text'
+            cat "$evidence/environment.txt" "$evidence/exit-codes.txt"
+            tail -30 "$evidence/focused.txt"
+            tail -40 "$evidence/reproduction.txt"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+          # Also expose safe failure identifiers in check annotations if log download is restricted.
+          grep -E '^[0-9]+\)|^Test (Failed|Errored) |^Failed asserting' "$evidence/"*.txt |
+            head -12 | while IFS= read -r line; do printf '::notice::%s\n' "$line"; done || true
+          if [ "$reproduction" -ne 0 ]; then exit "$reproduction"; fi
+          exit "$focused"
+
+      - name: Retain bounded WordPress diagnostic evidence
+        if: always() && inputs.wordpress_diagnostic == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordpress-diagnostic-evidence
+          path: ${{ runner.temp }}/wp-diagnostics/
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Set up Node for offline portal acceptance
         uses: actions/setup-node@v4
