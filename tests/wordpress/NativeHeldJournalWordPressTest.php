@@ -68,6 +68,27 @@ final class NativeHeldJournalWordPressTest extends WP_UnitTestCase {
  public function testTemporaryShadowTablesCannotClaimDurability():void {
   global $wpdb;[$j]=Schema::tables();$definition=$wpdb->get_row('SHOW CREATE TABLE '.$j,ARRAY_A);self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE/','CREATE TEMPORARY TABLE',$definition['Create Table'])));try{self::assertWPError((new Journal())->prepare($this->binding,str_repeat('d',64)));}finally{$wpdb->query('DROP TEMPORARY TABLE '.$j);}
  }
+ public function testMissingWriterTransactionCannotAutocommitJournalRows():void {
+  global $wpdb;
+  $filter=static fn(string $sql):string=>$sql==='START TRANSACTION'?'SELECT 1':$sql;
+  add_filter('query',$filter);
+  try{
+   $result=(new Journal())->prepare($this->binding,str_repeat('d',64));
+   self::assertWPError($result);
+   self::assertSame('printify_native_held_journal_transaction_changed',$result->get_error_code());
+  }finally{remove_filter('query',$filter);}
+  foreach(Schema::tables() as $table)self::assertSame('0',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
+ }
+ public function testMissingReadTransactionCannotAcknowledgeSnapshot():void {
+  $this->prepare();
+  $filter=static fn(string $sql):string=>$sql==='START TRANSACTION READ ONLY'?'SELECT 1':$sql;
+  add_filter('query',$filter);
+  try{
+   $result=(new Journal())->read($this->binding['operation_id'],'personalized_pod',$this->actor);
+   self::assertWPError($result);
+   self::assertSame('printify_native_held_journal_snapshot_unknown',$result->get_error_code());
+  }finally{remove_filter('query',$filter);}
+ }
  public function testAuditFailureRollsBackBothJournalAndEvent():void {
   global $wpdb;$audit=DigiForge\Database\Tables::audit_log();$inject=static function(string $sql)use($audit):string{return str_starts_with($sql,'INSERT INTO `'.$audit.'`')&&str_contains($sql,'native_printify_held_transition')?'INSERT INTO missing_native_held_audit (id) VALUES (1)':$sql;};$prior=$wpdb->suppress_errors(true);add_filter('query',$inject);
   try{self::assertWPError((new Journal())->prepare($this->binding,str_repeat('d',64)));}finally{remove_filter('query',$inject);$wpdb->suppress_errors($prior);}

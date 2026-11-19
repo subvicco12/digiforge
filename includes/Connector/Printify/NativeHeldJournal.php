@@ -55,8 +55,15 @@ final class NativeHeldJournal {
  public function read(string $operationId,string $shop,int $actor):array|\WP_Error {
   if(!preg_match('/^[a-f0-9]{64}$/D',$operationId))return self::error('identity');$a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
   $guard=$this->storage();if(is_wp_error($guard))return $guard;global $wpdb;
-  $started=false;
-  try{if($wpdb->query('START TRANSACTION READ ONLY')===false)return self::error('snapshot_unavailable');$started=true;$r=$this->load($operationId,$shop,$actor,false);$a=$this->access($shop,$actor);if(is_wp_error($a))return $a;if($wpdb->query('COMMIT')===false)return self::error('snapshot_unknown');$started=false;return $r;}catch(\Throwable){return self::error('snapshot_unavailable');}finally{if($started){try{$wpdb->query('ROLLBACK');}catch(\Throwable){return self::error('snapshot_unknown');}}}
+  $database=$wpdb;$started=false;
+  try{
+   if($database->query('START TRANSACTION READ ONLY')===false)return self::error('snapshot_unavailable');$started=true;
+   $connection=NativeSourceTransaction::id();if(is_wp_error($connection))return self::error('snapshot_unknown');
+   $r=$this->load($operationId,$shop,$actor,false);$a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
+   if(is_wp_error(NativeSourceTransaction::verify($database,$connection))||$database->query('COMMIT')===false)return self::error('snapshot_unknown');
+   $started=false;return $r;
+  }catch(\Throwable){return self::error('snapshot_unavailable');}
+  finally{if($started){try{if($database->query('ROLLBACK')===false)return self::error('snapshot_unknown');}catch(\Throwable){return self::error('snapshot_unknown');}}}
  }
  private function storage():true|\WP_Error {
   try{
@@ -66,18 +73,27 @@ final class NativeHeldJournal {
   }catch(\Throwable){return self::error('storage_unavailable');}
  }
  private function transaction(string $operationId,string $candidateKey,callable $work,string $shop,int $actor):array|\WP_Error {
-  $guard=$this->storage();if(is_wp_error($guard))return $guard;global $wpdb;$lock='dfnh:'.substr($candidateKey,0,58);$started=false;$committed=false;
+  $guard=$this->storage();if(is_wp_error($guard))return $guard;global $wpdb;$database=$wpdb;$lock='dfnh:'.substr($candidateKey,0,58);$started=false;$committed=false;
   $wpdb->last_error='';try{if((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)',$lock))!=='1'||self::failed())return self::error('busy');}catch(\Throwable){return self::error('lock_unavailable');}
   $result=self::error('persistence');
   try{
    if($wpdb->query('START TRANSACTION')===false)return self::error('transaction');$started=true;
-   $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;$result=$work();if(is_wp_error($result))return $result;
+   $connection=NativeSourceTransaction::id();if(is_wp_error($connection))return self::error('transaction_changed');
    $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
-   if($wpdb->query('COMMIT')===false)return self::error('commit_unknown');$started=false;$committed=true;
+   if(!$this->ownsWriter($database,$connection,$lock))return self::error('transaction_changed');
+   $result=$work();if(is_wp_error($result))return $result;
+   $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
+   if(!$this->ownsWriter($database,$connection,$lock)||$database->query('COMMIT')===false)return self::error('commit_unknown');$started=false;$committed=true;
   }catch(\Throwable){$result=self::error('persistence');}
-  finally{$clean=true;try{if($started&&$wpdb->query('ROLLBACK')===false)$clean=false;}catch(\Throwable){$clean=false;}try{$wpdb->last_error='';$released=$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));if(self::failed()||(string)$released!=='1')$clean=false;}catch(\Throwable){$clean=false;}if(!$clean)return self::error('cleanup_unknown');}
+  finally{$clean=true;try{if($started&&$database->query('ROLLBACK')===false)$clean=false;}catch(\Throwable){$clean=false;}try{$database->last_error='';$released=$database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)',$lock));if($database->last_error!==''||(string)$released!=='1')$clean=false;}catch(\Throwable){$clean=false;}if(!$clean)return self::error('cleanup_unknown');}
   // Acknowledgement only after a fresh consistent, audit-anchored readback. Never restore a slot on failure.
   if(!$committed)return $result;$read=$this->read($operationId,$shop,$actor);if(is_wp_error($read)||$read['event_hash']!==$result['event_hash'])return self::error('confirmation_unknown');return $read;
+ }
+ private function ownsWriter(object $database,string $connection,string $lock):bool {
+  $database->last_error='';
+  $owned=$database->get_var($database->prepare('SELECT IS_USED_LOCK(%s)',$lock));
+  return $database->last_error===''&&(string)$owned===$connection
+   && !is_wp_error(NativeSourceTransaction::verify($database,$connection));
  }
  private function append(array $record,?array $prior):array|\WP_Error {
   global $wpdb;[$j,$e]=NativeHeldJournalSchema::tables();$op=$record['binding']['operation_id'];$event=['schema'=>'DF_NATIVE_HELD_EVENT_1','previous_hash'=>$prior['event_hash']??str_repeat('0',64),'record'=>$record];
