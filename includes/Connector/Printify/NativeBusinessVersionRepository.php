@@ -16,7 +16,7 @@ final class NativeBusinessVersionRepository {
  private const ISSUED='local_business_order_version_recorded';
  private const CONFIRMED='local_business_order_version_confirmed';
  private const LIMIT=256;
- public function recordReviewedVersion(ShopBinding $scope,int $actor,int $localOrderId,string $sourceReceipt,int $approvedPlanId,array $lineAssociations,string $policySubject,int $expectedVersionNumber,string $expectedVersionHash):array|\WP_Error {
+ public function recordReviewedVersion(ShopBinding $scope,int $actor,int $localOrderId,string $sourceReceipt,int $approvedPlanId,array $lineAssociations,string $policySubject,int $expectedVersionNumber,string $expectedVersionHash,?NativeProducerPublicationJournal $publication=null,string $mappingId='',string $publicationOperation=''):array|\WP_Error {
   if($expectedVersionNumber<0||$expectedVersionNumber>self::LIMIT||!self::digest($expectedVersionHash)||($expectedVersionNumber===0&&$expectedVersionHash!==self::ZERO))return self::deny('expected_head');
   if($scope->shopId!==2||$scope->shopKey!=='personalized_pod')return self::deny('shop_scope');
   $initial=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);if(is_wp_error($initial))return $initial;
@@ -26,6 +26,7 @@ final class NativeBusinessVersionRepository {
   $association=$resolve();if(is_wp_error($association))return $association;
   $source=NativeOrderSourceEvidence::resolve($scope,$actor,$sourceReceipt);if(is_wp_error($source)||$source['evidence_hash']!==$association['prepared_evidence']['source_evidence_hash'])return self::deny('source_identity');
   if(!self::sameSession($database,$connection,false))return self::unknown('source_connection');
+  if($publication!==null&&!$publication->claimedOn($database,$mappingId,$publicationOperation))return self::deny('publication_block_required');
   $stream=self::stream($scope,$source['order_identity']);$lock=self::lock($stream,self::localLock($scope,$localOrderId));if(is_wp_error($lock))return $lock;$phase=[];$responding=false;
   try {
    $ready=self::storage();if(is_wp_error($ready))return $ready;
@@ -67,6 +68,7 @@ final class NativeBusinessVersionRepository {
    $readback=self::history($stream,true,true);if(is_wp_error($readback)||$readback!==$persisted)return self::unknown('confirmation_readback');$head=$readback[count($readback)-1];
    $confirmationSeal=self::seal('confirmation',$recordHash);
    $wpdb->last_error='';$confirmed=$wpdb->update($table,['confirmation_state'=>'CONFIRMED','confirmation_seal'=>$confirmationSeal],['entity_id'=>$entityId,'record_hash'=>$recordHash,'confirmation_state'=>'PENDING','head_marker'=>1],['%s','%s'],['%d','%s','%s','%d']);if($confirmed!==1||$wpdb->last_error!==''||!self::guard($lock,true)||!self::audit(self::CONFIRMED,$entityId,$actor,$stream,$headVersion+1,$recordHash,$confirmationSeal))return self::unknown('confirmation_persistence');
+   if($publication!==null&&!$publication->recordConfirmedIntent($database,$mappingId,$publicationOperation,$recordHash,$json))return self::unknown('publication_intent_persistence');
    $committed=self::commitPhase($phase,$scope,$actor,$localOrderId,$approvedPlanId);if(is_wp_error($committed))return $committed;
    $finalStorage=self::storage();if(!self::guard($lock,false)||is_wp_error($finalStorage))return self::unknown('final_storage');$finalHistory=self::history($stream,false);$checkedHistory=self::history($stream,false);$checkedStorage=self::storage();$finalSession=NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge','manage_digiforge_orders','manage_digiforge_products','manage_digiforge_pod']);
    if(is_wp_error($finalHistory)||is_wp_error($checkedHistory)||is_wp_error($checkedStorage)||$checkedHistory!==$finalHistory||!self::guard($lock,false)||is_wp_error($finalSession)||$finalSession['scope']!==$initial['scope']||$finalSession['session_fingerprint']!==$initial['session_fingerprint']||count($finalHistory)!==$headVersion+1||$finalHistory[count($finalHistory)-1]['record_hash']!==$recordHash||!self::sameSession($database,$connection,false))return self::unknown('confirmation_final_readback');
