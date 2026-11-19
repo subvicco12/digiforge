@@ -25,9 +25,31 @@ final class NativeCorePort implements NativeCorePortInterface
   foreach(['actor_id','authorization_revision','approval_reference','product_version','expected_product_version']as $key)if($b[$key]!==$c[$key])return NativeFailure::error('mutation_binding');
   if($b['credential_reference']!==$b['integration_id']||(['personalized_pod'=>2,'standard_pod'=>3][$b['shop_key']]??null)!==$b['shop_id'])return NativeFailure::error('mutation_scope');
   $access=NativeAuthorityAdapter::mutationScope($b);if(is_wp_error($access))return $access;
+  if($request['action']==='RECEIPT_READ')return $this->readHeldUncertainty($b,$request['duplicate_key'],$request['data']);
   // Core's existing option-backed claims are not the specified transactional native journal.
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.
   return NativeFailure::error('journal_and_independent_checkpoint_required');
+ }
+ /** A known held event can explain uncertainty but cannot supply a provider receipt. */
+ private function readHeldUncertainty(array $binding,string $duplicateKey,array $data):\WP_Error {
+  $reference=$data['receipt_reference']??null;
+  if(count($data)!==1||!is_string($reference)||preg_match('/^[a-f0-9]{64}$/D',$reference)!==1)return NativeFailure::error('receipt_contract');
+  try{
+   $entry=(new NativeHeldJournal())->read($binding['operation_id'],$binding['shop_key'],$binding['actor_id']);
+   if(is_wp_error($entry)||$entry['record']['state']!=='UNKNOWN'
+      ||!hash_equals($entry['event_hash'],$reference)
+      ||!hash_equals($entry['record']['candidate_key'],$duplicateKey)
+      ||!hash_equals(NativePortContract::hash($entry['record']['binding']),NativePortContract::hash($binding))){
+    return NativeFailure::error('receipt_unavailable');
+   }
+   $access=NativeAuthorityAdapter::mutationScope($binding);
+   if(is_wp_error($access))return $access;
+   return new \WP_Error('printify_native_held_outcome_unknown','Exact local held event still requires reconciliation.',[
+    'status'=>409,'outcome'=>'UNKNOWN','journal_revision'=>$entry['record']['revision'],
+    'provider_receipt_verified'=>false,'network_request_attempted'=>null,
+    'external_execution_authorized'=>false,'retry_permitted'=>false,
+   ]);
+  }catch(\Throwable){return NativeFailure::error('receipt_unavailable');}
  }
  public function inspect(array $binding):array|\WP_Error {
   if(!NativePortContract::valid('binding',$binding))return NativeFailure::error('inspection_contract');

@@ -12,7 +12,12 @@ final class NativePrintifyCorePortWordPressTest extends WP_UnitTestCase
 {
  private int $http=0;private int $ciphertext=0;private $httpTripwire;private $queryTripwire;
  protected function setUp():void {
-  parent::setUp();PortalAccessFixture::reset();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();
+  parent::setUp();
+  if($this->getName(false)==='testCanonicalReceiptReadPreservesExactHeldUnknown'){
+   remove_filter('query',[$this,'_create_temporary_tables']);
+   remove_filter('query',[$this,'_drop_temporary_tables']);
+  }
+  PortalAccessFixture::reset();DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();
   $this->httpTripwire=function(){++$this->http;throw new RuntimeException('No provider HTTP permitted');};
   $this->queryTripwire=function(string $sql):string{if(preg_match('/^\s*SELECT\s/i',$sql)&&preg_match('/\bFROM\s+`?'.preg_quote(DigiForge\Database\Tables::integration_secrets(),'/').'`?\b/i',$sql)&&preg_match('/\bciphertext\b|\*/i',substr($sql,0,(int)stripos($sql,'FROM')))){++$this->ciphertext;throw new RuntimeException('No credential reads permitted');}return $sql;};
   add_filter('pre_http_request',$this->httpTripwire,PHP_INT_MAX);add_filter('query',$this->queryTripwire,PHP_INT_MAX);
@@ -67,6 +72,56 @@ final class NativePrintifyCorePortWordPressTest extends WP_UnitTestCase
   }
   WP_Session_Tokens::get_instance($a)->destroy(wp_get_session_token());
   $r=$p->exchange($q);self::assertWPError($r);self::assertSame('printify_native_session_required',$r->get_error_code());
+ }
+ public function testCanonicalReceiptReadPreservesExactHeldUnknown():void {
+  $s=$this->scope();$a=get_current_user_id();$port=NativeBridge::connect('1.0.0');
+  $q=NativePrintifyContractFixture::mutation('RECEIPT_READ');
+  $q['binding']=array_replace($q['binding'],['operation_id'=>hash('sha256',wp_generate_uuid4()),'actor_id'=>$a,'scope_fingerprint'=>$s->fingerprint(),'integration_id'=>$s->integrationId,'credential_reference'=>$s->credential->integrationId,'provider_shop_id'=>$s->providerShopId,'environment'=>$s->environment,'authorization_revision'=>$s->revision]);
+  $q['context']=array_replace($q['context'],['actor_id'=>$a,'authorization_revision'=>$s->revision]);
+  global $wpdb;
+  $wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');
+  $schema=DigiForge\Connector\Printify\NativeHeldJournalSchema::class;
+  $tables=$schema::tables();
+  $created=[];
+  try{
+   foreach($schema::statements() as $index=>$sql){
+    $table=$tables[$index];
+    $present=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));
+    if((int)$present===0){self::assertNotFalse($wpdb->query($sql));$created[]=$table;}
+   }
+   $journal=new DigiForge\Connector\Printify\NativeHeldJournal();
+   $id=$q['binding']['operation_id'];
+   self::assertNotWPError($journal->register($q['binding'],$q['duplicate_key']));
+   self::assertNotWPError($journal->transition($id,$s->shopKey,$a,1,'FENCE'));
+   $unknown=$journal->transition($id,$s->shopKey,$a,2,'UNKNOWN');
+   self::assertNotWPError($unknown);
+   $q['data']=['receipt_reference'=>$unknown['event_hash']];
+   $r=$port->exchange($q);
+   self::assertWPError($r);self::assertSame('printify_native_held_outcome_unknown',$r->get_error_code());
+   $data=$r->get_error_data();
+   self::assertSame('UNKNOWN',$data['outcome']);self::assertFalse($data['retry_permitted']);
+   self::assertFalse($data['provider_receipt_verified']);self::assertSame(3,$data['journal_revision']);
+   $wrong=$q;$wrong['binding']['payload_fingerprint']=str_repeat('0',64);
+   self::assertSame('printify_native_receipt_unavailable',$port->exchange($wrong)->get_error_code());
+   $wrong=$q;$wrong['data']['receipt_reference']=str_repeat('0',64);
+   self::assertSame('printify_native_receipt_unavailable',$port->exchange($wrong)->get_error_code());
+   $wrong=$q;$wrong['duplicate_key']=str_repeat('0',64);
+   self::assertSame('printify_native_receipt_unavailable',$port->exchange($wrong)->get_error_code());
+   self::assertSame($data,$port->exchange($q)->get_error_data());
+   foreach(['AUTHORIZE','REGISTER','CLAIM'] as $action){
+    $denied=$port->exchange(array_replace($q,['action'=>$action,'data'=>[]]));
+    self::assertWPError($denied);
+    self::assertSame('printify_native_journal_and_independent_checkpoint_required',$denied->get_error_code());
+   }
+   self::assertSame($unknown,$journal->read($id,$s->shopKey,$a));
+   WP_Session_Tokens::get_instance($a)->destroy(wp_get_session_token());
+   self::assertSame('printify_native_session_required',$port->exchange($q)->get_error_code());
+  }finally{
+   foreach(array_reverse($tables) as $table){
+    if(in_array($table,$created,true))$wpdb->query("DROP TABLE $table");
+    else $wpdb->delete($table,['operation_id'=>$q['binding']['operation_id'],'shop_key'=>$s->shopKey]);
+   }
+  }
  }
  public function testAdminWithoutSignedGrantAndRoleRevocationDeny():void {
   $s=$this->scope();$a=get_current_user_id();$p=NativeBridge::connect('1.0.0');$c=$this->context($s);
