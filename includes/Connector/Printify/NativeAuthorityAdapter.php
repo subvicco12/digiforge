@@ -41,7 +41,7 @@ final class NativeAuthorityAdapter
  /** Resolve current reviewed connection identity before reporting the checkpoint gate.
   * This preflight makes no approval decision and cannot reserve a journal slot.
   */
- public static function mutationScope(array $binding): true|\WP_Error
+ public static function mutationScope(array $binding): ShopBinding|\WP_Error
  {
   $shop = $binding['shop_key'];
   $actor = $binding['actor_id'];
@@ -62,7 +62,7 @@ final class NativeAuthorityAdapter
     return NativeFailure::error('mutation_reviewed_scope');
    }
    $current = self::scope($scope, $actor, ['manage_digiforge_pod']);
-   return is_wp_error($current) ? $current : true;
+   return is_wp_error($current) ? $current : $scope;
   } catch (\Throwable) {
    return NativeFailure::error('mutation_reviewed_scope');
   }

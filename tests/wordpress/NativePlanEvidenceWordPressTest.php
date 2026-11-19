@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
-use DigiForge\Connector\Printify\{NativePlanEvidence,ShopBinding,CredentialReference};
+use DigiForge\Connector\Printify\{NativeBridge,NativePlanEvidence,NativePortContract,ShopBinding,CredentialReference};
 use DigiForge\POD\{ScopedProviderConnection,PrintifyProductPipeline,ProductPackageRepository};
 use DigiForge\Security\ReviewedLocalEvidence;
 require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
 require_once __DIR__.'/fixtures/NativeApprovedPackageFixture.php';
+require_once __DIR__.'/../support/NativePrintifyContractFixture.php';
 /** Real protected synthetic approvals; no fabricated native grant and no sender invocation. */
 final class NativePlanEvidenceWordPressTest extends WP_UnitTestCase {
  use NativeApprovedPackageFixture;
@@ -25,6 +26,25 @@ final class NativePlanEvidenceWordPressTest extends WP_UnitTestCase {
   $payload=PrintifyApiApprovalFixture::checked($pipeline->approvalPayload($plan['hash']));$key='printify-product:'.$plan['hash'];$p=PrintifyApiApprovalFixture::checked(ReviewedLocalEvidence::propose('policy','personalized_pod',$key,$payload,time(),time()+900,wp_generate_uuid4(),0));
   PortalAccessFixture::login($this->fixture->reviewer);$a=PrintifyApiApprovalFixture::checked(ReviewedLocalEvidence::decide('policy','personalized_pod',$key,$p['revision'],$p['proposal_hash'],'APPROVED',wp_generate_uuid4()));$this->fixture->owner();
   $r=NativePlanEvidence::productPlan($scope,1,$plan['hash']);self::assertNotWPError($r);self::assertSame($plan['hash'],$r['plan_hash']);self::assertSame($a['proposal_hash'],$r['approval_hash']);self::assertFalse($r['operational_grant_issued']);self::assertFalse($r['external_execution_authorized']);self::assertFalse($r['independent_checkpoint_verified']);self::assertStringNotContainsString('base64',wp_json_encode($r));self::assertWPError($pipeline->authorize($plan['hash']));
+  $sealed=PrintifyApiApprovalFixture::checked($pipeline->plan($plan['hash']));
+  $wire=array_intersect_key($sealed['request'],array_flip(['method','endpoint','body']));
+  $q=NativePrintifyContractFixture::mutation('AUTHORIZE');
+  $q['binding']=array_replace($q['binding'],[
+   'scope_fingerprint'=>$scope->fingerprint(),'integration_id'=>$scope->integrationId,
+   'credential_reference'=>$scope->credential->integrationId,'provider_shop_id'=>$scope->providerShopId,
+   'environment'=>$scope->environment,'authorization_revision'=>$scope->revision,
+   'approval_reference'=>$a['proposal_hash'],'payload_fingerprint'=>NativePortContract::hash($wire),
+  ]);
+  $q['context']=array_replace($q['context'],['authorization_revision'=>$scope->revision,'approval_reference'=>$a['proposal_hash']]);
+  $q['evidence_references']=[$plan['hash']];
+  $port=NativeBridge::connect('1.0.0');
+  self::assertNotWPError($port);
+  self::assertSame('printify_native_journal_and_independent_checkpoint_required',$port->exchange($q)->get_error_code());
+  $wrong=$q;$wrong['binding']['payload_fingerprint']=str_repeat('0',64);
+  self::assertSame('printify_native_mutation_plan_mismatch',$port->exchange($wrong)->get_error_code());
+  $wrong=$q;$wrong['binding']['approval_reference']=$wrong['context']['approval_reference']=str_repeat('0',64);
+  self::assertSame('printify_native_mutation_plan_mismatch',$port->exchange($wrong)->get_error_code());
   PortalAccessFixture::login($this->fixture->reviewer);PrintifyApiApprovalFixture::checked(ReviewedLocalEvidence::decide('policy','personalized_pod',$key,$a['revision'],$a['proposal_hash'],'REVOKED',wp_generate_uuid4()));$this->fixture->owner();self::assertWPError(NativePlanEvidence::productPlan($scope,1,$plan['hash']));
+  self::assertSame('printify_native_current_plan_approval_required',$port->exchange($q)->get_error_code());
  }
 }

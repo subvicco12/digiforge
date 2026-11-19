@@ -4,6 +4,7 @@ namespace DigiForge\Connector\Printify;
 use DigiForgePrintifyConnector\Preparation\{NativeCorePortInterface,ShipmentReadModel};
 use DigiForge\Core\Settings;
 use DigiForge\PortalAccess\Owner;
+use DigiForge\POD\PrintifyProductPipeline;
 
 /** Native typed boundary. Missing native evidence is a denial, never a synthetic acknowledgement. */
 final class NativeCorePort implements NativeCorePortInterface
@@ -26,9 +27,32 @@ final class NativeCorePort implements NativeCorePortInterface
   if($b['credential_reference']!==$b['integration_id']||(['personalized_pod'=>2,'standard_pod'=>3][$b['shop_key']]??null)!==$b['shop_id'])return NativeFailure::error('mutation_scope');
   $access=NativeAuthorityAdapter::mutationScope($b);if(is_wp_error($access))return $access;
   if($request['action']==='RECEIPT_READ')return $this->readHeldUncertainty($b,$request['duplicate_key'],$request['data']);
+  if($request['action']==='AUTHORIZE' && count($request['evidence_references'])===1){
+   $plan=$this->checkLocalPlanApproval($access,$b,$request['evidence_references'][0]);
+   if(is_wp_error($plan))return $plan;
+  }
   // Core's existing option-backed claims are not the specified transactional native journal.
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.
   return NativeFailure::error('journal_and_independent_checkpoint_required');
+ }
+ /** Validate submitted plan evidence without treating it as operational approval. */
+ private function checkLocalPlanApproval(ShopBinding $scope,array $binding,string $reference):true|\WP_Error {
+  try{
+   $plan=(new PrintifyProductPipeline())->plan($reference);
+   if(is_wp_error($plan))return NativeFailure::error('current_plan_approval_required');
+   $request=$plan['request'];
+   $approval=NativePlanEvidence::productPlan($scope,$binding['actor_id'],$reference);
+   if(is_wp_error($approval))return NativeFailure::error('current_plan_approval_required');
+   $wire=['method'=>$request['method'],'endpoint'=>$request['endpoint'],'body'=>$request['body']];
+   if(!in_array($wire['method'],['POST','PUT','DELETE'],true)
+      ||$approval['operation']!==$request['operation']
+      ||!hash_equals($approval['request_fingerprint'],$request['fingerprint'])
+      ||!hash_equals($approval['approval_hash'],$binding['approval_reference'])
+      ||!hash_equals(NativePortContract::hash($wire),$binding['payload_fingerprint'])){
+    return NativeFailure::error('mutation_plan_mismatch');
+   }
+   return true;
+  }catch(\Throwable){return NativeFailure::error('current_plan_approval_required');}
  }
  /** A known held event can explain uncertainty but cannot supply a provider receipt. */
  private function readHeldUncertainty(array $binding,string $duplicateKey,array $data):\WP_Error {
