@@ -25,6 +25,21 @@ function requireFixture(bool $condition, string $message): void
 
 requireFixture(wp_get_environment_type() === 'local', 'Local WordPress fixture required');
 wp_set_current_user(1);
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+$plugin = 'digiforge-printify-api/digiforge-printify-api.php';
+if ($phase === 'write') {
+    deactivate_plugins($plugin);
+    requireFixture(!is_plugin_active($plugin), 'Fixture failed to deactivate the plugin');
+    $before = wp_load_alloptions();
+    requireFixture(activate_plugin($plugin) === null && is_plugin_active($plugin), 'Disposable activation failed');
+    $after = wp_load_alloptions();
+    unset($before['active_plugins'], $after['active_plugins']);
+    requireFixture($before === $after, 'Activation changed unrelated autoloaded options');
+}
+$status = DigiForgePrintifyApi\Runtime::discover();
+requireFixture($status['version'] === '0.5.0' && $status['stop_all'] && $status['external_lock']
+    && !$status['automation'] && $status['release_hold'] && !$status['provider_execution_authorized'],
+    'Execution holds did not survive activation or restart');
 $db = new PDO('mysql:unix_socket=' . $socket . ';dbname=printify_fixture', 'root', '', [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);
@@ -52,14 +67,14 @@ define('DIGIFORGE_PRINTIFY_FIXTURE_SOURCE', str_repeat('a', 40));
 define('DIGIFORGE_PRINTIFY_FIXTURE_REVISION', 2);
 $request = ['kind'=>'blueprint','blueprint_id'=>42];
 $result = DigiForgePrintifyApi\Runtime::validateCatalog('107', $request, $body);
-$evidence = ['schema'=>'DF_PRINTIFY_SNAPSHOT_EVIDENCE_1','evidence_class'=>'SIGNED_SYNTHETIC',
-    'account_reference'=>'fixture-account','shop'=>'107','request_sha256'=>hash('sha256',$result['endpoint']),
+$evidence = ['schema'=>'DF_PRINTIFY_SNAPSHOT_EVIDENCE_2','evidence_class'=>'SIGNED_SYNTHETIC',
+    'account_reference'=>'fixture-account','shop'=>'107','request_sha256'=>$result['request_sha256'],
     'content_sha256'=>hash('sha256',$body),'source_sha'=>str_repeat('a',40),'source_revision'=>2,
     'operation_id'=>hash('sha256','signed-operation'),'observed_at'=>1700000000,'expires_at'=>1700000060];
 $expected = array_diff_key($evidence, array_flip(['schema','evidence_class','content_sha256','observed_at','expires_at']));
 $sign = static function (array $record) use ($keys): array {
     $json = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-    return [$json, base64_encode(sodium_crypto_sign_detached("DF_PRINTIFY_SNAPSHOT_EVIDENCE_1\n" . $json,
+    return [$json, base64_encode(sodium_crypto_sign_detached("DF_PRINTIFY_SNAPSHOT_EVIDENCE_2\n" . $json,
         sodium_crypto_sign_secretkey($keys)))];
 };
 [$json, $signature] = $sign($evidence);
@@ -77,13 +92,31 @@ if ($phase === 'write') {
     requireFixture($store->append($id, $request, $body, 1700000000), 'Append failed');
     requireFixture(!$store->append($id, $request, $body, 1700000001), 'Duplicate append succeeded');
 }
-$signed = $store->readAuthenticated($expected, 1700000001);
+if ($phase === 'write') {
+    $list = ['kind'=>'variants','blueprint_id'=>42,'provider_id'=>7];
+    $variant = ['variant_id'=>9] + array_replace($list, ['kind'=>'variant']);
+    $variantsBody = '{"variants":[{"id":9},{"id":10}]}';
+    $listResult = DigiForgePrintifyApi\Runtime::validateCatalog('107', $list, $variantsBody);
+    $variantResult = DigiForgePrintifyApi\Runtime::validateCatalog('107', $variant, $variantsBody);
+    requireFixture($listResult['endpoint'] === $variantResult['endpoint'], 'Regression requires shared endpoint');
+    $listEvidence = array_replace($evidence, ['request_sha256'=>$listResult['request_sha256'],
+        'content_sha256'=>hash('sha256', $variantsBody), 'operation_id'=>hash('sha256', 'list-operation')]);
+    $listExpected = array_replace($expected, array_intersect_key($listEvidence, $expected));
+    [$listJson, $listProof] = $sign($listEvidence);
+    requireFixture(!$store->appendAuthenticated($listJson, $listProof, $variant, $variantsBody, $listExpected, 1700000001),
+        'Signed variant list substituted for exact variant request');
+    requireFixture($store->appendAuthenticated($listJson, $listProof, array_reverse($list, true), $variantsBody, $listExpected, 1700000001),
+        'Exact selector with reordered keys denied');
+    requireFixture($store->readAuthenticated($variant, $listExpected, 1700000001) === null,
+        'Signed variant list substituted on readback');
+}
+$signed = $store->readAuthenticated($request, $expected, 1700000001);
 requireFixture($signed !== null && $signed['provider_outcome_confirmed'] === false
     && $signed['native_operation_mutated'] === false && $signed['retry_permitted'] === false
     && $signed['provider_execution_authorized'] === false, 'Authenticated readback missing or authorizing');
 requireFixture($store->read($signed['snapshot_id']) === null, 'Unsigned read exposed signed row');
-requireFixture($store->readAuthenticated($expected, 1700000060) === null, 'Expired proof admitted');
-requireFixture($store->readAuthenticated(array_replace($expected, ['request_sha256'=>str_repeat('0',64)]), 1700000001) === null, 'Wrong request admitted');
+requireFixture($store->readAuthenticated($request, $expected, 1700000060) === null, 'Expired proof admitted');
+requireFixture($store->readAuthenticated($request, array_replace($expected, ['request_sha256'=>str_repeat('0',64)]), 1700000001) === null, 'Wrong request admitted');
 $row = $store->read($id);
 requireFixture($row !== null && $row['source_identity'] === 'SYNTHETIC_PRINTIFY'
     && $row['evidence_state'] === 'FRESHNESS_UNVERIFIED'
@@ -99,5 +132,5 @@ foreach ([['108','fixture-account'],['107','other-account']] as [$shop,$account]
 }
 wp_set_current_user(0);
 requireFixture($store->read($id) === null, 'Revoked operator context retained access');
-requireFixture($store->readAuthenticated($expected, 1700000001) === null, 'Revoked operator retained signed read permission');
+requireFixture($store->readAuthenticated($request, $expected, 1700000001) === null, 'Revoked operator retained signed read permission');
 echo "Disposable snapshot $phase PASS\n";

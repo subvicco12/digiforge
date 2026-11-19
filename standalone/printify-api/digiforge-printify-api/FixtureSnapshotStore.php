@@ -54,7 +54,7 @@ final class FixtureSnapshotStore
         }
         $result = Runtime::validateCatalog($this->shop, $request, $body);
         if ($result['state'] !== 'LOCAL_VALIDATION_PASSED'
-            || !hash_equals($receipt['record']['request_sha256'], hash('sha256', $result['endpoint']))) {
+            || !hash_equals($receipt['record']['request_sha256'], $result['request_sha256'])) {
             return false;
         }
         // One observation per signed operation within its exact account/shop scope.
@@ -88,7 +88,7 @@ final class FixtureSnapshotStore
         return $row;
     }
 
-    public function readAuthenticated(array $expected, int $now): ?array
+    public function readAuthenticated(array $request, array $expected, int $now): ?array
     {
         $operation = $expected['operation_id'] ?? null;
         if (($expected['shop'] ?? null) !== $this->shop || ($expected['account_reference'] ?? null) !== $this->account
@@ -103,9 +103,12 @@ final class FixtureSnapshotStore
         }
         require_once __DIR__ . '/SnapshotEvidence.php';
         $receipt = SnapshotEvidence::authenticate($row['attestation'], $row['signature'], $row['snapshot_body'], $expected, $now);
+        $result = Runtime::validateCatalog($this->shop, $request, $row['snapshot_body']);
         if ($receipt['state'] !== 'AUTHENTICATED_OFFLINE_EVIDENCE'
+            || $result['state'] !== 'LOCAL_VALIDATION_PASSED'
+            || $row['endpoint_name'] !== $result['endpoint']
             || (int)$row['observed_at'] !== $receipt['record']['observed_at']
-            || !hash_equals($receipt['record']['request_sha256'], hash('sha256', $row['endpoint_name']))) {
+            || !hash_equals($receipt['record']['request_sha256'], $result['request_sha256'])) {
             return null;
         }
         return $receipt + ['snapshot_id' => $id];

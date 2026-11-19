@@ -10,7 +10,7 @@ if (!\defined('ABSPATH')) {
 /** Authenticates exact observation bytes. It does not grant provider or native authority. */
 final class SnapshotEvidence
 {
-    private const PURPOSE = "DF_PRINTIFY_SNAPSHOT_EVIDENCE_1\n";
+    private const PURPOSE = "DF_PRINTIFY_SNAPSHOT_EVIDENCE_2\n";
 
     /** The expected context comes from the caller's current, trusted read context. */
     public static function authenticate(string $json, string $signature, string $body, array $expected, int $now): array
@@ -28,7 +28,7 @@ final class SnapshotEvidence
                 'content_sha256','source_sha','source_revision','operation_id','observed_at','expires_at'];
             self::require(array_keys($record) === $fields
                 && json_encode($record, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) === $json);
-            self::require($record['schema'] === 'DF_PRINTIFY_SNAPSHOT_EVIDENCE_1'
+            self::require($record['schema'] === 'DF_PRINTIFY_SNAPSHOT_EVIDENCE_2'
                 && $record['evidence_class'] === 'SIGNED_SYNTHETIC');
             $join = ['account_reference','shop','request_sha256','source_sha','source_revision','operation_id'];
             self::require(count($expected) === count($join));

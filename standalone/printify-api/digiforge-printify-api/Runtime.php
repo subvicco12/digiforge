@@ -68,8 +68,7 @@ final class Runtime
         $status['mode'] = 'DEGRADED_READ_ONLY';
         if (self::canValidate(self::shop())) {
             $status['capabilities'][] = 'OFFLINE_CATALOG_VALIDATE';
-            require_once __DIR__ . '/OfflineLifecycle.php';
-            if (self::fixtureAccount() !== null && OfflineLifecycle::available()) {
+            if (self::canReviewLifecycle()) {
                 $status['capabilities'][] = 'OFFLINE_LIFECYCLE_REVIEW';
             }
         }
@@ -92,12 +91,22 @@ final class Runtime
         return self::shop() === $shop && self::canValidate($shop);
     }
 
+    private static function canReviewLifecycle(): bool
+    {
+        $path = __DIR__ . '/OfflineLifecycle.php';
+        if (self::fixtureAccount() === null || !is_readable($path)) {
+            return false;
+        }
+        require_once $path;
+        return OfflineLifecycle::available();
+    }
+
     public static function reviewLifecycle(string $shop, array $intent, array $fixture): array
     {
-        if (!is_string($intent['account_reference'] ?? null) || !self::permitsFixtureAccount($shop, $intent['account_reference'])) {
+        if (!is_string($intent['account_reference'] ?? null) || !self::permitsFixtureAccount($shop, $intent['account_reference'])
+            || !self::canReviewLifecycle()) {
             return ['state' => 'DENIED', 'provider_execution_authorized' => false];
         }
-        require_once __DIR__ . '/OfflineLifecycle.php';
         return OfflineLifecycle::review($shop, $intent, $fixture);
     }
 
@@ -121,10 +130,12 @@ final class Runtime
             }
             $endpoint = Engine\PrintifyCatalogReadContract::endpoint($request);
             Engine\PrintifyCatalogReadContract::select($data, $request);
+            ksort($request, SORT_STRING);
             return [
                 'state' => 'LOCAL_VALIDATION_PASSED',
                 'evidence_class' => 'UNATTRIBUTED_OFFLINE_INPUT',
                 'endpoint' => $endpoint,
+                'request_sha256' => hash('sha256', json_encode(['GET', $endpoint, $request], JSON_THROW_ON_ERROR)),
                 'snapshot_sha256' => hash('sha256', $body),
                 'freshness_verified' => false,
                 'provider_execution_authorized' => false,

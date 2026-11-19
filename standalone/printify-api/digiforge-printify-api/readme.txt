@@ -1,7 +1,7 @@
 === DigiForge Printify API ===
 Requires at least: 7.1
 Requires PHP: 8.3
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 
 The Tools menu displays local diagnostics to WordPress administrators.
 Offline catalog validation additionally requires an exact configured shop
