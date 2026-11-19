@@ -114,7 +114,7 @@ final class SyntheticPrintifyTransport
         }
         $version = $plan['expected_version'] ?? null;
         if (array_key_exists('expected_version', $plan)
-            && ($operation !== 'PRODUCT_UPDATE' || !is_int($version) || $version < 1 || $version > 1000)) {
+            && (!in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'],true) || !is_int($version) || $version < 1 || $version > 1000)) {
             return self::error(422, 'fixture_version_invalid');
         }
         $route = $this->route($operation, $method, $endpoint);
@@ -158,11 +158,14 @@ final class SyntheticPrintifyTransport
             'CATALOG_SHIPPING_METHOD_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping/(standard|priority|express|economy)\.json'],
             'IMAGE_UPLOAD' => ['POST', '/v1/uploads/images\.json'],
             'IMAGE_READ' => ['GET', '/v1/uploads/'.$id.'\.json'],
+            'IMAGE_ARCHIVE' => ['POST', '/v1/uploads/'.$id.'/archive\.json'],
             'UPLOADS_READ' => ['GET', '/v1/uploads\.json'.$paging],
             'PRODUCT_CREATE' => ['POST', $shopRoot.'/products\.json'],
             'PRODUCT_GPSR_READ' => ['GET', $shopRoot.'/products/'.$id.'/gpsr\.json'],
             'PRODUCT_READ' => ['GET', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_UPDATE' => ['PUT', $shopRoot.'/products/'.$id.'\.json'],
+            'PRODUCT_DELETE' => ['DELETE', $shopRoot.'/products/'.$id.'\.json'],
+            'PRODUCT_PUBLISH' => ['POST', $shopRoot.'/products/'.$id.'/publish\.json'],
             'PRODUCTS_READ' => ['GET', $shopRoot.'/products\.json'.$paging],
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => ['POST', $shopRoot.'/orders/shipping\.json'],
             'ORDER_CREATE', 'ORDER_SUBMIT' => ['POST', $shopRoot.'/orders\.json'],
@@ -198,14 +201,17 @@ final class SyntheticPrintifyTransport
             ]]),
             'CATALOG_SHIPPING_METHOD_READ' => self::catalogShipping($route[0]),
             'IMAGE_UPLOAD' => $this->upload($body),
-            'IMAGE_READ' => self::lookup($this->images, $route[0]),
-            'UPLOADS_READ' => self::page($this->images, $route),
+            'IMAGE_READ' => self::lookup($this->availableImages(), $route[0]),
+            'UPLOADS_READ' => self::page($this->availableImages(), $route),
+            'IMAGE_ARCHIVE' => $this->archiveImage($route[0], $body),
             'PRODUCT_CREATE' => $this->createProduct($body),
-            'PRODUCT_GPSR_READ' => isset($this->products[$route[0]])
+            'PRODUCT_GPSR_READ' => isset($this->availableProducts()[$route[0]])
                 ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
-            'PRODUCT_READ' => self::lookup($this->products, $route[0]),
+            'PRODUCT_READ' => self::lookup($this->availableProducts(), $route[0]),
             'PRODUCT_UPDATE' => $this->updateProduct($route[0], $body, $version),
-            'PRODUCTS_READ' => self::page($this->products, $route),
+            'PRODUCTS_READ' => self::page($this->availableProducts(), $route),
+            'PRODUCT_DELETE' => $this->deleteProduct($route[0], $body, $version),
+            'PRODUCT_PUBLISH' => $this->publishProduct($route[0], $body, $version),
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => $this->quote($body),
             'ORDER_CREATE', 'ORDER_SUBMIT' => $this->createOrder($body),
             'ORDER_READ' => self::lookup($this->orders, $route[0]),
@@ -263,7 +269,7 @@ final class SyntheticPrintifyTransport
 
     private function updateProduct(string $id, array $body, ?int $version): array
     {
-        if (!isset($this->products[$id])) {
+        if (!isset($this->availableProducts()[$id])) {
             return self::error(404, 'product_not_found');
         }
         if ($version !== null && $this->products[$id]['synthetic_version'] !== $version) {
@@ -279,6 +285,83 @@ final class SyntheticPrintifyTransport
         ++$row['synthetic_version'];
         $this->products[$id] = $row;
         return self::response(200, $row);
+    }
+
+    private function availableImages(): array
+    {
+        return array_filter($this->images, static fn(array $image): bool => ($image['archived']??false)!==true);
+    }
+
+    private function availableProducts(): array
+    {
+        return array_filter($this->products, static fn(array $product): bool => ($product['is_deleted']??false)!==true);
+    }
+
+    private function archiveImage(string $id,array $body): array
+    {
+        if ($body!==[]) {
+            return self::error(422,'image_archive_invalid');
+        }
+        if (!isset($this->availableImages()[$id])) {
+            return self::error(404,'image_not_found');
+        }
+        foreach ($this->availableProducts() as $product) {
+            foreach ($product['print_areas'] as $area) {
+                foreach ($area['placeholders'] as $placeholder) {
+                    if (in_array($id,array_column($placeholder['images'],'id'),true)) {
+                        return self::error(409,'image_in_use');
+                    }
+                }
+            }
+        }
+        $this->images[$id]['archived']=true;
+        return self::response(200,[]);
+    }
+
+    private function deleteProduct(string $id,array $body,?int $version): array
+    {
+        if ($body!==[]) {
+            return self::error(422,'product_delete_invalid');
+        }
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) {
+            return self::error(404,'product_not_found');
+        }
+        if ($version!==null&&$product['synthetic_version']!==$version) {
+            return self::error(409,'stale_product_version');
+        }
+        if ($product['visible']||($product['synthetic_publish_pending']??false)) {
+            return self::error(409,'product_publication_active');
+        }
+        foreach ($this->orders as $order) {
+            if (in_array($id,array_column($order['line_items'],'product_id'),true)) {
+                return self::error(409,'product_in_use');
+            }
+        }
+        $this->products[$id]['is_deleted']=true;
+        ++$this->products[$id]['synthetic_version'];
+        return self::response(200,[]);
+    }
+
+    private function publishProduct(string $id,array $fields,?int $version): array
+    {
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) {
+            return self::error(404,'product_not_found');
+        }
+        if ($version!==null&&$product['synthetic_version']!==$version) {
+            return self::error(409,'stale_product_version');
+        }
+        if ($product['visible']||($product['synthetic_publish_pending']??false)) {
+            return self::error(409,'product_publication_active');
+        }
+        if (!in_array(true,$fields,true)||array_diff(array_keys($fields),['title','description','images','variants','tags','keyFeatures','shipping_template'])
+            ||count(array_filter($fields,'is_bool'))!==count($fields)) {
+            return self::error(422,'product_publish_fields_invalid');
+        }
+        $this->products[$id]['synthetic_publish_pending']=true;
+        ++$this->products[$id]['synthetic_version'];
+        return self::response(200,[]);
     }
 
     private function validProduct(array $row): bool
@@ -298,7 +381,7 @@ final class SyntheticPrintifyTransport
                     return false;
                 }
                 foreach ($holder['images'] as $image) {
-                    if (!is_string($image['id'] ?? null) || !isset($this->images[$image['id']])) {
+                    if (!is_string($image['id'] ?? null) || !isset($this->images[$image['id']]) || ($this->images[$image['id']]['archived']??false)===true) {
                         return false;
                     }
                 }
@@ -316,7 +399,8 @@ final class SyntheticPrintifyTransport
         foreach ($lines as $line) {
             if (!is_array($line) || !is_string($line['product_id'] ?? null) || ($line['variant_id'] ?? null) !== 9
                 || !is_int($line['quantity'] ?? null) || $line['quantity'] < 1 || $line['quantity'] > 100
-                || !isset($this->products[$line['product_id']])) {
+                || !isset($this->products[$line['product_id']])
+                || ($this->products[$line['product_id']]['is_deleted']??false)===true) {
                 return null;
             }
             $product = $this->products[$line['product_id']];

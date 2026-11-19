@@ -39,6 +39,7 @@ jobs:
           vendor/bin/phpunit -c phpunit.xml.dist --filter 'PrintifyApi(Boundary|Outcome)Test'
           php standalone/printify-api/tests/bootstrap-smoke.php
           php standalone/printify-api/tests/synthetic-transport-fixture.php
+          php standalone/printify-api/tests/synthetic-webhook-fixture.php
 
       - name: Test isolated authority and sender contracts
         run: node --test contracts/cloudflare-dispatcher/test/*.test.mjs
@@ -56,6 +57,7 @@ jobs:
           unzip -q "$first" -d "$RUNNER_TEMP/printify-standalone-extracted"
           php standalone/printify-api/tests/bootstrap-smoke.php "$RUNNER_TEMP/printify-standalone-extracted/digiforge-printify-api/digiforge-printify-api.php"
           php standalone/printify-api/tests/synthetic-transport-fixture.php "$RUNNER_TEMP/printify-standalone-extracted/digiforge-printify-api"
+          php standalone/printify-api/tests/synthetic-webhook-fixture.php "$RUNNER_TEMP/printify-standalone-extracted/digiforge-printify-api"
           sha256sum "$first"
 
       - name: Retain offline candidate

@@ -1,7 +1,7 @@
 === DigiForge Printify API ===
 Requires at least: 7.1
 Requires PHP: 8.3
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 
 The Tools menu displays local diagnostics to WordPress administrators.
 Offline catalog validation additionally requires an exact configured shop
@@ -34,3 +34,8 @@ includes only operation identity and disposition. A bounded workspace holds
 Configure additional fixture shops with DIGIFORGE_PRINTIFY_SYNTHETIC_SHOPS
 as a shop-ID-to-fixture-account map. The selector lists only shops the
 current WordPress operator is assigned to review.
+
+Field-specific forms cover common catalog, artwork, product, order and
+webhook actions. Use Advanced JSON for compound requests. Artwork accepts
+a bounded fixture PNG. The in-process fixture webhook adapter covers
+order:created, order:updated, product:created and product:updated.

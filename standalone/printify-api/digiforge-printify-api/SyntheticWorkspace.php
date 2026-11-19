@@ -38,13 +38,14 @@ final class SyntheticWorkspace
     public function inspect(): array
     {
         $row = $this->load();
-        return ['revision'=>$row['revision'], 'audit'=>array_values($row['audit'])];
+        return ['revision'=>$row['revision'], 'audit'=>array_values($row['audit']), 'events'=>array_values($row['events'])];
     }
 
     public function execute(int $expected, string $operationId, string $operation, array $input): array
     {
+        $actor = \get_current_user_id();
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
-        if (!preg_match('/^[a-f0-9]{64}$/D', $operationId)
+        if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
@@ -65,9 +66,11 @@ final class SyntheticWorkspace
             $row['audit'][$operationId] = [
                 'operation'=>$operation,'state'=>$result['state'],'reason'=>$result['reason'] ?? 'NONE',
                 'status'=>$result['status'],'operation_id'=>$operationId,
+                'actor_id'=>$actor,'occurred_at'=>gmdate('c'),
             ];
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
-            if (strlen($bytes) > 1048576 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account) || !$this->idle()) {
+            if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
+                || !Runtime::permitsWorkspaceAccount($this->shop, $this->account) || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
             $next = $expected + 1;
@@ -115,7 +118,8 @@ final class SyntheticWorkspace
         if ($op === 'ORDER_SEND_TO_PRODUCTION') {
             return self::fixtureResult(409, 'EXPLICIT_SYNTHETIC_CONFIRMATION_REQUIRED');
         }
-        if ($op === 'PRODUCT_UPDATE' && !is_int($input['expected_version'] ?? null)) {
+        if (in_array($op,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'],true)
+            && !is_int($input['expected_version'] ?? null)) {
             return self::fixtureResult(422, 'EXPECTED_PRODUCT_VERSION_REQUIRED');
         }
         return $client->run($op, $input);
@@ -123,28 +127,38 @@ final class SyntheticWorkspace
 
     private function acceptEvent(SyntheticPrintifyClient $client,array $event,array &$events):array
     {
-        $id=$event['id']??null;
-        $resource=$event['resource']??null;
-        $timestamp=$event['created_at']??null;
-        if (count($event)!==4 || !is_string($id) || !preg_match('/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/D',$id)
-            || ($event['type']??null)!=='order:created' || !is_string($timestamp) || strlen($timestamp)!==25
-            || !is_array($resource) || count($resource)!==3 || ($resource['type']??null)!=='order'
-            || !is_string($resource['id']??null) || !is_array($resource['data']??null)
-            || $resource['data']!==['shop_id'=>(int)$this->shop]) {
+        $seen=[];
+        foreach ($events as $id=>$entry) {
+            if (isset($entry['event_digest'])) $seen[$id]=$entry['event_digest'];
+        }
+        try {
+            $received=SyntheticWebhookReceiver::receive($this->shop,SyntheticWebhookReceiver::delivery($event),$seen);
+        } catch (\InvalidArgumentException|\JsonException) {
             return self::fixtureResult(422,'EVENT_CONTRACT_OR_SCOPE');
         }
-        $dt=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP',$timestamp);
-        if ($dt===false || $dt->format('Y-m-d H:i:sP')!==$timestamp) {
-            return self::fixtureResult(422,'EVENT_TIMESTAMP');
+        if ($received['state']!=='SYNTHETIC_OBSERVED') {
+            return $received;
         }
+        $id=$received['event_id'];
         if (isset($events[$id])) {
+            // Older workspaces consumed the event ID without recording an envelope digest.
             return self::fixtureResult(409,'DUPLICATE_EVENT');
         }
-        $order=$client->run('ORDER_READ',['order_id'=>$resource['id']]);
-        if ($order['state']!=='SYNTHETIC_OBSERVED') {
-            return self::fixtureResult(422,'EVENT_ORDER_UNAVAILABLE');
+        $resource=$received['resource_id'];
+        $product=str_starts_with($received['type'],'product:');
+        $observation=$product
+            ? $client->run('PRODUCT_READ',['product_id'=>$resource,'blueprint_id'=>42,'provider_id'=>7,'variant_ids'=>[9]])
+            : $client->run('ORDER_READ',['order_id'=>$resource]);
+        if ($observation['state']!=='SYNTHETIC_OBSERVED') {
+            return self::fixtureResult(422,'EVENT_RESOURCE_UNAVAILABLE');
         }
-        $events[$id]=['type'=>'order:created','order_id'=>$resource['id'],'created_at'=>$timestamp];
+        if (isset($received['resource_status']) && $observation['data']['status']!==$received['resource_status']) {
+            return self::fixtureResult(409,'EVENT_STATUS_CONFLICT');
+        }
+        $events[$id]=[
+            'type'=>$received['type'],'resource_id'=>$resource,'created_at'=>$received['created_at'],
+            'event_digest'=>$received['event_digest'],
+        ];
         return self::fixtureResult(200,'NONE');
     }
 

@@ -146,3 +146,48 @@ and fixture behavior do not establish broad schema conformance or live access.
 | Persistence | Fixture-only InnoDB table. A revision-and-seal CAS commits bounded transport state, event deduplication and sanitized audit together. Pending doubts require readback and consumed operation IDs deny replay. |
 | Provider contracts | The route subset adds documented product GPSR read and line-item cancellation with separate 204 acknowledgment and readback. An isolated order:created event follows its documented envelope and checks exact shop and order identity. No webhook delivery over HTTP. |
 | Qualification limits | The selector presents the configured fixture shops the current operator can review. General graphical editors, additional documented routes and event topics, and hosted or provider qualification remain open. Core authority, credential custody and independent recovery remain external gates. |
+
+## Standalone 0.10.0 operator and endpoint acceptance
+
+The 34 typed operation selectors below were checked against the published OpenAPI 3.0.3 method and path entries. Path verification covers the integrated fixture routes. It does not establish full schema parity or provider behavior. `VARIANT_READ` selects an exact variant from the documented variants response. The shipping method selector also maps to the documented priority, express and economy paths. [Printify OpenAPI](https://developers.printify.com/openapi.json)
+
+| Fixture operation | Documented method and path |
+| --- | --- |
+| `SHOPS_READ` | `GET /v1/shops.json` |
+| `BLUEPRINTS_READ` | `GET /v1/catalog/blueprints.json` |
+| `BLUEPRINT_READ` | `GET /v1/catalog/blueprints/{blueprint_id}.json` |
+| `BLUEPRINT_PROVIDERS_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/print_providers.json` |
+| `BLUEPRINT_PROVIDER_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}.json` |
+| `VARIANTS_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/variants.json` |
+| `VARIANT_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/variants.json` |
+| `SIZE_GUIDE_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/size_guide.json` |
+| `CATALOG_SHIPPING_READ` | `GET /v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping.json` |
+| `CATALOG_SHIPPING_METHOD_READ` | `GET /v2/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping/standard.json` |
+| `PROVIDERS_READ` | `GET /v1/catalog/print_providers.json` |
+| `PROVIDER_READ` | `GET /v1/catalog/print_providers/{print_provider_id}.json` |
+| `IMAGE_UPLOAD` | `POST /v1/uploads/images.json` |
+| `IMAGE_READ` | `GET /v1/uploads/{image_id}.json` |
+| `UPLOADS_READ` | `GET /v1/uploads.json` |
+| `IMAGE_ARCHIVE` | `POST /v1/uploads/{image_id}/archive.json` |
+| `PRODUCT_CREATE` | `POST /v1/shops/{shop_id}/products.json` |
+| `PRODUCTS_READ` | `GET /v1/shops/{shop_id}/products.json` |
+| `PRODUCT_READ` | `GET /v1/shops/{shop_id}/products/{product_id}.json` |
+| `PRODUCT_UPDATE` | `PUT /v1/shops/{shop_id}/products/{product_id}.json` |
+| `PRODUCT_DELETE` | `DELETE /v1/shops/{shop_id}/products/{product_id}.json` |
+| `PRODUCT_PUBLISH` | `POST /v1/shops/{shop_id}/products/{product_id}/publish.json` |
+| `PRODUCT_GPSR_READ` | `GET /v1/shops/{shop_id}/products/{product_id}/gpsr.json` |
+| `ORDER_SHIPPING_QUOTE` | `POST /v1/shops/{shop_id}/orders/shipping.json` |
+| `ORDER_CREATE` | `POST /v1/shops/{shop_id}/orders.json` |
+| `ORDERS_READ` | `GET /v1/shops/{shop_id}/orders.json` |
+| `ORDER_READ` | `GET /v1/shops/{shop_id}/orders/{order_id}.json` |
+| `ORDER_CANCEL` | `POST /v1/shops/{shop_id}/orders/{order_id}/cancel.json` |
+| `LINE_ITEM_CANCEL` | `POST /v1/shops/{shop_id}/orders/{order_id}/line_items/{line_item_id}/cancel.json` |
+| `ORDER_SEND_TO_PRODUCTION` | `POST /v1/shops/{shop_id}/orders/{order_id}/send_to_production.json` |
+| `WEBHOOKS_READ` | `GET /v1/shops/{shop_id}/webhooks.json` |
+| `WEBHOOK_CREATE` | `POST /v1/shops/{shop_id}/webhooks.json` |
+| `WEBHOOK_UPDATE` | `PUT /v1/shops/{shop_id}/webhooks/{webhook_id}.json` |
+| `WEBHOOK_DELETE` | `DELETE /v1/shops/{shop_id}/webhooks/{webhook_id}.json` |
+
+The operator workspace provides scoped field forms alongside the advanced JSON form. The fixture store retains products, orders, events and actor-attributed operation history across restart. Archive and delete retain tombstones. Publish records a pending synthetic status. Four documented event shapes are checked by an in-process HTTP-shaped fixture adapter. An accepted event records an observation against the exact fixture resource; it does not advance the lifecycle or confirm a provider outcome. Exact replay and conflicting reuse of an event identity are denied. [Printify events](https://developers.printify.com/#events)
+
+Remaining software scope includes complex multi-line and multi-placement form builders, remaining OpenAPI paths, additional event topics and webhook lifecycle behaviors. Operational authority, credential custody, independent recovery, and provider acceptance remain separately blocked.

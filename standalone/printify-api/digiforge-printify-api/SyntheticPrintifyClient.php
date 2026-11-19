@@ -28,8 +28,8 @@ final class SyntheticPrintifyClient
     ];
 
     private const OTHER = [
-        'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','IMAGE_UPLOAD','IMAGE_READ','UPLOADS_READ',
-        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
+        'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','IMAGE_UPLOAD','IMAGE_READ','UPLOADS_READ','IMAGE_ARCHIVE',
+        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
         'ORDER_CREATE','ORDER_READ','ORDERS_READ','ORDER_CANCEL','LINE_ITEM_CANCEL','ORDER_SEND_TO_PRODUCTION','WEBHOOKS_READ',
         'WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE',
     ];
@@ -114,9 +114,9 @@ final class SyntheticPrintifyClient
             $plan=PrintifyLifecycleRequest::prepare($operation==='ORDER_SHIPPING_QUOTE'?'SHIPPING_QUOTE':$operation,$this->shop,$input);
         } elseif (in_array($operation,['WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
             $plan=$this->prepareWebhook($operation,$input);
-        } elseif ($operation==='UPLOADS_READ') {
+        } elseif (in_array($operation,['UPLOADS_READ','IMAGE_ARCHIVE'],true)) {
             $plan=PrintifyUploadContract::prepare($operation,$this->shop,$input);
-        } elseif ($operation==='PRODUCT_UPDATE') {
+        } elseif (in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'],true)) {
             $version=$input['expected_version']??null;
             if (array_key_exists('expected_version',$input) && (!is_int($version)||$version<1||$version>1000)) {
                 throw new \InvalidArgumentException('Bounded synthetic revision required.');
@@ -169,7 +169,7 @@ final class SyntheticPrintifyClient
         }
         $rows=match($operation){
             'ORDERS_READ','PRODUCTS_READ'=>$body['data']??null,
-            'ORDER_READ','PRODUCT_READ','ORDER_CREATE','ORDER_CANCEL','ORDER_SEND_TO_PRODUCTION','PRODUCT_CREATE','PRODUCT_UPDATE'=>[$body],
+            'ORDER_READ','PRODUCT_READ','ORDER_CREATE','ORDER_CANCEL','ORDER_SEND_TO_PRODUCTION','PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'=>[$body],
             default=>[],
         };
         if (!is_array($rows)) {
@@ -185,6 +185,7 @@ final class SyntheticPrintifyClient
             $projection=PrintifyApiReadEvidence::project($operation,$body,$this->shop,$input);
             if ($operation==='PRODUCT_READ' && is_int($body['synthetic_version']??null) && $body['synthetic_version']>0) {
                 $projection['synthetic_version']=$body['synthetic_version'];
+                $projection['publication_pending']=($body['synthetic_publish_pending']??false)===true;
             }
             return $projection;
         }
@@ -194,6 +195,20 @@ final class SyntheticPrintifyClient
         }
         if ($operation==='LINE_ITEM_CANCEL') {
             return PrintifyLifecycleEvidence::emptyCancellation($plan,$status,$body===[]?'':'nonempty');
+        }
+        if ($operation==='IMAGE_ARCHIVE' || $operation==='PRODUCT_DELETE') {
+            if ($status!==200 || $body!==[]) {
+                throw new \InvalidArgumentException('Malformed synthetic deletion acknowledgement.');
+            }
+            return $operation==='IMAGE_ARCHIVE'
+                ? ['id'=>$input['image_id'],'archived'=>true]
+                : ['id'=>$input['product_id'],'deleted'=>true];
+        }
+        if ($operation==='PRODUCT_PUBLISH') {
+            if ($status!==200 || $body!==[]) {
+                throw new \InvalidArgumentException('Malformed synthetic publish acknowledgement.');
+            }
+            return ['id'=>$input['product_id'],'publication_pending'=>true];
         }
         if ($operation==='UPLOADS_READ') {
             return self::projectUploadPage($plan['input'],$body);

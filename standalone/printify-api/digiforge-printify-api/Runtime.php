@@ -151,11 +151,13 @@ final class Runtime
         if ($shop === null || $account === null || !self::syntheticModulesAvailable()
             || !\defined('DIGIFORGE_PRINTIFY_DISPOSABLE_STORE') || DIGIFORGE_PRINTIFY_DISPOSABLE_STORE !== true
             || !$wpdb instanceof \wpdb || !is_readable(__DIR__ . '/SyntheticWorkspace.php')
-            || !is_readable(__DIR__ . '/SyntheticWorkspacePanel.php')) {
+            || !is_readable(__DIR__ . '/SyntheticWorkspacePanel.php')
+            || !is_readable(__DIR__ . '/SyntheticWebhookReceiver.php')) {
             return null;
         }
         require_once __DIR__ . '/SyntheticPrintifyTransport.php';
         require_once __DIR__ . '/SyntheticPrintifyClient.php';
+        require_once __DIR__ . '/SyntheticWebhookReceiver.php';
         require_once __DIR__ . '/SyntheticWorkspace.php';
         try {
             return new SyntheticWorkspace($wpdb, $shop, $account);
