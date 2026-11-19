@@ -14,7 +14,7 @@ import zipfile
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN = "digiforge-printify-api"
 SOURCE = f"standalone/printify-api/{PLUGIN}"
-MEMBERS = ("SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
+MEMBERS = ("NativeHeldInspection.php", "SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
 
 
 def git(*args: str) -> bytes:

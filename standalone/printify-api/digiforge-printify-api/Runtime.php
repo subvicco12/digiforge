@@ -113,6 +113,12 @@ final class Runtime
         return OfflineLifecycle::review($shop, $intent, $fixture);
     }
 
+    public static function inspectNativeHeldOperation(string $shop, string $account, mixed $scope, array $binding, array $context): array
+    {
+        require_once __DIR__ . '/NativeHeldInspection.php';
+        return NativeHeldInspection::read($shop, $account, $scope, $binding, $context);
+    }
+
     private const READ_ENGINE = [
         'Listings/Validator.php', 'POD/PrintifyApiRequest.php',
         'POD/PrintifyOrderEvidence.php', 'POD/PrintifyApiReadEvidence.php',

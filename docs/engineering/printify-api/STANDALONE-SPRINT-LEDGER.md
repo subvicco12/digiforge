@@ -104,3 +104,22 @@ snapshots retain their separate fixture evidence contract. Neither grants native
 operation idempotency. The existing Core/native ownership boundary still owns
 approval and product revision currentness, durable operation transitions, and
 the definitive reconciliation decision.
+
+## Standalone 0.7.0 native held inspection
+
+The standalone adapter accepts the frozen Core build
+`d64d32159bea4832b962acb6b4c08fa6fbeae910` with its exact native build stamp
+and canonical v1 contract digest. It uses Core's protected held inspection
+and compares its event digest to the current Core journal read and exact
+binding, including the operation, approval reference, product version and
+payload digest. The existing Core panel/session and reviewed connection
+checks supply currentness and the configured shop/account join. The adapter
+returns only a held observation or UNKNOWN with retry denied. This does not
+certify the approval or product revision as current for operational execution.
+
+Core #1264 `c02b248c14eb71a571e5dae881fe0a10823b5560` was inspected as
+source reference. Its mutation exchange still denies access pending the native
+transactional journal and independent checkpoint join, and the Companion
+still pins the frozen Core. REGISTER, CLAIM, trusted operational receipts,
+reconciliation and recovery remain blocked. No alternate journal or writer
+is introduced.
