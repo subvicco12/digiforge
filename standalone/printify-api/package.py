@@ -14,7 +14,7 @@ import zipfile
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN = "digiforge-printify-api"
 SOURCE = f"standalone/printify-api/{PLUGIN}"
-MEMBERS = ("Status.php", "digiforge-printify-api.php", "readme.txt")
+MEMBERS = ("Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
 
 
 def git(*args: str) -> bytes:
@@ -30,10 +30,20 @@ def build(source: str) -> bytes:
     if not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("Expected an exact SHA-1 Git commit")
     blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in MEMBERS}
+    contract_path = "includes/POD/PrintifyCatalogReadContract.php"
+    contract = git("show", f"{commit}:{contract_path}")
+    original_namespace = b"namespace DigiForge\\POD;"
+    if contract.count(original_namespace) != 1:
+        raise ValueError("Unexpected catalog contract namespace")
+    # Keep standalone symbol names disjoint from Core in the same PHP process.
+    blobs["Engine/PrintifyCatalogReadContract.php"] = contract.replace(
+        original_namespace, b"namespace DigiForgePrintifyApi\\Engine;", 1
+    )
     manifest = {
         "schema": "DF_STANDALONE_PRINTIFY_PACKAGE_1",
         "source_sha": commit,
-        "mode": "PASSIVE_OFFLINE",
+        "mode": "DEGRADED_READ_ONLY",
+        "upstream_contracts": {contract_path: sha256(contract)},
         "members": {f"{PLUGIN}/{name}": sha256(data) for name, data in blobs.items()},
     }
     blobs["source-manifest.json"] = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()
