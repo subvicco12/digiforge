@@ -1,0 +1,46 @@
+{
+  "schema": "retained-canonical-review-metadata-owner-handoff-v1",
+  "status": "REQUEST_ADDITIVE_PUBLIC_SOURCE_FIELDS_NO_A_EDITS",
+  "supported_writer_evidence": [
+    {
+      "path": "includes/Orders/Repository.php",
+      "method": "reviewPersonalization",
+      "lines": "73-79",
+      "invariant": "Already APPROVED/REJECTED input cannot have its review metadata rewritten through this official writer; identical status returns existing immutable row."
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "method": "review",
+      "invariant": "Selection review is immutable and records canonical_review_status/canonical_reviewed_by/canonical_reviewed_at."
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "method": "readSelection",
+      "invariant": "A verifies those private canonical fields against the current canonical row before returning the public result."
+    }
+  ],
+  "current_public_gap": "review_provenance exports selected-review author, digest and time, but not the canonical review status/author/time it also verified. B must not read private A options or substitute the selected reviewer for the canonical reviewer.",
+  "remaining_threat_scope": "A hostile/raw SQL metadata ABA could temporarily repair a corrupt canonical row during the A getter and restore corruption before B locks. No ordinary supported public writer was found that rewrites APPROVED canonical review metadata. This case has not been reproduced or accepted as closed.",
+  "requested_additive_fields_under_review_provenance": [
+    {
+      "name": "canonical_review_status",
+      "type": "exact verified status string"
+    },
+    {
+      "name": "canonical_reviewed_by",
+      "type": "exact verified positive integer user ID"
+    },
+    {
+      "name": "canonical_reviewed_at",
+      "type": "exact verified database timestamp string"
+    }
+  ],
+  "required_semantics": [
+    "Emit only after existing approved/current source validation.",
+    "Bind to the same selected canonical submission, selection SHA/revision and immutable selected review SHA.",
+    "Keep reviewer_user_id as the actual selected independent reviewer; do not require a historical reviewer login.",
+    "Additional fields are source identity evidence, not a new permission grant or epoch.",
+    "B can then compare the pinned raw canonical review metadata to these public fields without private A reads."
+  ],
+  "owner_actions": "Root coordinates the additive public export request with Lane A; B has not edited A source or promoted M05/full matrix acceptance."
+}

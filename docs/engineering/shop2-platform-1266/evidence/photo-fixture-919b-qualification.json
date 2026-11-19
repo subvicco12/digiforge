@@ -1,0 +1,391 @@
+{
+  "status": "PASS",
+  "primary_root": "/workspace/digiforge-lane-b-sprint",
+  "base_commit": "066721d66944b4fa9a42f4f89db1e4df2b8c8814",
+  "tests": 201,
+  "assertions": 8903,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "seconds": 262.855,
+  "source_hashes_unchanged": true,
+  "source_hash_count": 92,
+  "runner_hashes_unchanged": true,
+  "no_runtime_source_changes": true,
+  "fresh_empty_disposable_db": true,
+  "website_security_first": {
+    "class_count": 9,
+    "tests": 58,
+    "assertions": 1836
+  },
+  "current_read_last": true,
+  "normal_methods_excluded": [],
+  "changed_files": [
+    {
+      "path": "bin/check-repository-credentials.py",
+      "sha256": "9f8a1d33ea943fd92ba5f899db40f718fca8a1be2ecf29a1c988310cf8fff3ec",
+      "blob": "acd688fd2806f7038d113f149afc7839c2290a04"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/photo-retained-lease-candidate-import.json",
+      "sha256": "644adfa80c00a96bf01f3db16d527eda9a888c60bf37d9756ce467a4888b13e6",
+      "blob": "b37226e78dfece644004e343fda51b3d41c12531"
+    },
+    {
+      "path": "tests/security/test_repository_credentials.py",
+      "sha256": "bdab03f2b80e142ab17d7f3e37b56a5ac62ca30450bd2cc670ee8bad1b80d8c3",
+      "blob": "eaff3ea3b9d602701a15cf7a123f0f4c636d7413"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "sha256": "8ccc4d7315ebfdee4dbf19565bb53aa257df75a3771600c18315257b0405ba16",
+      "blob": "1d51d4bd2bf8981906713e92d6f3d09d508fbf30"
+    },
+    {
+      "path": "tests/wordpress/FinalConvergenceScenarioTest.php",
+      "sha256": "ff71f3e57e5f275a15b100c24e910b678a0ccdd5d444f67398c0ecda8fcdd79b",
+      "blob": "e3040496549d21914932330e7f47d34e3f5f7a39"
+    },
+    {
+      "path": "tests/wordpress/RenderSourceArtifactIntegrityTest.php",
+      "sha256": "6bd5a9333a5186702c1302d0e8b4b0ee9bef6d4aab1b7aee101b46ce46046e0b",
+      "blob": "ce20362e9de0f63dcf32b1f3e3ced5f38e288662"
+    },
+    {
+      "path": "tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
+      "sha256": "cde119046f43f158a3cd69ccd9d25d6d2945ab6b6db8cf1f867a426245252905",
+      "blob": "986e965d70c32cbdc4bd986797057d5796793bc3"
+    },
+    {
+      "path": "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "sha256": "bd87a8dbf2a158627ac9c432d0c6064b48f5c10f553ae25ba9f53a2b805b2c4f",
+      "blob": "f0339e93dcfa1071baf5f5691e3e89b3f452cb95"
+    }
+  ],
+  "classes": [
+    {
+      "name": "OperatorOverviewAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/OperatorOverviewAcceptanceTest.php",
+      "tests": "7",
+      "assertions": "123",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.978520"
+    },
+    {
+      "name": "PortalShopAccessAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PortalShopAccessAcceptanceTest.php",
+      "tests": "15",
+      "assertions": "160",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.340691"
+    },
+    {
+      "name": "PortalWorkflowAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PortalWorkflowAcceptanceTest.php",
+      "tests": "5",
+      "assertions": "463",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "3.711722"
+    },
+    {
+      "name": "ShopAccessAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessAcceptanceTest.php",
+      "tests": "1",
+      "assertions": "37",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.111493"
+    },
+    {
+      "name": "ShopAccessRestAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessRestAcceptanceTest.php",
+      "tests": "4",
+      "assertions": "27",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.279589"
+    },
+    {
+      "name": "ShopAccessRevocationIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessRevocationIntegrityTest.php",
+      "tests": "2",
+      "assertions": "13",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.140612"
+    },
+    {
+      "name": "ShopAccessWorkflowAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
+      "tests": "3",
+      "assertions": "38",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.212287"
+    },
+    {
+      "name": "TwoShopPortalAcceptanceTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/TwoShopPortalAcceptanceTest.php",
+      "tests": "6",
+      "assertions": "736",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.444024"
+    },
+    {
+      "name": "WebsiteOwnerAccessTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php",
+      "tests": "15",
+      "assertions": "239",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "3.703057"
+    },
+    {
+      "name": "CustomerEditorPhotoWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "tests": "1",
+      "assertions": "71",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.738827"
+    },
+    {
+      "name": "CustomerPhotoRenderWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "tests": "5",
+      "assertions": "518",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "47.642340"
+    },
+    {
+      "name": "CustomerPhotoSelectionAdmissionTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "tests": "2",
+      "assertions": "83",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.248066"
+    },
+    {
+      "name": "CustomerPhotoHeldIntegrationTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoHeldIntegrationTest.php",
+      "tests": "25",
+      "assertions": "317",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "75.308818"
+    },
+    {
+      "name": "ProductionPersonalizationCurrentnessTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/ProductionPersonalizationCurrentnessTest.php",
+      "tests": "6",
+      "assertions": "176",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.527749"
+    },
+    {
+      "name": "HeldFulfillmentPreparationTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/HeldFulfillmentPreparationTest.php",
+      "tests": "9",
+      "assertions": "1746",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "14.264441"
+    },
+    {
+      "name": "OrderLocalWorkflowTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/OrderLocalWorkflowTest.php",
+      "tests": "14",
+      "assertions": "128",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "61.402190"
+    },
+    {
+      "name": "FinalConvergenceScenarioTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FinalConvergenceScenarioTest.php",
+      "tests": "2",
+      "assertions": "112",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.165869"
+    },
+    {
+      "name": "EtsyTrackingRecentAdmissionTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/EtsyTrackingRecentAdmissionTest.php",
+      "tests": "5",
+      "assertions": "61",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.629015"
+    },
+    {
+      "name": "PrintifyWebhookReconciliationIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PrintifyWebhookReconciliationIntegrityTest.php",
+      "tests": "17",
+      "assertions": "281",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "8.383911"
+    },
+    {
+      "name": "PrintifyWebhookInboxTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/PrintifyWebhookInboxTest.php",
+      "tests": "9",
+      "assertions": "41",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "0.521135"
+    },
+    {
+      "name": "FocusedEtsyOrderReadinessAvailabilityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php",
+      "tests": "2",
+      "assertions": "36",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.479960"
+    },
+    {
+      "name": "FinanceNativeEvidenceStoreTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/FinanceNativeEvidenceStoreTest.php",
+      "tests": "26",
+      "assertions": "542",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "20.099466"
+    },
+    {
+      "name": "RenderSourceArtifactIntegrityTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/RenderSourceArtifactIntegrityTest.php",
+      "tests": "1",
+      "assertions": "156",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "1.851289"
+    },
+    {
+      "name": "CustomerPhotoOwnerCurrentReadFailureReproTest",
+      "file": "/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php",
+      "tests": "2",
+      "assertions": "44",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "3.548420"
+    },
+    {
+      "name": "CustomerPhotoCurrentReadTest",
+      "file": "/workspace/digiforge-lane-b-sprint/tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "tests": "17",
+      "assertions": "2755",
+      "errors": "0",
+      "warnings": "0",
+      "failures": "0",
+      "skipped": "0",
+      "time": "12.911700"
+    }
+  ],
+  "artifact_sha256": [
+    {
+      "file": "/tmp/primary-photo-fixture-919b.log",
+      "digest": "02841ba4ce9b68489b1dfa08247fac7072d64d65d9fd6f840894fb94b19c13a1"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b.xml",
+      "digest": "692e687cfe78a3d8f1d9aaf4d6c43da02ef82079d10b1bc891947fd842b106ce"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-source-receipt.json",
+      "digest": "117b84eab7a023387637ef83382cd66dfedf9afee50d56c5e2add9878c007a59"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-command.sh",
+      "digest": "d835fba5932d40a4a7f8bd5e067038f0cf375460805c4c59d206ed6453e7be8d"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-suite.xml",
+      "digest": "e51b6d287c6c916640ef4c21f00ffb713cd5b5fcde7ebd5da0f8cac378787501"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-bootstrap.php",
+      "digest": "ddb8645c6090e639a0b543c40088e26fb0c4fe3f2920e5f2d369a7086a252d5f"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-loaded-paths.json",
+      "digest": "2c3727e1fad0c9e4307af1bf38340987d7825292719d91d59ae094307dc98e4b"
+    },
+    {
+      "file": "/tmp/primary-photo-fixture-919b-preflight.json",
+      "digest": "12afa3dd8092f947056cb2a3cc7e771c8568749397cc3b99ecd880a4b2c4f68b"
+    }
+  ],
+  "runtime_paths": {
+    "cwd": "/workspace/digiforge-lane-b-sprint",
+    "classes": {
+      "DigiForge\\Orders\\PersonalizationCurrentness": "/workspace/digiforge-lane-b-sprint/includes/Orders/PersonalizationCurrentness.php",
+      "DigiForge\\Orders\\PersonalizationReadContext": "/workspace/digiforge-lane-b-sprint/includes/Orders/PersonalizationReadContext.php",
+      "DigiForge\\Orders\\Repository": "/workspace/digiforge-lane-b-sprint/includes/Orders/Repository.php",
+      "DigiForge\\Orders\\HeldFulfillmentPreparation": "/workspace/digiforge-lane-b-sprint/includes/Orders/HeldFulfillmentPreparation.php",
+      "DigiForge\\POD\\CustomerPhotoProducerFence": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerPhotoProducerFence.php",
+      "DigiForge\\POD\\CustomerPhotoSelection": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerPhotoSelection.php",
+      "DigiForge\\POD\\CustomerEditorRepository": "/workspace/digiforge-lane-b-sprint/includes/POD/CustomerEditorRepository.php",
+      "DigiForge\\POD\\RenderEvidenceRepository": "/workspace/digiforge-lane-b-sprint/includes/POD/RenderEvidenceRepository.php"
+    }
+  },
+  "previous_142_failure_evidence": "/tmp/photo-retained-final-candidate-qualification.json",
+  "capability_promotion": false
+}

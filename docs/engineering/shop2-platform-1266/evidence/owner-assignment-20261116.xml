@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="" tests="15" assertions="239" errors="0" warnings="0" failures="0" skipped="0" time="3.528818">
+    <testsuite name="DigiForge WordPress integration" tests="15" assertions="239" errors="0" warnings="0" failures="0" skipped="0" time="3.528818">
+      <testsuite name="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" tests="15" assertions="239" errors="0" warnings="0" failures="0" skipped="0" time="3.528818">
+        <testcase name="testOwnerExplicitEnrollmentPersistsAndRevokesThroughExistingLifecycle" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="23" assertions="15" time="0.423559"/>
+        <testcase name="testMissingAuthorityDelegateSelfEscalationCsrfAndConfirmationDeny" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="42" assertions="11" time="0.058577"/>
+        <testcase name="testWebsiteOperatorAssignmentUsesExistingRoleAndExactScope" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="60" assertions="4" time="0.094199"/>
+        <testcase name="testSelectedShopNavigationAndGoogleProjectionDoNotRequireForeignShopGrants" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="80" assertions="5" time="0.193409"/>
+        <testsuite name="WebsiteOwnerAccessTest::testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation" tests="4" assertions="152" errors="0" warnings="0" failures="0" skipped="0" time="2.091733">
+          <testcase name="testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation with data set #0" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="103" assertions="38" time="0.574969"/>
+          <testcase name="testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation with data set #1" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="103" assertions="38" time="0.441890"/>
+          <testcase name="testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation with data set #2" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="103" assertions="38" time="0.654263"/>
+          <testcase name="testFullSignedOwnerEnrollmentIncludesAllCapabilitiesWithoutOperationalActivation with data set #3" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="103" assertions="38" time="0.420610"/>
+        </testsuite>
+        <testcase name="testFinanceCheckboxAppearsOnlyInSignedOwnerEnrollment" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="145" assertions="5" time="0.209496"/>
+        <testcase name="testUnsignedDelegateAndOperatorFinanceSubmissionsCannotUseOwnerEnrollment" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="160" assertions="5" time="0.058840"/>
+        <testcase name="testFinanceEnrollmentStillRequiresNonceConfirmationApprovalRoleScopeAndCurrentRevision" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="178" assertions="11" time="0.042539"/>
+        <testcase name="testRevokedAndExpiredOwnerAuthorityInvalidateFinanceAccessAndFurtherEnrollment" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="197" assertions="11" time="0.167503"/>
+        <testcase name="testFinanceEnrollmentCannotReplaceMissingOrdinaryCapabilityOrDurableAudit" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="212" assertions="9" time="0.082199"/>
+        <testcase name="testTamperedSignedOwnerManifestCannotEnrollFinance" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="247" assertions="5" time="0.029430"/>
+        <testcase name="testAccessPageAndEmptyDashboardHaveNoBusinessDataAndNeverProvisionOnRead" class="WebsiteOwnerAccessTest" classname="WebsiteOwnerAccessTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/WebsiteOwnerAccessTest.php" line="268" assertions="6" time="0.077335"/>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

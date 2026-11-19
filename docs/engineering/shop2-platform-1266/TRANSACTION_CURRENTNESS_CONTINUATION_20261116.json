@@ -1,0 +1,110 @@
+{
+  "schema": "digiforge-currentness-continuation-v1",
+  "base_source": "a3f8caa49c98b567d7c9c68082b00b5e6975071b",
+  "recorded_at_utc": "2026-11-16T06:09:01.985686+00:00",
+  "preservation": "All five original descendants of4ef normally pushed after terminal5031 SUCCESS; no reset/rebase/forcepush. Original recovery bundle and receipts retained.",
+  "qualification": "MANAGED_PHOTO_PARTIAL_NOT_ACCEPTED",
+  "audit5031": "evidence/audit5031-result-20261116.json",
+  "audit5033": {
+    "id": 43813108598,
+    "head": "a3f8caa49c98b567d7c9c68082b00b5e6975071b",
+    "conclusion": "failure",
+    "failed_step": "Legacy and unit tests",
+    "actual_failures": [
+      "F4OrderFulfillmentHardeningStructureTest::testPersonalizationMustBeHumanReviewed",
+      "F4OrdersFulfillmentSafetyStructureTest::testPersonalizationRequiresExplicitHumanApproval",
+      "Phase4ConvergenceStructureTest::testFulfillmentPlanDerivesPersonalizationSnapshotFromPersistedApprovals",
+      "PodReadinessEvidenceAvailabilityContractTest::testFulfillmentPlanPersonalizationEvidenceQueryFailsClosed"
+    ],
+    "root_cause": "Four structural tests expected direct approval SQL in Repository after extraction into PersonalizationCurrentness; runtime guards remain in the delegated helper.",
+    "repair": "Follow actual server-resolved projection and verify approval, reviewer/time and fail-closed SQL/error propagation at the helper; no production guard relaxed.",
+    "focused_repair": {
+      "tests": 18,
+      "assertions": 109,
+      "failures": 0
+    },
+    "full_unit": {
+      "tests": 2275,
+      "assertions": 12087,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "configured_processor": "Existing DIGIFORGE_CUTOUT_PYTHON runtime required; no new installation."
+    }
+  },
+  "real_wordpress_composition": {
+    "tests": 76,
+    "assertions": 2676,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "explicit_disposable_config": true,
+    "junit": "evidence/photo-inbox-composition-20261116.xml",
+    "source_hashes": "evidence/photo-inbox-source-hashes-20261116.json",
+    "command": "evidence/photo-inbox-command-20261116.sh"
+  },
+  "one_identity_workflow": {
+    "identity": "Synthetic canonical business established before real local connection/source approval; original test fixture defaults unchanged.",
+    "path": [
+      "Server-owned buyer selection",
+      "Actual deterministic photo render",
+      "Human render review",
+      "APPROVED_PACKAGE with external authorization0",
+      "Reviewed APPROVED plan",
+      "BLOCKED intent",
+      "Held metadata preparation"
+    ],
+    "denials": [
+      "Same-pixel newer selection invalidates old render and retained package approval",
+      "Replaced editor head",
+      "Revoked access/review",
+      "Wrong scope and version joins"
+    ],
+    "boundary": "Held route binds current selection SHA/revision, but does not consume render/package IDs; render_artifact_recheck_required remains true. No native execution or final production payload qualification inferred."
+  },
+  "independent_p0_repair": {
+    "file": "includes/POD/PrintifyWebhookInbox.php",
+    "defect": "Native connections capability revoked during final signed authorization read could still let reconciliation commit.",
+    "red": {
+      "tests": 1,
+      "assertions": 13,
+      "failures": 1
+    },
+    "repair": "Recheck same actor, login and native capability after signed reads.",
+    "green": {
+      "tests": 26,
+      "assertions": 322,
+      "failures": 0,
+      "note": "Included in clean76, not additive."
+    },
+    "evidence": "Actual enrolled owner/signed ingress, real last authorization SELECT, exact state/audit rollback assertions; no provider calls."
+  },
+  "transaction_currentness": {
+    "tests": 2,
+    "assertions": 22,
+    "failures": 2,
+    "status": "UNRESOLVED_SOURCE_OWNER_HANDOFF",
+    "expected_actual": "evidence/known-owner-current-read-failure.md",
+    "B_runtime_consumer_change_this_continuation": false,
+    "reason": "True legacyNULL and stale snapshotNULL are indistinguishable under existing public A v1 reader; B locks are not A writer fences. Blanket transaction denial would block accepted legacy handlers.",
+    "owner_request": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6908593170"
+  },
+  "capabilities": {
+    "newly_promoted": [],
+    "accepted_preserved": [
+      "S2-ORD-04"
+    ],
+    "total": 151,
+    "independently_accepted": 32,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8
+  },
+  "remaining_dependencies": [
+    "A authoritative fresh selection/legacyNULL/render-epoch semantics and writer/consumer transaction coordination",
+    "Independent native allocation/CAS/journal/UNKNOWN/sender/receipts/revocation/custody modules",
+    "New exact-head audit after the pending normal push",
+    "Installed/hosted and complete capability-level independent acceptance"
+  ],
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deploy/live provider/publication/order/credential/financial operations."
+}

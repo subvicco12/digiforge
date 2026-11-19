@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" tests="2" assertions="18" errors="0" warnings="0" failures="2" skipped="0" time="7.380774">
+    <testsuite name="CustomerPhotoHeldIntegrationTest::testUnconfirmedCommitCleansOriginalActiveFrameWithoutClaimingRollbackOutcome" tests="2" assertions="18" errors="0" warnings="0" failures="2" skipped="0" time="7.380774">
+      <testcase name="testUnconfirmedCommitCleansOriginalActiveFrameWithoutClaimingRollbackOutcome with data set #0" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="111" assertions="11" time="4.037392">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoHeldIntegrationTest::testUnconfirmedCommitCleansOriginalActiveFrameWithoutClaimingRollbackOutcome with data set #0 ('failed_query')
+Failed asserting that two strings are identical.
+--- Expected
++++ Actual
+@@ @@
+-'0'
++'1'
+
+/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php:112</failure>
+      </testcase>
+      <testcase name="testUnconfirmedCommitCleansOriginalActiveFrameWithoutClaimingRollbackOutcome with data set #1" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="111" assertions="7" time="3.343382">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoHeldIntegrationTest::testUnconfirmedCommitCleansOriginalActiveFrameWithoutClaimingRollbackOutcome with data set #1 ('success_without_end')
+An unconfirmed commit cannot report private success.
+Failed asserting that false is true.
+
+/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php:112</failure>
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

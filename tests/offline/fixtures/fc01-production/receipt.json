@@ -1,0 +1,39 @@
+{
+  "schema": "fc01-production-artifact-receipt-v1",
+  "request_sha256": "57fb6b1132105216fea98cf9228f91e493df105f790dee2bf0efcb26c69f398b",
+  "png_sha256": "577ff7687f57c6c4e6efc11e89540b07ab31cf071acc04ff126a0fecbebae38f",
+  "width_px": 1800,
+  "height_px": 1400,
+  "dpi": 300,
+  "ink_bounds": {
+    "header": {
+      "x": 713,
+      "y": 254,
+      "width": 373,
+      "height": 45
+    },
+    "family_name": {
+      "x": 598,
+      "y": 603,
+      "width": 604,
+      "height": 97
+    },
+    "established": {
+      "x": 695,
+      "y": 921,
+      "width": 410,
+      "height": 31
+    }
+  },
+  "font_sha256": "c8f669ceb2c9c60ccf55198b305e08a997ffca79a38cc7eeb551e643cbe66505",
+  "license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+  "preview_final_parity": "IDENTICAL_PNG_BYTES",
+  "pillow": "13.0.0",
+  "freetype": "2.14.3",
+  "production_authorized": false,
+  "supplier_certified": false,
+  "rights_certified": false,
+  "external_execution_authorized": false,
+  "publishing_allowed": false,
+  "acceptance_state": "UNVERIFIED"
+}

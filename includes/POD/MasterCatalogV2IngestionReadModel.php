@@ -12,7 +12,7 @@ final class MasterCatalogV2IngestionReadModel
         global $wpdb;
         $wpdb->last_error='';
         $parent=$wpdb->get_row($wpdb->prepare(
-            'SELECT id,catalog_key,version_label,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND source_sha256=%s AND source_state=%s ORDER BY id DESC LIMIT 1',
+            'SELECT id,catalog_key,version_label,migration_metadata,source_sha256,source_state,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s AND source_sha256=%s AND source_state=%s ORDER BY id DESC LIMIT 1',
             PersonalizedCatalogReference::CATALOG_KEY,
             PersonalizedCatalogReference::SOURCE_SHA256,
             'IMMUTABLE_REFERENCE'
@@ -28,11 +28,14 @@ final class MasterCatalogV2IngestionReadModel
             'parent_fingerprint'=>preg_match('/^[a-f0-9]{64}$/',(string)($parent['fingerprint']??''))===1,
             'parent_non_authorizing'=>(int)($parent['production_authority']??1)===0,
         ];
+        $parentItems=GovernedCatalogRepository::verifyVersionEvidence($parent);
+        if(is_wp_error($parentItems))return $this->blocked($parentItems->get_error_code()==='catalog_evidence_unavailable'?'PARENT_ITEMS_UNAVAILABLE':'PARENT_ITEMS_CONFLICT');
+        $checks['parent_items_verified']=true;
         $ready=!in_array(false,$checks,true);
         if($ready){
             $wpdb->last_error='';
             $existing=$wpdb->get_row($wpdb->prepare(
-                'SELECT id,source_sha256,source_state,parent_version_id,migration_metadata,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s ORDER BY id DESC LIMIT 1',
+                'SELECT id,catalog_key,source_sha256,source_state,parent_version_id,migration_metadata,row_count,fingerprint,production_authority FROM '.Tables::catalog_versions().' WHERE catalog_key=%s ORDER BY id DESC LIMIT 1',
                 MasterCatalogV2Reference::CATALOG_KEY
             ),ARRAY_A);
             if(!empty($wpdb->last_error))return $this->blocked('V2_EVIDENCE_UNAVAILABLE');
@@ -44,6 +47,7 @@ final class MasterCatalogV2IngestionReadModel
                     &&preg_match('/^[a-f0-9]{64}$/',(string)($existing['fingerprint']??''))===1
                     &&(int)($existing['production_authority']??1)===0
                     &&$this->migrationEvidenceMatches((string)($existing['migration_metadata']??''),(int)$parent['id'],(string)($existing['fingerprint']??''));
+                if($exact){$items=GovernedCatalogRepository::verifyVersionEvidence($existing);if(is_wp_error($items))return $this->blocked($items->get_error_code()==='catalog_evidence_unavailable'?'V2_ITEMS_UNAVAILABLE':'V2_ITEMS_CONFLICT');}
                 return [
                     'query_state'=>'AVAILABLE',
                     'ingestion_readiness'=>$exact?'ALREADY_PERSISTED':'BLOCKED',

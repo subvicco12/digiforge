@@ -1,0 +1,262 @@
+{
+  "schema": "digiforge-capability-acceptance-overlay-v1",
+  "baseline_commit": "bc5da4e34ded615c0c47906a18e2ed99b7490829",
+  "candidate_commit": "Commit containing this source-linked overlay; terminal exact-head CI recorded on PR1264 and Issue1266 without rewriting historical receipts.",
+  "capability": {
+    "id": "S2-ORD-04",
+    "requirement": "Persist review-required and validated states without automatic approval",
+    "anchors": "V6 P0281-0282,P0437-0443,P0455-0460,P0524-0526; MVP P0080-0082",
+    "implementation": "IMPLEMENTED",
+    "local_acceptance": "INDEPENDENT_LOCAL_SOFTWARE_WITNESS_PASS",
+    "promotion": "HELD_PENDING_COMMITTED_EXACT_HEAD_CI",
+    "installed_status": "UNKNOWN_CURRENT_BYTES",
+    "original_named_test_correction": "Inbound acceptance is the actual REST ingress plus focused persistence/quantity/currency/personalization/boundary/hybrid tests. Original EtsyPersistedLifecycleAcceptanceTest primarily covers outbound Etsy operations; original ledger bytes preserved."
+  },
+  "defect_and_repair": {
+    "actual_red": "Correctly signed anonymous real registered REST request returned401 webhook_headers because WordPress normalized header names to underscores.",
+    "fix": "Controller uses WP_REST_Request::get_header for exactly webhook-id, webhook-timestamp and webhook-signature. Wire verifier, raw-body authentication, timestamp/replay windows and server-only signing configuration unchanged.",
+    "authority": "No production authorization or native execution added."
+  },
+  "independent_witness": {
+    "tests": 3,
+    "assertions": 191,
+    "exit_code": 0,
+    "wordpress": "7.1.4",
+    "source_hashes_unchanged_before_after": true,
+    "criteria": [
+      "Registered anonymous REST route through rest_do_request with WordPress normalized header names and server-only synthetic signing constant",
+      "Retained synthetic physical POD Shop2 mapping and ACTIVE business ownership; valid input persists VALIDATED",
+      "Unmatched and foreign-shop input persists REVIEW_REQUIRED without inheriting mapping",
+      "Database approvals remain0/NULL; no fulfillment plan/intent/authorization package; safety controls and users/settings unchanged; outboundHTTP0",
+      "Same signed event duplicate and new event same order avoid duplicate lines; changed body same event conflicts",
+      "Nine authenticity/body/event denials leave no receipt/idempotency/order records",
+      "Insert/transition/completion SQL faults trigger errors; failed/uncertain completion never claims success or approves"
+    ],
+    "receipt": "docs/engineering/shop2-platform-1266/evidence/ord04-independent-20261116.json"
+  },
+  "final_composition": {
+    "tests": 96,
+    "assertions": 1577,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "modules": [
+      {
+        "name": "EtsyPersonalizationIntakeAcceptanceTest",
+        "tests": "7",
+        "assertions": "181",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "EtsyWebhookBoundaryAcceptanceTest",
+        "tests": "3",
+        "assertions": "30",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "EtsyWebhookCurrencyInheritanceTest",
+        "tests": "5",
+        "assertions": "85",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "EtsyWebhookIngressAcceptanceTest",
+        "tests": "3",
+        "assertions": "191",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "EtsyWebhookPersistenceAcceptanceTest",
+        "tests": "23",
+        "assertions": "322",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "EtsyWebhookQuantityIntegrityTest",
+        "tests": "32",
+        "assertions": "590",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "HybridReconciliationIdentityTest",
+        "tests": "5",
+        "assertions": "69",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "OrderCurrencyAcceptanceTest",
+        "tests": "6",
+        "assertions": "56",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "ShopAccessCanonicalReadTest",
+        "tests": "12",
+        "assertions": "53",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      }
+    ],
+    "environment": "Existing released WordPress7.1.4/PHPUnit9.6.38/local disposable MariaDB fixture. Real registered REST dispatch in isolated process with synthetic server-only signing constant; no production configuration/credentials.",
+    "command": "WP_TESTS_DIR=<existing released test library> php -d auto_prepend_file=<existing private disposable DB preloader> <vendor>/bin/phpunit -c phpunit.wordpress.xml.dist --filter EtsyWebhookIngressAcceptanceTest|ShopAccessCanonicalReadTest|EtsyWebhookPersistenceAcceptanceTest|EtsyWebhookQuantityIntegrityTest|EtsyWebhookCurrencyInheritanceTest|EtsyPersonalizationIntakeAcceptanceTest|EtsyWebhookBoundaryAcceptanceTest|HybridReconciliationIdentityTest|OrderCurrencyAcceptanceTest --log-junit <receipt>",
+    "counts_overlap": "Independent3 and canonical12 are included in final96; do not sum."
+  },
+  "audit5026": {
+    "result": "FAILURE",
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/43721088974",
+    "receipt": "docs/engineering/shop2-platform-1266/evidence/audit5026-result-20261116.json",
+    "repair": "Test-only exact string audit-ID mutation and one-row assertions; actual RED then12/53GREEN; production authorization unchanged.",
+    "new_head_ci": "REQUIRED_NOT_YET_ESTABLISHED"
+  },
+  "source_manifest": [
+    {
+      "path": "includes/REST/EtsyWebhookController.php",
+      "sha256": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45"
+    },
+    {
+      "path": "includes/Listings/EtsyWebhookVerifier.php",
+      "sha256": "46a3abf5a4e7958b73dde3a0c680f3210e3bc7ca6fc2411a7dc3c1af5d84a74b"
+    },
+    {
+      "path": "includes/Listings/EtsyWebhookIntake.php",
+      "sha256": "70c38e7afc84722595a371475ff1795b3920cc3e5bfd65755132b3043b171be0"
+    },
+    {
+      "path": "includes/Listings/EtsyWebhookDeduplicator.php",
+      "sha256": "0971009aedc23466f0bccc1dea187f9668ccf92deb2dae2b8b3bc98dc255994b"
+    },
+    {
+      "path": "includes/Listings/WebhookEvidenceRepository.php",
+      "sha256": "d9ea3c0f0c4640490e92b58d16ddcfb4d9e5d28d3fed8f2f4cfeaba18a5ce894"
+    },
+    {
+      "path": "includes/Listings/EtsyOrderWebhookLifecycle.php",
+      "sha256": "13ed5eac1281d72343ece2893d94168935c2672d51cae61aff868afd3f6e3604"
+    },
+    {
+      "path": "includes/Listings/EtsyOrderListingResolver.php",
+      "sha256": "db70d9b402976259edc0a1c4739efbda7b61432d42528ca4fc24463c6faf51db"
+    },
+    {
+      "path": "includes/Orders/ApprovedPodMappingResolver.php",
+      "sha256": "959b164bb1539b569ded0e744a7fe5bcf526a955d5a12b94cf1e10df17218d5e"
+    },
+    {
+      "path": "includes/Orders/Repository.php",
+      "sha256": "943523e307aa7b4039e49051beb998045e2f521a8a6aa0498ed7eb53deadc4cf"
+    },
+    {
+      "path": "includes/POD/BusinessScopeRepository.php",
+      "sha256": "b55be9a531a832f8fe8d9d9e18ef63df400ca92283d01b56dd557ce3cfe541b9"
+    },
+    {
+      "path": "tests/wordpress/EtsyPersonalizationIntakeAcceptanceTest.php",
+      "sha256": "2a6fdbda7b328b44c38937d8b16e4119e05a2f67a4244826a24e12b126eab60c"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookBoundaryAcceptanceTest.php",
+      "sha256": "0d5a017088ee3e6d1a3d03d7506ca5d3a5c1b8524be2071d680558f29aab5b0f"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookCurrencyInheritanceTest.php",
+      "sha256": "7a262c753e5a715b506639ee6fc2450541f616f1877bf6955a0257191ec690f3"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookIngressAcceptanceTest.php",
+      "sha256": "6312f0afed6dc63f0a40f9fc1baf47effed769cd6da5acda0632a09f931cb033"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookPersistenceAcceptanceTest.php",
+      "sha256": "cae9f0b125e56578a16d87b338af4aa4e95764eb7ed14f3427e795b3e37fe595"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookQuantityIntegrityTest.php",
+      "sha256": "ff3d61fbdce3fd27b852c1b3d7e8a6e3d661fe23e00fa4217dba0410c0156ed6"
+    },
+    {
+      "path": "tests/wordpress/HybridReconciliationIdentityTest.php",
+      "sha256": "f3fc3f03137636312a128709275ad4ba7e4ec982c0b28fce0e24dab17e7ca503"
+    },
+    {
+      "path": "tests/wordpress/OrderCurrencyAcceptanceTest.php",
+      "sha256": "3018a336a1ddc9edfd5db298d281ecc459167908ac861cd8c1bfb893cc10318a"
+    },
+    {
+      "path": "tests/wordpress/ShopAccessCanonicalReadTest.php",
+      "sha256": "9526f3d73dff8bcc7fae95a56647aedd6b395c82fcb4878dee8eba81fedafa56"
+    },
+    {
+      "path": "tests/wordpress/fixtures/etsy-webhook-ingress-worker.php",
+      "sha256": "89fd7406a8663430305a5a16735fa2d4b0226bbeb0422929cabd4ab29e6dd4ea"
+    }
+  ],
+  "evidence_manifest": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/audit5026-result-20261116.json",
+      "sha256": "660e0ae86bce7daadeed7a90a9a223516a15b3204695c2cfd8387f4ddc4d97e3"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/ord04-composition-20261116.txt",
+      "sha256": "1a30eedc5db02b21cc1ed9a7abae2418388e4f85e458deb4202fd02937651d5f"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/ord04-composition-20261116.xml",
+      "sha256": "ef5a8335a7ecc75cc0f7b0cde456027784af2d1aa5e0fd8ed7d5cad9561a5f41"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/ord04-independent-20261116.json",
+      "sha256": "6c31b895e1a5c418fd20d44f7b8919ef4dbf014c2ccba4cee8fe6a6b3666772d"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/ord04-independent-20261116.xml",
+      "sha256": "0c7b75b8c02569d05195dfbebf38a5458e3e22f0d2d82e60106d672355d8a483"
+    }
+  ],
+  "preservation": {
+    "all_11_prior_held_workflow_source_hashes_unchanged": true,
+    "original_151_sha256": "4c683c3894ba1aee6ab920f617003af1d7194db070fbf57a605ca8a02e94d3bc",
+    "exclusive_sources_and_pins_changed": false,
+    "existing_successful_tests_reused": "Prior held intent/BLOCKED job/HUMAN_REVIEW/ON_HOLD115-test evidence retained unchanged; no broad local audit repeated."
+  },
+  "census": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 31,
+    "promotions": [],
+    "reason": "Local witness and same-runtime focused regression pass; owner-required new committed exact-head CI must pass before single-row census promotion."
+  },
+  "dependencies": {
+    "request": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6905491596",
+    "lane_a_source_commit": "fc997474a80629a7f969f346199b24dc478f8a75",
+    "companion_source_commit": "4da802a1568b13bcf1bbca28eba009b8b6148ef1",
+    "native": "No new executable transactional allocation/CAS/issuer/witness/journal/mandatory sender/receipt/revocation/custody handoff received. StageA private caller receipt is not native Shop2 authority.",
+    "lane_a": "Artifact/preview currentness and explicit buyer-input reselection receipt remain outstanding.",
+    "hosted": "Current installed artifact, real subscription/configuration and independent infrastructure/provider qualification remain unverified.",
+    "separate_plugin_source_commit": "200e6101bf8635453b2186be2f45ec87a5946465"
+  },
+  "planning_estimate": {
+    "ord04_remaining": "Approximately0.25\u20130.75 engineering person-day for final CI disposition and gated evidence promotion, assuming no new failure; CI elapsed time is separate.",
+    "downstream_native": "Provisional10\u201320 combined engineering person-days across owners after complete executable handoff; not a whole151 completion estimate.",
+    "external_wait": "UNKNOWN; no calendar completion guarantee."
+  },
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deployment/production DB/provider execution/credential change/publication/automatic fulfillment."
+}

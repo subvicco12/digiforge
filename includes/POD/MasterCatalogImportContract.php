@@ -12,7 +12,7 @@ final class MasterCatalogImportContract {
   foreach($rows as $i=>$row){
    if(!is_array($row)||count($row)!==count(self::REQUIRED))throw new \InvalidArgumentException('Master 500 row shape is invalid at '.($i+2));
    $item=[];foreach(self::REQUIRED as $n=>$h)$item[$h]=trim((string)$row[$n]);
-   if(!preg_match('/^DG-[0-9]{3}$/',$item['Listing ID']))throw new \InvalidArgumentException('Master 500 listing ID is invalid');
+   if(!preg_match('/^DG-[0-9]{3}$/D',$item['Listing ID'])||(int)substr($item['Listing ID'],3)<1||(int)substr($item['Listing ID'],3)>PersonalizedCatalogReference::LISTING_COUNT)throw new \InvalidArgumentException('Master 500 listing ID is invalid');
    if(isset($seen[$item['Listing ID']]))throw new \InvalidArgumentException('Master 500 listing IDs must be unique');
    foreach(['Family','Concept','Engine','Physical Product','Supplier Gate','Template State'] as $field)if($item[$field]==='')throw new \InvalidArgumentException($field.' is required');
    $seen[$item['Listing ID']]=true;$out[]=$item;

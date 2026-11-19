@@ -28,6 +28,7 @@ final class ControlledExecutionGate
    'evidence_hash'=>strtolower(trim($evidenceHash)),
    'request_fingerprint'=>strtolower(trim($requestFingerprint)),
    'authorization_hash'=>(string)$authorization['authorization_hash'],
+   'authorization'=>$payload,
    'authorized_by'=>(int)$payload['authorized_by'],
    'executed_by'=>$actor,
    'nonce_consumed'=>true,

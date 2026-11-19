@@ -19,6 +19,6 @@ final class ProductionExecutionPermitConsumer
    return new WP_Error('production_permit_expired','Production permit is outside its authorization window.',['status'=>409]);
   $nonce=(string)($auth['nonce']??'');$packageId=(int)($permit['package_id']??0);$packageHash=strtolower((string)($permit['package_hash']??''));
   $consumed=ProductionExecutionConsumptionRepository::consume($nonce,$authHash,$packageId,$packageHash,$actorId);if(is_wp_error($consumed))return $consumed;
-  return ['state'=>'ADAPTER_CALL_PERMITTED','authorization_hash'=>$authHash,'evidence_hash'=>(string)($auth['evidence_hash']??''),'request_fingerprint'=>$fingerprint,'nonce_consumed'=>true,'consumed_by'=>$actorId,'consumed_at'=>$now,'external_execution_performed'=>false];
+  return ['state'=>'ADAPTER_CALL_PERMITTED','authorization'=>$auth,'action'=>(string)($auth['action']??''),'authorization_hash'=>$authHash,'evidence_hash'=>(string)($auth['evidence_hash']??''),'request_fingerprint'=>$fingerprint,'nonce_consumed'=>true,'consumed_by'=>$actorId,'consumed_at'=>$now,'external_execution_performed'=>false];
  }
 }

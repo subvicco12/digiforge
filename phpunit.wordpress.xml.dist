@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit bootstrap="tests/wordpress/bootstrap.php" colors="true" failOnWarning="true" failOnRisky="true">
+    <php><env name="WP_ENVIRONMENT_TYPE" value="local" force="true"/></php>
     <testsuites>
         <testsuite name="DigiForge WordPress integration">
             <directory suffix="Test.php">tests/wordpress</directory>
+            <exclude>tests/wordpress/PrintifyCatalogReadTest.php</exclude>
+            <exclude>tests/wordpress/PrintifyCatalogResponseSafetyTest.php</exclude>
+            <exclude>tests/wordpress/PrintifyCatalogIntegrationTest.php</exclude>
+            <exclude>tests/wordpress/PrintifyCatalogScopedSmokeTest.php</exclude>
+            <!-- Executes in the mandatory production catalog profile, not twice. -->
+            <exclude>tests/wordpress/NativeSupplementalGetTest.php</exclude>
+            <!-- Explicitly installed review backend is isolated from the default bridge-absent profile.
+                 Mandatory execution: composer test:wordpress runs the separate authority profile. -->
+            <exclude>tests/wordpress/NativeManagedOrderAssociationCompositionTest.php</exclude>
         </testsuite>
     </testsuites>
 </phpunit>

@@ -1,0 +1,132 @@
+{
+  "schema": "digiforge-local-continuation-checkpoint-v1",
+  "remote_base_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+  "checkpoint_source": "Commit containing this file; source manifest binds final tested bytes.",
+  "delivery": "LOCAL_COMMIT_PUSH_DEFERRED",
+  "reason": "Exact-head Audit5027 at remote aa4 is still in progress. Existing workflow cancels in-progress same-PR runs on push. Preserve its qualification rather than cancel/restart it.",
+  "audit": {
+    "number": 5027,
+    "run_id": 43792492020,
+    "head_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+    "observed_status": "in_progress",
+    "observed_conclusion": null,
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/43792492020"
+  },
+  "capability_gate": {
+    "id": "S2-ORD-04",
+    "independent_local_witness": "PASS3/191 at exactaa4",
+    "focused_regression": "PASS96/1577 at exactaa4",
+    "promotion": "PENDING_FINAL_EXACT_HEAD_CI",
+    "original_151_unchanged": true,
+    "promoted_ids": [],
+    "counts": {
+      "total": 151,
+      "implemented": 100,
+      "partial": 43,
+      "missing": 8,
+      "independently_accepted": 31
+    },
+    "conditional_delta": "If exactaa4 Audit5027 passes all required gates, qualify only S2-ORD-04 with exact source/artifact receipt; independent31 to32, implementation100/43/8 unchanged; installed remainsUNKNOWN."
+  },
+  "new_slices": [
+    {
+      "ids": [
+        "S2-ORD-12",
+        "S2-OPS-06"
+      ],
+      "classification": "PARTIAL_RECOVERY_SECURITY_SUBGAP",
+      "red": "Actual signed shipment receipt and enrolled owner create3retry audits/DEAD_LETTER; deleting only mutable state allowed revision0 retry and reset the ceiling. Reproduced1test/19assertions failure.",
+      "implemented": "Require exact7typedstate fields, legal attempt deltas/consecutive retained audit revisions, current state equals latest audit, bounded locking history, binary state CAS, checked post-write history and final same-actor owner/shop admission.",
+      "independent": "Actual retained-rollback case1test/21assertionsPASS; independent read-only source review no open findings.",
+      "limits": "At most1000 retained local reconciliation records; missing/corrupt/unavailable/overflow history denies. Coordinated rollback of state AND ALL retained audit roots is not detected. No native/independent infrastructure authority or provider/carrier qualification added."
+    },
+    {
+      "id": "S2-ORD-03",
+      "classification": "ADDITIONAL_REAL_REST_COMPOSITION_NOT_ENTIRE_CAPABILITY_ACCEPTANCE",
+      "implemented": "One new actual anonymous REST case proves saved physical listing/version/mapping/active-owner joins override plausible spoofed internal IDs; original EUR and string/int/bool/null buyer input persist; ambiguous saved mapping forces REVIEW_REQUIRED with mapping0. No approval/typed submission/production record inferred.",
+      "positive": "1test/116assertionsPASS; included in final29. Existing3ingress methods and worker unchanged."
+    }
+  ],
+  "verification": {
+    "tests": 29,
+    "assertions": 614,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "modules": [
+      {
+        "name": "EtsyWebhookIngressAcceptanceTest",
+        "tests": "4",
+        "assertions": "307",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "PrintifyWebhookInboxTest",
+        "tests": "9",
+        "assertions": "41",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      },
+      {
+        "name": "PrintifyWebhookReconciliationIntegrityTest",
+        "tests": "16",
+        "assertions": "266",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0"
+      }
+    ],
+    "environment": "Existing released WordPress7.1.4, PHPUnit9.6.38, disposable local MariaDB and private preloader; no new test framework.",
+    "filter": "PrintifyWebhookInboxTest|PrintifyWebhookReconciliationIntegrityTest|EtsyWebhookIngressAcceptanceTest",
+    "counts_overlap": "New recovery16 plus existingInbox9 plus ingress4 =29. Independent1 and lineage1 overlap; do not sum.",
+    "diagnostic": "Expected existing injected AUDIT_WRITE_FAILED rollback diagnostic; no failed assertions.",
+    "source_review": "Independent review plus independent actual retained-rollback run; no open findings.",
+    "checks": "Final changed PHP syntax and git diff checks pass; exact local committed HEAD credential history scan required before handoff."
+  },
+  "source_manifest": [
+    {
+      "path": "includes/POD/PrintifyWebhookInbox.php",
+      "sha256": "f03509f7fba0563be949ec80b4f11f0b68fcb7cde07c8223bba675ba304e5175"
+    },
+    {
+      "path": "tests/wordpress/PrintifyWebhookReconciliationIntegrityTest.php",
+      "sha256": "8e85af2f3ee1e59d5b31a73c1f7fda67859fbdee770953a7270fe393a8a2ec4e"
+    },
+    {
+      "path": "tests/wordpress/EtsyWebhookIngressAcceptanceTest.php",
+      "sha256": "98fd1301199d7ad8480e300871d821a7d03534991e9d44165f04da93e3cf0381"
+    },
+    {
+      "path": "tests/wordpress/fixtures/etsy-webhook-ingress-worker.php",
+      "sha256": "89fd7406a8663430305a5a16735fa2d4b0226bbeb0422929cabd4ab29e6dd4ea"
+    }
+  ],
+  "evidence_manifest": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/recovery-lineage-20261116.txt",
+      "sha256": "64652bfb30618ec137868e4f9de75db44dc3cb8532fe0219e2dc0deae01129a7"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/recovery-lineage-20261116.xml",
+      "sha256": "a21b596d84ef151f8824d36a3bdd22926036935ae4f38e0d99f7cc3bca9ff680"
+    },
+    {
+      "path": "docs/engineering/shop2-platform-1266/evidence/reconciliation-independent-20261116.txt",
+      "sha256": "56e57d4a6b43d0bb9dc8889147dc5b047687acb032a50f5ddbad53b79a8a126e"
+    }
+  ],
+  "preserved": "All11 prior held workflow source hashes unchanged. Existing webhook/held-order/tracking/recovery/security functionality and immutable original151 ledger preserved. No broad local audit repeated.",
+  "owner_coordination": {
+    "receipt": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6905929879",
+    "separate_plugin_source_commit": "200e6101bf8635453b2186be2f45ec87a5946465",
+    "latest_lane_a_commit": "e8960fb28f98cf04a543322a04f819ff89f0ad09",
+    "integrated_lane_a_commit": "fc997474a80629a7f969f346199b24dc478f8a75",
+    "lane_a_status": "New ordinary-photo crop/slot ordering receipt explicitly leaves ART14/ART15/ORD06 partial and canonical buyer selection/final render currentness unavailable; no promotions or pin changes.",
+    "native_status": "Executable transactional allocation/CAS/independent issuer/witness/journal/UNKNOWN/sender/receipt/revocation/custody handoff still unavailable.",
+    "exclusive_files_or_pins_changed": false
+  },
+  "safety": "STOP ALL ON; external lock ON; automation OFF; manual production approval; RELEASE HOLD. No merge/deploy/production DB/credential change/provider execution/publication/automatic fulfillment."
+}

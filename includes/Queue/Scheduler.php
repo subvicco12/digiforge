@@ -5,5 +5,5 @@ namespace DigiForge\Queue;
 final class Scheduler {
     public function register(): void { add_action('digiforge_dispatch_jobs', [$this, 'dispatch']); }
     public function dispatch(): void { /* Intentionally inert: this release never runs automation. */ }
-    public function available(): bool { return function_exists('as_enqueue_async_action'); }
+    public function available(): bool { return ActionSchedulerReadiness::inspect()['state'] === 'AVAILABLE'; }
 }

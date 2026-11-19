@@ -1,17 +1,25 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 final class FourShopDataIsolationTest extends WP_UnitTestCase {
- protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate(); }
+ protected function setUp():void { parent::setUp(); DigiForge\Core\Activator::activate(); ShopAccessFixture::reset(); }
  public function testOperationalProjectionDoesNotLeakShopPolicyOrUsageAcrossFourShops():void {
-  global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$shops=['digital','personalized_pod','standard_pod','jewelry'];
+  global $wpdb;$t=DigiForge\Database\Tables::class;$now=current_time('mysql',true);$shops=['digital','personalized_pod','standard_pod','jewelry'];$fixtures=[];$key='isolation-'.wp_rand();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
   foreach($shops as $i=>$shop){
-   $policy=wp_json_encode(['marker'=>'policy-'.$shop]);
-   $wpdb->insert($t::shop_ai_policies(),['shop_key'=>$shop,'environment'=>'production','currency'=>'USD','policy'=>$policy,'policy_hash'=>hash('sha256',(string)$policy),'state'=>'ACTIVE','created_by'=>0,'created_at'=>$now,'updated_at'=>$now]);
-   $wpdb->insert($t::shop_ai_usage(),['shop_key'=>$shop,'workflow'=>'wf-'.$shop,'run_id'=>'run-'.$shop,'run_started_at'=>$now,'stage'=>'research','model_key'=>'model','quantity'=>$i+1,'estimated_cost'=>'0.100000','actual_cost'=>'0.090000','currency'=>'USD','occurred_at'=>$now]);
+   $policy=(new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','marker'=>$key.'-'.$shop,'stages'=>['research'=>['limit'=>$i+1]]],'production');self::assertNotWPError($policy);
+   $workflow=$key.'-'.$shop;self::assertSame(1,$wpdb->insert($t::shop_ai_usage(),['shop_key'=>$shop,'workflow'=>$workflow,'run_id'=>$key.'-'.$shop,'run_started_at'=>$now,'stage'=>'research','model_key'=>$key,'quantity'=>$i+1,'estimated_cost'=>'0.100000','actual_cost'=>'0.090000','currency'=>'USD','occurred_at'=>$now]));
+   $fixtures[$shop]=['policy_id'=>(int)$policy['id'],'policy_hash'=>$policy['policy_hash'],'usage_id'=>(int)$wpdb->insert_id,'workflow'=>$workflow,'quantity'=>$i+1];
   }
   $rm=new DigiForge\Portal\ShopOperationsReadModel();
-  foreach($shops as $shop){$s=$rm->snapshot($shop);self::assertSame($shop,$s['shop']);self::assertSame('AVAILABLE',$s['query_state']['ai_policies']);self::assertSame('AVAILABLE',$s['query_state']['ai_usage']);self::assertCount(1,$s['ai_policies']);self::assertCount(1,$s['ai_usage']);self::assertSame($shop,$s['ai_policies'][0]['shop_key']);self::assertSame($shop,$s['ai_usage'][0]['shop_key']);self::assertFalse($s['external_execution_performed']);}
+  foreach($shops as $shop){
+   $s=$rm->snapshot($shop);self::assertSame($shop,$s['shop']);self::assertSame('AVAILABLE',$s['query_state']['ai_policies']);self::assertSame('AVAILABLE',$s['query_state']['ai_usage']);self::assertNotEmpty($s['ai_policies']);self::assertNotEmpty($s['ai_usage']);
+   foreach($s['ai_policies']as $row)self::assertSame($shop,$row['shop_key']);foreach($s['ai_usage']as $row)self::assertSame($shop,$row['shop_key']);
+   self::assertContains($fixtures[$shop]['policy_hash'],array_column($s['ai_policies'],'policy_hash'));self::assertSame((string)$fixtures[$shop]['policy_id'],(string)$wpdb->get_var($wpdb->prepare('SELECT id FROM '.$t::shop_ai_policies().' WHERE shop_key=%s AND policy_hash=%s',$shop,$fixtures[$shop]['policy_hash'])));
+   $usage=array_values(array_filter($s['ai_usage'],static fn(array $row):bool=>$row['workflow']===$fixtures[$shop]['workflow']));self::assertCount(1,$usage);self::assertSame($fixtures[$shop]['quantity'],(int)$usage[0]['quantity']);self::assertSame($key,$usage[0]['model_key']);self::assertSame($shop,$wpdb->get_var($wpdb->prepare('SELECT shop_key FROM '.$t::shop_ai_usage().' WHERE id=%d',$fixtures[$shop]['usage_id'])));
+   foreach($fixtures as $otherShop=>$fixture)if($otherShop!==$shop){self::assertNotContains($fixture['policy_hash'],array_column($s['ai_policies'],'policy_hash'));self::assertNotContains($fixture['workflow'],array_column($s['ai_usage'],'workflow'));}self::assertFalse($s['external_execution_performed']);
+  }
  }
+
  public function testPersonalizedPodCatalogProjectionIgnoresNewerUnrelatedCatalog():void {
   global $wpdb;$v=DigiForge\Database\Tables::catalog_versions();$now=current_time('mysql',true);
   $fingerprint=hash('sha256','v2-scoped-catalog');

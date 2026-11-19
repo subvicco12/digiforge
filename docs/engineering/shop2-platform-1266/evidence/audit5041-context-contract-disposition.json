@@ -1,0 +1,80 @@
+{
+  "schema": "shop2-context-source-contract-repair-v1",
+  "previous_head": "72fe9b7dc04d5143387f401e67b59c61ce27be0c",
+  "previous_audit": {
+    "number": 5041,
+    "run": 43851827574,
+    "conclusion": "FAILURE",
+    "stage": "Legacy and unit tests",
+    "tests": 2275,
+    "assertions": 12061,
+    "failures": 5,
+    "existing_skip": 1
+  },
+  "root_cause": "Source-contract assertions retained the old no-argument validator call and count-query spelling after typed context integration. Application behavior was unchanged; full affected WordPress composition passed201/8903.",
+  "repairs": [
+    {
+      "class": "F4OrderFulfillmentHardeningStructureTest",
+      "case": "testPersonalizationMustBeHumanReviewed",
+      "cause": "Old constructor literal omits the typed retained server context",
+      "assertions_removed": false
+    },
+    {
+      "class": "F4OrdersFulfillmentSafetyStructureTest",
+      "case": "testPersonalizationRequiresExplicitHumanApproval",
+      "cause": "Old constructor literal omits the typed retained server context",
+      "assertions_removed": false
+    },
+    {
+      "class": "Phase4ConvergenceStructureTest",
+      "case": "testFulfillmentPlanDerivesPersonalizationSnapshotFromPersistedApprovals",
+      "cause": "Old constructor literal omits the typed retained server context",
+      "assertions_removed": false
+    },
+    {
+      "class": "PodReadinessEvidenceAvailabilityContractTest",
+      "case": "testFulfillmentPlanPersonalizationEvidenceQueryFailsClosed",
+      "cause": "Old constructor literal omits the typed retained server context",
+      "assertions_removed": false
+    },
+    {
+      "class": "PodReadinessEvidenceAvailabilityContractTest",
+      "case": "testReadinessCountClearsStaleDatabaseErrorsBeforeEachCount",
+      "cause": "Old count-query literal omits the verified current-read suffix",
+      "assertions_removed": false
+    }
+  ],
+  "focused_green": {
+    "tests": 18,
+    "assertions": 120,
+    "failures": 0
+  },
+  "full_unit_green": {
+    "tests": 2275,
+    "assertions": 12098,
+    "failures": 0,
+    "errors": 0,
+    "existing_skips": 1
+  },
+  "files": [
+    {
+      "file": "tests/unit/F4OrderFulfillmentHardeningStructureTest.php",
+      "digest": "5fda2c9bd824fd5b714e392ad3db3ccf18880ec5dce82cfc8e9a2cba92fabd44"
+    },
+    {
+      "file": "tests/unit/F4OrdersFulfillmentSafetyStructureTest.php",
+      "digest": "31ab7b7f2e75c67bafc6baffbdd8f426ee61a80a9263dac37269442e07d68d0c"
+    },
+    {
+      "file": "tests/unit/Phase4ConvergenceStructureTest.php",
+      "digest": "1c635d845489fedc725a8050e89b705eee94fbc3b524dec208de115ed352961a"
+    },
+    {
+      "file": "tests/unit/PodReadinessEvidenceAvailabilityContractTest.php",
+      "digest": "56f45818641f0b15a4f68598210b4866909e0c2e6393fcd91a13ec909363b712"
+    }
+  ],
+  "no_application_or_wordpress_changes": true,
+  "source_hashes_unchanged_during_final_unit_run": true,
+  "source_review": "CLEAR"
+}

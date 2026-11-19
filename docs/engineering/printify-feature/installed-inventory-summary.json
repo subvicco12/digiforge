@@ -1,0 +1,77 @@
+{
+  "schema": "digiforge-retained-installed-inventory-summary-v1",
+  "source": "Previously completed Hostinger non-executing file metadata inventory, reused; no new production request",
+  "site": "digiforge.converentis.com",
+  "complete": true,
+  "coverage": "includes-only-retained-summary",
+  "total_items": 492,
+  "enumeration_retained": false,
+  "meaning_of_complete": "The original inventory returned 492 of 492 files. This retained summary is not the full enumeration or a checksum inventory.",
+  "source_identity_verified": false,
+  "installed_hashes_available": false,
+  "known_existing_paths": [
+    "includes/Database/ProviderConnectionSchema.php",
+    "includes/Database/QueryEvidence.php",
+    "includes/POD/PrintifyCatalogClient.php",
+    "includes/POD/PrintifyCatalogGetSafetyExceptionContract.php",
+    "includes/POD/PrintifyCatalogReadContract.php",
+    "includes/POD/PrintifyCatalogReadPolicy.php",
+    "includes/POD/PrintifyCatalogReadRepository.php",
+    "includes/POD/PrintifyConnectionBoundary.php",
+    "includes/POD/ScopedProviderConnection.php",
+    "includes/REST/PrintifyCatalogReadController.php",
+    "includes/Security/ReviewedLocalEvidence.php",
+    "includes/Security/ShopAccess.php",
+    "includes/Security/ShopAccessAuthority.php",
+    "includes/Security/ShopAccessPolicy.php",
+    "includes/Security/ShopAccessRepository.php",
+    "includes/POD/MasterCatalogV2Reference.php",
+    "includes/Security/Logger.php",
+    "includes/Database/Tables.php",
+    "includes/Core/Plugin.php",
+    "includes/Portal/Portal.php",
+    "includes/Security/ShopAccessRestGuard.php",
+    "includes/Security/ShopAccessTargetScope.php",
+    "includes/Security/ShopAccessAdminGuard.php"
+  ],
+  "known_absent_feature_paths": [
+    "includes/POD/ProductIntelligence.php",
+    "includes/POD/ProductIntelligenceRepository.php",
+    "includes/POD/PrintifyResearchMapper.php",
+    "includes/POD/PrintifyResearchReader.php",
+    "includes/POD/PrintifyResearchGateway.php",
+    "includes/POD/PrintifyResearchBatch.php",
+    "includes/POD/PrintifyResearchDependencies.php",
+    "includes/REST/PrintifyResearchController.php",
+    "includes/REST/PrintifyCatalogShopAdmission.php",
+    "includes/Portal/ProductIntelligencePanel.php",
+    "includes/Portal/PrintifyResearchControls.php"
+  ],
+  "known_absent_shared_paths": [
+    "includes/Security/FirstPartyOwnerPolicy.php"
+  ],
+  "observed_sizes": [
+    {
+      "path": "includes/Portal/Portal.php",
+      "installed_bytes": 208190,
+      "certified_candidate_bytes": 151106
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadRepository.php",
+      "installed_bytes": 30439,
+      "certified_candidate_bytes": 36556
+    },
+    {
+      "path": "includes/POD/PrintifyCatalogReadContract.php",
+      "installed_bytes": 10328,
+      "certified_candidate_bytes": 12628
+    }
+  ],
+  "unknown_surfaces": [
+    "Actual installed source hashes/build SHA",
+    "Root/assets/modules file inventory",
+    "Applied schema 23/24/25 and provider-connection1",
+    "Shared method semantics, authority and guard mappings",
+    "Installed portal extension points"
+  ]
+}

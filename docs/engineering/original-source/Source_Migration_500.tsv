@@ -1,0 +1,501 @@
+Original Excel row	Source DG ID	Wave	V1 Family	V1 Concept	Engine	Disposition	Migration Note	V2 Successor ID	Retain as Overlay/Test
+2	DG-001	W1	Face & Photo Socks	Dog face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-001	No
+3	DG-002	W1	Face & Photo Socks	Cat face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-002	No
+4	DG-003	W1	Face & Photo Socks	Any pet	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-003	No
+5	DG-004	W1	Face & Photo Socks	Boyfriend face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-004	No
+6	DG-005	W1	Face & Photo Socks	Girlfriend face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-005	No
+7	DG-006	W1	Face & Photo Socks	Husband	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+8	DG-007	W1	Face & Photo Socks	Wife	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+9	DG-008	W1	Face & Photo Socks	Dad	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+10	DG-009	W1	Face & Photo Socks	Mom	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+11	DG-010	W1	Face & Photo Socks	Grandpa	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+12	DG-011	W1	Face & Photo Socks	Grandma	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-006	No
+13	DG-012	W1	Face & Photo Socks	Child	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-007	No
+14	DG-013	W1	Face & Photo Socks	Baby	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-008	No
+15	DG-014	W1	Face & Photo Socks	Couple	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-009	No
+16	DG-015	W1	Face & Photo Socks	Best friend	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-010	No
+17	DG-016	W1	Face & Photo Socks	Bride	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-011	No
+18	DG-017	W1	Face & Photo Socks	Groom	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-012	No
+19	DG-018	W1	Face & Photo Socks	Bridesmaids	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-013	No
+20	DG-019	W1	Face & Photo Socks	Groomsmen	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-014	No
+21	DG-020	W1	Face & Photo Socks	Birthday face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-015	No
+22	DG-021	W1	Face & Photo Socks	Graduation face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-016	No
+23	DG-022	W1	Face & Photo Socks	Christmas face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-017	No
+24	DG-023	W1	Face & Photo Socks	Valentine couple	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-018	No
+25	DG-024	W1	Face & Photo Socks	Multi-family face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-019	No
+26	DG-025	W1	Face & Photo Socks	Face + custom text	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-020	No
+27	DG-026	W1	Personalized Mugs	Pet portrait	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-021	No
+28	DG-027	W1	Personalized Mugs	Pet + name	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-022	No
+29	DG-028	W1	Personalized Mugs	Dog mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-023	No
+30	DG-029	W1	Personalized Mugs	Dog dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-024	No
+31	DG-030	W1	Personalized Mugs	Cat mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-025	No
+32	DG-031	W1	Personalized Mugs	Cat dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-026	No
+33	DG-032	W1	Personalized Mugs	Couple photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-027	No
+34	DG-033	W1	Personalized Mugs	Wedding photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-028	No
+35	DG-034	W1	Personalized Mugs	Anniversary	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-029	No
+36	DG-035	W1	Personalized Mugs	Mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-030	No
+37	DG-036	W1	Personalized Mugs	Dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-031	No
+38	DG-037	W1	Personalized Mugs	Grandma	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-032	No
+39	DG-038	W1	Personalized Mugs	Grandpa	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-033	No
+40	DG-039	W1	Personalized Mugs	Family collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-034	No
+41	DG-040	W1	Personalized Mugs	Best friend	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-035	No
+42	DG-041	W1	Personalized Mugs	Coworker	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-036	No
+43	DG-042	W1	Personalized Mugs	Teacher	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-037	No
+44	DG-043	W1	Personalized Mugs	Graduation	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-038	No
+45	DG-044	W1	Personalized Mugs	New baby	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-039	No
+46	DG-045	W1	Personalized Mugs	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-040	No
+47	DG-046	W1	Personalized Mugs	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-041	No
+48	DG-047	W1	Personalized Mugs	Birthday	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-042	No
+49	DG-048	W1	Personalized Mugs	Travel memory	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-043	No
+50	DG-049	W1	Personalized Mugs	Handwriting/message	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-044	No
+51	DG-050	W1	Personalized Mugs	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-045	No
+52	DG-051	W1	Personalized T-Shirts	Dog portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-046	No
+53	DG-052	W1	Personalized T-Shirts	Cat portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-047	No
+54	DG-053	W1	Personalized T-Shirts	Multi-pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-048	No
+55	DG-054	W1	Personalized T-Shirts	Dog mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-049	No
+56	DG-055	W1	Personalized T-Shirts	Dog dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-050	No
+57	DG-056	W1	Personalized T-Shirts	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-051	No
+58	DG-057	W1	Personalized T-Shirts	Human photo	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-052	No
+59	DG-058	W1	Personalized T-Shirts	Couple	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-053	No
+60	DG-059	W1	Personalized T-Shirts	Family	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-054	No
+61	DG-060	W1	Personalized T-Shirts	Vintage collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-055	No
+62	DG-061	W1	Personalized T-Shirts	Retro portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-056	No
+63	DG-062	W1	Personalized T-Shirts	Mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-057	No
+64	DG-063	W1	Personalized T-Shirts	Dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-058	No
+65	DG-064	W1	Personalized T-Shirts	Grandma	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-059	No
+66	DG-065	W1	Personalized T-Shirts	Grandpa	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-060	No
+67	DG-066	W1	Personalized T-Shirts	Birthday	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-061	No
+68	DG-067	W1	Personalized T-Shirts	Graduation	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-062	No
+69	DG-068	W1	Personalized T-Shirts	Bride	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-063	No
+70	DG-069	W1	Personalized T-Shirts	Groom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-064	No
+71	DG-070	W1	Personalized T-Shirts	Bridal party	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-065	No
+72	DG-071	W1	Personalized T-Shirts	Family reunion	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-066	No
+73	DG-072	W1	Personalized T-Shirts	Vacation	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-067	No
+74	DG-073	W1	Personalized T-Shirts	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-068	No
+75	DG-074	W1	Personalized T-Shirts	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-069	No
+76	DG-075	W1	Personalized T-Shirts	Photo + message	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-070	No
+77	DG-076	W1	Personalized Sweatshirts	Dog portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-071	No
+78	DG-077	W1	Personalized Sweatshirts	Cat portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-072	No
+79	DG-078	W1	Personalized Sweatshirts	Multi-pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-073	No
+80	DG-079	W1	Personalized Sweatshirts	Embroidered-look portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-074	No
+81	DG-080	W1	Personalized Sweatshirts	Line art	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-075	No
+82	DG-081	W1	Personalized Sweatshirts	Minimalist pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-076	No
+83	DG-082	W1	Personalized Sweatshirts	Varsity pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-077	No
+84	DG-083	W1	Personalized Sweatshirts	Retro pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-078	No
+85	DG-084	W1	Personalized Sweatshirts	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-079	No
+86	DG-085	W1	Personalized Sweatshirts	Dog mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-080	No
+87	DG-086	W1	Personalized Sweatshirts	Dog dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-081	No
+88	DG-087	W1	Personalized Sweatshirts	Couple	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-082	No
+89	DG-088	W1	Personalized Sweatshirts	Anniversary	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-083	No
+90	DG-089	W1	Personalized Sweatshirts	Wedding	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-084	No
+91	DG-090	W1	Personalized Sweatshirts	Family	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-085	No
+92	DG-091	W1	Personalized Sweatshirts	Mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-086	No
+93	DG-092	W1	Personalized Sweatshirts	Dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-087	No
+94	DG-093	W1	Personalized Sweatshirts	Grandma	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-088	No
+95	DG-094	W1	Personalized Sweatshirts	Grandpa	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-089	No
+96	DG-095	W1	Personalized Sweatshirts	Child	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-090	No
+97	DG-096	W1	Personalized Sweatshirts	Birthday	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-091	No
+98	DG-097	W1	Personalized Sweatshirts	Graduation	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-092	No
+99	DG-098	W1	Personalized Sweatshirts	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-093	No
+100	DG-099	W1	Personalized Sweatshirts	Photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-094	No
+101	DG-100	W1	Personalized Sweatshirts	Photo + date	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-095	No
+102	DG-101	W2	Personalized Hoodies	Dog portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-096	No
+103	DG-102	W2	Personalized Hoodies	Cat portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-097	No
+104	DG-103	W2	Personalized Hoodies	Multi-pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-098	No
+105	DG-104	W2	Personalized Hoodies	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-099	No
+106	DG-105	W2	Personalized Hoodies	Dog mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-100	No
+107	DG-106	W2	Personalized Hoodies	Dog dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-101	No
+108	DG-107	W2	Personalized Hoodies	Human portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-102	No
+109	DG-108	W2	Personalized Hoodies	Couple	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-103	No
+110	DG-109	W2	Personalized Hoodies	Boyfriend	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+111	DG-110	W2	Personalized Hoodies	Girlfriend	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+112	DG-111	W2	Personalized Hoodies	Husband	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-104	No
+113	DG-112	W2	Personalized Hoodies	Wife	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-105	No
+114	DG-113	W2	Personalized Hoodies	Family	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-106	No
+115	DG-114	W2	Personalized Hoodies	Dad	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-107	No
+116	DG-115	W2	Personalized Hoodies	Mom	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-108	No
+117	DG-116	W2	Personalized Hoodies	Grandparents	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-109	No
+118	DG-117	W2	Personalized Hoodies	Wedding	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-110	No
+119	DG-118	W2	Personalized Hoodies	Anniversary	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-111	No
+120	DG-119	W2	Personalized Hoodies	Birthday	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-112	No
+121	DG-120	W2	Personalized Hoodies	Graduation	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-113	No
+122	DG-121	W2	Personalized Hoodies	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-114	No
+123	DG-122	W2	Personalized Hoodies	Travel	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-115	No
+124	DG-123	W2	Personalized Hoodies	Photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-116	No
+125	DG-124	W2	Personalized Hoodies	Vintage portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-117	No
+126	DG-125	W2	Personalized Hoodies	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-118	No
+127	DG-126	W2	Photo & Pet Blankets	Single photo	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-119	No
+128	DG-127	W2	Photo & Pet Blankets	4-photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-120	No
+129	DG-128	W2	Photo & Pet Blankets	9-photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-121	No
+130	DG-129	W2	Photo & Pet Blankets	Family	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-122	No
+131	DG-130	W2	Photo & Pet Blankets	Couple	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-123	No
+132	DG-131	W2	Photo & Pet Blankets	Wedding	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-124	No
+133	DG-132	W2	Photo & Pet Blankets	Anniversary	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-125	No
+134	DG-133	W2	Photo & Pet Blankets	Mom	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-126	No
+135	DG-134	W2	Photo & Pet Blankets	Dad	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-127	No
+136	DG-135	W2	Photo & Pet Blankets	Grandma	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-128	No
+137	DG-136	W2	Photo & Pet Blankets	Grandpa	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-129	No
+138	DG-137	W2	Photo & Pet Blankets	Baby	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-130	No
+139	DG-138	W2	Photo & Pet Blankets	Kids	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-131	No
+140	DG-139	W2	Photo & Pet Blankets	Graduation	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-132	No
+141	DG-140	W2	Photo & Pet Blankets	Birthday	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-133	No
+142	DG-141	W2	Photo & Pet Blankets	Best friend	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-134	No
+143	DG-142	W2	Photo & Pet Blankets	Dog	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-135	No
+144	DG-143	W2	Photo & Pet Blankets	Cat	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-136	No
+145	DG-144	W2	Photo & Pet Blankets	Multi-pet	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-137	No
+146	DG-145	W2	Photo & Pet Blankets	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-138	No
+147	DG-146	W2	Photo & Pet Blankets	Human memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-139	No
+148	DG-147	W2	Photo & Pet Blankets	Travel	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-140	No
+149	DG-148	W2	Photo & Pet Blankets	Family-tree style	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-141	No
+150	DG-149	W2	Photo & Pet Blankets	Photo + quote	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-142	No
+151	DG-150	W2	Photo & Pet Blankets	Handwriting + photo	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-143	No
+152	DG-151	W2	Personalized Pillows	Dog	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-144	No
+153	DG-152	W2	Personalized Pillows	Cat	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-145	No
+154	DG-153	W2	Personalized Pillows	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-146	No
+155	DG-154	W2	Personalized Pillows	Human face	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+156	DG-155	W2	Personalized Pillows	Couple	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-147	No
+157	DG-156	W2	Personalized Pillows	Boyfriend/girlfriend	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+158	DG-157	W2	Personalized Pillows	Wedding	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-148	No
+159	DG-158	W2	Personalized Pillows	Anniversary	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-149	No
+160	DG-159	W2	Personalized Pillows	Mom	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+161	DG-160	W2	Personalized Pillows	Dad	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+162	DG-161	W2	Personalized Pillows	Grandparents	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-150	No
+163	DG-162	W2	Personalized Pillows	Child	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-151	No
+164	DG-163	W2	Personalized Pillows	Baby	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-152	No
+165	DG-164	W2	Personalized Pillows	Family	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-153	No
+166	DG-165	W2	Personalized Pillows	Best friend	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-154	No
+167	DG-166	W2	Personalized Pillows	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-155	No
+168	DG-167	W2	Personalized Pillows	Birthday	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+169	DG-168	W2	Personalized Pillows	Graduation	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+170	DG-169	W2	Personalized Pillows	Travel	SINGLE_PHOTO	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+171	DG-170	W2	Personalized Pillows	Multi-photo	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-156	No
+172	DG-171	W2	Personalized Pillows	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-157	No
+173	DG-172	W2	Personalized Pillows	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-158	No
+174	DG-173	W2	Personalized Pillows	Line-art pet	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-159	No
+175	DG-174	W2	Personalized Pillows	Watercolor pet	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-160	No
+176	DG-175	W2	Personalized Pillows	Photo + name	SINGLE_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-161	No
+177	DG-176	W2	Personalized Phone Cases	Pet	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-162	No
+178	DG-177	W2	Personalized Phone Cases	Pet + name	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-163	No
+179	DG-178	W2	Personalized Phone Cases	Couple	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-164	No
+180	DG-179	W2	Personalized Phone Cases	Wedding	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-165	No
+181	DG-180	W2	Personalized Phone Cases	Family	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-166	No
+182	DG-181	W2	Personalized Phone Cases	Baby	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-167	No
+183	DG-182	W2	Personalized Phone Cases	Child	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-168	No
+184	DG-183	W2	Personalized Phone Cases	Mom	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-169	No
+185	DG-184	W2	Personalized Phone Cases	Dad	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-170	No
+186	DG-185	W2	Personalized Phone Cases	Grandparents	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-171	No
+187	DG-186	W2	Personalized Phone Cases	Best friend	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-172	No
+188	DG-187	W2	Personalized Phone Cases	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-173	No
+189	DG-188	W2	Personalized Phone Cases	Travel	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-174	No
+190	DG-189	W2	Personalized Phone Cases	Collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-175	No
+191	DG-190	W2	Personalized Phone Cases	Initials	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-176	No
+192	DG-191	W2	Personalized Phone Cases	Monogram	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-177	No
+193	DG-192	W2	Personalized Phone Cases	Name pattern	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-178	No
+194	DG-193	W2	Personalized Phone Cases	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-179	No
+195	DG-194	W2	Personalized Phone Cases	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-180	No
+196	DG-195	W2	Personalized Phone Cases	Birth flower + name	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-181	No
+197	DG-196	W2	Personalized Phone Cases	Photo strip	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-182	No
+198	DG-197	W2	Personalized Phone Cases	Retro collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-183	No
+199	DG-198	W2	Personalized Phone Cases	Watercolor pet	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-184	No
+200	DG-199	W2	Personalized Phone Cases	Line-art portrait	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-185	No
+201	DG-200	W2	Personalized Phone Cases	Custom photo	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-186	No
+202	DG-201	W2	Personalized Tote Bags	Pet portrait	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-187	No
+203	DG-202	W2	Personalized Tote Bags	Dog mom	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+204	DG-203	W2	Personalized Tote Bags	Cat mom	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+205	DG-204	W2	Personalized Tote Bags	Dog dad	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+206	DG-205	W2	Personalized Tote Bags	Pet name	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-188	No
+207	DG-206	W2	Personalized Tote Bags	Multi-pet	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-189	No
+208	DG-207	W2	Personalized Tote Bags	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-190	No
+209	DG-208	W2	Personalized Tote Bags	Human photo	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-191	No
+210	DG-209	W2	Personalized Tote Bags	Family	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-192	No
+211	DG-210	W2	Personalized Tote Bags	Mom	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+212	DG-211	W2	Personalized Tote Bags	Grandma	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+213	DG-212	W2	Personalized Tote Bags	Teacher	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-193	No
+214	DG-213	W2	Personalized Tote Bags	Bridesmaid	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-194	No
+215	DG-214	W2	Personalized Tote Bags	Bride	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-195	No
+216	DG-215	W2	Personalized Tote Bags	Wedding	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-196	No
+217	DG-216	W2	Personalized Tote Bags	Best friend	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-197	No
+218	DG-217	W2	Personalized Tote Bags	Baby	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+219	DG-218	W2	Personalized Tote Bags	Child artwork	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-198	No
+220	DG-219	W2	Personalized Tote Bags	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-199	No
+221	DG-220	W2	Personalized Tote Bags	Book-lover name	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-200	No
+222	DG-221	W2	Personalized Tote Bags	Travel	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-201	No
+223	DG-222	W2	Personalized Tote Bags	Graduation	PET_PORTRAIT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+224	DG-223	W2	Personalized Tote Bags	Photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-202	No
+225	DG-224	W2	Personalized Tote Bags	Line-art pet	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-203	No
+226	DG-225	W2	Personalized Tote Bags	Photo + text	PET_PORTRAIT	KEEP	Retain as an active v2 listing concept.	DG2-204	No
+227	DG-226	W3	Personalized Ornaments	Pet	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-205	No
+228	DG-227	W3	Personalized Ornaments	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-206	No
+229	DG-228	W3	Personalized Ornaments	Family	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-207	No
+230	DG-229	W3	Personalized Ornaments	Couple	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-208	No
+231	DG-230	W3	Personalized Ornaments	First Christmas married	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-209	No
+232	DG-231	W3	Personalized Ornaments	Engagement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-210	No
+233	DG-232	W3	Personalized Ornaments	Wedding	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-211	No
+234	DG-233	W3	Personalized Ornaments	New home	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-212	No
+235	DG-234	W3	Personalized Ornaments	New baby	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-213	No
+236	DG-235	W3	Personalized Ornaments	Baby first Christmas	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-214	No
+237	DG-236	W3	Personalized Ornaments	Pregnancy announcement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-215	No
+238	DG-237	W3	Personalized Ornaments	Mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-216	No
+239	DG-238	W3	Personalized Ornaments	Dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-217	No
+240	DG-239	W3	Personalized Ornaments	Grandparents	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-218	No
+241	DG-240	W3	Personalized Ornaments	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-219	No
+242	DG-241	W3	Personalized Ornaments	Graduation	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-220	No
+243	DG-242	W3	Personalized Ornaments	Travel	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-221	No
+244	DG-243	W3	Personalized Ornaments	First home	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-222	No
+245	DG-244	W3	Personalized Ornaments	Family reunion	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-223	No
+246	DG-245	W3	Personalized Ornaments	Friendship	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-224	No
+247	DG-246	W3	Personalized Ornaments	Child artwork	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-225	No
+248	DG-247	W3	Personalized Ornaments	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-226	No
+249	DG-248	W3	Personalized Ornaments	Annual family photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-227	No
+250	DG-249	W3	Personalized Ornaments	Anniversary	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-228	No
+251	DG-250	W3	Personalized Ornaments	Photo/date	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-229	No
+252	DG-251	W3	Personalized Posters	Pet portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-230	No
+253	DG-252	W3	Personalized Posters	Watercolor pet	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-231	No
+254	DG-253	W3	Personalized Posters	Line-art pet	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-232	No
+255	DG-254	W3	Personalized Posters	Family portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-233	No
+256	DG-255	W3	Personalized Posters	Couple	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-234	No
+257	DG-256	W3	Personalized Posters	Wedding	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-235	No
+258	DG-257	W3	Personalized Posters	Anniversary	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-236	No
+259	DG-258	W3	Personalized Posters	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-237	No
+260	DG-259	W3	Personalized Posters	Baby birth stats	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-238	No
+261	DG-260	W3	Personalized Posters	Family tree	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-239	No
+262	DG-261	W3	Personalized Posters	Grandparents	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-240	No
+263	DG-262	W3	Personalized Posters	Mom	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-241	No
+264	DG-263	W3	Personalized Posters	Dad	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-242	No
+265	DG-264	W3	Personalized Posters	House portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-243	No
+266	DG-265	W3	Personalized Posters	Travel photo	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-244	No
+267	DG-266	W3	Personalized Posters	Graduation	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-245	No
+268	DG-267	W3	Personalized Posters	Birthday	WATERCOLOR	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+269	DG-268	W3	Personalized Posters	Friendship	WATERCOLOR	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+270	DG-269	W3	Personalized Posters	Quote + photo	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-246	No
+271	DG-270	W3	Personalized Posters	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-247	No
+272	DG-271	W3	Personalized Posters	Child artwork	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-248	No
+273	DG-272	W3	Personalized Posters	Photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-249	No
+274	DG-273	W3	Personalized Posters	Anniversary story	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-250	No
+275	DG-274	W3	Personalized Posters	Minimalist portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-251	No
+276	DG-275	W3	Personalized Posters	Multi-generation	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-252	No
+277	DG-276	W3	Personalized Canvas	Wedding	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-253	No
+278	DG-277	W3	Personalized Canvas	Anniversary	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-254	No
+279	DG-278	W3	Personalized Canvas	Family	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-255	No
+280	DG-279	W3	Personalized Canvas	Grandparents	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-256	No
+281	DG-280	W3	Personalized Canvas	Baby	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-257	No
+282	DG-281	W3	Personalized Canvas	Pet	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-258	No
+283	DG-282	W3	Personalized Canvas	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-259	No
+284	DG-283	W3	Personalized Canvas	Human memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-260	No
+285	DG-284	W3	Personalized Canvas	Home portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-261	No
+286	DG-285	W3	Personalized Canvas	Couple	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-262	No
+287	DG-286	W3	Personalized Canvas	Travel	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-263	No
+288	DG-287	W3	Personalized Canvas	Graduation	WATERCOLOR	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+289	DG-288	W3	Personalized Canvas	Retirement	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-264	No
+290	DG-289	W3	Personalized Canvas	Parents	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-265	No
+291	DG-290	W3	Personalized Canvas	Mom	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-266	No
+292	DG-291	W3	Personalized Canvas	Dad	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-267	No
+293	DG-292	W3	Personalized Canvas	Best friend	WATERCOLOR	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+294	DG-293	W3	Personalized Canvas	Multi-generation	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-268	No
+295	DG-294	W3	Personalized Canvas	Collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-269	No
+296	DG-295	W3	Personalized Canvas	Watercolor portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-270	No
+297	DG-296	W3	Personalized Canvas	Line art	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-271	No
+298	DG-297	W3	Personalized Canvas	Vintage portrait	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-272	No
+299	DG-298	W3	Personalized Canvas	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-273	No
+300	DG-299	W3	Personalized Canvas	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-274	No
+301	DG-300	W3	Personalized Canvas	Family-name/photo	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-275	No
+302	DG-301	W3	Personalized Journals	Name	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-276	No
+303	DG-302	W3	Personalized Journals	Initials	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-277	No
+304	DG-303	W3	Personalized Journals	Monogram	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-278	No
+305	DG-304	W3	Personalized Journals	Pet	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-279	No
+306	DG-305	W3	Personalized Journals	Pet + name	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-280	No
+307	DG-306	W3	Personalized Journals	Family photo	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-281	No
+308	DG-307	W3	Personalized Journals	Couple	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-282	No
+309	DG-308	W3	Personalized Journals	Wedding keepsake	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-283	No
+310	DG-309	W3	Personalized Journals	Bride	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-284	No
+311	DG-310	W3	Personalized Journals	Bridesmaid	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-285	No
+312	DG-311	W3	Personalized Journals	Mom	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-286	No
+313	DG-312	W3	Personalized Journals	Grandma	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-287	No
+314	DG-313	W3	Personalized Journals	Dad	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-288	No
+315	DG-314	W3	Personalized Journals	Teacher	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-289	No
+316	DG-315	W3	Personalized Journals	Student	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-290	No
+317	DG-316	W3	Personalized Journals	Graduation	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-291	No
+318	DG-317	W3	Personalized Journals	Baby journal	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-292	No
+319	DG-318	W3	Personalized Journals	Travel	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-293	No
+320	DG-319	W3	Personalized Journals	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-294	No
+321	DG-320	W3	Personalized Journals	Recipe memories	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-295	No
+322	DG-321	W3	Personalized Journals	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-296	No
+323	DG-322	W3	Personalized Journals	Child art	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-297	No
+324	DG-323	W3	Personalized Journals	Birth flower/name	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-298	No
+325	DG-324	W3	Personalized Journals	Photo collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-299	No
+326	DG-325	W3	Personalized Journals	Affirmation journal	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-300	No
+327	DG-326	W3	Personalized Candles	Couple	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-301	No
+328	DG-327	W3	Personalized Candles	Anniversary	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-302	No
+329	DG-328	W3	Personalized Candles	Engagement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-303	No
+330	DG-329	W3	Personalized Candles	Wedding	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-304	No
+331	DG-330	W3	Personalized Candles	Bridesmaid	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-305	No
+332	DG-331	W3	Personalized Candles	Maid of honor	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+333	DG-332	W3	Personalized Candles	Best friend	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-306	No
+334	DG-333	W3	Personalized Candles	Mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-307	No
+335	DG-334	W3	Personalized Candles	Dad	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+336	DG-335	W3	Personalized Candles	Grandma	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+337	DG-336	W3	Personalized Candles	Daughter	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+338	DG-337	W3	Personalized Candles	Coworker	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+339	DG-338	W3	Personalized Candles	Teacher	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+340	DG-339	W3	Personalized Candles	Graduation	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+341	DG-340	W3	Personalized Candles	Birthday	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+342	DG-341	W3	Personalized Candles	Pet	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+343	DG-342	W3	Personalized Candles	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-308	No
+344	DG-343	W3	Personalized Candles	Human memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-309	No
+345	DG-344	W3	Personalized Candles	Family	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+346	DG-345	W3	Personalized Candles	Funny face	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+347	DG-346	W3	Personalized Candles	Photo + message	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+348	DG-347	W3	Personalized Candles	New home	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-310	No
+349	DG-348	W3	Personalized Candles	Thank-you	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+350	DG-349	W3	Personalized Candles	Retirement	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+351	DG-350	W3	Personalized Candles	Christmas photo	PHOTO_TEXT	DOWNGRADE	Preserve as an occasion/recipient overlay or test candidate; remove from the initial dedicated-listing allocation.		Yes
+352	DG-351	W3	Personalized Drinkware	Pet photo tumbler	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-311	No
+353	DG-352	W3	Personalized Drinkware	Pet + name	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-312	No
+354	DG-353	W3	Personalized Drinkware	Dog mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-313	No
+355	DG-354	W3	Personalized Drinkware	Dog dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-314	No
+356	DG-355	W3	Personalized Drinkware	Cat mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-315	No
+357	DG-356	W3	Personalized Drinkware	Cat dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-316	No
+358	DG-357	W3	Personalized Drinkware	Couple	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-317	No
+359	DG-358	W3	Personalized Drinkware	Bride	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-318	No
+360	DG-359	W3	Personalized Drinkware	Bridesmaid	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-319	No
+361	DG-360	W3	Personalized Drinkware	Mom	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-320	No
+362	DG-361	W3	Personalized Drinkware	Dad	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-321	No
+363	DG-362	W3	Personalized Drinkware	Grandma	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-322	No
+364	DG-363	W3	Personalized Drinkware	Grandpa	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-323	No
+365	DG-364	W3	Personalized Drinkware	Teacher	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-324	No
+366	DG-365	W3	Personalized Drinkware	Nurse	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-325	No
+367	DG-366	W3	Personalized Drinkware	Coworker	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-326	No
+368	DG-367	W3	Personalized Drinkware	Graduation	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-327	No
+369	DG-368	W3	Personalized Drinkware	Sports-photo keepsake	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-328	No
+370	DG-369	W3	Personalized Drinkware	Travel	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-329	No
+371	DG-370	W3	Personalized Drinkware	Family collage	PHOTO_COLLAGE	KEEP	Retain as an active v2 listing concept.	DG2-330	No
+372	DG-371	W3	Personalized Drinkware	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-331	No
+373	DG-372	W3	Personalized Drinkware	Child artwork	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-332	No
+374	DG-373	W3	Personalized Drinkware	Monogram	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-333	No
+375	DG-374	W3	Personalized Drinkware	Name pattern	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-334	No
+376	DG-375	W3	Personalized Drinkware	Memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-335	No
+377	DG-376	W3	Baby & Kids	Name bodysuit	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-336	No
+378	DG-377	W3	Baby & Kids	Birth stats	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-337	No
+379	DG-378	W3	Baby & Kids	Baby photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-338	No
+380	DG-379	W3	Baby & Kids	First birthday	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-339	No
+381	DG-380	W3	Baby & Kids	First Christmas	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-340	No
+382	DG-381	W3	Baby & Kids	First Mother Day	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-341	No
+383	DG-382	W3	Baby & Kids	First Father Day	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-342	No
+384	DG-383	W3	Baby & Kids	Grandparent announcement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-343	No
+385	DG-384	W3	Baby & Kids	Pregnancy announcement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-344	No
+386	DG-385	W3	Baby & Kids	Sibling announcement	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-345	No
+387	DG-386	W3	Baby & Kids	Family photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-346	No
+388	DG-387	W3	Baby & Kids	Child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-347	No
+389	DG-388	W3	Baby & Kids	Handwriting	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-348	No
+390	DG-389	W3	Baby & Kids	Toddler photo tee	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-349	No
+391	DG-390	W3	Baby & Kids	Birthday kid	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-350	No
+392	DG-391	W3	Baby & Kids	School photo	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-351	No
+393	DG-392	W3	Baby & Kids	Graduation/year	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-352	No
+394	DG-393	W3	Baby & Kids	Pet + child	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-353	No
+395	DG-394	W3	Baby & Kids	Name pattern	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-354	No
+396	DG-395	W3	Baby & Kids	Initials	NAME_MONOGRAM	KEEP	Retain as an active v2 listing concept.	DG2-355	No
+397	DG-396	W3	Baby & Kids	Nursery keepsake	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-356	No
+398	DG-397	W3	Baby & Kids	Baby blanket	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-357	No
+399	DG-398	W3	Baby & Kids	Baby memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-358	No
+400	DG-399	W3	Baby & Kids	Adoption day	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-359	No
+401	DG-400	W3	Baby & Kids	Family illustration	PHOTO_TEXT	KEEP	Retain as an active v2 listing concept.	DG2-360	No
+402	DG-401	W4	AOP Leggings	Dog face repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-361	No
+403	DG-402	W4	AOP Leggings	Cat face repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-362	No
+404	DG-403	W4	AOP Leggings	Multiple pets	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-363	No
+405	DG-404	W4	AOP Leggings	Boyfriend	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+406	DG-405	W4	AOP Leggings	Girlfriend	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+407	DG-406	W4	AOP Leggings	Husband	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+408	DG-407	W4	AOP Leggings	Wife	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+409	DG-408	W4	AOP Leggings	Couple faces	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-364	No
+410	DG-409	W4	AOP Leggings	Baby face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+411	DG-410	W4	AOP Leggings	Child face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+412	DG-411	W4	AOP Leggings	Mom	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+413	DG-412	W4	AOP Leggings	Dad	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+414	DG-413	W4	AOP Leggings	Best friend	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+415	DG-414	W4	AOP Leggings	Birthday	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+416	DG-415	W4	AOP Leggings	Bride	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+417	DG-416	W4	AOP Leggings	Bridesmaids	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+418	DG-417	W4	AOP Leggings	Christmas	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-365	No
+419	DG-418	W4	AOP Leggings	Valentine	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+420	DG-419	W4	AOP Leggings	Graduation	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+421	DG-420	W4	AOP Leggings	Pet + name repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-366	No
+422	DG-421	W4	AOP Leggings	Face + hearts	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-367	No
+423	DG-422	W4	AOP Leggings	Face + flowers	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-368	No
+424	DG-423	W4	AOP Leggings	Face + color	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+425	DG-424	W4	AOP Leggings	Multi-face family	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-369	No
+426	DG-425	W4	AOP Leggings	Face + message	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-370	No
+427	DG-426	W4	Personalized Pajamas	Dog face repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-371	No
+428	DG-427	W4	Personalized Pajamas	Cat face repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-372	No
+429	DG-428	W4	Personalized Pajamas	Multi-pet repeat	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-373	No
+430	DG-429	W4	Personalized Pajamas	Pet + name	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-374	No
+431	DG-430	W4	Personalized Pajamas	Boyfriend face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+432	DG-431	W4	Personalized Pajamas	Girlfriend face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+433	DG-432	W4	Personalized Pajamas	Husband face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+434	DG-433	W4	Personalized Pajamas	Wife face	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+435	DG-434	W4	Personalized Pajamas	Couple faces	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-375	No
+436	DG-435	W4	Personalized Pajamas	Child face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-376	No
+437	DG-436	W4	Personalized Pajamas	Baby face	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-377	No
+438	DG-437	W4	Personalized Pajamas	Family faces	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-378	No
+439	DG-438	W4	Personalized Pajamas	Dad	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+440	DG-439	W4	Personalized Pajamas	Mom	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+441	DG-440	W4	Personalized Pajamas	Grandpa	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+442	DG-441	W4	Personalized Pajamas	Grandma	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+443	DG-442	W4	Personalized Pajamas	Best friend	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+444	DG-443	W4	Personalized Pajamas	Birthday	FACE_REPEAT	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+445	DG-444	W4	Personalized Pajamas	Bride	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-379	No
+446	DG-445	W4	Personalized Pajamas	Bridesmaids	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-380	No
+447	DG-446	W4	Personalized Pajamas	Christmas family	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-381	No
+448	DG-447	W4	Personalized Pajamas	Valentine couple	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-382	No
+449	DG-448	W4	Personalized Pajamas	Father Day	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-383	No
+450	DG-449	W4	Personalized Pajamas	Mother Day	FACE_REPEAT	KEEP	Retain as an active v2 listing concept.	DG2-384	No
+451	DG-450	W4	Personalized Pajamas	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-385	No
+452	DG-451	W5	Family/Couple/Memorial Gifts	Wedding photo gift	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-386	No
+453	DG-452	W5	Family/Couple/Memorial Gifts	First anniversary	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-387	No
+454	DG-453	W5	Family/Couple/Memorial Gifts	10th anniversary	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-388	No
+455	DG-454	W5	Family/Couple/Memorial Gifts	25th anniversary	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-389	No
+456	DG-455	W5	Family/Couple/Memorial Gifts	50th anniversary	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-390	No
+457	DG-456	W5	Family/Couple/Memorial Gifts	Newlywed	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-391	No
+458	DG-457	W5	Family/Couple/Memorial Gifts	Engagement	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-392	No
+459	DG-458	W5	Family/Couple/Memorial Gifts	Long-distance couple	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-393	No
+460	DG-459	W5	Family/Couple/Memorial Gifts	New baby	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-394	No
+461	DG-460	W5	Family/Couple/Memorial Gifts	Pregnancy announcement	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-395	No
+462	DG-461	W5	Family/Couple/Memorial Gifts	Mother Day	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-396	No
+463	DG-462	W5	Family/Couple/Memorial Gifts	Father Day	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-397	No
+464	DG-463	W5	Family/Couple/Memorial Gifts	Grandma	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-398	No
+465	DG-464	W5	Family/Couple/Memorial Gifts	Grandpa	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-399	No
+466	DG-465	W5	Family/Couple/Memorial Gifts	Family reunion	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-400	No
+467	DG-466	W5	Family/Couple/Memorial Gifts	Graduation	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-401	No
+468	DG-467	W5	Family/Couple/Memorial Gifts	Retirement	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-402	No
+469	DG-468	W5	Family/Couple/Memorial Gifts	New home	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-403	No
+470	DG-469	W5	Family/Couple/Memorial Gifts	Pet memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-404	No
+471	DG-470	W5	Family/Couple/Memorial Gifts	Human memorial	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-405	No
+472	DG-471	W5	Family/Couple/Memorial Gifts	Sympathy keepsake	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-406	No
+473	DG-472	W5	Family/Couple/Memorial Gifts	Best-friend milestone	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-407	No
+474	DG-473	W5	Family/Couple/Memorial Gifts	Vacation memory	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-408	No
+475	DG-474	W5	Family/Couple/Memorial Gifts	Adoption day	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-409	No
+476	DG-475	W5	Family/Couple/Memorial Gifts	Multi-generation	MULTI_PHOTO	KEEP	Retain as an active v2 listing concept.	DG2-410	No
+477	DG-476	W5	Advanced Transformations	Watercolor pet	WATERCOLOR	KEEP	Retain as an active v2 listing concept.	DG2-411	No
+478	DG-477	W5	Advanced Transformations	Watercolor human	WATERCOLOR	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+479	DG-478	W5	Advanced Transformations	Pet line art	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-412	No
+480	DG-479	W5	Advanced Transformations	Couple line art	LINE_ART	KEEP	Retain as an active v2 listing concept.	DG2-413	No
+481	DG-480	W5	Advanced Transformations	Pencil portrait	AI_TRANSFORM	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+482	DG-481	W5	Advanced Transformations	Vintage painted portrait	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-414	No
+483	DG-482	W5	Advanced Transformations	Regal pet	AI_TRANSFORM	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+484	DG-483	W5	Advanced Transformations	Floral pet	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-415	No
+485	DG-484	W5	Advanced Transformations	Retro varsity pet	AI_TRANSFORM	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+486	DG-485	W5	Advanced Transformations	Minimalist pet name	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-416	No
+487	DG-486	W5	Advanced Transformations	Retro 90s collage	PHOTO_COLLAGE	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+488	DG-487	W5	Advanced Transformations	Film-strip couple	AI_TRANSFORM	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+489	DG-488	W5	Advanced Transformations	Family story layout	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-417	No
+490	DG-489	W5	Advanced Transformations	Anniversary story	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-418	No
+491	DG-490	W5	Advanced Transformations	Baby birth-stat illustration	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-419	No
+492	DG-491	W5	Advanced Transformations	House illustration	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-420	No
+493	DG-492	W5	Advanced Transformations	Clean child drawing	CHILD_ART	KEEP	Retain as an active v2 listing concept.	DG2-421	No
+494	DG-493	W5	Advanced Transformations	Handwriting keepsake	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-422	No
+495	DG-494	W5	Advanced Transformations	Recipe keepsake	HANDWRITING	KEEP	Retain as an active v2 listing concept.	DG2-423	No
+496	DG-495	W5	Advanced Transformations	Multi-pet family portrait	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-424	No
+497	DG-496	W5	Advanced Transformations	Old photo restoration	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-425	No
+498	DG-497	W5	Advanced Transformations	Memorial composition	MEMORIAL	KEEP	Retain as an active v2 listing concept.	DG2-426	No
+499	DG-498	W5	Advanced Transformations	Travel collage	PHOTO_COLLAGE	MERGE	Keep the buyer intent as a recipient/style/personalization option; do not spend a dedicated listing slot.		Yes
+500	DG-499	W5	Advanced Transformations	Family-history composition	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-427	No
+501	DG-500	W5	Advanced Transformations	AI decorative scene	AI_TRANSFORM	KEEP	Retain as an active v2 listing concept.	DG2-428	No

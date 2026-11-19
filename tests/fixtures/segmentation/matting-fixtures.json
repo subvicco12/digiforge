@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "fixtures": [
+    {
+      "id": "astronaut-srgb",
+      "file": "astronaut-srgb.png",
+      "sha256": "2418889d0d83962d51facc3832b55cf1849690018a1e873d1c551146555cd02f",
+      "original_file": "astronaut.png",
+      "original_sha256": "2af4e2e7110476b362a30cceb4d85eed7ae069b2c9fa3c1cddc83be661ba0ceb",
+      "conversion": "Pillow 12.3.0 ImageCms.profileToProfile from embedded sRGB IEC61966-2.1 to built-in sRGB, RGB output; metadata removed. If no profile, explicit RGB conversion.",
+      "rights": "Public domain; NASA photograph, upstream states no known copyright restrictions.",
+      "rights_evidence": "upstream-license-source.txt",
+      "rights_evidence_sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+      "scope": "OFFLINE_SOFTWARE_TEST_ONLY; not customer consent, head ground truth, commercial artistic acceptance or supplier certification"
+    },
+    {
+      "id": "chelsea-srgb",
+      "file": "chelsea-srgb.png",
+      "sha256": "9540e8d656047041ae92c8c19f8aeb2baa4ede5a17030470e8a1cfc7bb26182a",
+      "original_file": "chelsea.png",
+      "original_sha256": "27df203838031fbff8693633c4cebefaf5e00455f6cd5c7fa3bb4cf007620649",
+      "conversion": "Pillow 12.3.0 ImageCms.profileToProfile from embedded sRGB IEC61966-2.1 to built-in sRGB, RGB output; metadata removed. If no profile, explicit RGB conversion.",
+      "rights": "CC0; photographer Stefan van der Walt, stated by upstream.",
+      "rights_evidence": "upstream-license-source.txt",
+      "rights_evidence_sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+      "scope": "OFFLINE_SOFTWARE_TEST_ONLY; not customer consent, head ground truth, commercial artistic acceptance or supplier certification"
+    }
+  ],
+  "reviewed_alpha_references": "MISSING",
+  "commercial_certification": false
+}

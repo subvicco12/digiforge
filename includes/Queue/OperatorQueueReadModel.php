@@ -43,11 +43,11 @@ final class OperatorQueueReadModel {
   if(($d['rate_limit_evidence']??0)>0)$classification[]='RATE_LIMIT_EVIDENCE_REQUIRES_BACKOFF_REVIEW';
   if(($d['unresolved_idempotency_evidence']??0)>0)$classification[]='IDEMPOTENCY_EVIDENCE_REQUIRES_RECONCILIATION';
   if(($d['dead_letter_jobs']??0)>0)$classification[]='DEAD_LETTER_REQUIRES_OPERATOR_REVIEW';
-  return ['classifications'=>$classification,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false,'read_only'=>true];
+  return ['query_state'=>(string)($d['query_state']??'UNAVAILABLE'),'classifications'=>$classification,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false,'read_only'=>true];
  }
  public function recoveryEvidence(int $limit=25):array {
   $attentionState=null;$idemState=null;$attention=$this->recentAttention($limit,$attentionState);$idem=$this->unresolvedIdempotency($limit,$idemState);$class=$this->recoveryClassification();
-  $available=$attentionState==='AVAILABLE'&&$idemState==='AVAILABLE';
+  $available=$attentionState==='AVAILABLE'&&$idemState==='AVAILABLE'&&($class['query_state']??'UNAVAILABLE')==='AVAILABLE';
   return ['query_state'=>$available?'AVAILABLE':'UNAVAILABLE','attention'=>$attention,'unresolved_idempotency'=>$idem,'classification'=>$class,'correlation'=>['attention_count'=>$attentionState==='AVAILABLE'?count($attention):null,'idempotency_count'=>$idemState==='AVAILABLE'?count($idem):null,'requires_operator_review'=>!$available||$attention!==[]||$idem!==[]],'read_only'=>true,'automatic_recovery_permitted'=>false,'replay_permitted'=>false,'retry_permitted'=>false,'external_execution_authorized'=>false];
  }
 }

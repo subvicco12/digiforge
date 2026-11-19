@@ -7,7 +7,30 @@ use WP_Error;
 /** Immutable certified render evidence; review never performs provider execution. */
 final class RenderEvidenceRepository
 {
- public function create(array $input):array|WP_Error{
+ public function createFromArtifacts(array $input,string $outputPath,string $previewPath):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFromArtifactsFenced($input,$outputPath,$previewPath);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFromArtifactsFenced(array $input,string $outputPath,string $previewPath):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);
+  $v=new RenderArtifactVerifier();$output=$v->readArtifact($outputPath);if($output instanceof WP_Error)return $output;$preview=$v->readArtifact($previewPath);if($preview instanceof WP_Error)return $preview;
+  $input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordFromArtifacts($render,$outputPath,$previewPath);return $receipt instanceof WP_Error?$receipt:$render;
+ }
+ public function createFromPanelArtifacts(array $input,array $outputPaths,array $previewPaths):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFromPanelArtifactsFenced($input,$outputPaths,$previewPaths);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFromPanelArtifactsFenced(array $input,array $outputPaths,array $previewPaths):array|WP_Error {
+  if(!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authorized POD reviewer required.',['status'=>403]);$v=new RenderArtifactVerifier();$output=$v->readPanels($outputPaths);if($output instanceof WP_Error)return $output;$preview=$v->readPanels($previewPaths);if($preview instanceof WP_Error)return $preview;$input['output_sha256']=$output['sha256'];$input['buyer_preview_sha256']=$preview['sha256'];$render=$this->create($input);if($render instanceof WP_Error)return $render;$receipt=$v->recordPanelArtifacts($render,$outputPaths,$previewPaths);return $receipt instanceof WP_Error?$receipt:$render;
+ }
+ public function create(array $input):array|WP_Error {
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->createFenced($input);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function createFenced(array $input):array|WP_Error {
   global $wpdb;$orderId=absint($input['order_id']??0);$mappingId=absint($input['provider_mapping_id']??0);
   $templateKey=sanitize_text_field((string)($input['template_key']??''));$version=sanitize_text_field((string)($input['template_version']??''));
   $templateHash=strtolower(trim((string)($input['template_sha256']??'')));$personalizationHash=strtolower(trim((string)($input['personalization_evidence_hash']??'')));$outputHash=strtolower(trim((string)($input['output_sha256']??'')));$previewHash=strtolower(trim((string)($input['buyer_preview_sha256']??'')));
@@ -20,15 +43,23 @@ final class RenderEvidenceRepository
   $wpdb->last_error='';$personalizationRaw=$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM ".Tables::personalization_submissions()." ps INNER JOIN ".Tables::order_line_items()." li ON li.id=ps.order_line_item_id WHERE li.order_id=%d AND li.provider_mapping_id=%d AND ps.payload_hash=%s AND ps.review_status='APPROVED' AND ps.reviewed_by>0 AND ps.reviewed_at IS NOT NULL",$orderId,$mappingId,$personalizationHash));
   if(!empty($wpdb->last_error)||!is_numeric($personalizationRaw))return self::evidenceUnavailable();$personalizationCount=(int)$personalizationRaw;
   if($personalizationCount<1)return new WP_Error('render_personalization_not_approved','Render evidence must bind current approved personalization evidence for the mapped order line.',['status'=>409]);
-  $canonical=wp_json_encode(['order_id'=>$orderId,'provider_mapping_id'=>$mappingId,'template_key'=>$templateKey,'template_version'=>$version,'template_sha256'=>$templateHash,'personalization_evidence_hash'=>$personalizationHash,'render_mode'=>$mode,'output_sha256'=>$outputHash,'buyer_preview_sha256'=>$previewHash]);$evidenceHash=hash('sha256',(string)$canonical);
+  $selection=(new CustomerPhotoSelection())->forRender(['order_id'=>$orderId,'provider_mapping_id'=>$mappingId,'personalization_evidence_hash'=>$personalizationHash]);if($selection instanceof WP_Error)return $selection;
+  $canonical=wp_json_encode(['order_id'=>$orderId,'provider_mapping_id'=>$mappingId,'template_key'=>$templateKey,'template_version'=>$version,'template_sha256'=>$templateHash,'personalization_evidence_hash'=>$personalizationHash,'render_mode'=>$mode,'output_sha256'=>$outputHash,'buyer_preview_sha256'=>$previewHash]+($selection===null?[]:['photo_selection_sha256'=>$selection['sha256']]));$evidenceHash=hash('sha256',(string)$canonical);
   $wpdb->last_error='';$old=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE evidence_hash=%s',$evidenceHash),ARRAY_A);if(!empty($wpdb->last_error))return self::evidenceUnavailable();if(is_array($old))return $old+['idempotent_replay'=>true];
   $ok=$wpdb->insert(Tables::pod_render_evidence(),['order_id'=>$orderId,'provider_mapping_id'=>$mappingId,'template_key'=>$templateKey,'template_version'=>$version,'template_sha256'=>$templateHash,'personalization_evidence_hash'=>$personalizationHash,'render_mode'=>$mode,'output_sha256'=>$outputHash,'evidence_hash'=>$evidenceHash,'review_status'=>'UNREVIEWED','reviewed_by'=>0,'reviewed_at'=>null,'external_execution_performed'=>0,'created_at'=>current_time('mysql',true)]);
   if($ok!==1){$wpdb->last_error='';$winner=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE evidence_hash=%s',$evidenceHash),ARRAY_A);if(!empty($wpdb->last_error))return new WP_Error('render_evidence_race_unavailable','Concurrent render evidence could not be read; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);if(is_array($winner))return $winner+['idempotent_replay'=>true];return new WP_Error('render_evidence_persistence_failed','Render evidence could not be persisted.',['status'=>500,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
   $wpdb->last_error='';$created=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',(int)$wpdb->insert_id),ARRAY_A);if(!is_array($created)||!empty($wpdb->last_error))return new WP_Error('render_evidence_confirmation_unavailable','Render evidence was persisted but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $created;
  }
  private static function evidenceUnavailable():WP_Error{return new WP_Error('render_evidence_unavailable','Render prerequisite evidence is unavailable; render certification is blocked.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);}
- public function approve(int $id):array|WP_Error{
-  global $wpdb;$reviewer=get_current_user_id();if($reviewer<1)return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);$now=current_time('mysql',true);
+ public function approve(int $id):array|WP_Error {
+  if(get_current_user_id()<1||!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);
+  $fence=CustomerPhotoProducerFence::acquireMutation();if($fence instanceof WP_Error)return $fence;
+  try{$result=$this->approveFenced($id);$valid=$fence->validate();}finally{$released=$fence->release();}
+  if($valid instanceof WP_Error)return $valid;if($released instanceof WP_Error)return $released;return $result;
+ }
+ private function approveFenced(int $id):array|WP_Error {
+  global $wpdb;$reviewer=get_current_user_id();if($reviewer<1||!current_user_can('manage_digiforge_pod'))return new WP_Error('render_reviewer_required','Authenticated human visual reviewer required.',['status'=>403]);$now=current_time('mysql',true);
+  $wpdb->last_error='';$render=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$id),ARRAY_A);if($wpdb->last_error!==''||!is_array($render))return self::evidenceUnavailable();$certified=(new RenderArtifactVerifier())->assertCertified($render);if($certified instanceof WP_Error)return $certified;
   $wpdb->last_error='';$ok=$wpdb->update(Tables::pod_render_evidence(),['review_status'=>'APPROVED','reviewed_by'=>$reviewer,'reviewed_at'=>$now],['id'=>$id,'review_status'=>'UNREVIEWED','external_execution_performed'=>0]);
   if($ok!==1){if(!empty($wpdb->last_error))return new WP_Error('render_review_persistence_failed','Render review could not be persisted.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return new WP_Error('render_review_conflict','Render evidence must be unreviewed and cannot be overwritten.',['status'=>409]);}
   $wpdb->last_error='';$approved=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::pod_render_evidence().' WHERE id=%d',$id),ARRAY_A);if(!is_array($approved)||!empty($wpdb->last_error))return new WP_Error('render_review_confirmation_unavailable','Render review update completed but confirmation evidence is unavailable; do not retry automatically.',['status'=>503,'retry_permitted'=>false,'external_execution_authorized'=>false]);return $approved;

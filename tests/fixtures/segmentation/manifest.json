@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "astronaut",
+      "file": "astronaut.png",
+      "sha256": "2af4e2e7110476b362a30cceb4d85eed7ae069b2c9fa3c1cddc83be661ba0ceb",
+      "upstream_url": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.19.3/skimage/data/astronaut.png",
+      "upstream_sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5",
+      "rights": "Public domain; NASA photograph, upstream states no known copyright restrictions.",
+      "rights_evidence": "upstream-license-source.txt",
+      "rights_evidence_sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+      "selection": {
+        "subjects": [
+          {
+            "x": 140,
+            "y": 35,
+            "width": 155,
+            "height": 180
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 222,
+            "y": 110
+          }
+        ]
+      },
+      "scope": "OFFLINE_SOFTWARE_TEST_ONLY; not customer consent, head ground truth, commercial artistic acceptance or supplier certification"
+    },
+    {
+      "id": "chelsea",
+      "file": "chelsea.png",
+      "sha256": "27df203838031fbff8693633c4cebefaf5e00455f6cd5c7fa3bb4cf007620649",
+      "upstream_url": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.19.3/skimage/data/chelsea.png",
+      "upstream_sha256": "596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb",
+      "rights": "CC0; photographer Stefan van der Walt, stated by upstream.",
+      "rights_evidence": "upstream-license-source.txt",
+      "rights_evidence_sha256": "3fd7f2e0c3b5d6d00318e8a29af2a8bab1331fba47164bb696ca4aa7d59c8a80",
+      "selection": {
+        "subjects": [
+          {
+            "x": 15,
+            "y": 5,
+            "width": 420,
+            "height": 285
+          }
+        ],
+        "selected": 0,
+        "foreground_points": [
+          {
+            "x": 220,
+            "y": 145
+          }
+        ]
+      },
+      "scope": "OFFLINE_SOFTWARE_TEST_ONLY; not customer consent, head ground truth, commercial artistic acceptance or supplier certification"
+    }
+  ]
+}

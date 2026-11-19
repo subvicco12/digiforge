@@ -1,0 +1,76 @@
+{
+  "schema": "isolated-photo-c2f-candidate-v1",
+  "candidate_base": "75ee5c9d4117d6a627930fed5d0f00bf89ef7395",
+  "producer_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+  "producer_parent": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+  "later_a_head_checked": "3b61259c",
+  "later_a_changed_candidate_files": [],
+  "method": "Exact eight commit blobs only; no branch merge, AI/research source, primary worktree mutation or source pin change.",
+  "known_contract": "Blanket caller transaction denial; read fence is autocommit only; B legacy transaction compatibility is unqualified.",
+  "files": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "4aa0b402123b78fcba77060d72db0fd2b4fb5e2c",
+      "sha256": "bbf9456f8dda8ca5406bf22d4c054fdb42bde758c8f16f773ac0ecb0a5e58084",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT"
+    },
+    {
+      "path": "includes/POD/CustomerEditorRepository.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "cdadf87ba890c7c26e380d25ef1a569009c50179",
+      "sha256": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db",
+      "prior_b_sha256": "7383a810ad6b6f728157143e147a54fae073257240fafd3d0689fe4bf0c3e635",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "includes/POD/CustomerPhotoProducerFence.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "7bdb391727041a61dce7535da1d99ee2c16c3003",
+      "sha256": "a9356e33bb0bb10c5ac2411e01d2ec0d11923cca44e13dd4c054b21ba29af44a",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT"
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "2ab072cf45008b0578c8d036cedf701a28345ff5",
+      "sha256": "02bfcd5bb50dac06946706f083c5f5351594dac318f0f030ab3a80aaa17e9fbe",
+      "prior_b_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "includes/POD/RenderEvidenceRepository.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "9b2ac4156d38c9d69df71a201ed429ff5dfe52fe",
+      "sha256": "965406e16c0d4c77f024f87f8f13d0614f15ba2f17b26e81afb37f7027f9ea81",
+      "prior_b_sha256": "011c41674a896882d944aae69dd0910da986050c266b3f36f82202f48250547f",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "bb800d92a131b0c2265d48aa7b13a157383eda6b",
+      "sha256": "37aef912c0bda88ae803a143a55c6b6efa697760431a36c2797def89e4010eff",
+      "prior_b_sha256": "ae17532ac9a781f4fe6f7080fc43af484420504bf3f3b4af31111282a59246dc",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "130f7058b95c19a502d5764405cc120aed44397b",
+      "sha256": "13d55a122dbc9f207ae121bf29cb0560ff6b41e414721db73983d76230d76164",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT"
+    },
+    {
+      "path": "tests/wordpress/RenderArtifactCertificationTest.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "17df90fc47dd2929127f4305312a6b1d9dedfca2",
+      "sha256": "cf60594e927e0a6ccc53d3d7f532de8045539af2d87d3516aa00d684f8b8c93a",
+      "prior_b_sha256": "873d660fc5bd663f2a10a681bec5d7932ce66f5d0aa2dedfd513e022bdabc1fe",
+      "base_comparison": "EXACT_61D2"
+    }
+  ]
+}

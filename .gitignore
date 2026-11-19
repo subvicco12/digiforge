@@ -9,3 +9,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+__pycache__/
+*.pyc
+/vendor
+/build
+/.phpunit.cache
+/.phpstan.cache

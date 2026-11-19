@@ -3,11 +3,29 @@
 declare(strict_types=1);
 
 use DigiForge\POD\BusinessScope;
+use DigiForge\POD\MasterCatalogImportContract;
 use DigiForge\POD\PersonalizedCatalogReference;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalizedCatalogReferenceTest extends TestCase
 {
+    /** @dataProvider foreignHistoricalIdentities */
+    public function testHistoricalCatalogCannotReplaceOneOfItsFiveHundredIdentities(string $identity): void
+    {
+        $rows = [];
+        for ($i = 1; $i <= 500; $i++) {
+            $rows[] = [sprintf('DG-%03d', $i), 'W1', 'Synthetic family', 'Synthetic concept', 'PHOTO_TEXT', 'PP-001', 'PRINTIFY_PRIMARY', 'TEMPLATE_RESEARCH', '', '', '', ''];
+        }
+        $rows[499][0] = $identity;
+        $this->expectException(InvalidArgumentException::class);
+        MasterCatalogImportContract::normalize(MasterCatalogImportContract::REQUIRED, $rows);
+    }
+
+    public static function foreignHistoricalIdentities(): array
+    {
+        return [['DG-000'], ['DG-501']];
+    }
+
     public function testMaster500ReferenceIsPersonalizedPodOnlyAndNonExecuting(): void
     {
         $metadata = PersonalizedCatalogReference::metadata();

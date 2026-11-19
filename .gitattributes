@@ -12,9 +12,21 @@
 /bin export-ignore
 /docs export-ignore
 /tests export-ignore
+/services export-ignore
 /composer.json export-ignore
 /composer.lock export-ignore
 /phpcs.xml.dist export-ignore
 /phpstan.neon.dist export-ignore
 /phpunit.xml.dist export-ignore
 /phpunit.wordpress.xml.dist export-ignore
+
+# Preserve the uploaded acceptance-source fixture bytes and recorded SHA-256.
+/tests/wordpress/fixtures/five-engine-licensed-manifest-template.csv -text
+
+# Supplied design evidence must retain its original bytes and recorded SHA-256.
+/assets/pod-designs/v1/sources/** -text whitespace=cr-at-eol
+
+# Preserve the pilot attachment's exact member hashes, including CSV CRLF bytes.
+/docs/engineering/visual-certification-pilot-v1/** -text whitespace=cr-at-eol
+
+phpunit.wordpress.catalog.xml.dist export-ignore

@@ -1,0 +1,233 @@
+{
+  "schema": "DF_NATIVE_AUTHORITY_FOCUSED_EVIDENCE_1",
+  "baseline_sha": "b367652c8d1ae1448cf4da286a8959fe32204b25",
+  "baseline_audit": {
+    "number": 5051,
+    "conclusion": "SUCCESS",
+    "run_id": 44001995762
+  },
+  "execution": "node --test --test-isolation=none --test-reporter=junit services/native-authority/test/*.test.mjs",
+  "tests": 165,
+  "failures": 0,
+  "skipped": 0,
+  "source_unchanged_during_execution": true,
+  "native_cases": [
+    {
+      "id": "N01",
+      "named_actual_process_case": [
+        "N01 actual issuer and independent witness processes sign one exact current checkpoint"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual separate issuer/witness child processes, pinned cryptographic checkpoint, full identity binding. No physical administrator independence qualification."
+    },
+    {
+      "id": "N02",
+      "named_actual_process_case": [
+        "N02 actual native registry allocation and credential custody send once to the isolated offline provider"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual standalone native registry/allocation and private custody send to synthetic offline provider. Real B core-version joins and provider qualification not established."
+    },
+    {
+      "id": "N03",
+      "named_actual_process_case": [
+        "N03 two actual witness SQLite connections contend for one allocation and only one sends"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Two actual witness child processes/SQLite connections contend for one allocation; one provider POST. Not independently hosted durability qualification."
+    },
+    {
+      "id": "N04",
+      "named_actual_process_case": [
+        "N04 duplicate operation and stale actual native product version cannot redispatch"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual duplicate and product-version mutation deny; owner key cannot use workload checkpoint purpose. Component tests additionally cover purpose/challenge cryptography."
+    },
+    {
+      "id": "N05",
+      "named_actual_process_case": [
+        "N05 actual emergency before custody admission prevents credentialed provider HTTP"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "PARTIAL",
+      "evidence_and_limits": "Actual revocation before credential admission denies outbound bytes and leaves unresolved ADMITTED fail-closed. Atomic immediately-before-send revocation and WordPress fallback absence not established by this case."
+    },
+    {
+      "id": "N06",
+      "named_actual_process_case": [
+        "N06 emergency durably changes generation while in-flight bytes keep drain pending"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual durable generation change before PENDING response, real in-flight provider bytes, unresolved UNKNOWN keeps drain PENDING. PENDING is not completion acknowledgement."
+    },
+    {
+      "id": "N07",
+      "named_actual_process_case": [
+        "N07 actual issuer death resolves only authenticated unsent journal and recovery remains held without rearm"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual issuer SIGKILL after durable ADMITTED before send; emergency pauses newer generation; new-nonce old grant denied; dual-signed exact-allocation/head ABANDON_UNSENT resolves FAILED/revoked_before_send while allocation stays consumed; wrong allocation and control replay deny; empty inventory and actual DRAINED; new dual recovery approval yields RECOVERED_HELD; zero provider HTTP and no rearm. Real hosted administrator independence remains external."
+    },
+    {
+      "id": "N08",
+      "named_actual_process_case": [
+        "N08 lost provider acknowledgement consumes UNKNOWN until authenticated readback without retry"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual provider connection loss after POST, consumed UNKNOWN, actual credentialed HTTP readback reconciles stored operation with no POST retry/rearm. Offline provider only."
+    },
+    {
+      "id": "N09",
+      "named_actual_process_case": [
+        "N09 restarting old sender configuration cannot undo independently persisted emergency generation"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "PARTIAL",
+      "evidence_and_limits": "Actual old issuer configuration restart preserves separate witness emergency generation and denial. Does not prove restored witness DB/all-root rollback, malicious direct credential use, mandatory egress or physical host independence."
+    },
+    {
+      "id": "N10",
+      "named_actual_process_case": [
+        "N10 actual dual-approved root rotation and reprovision restart remain held and reject old issuer pin"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "OFFLINE_PROCESS_DEMONSTRATED",
+      "evidence_and_limits": "Actual independently dual-approved rotation, revision/head CAS, new issuer pins and dual reprovision, both child processes restart HELD; old issuer pin rejected. Hosted administrator qualification remains external."
+    },
+    {
+      "id": "N11",
+      "named_actual_process_case": [
+        "N11 actual signed cross-account and cross-shop requests cannot allocate or produce provider evidence"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "BLOCKED_CANONICAL_RECEIPT_CONSUMER",
+      "evidence_and_limits": "Actual signed cross-account/integration/shop request denial only. No canonical B tracking/completion receipt-consumer integration; passing negative request case does not satisfy full N11."
+    },
+    {
+      "id": "N12",
+      "named_actual_process_case": [
+        "N12 unsupported wire version and unavailable actual witness fail closed without cached success"
+      ],
+      "test_passed": true,
+      "criterion_disposition": "PARTIAL",
+      "evidence_and_limits": "Actual unsupported wire version and unavailable witness fail closed after previous success; no cache fallback. Canonical B native boundary module/capability integration not established by standalone process case."
+    }
+  ],
+  "junit_sha256": "aace3e05d5b4e062655483d6c86c7bff6eb823e771c04b2aca896b29e7757020",
+  "capabilities": {
+    "total": 151,
+    "independently_accepted_preserved": 32,
+    "newly_accepted": []
+  },
+  "qualification": "OFFLINE_ONLY_NOT_INSTALLED_CANDIDATE_QUALIFICATION",
+  "external_execution_authorized": false,
+  "production_qualified": false,
+  "source_files": [
+    {
+      "path": "services/native-authority/client.mjs",
+      "sha256": "31cca1a06031fff3b4428d8f0554215d17dffbe8c82cd60ef1f3a7f3f109d5cd"
+    },
+    {
+      "path": "services/native-authority/config.mjs",
+      "sha256": "0ad267109556504994cb23a623d9545d7007f9c52c535fd2ac7b196672674ec0"
+    },
+    {
+      "path": "services/native-authority/errors.mjs",
+      "sha256": "0345a43b4f877622c2f3b53a48b555e8edcbe6910f271ab260207e49ce4d99a5"
+    },
+    {
+      "path": "services/native-authority/gateway.mjs",
+      "sha256": "be699a3ea296b522f99d31165714396de8608069a2f768cb59d18673a64115d4"
+    },
+    {
+      "path": "services/native-authority/protocol.mjs",
+      "sha256": "fb697dbd77d078ad9b91ed9118eb967f9c5cdc2e50bc1a8fc71f4a8b49b21d03"
+    },
+    {
+      "path": "services/native-authority/schema.mjs",
+      "sha256": "4a1eacc6bc3358c9ac5c4867ec56aa6d84204c6b942da503e819700bf0d66b01"
+    },
+    {
+      "path": "services/native-authority/sender.mjs",
+      "sha256": "e56a6f4d07459d4a5eb056b3409347a0c1b3a6052cf5ae5d7e219fa2915cc0a5"
+    },
+    {
+      "path": "services/native-authority/server.mjs",
+      "sha256": "b792d9434427d9febae6c2165df0d336f9a351ee6e0aa2bff385be27d759415d"
+    },
+    {
+      "path": "services/native-authority/store.mjs",
+      "sha256": "58e566c28b3bf11262d03a97f0b72a183081d4ccf02cbbb2ef7141811279dd50"
+    },
+    {
+      "path": "services/native-authority/test/client.test.mjs",
+      "sha256": "84c50369ded416cfb7919bc50c505536112b55f89aa99a41bec52dd7552b0da5"
+    },
+    {
+      "path": "services/native-authority/test/config.test.mjs",
+      "sha256": "55b0014729acc24becc8194a0d25de4852c46802a4d306d472ab86f4d5f7f08d"
+    },
+    {
+      "path": "services/native-authority/test/gateway.test.mjs",
+      "sha256": "7eec507a424fa0e819108f1ca804885289fea94d62423014a7d496f6e22e837b"
+    },
+    {
+      "path": "services/native-authority/test/process-fixtures.mjs",
+      "sha256": "10ebbc8cea8269a211e2bdf2a8a5662b68e918e920733ebebacaa1acbad8a5db"
+    },
+    {
+      "path": "services/native-authority/test/process-integration.test.mjs",
+      "sha256": "56c4a3eb03d3b0629bfd3ea27824a09b19f8a3f3e26370172f8ab11e70e267c3"
+    },
+    {
+      "path": "services/native-authority/test/protocol.test.mjs",
+      "sha256": "3288010a5a9f7e37d07da16c2bb4c4901969ac5414ab79931866c007f3e07928"
+    },
+    {
+      "path": "services/native-authority/test/review-configuration-keypins.test.mjs",
+      "sha256": "4fdf42540da1ae1c1b581a8cef7e7ee4bbc18a87b38e6c3cc562e321e44d7c52"
+    },
+    {
+      "path": "services/native-authority/test/schema.test.mjs",
+      "sha256": "fe70737d08315bef627449d3ba418f505486f962feb589e9df3eb5c41ee5705c"
+    },
+    {
+      "path": "services/native-authority/test/sender-provider.mjs",
+      "sha256": "1419987291c89385e62463b5e783dbe274065ea71d7879e503b1c030fad59f2c"
+    },
+    {
+      "path": "services/native-authority/test/sender.test.mjs",
+      "sha256": "60a9dd5206b32aa9a810c8030d901e2c9e47d66324e32fbe33ac179180bc8613"
+    },
+    {
+      "path": "services/native-authority/test/server-fixtures.mjs",
+      "sha256": "4ef6a8067ddfcda2b068e130487dd39bffc29cbd989bb2e460768878d39e406c"
+    },
+    {
+      "path": "services/native-authority/test/server.test.mjs",
+      "sha256": "329b23248dc4c42f266580df652157c8f506e57be030f6e9dfb451d3969870d0"
+    },
+    {
+      "path": "services/native-authority/test/store-worker.mjs",
+      "sha256": "4a982e0a54c7154cc30618194f286db0b0bcc862274f4b5864d562c8309390f7"
+    },
+    {
+      "path": "services/native-authority/test/store.test.mjs",
+      "sha256": "988cac7ee1dccd1ae6fda9d7f5ba60fcd6098f690549c5bbf21173dd74c7e53d"
+    }
+  ],
+  "successful_focused_ci": {
+    "head_sha": "efb907550dbadf78d74f6bddfb8f15d69315ddf3",
+    "run_id": 44017664794,
+    "conclusion": "SUCCESS",
+    "scope": "Native165, WordPress37, projection4 and existing bridge-absent consumers at this unchanged application source; expanded51 WordPress tests are separate local final-source evidence."
+  }
+}

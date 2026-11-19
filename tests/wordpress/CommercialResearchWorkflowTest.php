@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 use DigiForge\Research\CommercialResearchRepository as Repo;
 final class CommercialResearchWorkflowTest extends WP_UnitTestCase
 {
  private function fixture():array {return json_decode(file_get_contents(__DIR__.'/../fixtures/research/commercial-research.json'),true);}
- protected function setUp():void {parent::setUp();self::assertTrue(class_exists(Repo::class),'Staged research repository required');$id=self::factory()->user->create();$u=new WP_User($id);foreach(['manage_digiforge_pod','manage_digiforge_research']as $cap)$u->add_cap($cap);wp_set_current_user($id);}
+ protected function setUp():void {parent::setUp();self::assertTrue(class_exists(Repo::class),'Staged research repository required');$id=self::factory()->user->create();$u=new WP_User($id);foreach(['manage_digiforge_pod','manage_digiforge_research']as $cap)$u->add_cap($cap);wp_set_current_user($id);DigiForge\Core\Activator::activate();ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research']);}
  public function testDeduplicatedResearchPreservesSourcesAndActor():void {
   $f=$this->fixture();$repo=new Repo();$a=$repo->create($f['research']);self::assertIsArray($a);$b=$repo->create($f['research']);self::assertSame($a,$b);self::assertSame(get_current_user_id(),$a['record']['created_by']);self::assertSame('RESEARCH_READY',$a['record']['stage']);self::assertSame('2026-11-03T12:00:00Z',$a['record']['research']['sources'][0]['observed_at']);
  }
@@ -38,7 +39,7 @@ final class CommercialResearchWorkflowTest extends WP_UnitTestCase
  }
  private function enableOnlyInTestDatabase():void {
   \DigiForge\Core\Settings::ensure_defaults();global $wpdb;foreach(['activation_authorized','automation_armed','research','ai','research_activation_authorized','ai_activation_authorized']as $key)$wpdb->update(\DigiForge\Database\Tables::settings(),['setting_value'=>'true'],['setting_key'=>$key]);
-  $wpdb->update(\DigiForge\Database\Tables::settings(),['setting_value'=>'false'],['setting_key'=>'stop_all']);wp_get_current_user()->add_cap('manage_digiforge_ai');
+  $wpdb->update(\DigiForge\Database\Tables::settings(),['setting_value'=>'false'],['setting_key'=>'stop_all']);wp_get_current_user()->add_cap('manage_digiforge_ai');ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research','manage_digiforge_ai']);
  }
  public function testUnavailableCredentialsFailBeforeHttp():void {
   $this->enableOnlyInTestDatabase();$provider=new \DigiForge\Research\GovernedResearchProvider();self::assertSame('CREDENTIALS_UNAVAILABLE',$provider->status()['reason']);self::assertWPError($provider->generate($this->fixture()['research'],str_repeat('a',64)));
@@ -77,7 +78,7 @@ final class CommercialResearchWorkflowTest extends WP_UnitTestCase
   $p3=$panel->process(['operation'=>'design_prepare','shop_key'=>'personalized_pod','workflow_hash'=>$c['hash'],'factory_hash'=>$a3['design_factory_hash'],'profile'=>'fl03_mug_11oz','layout_notes'=>'Original outer frame','typography'=>'Licensed native serif','font_license_reference'=>'Human font-license record','palette'=>'#123456,#ffffff','asset_requirements'=>'Original fixed paths and separate native names','native_regions_json'=>'[{"name":"names","kind":"text","x":500,"y":400,"width":1400,"height":300}]']);self::assertIsArray($p3);
   $d=$panel->process(['operation'=>'design_import','shop_key'=>'personalized_pod','workflow_hash'=>$c['hash'],'factory_hash'=>$p3['design_factory_hash'],'svg'=>file_get_contents(__DIR__.'/../fixtures/design-factory/mug-original.svg'),'rasters_json'=>'[]','rights_note'=>'Original geometry; licensed native font','source_note'=>'Manual artwork import']);self::assertIsArray($d);
   $review=['operation'=>'design_review','shop_key'=>'personalized_pod','workflow_hash'=>$c['hash'],'factory_hash'=>$d['design_factory_hash'],'confirm'=>'1','decision'=>'APPROVE','note'=>'Approved exact original artwork'];foreach(\DigiForge\Research\DesignFactoryContract::REVIEW_CRITERIA as $criterion)$review[$criterion]='1';
-  $u=wp_get_current_user();$u->remove_cap('manage_digiforge_pod');self::assertWPError($panel->process($review));$u->add_cap('manage_digiforge_pod');
+  $u=wp_get_current_user();$u->add_cap('manage_digiforge_pod',false);self::assertWPError($panel->process($review));$u->add_cap('manage_digiforge_pod');
   $e=$panel->process($review);self::assertIsArray($e);$envelope=$e['design_factory']['artwork'];
   self::assertSame('HUMAN_APPROVED',$envelope['approval']['state']);self::assertSame($envelope['version_hash'],$envelope['approval']['evidence_hash']);self::assertSame($envelope['version_hash'],hash('sha256',wp_json_encode($envelope['record'],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)));self::assertFalse($envelope['supplier_geometry_verified']);self::assertTrue($envelope['release_hold']);
  }

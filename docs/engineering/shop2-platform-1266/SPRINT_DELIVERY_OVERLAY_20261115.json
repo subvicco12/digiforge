@@ -1,0 +1,134 @@
+{
+  "baseline_core_sha": "78e7f973455a3c89319be06f0907caf2103658a7",
+  "integrated_lane_a_sha": "fc997474a80629a7f969f346199b24dc478f8a75",
+  "new_source_sha": "Use the commit containing this file; no self-referential source stamp.",
+  "slices": [
+    {
+      "name": "signed webhook quantity integrity",
+      "capability_ids": [
+        "S2-ORD-01",
+        "S2-ORD-03",
+        "S2-ORD-04"
+      ],
+      "source": [
+        "includes/Listings/EtsyOrderWebhookLifecycle.php"
+      ],
+      "test": [
+        "tests/wordpress/EtsyWebhookQuantityIntegrityTest.php"
+      ],
+      "classification": "REPAIR_WITHIN_IMPLEMENTED_REQUIREMENTS"
+    },
+    {
+      "name": "original currency identity inheritance",
+      "capability_ids": [
+        "S2-ORD-03"
+      ],
+      "source": [
+        "includes/Listings/EtsyOrderWebhookLifecycle.php"
+      ],
+      "test": [
+        "tests/wordpress/EtsyWebhookCurrencyInheritanceTest.php"
+      ],
+      "classification": "REPAIR_WITHIN_IMPLEMENTED_REQUIREMENT"
+    },
+    {
+      "name": "exact active business/provider version ownership",
+      "capability_ids": [
+        "S2-GOV-09",
+        "S2-ORD-03"
+      ],
+      "source": [
+        "includes/POD/BusinessScopeRepository.php"
+      ],
+      "test": [
+        "tests/wordpress/BusinessScopeOwnershipIntegrityTest.php"
+      ],
+      "classification": "PARTIAL_REQUIREMENT_SECURITY_SUBGAP"
+    },
+    {
+      "name": "hybrid listing reconciliation",
+      "capability_ids": [
+        "S2-ORD-03",
+        "S2-ORD-12",
+        "S2-OPS-03"
+      ],
+      "source": [
+        "includes/Orders/ReconciliationReadModel.php"
+      ],
+      "test": [
+        "tests/wordpress/HybridReconciliationIdentityTest.php"
+      ],
+      "classification": "PARTIAL_REQUIREMENT_RECONCILIATION_SUBGAP"
+    },
+    {
+      "name": "classified retry admission",
+      "capability_ids": [
+        "S2-OPS-06",
+        "S2-EXE-11"
+      ],
+      "source": [
+        "includes/Queue/JobRepository.php"
+      ],
+      "test": [
+        "tests/unit/QueueRetryAdmissionTest.php"
+      ],
+      "classification": "REPAIR_WITHIN_IMPLEMENTED_REQUIREMENTS"
+    },
+    {
+      "name": "versioned date policy and exact business held export integration",
+      "capability_ids": [
+        "S2-ART-07"
+      ],
+      "source": [
+        "includes/POD/OfflineDateDisplayProof.php",
+        "includes/Research/ArtworkPersonalizationContract.php",
+        "includes/Research/ArtworkPersonalizationRepository.php",
+        "includes/Portal/ArtworkPersonalizationPanel.php"
+      ],
+      "test": [
+        "tests/unit/OfflineDateDisplayProofTest.php",
+        "tests/wordpress/VersionedDatePolicyWorkflowTest.php",
+        "tests/wordpress/VersionedDateHeldPackageTest.php"
+      ],
+      "classification": "LANE_A_EXACT_SOURCE_INTEGRATION_PLUS_LANE_B_COMPOSITION"
+    },
+    {
+      "name": "stored buyer-order held preparation and scoped operator inspection",
+      "capability_ids": [
+        "S2-OPS-03",
+        "S2-ORD-07"
+      ],
+      "source": [
+        "includes/Orders/HeldFulfillmentPreparation.php",
+        "includes/Orders/Repository.php",
+        "includes/Portal/OrderHeldPreparationPanel.php",
+        "includes/Portal/Portal.php"
+      ],
+      "test": [
+        "tests/wordpress/HeldFulfillmentPreparationTest.php"
+      ],
+      "classification": "PARTIAL_REQUIREMENT_OPERATOR_SUBGAP"
+    }
+  ],
+  "baseline_counts": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 31
+  },
+  "promoted_capability_ids": [],
+  "promotion_reason": "No entire previously partial/missing requirement independently accepted yet. Repairs strengthen existing rows.",
+  "counts_promoted": false,
+  "native_mutation_or_recovery_authority_added": false,
+  "new_core_companion_default_pairing": "BLOCKED_UNTIL_SEPARATE_COMPANION_SOURCE_PIN_REVIEW",
+  "next_critical_path": [
+    "independent exact-source acceptance of the integrated local workflows",
+    "complete buyer-specific artifact certification and operator preparation/review journeys",
+    "separate-owner authoritative identity/version/allocation/producer interfaces",
+    "independent witness/sender/credential custody and revocation qualification",
+    "bounded source-complete dispatcher with default OFF after handler authority established",
+    "hosted exact-artifact and installed acceptance"
+  ],
+  "verification": "See PR handoff for terminal exact-head CI and captured final focused results; no historical audit relabeling."
+}

@@ -6,10 +6,13 @@ use DigiForge\Database\Tables;
 /** Bounded, fail-closed operator projection for buyer-specific render evidence. */
 final class RenderEvidenceOperationsReadModel
 {
- public function snapshot(int $limit=50):array{
+ public function snapshot(int $limit=50,string $shop='personalized_pod'):array{
+  $unavailable=['query_state'=>'UNAVAILABLE','counts'=>['renders'=>null,'unreviewed'=>null,'approved'=>null],'items'=>[],'external_execution_authorized'=>false,'external_execution_performed'=>false];
+  if(!is_user_logged_in()||!current_user_can('manage_digiforge_pod')||!\DigiForge\Security\ShopAccessPolicy::validShop($shop)||is_wp_error(\DigiForge\Security\ShopAccess::authorize($shop,'manage_digiforge_pod')))return $unavailable;
   global $wpdb;$limit=max(1,min(100,$limit));
   $wpdb->last_error='';
-  $rows=$wpdb->get_results($wpdb->prepare('SELECT id,order_id,provider_mapping_id,template_key,template_version,render_mode,review_status,reviewed_by,reviewed_at,external_execution_performed,created_at FROM '.Tables::pod_render_evidence().' ORDER BY id DESC LIMIT %d',$limit),ARRAY_A);
+  $where=\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'o');
+  $rows=$wpdb->get_results($wpdb->prepare('SELECT r.id,r.order_id,r.provider_mapping_id,r.template_key,r.template_version,r.render_mode,r.review_status,r.reviewed_by,r.reviewed_at,r.external_execution_performed,r.created_at FROM '.Tables::pod_render_evidence().' r INNER JOIN '.Tables::orders().' o ON o.id=r.order_id WHERE '.$where.' ORDER BY r.id DESC LIMIT %d',$limit),ARRAY_A);
   if(!is_array($rows)||!empty($wpdb->last_error))return ['query_state'=>'UNAVAILABLE','counts'=>['renders'=>null,'unreviewed'=>null,'approved'=>null],'items'=>[],'external_execution_authorized'=>false,'external_execution_performed'=>false];
   $counts=['renders'=>0,'unreviewed'=>0,'approved'=>0];$items=[];
   foreach($rows as $row){$counts['renders']++;$status=(string)($row['review_status']??'UNKNOWN');if($status==='UNREVIEWED')$counts['unreviewed']++;elseif($status==='APPROVED')$counts['approved']++;

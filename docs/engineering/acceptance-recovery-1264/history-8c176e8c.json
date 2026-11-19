@@ -1,0 +1,17 @@
+{
+  "commit_sha": "8c176e8c8007a39720cbda07e9623dcad5e2f7f6",
+  "external_actions_performed": false,
+  "finding_count": 0,
+  "other_refs_certified": false,
+  "raw_finding_count": 21,
+  "raw_rules_with_findings": {
+    "generic-api-key": 21
+  },
+  "reachable_commits": 3086,
+  "rules_with_findings": {},
+  "scanner_version": "8.30.1",
+  "schema": "digiforge-repository-credential-evidence-v1",
+  "scope": "candidate_HEAD_reachable_history_default_rules",
+  "status": "PASS",
+  "verified_git_identifier_count": 21
+}

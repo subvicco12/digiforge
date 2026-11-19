@@ -1,0 +1,1 @@
+<phpunit bootstrap="wordpress/bootstrap.php" failOnWarning="true" failOnRisky="true"><testsuites><testsuite name="Installed-baseline Printify compatibility"><directory suffix="Test.php">wordpress</directory></testsuite></testsuites></phpunit>
