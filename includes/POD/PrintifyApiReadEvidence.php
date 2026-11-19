@@ -26,15 +26,22 @@ final class PrintifyApiReadEvidence
         }
         if ($operation === 'ORDER_READ') { return PrintifyOrderEvidence::project($data, (string)$input['order_id']); }
         if ($operation === 'ORDERS_READ') {
-            if (!is_array($data['data'] ?? null) || !array_is_list($data['data']) || count($data['data']) > 10 || !is_int($data['current_page'] ?? null) || $data['current_page'] !== (int)($input['page'] ?? 1)) { throw new \InvalidArgumentException('Invalid bounded order page.'); }
+            PrintifyApiRequest::prepare($operation, $shop, $input);
+            self::bounded($data);
+            $page = (int)($input['page'] ?? 1);
+            $limit = (int)($input['limit'] ?? 10);
+            if (!is_array($data['data'] ?? null) || !array_is_list($data['data']) || count($data['data']) > $limit || ($data['current_page'] ?? null) !== $page) { self::bad(); }
             $rows = []; $seen = [];
             foreach ($data['data'] as $order) {
                 if (!is_array($order) || !is_string($order['id'] ?? null) || isset($seen[$order['id']])) { throw new \InvalidArgumentException('Invalid order identity.'); }
                 $seen[$order['id']] = true;
                 $rows[] = PrintifyOrderEvidence::project($order, $order['id']);
             }
-            $last=$data['last_page']??null;$per=$data['per_page']??null;if($last!==null&&(!is_int($last)||$last<$data['current_page']||$last>2147483647))self::bad();if($per!==null&&(!is_int($per)||$per<1||$per>10||$per!==(int)($input['limit']??10)))self::bad();
-            return ['data'=>$rows,'current_page'=>$data['current_page'],'last_page'=>$last,'per_page'=>$per,'next_page'=>$last!==null&&$data['current_page']<$last?['page'=>$data['current_page']+1,'limit'=>$per??10]:null,'pagination_followed'=>false];
+            $last = $data['last_page'] ?? null;
+            $per = $data['per_page'] ?? null;
+            if ($last !== null && (!is_int($last) || $last < $page || $last > 2147483647)) { self::bad(); }
+            if ($per !== null && $per !== $limit) { self::bad(); }
+            return ['data'=>$rows,'current_page'=>$page,'last_page'=>$last,'per_page'=>$per,'next_page'=>$last!==null&&$page<$last?['page'=>$page+1,'limit'=>$limit]:null,'pagination_followed'=>false];
         }
         if ($operation === 'SHOPS_READ') {
             self::rows($data, 100); $matches = []; $seen = [];

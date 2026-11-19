@@ -35,10 +35,10 @@ final class PrintifyApiRequest
             case 'PRODUCTS_READ':
             case 'ORDERS_READ':
                 $orders = $operation === 'ORDERS_READ';
-                if (!$orders && ((array_key_exists('page',$input) && !is_int($input['page'])) || (array_key_exists('limit',$input) && !is_int($input['limit'])) || ($input['page'] ?? 1) > 2147483647)) { throw new \InvalidArgumentException('Strict bounded pagination required.'); }
+                if (!$orders && ((array_key_exists('page',$input) && !is_int($input['page'])) || (array_key_exists('limit',$input) && !is_int($input['limit'])))) { throw new \InvalidArgumentException('Strict bounded pagination required.'); }
                 $page = self::positive($input['page'] ?? 1);
                 $limit = self::positive($input['limit'] ?? 10);
-                if ((int)$limit > 10) { throw new \InvalidArgumentException('Bounded pagination required.'); }
+                if ((int)$page > 2147483647 || (int)$limit > 10) { throw new \InvalidArgumentException('Bounded pagination required.'); }
                 $endpoint = $root . ($orders ? '/orders.json' : '/products.json') . '?page=' . $page . '&limit=' . $limit;
                 $scope = $orders ? 'orders.read' : 'products.read';
                 break;

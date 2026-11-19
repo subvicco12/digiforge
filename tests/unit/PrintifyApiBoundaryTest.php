@@ -29,6 +29,29 @@ final class PrintifyApiBoundaryTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         \DigiForge\POD\PrintifyApiReadEvidence::project('ORDERS_READ',['current_page'=>1,'data'=>[$o,$o]],'12',[]);
     }
+    public function testOrderPageCannotExceedItsRequestedLimit(): void
+    {
+        $one = ['id'=>'o1','status'=>'pending','line_items'=>[]];
+        $two = ['id'=>'o2','status'=>'pending','line_items'=>[]];
+        $this->expectException(\InvalidArgumentException::class);
+        \DigiForge\POD\PrintifyApiReadEvidence::project('ORDERS_READ', [
+            'current_page'=>1, 'data'=>[$one, $two],
+        ], '12', ['limit'=>1]);
+    }
+    public function testOrderContinuationKeepsItsRequestedLimitWithoutProviderPageSize(): void
+    {
+        $page = \DigiForge\POD\PrintifyApiReadEvidence::project('ORDERS_READ', [
+            'current_page'=>1, 'last_page'=>2, 'data'=>[], 'next_page_url'=>'https://example.invalid',
+        ], '12', ['limit'=>1]);
+        self::assertSame(['page'=>2, 'limit'=>1], $page['next_page']);
+        self::assertNull($page['per_page']);
+        self::assertFalse($page['pagination_followed']);
+    }
+    public function testOrderRequestRejectsOutOfRangePage(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        PrintifyApiRequest::prepare('ORDERS_READ', '12', ['page'=>'2147483648']);
+    }
     public function testUnknownInputCannotPersistCredentials(): void
     {
         $this->expectException(\InvalidArgumentException::class);PrintifyApiRequest::prepare('SHOPS_READ','12',['token'=>'never-store']);
