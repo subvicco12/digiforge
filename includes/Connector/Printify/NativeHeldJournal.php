@@ -81,6 +81,8 @@ final class NativeHeldJournal {
    $connection=NativeSourceTransaction::id();if(is_wp_error($connection))return self::error('transaction_changed');
    $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
    if(!$this->ownsWriter($database,$connection,$lock))return self::error('transaction_changed');
+   if(!$this->pinIdentityConstraints($database))return self::error('storage_constraints');
+   if(!$this->ownsWriter($database,$connection,$lock))return self::error('transaction_changed');
    $result=$work();if(is_wp_error($result))return $result;
    $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
    if(!$this->ownsWriter($database,$connection,$lock)||$database->query('COMMIT')===false)return self::error('commit_unknown');$started=false;$committed=true;
@@ -88,6 +90,38 @@ final class NativeHeldJournal {
   finally{$clean=true;try{if($started&&$database->query('ROLLBACK')===false)$clean=false;}catch(\Throwable){$clean=false;}try{$database->last_error='';$released=$database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)',$lock));if($database->last_error!==''||(string)$released!=='1')$clean=false;}catch(\Throwable){$clean=false;}if(!$clean)return self::error('cleanup_unknown');}
   // Acknowledgement only after a fresh consistent, audit-anchored readback. Never restore a slot on failure.
   if(!$committed)return $result;$read=$this->read($operationId,$shop,$actor);if(is_wp_error($read)||$read['event_hash']!==$result['event_hash'])return self::error('confirmation_unknown');return $read;
+ }
+ /** Check the unique identities while the transaction retains table metadata locks. */
+ private function pinIdentityConstraints(object $database):bool {
+  [$journal,$events]=NativeHeldJournalSchema::tables();
+  $requirements=[
+   $journal=>['PRIMARY'=>['shop_key','operation_id'],'candidate_key'=>['candidate_key']],
+   $events=>['PRIMARY'=>['shop_key','operation_id','revision'],'event_hash'=>['event_hash']],
+  ];
+  foreach($requirements as $table=>$required){
+   $database->last_error='';
+   // Open the table without reading operation data. DDL must wait for this transaction.
+   if($database->query("SELECT operation_id FROM `$table` LIMIT 0")===false||$database->last_error!=='')return false;
+   $engine=$database->get_var($database->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table));
+   if($database->last_error!==''||strtoupper((string)$engine)!=='INNODB')return false;
+   $rows=$database->get_results("SHOW INDEX FROM `$table`",ARRAY_A);
+   if($database->last_error!==''||!is_array($rows))return false;
+   $actual=[];
+   foreach($rows as $row){
+    $key=$row['Key_name']??null;
+    if(!is_string($key)||!isset($required[$key]))continue;
+    $position=(int)($row['Seq_in_index']??0);
+    if((string)($row['Non_unique']??'')!=='0'||($row['Null']??null)!==''
+       ||!array_key_exists('Sub_part',$row)||$row['Sub_part']!==null
+       ||!isset($required[$key][$position-1])||isset($actual[$key][$position])
+       ||($row['Column_name']??null)!==$required[$key][$position-1])return false;
+    $actual[$key][$position]=$row['Column_name'];
+   }
+   foreach($required as $key=>$columns){
+    if(count($actual[$key]??[])!==count($columns))return false;
+   }
+  }
+  return true;
  }
  private function ownsWriter(object $database,string $connection,string $lock):bool {
   $database->last_error='';

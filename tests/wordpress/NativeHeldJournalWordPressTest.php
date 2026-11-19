@@ -68,6 +68,24 @@ final class NativeHeldJournalWordPressTest extends WP_UnitTestCase {
  public function testTemporaryShadowTablesCannotClaimDurability():void {
   global $wpdb;[$j]=Schema::tables();$definition=$wpdb->get_row('SHOW CREATE TABLE '.$j,ARRAY_A);self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE/','CREATE TEMPORARY TABLE',$definition['Create Table'])));try{self::assertWPError((new Journal())->prepare($this->binding,str_repeat('d',64)));}finally{$wpdb->query('DROP TEMPORARY TABLE '.$j);}
  }
+ public function testWriterRequiresFullImmutableIdentityConstraints():void {
+  global $wpdb;[$journal,$events]=Schema::tables();
+  $cases=[
+   [$journal,'DROP INDEX candidate_key','ADD INDEX candidate_key (candidate_key)'],
+   [$events,'DROP INDEX event_hash','ADD UNIQUE INDEX event_hash (event_hash(32))'],
+  ];
+  foreach($cases as [$table,$drop,$replacement]){
+   self::assertNotFalse($wpdb->query("ALTER TABLE $table $drop, $replacement"));
+   $result=(new Journal())->register($this->binding,str_repeat('d',64));
+   self::assertWPError($result);
+   self::assertSame('printify_native_held_journal_storage_constraints',$result->get_error_code());
+   self::assertSame('0',(string)$wpdb->get_var("SELECT COUNT(*) FROM $journal"));
+   self::assertSame('0',(string)$wpdb->get_var("SELECT COUNT(*) FROM $events"));
+   $column=$table===$journal?'candidate_key':'event_hash';
+   self::assertNotFalse($wpdb->query("ALTER TABLE $table DROP INDEX $column, ADD UNIQUE INDEX $column ($column)"));
+  }
+  self::assertNotWPError((new Journal())->register($this->binding,str_repeat('d',64)));
+ }
  public function testMissingWriterTransactionCannotAutocommitJournalRows():void {
   global $wpdb;
   $filter=static fn(string $sql):string=>$sql==='START TRANSACTION'?'SELECT 1':$sql;
