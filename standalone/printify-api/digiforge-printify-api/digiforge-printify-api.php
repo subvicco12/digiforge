@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge Printify API
  * Description: Standalone Printify diagnostics and offline catalog validation.
- * Version: 0.3.0
+ * Version: 0.4.0
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Author: DigiForge

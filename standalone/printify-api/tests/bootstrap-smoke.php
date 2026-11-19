@@ -36,7 +36,7 @@ check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.3.0',
+    'version' => '0.4.0',
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,

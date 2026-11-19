@@ -40,15 +40,50 @@ if ($phase === 'write') {
         content_sha256 char(64) NOT NULL,
         snapshot_body mediumblob NOT NULL,
         observed_at bigint unsigned NOT NULL,
-        evidence_state varchar(32) NOT NULL
+        evidence_state varchar(32) NOT NULL,
+        attestation varbinary(4096) NULL,
+        signature varbinary(88) NULL
     ) ENGINE=InnoDB');
 }
 $store = new FixtureSnapshotStore($db, '107', 'fixture-account');
+$keys = sodium_crypto_sign_seed_keypair(str_repeat('T', SODIUM_CRYPTO_SIGN_SEEDBYTES));
+define('DIGIFORGE_PRINTIFY_FIXTURE_EVIDENCE_KEY', base64_encode(sodium_crypto_sign_publickey($keys)));
+define('DIGIFORGE_PRINTIFY_FIXTURE_SOURCE', str_repeat('a', 40));
+define('DIGIFORGE_PRINTIFY_FIXTURE_REVISION', 2);
+$request = ['kind'=>'blueprint','blueprint_id'=>42];
+$result = DigiForgePrintifyApi\Runtime::validateCatalog('107', $request, $body);
+$evidence = ['schema'=>'DF_PRINTIFY_SNAPSHOT_EVIDENCE_1','evidence_class'=>'SIGNED_SYNTHETIC',
+    'account_reference'=>'fixture-account','shop'=>'107','request_sha256'=>hash('sha256',$result['endpoint']),
+    'content_sha256'=>hash('sha256',$body),'source_sha'=>str_repeat('a',40),'source_revision'=>2,
+    'operation_id'=>hash('sha256','signed-operation'),'observed_at'=>1700000000,'expires_at'=>1700000060];
+$expected = array_diff_key($evidence, array_flip(['schema','evidence_class','content_sha256','observed_at','expires_at']));
+$sign = static function (array $record) use ($keys): array {
+    $json = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    return [$json, base64_encode(sodium_crypto_sign_detached("DF_PRINTIFY_SNAPSHOT_EVIDENCE_1\n" . $json,
+        sodium_crypto_sign_secretkey($keys)))];
+};
+[$json, $signature] = $sign($evidence);
 if ($phase === 'write') {
+    requireFixture($store->appendAuthenticated($json, $signature, $request, $body, $expected, 1700000001), 'Signed insert failed');
+    requireFixture(!$store->appendAuthenticated($json, $signature, $request, $body, $expected, 1700000001), 'Signed replay admitted');
+    foreach (['evidence_class'=>'PROVIDER_CONFIRMED','source_revision'=>1,'shop'=>'108','operation_id'=>str_repeat('b',64)] as $key=>$value) {
+        [$wrong, $validSignature] = $sign(array_replace($evidence, [$key=>$value]));
+        $wrongContext = $key === 'source_revision' ? array_replace($expected, [$key=>$value]) : $expected;
+        requireFixture(!$store->appendAuthenticated($wrong, $validSignature, $request, $body, $wrongContext, 1700000001), 'Substitution admitted');
+    }
+    requireFixture(!$store->appendAuthenticated($json, str_repeat('A',88), $request, $body, $expected, 1700000001), 'Forged signature admitted');
+    requireFixture(!$store->appendAuthenticated($json, $signature, $request, '{"id":43}', $expected, 1700000001), 'Changed content admitted');
     $request = ['kind'=>'blueprint','blueprint_id'=>42];
     requireFixture($store->append($id, $request, $body, 1700000000), 'Append failed');
     requireFixture(!$store->append($id, $request, $body, 1700000001), 'Duplicate append succeeded');
 }
+$signed = $store->readAuthenticated($expected, 1700000001);
+requireFixture($signed !== null && $signed['provider_outcome_confirmed'] === false
+    && $signed['native_operation_mutated'] === false && $signed['retry_permitted'] === false
+    && $signed['provider_execution_authorized'] === false, 'Authenticated readback missing or authorizing');
+requireFixture($store->read($signed['snapshot_id']) === null, 'Unsigned read exposed signed row');
+requireFixture($store->readAuthenticated($expected, 1700000060) === null, 'Expired proof admitted');
+requireFixture($store->readAuthenticated(array_replace($expected, ['request_sha256'=>str_repeat('0',64)]), 1700000001) === null, 'Wrong request admitted');
 $row = $store->read($id);
 requireFixture($row !== null && $row['source_identity'] === 'SYNTHETIC_PRINTIFY'
     && $row['evidence_state'] === 'FRESHNESS_UNVERIFIED'
@@ -64,4 +99,5 @@ foreach ([['108','fixture-account'],['107','other-account']] as [$shop,$account]
 }
 wp_set_current_user(0);
 requireFixture($store->read($id) === null, 'Revoked operator context retained access');
+requireFixture($store->readAuthenticated($expected, 1700000001) === null, 'Revoked operator retained signed read permission');
 echo "Disposable snapshot $phase PASS\n";
