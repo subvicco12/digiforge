@@ -1,23 +1,28 @@
 <?php
 declare(strict_types=1);
 namespace DigiForge\Portal;
-use DigiForge\POD\{PrintifyProductPipeline,Shop2ProductWorkflow,Shop2EtsyDraftHandoff};
+use DigiForge\POD\{PrintifyProductPipeline,Shop2ProductWorkflow,Shop2EtsyDraftHandoff,Shop2HeldPackageBinding};
 use WP_Error;
 /** The existing Shop 2 handler owns admission/nonces; no new REST or transport registration. */
 final class Shop2ProviderProductPanel {
  public function process(array $post,array $link):array|WP_Error {
   if(!Shop2ProductWorkflow::access(true)||\DigiForge\Security\ShopAccess::authorize('personalized_pod','manage_digiforge_connections')!==true)return PrintifyProductPipeline::error('access');
   $package=$post['package_hash']??null;if(!is_string($package))return PrintifyProductPipeline::error('package');
-  $raw=(new Shop2ProductWorkflow())->export($link,$package);if(is_wp_error($raw))return $raw;
   $op=$post['operation'];$pipe=new PrintifyProductPipeline();$out=['hash'=>$post['workflow_hash'],'supplier_workflow_hash'=>$link['hash'],'package_hash'=>$package];
   if(is_string($post['factory_hash']??null))$out['design_factory_hash']=$post['factory_hash'];
   if($op==='etsy_draft_prepare'){
+   $research=$post['workflow_hash']??null;
+   $factory=$post['factory_hash']??null;
+   if(!is_string($research)||!is_string($factory))return PrintifyProductPipeline::error('package_binding');
+   $raw=Shop2HeldPackageBinding::export($link,$research,$factory,$package,$post);
+   if(is_wp_error($raw))return $raw;
    $id=$post['etsy_shop_id']??null;if(!is_string($id)||!preg_match('/^[1-9][0-9]{0,17}$/D',$id))return PrintifyProductPipeline::error('etsy_shop');
    $e=json_decode($raw,true);$shopId=(int)$id;global $wpdb;$wpdb->last_error='';$predicate=\DigiForge\Listings\EtsyStoredShopScope::matches($wpdb->prepare('%s','personalized_pod'),$wpdb->prepare('%s',$id),$wpdb->prepare('%s',$e['package']['environment']));$assigned=$wpdb->get_var('SELECT '.$predicate);
    if($wpdb->last_error!==''||(string)$assigned!=='1')return PrintifyProductPipeline::error('etsy_verified_shop_required');
    $decl=$this->json($post['provider_options']??null);if(is_wp_error($decl))return $decl;$handoff=Shop2EtsyDraftHandoff::prepare($e,$shopId,$decl);if(is_wp_error($handoff))return $handoff;$handoff['profile_ownership_status']='DECLARED_UNVERIFIED';$handoff['remaining_gates'][]='ETSY_PROFILE_OWNERSHIP_REQUIRED';
    return $out+['provider_export'=>json_encode($handoff,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT)];
   }
+  $raw=(new Shop2ProductWorkflow())->export($link,$package);if(is_wp_error($raw))return $raw;
   if($op==='provider_prepare'){
    $id=$post['integration_id']??null;$operation=$post['provider_operation']??null;if(!is_string($id)||!preg_match('/^[1-9][0-9]{0,8}$/D',$id)||!is_string($operation))return PrintifyProductPipeline::error('typed');$options=$this->json($post['provider_options']??null);if(is_wp_error($options))return $options;$plan=$pipe->prepare($link['hash'],$package,(int)$id,$operation,$options);return is_wp_error($plan)?$plan:$out+['provider_plan_hash'=>$plan['hash']];
   }
