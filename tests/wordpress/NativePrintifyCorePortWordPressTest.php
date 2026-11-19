@@ -56,7 +56,17 @@ final class NativePrintifyCorePortWordPressTest extends WP_UnitTestCase
   $stale=new ShopBinding(2,$s->shopKey,$s->integrationId,$s->providerShopId,$s->environment,$s->revision+1,$s->credential,$s->bindingHash,$s->expiresAt);
   self::assertWPError($p->panelAccess($stale,$a,$this->context($stale)));
   $foreign=new ShopBinding(3,'standard_pod',$s->integrationId,$s->providerShopId,$s->environment,$s->revision,$s->credential,$s->bindingHash,$s->expiresAt);self::assertWPError($p->panelAccess($foreign,$a,$this->context($foreign)));
-  $q=NativePrintifyContractFixture::mutation('AUTHORIZE');$q['binding']['actor_id']=$a;$q['context']['actor_id']=$a;$r=$p->exchange($q);self::assertWPError($r);self::assertSame('printify_native_journal_and_independent_checkpoint_required',$r->get_error_code());
+  $q=NativePrintifyContractFixture::mutation('AUTHORIZE');
+  $q['binding']=array_replace($q['binding'],['actor_id'=>$a,'scope_fingerprint'=>$s->fingerprint(),'integration_id'=>$s->integrationId,'credential_reference'=>$s->credential->integrationId,'provider_shop_id'=>$s->providerShopId,'environment'=>$s->environment,'authorization_revision'=>$s->revision]);
+  $q['context']=array_replace($q['context'],['actor_id'=>$a,'authorization_revision'=>$s->revision]);
+  $r=$p->exchange($q);self::assertWPError($r);self::assertSame('printify_native_journal_and_independent_checkpoint_required',$r->get_error_code());
+  foreach(['provider_shop_id'=>$s->providerShopId.'9','scope_fingerprint'=>str_repeat('0',64),'environment'=>'production','authorization_revision'=>$s->revision+1] as $field=>$value){
+   $wrong=$q;$wrong['binding'][$field]=$value;
+   if($field==='authorization_revision')$wrong['context'][$field]=$value;
+   $r=$p->exchange($wrong);self::assertWPError($r);self::assertSame('printify_native_mutation_reviewed_scope',$r->get_error_code());
+  }
+  WP_Session_Tokens::get_instance($a)->destroy(wp_get_session_token());
+  $r=$p->exchange($q);self::assertWPError($r);self::assertSame('printify_native_session_required',$r->get_error_code());
  }
  public function testAdminWithoutSignedGrantAndRoleRevocationDeny():void {
   $s=$this->scope();$a=get_current_user_id();$p=NativeBridge::connect('1.0.0');$c=$this->context($s);

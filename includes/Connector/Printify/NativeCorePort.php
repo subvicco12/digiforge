@@ -24,7 +24,7 @@ final class NativeCorePort implements NativeCorePortInterface
   $b=$request['binding'];$c=$request['context'];
   foreach(['actor_id','authorization_revision','approval_reference','product_version','expected_product_version']as $key)if($b[$key]!==$c[$key])return NativeFailure::error('mutation_binding');
   if($b['credential_reference']!==$b['integration_id']||(['personalized_pod'=>2,'standard_pod'=>3][$b['shop_key']]??null)!==$b['shop_id'])return NativeFailure::error('mutation_scope');
-  $access=NativeAuthorityAdapter::module($b['shop_key'],$b['actor_id'],['manage_digiforge_pod']);if(is_wp_error($access))return $access;
+  $access=NativeAuthorityAdapter::mutationScope($b);if(is_wp_error($access))return $access;
   // Core's existing option-backed claims are not the specified transactional native journal.
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.
   return NativeFailure::error('journal_and_independent_checkpoint_required');

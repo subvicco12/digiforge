@@ -38,6 +38,35 @@ final class NativeAuthorityAdapter
    $session=self::session($actor);return is_wp_error($session)?$session:['scope'=>$connection,'expires_at'=>min($scope->expiresAt,$session['expires_at'],time()+60),'session_fingerprint'=>$session['fingerprint']];
   }catch(\Throwable){return NativeFailure::error('connection_unavailable');}
  }
+ /** Resolve current reviewed connection identity before reporting the checkpoint gate.
+  * This preflight makes no approval decision and cannot reserve a journal slot.
+  */
+ public static function mutationScope(array $binding): true|\WP_Error
+ {
+  $shop = $binding['shop_key'];
+  $actor = $binding['actor_id'];
+  $integration = $binding['integration_id'];
+  $access = self::module($shop, $actor, ['manage_digiforge_pod']);
+  if (is_wp_error($access)) return $access;
+  try {
+   $verified = (new ScopedProviderConnection())->verified($shop, $integration, 'printify.connection.read');
+   if (is_wp_error($verified) || $verified['review_revision'] !== $binding['authorization_revision']
+       || $verified['external_shop_reference'] !== $binding['provider_shop_id']
+       || $verified['environment'] !== $binding['environment']) {
+    return NativeFailure::error('mutation_reviewed_scope');
+   }
+   $scope = new ShopBinding($binding['shop_id'], $shop, $integration, $verified['external_shop_reference'],
+       $verified['environment'], $verified['review_revision'], new CredentialReference($binding['credential_reference']),
+       $verified['binding_hash'], $verified['expires_at']);
+   if (!hash_equals($scope->fingerprint(), $binding['scope_fingerprint'])) {
+    return NativeFailure::error('mutation_reviewed_scope');
+   }
+   $current = self::scope($scope, $actor, ['manage_digiforge_pod']);
+   return is_wp_error($current) ? $current : true;
+  } catch (\Throwable) {
+   return NativeFailure::error('mutation_reviewed_scope');
+  }
+ }
  public static function read(ExternalOperationIntent $intent):ProviderResult|\WP_Error {
   $caps=match($intent->operation){
    'PRODUCT_READ','PRODUCTS_READ','UPLOAD_READ','UPLOADS_READ'=>['manage_digiforge_products'],
