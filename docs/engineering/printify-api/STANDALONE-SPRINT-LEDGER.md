@@ -123,3 +123,17 @@ transactional journal and independent checkpoint join, and the Companion
 still pins the frozen Core. REGISTER, CLAIM, trusted operational receipts,
 reconciliation and recovery remain blocked. No alternate journal or writer
 is introduced.
+
+## Standalone 0.8.0 synthetic application
+
+The [official Printify OpenAPI document](https://developers.printify.com/openapi.json)
+parsed as OpenAPI 3.0.3 with 47 paths. The typed route subset uses the existing
+qualified PHP request and response contracts where available. Route alignment
+and fixture behavior do not establish broad schema conformance or live access.
+
+| Architecture sections | Delivered capability | Scope and remaining work |
+| --- | --- | --- |
+| 1–3, 6–7, 16–17 | Standalone typed client and in-memory transport for shop discovery, catalog and variants, artwork upload/read/list, product create/read/list/update, shipping quote, order create/read/list/cancel, separate simulated production, and isolated webhook fixture management. | Fixed fixture catalog and subset of documented routes. Production client and full provider feature parity remain open. |
+| 5, 8–9, 18–22 | Fixture state, bounded plans/pages, validation errors, synthetic rate limits, duplicate and stale-write denial, lost-acknowledgment fault, and order tracking readback. | State survives within a fixture run. Neither fixture identity nor a synthetic readback creates a native journal receipt or resolves a real UNKNOWN. |
+| 10–12, 15, 23 | Source-stamped deterministic ZIP and opt-in WordPress Tools journey, with scoped capability checks, nonce admission and sanitized results. | Fixed scenario. General product/order editing and durable audit views remain open. |
+| 4, 13–14, 20, 24 | Existing protected native held inspection and standalone execution holds. | Operational registration, claim, independent checkpoint, credential custody, historical-token invalidation and hosted recovery remain blocked. |

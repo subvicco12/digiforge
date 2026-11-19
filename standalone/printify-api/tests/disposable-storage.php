@@ -37,10 +37,44 @@ if ($phase === 'write') {
     requireFixture($before === $after, 'Activation changed unrelated autoloaded options');
 }
 $status = DigiForgePrintifyApi\Runtime::discover();
-requireFixture($status['version'] === '0.7.0' && $status['stop_all'] && $status['external_lock']
+requireFixture($status['version'] === '0.8.0' && $status['stop_all'] && $status['external_lock']
     && !$status['automation'] && $status['release_hold'] && !$status['provider_execution_authorized'],
     'Execution holds did not survive activation or restart');
 requireFixture(in_array('OFFLINE_PROVIDER_READ_REVIEW', $status['capabilities'], true), 'Routed capability missing');
+if ($phase === 'write') {
+    define('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY', true);
+    $http = 0;
+    $tripwire = static function () use (&$http): never {
+        ++$http;
+        throw new RuntimeException('Network prohibited in the fixture');
+    };
+    add_filter('pre_http_request', $tripwire, PHP_INT_MAX);
+    $render = static function (): string {
+        ob_start();
+        DigiForgePrintifyApi\Runtime::panel();
+        return ob_get_clean();
+    };
+    try {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        requireFixture(str_contains($render(), 'Run synthetic journey'), 'Synthetic form unavailable');
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = ['digiforge_printify_run_synthetic'=>'1', 'digiforge_printify_synthetic_nonce'=>'0000000000'];
+        requireFixture(str_contains($render(), 'could not be verified'), 'Invalid nonce accepted');
+        $_POST['digiforge_printify_synthetic_nonce'] = wp_create_nonce('digiforge_printify_synthetic_journey_v1');
+        $panel = $render();
+        requireFixture(str_contains($panel, 'Synthetic journey passed.')
+            && str_contains($panel, 'SYNTHETIC_RECONCILIATION') && !str_contains($panel, 'fixture@example.test'),
+            'Authenticated synthetic panel did not complete or leaked fixture details');
+        wp_set_current_user(0);
+        requireFixture($render() === '', 'Revoked operator retained synthetic form');
+        wp_set_current_user(1);
+        requireFixture($http === 0, 'Unexpected external attempt during synthetic panel run');
+    } finally {
+        $_POST = [];
+        unset($_SERVER['REQUEST_METHOD']);
+        remove_filter('pre_http_request', $tripwire, PHP_INT_MAX);
+    }
+}
 $order = '{"id":"fixture-order","shop_id":107,"status":"pending","line_items":[]}';
 $orderInput = ['order_id'=>'fixture-order'];
 $review = DigiForgePrintifyApi\Runtime::reviewProviderRead('107', 'fixture-account', 'ORDER_READ', $orderInput, $order);

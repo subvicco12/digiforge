@@ -36,7 +36,12 @@ final class Runtime
         ] as $label => $value) {
             echo '<dt>' . \esc_html($label) . '</dt><dd>' . \esc_html($value) . '</dd>';
         }
-        echo '</dl></div>';
+        echo '</dl>';
+        if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
+            require_once __DIR__ . '/SyntheticOperatorPanel.php';
+            SyntheticOperatorPanel::render();
+        }
+        echo '</div>';
     }
 
     /** The config supplies only a local shop scope, never provider authority. */
@@ -71,11 +76,44 @@ final class Runtime
             if (self::fixtureAccount() !== null && self::providerReadAvailable()) {
                 $status['capabilities'][] = 'OFFLINE_PROVIDER_READ_REVIEW';
             }
+            if (self::canRunSyntheticJourney()) {
+                $status['capabilities'][] = 'OFFLINE_SYNTHETIC_JOURNEY';
+            }
             if (self::canReviewLifecycle()) {
                 $status['capabilities'][] = 'OFFLINE_LIFECYCLE_REVIEW';
             }
         }
         return $status;
+    }
+
+    private static function canRunSyntheticJourney(): bool
+    {
+        $shop = self::shop();
+        if ($shop === null || strlen($shop) > 18 || !self::canValidate($shop) || self::fixtureAccount() === null
+            || !\defined('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY') || DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY !== true
+            || !\function_exists('wp_get_environment_type') || \wp_get_environment_type() !== 'local'
+            || !self::providerReadAvailable() || !self::canReviewLifecycle()) {
+            return false;
+        }
+        foreach (['SyntheticJourney.php','SyntheticPrintifyClient.php','SyntheticPrintifyTransport.php',
+            'SyntheticOperatorPanel.php','Engine/POD/PrintifyLifecycleRequest.php','Engine/POD/PrintifyLifecycleEvidence.php',
+            'Engine/POD/PrintifyUploadContract.php'] as $path) {
+            if (!is_readable(__DIR__ . '/' . $path)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static function runSyntheticJourney(): array
+    {
+        if (!self::canRunSyntheticJourney()) {
+            return ['state'=>'DENIED','steps'=>[],'provider_execution_authorized'=>false,'retry_permitted'=>false];
+        }
+        require_once __DIR__ . '/SyntheticPrintifyTransport.php';
+        require_once __DIR__ . '/SyntheticPrintifyClient.php';
+        require_once __DIR__ . '/SyntheticJourney.php';
+        return SyntheticJourney::run(self::shop());
     }
 
     private static function fixtureAccount(): ?string

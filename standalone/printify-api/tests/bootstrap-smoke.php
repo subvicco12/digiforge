@@ -12,6 +12,7 @@ function check(bool $condition, string $message): void
 function add_action(...$args): void { $GLOBALS['fixture_hooks'][] = $args; }
 function add_management_page(...$args): void { $GLOBALS['fixture_menu'] = $args; }
 function current_user_can(string $cap): bool { return in_array($cap, $GLOBALS['fixture_caps'], true); }
+function wp_get_environment_type(): string { return $GLOBALS['fixture_environment'] ?? 'production'; }
 function wp_json_encode(mixed $value, int $flags = 0): string|false { return json_encode($value, $flags); }
 function esc_html(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
 function add_filter(...$args): never { throw new RuntimeException('Unexpected filter'); }
@@ -37,7 +38,7 @@ check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.7.0',
+    'version' => '0.8.0',
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,
@@ -98,6 +99,7 @@ if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
     require __DIR__.'/native-authority-fixture.php';
     if ($withLifecycle) {
         require __DIR__.'/lifecycle-fixture.php';
+        require __DIR__.'/synthetic-journey-fixture.php';
     } else {
         check(Runtime::reviewLifecycle('107', ['account_reference'=>'fixture-account'], [])['state'] === 'DENIED',
             'Missing lifecycle dependency did not deny direct invocation');

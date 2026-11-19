@@ -14,7 +14,7 @@ import zipfile
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN = "digiforge-printify-api"
 SOURCE = f"standalone/printify-api/{PLUGIN}"
-MEMBERS = ("NativeHeldInspection.php", "SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
+MEMBERS = ("SyntheticJourney.php", "SyntheticOperatorPanel.php", "SyntheticPrintifyClient.php", "SyntheticPrintifyTransport.php", "NativeHeldInspection.php", "SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
 
 
 def git(*args: str) -> bytes:
@@ -37,6 +37,9 @@ def build(source: str) -> bytes:
         ("POD/PrintifyApiRequest.php", "Engine/POD/PrintifyApiRequest.php"),
         ("POD/PrintifyApiReadEvidence.php", "Engine/POD/PrintifyApiReadEvidence.php"),
         ("POD/PrintifyOrderEvidence.php", "Engine/POD/PrintifyOrderEvidence.php"),
+        ("POD/PrintifyUploadContract.php", "Engine/POD/PrintifyUploadContract.php"),
+        ("POD/PrintifyLifecycleRequest.php", "Engine/POD/PrintifyLifecycleRequest.php"),
+        ("POD/PrintifyLifecycleEvidence.php", "Engine/POD/PrintifyLifecycleEvidence.php"),
         ("POD/PrintifyApiOutcome.php", "Engine/POD/PrintifyApiOutcome.php"),
         ("Research/DesignFactoryContract.php", "Engine/Research/DesignFactoryContract.php"),
     )
@@ -55,6 +58,9 @@ def build(source: str) -> bytes:
         if member == "Engine/POD/PrintifyApiRequest.php":
             relocated = relocated.replace(b"\\DigiForge\\Listings\\Validator::",
                                           b"\\DigiForgePrintifyApi\\Engine\\Listings\\Validator::")
+        if member in {"Engine/POD/PrintifyLifecycleRequest.php", "Engine/POD/PrintifyUploadContract.php"}:
+            relocated = relocated.replace(b"use DigiForge\\Listings\\Validator;",
+                                          b"use DigiForgePrintifyApi\\Engine\\Listings\\Validator;")
         if member == "Engine/PrintifyCatalogReadContract.php":
             relocated = relocated.replace(b"namespace DigiForgePrintifyApi\\Engine\\POD;",
                                           b"namespace DigiForgePrintifyApi\\Engine;")
