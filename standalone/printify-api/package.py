@@ -33,6 +33,9 @@ def build(source: str) -> bytes:
     contracts = (
         ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),
         ("POD/PrintifyProductRequest.php", "Engine/POD/PrintifyProductRequest.php"),
+        ("Listings/Validator.php", "Engine/Listings/Validator.php"),
+        ("POD/PrintifyApiRequest.php", "Engine/POD/PrintifyApiRequest.php"),
+        ("POD/PrintifyApiReadEvidence.php", "Engine/POD/PrintifyApiReadEvidence.php"),
         ("POD/PrintifyOrderEvidence.php", "Engine/POD/PrintifyOrderEvidence.php"),
         ("POD/PrintifyApiOutcome.php", "Engine/POD/PrintifyApiOutcome.php"),
         ("Research/DesignFactoryContract.php", "Engine/Research/DesignFactoryContract.php"),
@@ -49,6 +52,9 @@ def build(source: str) -> bytes:
             b"\\DigiForge\\Research\\DesignFactoryContract::",
             b"\\DigiForgePrintifyApi\\Engine\\Research\\DesignFactoryContract::",
         )
+        if member == "Engine/POD/PrintifyApiRequest.php":
+            relocated = relocated.replace(b"\\DigiForge\\Listings\\Validator::",
+                                          b"\\DigiForgePrintifyApi\\Engine\\Listings\\Validator::")
         if member == "Engine/PrintifyCatalogReadContract.php":
             relocated = relocated.replace(b"namespace DigiForgePrintifyApi\\Engine\\POD;",
                                           b"namespace DigiForgePrintifyApi\\Engine;")

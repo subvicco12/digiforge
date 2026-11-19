@@ -37,9 +37,17 @@ if ($phase === 'write') {
     requireFixture($before === $after, 'Activation changed unrelated autoloaded options');
 }
 $status = DigiForgePrintifyApi\Runtime::discover();
-requireFixture($status['version'] === '0.5.0' && $status['stop_all'] && $status['external_lock']
+requireFixture($status['version'] === '0.6.0' && $status['stop_all'] && $status['external_lock']
     && !$status['automation'] && $status['release_hold'] && !$status['provider_execution_authorized'],
     'Execution holds did not survive activation or restart');
+requireFixture(in_array('OFFLINE_PROVIDER_READ_REVIEW', $status['capabilities'], true), 'Routed capability missing');
+$order = '{"id":"fixture-order","shop_id":107,"status":"pending","line_items":[]}';
+$orderInput = ['order_id'=>'fixture-order'];
+$review = DigiForgePrintifyApi\Runtime::reviewProviderRead('107', 'fixture-account', 'ORDER_READ', $orderInput, $order);
+requireFixture($review['state'] === 'OFFLINE_PROVIDER_READ_REVIEWED' && $review['native_reconciliation'] === 'BLOCKED'
+    && !$review['provider_outcome_confirmed'] && !$review['retry_permitted'], 'Order fixture misclassified');
+requireFixture(DigiForgePrintifyApi\Runtime::reviewProviderRead('108', 'fixture-account', 'ORDER_READ', $orderInput, $order)['state'] === 'DENIED',
+    'Wrong shop reached the provider router');
 $db = new PDO('mysql:unix_socket=' . $socket . ';dbname=printify_fixture', 'root', '', [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
 ]);

@@ -89,3 +89,18 @@ No operational GET, mutation, scheduling or custody capability is advertised.
 Native admission and recovery, live provider attribution, action currency and
 stock evidence, geometry beyond the validated contract, and broader standalone
 operation coverage remain open. Shop 2, Core and Companion are unchanged.
+
+## Standalone 0.5.0 and 0.6.0 delta against sections 1–24
+
+| Sections | Source capability | Offline verification | External qualification |
+| --- | --- | --- | --- |
+| 1–4, 10–12, 15–16, 23 | Standalone bootstrap, operator discovery, exact-source packaging and separated runtime symbols. Standalone SDK and operational compatibility matrix remain incomplete. | Source and extracted smoke, deterministic ZIP, disposable activation. | Live composition and release approval unavailable. |
+| 5, 8–9, 18–20 | Exact-selector signed synthetic catalog evidence and insert-only fixture snapshots. Native register, claim, checkpoint and journal authority remain outside the standalone runtime. | Duplicate denial, stale and cross-scope denial, restart readback, synthetic UNKNOWN and retry denial. | Qualified issuer/witness, exclusive credentials, historical-token invalidation and recovery evidence required. |
+| 6–7, 17, 21–22 | Eight provider read plans and typed projections over supplied bytes. Scoped catalog and local product, artwork and order preparation remain available. Standalone approved-intent submission, trusted receipts, event intake and authoritative reconciliation remain incomplete. | Exercise eight routed reads, scope denial, bounded pagination, malformed evidence and projection of only the selected shop. | No provider-confirmed response, hosted durability or quota evidence. |
+| 13–14, 24 | Release held. Read review exposes an explicitly blocked native reconciliation result. | Fixtures do not supply approvals, dispatch authority or successful resolution of UNKNOWN. | Independent authority and explicit operational approval required. |
+
+The typed provider read router reviews unattributed bytes. Signed catalog
+snapshots retain their separate fixture evidence contract. Neither grants native
+operation idempotency. The existing Core/native ownership boundary still owns
+approval and product revision currentness, durable operation transitions, and
+the definitive reconciliation decision.

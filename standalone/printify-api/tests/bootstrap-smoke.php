@@ -12,6 +12,7 @@ function check(bool $condition, string $message): void
 function add_action(...$args): void { $GLOBALS['fixture_hooks'][] = $args; }
 function add_management_page(...$args): void { $GLOBALS['fixture_menu'] = $args; }
 function current_user_can(string $cap): bool { return in_array($cap, $GLOBALS['fixture_caps'], true); }
+function wp_json_encode(mixed $value, int $flags = 0): string|false { return json_encode($value, $flags); }
 function esc_html(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
 function add_filter(...$args): never { throw new RuntimeException('Unexpected filter'); }
 function register_activation_hook(...$args): never { throw new RuntimeException('Unexpected activation hook'); }
@@ -36,7 +37,7 @@ check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.5.0',
+    'version' => '0.6.0',
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,
@@ -63,7 +64,7 @@ check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS'], 'Unscoped c
 $GLOBALS['fixture_caps'][] = 'digiforge_printify_review_shop_107';
 if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
     $withLifecycle = ($argv[2] ?? '') !== 'missing-lifecycle';
-    $capabilities = ['PANEL/DIAGNOSTICS', 'OFFLINE_CATALOG_VALIDATE'];
+    $capabilities = ['PANEL/DIAGNOSTICS', 'OFFLINE_CATALOG_VALIDATE', 'OFFLINE_PROVIDER_READ_REVIEW'];
     if ($withLifecycle) {
         $capabilities[] = 'OFFLINE_LIFECYCLE_REVIEW';
     }
@@ -93,6 +94,7 @@ if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
     check(Runtime::validateCatalog('107', $bp, '{"id":42,"last_page":2}')['state'] === 'DENIED', 'Partial pagination accepted');
     check(Runtime::validateCatalog('107', $bp, str_repeat(' ', 262145))['state'] === 'DENIED', 'Oversize body accepted');
     check(Runtime::validateCatalog('107', $bp, '{broken')['state'] === 'DENIED', 'Malformed body accepted');
+    require __DIR__.'/provider-routing-fixture.php';
     if ($withLifecycle) {
         require __DIR__.'/lifecycle-fixture.php';
     } else {

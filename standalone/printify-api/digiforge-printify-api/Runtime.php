@@ -68,6 +68,9 @@ final class Runtime
         $status['mode'] = 'DEGRADED_READ_ONLY';
         if (self::canValidate(self::shop())) {
             $status['capabilities'][] = 'OFFLINE_CATALOG_VALIDATE';
+            if (self::fixtureAccount() !== null && self::providerReadAvailable()) {
+                $status['capabilities'][] = 'OFFLINE_PROVIDER_READ_REVIEW';
+            }
             if (self::canReviewLifecycle()) {
                 $status['capabilities'][] = 'OFFLINE_LIFECYCLE_REVIEW';
             }
@@ -108,6 +111,102 @@ final class Runtime
             return ['state' => 'DENIED', 'provider_execution_authorized' => false];
         }
         return OfflineLifecycle::review($shop, $intent, $fixture);
+    }
+
+    private const READ_ENGINE = [
+        'Listings/Validator.php', 'POD/PrintifyApiRequest.php',
+        'POD/PrintifyOrderEvidence.php', 'POD/PrintifyApiReadEvidence.php',
+    ];
+
+    private static function providerReadAvailable(): bool
+    {
+        if (!\function_exists('wp_json_encode')) {
+            return false;
+        }
+        foreach (self::READ_ENGINE as $path) {
+            if (!is_readable(__DIR__ . '/Engine/' . $path)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static function prepareProviderRead(string $shop, string $account, string $operation, array $input): array
+    {
+        $denied = self::providerReadDenied();
+        if (!self::permitsFixtureAccount($shop, $account) || !self::providerReadAvailable()) {
+            return $denied;
+        }
+        try {
+            foreach (self::READ_ENGINE as $path) {
+                require_once __DIR__ . '/Engine/' . $path;
+            }
+            if (!Engine\POD\PrintifyApiReadEvidence::supported($operation)) {
+                return $denied;
+            }
+            $request = Engine\POD\PrintifyApiRequest::prepare($operation, $shop, $input);
+            if ($request['method'] !== 'GET' || $request['external_execution_authorized'] !== false) {
+                return $denied;
+            }
+            return [
+                'state' => 'OFFLINE_PROVIDER_READ_PREPARED',
+                'account_reference' => $account,
+                'request' => $request,
+                'native_reconciliation' => 'BLOCKED',
+            ] + $denied;
+        } catch (\Throwable) {
+            return $denied;
+        }
+    }
+
+    public static function reviewProviderRead(string $shop, string $account, string $operation, array $input, string $body): array
+    {
+        $denied = self::providerReadDenied();
+        if (strlen($body) > 262144) {
+            return $denied;
+        }
+        $plan = self::prepareProviderRead($shop, $account, $operation, $input);
+        if ($plan['state'] !== 'OFFLINE_PROVIDER_READ_PREPARED') {
+            return $denied;
+        }
+        try {
+            $data = json_decode($body, true, 24, JSON_THROW_ON_ERROR);
+            if (!is_array($data)) {
+                return $denied;
+            }
+            $rows = match ($operation) {
+                'ORDERS_READ', 'PRODUCTS_READ' => $data['data'] ?? null,
+                'ORDER_READ', 'PRODUCT_READ' => [$data],
+                default => [],
+            };
+            if (!is_array($rows)) {
+                return $denied;
+            }
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    return $denied;
+                }
+                if (array_key_exists('shop_id', $row)
+                    && $row['shop_id'] !== $shop
+                    && (!is_int($row['shop_id']) || (string)$row['shop_id'] !== $shop)) {
+                    return $denied;
+                }
+            }
+            return [
+                'state' => 'OFFLINE_PROVIDER_READ_REVIEWED',
+                'evidence_class' => 'UNATTRIBUTED_OFFLINE_INPUT',
+                'snapshot_sha256' => hash('sha256', $body),
+                'observation' => Engine\POD\PrintifyApiReadEvidence::project($operation, $data, $shop, $input),
+            ] + $plan;
+        } catch (\Throwable) {
+            return $denied;
+        }
+    }
+
+    private static function providerReadDenied(): array
+    {
+        return ['state' => 'DENIED', 'provider_execution_authorized' => false,
+            'provider_outcome_confirmed' => false, 'retry_permitted' => false];
     }
 
     /**
