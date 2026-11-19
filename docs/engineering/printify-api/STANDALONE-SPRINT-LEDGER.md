@@ -64,3 +64,28 @@ that source. Statuses describe this standalone build unless noted.
 | 22 | Budgets | PARTIAL. Catalog input limited to 256 KiB and JSON depth 24. Operational budgets and quota health open. |
 | 23 | Compatibility and upgrades | PARTIAL. Separate PHP symbols and reproducible artifact. Runtime coexistence, restore and installation matrix open. |
 | 24 | Remaining evidence | PARTIAL. Architecture reconciled here. Provider fields, authority infrastructure, hosted durability, installation and live acceptance unresolved. |
+
+## Day 3, offline lifecycle and disposable storage
+
+The packaged Runtime adds scoped `OFFLINE_LIFECYCLE_REVIEW` when the shop and
+account configuration match. The deterministic fixture validates catalog
+variant membership, product intent and artwork placement, actual PNG bytes,
+existing-product order and shipping intent, and tracking readback against the
+same operation and line quantities. The simulated timeout remains UNKNOWN.
+A synthetic matching readback neither confirms a provider outcome nor
+authorizes retry. Approval and version values are fixture bindings, separate
+from trusted native approvals and revisions.
+
+The opt-in InnoDB fixture store inserts catalog snapshots under a unique
+identity, records exact scope, source label, digest, observation time and
+unverified freshness, and verifies bytes before reading metadata. It is
+limited to a disposable local database with no automatic schema or activation
+hooks. Real WordPress/MariaDB fixture checks passed for duplicate insert,
+scope and actor denial, and retrieval after database restart. This is
+fixture snapshot durability, separate from native operation idempotency,
+hosted recovery, and authenticated provider snapshot provenance.
+
+No operational GET, mutation, scheduling or custody capability is advertised.
+Native admission and recovery, live provider attribution, action currency and
+stock evidence, geometry beyond the validated contract, and broader standalone
+operation coverage remain open. Shop 2, Core and Companion are unchanged.
