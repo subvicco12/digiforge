@@ -46,7 +46,7 @@ final class OrderIntakeEvidencePanelTest extends WP_UnitTestCase
     }
     public function testCompleteStoredIntakeDoesNotSupplyPaymentProofOrProductionAuthority():void
     {
-        $f=$this->intake();$html=$this->render($f['id']);self::assertStringContainsString('Stored intake records',$html);self::assertStringContainsString('COMPLETE',$html);self::assertStringContainsString($f['event'],$html);self::assertStringContainsString($f['body_hash'],$html);self::assertStringContainsString('payment',$html);self::assertStringContainsString('retry',$html);self::assertStringNotContainsString('synthetic-operator-intake-fixture',$html);
+        $f=$this->intake();$html=$this->render($f['id']);self::assertStringContainsString('Stored intake records',$html);self::assertStringContainsString('COMPLETE',$html);self::assertStringContainsString($f['event'],$html);self::assertStringContainsString($f['body_hash'],$html);self::assertStringContainsString('payment',$html);self::assertStringContainsString('Buyer identity requires verification.',$html);self::assertStringContainsString('retry',$html);self::assertStringNotContainsString('synthetic-operator-intake-fixture',$html);
         global $wpdb;$order=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::orders().' WHERE id=%d',$f['id']),ARRAY_A);self::assertSame('REVIEW_REQUIRED',$order['state']);self::assertSame('0',$order['approved_by']);self::assertNull($order['approved_at']);
     }
     public function testFailedPersistenceRemainsVisibleBeforeProviderDependentPreparationAndCanOnlyBeHeld():void

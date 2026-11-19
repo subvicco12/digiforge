@@ -55,5 +55,5 @@ final class PaidIntakeEvidence
  private function boundary():void {$state=$this->rows('SELECT @@session.in_transaction AS active,@@session.autocommit AS autocommit');if(count($state)!==1||(string)($state[0]['active']??'')!=='0'||(string)($state[0]['autocommit']??'')!=='1')throw new \RuntimeException('current read boundary',409);}
  private function rows(string $sql):array {global $wpdb;$wpdb->last_error='';$rows=$wpdb->get_results($sql,ARRAY_A);if(!is_array($rows)||$wpdb->last_error!=='')throw new \RuntimeException('query unavailable',503);return $rows;}
  private function hash(mixed $value,bool $empty=false):bool {return is_string($value)&&(($empty&&$value==='')||preg_match('/^[a-f0-9]{64}$/D',$value)===1);}
- private static function flags():array {return ['read_only'=>true,'retry_permitted'=>false,'production_ready'=>false,'external_execution_authorized'=>false,'external_execution_performed'=>false];}
+ private static function flags():array {return ['read_only'=>true,'buyer_identity_admission'=>'OWNER_VERIFICATION_REQUIRED','buyer_access_grant_permitted'=>false,'retry_permitted'=>false,'production_ready'=>false,'external_execution_authorized'=>false,'external_execution_performed'=>false];}
 }

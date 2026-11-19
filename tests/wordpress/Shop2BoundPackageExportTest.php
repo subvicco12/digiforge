@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
 require_once __DIR__.'/fixtures/NativeApprovedPackageFixture.php';
 require_once __DIR__.'/fixtures/Shop2BoundPackageFixture.php';
+require_once __DIR__.'/Support/SyntheticEtsyIdentity.php';
 use DigiForge\Database\Tables;
 final class Shop2BoundPackageExportTest extends WP_UnitTestCase {
  use NativeApprovedPackageFixture,Shop2BoundPackageFixture;
@@ -21,6 +22,32 @@ final class Shop2BoundPackageExportTest extends WP_UnitTestCase {
   try{
    $f=$this->reviewedBoundPackage($family);$panel=new DigiForge\Portal\Shop2ProductWorkflowPanel();$post=$f['context']+['operation'=>'package_export','package_hash'=>$f['package'],'confirm'=>'1'];$ok=PrintifyApiApprovalFixture::checked($panel->process($post));$raw=$ok['package_export'];$out=json_decode($raw,true,32,JSON_THROW_ON_ERROR);$v=PrintifyApiApprovalFixture::checked((new DigiForge\POD\ProductPackageRepository())->read('personalized_pod',$f['package']));
    self::assertSame($v['record']['evidence']['shop2_binding'],$out['proof_business_binding']);$bound=$out['proof_business_binding'];self::assertSame($f['proof']['hash'],$bound['personalization_intake']['versions']['proof_hash']);self::assertSame($f['proof']['review']['hash'],$bound['personalization_intake']['versions']['review_hash']);self::assertSame($f['intake']['intake_hash'],$bound['personalization_intake']['intake_hash']);self::assertSame($f['product_version_id'],$bound['business']['product_version_id']);self::assertSame($f['mapping'],$bound['business']['selectors']['provider_mapping_id']);self::assertSame($f['package'],$out['immutable_package_record_sha256']);self::assertFalse($out['external_execution_authorized']);self::assertTrue($out['release_hold']);self::assertStringNotContainsString('<svg',$raw);self::assertStringNotContainsString('Élodie',$raw);
+   $identity=PrintifyApiApprovalFixture::checked((new DigiForge\Integrations\Repository())->create([
+       'provider'=>'etsy','environment'=>$out['package']['environment'],'connection_key'=>'etsy-draft-'.wp_generate_uuid4(),
+       'display_name'=>'Offline Etsy scope fixture','status'=>'CONFIGURED','enabled'=>false,
+       'config'=>json_decode(SyntheticEtsyIdentity::config('68031896','DigicraftifyShop'),true,32,JSON_THROW_ON_ERROR),
+   ]));
+   SyntheticEtsyIdentity::credential((int)$identity['id']);
+   $draftPost=array_replace($post,[
+       'operation'=>'etsy_draft_prepare','etsy_shop_id'=>'68031896',
+       'provider_options'=>wp_json_encode(['quantity'=>1,'who_made'=>'someone_else','when_made'=>'made_to_order',
+           'taxonomy_id'=>1062,'shipping_profile_id'=>23,'readiness_state_id'=>24]),
+   ]);
+   try {
+       $draft=PrintifyApiApprovalFixture::checked($panel->process($draftPost));
+       $document=json_decode($draft['provider_export'],true,32,JSON_THROW_ON_ERROR);
+       self::assertSame($f['package'],$document['package_hash']);
+       self::assertSame('/application/shops/68031896/listings',$document['draft_operation']['endpoint']);
+       self::assertSame($out['package']['listing']['title'],$document['draft_operation']['payload']['title']);
+       self::assertFalse($document['network_request_permitted']);
+       self::assertFalse($document['publish_permitted']);
+       self::assertWPError($panel->process(array_replace($draftPost,['etsy_shop_id'=>'67757764'])));
+       self::assertWPError($panel->process(array_replace($draftPost,['proof_hash'=>str_repeat('f',64)])));
+   } finally {
+       global $wpdb;
+       $wpdb->delete(Tables::integration_secrets(),['integration_id'=>(int)$identity['id']]);
+       $wpdb->delete(Tables::integrations(),['id'=>(int)$identity['id']]);
+   }
    // An unrelated draft does not silently become the selected proof or invalidate the old selected one.
    $proofs=new DigiForge\Research\ArtworkPersonalizationRepository();$next=PrintifyApiApprovalFixture::checked($proofs->sample('personalized_pod',$f['schema']['hash'],['name_a'=>'Sam','name_b'=>'Alex','anniversary_date'=>'2024-02-29'],$f['proof']['hash']));
    $replay=PrintifyApiApprovalFixture::checked($panel->process($post));self::assertSame($raw,$replay['package_export']);
