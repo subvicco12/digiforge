@@ -118,3 +118,55 @@ for (const change of ['revoke','rotate']) {
   assert.equal(cancelled,true);assert.equal(f.calls.length,1);assert.equal(r.retry_permitted,false);
  });
 }
+test('response headers arriving after deadline cancel the late unread body', async t => {
+ const f=await fixture();const s=await f.session();
+ let releaseHeaders,notifyStarted,cancelled=false,signal;
+ const started=new Promise(resolve=>notifyStarted=resolve);
+ f.provider.fetchOverride=(_url,options)=>{
+  signal=options.signal;
+  return new Promise(resolve=>{releaseHeaders=resolve;notifyStarted();});
+ };
+ t.mock.timers.enable({apis:['setTimeout']});
+ try {
+  const pending=f.dispatch(s,0);await started;t.mock.timers.tick(20001);
+  const result=await pending;
+  assert.equal(result.receipt.manifest.status,'UNKNOWN');
+  assert.equal(result.retry_permitted,false);
+  assert.equal(signal.aborted,true);
+  releaseHeaders(new Response(new ReadableStream({cancel(){cancelled=true;}})));
+  await turn();
+  assert.equal(cancelled,true,'a body arriving after the deadline must be cancelled');
+  assert.equal((await f.dispatch(s,0)).status,'DENIED');
+  assert.equal(f.calls.length,1);
+ } finally { t.mock.timers.reset(); }
+});
+test('late physical body is cancelled even when custody discards the fetch result', async () => {
+ const f=await fixture();const s=await f.session();
+ let releaseHeaders,cancelled=false,signal;
+ f.provider.fetchOverride=(_url,options)=>{
+  signal=options.signal;
+  return new Promise(resolve=>releaseHeaders=resolve);
+ };
+ f.custody.perform=async fn=>{void fn();throw Error('private custody fault');};
+ const result=await f.dispatch(s,0);
+ assert.equal(result.receipt.manifest.status,'UNKNOWN');
+ assert.equal(result.retry_permitted,false);
+ assert.equal(signal.aborted,true);
+ releaseHeaders(new Response(new ReadableStream({cancel(){cancelled=true;}})));
+ await turn();
+ assert.equal(cancelled,true);
+ assert.equal(f.calls.length,1);
+ assert.equal((await f.dispatch(s,0)).status,'DENIED');
+});
+test('late transport rejection after custody failure stays contained', async () => {
+ const f=await fixture();const s=await f.session();
+ let rejectTransport;
+ f.provider.fetchOverride=()=>new Promise((_resolve,reject)=>rejectTransport=reject);
+ f.custody.perform=async fn=>{void fn();throw Error('private custody fault');};
+ const result=await f.dispatch(s,0);
+ assert.equal(result.receipt.manifest.status,'UNKNOWN');
+ rejectTransport(Error('private late transport rejection'));
+ await turn();
+ assert.equal(f.calls.length,1);
+ assert.equal((await f.dispatch(s,0)).status,'DENIED');
+});

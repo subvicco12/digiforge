@@ -1,5 +1,11 @@
 import { insist, LIMITS, observations } from "./protocol.mjs";
 import { inspect } from "./allowlist.mjs";
+function cancelUnreadBody(response) {
+  try {
+    const body = response?.body;
+    if (body && !body.locked) void Promise.resolve(body.cancel()).catch(() => {});
+  } catch {}
+}
 const unknown = (uncertain = false) => ({
   status: "UNKNOWN",
   http_status: null,
@@ -48,6 +54,7 @@ export class SyntheticFinalSender {
       callbackUsed = false,
       closed = false,
       response,
+      physicalResponse,
       reader,
       timer;
     const deadline = new Promise((resolve) => {
@@ -75,16 +82,28 @@ export class SyntheticFinalSender {
           const authorization = this.#custody.syntheticAuthorization();
           current();
           physical = true;
-          return this.#fetch.fetch("https://api.printify.com" + request.endpoint, {
-            method: "GET",
-            redirect: "error",
-            signal: abort.signal,
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "DigiForge-offline-dispatcher/1",
-              Authorization: authorization,
-            },
+          const transport = Promise.resolve(
+            this.#fetch.fetch("https://api.printify.com" + request.endpoint, {
+              method: "GET",
+              redirect: "error",
+              signal: abort.signal,
+              headers: {
+                Accept: "application/json",
+                "User-Agent": "DigiForge-offline-dispatcher/1",
+                Authorization: authorization,
+              },
+            }),
+          ).then((headers) => {
+            // Some transports settle after abort, even after custody itself has
+            // rejected. Track the physical body independently of custody's result.
+            physicalResponse = headers;
+            if (closed || expired) cancelUnreadBody(headers);
+            return headers;
           });
+          // Custody may fail without awaiting transport. Observe that rejection
+          // here while preserving it for custody adapters that do await it.
+          void transport.catch(() => {});
+          return transport;
         });
         if (expired) return unknown(physical);
         current();
@@ -164,8 +183,9 @@ export class SyntheticFinalSender {
       clearTimeout(timer);
       // Do not await an uncooperative body: retain UNKNOWN rather than extending deadline.
       try {
-        if (response?.body && !response.body.locked) response.body.cancel().catch(() => {});
-        else if (reader) reader.cancel().catch(() => {});
+        if (reader && response?.body?.locked) reader.cancel().catch(() => {});
+        else cancelUnreadBody(response);
+        if (physicalResponse !== response) cancelUnreadBody(physicalResponse);
       } catch {}
     }
   }
