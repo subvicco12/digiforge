@@ -5,6 +5,7 @@ export const DOMAIN = 'DF_INDEPENDENT_CHECKPOINT_AUTHORITY_1';
 export const WITNESS_DOMAIN = 'DF_INDEPENDENT_RECOVERY_WITNESS_1';
 export const VERSION = '1.0.0';
 export const PURPOSE = Object.freeze({
+  readMapPublicationV1: 'held.provenance.map.read.v1',
   readBlockedProvenanceV1: 'held.provenance.block.read.v1',
   commitHeldProvenanceV1: 'held.provenance.commit.v1', readHeldProvenanceV1: 'held.provenance.read.v1',
   currentCheckpoint: 'checkpoint.request.v1', admitOperation: 'operation.request.v1',

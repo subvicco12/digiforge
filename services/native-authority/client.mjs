@@ -136,6 +136,27 @@ export class AuthorityClient {
     need(result.reason === null || reference(result.reason), 'result_reason');
     if (['commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method))
       need((message.disposition==='HELD'&&result.operation!==null)||(message.disposition==='DENIED'&&result.operation===null),'provenance_disposition');
+    if(request.method==='readMapPublicationV1'){
+      const proof=result.operation,body=request.method_body;
+      if(message.disposition==='DENIED'){need(proof===null&&result.drain===null,'publication_disposition');return;}
+      exactFields(proof,['schema','version','mapping_id','phase','snapshot_hash','control_reference','control_digest',
+        'committed_revision','publication_generation','publication_epoch','journal_sequence','confirmed_source_commit_hash',
+        'mapping_state','mapping_revision','journal_event_hash','release_hold','external_execution_authorized'],'publication_fields');
+      need(message.disposition==='HELD'&&result.drain===null&&result.reason===null
+        &&proof.schema==='DF_NATIVE_MAP_PUBLICATION_1'&&proof.version==='1.0.0'
+        &&proof.release_hold===true&&proof.external_execution_authorized===false
+        &&message.generation===body.expected_generation&&message.checkpoint_epoch===body.expected_epoch
+        &&integer(proof.mapping_revision)&&proof.mapping_revision>=proof.committed_revision
+        &&['ACTIVE','BLOCKED','HELD'].includes(proof.mapping_state)
+        &&integer(proof.publication_generation)&&proof.publication_generation<=message.generation
+        &&digestValue(proof.publication_epoch)&&integer(proof.journal_sequence)
+        &&proof.journal_sequence<=message.witness_sequence&&digestValue(proof.journal_event_hash)
+        &&(body.phase==='PREPARE'?proof.confirmed_source_commit_hash===null:digestValue(proof.confirmed_source_commit_hash)),
+      'publication_disposition');
+      for(const k of ['mapping_id','phase','snapshot_hash','control_reference','control_digest','committed_revision'])
+        need(proof[k]===body[k],'publication_binding');
+      Object.freeze(proof);return;
+    }
     if (request.method==='readBlockedProvenanceV1'){
       const proof=result.operation;
       if(message.disposition==='DENIED'){need(proof===null&&result.drain===null,'block_disposition');return;}

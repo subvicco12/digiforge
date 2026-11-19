@@ -109,6 +109,6 @@ export function verifyProvenanceControl(config,envelope){
  const r=dual(config,envelope,'held.provenance.control');
  exactFields(r,['schema','version','reference','binding','issued_at','expires_at','data','type']);
  need(r.schema==='DF_NATIVE_PROVENANCE_CONTROL_1'&&r.version==='1.0.0'&&reference(r.reference)
-   &&['ENROLL','MAP','BLOCK','REVOKE'].includes(r.type),'provenance_control');
+   &&['ENROLL','MAP','BLOCK','REVOKE','PREPARE_MAP_V1','ACTIVATE_MAP_V1'].includes(r.type),'provenance_control');
  sameBinding(r.binding,config);lifetime(r);return r;
 }

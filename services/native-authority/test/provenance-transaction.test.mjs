@@ -83,13 +83,31 @@ async function nativeFixture(t) {
   const snapshot_hash = createHash('sha256').update(snapshot_json).digest('hex');
   const generation = f.state.generation;
   const mapping_id = digest([pin.producer,snapshot.order_id,snapshot.line_id]);
-  const control = async (type, reference, data) => {
+  const control = async (type, reference, data, dropReply=false) => {
     const message = {schema:'DF_NATIVE_PROVENANCE_CONTROL_1',version:'1.0.0',reference,
       binding:f.binding,issued_at:time-1,expires_at:time+60,type,data:{producer:pin.producer,generation,...data}};
-    const response=await post(witness.address,'/control',{
+    const envelope={
       owner:signEnvelope('held.provenance.control.owner.v1',message,f.pairs.owner.privateKey,'owner'),
       recovery:signEnvelope('held.provenance.control.recovery.v1',message,f.pairs.recovery.privateKey,'recovery'),
-    });
+    };
+    if(dropReply){
+      let upstream;
+      const relay=createServer(async(req,res)=>{
+        try{
+          const chunks=[];
+          for await(const chunk of req)chunks.push(chunk);
+          upstream=await post(witness.address,'/control',JSON.parse(Buffer.concat(chunks).toString()));
+        }finally{res.destroy();}
+      });
+      await new Promise(resolve=>relay.listen(0,'127.0.0.1',resolve));
+      try{
+        await assert.rejects(post('http://127.0.0.1:'+relay.address().port,'/control',envelope),
+          {code:'ECONNRESET'});
+        assert.equal(upstream?.status,200);
+      }finally{await new Promise(resolve=>relay.close(resolve));}
+      return {controlDigest:digest(message)};
+    }
+    const response=await post(witness.address,'/control',envelope);
     return {...response, controlDigest:digest(message)};
   };
   assert.equal((await control('ENROLL','enroll',{source_sha:pin.sourceSha,
@@ -104,7 +122,7 @@ async function nativeFixture(t) {
     order_version:1,grant_reference:'grant',operation_id:digest('operation'),payload_fingerprint:digest('payload'),
     product_version:1,expected_product_version:1,approval_reference:'approval',approval_revision:1,
     policy_revision:1,expected_epoch:f.state.epoch,expected_generation:generation};
-  return {f,client:clientFor(issuer.address),clientFor,issuer,body,snapshot_hash,control,mapping_id,time};
+  return {f,client:clientFor(issuer.address),clientFor,issuer,body,snapshot,snapshot_hash,control,mapping_id,time};
 }
 
 test('concurrent held commit yields one signed receipt, durable readback and no sender eligibility', async t=>{
@@ -225,4 +243,90 @@ test('journal failure leaves no BLOCK proof; concurrent BLOCK serializes with al
   const allocatedAt=events.findIndex(e=>e.type==='OPERATION_HELD_PROVENANCE');
   assert.ok(blockedAt>=0&&(allocatedAt===-1||allocatedAt<blockedAt));
   assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+});
+
+async function publicationFixture(t){
+  const f=await nativeFixture(t);
+  const {control,mapping_id,body,snapshot}=f;
+  const blocked=await control('BLOCK','publish-block',{mapping_id,expected_revision:1});
+  assert.equal(blocked.status,200);
+  const snapshot_json=JSON.stringify({...snapshot,snapshot_revision:2});
+  const snapshot_hash=createHash('sha256').update(snapshot_json).digest('hex');
+  const base={mapping_id,checkpoint_epoch:body.expected_epoch,block_control_digest:blocked.controlDigest};
+  const prepare={...base,expected_revision:2,snapshot_json,producer_signature:proof(snapshot_json),
+    native_order_id:'order',native_line_id:'line',native_listing_id:'listing',native_product_id:'product',order_version:1};
+  const read=(phase,control_reference,control_digest,committed_revision,checkpoint={})=>
+    f.client.call('readMapPublicationV1',{mapping_id,phase,control_reference,control_digest,committed_revision,
+      snapshot_hash,expected_epoch:body.expected_epoch,expected_generation:body.expected_generation,...checkpoint});
+  return {...f,base,prepare,read,stagedHash:snapshot_hash};
+}
+
+test('staged MAP fences competing publishers and reconciles exact phase acknowledgements',async t=>{
+  const {control,client,body,base,prepare,read,stagedHash}=await publicationFixture(t);
+  for(const change of [{mapping_id:digest('wrong')},{expected_revision:1},{checkpoint_epoch:digest('wrong')},
+    {producer_signature:proof(prepare.snapshot_json.replace('etsy-shop','wrong-shop'))}]){
+    assert.equal((await control('PREPARE_MAP_V1','wrong-stage',{...prepare,...change})).status,503);
+  }
+  const [a,b]=await Promise.all(['prepare-a','prepare-b'].map(id=>control('PREPARE_MAP_V1',id,prepare)));
+  assert.deepEqual([a.status,b.status].sort(),[200,503]);
+  const winner=a.status===200?a:b;
+  const id=a.status===200?'prepare-a':'prepare-b';
+  assert.equal((await control('PREPARE_MAP_V1',id,prepare)).status,503);
+  assert.equal((await control('MAP','legacy-bypass',{...prepare,expected_revision:3})).status,503);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+  assert.equal((await read('PREPARE',id,digest('wrong'),3)).disposition,'DENIED');
+  // Ignore the unsigned acknowledgements. Reconcile from the original control digests.
+  const prepared=(await read('PREPARE',id,winner.controlDigest,3)).result.operation;
+  assert.equal(prepared.mapping_state,'BLOCKED');
+  const activate={...base,expected_revision:3,prepare_control_digest:winner.controlDigest,
+    snapshot_hash:stagedHash,confirmed_source_commit_hash:digest('confirmed-wordpress-record')};
+  assert.equal((await control('ACTIVATE_MAP_V1','wrong-activate',{...activate,snapshot_hash:digest('wrong')})).status,503);
+  const activated=await control('ACTIVATE_MAP_V1','activate',activate);
+  assert.equal(activated.status,200);
+  assert.equal((await control('ACTIVATE_MAP_V1','activate',activate)).status,503);
+  const result=await read('ACTIVATE','activate',activated.controlDigest,4);
+  assert.equal(result.result.operation.mapping_state,'ACTIVE');
+  assert.equal(result.result.operation.confirmed_source_commit_hash,activate.confirmed_source_commit_hash);
+  assert.equal(result.result.operation.external_execution_authorized,false);
+  const held=await client.call('commitHeldProvenanceV1',{...body,snapshot_json:prepare.snapshot_json,
+    producer_signature:prepare.producer_signature});
+  assert.equal(held.result.operation.state,'HELD');
+});
+
+test('failed prepare journal rolls back; revocation denies activation and recovery stays blocked',async t=>{
+  const {f,control,base,prepare,read,stagedHash,time}=await publicationFixture(t);
+  const db=new DatabaseSync(f.config.database_path);
+  t.after(()=>db.close());
+  db.exec("CREATE TRIGGER fail_publish BEFORE INSERT ON witness_events WHEN json_extract(NEW.event,'$.data.type')='PREPARE_MAP_V1' BEGIN SELECT RAISE(ABORT,'injected'); END");
+  const failed=await control('PREPARE_MAP_V1','prepare-recovery',prepare);
+  assert.equal(failed.status,503);
+  assert.equal((await read('PREPARE','prepare-recovery',failed.controlDigest,3)).disposition,'DENIED');
+  db.exec('DROP TRIGGER fail_publish');
+  const prepared=await control('PREPARE_MAP_V1','prepare-recovery',prepare);
+  assert.equal(prepared.status,200);
+  assert.equal((await control('REVOKE','revoke-publication',{})).status,200);
+  assert.equal((await control('ACTIVATE_MAP_V1','revoked-activate',{...base,expected_revision:3,
+    prepare_control_digest:prepared.controlDigest,snapshot_hash:stagedHash,confirmed_source_commit_hash:digest('commit')})).status,503);
+  const store=new AuthorityStore(f.config.database_path);
+  try{
+    const state=store.state(), recovered=store.recover(state.witness_head,state.inventory_hash,time);
+    const result=await read('PREPARE','prepare-recovery',prepared.controlDigest,3,
+      {expected_epoch:recovered.epoch,expected_generation:recovered.generation});
+    assert.equal(result.result.operation.mapping_state,'BLOCKED');
+    assert.equal(result.result.operation.external_execution_authorized,false);
+  }finally{store.close();}
+});
+
+test('lost PREPARE and ACTIVATE socket replies reconcile without replay',async t=>{
+  const {control,base,prepare,read,stagedHash}=await publicationFixture(t);
+  const pending=await control('PREPARE_MAP_V1','lost-prepare',prepare,true);
+  const prepared=await read('PREPARE','lost-prepare',pending.controlDigest,3);
+  assert.equal(prepared.result.operation.mapping_state,'BLOCKED');
+  const activation={...base,expected_revision:3,prepare_control_digest:pending.controlDigest,
+    snapshot_hash:stagedHash,confirmed_source_commit_hash:digest('confirmed-source')};
+  const uncertain=await control('ACTIVATE_MAP_V1','lost-activate',activation,true);
+  const active=await read('ACTIVATE','lost-activate',uncertain.controlDigest,4);
+  assert.equal(active.result.operation.mapping_state,'ACTIVE');
+  assert.equal(active.result.operation.external_execution_authorized,false);
+  assert.equal(active.result.operation.confirmed_source_commit_hash,activation.confirmed_source_commit_hash);
 });

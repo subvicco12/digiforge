@@ -176,7 +176,10 @@ export class AuthorityStore {
       m.block={control_reference:control.reference,control_digest:digest(control),
        blocked_revision:m.revision,block_generation:s.generation,block_epoch:s.epoch,
        journal_sequence:next(s.witness_sequence)};
+     }else if(control.type==='PREPARE_MAP_V1'||control.type==='ACTIVATE_MAP_V1'){
+      this.#stagePublication(control,m,producer,s,now);
      }else{
+      need(!m?.block,'provenance_staged_publication_required');
       need(control.type==='MAP'&&(!m||m.active===false),'provenance_mapping_state');
       keys(d,['producer','mapping_id','expected_revision','generation','snapshot_hash','snapshot_revision','order_id','line_id','listing_id','product_id','native_order_id','native_line_id','native_listing_id','native_product_id','order_version','product_version','artwork_source_hash','expires_at']);
       for(const k of ['order_id','line_id','listing_id','product_id','native_order_id','native_line_id','native_listing_id','native_product_id'])ref(d[k]);
@@ -190,8 +193,71 @@ export class AuthorityStore {
     }
    }
    registry.controls.push(control.reference);
-   this.#event(s,'HELD_PROVENANCE_CONTROL',{reference:control.reference,type:control.type,digest:digest(d)},now);
+   this.#event(s,'HELD_PROVENANCE_CONTROL',{reference:control.reference,type:control.type,digest:digest(d),...(['PREPARE_MAP_V1','ACTIVATE_MAP_V1'].includes(control.type)?{control_digest:digest(control)}:{})},now);
    return {reference:control.reference,witness_head:s.witness_head};
+  });
+ }
+ #stagePublication(control,m,p,s,now){
+  const d=control.data;
+  need(m?.active===false&&m.block?.block_generation===s.generation
+    &&m.block.block_epoch===s.epoch&&!s.paused,'provenance_publication_fence');
+  const common=['producer','mapping_id','expected_revision','generation','checkpoint_epoch','block_control_digest'];
+  need(d.checkpoint_epoch===s.epoch&&d.block_control_digest===m.block.control_digest,'provenance_publication_fence');
+  const evidence={control_reference:control.reference,control_digest:digest(control),
+   committed_revision:next(m.revision),publication_generation:s.generation,publication_epoch:s.epoch,
+   journal_sequence:next(s.witness_sequence)};
+  if(control.type==='PREPARE_MAP_V1'){
+   keys(d,[...common,'snapshot_json','producer_signature','native_order_id','native_line_id',
+    'native_listing_id','native_product_id','order_version']);
+   need(m.revision===m.block.blocked_revision,'provenance_publication_reserved');
+   for(const k of ['native_order_id','native_line_id','native_listing_id','native_product_id'])ref(d[k]);
+   integer(d.order_version);
+   const key=createPublicKey({key:Buffer.from(p.key_der,'base64url'),format:'der',type:'spki'});
+   const verified=authenticateProvenanceV1(d.snapshot_json,d.producer_signature,
+    {key,keySha256:p.key_pin,producer:p.producer,sourceSha:p.source_sha,businessId:p.business_id,etsyShopId:p.etsy_shop_id},now);
+   const x=verified.snapshot;
+   need(d.mapping_id===digest([x.producer,x.order_id,x.line_id])&&x.snapshot_revision>m.snapshot_revision,
+    'provenance_publication_identity');
+   m.publication={prepare:evidence,snapshot_hash:verified.snapshot_hash,snapshot_json:d.snapshot_json,
+    producer_signature:d.producer_signature,prepared:{
+    snapshot_hash:verified.snapshot_hash,snapshot_revision:x.snapshot_revision,
+    order_id:x.order_id,line_id:x.line_id,listing_id:x.listing_id,product_id:x.product_id,
+    artwork_source_hash:x.artwork_source_hash,product_version:x.product_version,expires_at:x.expires_at,
+    native_order_id:d.native_order_id,native_line_id:d.native_line_id,
+    native_listing_id:d.native_listing_id,native_product_id:d.native_product_id,order_version:d.order_version}};
+   m.revision=evidence.committed_revision;
+  }else{
+   keys(d,[...common,'prepare_control_digest','snapshot_hash','confirmed_source_commit_hash']);
+   hash(d.confirmed_source_commit_hash);
+   const pub=m.publication;
+   // The existing owner/recovery signatures attest this exact confirmed source commit.
+   need(pub&&!pub.activation&&pub.prepare.committed_revision===m.revision
+    &&pub.prepare.control_digest===d.prepare_control_digest&&pub.snapshot_hash===d.snapshot_hash
+    &&pub.prepare.publication_epoch===s.epoch&&now<pub.prepared.expires_at,'provenance_publication_activation');
+   pub.activation={...evidence,confirmed_source_commit_hash:d.confirmed_source_commit_hash};
+   Object.assign(m,pub.prepared,{generation:s.generation,revision:evidence.committed_revision,active:true});
+  }
+ }
+ readMapPublicationV1(request,now){
+  return this.#tx(()=>{
+   const s=this.#state(),b=request.method_body;
+   this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
+   nonce(request.request_id);nonce(request.challenge);integer(now);
+   need(request.request_id!==request.challenge&&s.identity.environment==='test'
+    &&b.expected_generation===s.generation&&b.expected_epoch===s.epoch,'checkpoint_stale');
+   const m=s.held_provenance?.mappings.find(x=>x.mapping_id===b.mapping_id);
+   const pub=m?.publication;
+   const proof=pub?.[b.phase==='PREPARE'?'prepare':'activation'];
+   need(proof&&proof.control_reference===b.control_reference&&proof.control_digest===b.control_digest
+    &&proof.committed_revision===b.committed_revision&&pub.snapshot_hash===b.snapshot_hash,'provenance_publication_readback');
+   const p=s.held_provenance.producers.find(x=>x.producer===m.producer);
+   const mapping_state=!m.active?'BLOCKED':(!p||p.revoked||s.paused||m.generation!==s.generation
+    ||now>=m.expires_at)?'HELD':'ACTIVE';
+   const journal_event_hash=this.heldJournalHash(proof.journal_sequence);hash(journal_event_hash);
+   this.#claimTokens(request.request_id,request.challenge,'readMapPublicationV1',now);
+   return {schema:'DF_NATIVE_MAP_PUBLICATION_1',version:'1.0.0',mapping_id:m.mapping_id,phase:b.phase,
+    snapshot_hash:pub.snapshot_hash,...proof,confirmed_source_commit_hash:proof.confirmed_source_commit_hash??null,
+    mapping_state,mapping_revision:m.revision,journal_event_hash,release_hold:true,external_execution_authorized:false};
   });
  }
  readBlockedProvenanceV1(request,now){
