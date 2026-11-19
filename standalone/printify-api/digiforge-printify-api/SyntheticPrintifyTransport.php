@@ -36,6 +36,35 @@ final class SyntheticPrintifyTransport
         }
     }
 
+    /** Data-only state for the disposable, scope-sealed fixture store. */
+    public function exportFixtureState(): array
+    {
+        return [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook];
+    }
+
+    public function restoreFixtureState(array $state): void
+    {
+        if (!array_is_list($state) || count($state) !== 6 || $this->exportFixtureState() !== [[], [], [], [], [], 1]
+            || !is_int($state[5]) || $state[5] < 1 || $state[5] > 101) {
+            throw new \InvalidArgumentException('Invalid synthetic state');
+        }
+        foreach (array_slice($state, 0, 5) as $collection) {
+            if (!is_array($collection) || count($collection) > 100) {
+                throw new \InvalidArgumentException('Synthetic state exceeds its bounds');
+            }
+        }
+        foreach (array_slice($state, 0, 4) as $offset => $items) {
+            $prefix = ['image-', 'product-', 'order-', 'webhook-'][$offset];
+            foreach ($items as $id => $row) {
+                if (!is_string($id) || !preg_match('/^'.$prefix.'[1-9][0-9]{0,2}$/D', $id) || !is_array($row)
+                    || ($row['id'] ?? null) !== $id || ($offset !== 0 && ($row['shop_id'] ?? null) !== (int)$this->shop)) {
+                    throw new \InvalidArgumentException('Synthetic identity mismatch');
+                }
+            }
+        }
+        [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook] = $state;
+    }
+
     public function faultNext(string $fault): void
     {
         if (!in_array($fault, ['timeout','lost_ack','validation_error','rate_limit'], true)) {
@@ -131,6 +160,7 @@ final class SyntheticPrintifyTransport
             'IMAGE_READ' => ['GET', '/v1/uploads/'.$id.'\.json'],
             'UPLOADS_READ' => ['GET', '/v1/uploads\.json'.$paging],
             'PRODUCT_CREATE' => ['POST', $shopRoot.'/products\.json'],
+            'PRODUCT_GPSR_READ' => ['GET', $shopRoot.'/products/'.$id.'/gpsr\.json'],
             'PRODUCT_READ' => ['GET', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_UPDATE' => ['PUT', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCTS_READ' => ['GET', $shopRoot.'/products\.json'.$paging],
@@ -138,6 +168,7 @@ final class SyntheticPrintifyTransport
             'ORDER_CREATE', 'ORDER_SUBMIT' => ['POST', $shopRoot.'/orders\.json'],
             'ORDER_READ' => ['GET', $shopRoot.'/orders/'.$id.'\.json'],
             'ORDERS_READ' => ['GET', $shopRoot.'/orders\.json'.$paging],
+            'LINE_ITEM_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/line_items/'.$id.'/cancel\.json'],
             'ORDER_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/cancel\.json'],
             'ORDER_SEND_TO_PRODUCTION', 'PRODUCTION_AUTHORIZE' => ['POST', $shopRoot.'/orders/'.$id.'/send_to_production\.json'],
             'WEBHOOKS_READ', 'WEBHOOK_READ' => ['GET', $shopRoot.'/webhooks\.json'],
@@ -170,6 +201,8 @@ final class SyntheticPrintifyTransport
             'IMAGE_READ' => self::lookup($this->images, $route[0]),
             'UPLOADS_READ' => self::page($this->images, $route),
             'PRODUCT_CREATE' => $this->createProduct($body),
+            'PRODUCT_GPSR_READ' => isset($this->products[$route[0]])
+                ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
             'PRODUCT_READ' => self::lookup($this->products, $route[0]),
             'PRODUCT_UPDATE' => $this->updateProduct($route[0], $body, $version),
             'PRODUCTS_READ' => self::page($this->products, $route),
@@ -177,6 +210,7 @@ final class SyntheticPrintifyTransport
             'ORDER_CREATE', 'ORDER_SUBMIT' => $this->createOrder($body),
             'ORDER_READ' => self::lookup($this->orders, $route[0]),
             'ORDERS_READ' => self::page($this->orders, $route),
+            'LINE_ITEM_CANCEL' => $body === [] ? $this->cancelLine($route[0],$route[1]) : self::error(422,'cancel_body'),
             'ORDER_CANCEL' => $this->cancel($route[0]),
             'ORDER_SEND_TO_PRODUCTION', 'PRODUCTION_AUTHORIZE' => $this->produce($route[0]),
             'WEBHOOKS_READ', 'WEBHOOK_READ' => self::response(200, array_values($this->webhooks)),
@@ -317,6 +351,10 @@ final class SyntheticPrintifyTransport
             return self::error(409, 'duplicate_order');
         }
         $id = 'order-'.(count($this->orders)+1);
+        foreach ($lines as $index => &$line) {
+            $line['id'] = 'line-'.($index+1);
+        }
+        unset($line);
         $row = ['id'=>$id,'external_id'=>$external,'shop_id'=>(int)$this->shop,'status'=>'on-hold',
             'line_items'=>$lines,'shipments'=>[],'sent_to_production_at'=>null];
         $this->orders[$id] = $row;
@@ -337,9 +375,24 @@ final class SyntheticPrintifyTransport
         return self::response(200, $this->orders[$id]);
     }
 
+    private function cancelLine(string $order, string $line): array
+    {
+        $record = $this->orders[$order] ?? null;
+        if ($record === null) return self::error(404, 'order_not_found');
+        if ($record['status'] !== 'on-hold') return self::error(409, 'order_not_cancelable');
+        foreach ($record['line_items'] as $index=>$item) {
+            if (($item['id'] ?? null) === $line && ($item['status'] ?? null) !== 'canceled') {
+                $this->orders[$order]['line_items'][$index]['status'] = 'canceled';
+                return self::response(204, []);
+            }
+        }
+        return self::error(404, 'cancelable_line_not_found');
+    }
+
     private function produce(string $id): array
     {
-        if (($this->orders[$id]['status'] ?? null) !== 'on-hold' || !isset($this->productionConfirmations[$id])) {
+        if (($this->orders[$id]['status'] ?? null) !== 'on-hold' || !isset($this->productionConfirmations[$id])
+            || !array_filter($this->orders[$id]['line_items'], static fn(array $line):bool=>($line['status']??null)!=='canceled')) {
             return self::error(409, 'production_simulation_not_confirmed');
         }
         unset($this->productionConfirmations[$id]);

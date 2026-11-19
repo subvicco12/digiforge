@@ -41,6 +41,12 @@ final class Runtime
             require_once __DIR__ . '/SyntheticOperatorPanel.php';
             SyntheticOperatorPanel::render();
         }
+        $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
+        $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
+        if ($workspace !== null) {
+            require_once __DIR__ . '/SyntheticWorkspacePanel.php';
+            SyntheticWorkspacePanel::render($workspace, $selection, array_keys(self::workspaceScopes()));
+        }
         echo '</div>';
     }
 
@@ -89,8 +95,13 @@ final class Runtime
     private static function canRunSyntheticJourney(): bool
     {
         $shop = self::shop();
-        if ($shop === null || strlen($shop) > 18 || !self::canValidate($shop) || self::fixtureAccount() === null
-            || !\defined('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY') || DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY !== true
+        return $shop !== null && strlen($shop) <= 18 && self::canValidate($shop)
+            && self::fixtureAccount() !== null && self::syntheticModulesAvailable();
+    }
+
+    private static function syntheticModulesAvailable(): bool
+    {
+        if (!\defined('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY') || DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY !== true
             || !\function_exists('wp_get_environment_type') || \wp_get_environment_type() !== 'local'
             || !self::providerReadAvailable() || !self::canReviewLifecycle()) {
             return false;
@@ -103,6 +114,54 @@ final class Runtime
             }
         }
         return true;
+    }
+
+    private static function workspaceScopes(): array
+    {
+        $account = self::fixtureAccount();
+        $shop = self::shop();
+        $extra = \defined('DIGIFORGE_PRINTIFY_SYNTHETIC_SHOPS') ? \constant('DIGIFORGE_PRINTIFY_SYNTHETIC_SHOPS') : [];
+        if (!self::canInspect() || !is_array($extra) || count($extra)>9 || $shop===null || $account===null) {
+            return [];
+        }
+        $scopes = [];
+        foreach ([$shop=>$account]+$extra as $id=>$reference) {
+            $id = (string)$id;
+            if (preg_match('/^[1-9][0-9]{0,17}$/D',$id)!==1 || !is_string($reference)
+                || preg_match('/^[A-Za-z0-9_-]{1,100}$/D',$reference)!==1) {
+                return [];
+            }
+            if (\current_user_can('digiforge_printify_review_shop_' . $id)) {
+                $scopes[$id]=$reference;
+            }
+        }
+        return $scopes;
+    }
+
+    public static function permitsWorkspaceAccount(string $shop, string $account): bool
+    {
+        return (self::workspaceScopes()[$shop] ?? null) === $account;
+    }
+
+    public static function syntheticWorkspace(?string $shop = null): ?SyntheticWorkspace
+    {
+        global $wpdb;
+        $shop ??= self::shop();
+        $account = self::workspaceScopes()[$shop] ?? null;
+        if ($shop === null || $account === null || !self::syntheticModulesAvailable()
+            || !\defined('DIGIFORGE_PRINTIFY_DISPOSABLE_STORE') || DIGIFORGE_PRINTIFY_DISPOSABLE_STORE !== true
+            || !$wpdb instanceof \wpdb || !is_readable(__DIR__ . '/SyntheticWorkspace.php')
+            || !is_readable(__DIR__ . '/SyntheticWorkspacePanel.php')) {
+            return null;
+        }
+        require_once __DIR__ . '/SyntheticPrintifyTransport.php';
+        require_once __DIR__ . '/SyntheticPrintifyClient.php';
+        require_once __DIR__ . '/SyntheticWorkspace.php';
+        try {
+            return new SyntheticWorkspace($wpdb, $shop, $account);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public static function runSyntheticJourney(): array

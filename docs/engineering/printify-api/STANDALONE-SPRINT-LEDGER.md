@@ -137,3 +137,12 @@ and fixture behavior do not establish broad schema conformance or live access.
 | 5, 8–9, 18–22 | Fixture state, bounded plans/pages, validation errors, synthetic rate limits, duplicate and stale-write denial, lost-acknowledgment fault, and order tracking readback. | State survives within a fixture run. Neither fixture identity nor a synthetic readback creates a native journal receipt or resolves a real UNKNOWN. |
 | 10–12, 15, 23 | Source-stamped deterministic ZIP and opt-in WordPress Tools journey, with scoped capability checks, nonce admission and sanitized results. | Fixed scenario. General product/order editing and durable audit views remain open. |
 | 4, 13–14, 20, 24 | Existing protected native held inspection and standalone execution holds. | Operational registration, claim, independent checkpoint, credential custody, historical-token invalidation and hosted recovery remain blocked. |
+
+## Standalone 0.9.0 disposable operator workspace
+
+| Capability | Source and scope |
+| --- | --- |
+| Operator operations | Local, scoped, nonce-protected workspace with individual typed JSON operations. Covers 31 provider-shaped fixture operations, plus explicit synthetic production and fulfillment controls and event ingestion. |
+| Persistence | Fixture-only InnoDB table. A revision-and-seal CAS commits bounded transport state, event deduplication and sanitized audit together. Pending doubts require readback and consumed operation IDs deny replay. |
+| Provider contracts | The route subset adds documented product GPSR read and line-item cancellation with separate 204 acknowledgment and readback. An isolated order:created event follows its documented envelope and checks exact shop and order identity. No webhook delivery over HTTP. |
+| Qualification limits | The selector presents the configured fixture shops the current operator can review. General graphical editors, additional documented routes and event topics, and hosted or provider qualification remain open. Core authority, credential custody and independent recovery remain external gates. |

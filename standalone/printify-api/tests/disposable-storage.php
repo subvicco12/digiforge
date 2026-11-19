@@ -37,7 +37,7 @@ if ($phase === 'write') {
     requireFixture($before === $after, 'Activation changed unrelated autoloaded options');
 }
 $status = DigiForgePrintifyApi\Runtime::discover();
-requireFixture($status['version'] === '0.8.0' && $status['stop_all'] && $status['external_lock']
+requireFixture($status['version'] === '0.9.0' && $status['stop_all'] && $status['external_lock']
     && !$status['automation'] && $status['release_hold'] && !$status['provider_execution_authorized'],
     'Execution holds did not survive activation or restart');
 requireFixture(in_array('OFFLINE_PROVIDER_READ_REVIEW', $status['capabilities'], true), 'Routed capability missing');
@@ -175,4 +175,6 @@ foreach ([['108','fixture-account'],['107','other-account']] as [$shop,$account]
 wp_set_current_user(0);
 requireFixture($store->read($id) === null, 'Revoked operator context retained access');
 requireFixture($store->readAuthenticated($request, $expected, 1700000001) === null, 'Revoked operator retained signed read permission');
+wp_set_current_user(1);
+require __DIR__ . "/disposable-workspace.php";
 echo "Disposable snapshot $phase PASS\n";

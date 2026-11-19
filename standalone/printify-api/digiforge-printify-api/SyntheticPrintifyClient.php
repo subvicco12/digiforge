@@ -29,8 +29,8 @@ final class SyntheticPrintifyClient
 
     private const OTHER = [
         'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','IMAGE_UPLOAD','IMAGE_READ','UPLOADS_READ',
-        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','ORDER_SHIPPING_QUOTE',
-        'ORDER_CREATE','ORDER_READ','ORDERS_READ','ORDER_CANCEL','ORDER_SEND_TO_PRODUCTION','WEBHOOKS_READ',
+        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
+        'ORDER_CREATE','ORDER_READ','ORDERS_READ','ORDER_CANCEL','LINE_ITEM_CANCEL','ORDER_SEND_TO_PRODUCTION','WEBHOOKS_READ',
         'WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE',
     ];
 
@@ -39,6 +39,11 @@ final class SyntheticPrintifyClient
         if (preg_match('/^[1-9][0-9]{0,18}$/D',$shop)!==1) {
             throw new \InvalidArgumentException('Exact synthetic shop required.');
         }
+    }
+
+    public static function operations(): array
+    {
+        return array_merge(array_keys(self::CATALOG), self::OTHER);
     }
 
     public static function available(): bool
@@ -83,7 +88,7 @@ final class SyntheticPrintifyClient
                 throw new \InvalidArgumentException('Response exceeds fixture bounds.');
             }
             return self::result('SYNTHETIC_OBSERVED',$status,'NONE')
-                + ['data'=>$this->project($operation,$input,$plan,$body)];
+                + ['data'=>$this->project($operation,$input,$plan,$body,$status)];
         } catch (\Throwable) {
             return self::result($write?'UNKNOWN':'DENIED',0,'RESPONSE_VALIDATION');
         }
@@ -105,8 +110,8 @@ final class SyntheticPrintifyClient
                 throw new \InvalidArgumentException('Exact order required.');
             }
             $plan=['method'=>'POST','endpoint'=>$root.'/'.$input['order_id'].'/send_to_production.json','body'=>[]];
-        } elseif ($operation==='ORDER_SHIPPING_QUOTE'||$operation==='ORDER_CANCEL') {
-            $plan=PrintifyLifecycleRequest::prepare($operation==='ORDER_SHIPPING_QUOTE'?'SHIPPING_QUOTE':'ORDER_CANCEL',$this->shop,$input);
+        } elseif (in_array($operation,['ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) {
+            $plan=PrintifyLifecycleRequest::prepare($operation==='ORDER_SHIPPING_QUOTE'?'SHIPPING_QUOTE':$operation,$this->shop,$input);
         } elseif (in_array($operation,['WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
             $plan=$this->prepareWebhook($operation,$input);
         } elseif ($operation==='UPLOADS_READ') {
@@ -157,7 +162,7 @@ final class SyntheticPrintifyClient
         throw new \InvalidArgumentException('Exact synthetic webhook request required.');
     }
 
-    private function project(string $operation,array $input,array $plan,array $body): array
+    private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
         if (isset(self::CATALOG[$operation])) {
             return PrintifyCatalogReadContract::select($body,['kind'=>self::CATALOG[$operation]]+$input);
@@ -186,6 +191,9 @@ final class SyntheticPrintifyClient
         if (in_array($operation,['ORDER_SHIPPING_QUOTE','ORDER_CANCEL','WEBHOOKS_READ','WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
             $plan['operation']=match($operation){'ORDER_SHIPPING_QUOTE'=>'SHIPPING_QUOTE','WEBHOOKS_READ'=>'WEBHOOK_READ',default=>$operation};
             return PrintifyLifecycleEvidence::project($plan,$body);
+        }
+        if ($operation==='LINE_ITEM_CANCEL') {
+            return PrintifyLifecycleEvidence::emptyCancellation($plan,$status,$body===[]?'':'nonempty');
         }
         if ($operation==='UPLOADS_READ') {
             return self::projectUploadPage($plan['input'],$body);
