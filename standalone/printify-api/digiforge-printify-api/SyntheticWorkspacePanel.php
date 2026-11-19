@@ -10,6 +10,7 @@ if (!\defined('ABSPATH')) {
 final class SyntheticWorkspacePanel
 {
     private const ACTION = 'df_printify_synthetic_workspace_v1';
+    private const EXTRA_ROWS = 3;
 
     public static function render(SyntheticWorkspace $workspace, string $shop, array $shops): void
     {
@@ -77,6 +78,28 @@ final class SyntheticWorkspacePanel
             echo '<tr>';
             foreach (['operation','state','reason','operation_id','actor_id','occurred_at'] as $field) {
                 echo '<td>'.\esc_html((string)($entry[$field]??'—')).'</td>';
+            }
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        self::renderEvents($current['events'] ?? []);
+    }
+
+    private static function renderEvents(array $events): void
+    {
+        if ($events===[]) {
+            return;
+        }
+        echo '<h3>Recent fixture event observations</h3><table class="widefat striped"><thead><tr>';
+        foreach (['Event','Resource ID','Event time','Shipment time'] as $label) {
+            echo '<th scope="col">'.\esc_html($label).'</th>';
+        }
+        echo '</tr></thead><tbody>';
+        foreach (array_reverse(array_slice($events,-10)) as $event) {
+            echo '<tr>';
+            foreach ([$event['type']??null,$event['resource_id']??$event['order_id']??null,
+                $event['created_at']??null,$event['shipment_at']??null] as $value) {
+                echo '<td>'.\esc_html(is_string($value)&&strlen($value)<=160?$value:'—').'</td>';
             }
             echo '</tr>';
         }
@@ -156,7 +179,10 @@ final class SyntheticWorkspacePanel
                     echo '<p>Uses a fixed synthetic US shipping address.</p>';
                 }
                 if ($op === 'PRODUCT_UPDATE') {
-                    echo '<p>Read the product to find its synthetic version. Supply a title, description, or a variant ID and price.</p>';
+                    echo '<p>Read the product to find its synthetic version. For a variant edit, include every current variant and its price.</p>';
+                }
+                if ($op === 'PRODUCT_CREATE' || $op === 'PRODUCT_UPDATE') {
+                    echo '<p>When setting placements, include artwork for each selected variant. Blank geometry centers the artwork at full scale.</p>';
                 }
                 if ($op === 'FIXTURE_PRODUCTION_CONFIRM') {
                     echo '<p>Submit this separate confirmation to advance the fixture order into simulated production.</p>';
@@ -164,6 +190,7 @@ final class SyntheticWorkspacePanel
                 foreach ($fields as $field) {
                     self::renderField($op,$field);
                 }
+                self::renderRows($op);
                 if ($op === 'IMAGE_UPLOAD') {
                     echo '<p><label for="df-fixture-artwork">Fixture PNG file</label><br>';
                     echo '<input id="df-fixture-artwork" type="file" name="df_workspace_artwork" accept=".png,image/png"></p>';
@@ -174,13 +201,14 @@ final class SyntheticWorkspacePanel
         }
     }
 
-    private static function renderField(string $op, string $field): void
+    private static function renderField(string $op, string $field, ?string $group=null, int $row=0): void
     {
         $label = self::FIELD_LABELS[$field];
-        $id = 'df-synthetic-'.strtolower($op).'-'.$field;
-        $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields['.\esc_attr($field).']"';
-        $required = self::optional($op,$field) || $field==='contents' ? '' : ' required';
-        $value = self::FIELD_DEFAULTS[$field] ?? '';
+        $id = 'df-synthetic-'.strtolower($op).($group===null?'':"-$group-$row").'-'.$field;
+        $key = $group===null ? "[$field]" : "[$group][$row][$field]";
+        $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields'.\esc_attr($key).'"';
+        $required = $group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required';
+        $value = $group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '';
         $options = self::options($field);
         echo '<p><label for="'.\esc_attr($id).'">'.\esc_html($label).'</label><br>';
         if ($options !== null) {
@@ -208,6 +236,7 @@ final class SyntheticWorkspacePanel
         'quantity'=>'Quantity','shipping_method'=>'Shipping method code','order_id'=>'Order ID','line_item_id'=>'Line item ID',
         'topic'=>'Event topic','url'=>'Synthetic callback destination','webhook_id'=>'Webhook ID',
         'event_id'=>'Event UUID','created_at'=>'Event time (YYYY-MM-DD HH:MM:SS+00:00)',
+        'variants'=>'Additional variants','placements'=>'Additional artwork placements','line_items'=>'Additional order lines',
     ];
 
     private const FIELD_DEFAULTS = [
@@ -241,6 +270,74 @@ final class SyntheticWorkspacePanel
         };
     }
 
+    private static function groups(string $op): array
+    {
+        return match ($op) {
+            'PRODUCT_CREATE','PRODUCT_UPDATE'=>[
+                'variants'=>['variant_id','price'],
+                'placements'=>['variant_id','image_id','position','x','y','scale','angle'],
+            ],
+            'PRODUCT_READ','PRODUCT_GPSR_READ'=>['variants'=>['variant_id']],
+            'ORDER_SHIPPING_QUOTE','ORDER_CREATE'=>['line_items'=>['product_id','variant_id','quantity']],
+            default=>[],
+        };
+    }
+
+    private static function renderRows(string $op): void
+    {
+        foreach (self::groups($op) as $group=>$fields) {
+            for ($row=0; $row<self::EXTRA_ROWS; ++$row) {
+                echo '<details><summary>'.\esc_html(self::FIELD_LABELS[$group].' '.($row+1)).'</summary>';
+                foreach ($fields as $field) {
+                    self::renderField($op,$field,$group,$row);
+                }
+                echo '</details>';
+            }
+        }
+    }
+
+    private static function readRows(string $group, mixed $rows, array $keys): array
+    {
+        if (!is_array($rows) || !array_is_list($rows) || count($rows)>self::EXTRA_ROWS) {
+            throw new \InvalidArgumentException($group);
+        }
+        $typed = [];
+        foreach ($rows as $row) {
+            if (!is_array($row) || array_diff(array_keys($row),$keys)!==[]) {
+                throw new \InvalidArgumentException($group);
+            }
+            $parsed = [];
+            foreach ($row as $key=>$value) {
+                $value = self::normalize($key,$value);
+                if ($value!=='') {
+                    $parsed[$key] = self::fieldValue($key,$value);
+                }
+            }
+            if ($parsed===[]) {
+                continue;
+            }
+            $required = $group==='placements' ? ['variant_id','image_id','position'] : $keys;
+            if (array_diff($required,array_keys($parsed))!==[]) {
+                throw new \InvalidArgumentException($group);
+            }
+            $typed[] = $parsed;
+        }
+        return $typed;
+    }
+
+    private static function normalize(string $field, mixed $value): string
+    {
+        $limit = self::length($field);
+        if (!is_string($value) || strlen($value)>2*$limit) {
+            throw new \InvalidArgumentException($field);
+        }
+        $value=trim(\wp_unslash($value));
+        if (strlen($value)>$limit) {
+            throw new \InvalidArgumentException($field);
+        }
+        return $value;
+    }
+
     private static function fieldInput(string $shop, string $op, mixed $fields): array
     {
         foreach (self::FORMS as $operations) {
@@ -249,23 +346,23 @@ final class SyntheticWorkspacePanel
                 break;
             }
         }
-        if (!isset($keys) || !is_array($fields) || array_diff(array_keys($fields),$keys)!==[]) {
+        $groups = self::groups($op);
+        if (!isset($keys) || !is_array($fields) || array_diff(array_keys($fields),$keys,array_keys($groups))!==[]) {
             throw new \InvalidArgumentException('OPERATION_FIELDS');
         }
         $typed = [];
         foreach ($keys as $field) {
-            $value = $fields[$field] ?? '';
-            if (!is_string($value) || strlen($value)>2*self::length($field)) {
-                throw new \InvalidArgumentException($field);
-            }
-            $value = trim(\wp_unslash($value));
+            $value = self::normalize($field,$fields[$field] ?? '');
             if ($value==='' && self::optional($op,$field)) {
                 continue;
             }
-            if ($value==='' || strlen($value)>self::length($field)) {
+            if ($value==='') {
                 throw new \InvalidArgumentException($field);
             }
             $typed[$field] = self::fieldValue($field,$value);
+        }
+        foreach ($groups as $group=>$keys) {
+            $typed[$group] = self::readRows($group,$fields[$group] ?? [],$keys);
         }
         return self::assemble($shop,$op,$typed);
     }
@@ -343,36 +440,17 @@ final class SyntheticWorkspacePanel
 
     private static function assemble(string $shop, string $op, array $fields): array
     {
-        if ($op === 'PRODUCT_CREATE') {
-            $variant = $fields['variant_id'];
-            $image = ['id'=>$fields['image_id'],'x'=>$fields['x']??0.5,'y'=>$fields['y']??0.5,
-                'scale'=>$fields['scale']??1,'angle'=>$fields['angle']??0];
-            return array_intersect_key($fields,array_flip(['title','description','blueprint_id','print_provider_id'])) + [
-                'variants'=>[['id'=>$variant,'price'=>$fields['price'],'is_enabled'=>true]],
-                'print_areas'=>[['variant_ids'=>[$variant], 'placeholders'=>[['position'=>$fields['position'],'images'=>[$image]]]]],
-            ];
-        }
-        if ($op === 'PRODUCT_UPDATE') {
-            if (isset($fields['price'])!==isset($fields['variant_id'])) {
-                throw new \InvalidArgumentException(isset($fields['price'])?'variant_id':'price');
-            }
-            if (isset($fields['price'])) {
-                $fields['variants']=[['id'=>$fields['variant_id'],'price'=>$fields['price'],'is_enabled'=>true]];
-                $fields['known_variant_ids']=[$fields['variant_id']];
-                unset($fields['variant_id'],$fields['price']);
-            }
-            if (count($fields)===2) {
-                throw new \InvalidArgumentException('PRODUCT_UPDATE_FIELDS');
-            }
+        if ($op === 'PRODUCT_CREATE' || $op === 'PRODUCT_UPDATE') {
+            return self::assembleProduct($op,$fields);
         }
         if ($op === 'PRODUCT_READ' || $op === 'PRODUCT_GPSR_READ') {
-            $fields['variant_ids']=[$fields['variant_id']];
-            unset($fields['variant_id']);
+            $fields['variant_ids']=self::variantIds([['variant_id'=>$fields['variant_id']], ...$fields['variants']]);
+            unset($fields['variant_id'],$fields['variants']);
         }
         if ($op === 'ORDER_CREATE' || $op === 'ORDER_SHIPPING_QUOTE') {
             $order = [
                 'external_id'=>$fields['external_id'],
-                'line_items'=>[array_intersect_key($fields,array_flip(['product_id','variant_id','quantity']))],
+                'line_items'=>[array_intersect_key($fields,array_flip(['product_id','variant_id','quantity'])), ...$fields['line_items']],
                 'shipping_method'=>$fields['shipping_method'],
                 'is_printify_express'=>$fields['shipping_method']===3, 'is_economy_shipping'=>$fields['shipping_method']===4,
                 'send_shipping_notification'=>false,
@@ -388,6 +466,74 @@ final class SyntheticWorkspacePanel
             ];
         }
         return $fields;
+    }
+
+    private static function assembleProduct(string $op, array $fields): array
+    {
+        $create = $op==='PRODUCT_CREATE';
+        $variants = $fields['variants'];
+        $placements = $fields['placements'];
+        if (isset($fields['price'])!==isset($fields['variant_id'])) {
+            throw new \InvalidArgumentException(isset($fields['price'])?'variant_id':'price');
+        }
+        if (isset($fields['variant_id'])) {
+            array_unshift($variants,['variant_id'=>$fields['variant_id'],'price'=>$fields['price']]);
+        }
+        if ($create) {
+            array_unshift($placements,array_intersect_key($fields,array_flip(self::groups($op)['placements'])));
+        }
+        $data = array_intersect_key($fields,array_flip(['title','description','blueprint_id','print_provider_id','product_id','expected_version']));
+        $ids = self::variantIds($variants);
+        if ($ids!==[]) {
+            $data['variants']=array_map(static fn(array $v):array=>['id'=>$v['variant_id'],'price'=>$v['price'],'is_enabled'=>true],$variants);
+            if (!$create) {
+                $data['known_variant_ids']=$ids;
+            }
+        }
+        if ($placements!==[]) {
+            $data['print_areas']=self::assemblePrintAreas($placements,$ids);
+        }
+        if (!$create && count($data)===2) {
+            throw new \InvalidArgumentException('PRODUCT_UPDATE_FIELDS');
+        }
+        return $data;
+    }
+
+    private static function variantIds(array $variants): array
+    {
+        $ids = array_column($variants,'variant_id');
+        if (count(array_unique($ids))!==count($ids)) {
+            throw new \InvalidArgumentException('variants');
+        }
+        return $ids;
+    }
+
+    private static function assemblePrintAreas(array $placements, array $ids): array
+    {
+        $areas = [];
+        foreach ($placements as $placement) {
+            $variant = $placement['variant_id'];
+            $position = $placement['position'];
+            $image = ['id'=>$placement['image_id'],'x'=>$placement['x']??0.5,'y'=>$placement['y']??0.5,
+                'scale'=>$placement['scale']??1.0,'angle'=>$placement['angle']??0.0];
+            if (!in_array($variant,$ids,true) || in_array($image,$areas[$variant][$position]??[],true)) {
+                throw new \InvalidArgumentException('placements');
+            }
+            $areas[$variant][$position][] = $image;
+        }
+        if (array_diff($ids,array_keys($areas))!==[]) {
+            throw new \InvalidArgumentException('placements');
+        }
+
+        $result = [];
+        foreach ($areas as $variant=>$positions) {
+            $placeholders = [];
+            foreach ($positions as $position=>$images) {
+                $placeholders[] = ['position'=>(string)$position,'images'=>$images];
+            }
+            $result[] = ['variant_ids'=>[$variant],'placeholders'=>$placeholders];
+        }
+        return $result;
     }
 
     private static function post(SyntheticWorkspace $workspace,string $shop): ?array

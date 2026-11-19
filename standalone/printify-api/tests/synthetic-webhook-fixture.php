@@ -76,7 +76,7 @@ $bad['type']='order:shipped';
 assertSyntheticWebhook(SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::deliveryRaw(json_encode($bad,JSON_THROW_ON_ERROR)))
     ['reason']==='EVENT_CONTRACT_OR_SCOPE','Undocumented event type was accepted.');
 
-foreach (['product:created'=>'product','product:updated'=>'product','order:updated'=>'order'] as $topic=>$type) {
+foreach (['product:created'=>'product','product:updated'=>'product','order:updated'=>'order','order:sent-to-production'=>'order'] as $topic=>$type) {
     $eventForTopic=$event;
     $eventForTopic['type']=$topic;
     $eventForTopic['resource']['type']=$type;
@@ -92,6 +92,50 @@ foreach (['product:created'=>'product','product:updated'=>'product','order:updat
         assertSyntheticWebhook(SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::deliveryRaw(
             json_encode($eventForTopic,JSON_THROW_ON_ERROR)))['reason']==='EVENT_CONTRACT_OR_SCOPE','Unknown order status admitted.');
     }
+}
+
+$publish=$event;
+$publish['type']='product:publish:started';
+$publish['resource']=['id'=>'product-1','type'=>'product','data'=>[
+    'shop_id'=>107,'publish_details'=>['title'=>true,'variants'=>false,'description'=>true,'tags'=>true,
+        'images'=>false,'key_features'=>false,'shipping_template'=>true],
+    'action'=>'create','out_of_stock_publishing'=>0,
+]];
+$publishResult=SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::delivery($publish));
+assertSyntheticWebhook($publishResult['status']===200 && $publishResult['publish_action']==='create'
+    && $publishResult['out_of_stock_publishing']===0 && $publishResult['business_transition_authorized']===false,
+    'Documented publication event did not keep its fixture-only designation.');
+$publish['resource']['data']['publish_details']['title']=1;
+assertSyntheticWebhook(SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::deliveryRaw(
+    json_encode($publish,JSON_THROW_ON_ERROR)))['reason']==='EVENT_CONTRACT_OR_SCOPE',
+    'A nonboolean publication selection was accepted.');
+
+$trackingNumber='TRACK-12345';
+$trackingUrl='https://tracking.example.invalid/fixture';
+foreach (['order:shipment:created'=>'shipped_at','order:shipment:delivered'=>'delivered_at'] as $topic=>$dateKey) {
+    $shipment=$event;
+    $shipment['type']=$topic;
+    $shipment['resource']['data']+=[$dateKey=>'2026-11-19 03:30:00+03:30','carrier'=>[
+        'code'=>'USPS','tracking_number'=>$trackingNumber,'tracking_url'=>$trackingUrl,
+    ],'skus'=>['sku-1']];
+    if ($dateKey==='shipped_at') {
+        $shipment['resource']['data']['line_item_ids']=['line-1'];
+    }
+    $signedShipment=SyntheticWebhookReceiver::delivery($shipment);
+    $shipmentResult=SyntheticWebhookReceiver::receive('107',$signedShipment);
+    assertSyntheticWebhook($shipmentResult['status']===200
+        && $shipmentResult['tracking_sha256']===hash('sha256',$trackingNumber)
+        && $shipmentResult['shipment_at']==='2026-11-19T00:00:00Z'
+        && ($shipmentResult['line_item_ids']??null)===($dateKey==='shipped_at'?['line-1']:null)
+        && !str_contains(json_encode($shipmentResult),$trackingNumber)
+        && !str_contains(json_encode($shipmentResult),$trackingUrl),'Shipment tracking was unbound or disclosed.');
+    $duplicated=str_replace('"tracking_number":','"tracking_number":"ignored","tracking_number":',$signedShipment['body']);
+    assertSyntheticWebhook(SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::deliveryRaw($duplicated))
+        ['reason']==='EVENT_CONTRACT_OR_SCOPE','Duplicate nested carrier member was accepted.');
+    $shipment['resource']['data']['carrier']['tracking_url']='file:///tmp/fixture';
+    assertSyntheticWebhook(SyntheticWebhookReceiver::receive('107',SyntheticWebhookReceiver::deliveryRaw(
+        json_encode($shipment,JSON_THROW_ON_ERROR)))['reason']==='EVENT_CONTRACT_OR_SCOPE',
+        'Non-HTTPS tracking location was accepted.');
 }
 
 echo "Synthetic webhook receiver fixtures PASS\n";

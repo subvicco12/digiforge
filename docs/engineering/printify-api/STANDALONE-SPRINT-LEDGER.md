@@ -191,3 +191,42 @@ The 34 typed operation selectors below were checked against the published OpenAP
 The operator workspace provides scoped field forms alongside the advanced JSON form. The fixture store retains products, orders, events and actor-attributed operation history across restart. Archive and delete retain tombstones. Publish records a pending synthetic status. Four documented event shapes are checked by an in-process HTTP-shaped fixture adapter. An accepted event records an observation against the exact fixture resource; it does not advance the lifecycle or confirm a provider outcome. Exact replay and conflicting reuse of an event identity are denied. [Printify events](https://developers.printify.com/#events)
 
 Remaining software scope includes complex multi-line and multi-placement form builders, remaining OpenAPI paths, additional event topics and webhook lifecycle behaviors. Operational authority, credential custody, independent recovery, and provider acceptance remain separately blocked.
+
+## Standalone 0.11.0 consolidated fixture coverage
+
+The v0.10.0 matrix and the verified additions below enumerate 48 selectors, covering 50 of 53 distinct method/path combinations from the OpenAPI 3.0.3 document. Variant selection shares its documented list route, and the V2 shipping selector covers four documented methods of shipping. [Printify OpenAPI](https://developers.printify.com/openapi.json)
+
+| Added fixture operation | Documented method and path |
+| --- | --- |
+| `CATALOG_SHIPPING_V1_READ` | `GET /v1/catalog/blueprints/{blueprint_id}/print_providers/{print_provider_id}/shipping.json` |
+| `PRODUCT_PUBLISH_SUCCEEDED` | `POST /v1/shops/{shop_id}/products/{product_id}/publishing_succeeded.json` |
+| `PRODUCT_PUBLISH_FAILED` | `POST /v1/shops/{shop_id}/products/{product_id}/publishing_failed.json` |
+| `PRODUCT_UNPUBLISH_NOTIFY` | `POST /v1/shops/{shop_id}/products/{product_id}/unpublish.json` |
+| `SUPPORT_LIST` | `GET /v1/shops/{shop_id}/orders/{order_id}/support-requests` |
+| `SUPPORT_DETAIL` | `GET /v1/shops/{shop_id}/orders/{order_id}/support-requests/{supportRequestId}` |
+| `SUPPORT_REFUND` | `POST /v1/shops/{shop_id}/orders/{order_id}/support-requests/refund` |
+| `SUPPORT_REPRINT` | `POST /v1/shops/{shop_id}/orders/{order_id}/support-requests/reprint` |
+| `SUPPORT_ADDRESS_CHANGE` | `POST /v1/shops/{shop_id}/orders/{order_id}/support-requests/address-change` |
+| `PERSONALIZATION_OPTIONS` | `GET /v1/shops/{shop_id}/products/{product_id}/personalization_options.json` |
+| `PERSONALIZATION_CONFIGURE` | `POST /v1/shops/{shop_id}/products/{product_id}/personalization.json` |
+| `PREVIEW_CREATE` | `POST /v1/shops/{shop_id}/products/{product_id}/personalization_previews.json` |
+| `PREVIEW_READ` | `GET /v1/shops/{shop_id}/products/{product_id}/personalization_previews/tasks/{task_id}.json` |
+| `ORDER_ADDRESS_CHANGE` | `POST /v1/shops/{shop_id}/orders/{order_id}/address_change.json` |
+
+Publication callbacks are revision-bound fixture transitions. Support requests stay pending and unresolved. Support-request fulfillment is outside the fixture. The direct on-hold address-change route retains only a bounded address digest. Rich operator forms support bounded extra variants, separate placements and order lines. Personalization supports a fixture textbox and durable pending preview tasks. Advanced JSON is available for compound requests. The fixed catalog exposes synthetic front/back dimensions for variants 9 and 10.
+
+| Webhook topic coverage | Fixture behavior |
+| --- | --- |
+| `order:created`, `order:updated`, `product:created`, `product:updated` | Exact scoped resource correlation. Order status must match retained state. |
+| `order:sent-to-production`, `product:publish:started` | Correlate to explicit prior fixture production or pending publication. The publication event supports the documented create shape. |
+| `order:shipment:created`, `order:shipment:delivered` | Correlate tracking digest and documented shipment-created line identities to the exact order. Delivered events update the existing fixture shipment timestamp. Replays and conflicting updates fail closed. |
+
+The isolated fixture receiver uses the documented envelope and signature format with public fixture signing material. Its delivery path is in-process and remains separate from provider authenticity and external execution. Other event shapes remain unsupported. [Printify events](https://developers.printify.com/#events)
+
+### Remaining OpenAPI method/path coverage
+
+- `DELETE /v1/shops/{shop_id}/connection.json`
+- `POST /v1/shops/{shop_id}/orders/express.json`
+- `POST /v1/shops/{shop_id}/webhooks/{webhook_id}/simulate`
+
+These are source gaps in the standalone typed registry. Additional event topics, fixture profile breadth and richer personalization workflows remain incomplete. Hosted verification, independent authority and recovery, and Printify credentials and live acceptance are separate operational gates.

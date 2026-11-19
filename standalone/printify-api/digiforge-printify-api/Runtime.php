@@ -108,7 +108,8 @@ final class Runtime
         }
         foreach (['SyntheticJourney.php','SyntheticPrintifyClient.php','SyntheticPrintifyTransport.php',
             'SyntheticOperatorPanel.php','Engine/POD/PrintifyLifecycleRequest.php','Engine/POD/PrintifyLifecycleEvidence.php',
-            'Engine/POD/PrintifyUploadContract.php'] as $path) {
+            'Engine/POD/PrintifyUploadContract.php','Engine/POD/PrintifySupportContract.php',
+            'Engine/POD/PrintifyProductResponse.php'] as $path) {
             if (!is_readable(__DIR__ . '/' . $path)) {
                 return false;
             }

@@ -15,12 +15,15 @@ final class SyntheticWebhookReceiver
     // Public fixture material. It is intentionally unsuitable for authenticating provider traffic.
     private const FIXTURE_SIGNING_KEY = 'digiforge-synthetic-webhook-envelope-fixture-v1';
     private const EVENT_TYPES = [
-        'order:created'=>'order', 'order:updated'=>'order',
-        'product:created'=>'product', 'product:updated'=>'product',
+        'order:created'=>'order', 'order:updated'=>'order', 'order:sent-to-production'=>'order',
+        'product:created'=>'product', 'product:updated'=>'product', 'product:publish:started'=>'product',
+        'order:shipment:created'=>'order', 'order:shipment:delivered'=>'order',
     ];
     private const ORDER_STATES = ['pending','on-hold','sending-to-production','in-production','canceled',
         'fulfilled','partially-fulfilled','payment-not-received','has-issues','cost-calculation','unfulfillable',
         'sending_to_production_delegate','sending_to_production_delegate_sync','source-check-failed'];
+
+    private const PUBLISH_FIELDS = ['title','variants','description','tags','images','key_features','shipping_template'];
 
     /** Create no request outside this process. Only the supported scalar envelope can be serialized. */
     public static function delivery(array $event): array
@@ -67,18 +70,14 @@ final class SyntheticWebhookReceiver
         } catch (\JsonException) {
             return self::result(422, 'EVENT_MALFORMED');
         }
-        if (!is_array($event) || !self::envelope($event) || !self::exactJsonMembers($raw, 7 + count($event['resource']['data']))
+        if (!is_array($event) || !self::envelope($event) || !self::exactJsonMembers($raw, self::expectedMembers($event))
             || preg_match('/^[1-9][0-9]{0,18}$/D', $shop) !== 1
             || (string)$event['resource']['data']['shop_id'] !== $shop) {
             return self::result(422, 'EVENT_CONTRACT_OR_SCOPE');
         }
 
         $timestamp = $event['created_at'];
-        if (preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[+-](?:0[0-9]|1[0-4]):[0-5][0-9]$/D', $timestamp) !== 1) {
-            return self::result(422, 'EVENT_TIMESTAMP');
-        }
-        $time = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP', $timestamp);
-        if (!$time || $time->format('Y-m-d H:i:sP') !== $timestamp) {
+        if (!self::timestamp($timestamp)) {
             return self::result(422, 'EVENT_TIMESTAMP');
         }
 
@@ -97,9 +96,21 @@ final class SyntheticWebhookReceiver
             'resource_id'=>$event['resource']['id'], 'resource_type'=>$event['resource']['type'],
             'provider_shop_id'=>$shop, 'created_at'=>$timestamp, 'fixture_signature_verified'=>true,
         ];
-        return $event['type']==='order:updated'
-            ? $observation + ['resource_status'=>$event['resource']['data']['status']]
-            : $observation;
+        $data = $event['resource']['data'];
+        return $observation + match ($event['type']) {
+            'order:updated' => ['resource_status'=>$data['status']],
+            'product:publish:started' => [
+                'publish_action'=>$data['action'], 'out_of_stock_publishing'=>$data['out_of_stock_publishing'],
+            ],
+            'order:shipment:created' => [
+                'shipment_at'=>self::utcTimestamp($data['shipped_at']), 'tracking_sha256'=>hash('sha256',$data['carrier']['tracking_number']),
+                'line_item_ids'=>$data['line_item_ids'],
+            ],
+            'order:shipment:delivered' => [
+                'shipment_at'=>self::utcTimestamp($data['delivered_at']), 'tracking_sha256'=>hash('sha256',$data['carrier']['tracking_number']),
+            ],
+            default => [],
+        };
     }
 
     private static function envelope(array $event): bool
@@ -113,13 +124,99 @@ final class SyntheticWebhookReceiver
             return false;
         }
         $resource = $event['resource'];
-        $updatedOrder = $event['type']==='order:updated';
-        return self::keys($resource, ['id','type','data']) && is_string($resource['id'])
-            && preg_match('/^[A-Za-z0-9_-]{1,160}$/D', $resource['id']) === 1
-            && $resource['type']===self::EVENT_TYPES[$event['type']] && is_array($resource['data'])
-            && self::keys($resource['data'], $updatedOrder ? ['shop_id','status'] : ['shop_id'])
-            && is_int($resource['data']['shop_id']) && $resource['data']['shop_id'] > 0
-            && (!$updatedOrder || in_array($resource['data']['status'],self::ORDER_STATES,true));
+        if (!self::keys($resource, ['id','type','data']) || !self::identifier($resource['id'])
+            || $resource['type']!==self::EVENT_TYPES[$event['type']] || !is_array($resource['data'])
+            || !is_int($resource['data']['shop_id']??null) || $resource['data']['shop_id']<1) {
+            return false;
+        }
+        $data=$resource['data'];
+        return match ($event['type']) {
+            'order:updated' => self::keys($data,['shop_id','status']) && in_array($data['status'],self::ORDER_STATES,true),
+            'product:publish:started' => self::publishDetails($data),
+            'order:shipment:created' => self::shipmentDetails($data,'shipped_at'),
+            'order:shipment:delivered' => self::shipmentDetails($data,'delivered_at'),
+            default => self::keys($data,['shop_id']),
+        };
+    }
+
+    private static function publishDetails(array $data): bool
+    {
+        if (!self::keys($data,['shop_id','publish_details','action','out_of_stock_publishing'])
+            || $data['action']!=='create' || $data['out_of_stock_publishing']!==0
+            || !is_array($data['publish_details']) || !self::keys($data['publish_details'],self::PUBLISH_FIELDS)) {
+            return false;
+        }
+        foreach ($data['publish_details'] as $selection) {
+            if (!is_bool($selection)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function shipmentDetails(array $data, string $dateKey): bool
+    {
+        $keys=['shop_id',$dateKey,'carrier','skus'];
+        if ($dateKey==='shipped_at') {
+            $keys[]='line_item_ids';
+        }
+        if (!self::keys($data,$keys) || !self::timestamp($data[$dateKey]) || !self::identifiers($data['skus'])
+            || ($dateKey==='shipped_at' && !self::identifiers($data['line_item_ids']))) {
+            return false;
+        }
+        $carrier=$data['carrier'];
+        if (!is_array($carrier) || !self::keys($carrier,['code','tracking_number','tracking_url'])
+            || !self::identifier($carrier['code']) || !self::identifier($carrier['tracking_number'])
+            || !is_string($carrier['tracking_url']) || strlen($carrier['tracking_url'])>2048
+            || filter_var($carrier['tracking_url'],FILTER_VALIDATE_URL)===false) {
+            return false;
+        }
+        $url=parse_url($carrier['tracking_url']);
+        return is_array($url) && ($url['scheme']??null)==='https' && isset($url['host'])
+            && !isset($url['user']) && !isset($url['pass']);
+    }
+
+    private static function identifier(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$value)===1;
+    }
+
+    private static function identifiers(mixed $items): bool
+    {
+        if (!is_array($items) || !array_is_list($items) || $items===[] || count($items)>100) {
+            return false;
+        }
+        foreach ($items as $item) {
+            if (!self::identifier($item)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function timestamp(mixed $value): bool
+    {
+        if (!is_string($value)
+            || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[+-](?:0[0-9]|1[0-4]):[0-5][0-9]$/D',$value)!==1) {
+            return false;
+        }
+        $time=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP',$value);
+        return $time!==false && $time->format('Y-m-d H:i:sP')===$value;
+    }
+
+    private static function utcTimestamp(string $value): string
+    {
+        return (new \DateTimeImmutable($value))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
+    }
+
+    private static function expectedMembers(array $event): int
+    {
+        $data=$event['resource']['data'];
+        return 7 + count($data) + match ($event['type']) {
+            'product:publish:started' => count($data['publish_details']),
+            'order:shipment:created', 'order:shipment:delivered' => count($data['carrier']),
+            default => 0,
+        };
     }
 
     /** PHP's decoded object hides duplicate members; the accepted fixed envelope has a known member count. */

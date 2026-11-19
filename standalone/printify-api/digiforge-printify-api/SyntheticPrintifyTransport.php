@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace DigiForgePrintifyApi;
 
+use DigiForgePrintifyApi\Engine\Listings\Validator;
+use DigiForgePrintifyApi\Engine\POD\{PrintifyProductRequest, PrintifySupportContract};
+
 if (!\defined('ABSPATH')) {
     exit;
 }
@@ -14,10 +17,19 @@ final class SyntheticPrintifyTransport
     public const WEBHOOK_URLS = ['https://webhooks.example.invalid/printify', 'https://webhooks.example.invalid/printify-updated'];
     public const WEBHOOK_TOPICS = ['product:created','product:updated','order:created','order:updated',
         'order:shipment:created','order:shipment:delivered'];
+    private const PERSONALIZATION_FIELD = 'fixture-inscription';
+    private const PERSONALIZATION_MAX_CHARS = 80;
     private const SHOP_TITLE = 'Synthetic shop';
     private const BLUEPRINT = ['id'=>42, 'title'=>'Synthetic mug', 'description'=>'Local fixture', 'brand'=>'Synthetic', 'model'=>'Mug'];
     private const PROVIDER = ['id'=>7, 'title'=>'Synthetic printer', 'decoration_methods'=>['sublimation'], 'production_time'=>null];
-    private const VARIANT = ['id'=>9, 'title'=>'Synthetic white mug', 'options'=>['color'=>'White'], 'placeholders'=>[['position'=>'front','width'=>1200,'height'=>600]]];
+    private const VARIANTS = [
+        ['id'=>9, 'title'=>'Synthetic white mug', 'options'=>['color'=>'White'], 'placeholders'=>[
+            ['position'=>'front','width'=>1200,'height'=>600], ['position'=>'back','width'=>1200,'height'=>600],
+        ]],
+        ['id'=>10, 'title'=>'Synthetic blue mug', 'options'=>['color'=>'Blue'], 'placeholders'=>[
+            ['position'=>'front','width'=>1500,'height'=>750], ['position'=>'back','width'=>1400,'height'=>700],
+        ]],
+    ];
 
     private array $images = [];
     private array $products = [];
@@ -96,6 +108,49 @@ final class SyntheticPrintifyTransport
         return true;
     }
 
+    /** Fixed fixture metadata for an exact synthetic readback. */
+    public function fixtureProductSelectors(string $id): ?array
+    {
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) {
+            return null;
+        }
+        return [
+            'product_id'=>$id, 'blueprint_id'=>$product['blueprint_id'],
+            'provider_id'=>$product['print_provider_id'], 'variant_ids'=>array_column($product['variants'],'id'),
+        ];
+    }
+
+    /** Record delivery only for a matching, already fulfilled fixture shipment. */
+    public function recordFixtureDelivery(string $orderId,string $trackingSha256,string $deliveredAt): bool
+    {
+        if (($this->orders[$orderId]['status']??null)!=='fulfilled'
+            ||preg_match('/^[a-f0-9]{64}$/D',$trackingSha256)!==1
+            ||preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/D',$deliveredAt)!==1) {
+            return false;
+        }
+        $instant=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s\Z',$deliveredAt,new \DateTimeZone('UTC'));
+        if ($instant===false||$instant->format('Y-m-d\TH:i:s\Z')!==$deliveredAt) {
+            return false;
+        }
+        $matches=[];
+        foreach ($this->orders[$orderId]['shipments'] as $index=>$shipment) {
+            if (is_string($shipment['number']??null)&&hash_equals(hash('sha256',$shipment['number']),$trackingSha256)) {
+                $matches[]=$index;
+            }
+        }
+        if (count($matches)!==1) {
+            return false;
+        }
+        $index=$matches[0];
+        $existing=$this->orders[$orderId]['shipments'][$index]['delivered_at'];
+        if ($existing!==null&&$existing!==$deliveredAt) {
+            return false;
+        }
+        $this->orders[$orderId]['shipments'][$index]['delivered_at']=$deliveredAt;
+        return true;
+    }
+
     public function request(array $plan): array
     {
         $operation = $plan['operation'] ?? null;
@@ -114,7 +169,7 @@ final class SyntheticPrintifyTransport
         }
         $version = $plan['expected_version'] ?? null;
         if (array_key_exists('expected_version', $plan)
-            && (!in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'],true) || !is_int($version) || $version < 1 || $version > 1000)) {
+            && (!in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'],true) || !is_int($version) || $version < 1 || $version > 1000)) {
             return self::error(422, 'fixture_version_invalid');
         }
         $route = $this->route($operation, $method, $endpoint);
@@ -154,6 +209,7 @@ final class SyntheticPrintifyTransport
             'PROVIDER_READ', 'BLUEPRINT_PROVIDER_READ' => ['GET', '/v1/catalog/(?:blueprints/42/)?print_providers/7\.json'],
             'VARIANTS_READ', 'VARIANT_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/variants\.json'],
             'SIZE_GUIDE_READ' => ['GET', '/v1/catalog/blueprints/42/size_guide\.json'],
+            'CATALOG_SHIPPING_V1_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/shipping\.json'],
             'CATALOG_SHIPPING_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping\.json'],
             'CATALOG_SHIPPING_METHOD_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping/(standard|priority|express|economy)\.json'],
             'IMAGE_UPLOAD' => ['POST', '/v1/uploads/images\.json'],
@@ -161,11 +217,18 @@ final class SyntheticPrintifyTransport
             'IMAGE_ARCHIVE' => ['POST', '/v1/uploads/'.$id.'/archive\.json'],
             'UPLOADS_READ' => ['GET', '/v1/uploads\.json'.$paging],
             'PRODUCT_CREATE' => ['POST', $shopRoot.'/products\.json'],
+            'PERSONALIZATION_OPTIONS' => ['GET', $shopRoot.'/products/'.$id.'/personalization_options\.json'],
+            'PERSONALIZATION_CONFIGURE' => ['POST', $shopRoot.'/products/'.$id.'/personalization\.json'],
+            'PREVIEW_CREATE' => ['POST', $shopRoot.'/products/'.$id.'/personalization_previews\.json'],
+            'PREVIEW_READ' => ['GET', $shopRoot.'/products/'.$id.'/personalization_previews/tasks/'.$id.'\.json'],
             'PRODUCT_GPSR_READ' => ['GET', $shopRoot.'/products/'.$id.'/gpsr\.json'],
             'PRODUCT_READ' => ['GET', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_UPDATE' => ['PUT', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_DELETE' => ['DELETE', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_PUBLISH' => ['POST', $shopRoot.'/products/'.$id.'/publish\.json'],
+            'PRODUCT_PUBLISH_SUCCEEDED' => ['POST', $shopRoot.'/products/'.$id.'/publishing_succeeded\.json'],
+            'PRODUCT_PUBLISH_FAILED' => ['POST', $shopRoot.'/products/'.$id.'/publishing_failed\.json'],
+            'PRODUCT_UNPUBLISH_NOTIFY' => ['POST', $shopRoot.'/products/'.$id.'/unpublish\.json'],
             'PRODUCTS_READ' => ['GET', $shopRoot.'/products\.json'.$paging],
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => ['POST', $shopRoot.'/orders/shipping\.json'],
             'ORDER_CREATE', 'ORDER_SUBMIT' => ['POST', $shopRoot.'/orders\.json'],
@@ -173,6 +236,12 @@ final class SyntheticPrintifyTransport
             'ORDERS_READ' => ['GET', $shopRoot.'/orders\.json'.$paging],
             'LINE_ITEM_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/line_items/'.$id.'/cancel\.json'],
             'ORDER_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/cancel\.json'],
+            'ORDER_ADDRESS_CHANGE' => ['POST', $shopRoot.'/orders/'.$id.'/address_change\.json'],
+            'SUPPORT_LIST' => ['GET', $shopRoot.'/orders/'.$id.'/support-requests'],
+            'SUPPORT_DETAIL' => ['GET', $shopRoot.'/orders/'.$id.'/support-requests/'.$id],
+            'SUPPORT_REFUND' => ['POST', $shopRoot.'/orders/'.$id.'/support-requests/refund'],
+            'SUPPORT_REPRINT' => ['POST', $shopRoot.'/orders/'.$id.'/support-requests/reprint'],
+            'SUPPORT_ADDRESS_CHANGE' => ['POST', $shopRoot.'/orders/'.$id.'/support-requests/address-change'],
             'ORDER_SEND_TO_PRODUCTION', 'PRODUCTION_AUTHORIZE' => ['POST', $shopRoot.'/orders/'.$id.'/send_to_production\.json'],
             'WEBHOOKS_READ', 'WEBHOOK_READ' => ['GET', $shopRoot.'/webhooks\.json'],
             'WEBHOOK_CREATE' => ['POST', $shopRoot.'/webhooks\.json'],
@@ -192,10 +261,15 @@ final class SyntheticPrintifyTransport
             'BLUEPRINT_READ' => self::response(200, self::BLUEPRINT),
             'PROVIDERS_READ', 'BLUEPRINT_PROVIDERS_READ' => self::response(200, [self::PROVIDER]),
             'PROVIDER_READ', 'BLUEPRINT_PROVIDER_READ' => self::response(200, self::PROVIDER),
-            'VARIANTS_READ', 'VARIANT_READ' => self::response(200, ['id'=>42,'title'=>self::BLUEPRINT['title'],'variants'=>[self::VARIANT]]),
+            'VARIANTS_READ', 'VARIANT_READ' => self::response(200, ['id'=>42,'title'=>self::BLUEPRINT['title'],'variants'=>self::VARIANTS]),
             'SIZE_GUIDE_READ' => self::response(200, ['sizes'=>['11oz'],'types'=>[
                 ['name'=>'Height','units'=>'cm','ranges'=>[['from'=>9.5,'to'=>9.5]]],
             ]]),
+            'CATALOG_SHIPPING_V1_READ' => self::response(200,[
+                'handling_time'=>['value'=>3,'unit'=>'day'],
+                'profiles'=>[['variant_ids'=>[9,10],'first_item'=>['cost'=>500,'currency'=>'USD'],
+                    'additional_items'=>['cost'=>200,'currency'=>'USD'],'countries'=>['US']]],
+            ]),
             'CATALOG_SHIPPING_READ' => self::response(200, ['data'=>[
                 ['id'=>'1','type'=>'shipping_method','attributes'=>['name'=>'standard']],
             ]]),
@@ -205,6 +279,8 @@ final class SyntheticPrintifyTransport
             'UPLOADS_READ' => self::page($this->availableImages(), $route),
             'IMAGE_ARCHIVE' => $this->archiveImage($route[0], $body),
             'PRODUCT_CREATE' => $this->createProduct($body),
+            'PERSONALIZATION_OPTIONS','PERSONALIZATION_CONFIGURE','PREVIEW_CREATE','PREVIEW_READ'
+                => $this->personalization($operation,$route,$body),
             'PRODUCT_GPSR_READ' => isset($this->availableProducts()[$route[0]])
                 ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
             'PRODUCT_READ' => self::lookup($this->availableProducts(), $route[0]),
@@ -212,12 +288,17 @@ final class SyntheticPrintifyTransport
             'PRODUCTS_READ' => self::page($this->availableProducts(), $route),
             'PRODUCT_DELETE' => $this->deleteProduct($route[0], $body, $version),
             'PRODUCT_PUBLISH' => $this->publishProduct($route[0], $body, $version),
+            'PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'
+                => $this->resolvePublication($route[0],$operation,$body,$version),
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => $this->quote($body),
             'ORDER_CREATE', 'ORDER_SUBMIT' => $this->createOrder($body),
             'ORDER_READ' => self::lookup($this->orders, $route[0]),
             'ORDERS_READ' => self::page($this->orders, $route),
             'LINE_ITEM_CANCEL' => $body === [] ? $this->cancelLine($route[0],$route[1]) : self::error(422,'cancel_body'),
             'ORDER_CANCEL' => $this->cancel($route[0]),
+            'ORDER_ADDRESS_CHANGE' => $this->changeOrderAddress($route[0],$body),
+            'SUPPORT_LIST','SUPPORT_DETAIL','SUPPORT_REFUND','SUPPORT_REPRINT','SUPPORT_ADDRESS_CHANGE'
+                => $this->support($operation,$route,$body),
             'ORDER_SEND_TO_PRODUCTION', 'PRODUCTION_AUTHORIZE' => $this->produce($route[0]),
             'WEBHOOKS_READ', 'WEBHOOK_READ' => self::response(200, array_values($this->webhooks)),
             'WEBHOOK_CREATE' => $this->createWebhook($body),
@@ -274,6 +355,9 @@ final class SyntheticPrintifyTransport
         }
         if ($version !== null && $this->products[$id]['synthetic_version'] !== $version) {
             return self::error(409, 'stale_product_version');
+        }
+        if (($this->products[$id]['synthetic_publish_pending']??false)===true) {
+            return self::error(409,'product_publication_pending');
         }
         if ($body === [] || array_diff(array_keys($body), ['title','description','blueprint_id','print_provider_id','variants','print_areas'])) {
             return self::error(422, 'product_invalid');
@@ -360,34 +444,110 @@ final class SyntheticPrintifyTransport
             return self::error(422,'product_publish_fields_invalid');
         }
         $this->products[$id]['synthetic_publish_pending']=true;
+        $this->products[$id]['synthetic_publication_state']='PENDING';
         ++$this->products[$id]['synthetic_version'];
+        return self::response(200,[]);
+    }
+
+    private function resolvePublication(string $id,string $operation,array $body,?int $version): array
+    {
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) {
+            return self::error(404,'product_not_found');
+        }
+        if ($version!==null&&$product['synthetic_version']!==$version) {
+            return self::error(409,'stale_product_version');
+        }
+        $pending=($product['synthetic_publish_pending']??false)===true;
+        if ($operation==='PRODUCT_UNPUBLISH_NOTIFY') {
+            if ($body!==[]) {
+                return self::error(422,'product_unpublish_body_invalid');
+            }
+            if ($pending || $product['visible']!==true) {
+                return self::error(409,'product_publication_inactive');
+            }
+            $state='UNPUBLISHED';
+        } else {
+            if (!$pending) {
+                return self::error(409,'product_publication_inactive');
+            }
+            if ($operation==='PRODUCT_PUBLISH_SUCCEEDED') {
+                $external=$body['external']??null;
+                if (!is_array($external)||array_keys($body)!==['external']||count($external)!==2
+                    ||!is_string($external['id']??null)||preg_match('/^[A-Za-z0-9_-]{1,80}$/D',$external['id'])!==1
+                    ||($external['handle']??null)!=='https://products.example.invalid/'.$external['id']) {
+                    return self::error(422,'synthetic_publication_reference_invalid');
+                }
+                $state='PUBLISHED';
+            } else {
+                if (array_keys($body)!==['reason']||!in_array($body['reason'],['CHANNEL_REJECTED','CHANNEL_TIMEOUT','HUMAN_REJECTED'],true)) {
+                    return self::error(422,'product_publication_reason_invalid');
+                }
+                $state='FAILED';
+            }
+        }
+        $product['visible']=$state==='PUBLISHED';
+        $product['synthetic_publish_pending']=false;
+        $product['synthetic_publication_state']=$state;
+        ++$product['synthetic_version'];
+        $this->products[$id]=$product;
         return self::response(200,[]);
     }
 
     private function validProduct(array $row): bool
     {
-        if (($row['blueprint_id'] ?? null) !== 42 || ($row['print_provider_id'] ?? null) !== 7
-            || !is_string($row['title'] ?? null) || !is_string($row['description'] ?? null)
-            || !is_array($row['variants'] ?? null) || array_column($row['variants'], 'id') !== [9]
-            || !is_array($row['print_areas'] ?? null) || $row['print_areas'] === []) {
+        if (($row['blueprint_id']??null)!==42||($row['print_provider_id']??null)!==7
+            ||!is_string($row['title']??null)||!is_string($row['description']??null)
+            ||!is_array($row['variants']??null)||!array_is_list($row['variants'])||$row['variants']===[]
+            ||!is_array($row['print_areas']??null)||!array_is_list($row['print_areas'])||$row['print_areas']===[]) {
             return false;
         }
-        foreach ($row['print_areas'] as $area) {
-            if (!is_array($area) || ($area['variant_ids'] ?? null) !== [9] || !is_array($area['placeholders'] ?? null)) {
+        $catalog=array_column(self::VARIANTS,null,'id');
+        $selected=[];
+        foreach ($row['variants'] as $variant) {
+            $id=$variant['id']??null;
+            if (!is_int($id)||!isset($catalog[$id])||isset($selected[$id])
+                ||!is_bool($variant['is_enabled']??null)||!is_int($variant['price']??null)
+                ||$variant['price']<($variant['is_enabled']?1:0)||$variant['price']>100000000) {
                 return false;
             }
-            foreach ($area['placeholders'] as $holder) {
-                if (($holder['position'] ?? null) !== 'front' || !is_array($holder['images'] ?? null) || $holder['images'] === []) {
+            $selected[$id]=true;
+        }
+        $assigned=[];
+        foreach ($row['print_areas'] as $area) {
+            if (!is_array($area)||!is_array($area['variant_ids']??null)||!array_is_list($area['variant_ids'])
+                ||$area['variant_ids']===[]||!is_array($area['placeholders']??null)
+                ||!array_is_list($area['placeholders'])||$area['placeholders']===[]) {
+                return false;
+            }
+            foreach ($area['variant_ids'] as $id) {
+                if (!is_int($id)||!isset($selected[$id])||isset($assigned[$id])) {
                     return false;
                 }
+                $assigned[$id]=true;
+            }
+            $positions=[];
+            foreach ($area['placeholders'] as $holder) {
+                $position=$holder['position']??null;
+                if (!is_string($position)||isset($positions[$position])||!is_array($holder['images']??null)
+                    ||!array_is_list($holder['images'])||$holder['images']===[]) {
+                    return false;
+                }
+                $positions[$position]=true;
+                foreach ($area['variant_ids'] as $id) {
+                    if (!in_array($position,array_column($catalog[$id]['placeholders'],'position'),true)) {
+                        return false;
+                    }
+                }
                 foreach ($holder['images'] as $image) {
-                    if (!is_string($image['id'] ?? null) || !isset($this->images[$image['id']]) || ($this->images[$image['id']]['archived']??false)===true) {
+                    $id=$image['id']??null;
+                    if (!is_string($id)||!isset($this->images[$id])||($this->images[$id]['archived']??false)===true) {
                         return false;
                     }
                 }
             }
         }
-        return true;
+        return count($assigned)===count($selected);
     }
 
     private function orderLines(mixed $lines): ?array
@@ -397,14 +557,15 @@ final class SyntheticPrintifyTransport
         }
         $copy = [];
         foreach ($lines as $line) {
-            if (!is_array($line) || !is_string($line['product_id'] ?? null) || ($line['variant_id'] ?? null) !== 9
+            if (!is_array($line) || !is_string($line['product_id'] ?? null) || !is_int($line['variant_id'] ?? null)
                 || !is_int($line['quantity'] ?? null) || $line['quantity'] < 1 || $line['quantity'] > 100
                 || !isset($this->products[$line['product_id']])
                 || ($this->products[$line['product_id']]['is_deleted']??false)===true) {
                 return null;
             }
             $product = $this->products[$line['product_id']];
-            if (($product['variants'][0]['is_enabled'] ?? null) !== true) {
+            $variants=array_column($product['variants'],null,'id');
+            if (($variants[$line['variant_id']]['is_enabled']??null)!==true) {
                 return null;
             }
             $copy[] = array_intersect_key($line, array_flip(['product_id','variant_id','quantity']));
@@ -483,6 +644,140 @@ final class SyntheticPrintifyTransport
         $this->orders[$id]['status'] = 'in-production';
         $this->orders[$id]['sent_to_production_at'] = '2026-11-19T00:00:00Z';
         return self::response(200, $this->orders[$id]);
+    }
+
+    private function personalization(string $operation,array $route,array $body): array
+    {
+        $id=$route[0];
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) {
+            return self::error(404,'personalization_product_not_found');
+        }
+        if ($operation==='PERSONALIZATION_OPTIONS') {
+            return self::response(200,[['field_id'=>self::PERSONALIZATION_FIELD,'label'=>'Synthetic inscription',
+                'type'=>'textbox','text_options'=>['character_limit'=>self::PERSONALIZATION_MAX_CHARS]]]);
+        }
+        if ($operation==='PREVIEW_READ') {
+            $task=$product['preview_tasks'][$route[1]]??null;
+            return $task===null?self::error(404,'preview_task_not_found'):self::response(200,$task);
+        }
+        if (array_key_exists('product_id',$body)) {
+            return self::error(422,'personalization_body_scope');
+        }
+        PrintifyProductRequest::prepare($operation,$this->shop,['product_id'=>$id]+$body);
+        $configure=$operation==='PERSONALIZATION_CONFIGURE';
+        $items=$configure?$body['items']:$body['personalization'];
+        $item=$items[0];
+        if (count($items)!==1||$item['field_id']!==self::PERSONALIZATION_FIELD||$item['type']!=='textbox'
+            ||mb_strlen($item['input']['text'],'UTF-8')>self::PERSONALIZATION_MAX_CHARS) {
+            return self::error(422,'personalization_field_invalid');
+        }
+        $variants=array_column($product['variants'],null,'id');
+        foreach ($configure?[$body['variant_id']]:$body['variant_ids'] as $variant) {
+            if (($variants[$variant]['is_enabled']??null)!==true) {
+                return self::error(422,'personalization_variant_unavailable');
+            }
+        }
+        if ($configure) {
+            $variant=$body['variant_id'];
+            if (isset($product['personalization_configs'][$variant])) {
+                return self::error(409,'personalization_config_already_exists');
+            }
+            $reference='fixture-config-'.hash('sha256',$id.':'.$variant);
+            $this->products[$id]['personalization_configs'][$variant]=$reference;
+            return self::response(201,['personalisation_strategy'=>'pstudio_pre_order_headless',
+                'personalisation_instructions'=>$reference,'warnings'=>[]]);
+        }
+        $tasks=$product['preview_tasks']??[];
+        if (count($tasks)>=24) {
+            return self::error(429,'preview_task_limit');
+        }
+        $correlation='fixture-preview-'.hash('sha256',$body['external_id']);
+        foreach ($tasks as $entry) {
+            if ($entry['external_id']===$correlation) {
+                return self::error(409,'preview_task_already_exists');
+            }
+        }
+        $taskId='task-'.$id.'-'.(count($tasks)+1);
+        $task=['task_id'=>$taskId,'status'=>'pending','external_id'=>$correlation];
+        $this->products[$id]['preview_tasks'][$taskId]=$task;
+        return self::response(202,$task);
+    }
+
+    private function changeOrderAddress(string $orderId,array $body): array
+    {
+        $order=$this->orders[$orderId]??null;
+        if ($order===null) {
+            return self::error(404,'address_order_not_found');
+        }
+        if ($order['status']!=='on-hold') {
+            return self::error(409,'address_order_ineligible');
+        }
+        if (array_key_exists('order_id',$body)) {
+            return self::error(422,'address_body_scope');
+        }
+        $validated=PrintifySupportContract::prepare('SUPPORT_ADDRESS_CHANGE',$this->shop,['order_id'=>$orderId]+$body);
+        $hash=hash('sha256',Validator::canonicalJson($validated['body']));
+        $history=$order['address_change_hashes']??[];
+        if (in_array($hash,$history,true)) {
+            return self::error(409,'address_change_already_observed');
+        }
+        if (count($history)>=12) {
+            return self::error(429,'address_change_limit');
+        }
+        $this->orders[$orderId]['address_change_hashes'][]=$hash;
+        return self::response(200,['resolution'=>'updated_directly','order_id'=>$orderId,'address_to'=>$validated['body']]);
+    }
+
+    private function support(string $operation,array $route,array $body): array
+    {
+        $orderId=$route[0];
+        $order=$this->orders[$orderId]??null;
+        if ($order===null) {
+            return self::error(404,'support_order_not_found');
+        }
+        $requests=$order['support_requests']??[];
+        if ($operation==='SUPPORT_LIST') {
+            return self::response(200,['data'=>array_values($requests)]);
+        }
+        if ($operation==='SUPPORT_DETAIL') {
+            $entry=$requests[$route[1]]??null;
+            return $entry===null?self::error(404,'support_request_not_found'):self::response(200,['data'=>$entry]);
+        }
+        if (count($requests)>=24) {
+            return self::error(429,'support_request_limit');
+        }
+        if (array_key_exists('order_id',$body)) {
+            return self::error(422,'support_body_scope');
+        }
+        $input=['order_id'=>$orderId]+$body;
+        PrintifySupportContract::prepare($operation,$this->shop,$input);
+        $address=$operation==='SUPPORT_ADDRESS_CHANGE';
+        $eligible=$address?in_array($order['status'],['on-hold','in-production'],true):$order['status']==='fulfilled';
+        if (!$eligible) {
+            return self::error(409,'support_order_ineligible');
+        }
+        if (!$address) {
+            $order['line_items']=array_values(array_filter($order['line_items'],
+                static fn(array $line): bool=>($line['status']??null)!=='canceled'));
+            PrintifySupportContract::validateEligibility($operation,$input,$order);
+        }
+        $lineIds=$address?[]:array_column($body['line_items'],'line_item_id');
+        $type=match($operation){
+            'SUPPORT_REFUND'=>'order_refund',
+            'SUPPORT_REPRINT'=>'order_reprint',
+            default=>'order_address_editing',
+        };
+        foreach ($requests as $prior) {
+            if ($prior['type']===$type&&($address||array_intersect($lineIds,$prior['line_item_ids']))) {
+                return self::error(409,'support_request_already_pending');
+            }
+        }
+        $id='support-'.$orderId.'-'.(count($requests)+1);
+        $entry=['id'=>$id,'order_id'=>$orderId,'type'=>$type,'status'=>'pending','outcome'=>'unresolved',
+            'line_item_ids'=>$lineIds,'created_at'=>'2026-11-19T00:00:00Z','updated_at'=>'2026-11-19T00:00:00Z'];
+        $this->orders[$orderId]['support_requests'][$id]=$entry;
+        return self::response(201,$address?$entry+['resolution'=>'support_request_created']:$entry);
     }
 
     private function createWebhook(array $body): array

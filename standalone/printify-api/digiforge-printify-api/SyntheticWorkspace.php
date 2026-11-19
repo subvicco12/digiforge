@@ -101,7 +101,7 @@ final class SyntheticWorkspace
     private function simulate(SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $op, array $input, array &$events): array
     {
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {
-            return $this->acceptEvent($client, $input, $events);
+            return $this->acceptEvent($transport, $client, $input, $events);
         }
         if ($op === 'FIXTURE_PRODUCTION_CONFIRM' || $op === 'FIXTURE_FULFILL') {
             $id = $input['order_id'] ?? null;
@@ -118,14 +118,15 @@ final class SyntheticWorkspace
         if ($op === 'ORDER_SEND_TO_PRODUCTION') {
             return self::fixtureResult(409, 'EXPLICIT_SYNTHETIC_CONFIRMATION_REQUIRED');
         }
-        if (in_array($op,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH'],true)
+        if (in_array($op,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_PUBLISH_SUCCEEDED',
+            'PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'],true)
             && !is_int($input['expected_version'] ?? null)) {
             return self::fixtureResult(422, 'EXPECTED_PRODUCT_VERSION_REQUIRED');
         }
         return $client->run($op, $input);
     }
 
-    private function acceptEvent(SyntheticPrintifyClient $client,array $event,array &$events):array
+    private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array $event,array &$events):array
     {
         $seen=[];
         foreach ($events as $id=>$entry) {
@@ -146,19 +147,47 @@ final class SyntheticWorkspace
         }
         $resource=$received['resource_id'];
         $product=str_starts_with($received['type'],'product:');
+        $selection=$product?$transport->fixtureProductSelectors($resource):null;
         $observation=$product
-            ? $client->run('PRODUCT_READ',['product_id'=>$resource,'blueprint_id'=>42,'provider_id'=>7,'variant_ids'=>[9]])
+            ? ($selection===null?[]:$client->run('PRODUCT_READ',$selection))
             : $client->run('ORDER_READ',['order_id'=>$resource]);
-        if ($observation['state']!=='SYNTHETIC_OBSERVED') {
+        if (($observation['state']??null)!=='SYNTHETIC_OBSERVED') {
             return self::fixtureResult(422,'EVENT_RESOURCE_UNAVAILABLE');
         }
         if (isset($received['resource_status']) && $observation['data']['status']!==$received['resource_status']) {
             return self::fixtureResult(409,'EVENT_STATUS_CONFLICT');
         }
+        if ($received['type']==='product:publish:started'
+            && ($observation['data']['publication_pending']??null)!==true) {
+            return self::fixtureResult(409,'EVENT_PUBLICATION_CONFLICT');
+        }
+        if ($received['type']==='order:sent-to-production'
+            && !is_string($observation['data']['sent_to_production_at']??null)) {
+            return self::fixtureResult(409,'EVENT_PRODUCTION_CONFLICT');
+        }
+        if (isset($received['line_item_ids'])) {
+            $lines=array_filter($observation['data']['line_items']??[],static fn(array $line):bool=>
+                ($line['status']??null)!=='canceled');
+            if (array_diff($received['line_item_ids'],array_column($lines,'id'))!==[]) {
+                return self::fixtureResult(409,'EVENT_SHIPMENT_LINE_CONFLICT');
+            }
+        }
+        if (isset($received['tracking_sha256'])) {
+            $shipments=$observation['data']['shipments']??[];
+            $matches=array_filter($shipments,static fn(array $shipment):bool=>
+                ($shipment['tracking_hash']??null)===$received['tracking_sha256']);
+            if (count($matches)!==1) {
+                return self::fixtureResult(409,'EVENT_SHIPMENT_CONFLICT');
+            }
+            if ($received['type']==='order:shipment:delivered'
+                && !$transport->recordFixtureDelivery($resource,$received['tracking_sha256'],$received['shipment_at'])) {
+                return self::fixtureResult(409,'EVENT_DELIVERY_CONFLICT');
+            }
+        }
         $events[$id]=[
             'type'=>$received['type'],'resource_id'=>$resource,'created_at'=>$received['created_at'],
             'event_digest'=>$received['event_digest'],
-        ];
+        ]+array_intersect_key($received,array_flip(['tracking_sha256','shipment_at','publish_action']));
         return self::fixtureResult(200,'NONE');
     }
 
