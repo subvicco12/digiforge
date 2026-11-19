@@ -69,3 +69,13 @@ for(const slot of ['core','observer'])test('malformed in-process '+slot+' object
  assert.equal(r.status,'READ_ONLY_INCOMPATIBLE');assert.equal(r.serializer_calls,0,'reject objects before any json_encode call');
  assert.equal(r.dispatch_permitted,false);assert.equal(JSON.stringify(r).includes('SYNTHETIC-PRIVATE'),false);
 });
+test('a held event from the future is not a conformant inspection',async()=>{
+ const {input}=await conformanceFixture();
+ input.inspection.kind='HELD_OPERATION';
+ input.inspection.observation={state:'HELD',journal_revision:1,occurred_at:input.now+1,event_hash:'e'.repeat(64),fence_present:false,approval_verified:false,native_product_version:null,manual_review_required:true};
+ const unsigned={...input.inspection};delete unsigned.evidence_hash;
+ input.inspection.evidence_hash=await hash(canonical(unsigned));
+ const result=coreProbe(input);
+ assert.equal(result.status,'READ_ONLY_INCOMPATIBLE');
+ assert.equal(result.dispatch_permitted,false);
+});
