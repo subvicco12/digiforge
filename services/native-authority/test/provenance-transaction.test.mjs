@@ -86,10 +86,11 @@ async function nativeFixture(t) {
   const control = async (type, reference, data) => {
     const message = {schema:'DF_NATIVE_PROVENANCE_CONTROL_1',version:'1.0.0',reference,
       binding:f.binding,issued_at:time-1,expires_at:time+60,type,data:{producer:pin.producer,generation,...data}};
-    return post(witness.address,'/control',{
+    const response=await post(witness.address,'/control',{
       owner:signEnvelope('held.provenance.control.owner.v1',message,f.pairs.owner.privateKey,'owner'),
       recovery:signEnvelope('held.provenance.control.recovery.v1',message,f.pairs.recovery.privateKey,'recovery'),
     });
+    return {...response, controlDigest:digest(message)};
   };
   assert.equal((await control('ENROLL','enroll',{source_sha:pin.sourceSha,
     key_der:publicKey.export({type:'spki',format:'der'}).toString('base64url'),
@@ -164,4 +165,64 @@ test('journal failure rolls back CAS; a lost committed reply resolves only throu
   assert.equal(recovered.result.operation.state,'HELD');
   assert.equal(recovered.result.operation.retry_permitted,false);
   assert.equal((await client.call('readHeldProvenanceV1',{operation_id:body.operation_id,snapshot_hash:digest('wrong')})).disposition,'DENIED');
+});
+
+test('BLOCK readback binds the exact committed control and survives recovery', async t=>{
+  const {f,client,control,mapping_id,body,time}=await nativeFixture(t);
+  const data={mapping_id,expected_revision:1};
+  // Ignore the unsigned body. Retain only the locally computed request digest.
+  const block=await control('BLOCK','block-proof',data);
+  assert.equal(block.status,200);
+  const read={mapping_id,control_reference:'block-proof',control_digest:block.controlDigest,
+    blocked_revision:2,expected_generation:f.state.generation,expected_epoch:f.state.epoch};
+  for(const change of [{mapping_id:digest('wrong-order-line')},{control_reference:'other'},
+    {control_digest:digest('wrong-control')},{blocked_revision:1},{expected_generation:99}]){
+    assert.equal((await client.call('readBlockedProvenanceV1',{...read,...change})).disposition,'DENIED');
+  }
+  const verified=await client.call('readBlockedProvenanceV1',read);
+  const proof=verified.result.operation;
+  assert.equal(verified.disposition,'HELD');
+  assert.equal(proof.schema,'DF_NATIVE_BLOCK_ATTESTATION_1');
+  assert.equal(proof.state,'BLOCKED');
+  assert.equal(proof.external_execution_authorized,false);
+  assert.ok(Object.isFrozen(proof));
+  assert.equal((await control('BLOCK','block-proof',data)).status,503);
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
+  const store=new AuthorityStore(f.config.database_path);
+  let recovered;
+  try {
+    const state=store.state();
+    recovered=store.recover(state.witness_head,state.inventory_hash,time);
+  } finally { store.close(); }
+  assert.equal((await client.call('readBlockedProvenanceV1',read)).disposition,'DENIED');
+  const current=await client.call('readBlockedProvenanceV1',{...read,
+    expected_generation:recovered.generation,expected_epoch:recovered.epoch});
+  assert.deepEqual(current.result.operation,proof);
+  assert.equal((await control('REVOKE','revoke-after-recovery',{generation:recovered.generation})).status,200);
+  assert.equal((await client.call('readBlockedProvenanceV1',{...read,
+    expected_generation:recovered.generation,expected_epoch:recovered.epoch})).disposition,'DENIED');
+});
+
+test('journal failure leaves no BLOCK proof; concurrent BLOCK serializes with allocation', async t=>{
+  const {f,client,body,control,mapping_id}=await nativeFixture(t);
+  const db=new DatabaseSync(f.config.database_path);
+  t.after(()=>db.close());
+  db.exec("CREATE TRIGGER fail_block BEFORE INSERT ON witness_events WHEN json_extract(NEW.event,'$.data.type')='BLOCK' BEGIN SELECT RAISE(ABORT,'injected'); END");
+  const data={mapping_id,expected_revision:1};
+  const failed=await control('BLOCK','block-fault',data);
+  const read={mapping_id,control_reference:'block-fault',control_digest:failed.controlDigest,
+    blocked_revision:2,expected_generation:f.state.generation,expected_epoch:f.state.epoch};
+  assert.equal(failed.status,503);
+  assert.equal((await client.call('readBlockedProvenanceV1',read)).disposition,'DENIED');
+  db.exec('DROP TRIGGER fail_block');
+  const [block,commit]=await Promise.all([control('BLOCK','block-fault',data),
+    client.call('commitHeldProvenanceV1',body)]);
+  assert.equal(block.status,200);
+  assert.ok(['DENIED','HELD'].includes(commit.disposition));
+  assert.equal((await client.call('readBlockedProvenanceV1',read)).disposition,'HELD');
+  const events=db.prepare('SELECT event FROM witness_events ORDER BY sequence').all().map(r=>JSON.parse(r.event));
+  const blockedAt=events.findIndex(e=>e.data.reference==='block-fault');
+  const allocatedAt=events.findIndex(e=>e.type==='OPERATION_HELD_PROVENANCE');
+  assert.ok(blockedAt>=0&&(allocatedAt===-1||allocatedAt<blockedAt));
+  assert.equal((await client.call('commitHeldProvenanceV1',body)).disposition,'DENIED');
 });

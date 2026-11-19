@@ -19,7 +19,7 @@ function authenticate(config, envelope) {
   // must verify before an authenticated request reaches durable state.
   const request = envelope?.message;
   validateRequest(request);
-  const role = ['currentCheckpoint','admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method) ? 'workload'
+  const role = ['currentCheckpoint','admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1','readBlockedProvenanceV1'].includes(request.method) ? 'workload'
     : request.method === 'requestEmergency' ? 'emergency' : 'recovery';
   const keys = request.method === 'readDrain' ? new Map([...config.keys.emergency, ...config.keys.recovery]) : config.keys[role];
   verify(PURPOSE[request.method], envelope, keys);
@@ -89,7 +89,7 @@ function heldReceipt(store,op){
 }
 function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null) {
   const state=store.state(), time=now();
-  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:operation?.provenance?heldReceipt(store,operation):operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
+  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:request.method==='readBlockedProvenanceV1'?operation:operation?.provenance?heldReceipt(store,operation):operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
   return signWitness('witness.response.v1',{version:VERSION,request_bindings:request,authority_id:request.authority_id,key_id:config.keyId,root_set_revision:state.root_set_revision,recovery_epoch:state.recovery_epoch,checkpoint_epoch:state.epoch,generation:state.generation,recovery_revision:state.recovery_revision,issued_at:time,expires_at:time+30,disposition,evidence_reference:'witness-event-'+state.witness_sequence,witness_id:state.witness_id,witness_head:state.witness_head,witness_sequence:state.witness_sequence,result},config.privateKey,config.keyId);
 }
 function verifiedResponse(config, envelope, request) {
@@ -147,9 +147,10 @@ function witnessCall(config,store,registry,request) {
   rootGate(config,store);
   try {
     const body=request.method_body,time=now();let op=null,drain=null,state;
-    if(!['admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method))store.claimRequest(request.request_id,request.challenge,request.method,time);
+    if(!['admitOperation','commitHeldProvenanceV1','readHeldProvenanceV1','readBlockedProvenanceV1'].includes(request.method))store.claimRequest(request.request_id,request.challenge,request.method,time);
     switch(request.method) {
       case 'currentCheckpoint': { const s=store.state();store.currentGrant(body.grant_reference,time);need(body.expected_epoch===s.epoch&&body.expected_generation===s.generation,'checkpoint_stale');state=s.paused?'HELD':'CURRENT';break; }
+      case 'readBlockedProvenanceV1': need(offlineHeld(config),'provenance_hold_required');op=store.readBlockedProvenanceV1(request,time);state='HELD';break;
       case 'commitHeldProvenanceV1': need(offlineHeld(config),'provenance_hold_required');op=store.commitHeldProvenanceV1(request,time);state='HELD';break;
       case 'readHeldProvenanceV1': op=store.readHeldProvenanceV1(request,time);state='HELD';break;
       case 'admitOperation': {

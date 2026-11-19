@@ -173,6 +173,9 @@ export class AuthorityStore {
      if(control.type==='BLOCK'){
       keys(d,['producer','mapping_id','expected_revision','generation']);
       need(m?.active===true,'provenance_mapping_state');m.active=false;m.revision=next(m.revision);
+      m.block={control_reference:control.reference,control_digest:digest(control),
+       blocked_revision:m.revision,block_generation:s.generation,block_epoch:s.epoch,
+       journal_sequence:next(s.witness_sequence)};
      }else{
       need(control.type==='MAP'&&(!m||m.active===false),'provenance_mapping_state');
       keys(d,['producer','mapping_id','expected_revision','generation','snapshot_hash','snapshot_revision','order_id','line_id','listing_id','product_id','native_order_id','native_line_id','native_listing_id','native_product_id','order_version','product_version','artwork_source_hash','expires_at']);
@@ -189,6 +192,27 @@ export class AuthorityStore {
    registry.controls.push(control.reference);
    this.#event(s,'HELD_PROVENANCE_CONTROL',{reference:control.reference,type:control.type,digest:digest(d)},now);
    return {reference:control.reference,witness_head:s.witness_head};
+  });
+ }
+ readBlockedProvenanceV1(request,now){
+  return this.#tx(()=>{
+   const s=this.#state(),b=request.method_body;
+   this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
+   nonce(request.request_id);nonce(request.challenge);integer(now);
+   need(request.request_id!==request.challenge&&s.identity.environment==='test'
+     &&b.expected_generation===s.generation&&b.expected_epoch===s.epoch,'checkpoint_stale');
+   const m=s.held_provenance?.mappings.find(x=>x.mapping_id===b.mapping_id);
+   const proof=m?.block;
+   const producer=s.held_provenance?.producers.find(x=>x.producer===m?.producer);
+   need(producer&&!producer.revoked&&now<m.expires_at,'provenance_not_current');
+   need(m?.active===false&&proof&&m.revision===b.blocked_revision
+     &&proof.blocked_revision===m.revision&&proof.control_reference===b.control_reference
+     &&proof.control_digest===b.control_digest,'provenance_block_readback');
+   const journal_event_hash=this.heldJournalHash(proof.journal_sequence);
+   hash(journal_event_hash);
+   this.#claimTokens(request.request_id,request.challenge,'readBlockedProvenanceV1',now);
+   return {schema:'DF_NATIVE_BLOCK_ATTESTATION_1',version:'1.0.0',state:'BLOCKED',
+    mapping_id:m.mapping_id,...proof,journal_event_hash,release_hold:true,external_execution_authorized:false};
   });
  }
  commitHeldProvenanceV1(request,now){return this.#admit(request,now,true);}

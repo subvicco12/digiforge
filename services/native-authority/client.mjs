@@ -136,6 +136,25 @@ export class AuthorityClient {
     need(result.reason === null || reference(result.reason), 'result_reason');
     if (['commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method))
       need((message.disposition==='HELD'&&result.operation!==null)||(message.disposition==='DENIED'&&result.operation===null),'provenance_disposition');
+    if (request.method==='readBlockedProvenanceV1'){
+      const proof=result.operation;
+      if(message.disposition==='DENIED'){need(proof===null&&result.drain===null,'block_disposition');return;}
+      const body=request.method_body;
+      exactFields(proof,['schema','version','state','mapping_id','control_reference','control_digest',
+        'blocked_revision','block_generation','block_epoch','journal_sequence','journal_event_hash',
+        'release_hold','external_execution_authorized'],'block_fields');
+      need(message.disposition==='HELD'&&result.drain===null&&result.reason===null
+        &&proof.schema==='DF_NATIVE_BLOCK_ATTESTATION_1'&&proof.version==='1.0.0'&&proof.state==='BLOCKED'
+        &&proof.release_hold===true&&proof.external_execution_authorized===false
+        &&message.generation===body.expected_generation&&message.checkpoint_epoch===body.expected_epoch
+        &&integer(proof.block_generation)&&proof.block_generation<=message.generation&&digestValue(proof.block_epoch)
+        &&integer(proof.journal_sequence)&&proof.journal_sequence<=message.witness_sequence
+        &&digestValue(proof.journal_event_hash),'block_disposition');
+      for(const k of ['mapping_id','control_reference','control_digest','blocked_revision'])
+        need(proof[k]===body[k],'block_binding');
+      Object.freeze(proof);
+      return;
+    }
     if (result.operation !== null) {
       const operation = result.operation;
       const held=['commitHeldProvenanceV1','readHeldProvenanceV1'].includes(request.method);
