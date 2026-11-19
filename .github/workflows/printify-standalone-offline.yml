@@ -1,0 +1,65 @@
+name: Printify standalone offline acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/printify-standalone-offline.yml'
+      - 'standalone/printify-api/**'
+      - 'includes/POD/PrintifyApi*.php'
+      - 'contracts/cloudflare-dispatcher/**'
+      - 'tests/unit/PrintifyApi*Test.php'
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact PR source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+
+      - name: Verify PHP and install test dependencies
+        run: |
+          php -r 'exit(PHP_VERSION_ID < 80300 ? 1 : 0);'
+          composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Test provider and standalone boundaries
+        run: |
+          vendor/bin/phpunit -c phpunit.xml.dist --filter 'PrintifyApi(Boundary|Outcome)Test'
+          php standalone/printify-api/tests/bootstrap-smoke.php
+
+      - name: Test isolated authority and sender contracts
+        run: node --test contracts/cloudflare-dispatcher/test/*.test.mjs
+
+      - name: Rebuild and verify standalone package
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="$RUNNER_TEMP/printify-standalone.zip"
+          second="$RUNNER_TEMP/printify-standalone-repeat.zip"
+          python3 standalone/printify-api/package.py --output "$first"
+          python3 standalone/printify-api/package.py --output "$second"
+          cmp "$first" "$second"
+          python3 standalone/printify-api/package.py --verify "$first"
+          unzip -q "$first" -d "$RUNNER_TEMP/printify-standalone-extracted"
+          php standalone/printify-api/tests/bootstrap-smoke.php "$RUNNER_TEMP/printify-standalone-extracted/digiforge-printify-api/digiforge-printify-api.php"
+          sha256sum "$first"
+
+      - name: Retain offline candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: printify-standalone-offline-candidate
+          path: ${{ runner.temp }}/printify-standalone.zip
+          retention-days: 7
+          if-no-files-found: error
