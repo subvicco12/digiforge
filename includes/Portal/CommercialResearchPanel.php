@@ -127,6 +127,15 @@ final class CommercialResearchPanel
         if(is_string($operation)&&str_starts_with($operation,'design_'))$anchor='df-design-factory';
         if(is_string($operation)&&str_starts_with($operation,'package_'))$anchor='df-product-package';
         if(is_string($operation)&&str_starts_with($operation,'personalization_')){$anchor='df-artwork-personalization';foreach(['workflow_hash'=>'df_research_version','factory_hash'=>'df_factory_version']as $field=>$arg)if(is_string($_POST[$field]??null)&&preg_match('/^[a-f0-9]{64}$/D',$_POST[$field]))$args[$arg]=$_POST[$field];}
+        if($result instanceof WP_Error&&$operation==='personalization_sample'&&($_POST['shop_key']??null)==='personalized_pod'&&isset($args['df_factory_version'])){
+            $schemaHash=$_POST['schema_hash']??null;
+            if(is_string($schemaHash)&&preg_match('/^[a-f0-9]{64}$/D',$schemaHash)){
+                $schema=(new \DigiForge\Research\ArtworkPersonalizationRepository())->read('personalized_pod',$schemaHash);
+                if(is_array($schema)&&$schema['record']['kind']==='SCHEMA'&&$schema['record']['factory_hash']===$args['df_factory_version']){
+                    $args['df_personalization_version']=$schemaHash;
+                }
+            }
+        }
         $return=$_POST['return_url']??null;$return=is_string($return)?wp_validate_redirect(wp_unslash($return),home_url('/')):home_url('/');wp_safe_redirect(add_query_arg($args,$return).'#'.$anchor);exit;
     }
     public function process(array $post): array|WP_Error
