@@ -138,4 +138,22 @@ foreach (['order:shipment:created'=>'shipped_at','order:shipment:delivered'=>'de
         'Non-HTTPS tracking location was accepted.');
 }
 
+$httpEvent=['id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3abcd','type'=>'shop:disconnected',
+    'created_at'=>'2026-11-19 00:00:00+00:00','resource'=>['id'=>107,'type'=>'shop','data'=>null]];
+$http=SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($httpEvent));
+[$sender,$receiver]=stream_socket_pair(STREAM_PF_UNIX,STREAM_SOCK_STREAM,0);
+fwrite($sender,$http);
+stream_socket_shutdown($sender,STREAM_SHUT_WR);
+$wire=stream_get_contents($receiver,2048);
+fclose($sender);
+fclose($receiver);
+$observed=SyntheticWebhookReceiver::receiveWire('107',$wire);
+if ($observed['status']!==200
+    || SyntheticWebhookReceiver::receiveWire('108',$wire)['status']!==422
+    || SyntheticWebhookReceiver::receiveWire('107',$wire,[$observed['event_id']=>$observed['event_digest']])['status']!==409
+    || SyntheticWebhookReceiver::receiveWire('107',str_replace('sha256=','sha256= ', $wire))['status']!==401
+    || SyntheticWebhookReceiver::receiveWire('107',$wire."x")['status']!==400) {
+    throw new RuntimeException('HTTP fixture framing, signature, scope or replay validation failed.');
+}
+
 echo "Synthetic webhook receiver fixtures PASS\n";

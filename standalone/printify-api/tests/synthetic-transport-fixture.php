@@ -102,4 +102,15 @@ $object=new class($executed) implements JsonSerializable {
 requireSynthetic($call('PRODUCT_CREATE','POST',$root.'/products.json',$productBody+['unexpected'=>$object])['status']===422
     && !$executed,'A transport request could execute a user-supplied serializer.');
 
+requireSynthetic($call('SHOP_DISCONNECT','DELETE','/v1/shops/108/connection.json')['status']===404,
+    'Cross-shop disconnect was accepted.');
+requireSynthetic($call('SHOP_DISCONNECT','DELETE',$root.'/connection.json',['unexpected'=>true])['status']===422,
+    'Unexpected disconnect body was accepted.');
+requireSynthetic($call('SHOP_DISCONNECT','DELETE',$root.'/connection.json')['status']===200,
+    'The scoped synthetic shop could not be disconnected.');
+$restored=new SyntheticPrintifyTransport('107');
+$restored->restoreFixtureState($transport->exportFixtureState());
+requireSynthetic($restored->request(['operation'=>'SHOPS_READ','method'=>'GET','endpoint'=>'/v1/shops.json',
+    'provider_shop_id'=>'107','body'=>[]])['body']===[], 'Disconnected shop reappeared after restore.');
+
 echo "Synthetic Printify transport fault and lifecycle fixtures PASS\n";

@@ -101,13 +101,33 @@ try {
             && count($productRead['data']['print_areas'][0]['placeholders'])===2
             && $productRead['data']['print_areas'][0]['placeholders'][1]['images'][0]['angle']===15,
             'Multi-placement product edit was not persisted');
+        $productTwo=$edit;
+        unset($productTwo['product_id'],$productTwo['expected_version']);
+        $productTwo['blueprint_id']='42';
+        $productTwo['print_provider_id']='7';
+        $productTwo['title']='Second fixture product';
+        $productTwo['description']='Synthetic alternate product';
+        $productTwo['image_id']='image-1';
+        $productTwo['position']='front';
+        unset($productTwo['placements']);
+        $productTwo['variants']=[];
+        $op('PRODUCT_CREATE',$productTwo,'SYNTHETIC_OBSERVED',true);
+        $art=['field_id'=>'fixture-artwork','type'=>'image','input'=>['image_url'=>'https://images.example.invalid/image-1.png']];
         $item = ['field_id'=>'fixture-inscription','type'=>'textbox','input'=>['text'=>'Fixture inscription']];
         $op('PERSONALIZATION_OPTIONS',['product_id'=>'product-1'],'fixture-inscription');
         $op('PERSONALIZATION_CONFIGURE',['product_id'=>'product-1','variant_id'=>9,'items'=>[$item],
             'require_all_personalization_fields'=>true],'fixture-config-');
         $op('PREVIEW_CREATE',['product_id'=>'product-1','external_id'=>'operator-preview','variant_ids'=>[9,10],
-            'personalization'=>[$item],'format'=>'png'],'task-product-1-1');
+            'personalization'=>[$item,$art],'format'=>'png'],'task-product-1-1');
         $op('PREVIEW_READ',['product_id'=>'product-1','task_id'=>'task-product-1-1'],'pending');
+        $previewEvent=['id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3aaa1','type'=>'personalization-preview-task:processed',
+            'created_at'=>'2026-11-19 10:05:00+00:00','resource'=>['id'=>'task-product-1-1',
+                'type'=>'personalization-preview-task','data'=>['shop_id'=>107,'task_id'=>'task-product-1-1',
+                    'status'=>'failed','preview_count'=>0,'mockups'=>[]]]];
+        $op('FIXTURE_WEBHOOK_EVENT',$previewEvent);
+        $op('FIXTURE_WEBHOOK_EVENT',$previewEvent,'DUPLICATE_EVENT');
+        $op('PREVIEW_READ',['product_id'=>'product-1','task_id'=>'task-product-1-1'],'failed',true);
+
         $revision = $workspace->inspect()['revision'];
         $invalid = $post('ORDER_CREATE',array_replace($formOrder,['quantity'=>'two']),$revision,hash('sha256','invalid-quantity'),null,true);
         requireFixture(str_contains($invalid,'INVALID_OPERATION_FIELD') && str_contains($invalid,'quantity')
@@ -175,13 +195,32 @@ try {
         $op('ORDER_ADDRESS_CHANGE',$addressChange,'address_updated');
         $op('ORDER_ADDRESS_CHANGE',$addressChange,'CONFLICT');
         $op('LINE_ITEM_CANCEL',['order_id'=>'order-2','line_item_id'=>'line-1'],'cancellation_accepted');
+        $lineEvent=['id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3aaa2','type'=>'order:line-item:canceled',
+            'created_at'=>'2026-11-19 10:05:00+00:00','resource'=>['id'=>'order-2','type'=>'order',
+                'data'=>['shop_id'=>107,'line_item_id'=>'line-1','status'=>'canceled','status_details'=>null]]];
+        $op('FIXTURE_WEBHOOK_EVENT',$lineEvent);
+        $lineEvent['id']='653b6be8-2ff7-4ab5-a7a6-6889a8b3aaa3';
+        $lineEvent['resource']['data']['line_item_id']='line-999';
+        $op('FIXTURE_WEBHOOK_EVENT',$lineEvent,'EVENT_CANCELLATION_CONFLICT');
         $op('ORDER_READ',['order_id'=>'order-2'],'canceled');
         $op('ORDER_CANCEL',['order_id'=>'order-2'],'SYNTHETIC_OBSERVED',true);
+        $express=array_intersect_key($order,array_flip(['external_id','line_items','address_to']));
+        $express['external_id']='operator-scenario-express';
+        $express['line_items'][]=['product_id'=>'product-2','variant_id'=>9,'quantity'=>1];
+        $op('ORDER_EXPRESS_CREATE',['external_id'=>'operator-scenario-express','product_id'=>'product-1',
+            'variant_id'=>'9','quantity'=>'2','line_items'=>[['product_id'=>'product-2','variant_id'=>'9','quantity'=>'1']]],
+            'fulfilment_type',true);
+        $op('ORDER_EXPRESS_CREATE',$express,'CONFLICT');
+
         $op('WEBHOOK_CREATE',['topic'=>'order:created','url'=>'https://webhooks.example.invalid/printify'],
             'SYNTHETIC_OBSERVED',true);
         $op('WEBHOOK_UPDATE',['webhook_id'=>'webhook-1','url'=>'https://webhooks.example.invalid/printify-updated'],
             'SYNTHETIC_OBSERVED',true);
         $op('WEBHOOKS_READ',[],'webhook-1',true);
+        $op('WEBHOOK_SIMULATE',['webhook_id'=>'webhook-1'],'SYNTHETIC_OBSERVED',true);
+        $op('WEBHOOK_SIMULATE',['webhook_id'=>'webhook-1'],'DUPLICATE_EVENT');
+        $op('WEBHOOK_SIMULATE',['webhook_id'=>'webhook-98'],'NOT_FOUND');
+
         $op('WEBHOOK_DELETE',['webhook_id'=>'webhook-1'],'SYNTHETIC_OBSERVED',true);
         $op('IMAGE_ARCHIVE',['image_id'=>'image-1'],'CONFLICT');
         $op('PRODUCT_PUBLISH',['product_id'=>'product-1','expected_version'=>2,'publish_fields'=>['title'=>true]],'publication_pending');
@@ -246,8 +285,8 @@ try {
         $history = $workspace->inspect();
         requireFixture(($history['audit'][0]['actor_id']??null)===1 && isset($history['audit'][0]['occurred_at']),
             'Restart lost operator audit attribution');
-        requireFixture(array_column($history['events'],'type')===['order:created','order:updated','product:updated',
-            'order:sent-to-production','order:shipment:created','order:shipment:delivered','product:publish:started'],
+        requireFixture(array_column($history['events'],'type')===['personalization-preview-task:processed','order:created','order:updated','product:updated',
+            'order:sent-to-production','order:shipment:created','order:shipment:delivered','order:line-item:canceled','order:created','product:publish:started'],
             'Restart lost event history or admitted duplicate event state');
         $read = $workspace->execute($history['revision'],hash('sha256','reopen-tracking'),'ORDER_READ',['order_id'=>'order-1']);
         requireFixture($read['state']==='SYNTHETIC_OBSERVED' && $read['data']['status']==='fulfilled'
@@ -264,6 +303,9 @@ try {
         } finally {
             $tamper->execute([$row['state_json'],$row['scope_key']]);
         }
+        $expressRead=$workspace->execute($workspace->inspect()['revision'],hash('sha256','reopen-express'),
+            'ORDER_READ',['order_id'=>'order-3']);
+        requireFixture($expressRead['state']==='SYNTHETIC_OBSERVED','Restart lost Express fixture order');
         $supportAfterRestart=$workspace->execute($workspace->inspect()['revision'],hash('sha256','reopen-support'),
             'SUPPORT_LIST',['order_id'=>'order-1']);
         requireFixture($supportAfterRestart['state']==='SYNTHETIC_OBSERVED'
@@ -273,7 +315,7 @@ try {
         $previewAfterRestart=$workspace->execute($workspace->inspect()['revision'],hash('sha256','reopen-preview'),
             'PREVIEW_READ',['product_id'=>'product-1','task_id'=>'task-product-1-1']);
         requireFixture($previewAfterRestart['state']==='SYNTHETIC_OBSERVED'
-            && $previewAfterRestart['data']['status']==='pending','Restart lost pending preview evidence');
+            && $previewAfterRestart['data']['status']==='failed','Restart lost terminal preview evidence');
     }
     wp_set_current_user(0);
     requireFixture(Runtime::syntheticWorkspace()===null,'Anonymous workspace access');

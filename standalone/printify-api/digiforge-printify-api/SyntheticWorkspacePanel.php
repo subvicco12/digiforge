@@ -143,8 +143,14 @@ final class SyntheticWorkspacePanel
             'PRODUCTS_READ'=>['List fixture products', ['page','limit']],
             'PRODUCT_GPSR_READ'=>['Inspect GPSR fixture metadata', ['product_id','blueprint_id','provider_id','variant_id']],
         ],
+        'Personalization'=>[
+            'PERSONALIZATION_OPTIONS'=>['Inspect fixture personalization fields',['product_id']],
+            'PREVIEW_READ'=>['Inspect fixture preview task',['product_id','task_id']],
+        ],
         'Shipping, orders and tracking'=>[
             'ORDER_SHIPPING_QUOTE'=>['Quote fixture shipping', ['external_id','product_id','variant_id','quantity','shipping_method']],
+            'SHOP_DISCONNECT'=>['Disconnect fixture shop', []],
+            'ORDER_EXPRESS_CREATE'=>['Create fixture Express order', ['external_id','product_id','variant_id','quantity']],
             'ORDER_CREATE'=>['Create fixture order', ['external_id','product_id','variant_id','quantity','shipping_method']],
             'ORDERS_READ'=>['List fixture orders', ['page','limit']],
             'ORDER_READ'=>['Inspect order and tracking', ['order_id']],
@@ -157,6 +163,7 @@ final class SyntheticWorkspacePanel
             'WEBHOOKS_READ'=>['List fixture webhooks', []],
             'WEBHOOK_CREATE'=>['Create fixture webhook', ['topic','url']],
             'WEBHOOK_UPDATE'=>['Update fixture webhook', ['webhook_id','url']],
+            'WEBHOOK_SIMULATE'=>['Simulate fixture webhook', ['webhook_id']],
             'WEBHOOK_DELETE'=>['Delete fixture webhook', ['webhook_id']],
             'FIXTURE_WEBHOOK_EVENT'=>['Record fixture order-created event', ['event_id','created_at','order_id']],
         ],
@@ -229,7 +236,7 @@ final class SyntheticWorkspacePanel
         'blueprint_id'=>'Blueprint ID','provider_id'=>'Print provider ID','print_provider_id'=>'Print provider ID',
         'variant_id'=>'Variant ID','method'=>'Catalog shipping method','page'=>'Page','limit'=>'Page size',
         'file_name'=>'PNG filename','contents'=>'Fixture PNG contents (base64)','image_id'=>'Image ID',
-        'product_id'=>'Product ID','title'=>'Product title','description'=>'Product description',
+        'product_id'=>'Product ID','task_id'=>'Preview task ID','title'=>'Product title','description'=>'Product description',
         'price'=>'Price (minor units)','position'=>'Print-area position','x'=>'Horizontal position (0–1)',
         'y'=>'Vertical position (0–1)','scale'=>'Artwork scale','angle'=>'Artwork angle in degrees',
         'expected_version'=>'Expected synthetic product version','external_id'=>'Fixture reference',
@@ -278,7 +285,7 @@ final class SyntheticWorkspacePanel
                 'placements'=>['variant_id','image_id','position','x','y','scale','angle'],
             ],
             'PRODUCT_READ','PRODUCT_GPSR_READ'=>['variants'=>['variant_id']],
-            'ORDER_SHIPPING_QUOTE','ORDER_CREATE'=>['line_items'=>['product_id','variant_id','quantity']],
+            'ORDER_SHIPPING_QUOTE','ORDER_CREATE','ORDER_EXPRESS_CREATE'=>['line_items'=>['product_id','variant_id','quantity']],
             default=>[],
         };
     }
@@ -447,16 +454,21 @@ final class SyntheticWorkspacePanel
             $fields['variant_ids']=self::variantIds([['variant_id'=>$fields['variant_id']], ...$fields['variants']]);
             unset($fields['variant_id'],$fields['variants']);
         }
-        if ($op === 'ORDER_CREATE' || $op === 'ORDER_SHIPPING_QUOTE') {
+        if (in_array($op,['ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_EXPRESS_CREATE'],true)) {
+            $method=$op==='ORDER_EXPRESS_CREATE'?3:$fields['shipping_method'];
             $order = [
                 'external_id'=>$fields['external_id'],
                 'line_items'=>[array_intersect_key($fields,array_flip(['product_id','variant_id','quantity'])), ...$fields['line_items']],
-                'shipping_method'=>$fields['shipping_method'],
-                'is_printify_express'=>$fields['shipping_method']===3, 'is_economy_shipping'=>$fields['shipping_method']===4,
+                'shipping_method'=>$method,
+                'is_printify_express'=>$method===3, 'is_economy_shipping'=>$method===4,
                 'send_shipping_notification'=>false,
                 'address_to'=>['first_name'=>'Fixture','last_name'=>'Only','email'=>'workspace@example.invalid','phone'=>'',
                     'country'=>'US','region'=>'CA','address1'=>'Fixture street','address2'=>'','city'=>'Fixture','zip'=>'90001'],
             ];
+            if ($op==='ORDER_EXPRESS_CREATE') {
+                unset($order['is_printify_express'],$order['is_economy_shipping']);
+                return $order;
+            }
             return $op==='ORDER_CREATE'?$order:['order'=>$order];
         }
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {

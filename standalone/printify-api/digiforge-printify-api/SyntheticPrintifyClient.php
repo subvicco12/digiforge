@@ -35,6 +35,7 @@ final class SyntheticPrintifyClient
         'PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY','CATALOG_SHIPPING_V1_READ',
         'SUPPORT_LIST','SUPPORT_DETAIL','SUPPORT_REFUND','SUPPORT_REPRINT','SUPPORT_ADDRESS_CHANGE',
         'PERSONALIZATION_OPTIONS','PERSONALIZATION_CONFIGURE','PREVIEW_CREATE','PREVIEW_READ','ORDER_ADDRESS_CHANGE',
+        'SHOP_DISCONNECT','ORDER_EXPRESS_CREATE','WEBHOOK_SIMULATE',
     ];
 
     public function __construct(private readonly string $shop, private readonly SyntheticPrintifyTransport $transport)
@@ -117,6 +118,11 @@ final class SyntheticPrintifyClient
                 'body'=>$validated['body']];
         } elseif (str_starts_with($operation,'SUPPORT_')) {
             $plan=PrintifySupportContract::prepare($operation,$this->shop,$input);
+        } elseif ($operation==='SHOP_DISCONNECT' && $input===[]) {
+            $plan=['method'=>'DELETE','endpoint'=>'/v1/shops/'.$this->shop.'/connection.json','body'=>[]];
+        } elseif ($operation==='ORDER_EXPRESS_CREATE') {
+            self::validateExpress($input);
+            $plan=['method'=>'POST','endpoint'=>$root.'/express.json','body'=>$input];
         } elseif ($operation==='ORDER_CREATE') {
             PrintifyOrderEvidence::validate($input);
             $plan=['method'=>'POST','endpoint'=>$root.'.json','body'=>$input];
@@ -127,7 +133,7 @@ final class SyntheticPrintifyClient
             $plan=['method'=>'POST','endpoint'=>$root.'/'.$input['order_id'].'/send_to_production.json','body'=>[]];
         } elseif (in_array($operation,['ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) {
             $plan=PrintifyLifecycleRequest::prepare($operation==='ORDER_SHIPPING_QUOTE'?'SHIPPING_QUOTE':$operation,$this->shop,$input);
-        } elseif (in_array($operation,['WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
+        } elseif (in_array($operation,['WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE','WEBHOOK_SIMULATE'],true)) {
             $plan=$this->prepareWebhook($operation,$input);
         } elseif (in_array($operation,['UPLOADS_READ','IMAGE_ARCHIVE'],true)) {
             $plan=PrintifyUploadContract::prepare($operation,$this->shop,$input);
@@ -167,7 +173,11 @@ final class SyntheticPrintifyClient
         if (!self::identity($input['webhook_id']??null)) {
             throw new \InvalidArgumentException('Exact synthetic webhook identity required.');
         }
-        $endpoint.='/'.$input['webhook_id'].'.json';
+        $endpoint.='/'.$input['webhook_id'];
+        if ($operation==='WEBHOOK_SIMULATE' && count($input)===1) {
+            return ['method'=>'POST','endpoint'=>$endpoint.'/simulate','body'=>[]];
+        }
+        $endpoint.='.json';
         if ($operation==='WEBHOOK_DELETE'&&count($input)===1) {
             return ['method'=>'DELETE','endpoint'=>$endpoint.'?host=webhooks.example.invalid','body'=>[],'input'=>$input];
         }
@@ -177,15 +187,81 @@ final class SyntheticPrintifyClient
         throw new \InvalidArgumentException('Exact synthetic webhook request required.');
     }
 
+    /** The fixture requires an external ID for durable deduplication. */
+    public static function validateExpress(array $input): void
+    {
+        if (array_diff(array_keys($input),['external_id','label','line_items','shipping_method',
+            'send_shipping_notification','address_to'])!==[]
+            || ($input['shipping_method']??3)!==3 || ($input['send_shipping_notification']??false)!==false) {
+            throw new \InvalidArgumentException('Unsupported synthetic Express shipping options.');
+        }
+        PrintifyOrderEvidence::validate($input+['shipping_method'=>3,'is_printify_express'=>true,
+            'is_economy_shipping'=>false,'send_shipping_notification'=>false]);
+    }
+
+    private static function projectExpress(array $input,array $body): array
+    {
+        $rows=$body['data']??null;
+        if (!is_array($rows)||!array_is_list($rows)||$rows===[]||count($rows)>2) {
+            throw new \InvalidArgumentException('Malformed Express order response.');
+        }
+        $remaining=$input['line_items'];
+        $result=[];
+        foreach ($rows as $row) {
+            $id=$row['id']??null;
+            $attributes=$row['attributes']??null;
+            $type=$attributes['fulfilment_type']??null;
+            $lines=$attributes['line_items']??null;
+            if (($row['type']??null)!=='order'||!self::identity($id)||isset($result[$id])
+                ||!in_array($type,['express','ordinary'],true)||!is_array($lines)||!array_is_list($lines)||$lines===[]) {
+                throw new \InvalidArgumentException('Unexpected Express order identity or response.');
+            }
+            $projected=[];
+            foreach ($lines as $line) {
+                $identity=array_intersect_key($line,array_flip(['product_id','variant_id','quantity']));
+                $match=false;
+                foreach ($remaining as $index=>$expected) {
+                    if (($identity['product_id']??null)===$expected['product_id']
+                        && ($identity['variant_id']??null)===$expected['variant_id']
+                        && ($identity['quantity']??null)===$expected['quantity']) {
+                        $match=$index;
+                        break;
+                    }
+                }
+                if ($match===false||($line['status']??null)!=='pending') {
+                    throw new \InvalidArgumentException('Unexpected Express order line.');
+                }
+                unset($remaining[$match]);
+                $projected[]=$identity+['status'=>'pending'];
+            }
+            $result[$id]=['id'=>$id,'fulfilment_type'=>$type,'line_items'=>$projected];
+        }
+        if ($remaining!==[]) {
+            throw new \InvalidArgumentException('Express lines are missing.');
+        }
+        return ['orders'=>array_values($result)];
+    }
+
     private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
+        if ($operation==='ORDER_EXPRESS_CREATE' && $status===200) {
+            return self::projectExpress($input,$body);
+        }
+        if (in_array($operation,['SHOP_DISCONNECT','WEBHOOK_SIMULATE'],true)
+            && $status===($operation==='SHOP_DISCONNECT'?200:204) && $body===[]) {
+            return $operation==='SHOP_DISCONNECT'?['disconnected'=>true]:['webhook_id'=>$input['webhook_id']];
+        }
+        if (in_array($operation,['SHOP_DISCONNECT','WEBHOOK_SIMULATE','ORDER_EXPRESS_CREATE'],true)) {
+            throw new \InvalidArgumentException('Unexpected synthetic acknowledgement.');
+        }
         if (isset(self::CATALOG[$operation])) {
             return PrintifyCatalogReadContract::select($body,['kind'=>self::CATALOG[$operation]]+$input);
         }
         if (in_array($operation,['PERSONALIZATION_OPTIONS','PERSONALIZATION_CONFIGURE','PREVIEW_CREATE','PREVIEW_READ'],true)) {
             $expectedStatus=match($operation){'PERSONALIZATION_CONFIGURE'=>201,'PREVIEW_CREATE'=>202,default=>200};
             if ($status!==$expectedStatus||in_array($operation,['PREVIEW_CREATE','PREVIEW_READ'],true)
-                && (($body['status']??null)!=='pending'||($body['mockups']??[])!==[])) {
+                && (!in_array($body['status']??null,$operation==='PREVIEW_CREATE'?['pending']:['pending','failed','corrupt'],true)
+                    ||($body['mockups']??[])!==[])) {
                 throw new \InvalidArgumentException('Unexpected synthetic personalization response.');
             }
             return PrintifyProductResponse::project(['request'=>$plan,'options'=>[]],$body)

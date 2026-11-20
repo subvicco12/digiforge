@@ -123,7 +123,14 @@ final class SyntheticWorkspace
             && !is_int($input['expected_version'] ?? null)) {
             return self::fixtureResult(422, 'EXPECTED_PRODUCT_VERSION_REQUIRED');
         }
-        return $client->run($op, $input);
+        $result=$client->run($op,$input);
+        if ($op==='WEBHOOK_SIMULATE' && ($event=$transport->takeSimulatedEvent())!==null) {
+            $delivery=$this->acceptEvent($transport,$client,$event,$events);
+            if ($result['state']==='SYNTHETIC_OBSERVED' && $delivery['state']!=='SYNTHETIC_OBSERVED') {
+                return $delivery;
+            }
+        }
+        return $result;
     }
 
     private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array $event,array &$events):array
@@ -133,7 +140,8 @@ final class SyntheticWorkspace
             if (isset($entry['event_digest'])) $seen[$id]=$entry['event_digest'];
         }
         try {
-            $received=SyntheticWebhookReceiver::receive($this->shop,SyntheticWebhookReceiver::delivery($event),$seen);
+            $received=SyntheticWebhookReceiver::receiveWire($this->shop,
+                SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($event)),$seen);
         } catch (\InvalidArgumentException|\JsonException) {
             return self::fixtureResult(422,'EVENT_CONTRACT_OR_SCOPE');
         }
@@ -146,13 +154,33 @@ final class SyntheticWorkspace
             return self::fixtureResult(409,'DUPLICATE_EVENT');
         }
         $resource=$received['resource_id'];
-        $product=str_starts_with($received['type'],'product:');
-        $selection=$product?$transport->fixtureProductSelectors($resource):null;
-        $observation=$product
-            ? ($selection===null?[]:$client->run('PRODUCT_READ',$selection))
-            : $client->run('ORDER_READ',['order_id'=>$resource]);
+        $topic=$received['type'];
+        $observation=match ($topic) {
+            'shop:disconnected'=>['state'=>$transport->fixtureDisconnected()?'SYNTHETIC_OBSERVED':'DENIED'],
+            'product:deleted'=>['state'=>$transport->fixtureProductDeleted($resource)?'SYNTHETIC_OBSERVED':'DENIED'],
+            'personalization-preview-task:processed'=>[
+                'state'=>$transport->finishFixturePreview($resource,$received['preview_status'])?'SYNTHETIC_OBSERVED':'DENIED'],
+            'support-request:updated'=>$client->run('SUPPORT_DETAIL',[
+                'order_id'=>$received['support_order_id'],'support_request_id'=>$resource]),
+            default=>str_starts_with($topic,'product:')
+                ? (($selection=$transport->fixtureProductSelectors($resource))===null?[]:$client->run('PRODUCT_READ',$selection))
+                : $client->run('ORDER_READ',['order_id'=>$resource]),
+        };
         if (($observation['state']??null)!=='SYNTHETIC_OBSERVED') {
             return self::fixtureResult(422,'EVENT_RESOURCE_UNAVAILABLE');
+        }
+        if ($topic==='support-request:updated') {
+            $request=$observation['data']['support_request'];
+            if ($request['type']!==$received['support_type'] || $request['source_status']!==$received['support_status']
+                || $request['outcome']!==$received['support_outcome']) {
+                return self::fixtureResult(409,'EVENT_SUPPORT_CONFLICT');
+            }
+        }
+        if (isset($received['canceled_line_id'])) {
+            $lines=array_column($observation['data']['line_items'],null,'id');
+            if (($lines[$received['canceled_line_id']]['status']??null)!=='canceled') {
+                return self::fixtureResult(409,'EVENT_CANCELLATION_CONFLICT');
+            }
         }
         if (isset($received['resource_status']) && $observation['data']['status']!==$received['resource_status']) {
             return self::fixtureResult(409,'EVENT_STATUS_CONFLICT');
@@ -187,7 +215,7 @@ final class SyntheticWorkspace
         $events[$id]=[
             'type'=>$received['type'],'resource_id'=>$resource,'created_at'=>$received['created_at'],
             'event_digest'=>$received['event_digest'],
-        ]+array_intersect_key($received,array_flip(['tracking_sha256','shipment_at','publish_action']));
+        ]+array_intersect_key($received,array_flip(['tracking_sha256','shipment_at','publish_action','canceled_line_id','preview_status','support_status']));
         return self::fixtureResult(200,'NONE');
     }
 

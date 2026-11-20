@@ -18,6 +18,8 @@ final class SyntheticWebhookReceiver
         'order:created'=>'order', 'order:updated'=>'order', 'order:sent-to-production'=>'order',
         'product:created'=>'product', 'product:updated'=>'product', 'product:publish:started'=>'product',
         'order:shipment:created'=>'order', 'order:shipment:delivered'=>'order',
+        'shop:disconnected'=>'shop','product:deleted'=>'product','order:line-item:canceled'=>'order',
+        'personalization-preview-task:processed'=>'personalization-preview-task','support-request:updated'=>'support-request',
     ];
     private const ORDER_STATES = ['pending','on-hold','sending-to-production','in-production','canceled',
         'fulfilled','partially-fulfilled','payment-not-received','has-issues','cost-calculation','unfulfillable',
@@ -42,6 +44,42 @@ final class SyntheticWebhookReceiver
         }
         return ['method'=>'POST','path'=>self::PATH,
             'headers'=>['content-type'=>'application/json','x-pfy-signature'=>self::signature($body)], 'body'=>$body];
+    }
+
+    /** Serialize for an isolated fixture receiver. This does not open a socket. */
+    public static function wire(array $delivery): string
+    {
+        $body=$delivery['body'];
+        return "POST ".self::PATH." HTTP/1.1\r\nHost: fixture.invalid\r\nContent-Type: application/json\r\n"
+            ."X-Pfy-Signature: ".$delivery['headers']['x-pfy-signature']."\r\n"
+            ."Content-Length: ".strlen($body)."\r\n\r\n".$body;
+    }
+
+    /** Parse a single bounded HTTP fixture message. No route or listener is registered. */
+    public static function receiveWire(string $shop,string $wire,array $seen=[]): array
+    {
+        if (strlen($wire)>self::MAX_BYTES+1024 || !str_contains($wire,"\r\n\r\n")) {
+            return self::result(400,'EVENT_HTTP_FRAMING');
+        }
+        [$head,$body]=explode("\r\n\r\n",$wire,2);
+        $lines=explode("\r\n",$head);
+        if (array_shift($lines)!=='POST '.self::PATH.' HTTP/1.1' || count($lines)!==4 || strlen($head)>1024) {
+            return self::result(400,'EVENT_HTTP_FRAMING');
+        }
+        $headers=[];
+        foreach ($lines as $line) {
+            if (preg_match('/^([a-z-]+): ([^\x00-\x1f\x7f]+)$/Di',$line,$match)!==1
+                || isset($headers[strtolower($match[1])])) {
+                return self::result(400,'EVENT_HTTP_FRAMING');
+            }
+            $headers[strtolower($match[1])]=$match[2];
+        }
+        if (!self::keys($headers,['host','content-type','x-pfy-signature','content-length'])
+            || $headers['host']!=='fixture.invalid' || $headers['content-length']!==(string)strlen($body)) {
+            return self::result(400,'EVENT_HTTP_FRAMING');
+        }
+        unset($headers['host'],$headers['content-length']);
+        return self::receive($shop,['method'=>'POST','path'=>self::PATH,'headers'=>$headers,'body'=>$body],$seen);
     }
 
     /** @param array<string,string> $seen Lowercase event ID to digest for this exact workspace. */
@@ -72,7 +110,7 @@ final class SyntheticWebhookReceiver
         }
         if (!is_array($event) || !self::envelope($event) || !self::exactJsonMembers($raw, self::expectedMembers($event))
             || preg_match('/^[1-9][0-9]{0,18}$/D', $shop) !== 1
-            || (string)$event['resource']['data']['shop_id'] !== $shop) {
+            || (string)($event['resource']['data']['shop_id'] ?? $event['resource']['id']) !== $shop) {
             return self::result(422, 'EVENT_CONTRACT_OR_SCOPE');
         }
 
@@ -93,12 +131,16 @@ final class SyntheticWebhookReceiver
 
         $observation = self::result(200, 'NONE') + [
             'event_id'=>$id, 'event_digest'=>$digest, 'type'=>$event['type'],
-            'resource_id'=>$event['resource']['id'], 'resource_type'=>$event['resource']['type'],
+            'resource_id'=>(string)$event['resource']['id'], 'resource_type'=>$event['resource']['type'],
             'provider_shop_id'=>$shop, 'created_at'=>$timestamp, 'fixture_signature_verified'=>true,
         ];
         $data = $event['resource']['data'];
         return $observation + match ($event['type']) {
             'order:updated' => ['resource_status'=>$data['status']],
+            'order:line-item:canceled' => ['canceled_line_id'=>$data['line_item_id']],
+            'personalization-preview-task:processed' => ['preview_status'=>$data['status']],
+            'support-request:updated' => ['support_order_id'=>$data['order_id'],'support_type'=>$data['type'],
+                'support_status'=>$data['status'],'support_outcome'=>$data['outcome']],
             'product:publish:started' => [
                 'publish_action'=>$data['action'], 'out_of_stock_publishing'=>$data['out_of_stock_publishing'],
             ],
@@ -124,6 +166,10 @@ final class SyntheticWebhookReceiver
             return false;
         }
         $resource = $event['resource'];
+        if ($event['type']==='shop:disconnected') {
+            return self::keys($resource,['id','type','data']) && $resource['type']==='shop'
+                && is_int($resource['id']) && $resource['id']>0 && $resource['data']===null;
+        }
         if (!self::keys($resource, ['id','type','data']) || !self::identifier($resource['id'])
             || $resource['type']!==self::EVENT_TYPES[$event['type']] || !is_array($resource['data'])
             || !is_int($resource['data']['shop_id']??null) || $resource['data']['shop_id']<1) {
@@ -133,6 +179,18 @@ final class SyntheticWebhookReceiver
         return match ($event['type']) {
             'order:updated' => self::keys($data,['shop_id','status']) && in_array($data['status'],self::ORDER_STATES,true),
             'product:publish:started' => self::publishDetails($data),
+            'order:line-item:canceled' => self::keys($data,['shop_id','line_item_id','status','status_details'])
+                && self::identifier($data['line_item_id']) && $data['status']==='canceled'
+                && ($data['status_details']===null || self::identifier($data['status_details'])),
+            'personalization-preview-task:processed' => self::keys($data,['shop_id','task_id','status','preview_count','mockups'])
+                && $data['task_id']===$resource['id'] && in_array($data['status'],['failed','corrupt'],true)
+                && $data['preview_count']===0 && $data['mockups']===[],
+            'support-request:updated' => self::keys($data,['shop_id','order_id','type','status','status_details','outcome'])
+                && self::identifier($data['order_id']) && ($data['type']===null || self::identifier($data['type']))
+                && in_array($data['status'],['pending','processing','in_progress','resolved'],true)
+                && in_array($data['outcome'],['unresolved','positive','negative'],true)
+                && ($data['status']==='resolved' || $data['outcome']==='unresolved')
+                && ($data['status_details']===null || is_string($data['status_details']) && strlen($data['status_details'])<=512),
             'order:shipment:created' => self::shipmentDetails($data,'shipped_at'),
             'order:shipment:delivered' => self::shipmentDetails($data,'delivered_at'),
             default => self::keys($data,['shop_id']),
@@ -142,7 +200,7 @@ final class SyntheticWebhookReceiver
     private static function publishDetails(array $data): bool
     {
         if (!self::keys($data,['shop_id','publish_details','action','out_of_stock_publishing'])
-            || $data['action']!=='create' || $data['out_of_stock_publishing']!==0
+            || !in_array($data['action'],['create','update'],true) || $data['out_of_stock_publishing']!==0
             || !is_array($data['publish_details']) || !self::keys($data['publish_details'],self::PUBLISH_FIELDS)) {
             return false;
         }
@@ -211,7 +269,7 @@ final class SyntheticWebhookReceiver
 
     private static function expectedMembers(array $event): int
     {
-        $data=$event['resource']['data'];
+        $data=$event['resource']['data'] ?? [];
         return 7 + count($data) + match ($event['type']) {
             'product:publish:started' => count($data['publish_details']),
             'order:shipment:created', 'order:shipment:delivered' => count($data['carrier']),

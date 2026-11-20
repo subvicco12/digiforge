@@ -230,3 +230,22 @@ The isolated fixture receiver uses the documented envelope and signature format 
 - `POST /v1/shops/{shop_id}/webhooks/{webhook_id}/simulate`
 
 These are source gaps in the standalone typed registry. Additional event topics, fixture profile breadth and richer personalization workflows remain incomplete. Hosted verification, independent authority and recovery, and Printify credentials and live acceptance are separate operational gates.
+
+## Standalone 0.12.0 source and offline acceptance
+
+Combined with the two preceding matrices, the additions below cover 51 selectors and all 53 documented OpenAPI method/path combinations. This counts distinct routes. Fixture behavior and full provider schema parity are separate. [Printify OpenAPI](https://developers.printify.com/openapi.json)
+
+| Added selector | Documented method and path | Fixture boundary |
+| --- | --- | --- |
+| `SHOP_DISCONNECT` | `DELETE /v1/shops/{shop_id}/connection.json` | Shop-specific synthetic disconnection persists after restart. |
+| `ORDER_EXPRESS_CREATE` | `POST /v1/shops/{shop_id}/orders/express.json` | Requires a fixture external ID. Accepts multiple existing products and validates exact response line membership. The fixture creates a single Express group. |
+| `WEBHOOK_SIMULATE` | `POST /v1/shops/{shop_id}/webhooks/{webhook_id}/simulate` | Synthesizes a scoped event for the most recent eligible resource for created/updated subscriptions. Duplicate delivery is denied. |
+
+| Architecture sections | Offline status and limitation |
+| --- | --- |
+| 1–3, 6–7, 16–17 | All documented routes are represented. The fixture catalog and shipping profile stay bounded. Exact provider behavior and broader Express profiles, mixed fulfillment grouping and shipment variants are unqualified. |
+| 5, 8–9, 18–22 | Durable local CAS, operation deduplication, signed fixture events and privacy-minimized audit. Cross-shop, stale revision, replay, lost acknowledgement and crash/restart tests exercise the extracted workspace. Fixture state supplies no native authority and does not resolve a production UNKNOWN. |
+| 10–12, 15, 23 | Reproducible standalone package with scoped WordPress forms. The integrated journey covers two products, multiple variants and placements, and Express checkout. Textbox and uploaded-image references are accepted for fixture personalization, while operator inspection exposes pending, failed and corrupt preview statuses. Rendering and verified completed preview artifacts remain open. |
+| 4, 13–14, 20, 24 | Held native inspection remains available. Core mutation admission, independently qualified checkpoint and revocation, exclusive credential custody, old-token invalidation, hosted recovery and live provider acceptance remain external gates. |
+
+The receiver recognizes the 13 documented topics. It binds disconnect and deletion to fixture tombstones, line cancellation and support updates to scoped readback, and failed or corrupt preview events to a pending task. Completed preview events, support status changes without matching authoritative fixture readback, and publication-start delete envelopes remain unsupported. The standalone HTTP fixture sends bounded HTTP bytes over a private socket pair with no listener. The WordPress workspace exercises the same decoder and persists replay digests with audit state. [Printify events](https://developers.printify.com/#events)

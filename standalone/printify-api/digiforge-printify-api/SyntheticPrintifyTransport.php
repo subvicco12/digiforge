@@ -16,8 +16,11 @@ final class SyntheticPrintifyTransport
     private const MAX_REQUESTS = 100;
     public const WEBHOOK_URLS = ['https://webhooks.example.invalid/printify', 'https://webhooks.example.invalid/printify-updated'];
     public const WEBHOOK_TOPICS = ['product:created','product:updated','order:created','order:updated',
-        'order:shipment:created','order:shipment:delivered'];
+        'order:shipment:created','order:shipment:delivered','shop:disconnected','product:deleted',
+        'order:line-item:canceled','order:sent-to-production','product:publish:started',
+        'personalization-preview-task:processed','support-request:updated'];
     private const PERSONALIZATION_FIELD = 'fixture-inscription';
+    private const PERSONALIZATION_IMAGE = 'fixture-artwork';
     private const PERSONALIZATION_MAX_CHARS = 80;
     private const SHOP_TITLE = 'Synthetic shop';
     private const BLUEPRINT = ['id'=>42, 'title'=>'Synthetic mug', 'description'=>'Local fixture', 'brand'=>'Synthetic', 'model'=>'Mug'];
@@ -31,6 +34,8 @@ final class SyntheticPrintifyTransport
         ]],
     ];
 
+    private bool $connected = true;
+    private ?array $simulatedEvent = null;
     private array $images = [];
     private array $products = [];
     private array $orders = [];
@@ -51,12 +56,16 @@ final class SyntheticPrintifyTransport
     /** Data-only state for the disposable, scope-sealed fixture store. */
     public function exportFixtureState(): array
     {
-        return [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook];
+        return [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook, $this->connected];
     }
 
     public function restoreFixtureState(array $state): void
     {
-        if (!array_is_list($state) || count($state) !== 6 || $this->exportFixtureState() !== [[], [], [], [], [], 1]
+        if (array_is_list($state) && count($state)===6) {
+            $state[]=true;
+        }
+        if (!array_is_list($state) || count($state) !== 7 || !is_bool($state[6])
+            || $this->exportFixtureState() !== [[], [], [], [], [], 1, true]
             || !is_int($state[5]) || $state[5] < 1 || $state[5] > 101) {
             throw new \InvalidArgumentException('Invalid synthetic state');
         }
@@ -74,7 +83,7 @@ final class SyntheticPrintifyTransport
                 }
             }
         }
-        [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook] = $state;
+        [$this->images, $this->products, $this->orders, $this->webhooks, $this->duplicates, $this->nextWebhook, $this->connected] = $state;
     }
 
     public function faultNext(string $fault): void
@@ -153,6 +162,7 @@ final class SyntheticPrintifyTransport
 
     public function request(array $plan): array
     {
+        $this->simulatedEvent = null;
         $operation = $plan['operation'] ?? null;
         $method = $plan['method'] ?? null;
         $endpoint = $plan['endpoint'] ?? null;
@@ -160,6 +170,9 @@ final class SyntheticPrintifyTransport
         if (($plan['provider_shop_id'] ?? null) !== $this->shop
             || !is_string($operation) || !is_string($method) || !is_string($endpoint) || !is_array($body)) {
             return self::error(403, 'scope_denied');
+        }
+        if (!$this->connected && $operation!=='SHOPS_READ') {
+            return self::error(403,'shop_disconnected');
         }
         if (++$this->requests > self::MAX_REQUESTS) {
             return self::error(429, 'fixture_budget_exhausted');
@@ -202,6 +215,9 @@ final class SyntheticPrintifyTransport
         $id = '([A-Za-z0-9_-]{1,80})';
         $paging = '(?:\?page=([1-9][0-9]{0,5})&limit=([1-9]|10))?';
         $route = match ($operation) {
+            'SHOP_DISCONNECT' => ['DELETE', $shopRoot.'/connection\.json'],
+            'ORDER_EXPRESS_CREATE' => ['POST', $shopRoot.'/orders/express\.json'],
+            'WEBHOOK_SIMULATE' => ['POST', $shopRoot.'/webhooks/'.$id.'/simulate'],
             'SHOPS_READ' => ['GET', '/v1/shops\.json'],
             'BLUEPRINTS_READ' => ['GET', '/v1/catalog/blueprints\.json'],
             'BLUEPRINT_READ' => ['GET', '/v1/catalog/blueprints/42\.json'],
@@ -256,7 +272,10 @@ final class SyntheticPrintifyTransport
     private function dispatch(string $operation, array $route, array $body, ?int $version): array
     {
         return match ($operation) {
-            'SHOPS_READ' => self::response(200, [['id'=>(int)$this->shop, 'title'=>self::SHOP_TITLE, 'sales_channel'=>'api']]),
+            'SHOP_DISCONNECT' => $this->disconnect($body),
+            'ORDER_EXPRESS_CREATE' => $this->createExpress($body),
+            'WEBHOOK_SIMULATE' => $this->simulateWebhook($route[0],$body),
+            'SHOPS_READ' => self::response(200, $this->connected ? [['id'=>(int)$this->shop, 'title'=>self::SHOP_TITLE, 'sales_channel'=>'api']] : []),
             'BLUEPRINTS_READ' => self::response(200, [self::BLUEPRINT]),
             'BLUEPRINT_READ' => self::response(200, self::BLUEPRINT),
             'PROVIDERS_READ', 'BLUEPRINT_PROVIDERS_READ' => self::response(200, [self::PROVIDER]),
@@ -305,6 +324,61 @@ final class SyntheticPrintifyTransport
             'WEBHOOK_UPDATE' => $this->updateWebhook($route[0],$body),
             'WEBHOOK_DELETE' => $this->deleteWebhook($route[0],$body),
         };
+    }
+
+    private function disconnect(array $body): array
+    {
+        if ($body!==[]) {
+            return self::error(422,'disconnect_body_not_empty');
+        }
+        $this->connected=false;
+        return self::response(200,[]);
+    }
+
+    private function createExpress(array $body): array
+    {
+        SyntheticPrintifyClient::validateExpress($body);
+        $order=$this->createOrder($body);
+        if ($order['status']!==201) {
+            return $order;
+        }
+        $row=$order['body'];
+        $lines=array_map(static fn(array $line):array=>$line+['status'=>'pending'],$row['line_items']);
+        return self::response(200,['data'=>[['type'=>'order','id'=>$row['id'],
+            'attributes'=>['fulfilment_type'=>'express','line_items'=>$lines]]]]);
+    }
+
+    private function simulateWebhook(string $id,array $body): array
+    {
+        if ($body!==[]) {
+            return self::error(422,'simulate_body_not_empty');
+        }
+        $topic=$this->webhooks[$id]['topic']??null;
+        if ($topic===null) {
+            return self::error(404,'webhook_not_found');
+        }
+        $resourceType=str_starts_with($topic,'product:')?'product':'order';
+        $rows=$resourceType==='product'?$this->availableProducts():$this->orders;
+        $row=end($rows);
+        if ($row===false||!in_array($topic,['order:created','order:updated','product:created','product:updated'],true)) {
+            return self::error(409,'simulation_resource_unavailable');
+        }
+        $data=['shop_id'=>(int)$this->shop];
+        if ($topic==='order:updated') {
+            $data['status']=$row['status'];
+        }
+        $fingerprint=hash('sha256',$this->shop.':'.$id.':'.$topic.':'.$row['id']);
+        $eventId=vsprintf('%s%s-%s-%s-%s-%s%s%s',str_split(substr($fingerprint,0,32),4));
+        $this->simulatedEvent=['id'=>$eventId,'type'=>$topic,'created_at'=>'2026-11-19 00:00:00+00:00',
+            'resource'=>['id'=>$row['id'],'type'=>$resourceType,'data'=>$data]];
+        return self::response(204,[]);
+    }
+
+    public function takeSimulatedEvent(): ?array
+    {
+        $event=$this->simulatedEvent;
+        $this->simulatedEvent=null;
+        return $event;
     }
 
     private function upload(array $body): array
@@ -646,6 +720,30 @@ final class SyntheticPrintifyTransport
         return self::response(200, $this->orders[$id]);
     }
 
+    public function fixtureDisconnected(): bool
+    {
+        return !$this->connected;
+    }
+
+    public function fixtureProductDeleted(string $id): bool
+    {
+        return ($this->products[$id]['is_deleted']??false)===true;
+    }
+
+    public function finishFixturePreview(string $taskId,string $status): bool
+    {
+        if (!in_array($status,['failed','corrupt'],true)) {
+            return false;
+        }
+        foreach ($this->availableProducts() as $id=>$product) {
+            if (($product['preview_tasks'][$taskId]['status']??null)==='pending') {
+                $this->products[$id]['preview_tasks'][$taskId]['status']=$status;
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function personalization(string $operation,array $route,array $body): array
     {
         $id=$route[0];
@@ -655,7 +753,8 @@ final class SyntheticPrintifyTransport
         }
         if ($operation==='PERSONALIZATION_OPTIONS') {
             return self::response(200,[['field_id'=>self::PERSONALIZATION_FIELD,'label'=>'Synthetic inscription',
-                'type'=>'textbox','text_options'=>['character_limit'=>self::PERSONALIZATION_MAX_CHARS]]]);
+                'type'=>'textbox','text_options'=>['character_limit'=>self::PERSONALIZATION_MAX_CHARS]],
+                ['field_id'=>self::PERSONALIZATION_IMAGE,'label'=>'Synthetic artwork','type'=>'image']]);
         }
         if ($operation==='PREVIEW_READ') {
             $task=$product['preview_tasks'][$route[1]]??null;
@@ -667,10 +766,17 @@ final class SyntheticPrintifyTransport
         PrintifyProductRequest::prepare($operation,$this->shop,['product_id'=>$id]+$body);
         $configure=$operation==='PERSONALIZATION_CONFIGURE';
         $items=$configure?$body['items']:$body['personalization'];
-        $item=$items[0];
-        if (count($items)!==1||$item['field_id']!==self::PERSONALIZATION_FIELD||$item['type']!=='textbox'
-            ||mb_strlen($item['input']['text'],'UTF-8')>self::PERSONALIZATION_MAX_CHARS) {
-            return self::error(422,'personalization_field_invalid');
+        foreach ($items as $item) {
+            $valid=match ($item['field_id']) {
+                self::PERSONALIZATION_FIELD => $item['type']==='textbox'
+                    && mb_strlen($item['input']['text'],'UTF-8')<=self::PERSONALIZATION_MAX_CHARS,
+                self::PERSONALIZATION_IMAGE => $item['type']==='image' && in_array($item['input']['image_url'],
+                    array_column($this->availableImages(),'preview_url'),true),
+                default => false,
+            };
+            if (!$valid) {
+                return self::error(422,'personalization_field_invalid');
+            }
         }
         $variants=array_column($product['variants'],null,'id');
         foreach ($configure?[$body['variant_id']]:$body['variant_ids'] as $variant) {
