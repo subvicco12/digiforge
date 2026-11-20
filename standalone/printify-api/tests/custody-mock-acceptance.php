@@ -60,7 +60,7 @@ try {
         throw new RuntimeException('Isolated custody server evidence failed');
     }
     $replayed=$exchange($lastRequest,2000,262144);
-    if (($replayed['state']??null)!=='DENIED' || ($replayed['reason']??null)!=='REPLAY') {
+    if (($replayed['state']??null)!=='DENIED' || ($replayed['reason']??null)!=='CALLER_REPLAY') {
         throw new RuntimeException('Same request survived process restart');
     }
     $forged=static function(array $request,int $timeout,int $maximum) use ($exchange):array {
@@ -73,6 +73,9 @@ try {
     }
 } finally {
     remove_filter('pre_http_request',$tripwire,PHP_INT_MAX);
+    foreach (glob($bridgeDb.'.caller-*') ?: [] as $fixtureJournal) {
+        unlink($fixtureJournal);
+    }
     unlink($bridgeDb);
 }
 if ($http!==0) {

@@ -1,0 +1,28 @@
+{
+  "name": "digiforge-stage-a-caller",
+  "main": "custody-bridge/caller-entrypoint.mjs",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "no_bundle": true,
+  "find_additional_modules": true,
+  "rules": [
+    {
+      "type": "ESModule",
+      "globs": ["custody-bridge/caller-entrypoint.mjs", "custody-bridge/caller.mjs", "protocol.mjs", "stage-a/egress.mjs", "stage-a-caller/journal.mjs"],
+      "fallthrough": false
+    }
+  ],
+  "observability": {"enabled": false},
+  "upload_source_maps": false,
+  "keep_vars": false,
+  "services": [{"binding": "DF_CUSTODY_BRIDGE", "service": "digiforge-custody-qualification"}],
+  "vars": {"DF_CUSTODY_CALLER_MODE": "DISABLED", "DF_CUSTODY_CALLER_CONFIG": ""},
+  "durable_objects": {
+    "bindings": [{"name": "DF_CALLER_STATE", "class_name": "DigiForgeStageACallerState"}]
+  },
+  "workflows": [
+    {"name":"digiforge-stage-a-manual","binding":"DF_MANUAL_WORKFLOW","class_name":"DigiForgeStageAManual"}
+  ]
+}

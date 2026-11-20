@@ -61,3 +61,65 @@ or witness outage cannot be qualified by this single-domain fixture. A
 lost acknowledgement or UNKNOWN stops the run. Retain evidence and restore
 the disabled mode under separately approved teardown. No provider egress
 or usable Printify credential belongs in this pilot.
+
+## One-shot Stage A caller build
+
+`stage-a-caller.template.json` is a separately reviewable version of the
+existing private caller, for the custody smoke window only. It keeps the
+existing Worker name, Workflow definition and Durable Object namespace
+binding. Legacy Stage A invocations are denied in this caller version.
+The frozen Stage A source, bootstrap and artifacts are preserved. The
+caller uses the isolated object name `digiforge-stage-a-custody-caller-v1`
+within the existing caller namespace and reuses the frozen CallerJournal.
+It never resets or reads the existing Stage A suite's singleton journal.
+
+The only admitted Workflow payload consists of `schema`
+(`DF_STAGE_A_CUSTODY_READ_1`), `approval`, and `wire`; the exact instance is
+`stage-a-custody-` followed by the pinned 64-character operation identity.
+Configure the caller with the exact wire digest, approval identity, shop,
+account, opaque fixture credential reference, source SHA/revision,
+authorization revision, signer public key, operation ID and approved
+start/end. The bridge uses the same scope, key and window. No key material
+or enabled configuration ships. The caller permits a window up to 120
+seconds, one pinned operation and one dispatch attempt. It verifies the
+returned digest, signer, scope, body and freshness independently before
+returning a receipt. A signed rate denial is accepted as evidence, with
+no retry. The outer Workflow step is five seconds with zero retries.
+The private caller and bridge both use two-second deadlines.
+
+### Bounded hosted procedure — separate authorization required
+
+1. Confirm approved exact source and configuration, effective account
+   permissions, Free headroom and independent approval. If existing Stage A
+   caller resources are absent, the one-Worker/one-namespace incremental plan
+   is insufficient. Obtain separate approval for that dependency. The caller
+   overlay assumes the namespace and Workflow definition exist. Both
+   packages deny HTTP. Confirm both public URL flags, absent routes, disabled
+   modes, exact service binding and absence of schedules by readback.
+2. For one approved synthetic invocation, capture one compact PHP GET intent
+   in the isolated fixture, pin its exact bytes and digest, approve the exact
+   Workflow instance, configure the synthetic signer and bounded window, and
+   manually initiate once. Check signer pin, timestamps, request and response
+   digests, typed receipt and read-only PHP projection. The source tests use
+   private stdio for the PHP transport. A hosted PHP invocation/readback
+   harness still needs approval and Cloudflare timing acceptance. If it
+   cannot satisfy two seconds or the receipt lifetime, stop and retain UNKNOWN.
+3. Before the positive run, verify disabled, wrong instance, altered scope
+   and expired approval denials. After the single receipt, check duplicate
+   denial with the same identities. Use explicitly approved disposable cases
+   for revocation and timeout. They must fence spent or uncertain records
+   across restart and yield no second dispatch. Do not replay a timed-out
+   intent or treat a new operation ID as recovery. An actual Cloudflare
+   restart or configuration change requires separate fault authorization.
+4. Incremental resources for the smoke case are one private Worker, one
+   SQLite DO namespace and its one lazy singleton, plus a new version of
+   the existing caller using the existing Workflow and caller namespace.
+   Expected happy path uses one manually initiated Workflow instance and
+   one step, one caller DO invocation, one private bridge Worker RPC and
+   one bridge DO invocation. Both journals are bounded. Measure CPU, SQL
+   rows and storage; totals, retention overhead and costs are unmeasured.
+   Preserve evidence, close the window, return both modes to disabled,
+   and tear down only with separate exact-resource approval.
+
+No provider execution, external credential custody or independent witness
+qualification follows from this fixture run.

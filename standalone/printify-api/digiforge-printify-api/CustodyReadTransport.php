@@ -72,7 +72,7 @@ final class CustodyReadTransport
                 return self::result('UNAVAILABLE','CUSTODY_DEADLINE');
             }
             if ($response['state']==='UNKNOWN' && in_array($response['reason'],
-                ['JOURNAL','RECOVERY_REQUIRED','RECEIPT','FINAL_FENCE'],true)) {
+                ['JOURNAL','RECOVERY_REQUIRED','RECEIPT','FINAL_FENCE','CALLER_UNCERTAIN'],true)) {
                 return self::result('UNKNOWN','CUSTODY_UNCERTAIN');
             }
             return self::result('DENIED','CUSTODY_CONTROL');

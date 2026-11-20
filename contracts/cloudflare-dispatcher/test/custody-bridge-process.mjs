@@ -1,5 +1,6 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { b64, hash } from '../protocol.mjs';
+import { CustodyCaller } from '../custody-bridge/caller.mjs';
 import { CustodyBridge } from '../custody-bridge/bridge.mjs';
 import { LocalSqliteStorage } from './support.mjs';
 
@@ -19,9 +20,23 @@ for await (const chunk of process.stdin) {
   wire=Buffer.concat([wire,chunk]);
 }
 if (wire[wire.length-1]!==10) process.exit(2);
-const bridge=new CustodyBridge(new LocalSqliteStorage(filename),{
+const scope={
   shop:'107',account_reference:'fixture-account',credential_reference:'fixture-custody-read',
   source_sha:'b'.repeat(40),source_revision:2,authorization_revision:4,signer_key,
   start,end:start+120,
-},()=>Math.floor(Date.now()/1000),bytes=>crypto.subtle.sign('Ed25519',privateKey,bytes));
-process.stdout.write(JSON.stringify(await bridge.exchange(wire.subarray(0,-1).toString('utf8'))));
+};
+const clock=()=>Math.floor(Date.now()/1000);
+const bridge=new CustodyBridge(new LocalSqliteStorage(filename),scope,clock,
+  bytes=>crypto.subtle.sign('Ed25519',privateKey,bytes));
+const raw=wire.subarray(0,-1).toString('utf8');
+const {operation_id}=JSON.parse(raw);
+if (!/^[a-f0-9]{64}$/.test(operation_id)) process.exit(2);
+const journal=new LocalSqliteStorage(filename+'.caller-'+operation_id);
+Object.defineProperty(journal.sql,'databaseSize',{value:4096});
+const approval='a'.repeat(64);
+const caller=new CustodyCaller(journal,{
+  ...scope,operation_id,approval,request_sha256:await hash(raw),
+},clock,{exchange:wire=>bridge.exchange(wire)});
+process.stdout.write(JSON.stringify(await caller.invoke({
+  schema:'DF_STAGE_A_CUSTODY_READ_1',approval,wire:raw,
+},'stage-a-custody-'+operation_id)));

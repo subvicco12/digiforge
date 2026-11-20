@@ -7,7 +7,7 @@
   "routes": [],
   "no_bundle": true,
   "find_additional_modules": true,
-  "rules": [{"type": "ESModule", "globs": ["custody-bridge/*.mjs", "protocol.mjs", "stage-a/egress.mjs"], "fallthrough": false}],
+  "rules": [{"type": "ESModule", "globs": ["custody-bridge/bridge.mjs", "custody-bridge/entrypoint.mjs", "protocol.mjs", "stage-a/egress.mjs"], "fallthrough": false}],
   "observability": {"enabled": false},
   "upload_source_maps": false,
   "keep_vars": false,
