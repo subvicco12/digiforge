@@ -38,15 +38,15 @@ final class SyntheticWorkspacePanel
             $raster=$result['data']['synthetic_raster']??null;
             unset($result['data']['synthetic_svg'],$result['data']['synthetic_raster']['base64']);
             if (is_array($raster) && in_array($raster['mime'],['image/png','image/jpeg'],true)) {
-                echo '<figure><img alt="Locally rendered synthetic preview" src="data:'
+                echo '<figure><img style="max-width:100%;height:auto" alt="Locally rendered synthetic preview" src="data:'
                     .\esc_attr($raster['mime']).';base64,'.\esc_attr($raster['base64']).'"></figure>';
                 $preview=null;
             }
             if (is_string($preview) && strlen($preview)<=32768 && preg_match('/^[A-Za-z0-9+\/=]+$/D',$preview)===1) {
-                echo '<figure><img alt="Locally rendered synthetic preview" src="data:image/svg+xml;base64,'
+                echo '<figure><img style="max-width:100%;height:auto" alt="Locally rendered synthetic preview" src="data:image/svg+xml;base64,'
                     .\esc_attr($preview).'"></figure>';
             }
-            echo '<h3>Operation result</h3><pre>'.\esc_html(
+            echo '<h3 id="df-operation-result">Operation result</h3><pre tabindex="0" role="region" aria-labelledby="df-operation-result" style="max-width:100%;overflow:auto">'.\esc_html(
                 json_encode($result, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) ?: ''
             ).'</pre>';
         }
@@ -83,7 +83,9 @@ final class SyntheticWorkspacePanel
         ] as $hint) echo '<li>'.\esc_html($hint).'</li>';
         echo '</ul></details><p><button type="submit" class="button button-primary">Run synthetic JSON operation</button></p></form></details>';
 
-        echo '<h3>Recent synthetic audit</h3><table class="widefat striped"><thead><tr>';
+        echo '<h3 id="df-workspace-audit">Recent synthetic audit</h3>'
+            .'<div role="region" aria-labelledby="df-workspace-audit" tabindex="0" style="max-width:100%;overflow:auto">'
+            .'<table class="widefat striped"><thead><tr>';
         foreach (['Operation','Result','Reason','Reference','Actor ID','Time (UTC)'] as $label) echo '<th scope="col">'.\esc_html($label).'</th>';
         echo '</tr></thead><tbody>';
         foreach (array_reverse(array_slice($current['audit'],-20)) as $entry) {
@@ -93,7 +95,7 @@ final class SyntheticWorkspacePanel
             }
             echo '</tr>';
         }
-        echo '</tbody></table>';
+        echo '</tbody></table></div>';
         self::renderEvents($current['events'] ?? []);
     }
 
@@ -102,7 +104,9 @@ final class SyntheticWorkspacePanel
         if ($events===[]) {
             return;
         }
-        echo '<h3>Recent fixture event observations</h3><table class="widefat striped"><thead><tr>';
+        echo '<h3 id="df-workspace-events">Recent fixture event observations</h3>'
+            .'<div role="region" aria-labelledby="df-workspace-events" tabindex="0" style="max-width:100%;overflow:auto">'
+            .'<table class="widefat striped"><thead><tr>';
         foreach (['Event','Resource ID','Event time','Shipment time'] as $label) {
             echo '<th scope="col">'.\esc_html($label).'</th>';
         }
@@ -115,7 +119,7 @@ final class SyntheticWorkspacePanel
             }
             echo '</tr>';
         }
-        echo '</tbody></table>';
+        echo '</tbody></table></div>';
     }
 
     private static function startForm(string $shop, int $revision, bool $multipart = false): void

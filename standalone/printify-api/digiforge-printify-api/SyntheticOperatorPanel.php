@@ -67,7 +67,8 @@ final class SyntheticOperatorPanel
             return;
         }
 
-        echo '<table class="widefat striped"><caption>Synthetic operation results</caption><thead><tr>';
+        echo '<div role="region" aria-label="Synthetic operation results" tabindex="0" style="max-width:100%;overflow:auto">'
+            .'<table class="widefat striped"><caption>Synthetic operation results</caption><thead><tr>';
         echo '<th scope="col">Operation</th><th scope="col">Fixture HTTP status</th></tr></thead><tbody>';
         foreach (array_slice($steps, 0, 32) as $step) {
             if (!is_array($step)) {
@@ -82,7 +83,7 @@ final class SyntheticOperatorPanel
             echo '<tr><th scope="row">' . \esc_html($operation) . '</th><td>'
                 . \esc_html((string)$status) . '</td></tr>';
         }
-        echo '</tbody></table>';
+        echo '</tbody></table></div>';
     }
 
     private static function renderSummary(array $summary): void
