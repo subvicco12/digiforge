@@ -66,6 +66,17 @@ final class CustodyReadTransport
         if (!Runtime::permitsFixtureAccount($scope['shop'],$scope['account_reference'])) {
             return self::result('DENIED','CUSTODY_SCOPE_CHANGED');
         }
+        if (is_array($response) && array_keys($response)===['state','reason','retry_permitted']
+            && $response['retry_permitted']===false) {
+            if ($response['state']==='TIMEOUT' && $response['reason']==='DEADLINE') {
+                return self::result('UNAVAILABLE','CUSTODY_DEADLINE');
+            }
+            if ($response['state']==='UNKNOWN' && in_array($response['reason'],
+                ['JOURNAL','RECOVERY_REQUIRED','RECEIPT','FINAL_FENCE'],true)) {
+                return self::result('UNKNOWN','CUSTODY_UNCERTAIN');
+            }
+            return self::result('DENIED','CUSTODY_CONTROL');
+        }
         return self::receipt($response,$request,$digest,$scope,$operation,$input);
     }
 
