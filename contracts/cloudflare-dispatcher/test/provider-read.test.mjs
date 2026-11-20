@@ -105,7 +105,7 @@ test('bounded retry evidence is sanitized; invalid status, payload, revocation a
 });
 
 test('loopback connector passes only the requested GET through credential custody',async()=>{
-  const {createServer}=await import('node:http');
+  const {createServer,get}=await import('node:http');
   const {once}=await import('node:events');
   const fixtureToken='test-only-loopback-'+crypto.randomUUID();
   const requests=[];
@@ -128,12 +128,19 @@ test('loopback connector passes only the requested GET through credential custod
         // The transport receives a reference. Only the test connector holds the dummy value.
         assert.equal(binding.credential_reference,'opaque-v2');
         assert.equal(JSON.stringify(binding).includes(fixtureToken),false);
-        const uri='http://127.0.0.1:'+server.address().port+binding.endpoint;
-        const response=await fetch(uri,{method:'GET',redirect:'error',signal,headers:{authorization:'Bearer '+fixtureToken}});
-        return {status:response.status,headers:{'content-type':response.headers.get('content-type')},body:response.body};
+        assert.equal(binding.endpoint,'/v1/catalog/print_providers.json');
+        // Use an explicit test-only loopback socket. The shared harness seals global fetch.
+        return new Promise((resolve,reject)=>{
+          const request=get({hostname:'127.0.0.1',port:server.address().port,path:binding.endpoint,
+            agent:false,signal,headers:{authorization:'Bearer '+fixtureToken}},response=>{
+            resolve({status:response.statusCode,headers:{'content-type':response.headers['content-type']},body:response});
+          });
+          request.once('error',reject);
+        });
       }},
     });
     const result=await transport.exchange(await wire('PROVIDERS_READ','/v1/catalog/print_providers.json','print_providers.read'));
+    assert.equal(typeof result.record,'string',JSON.stringify(result));
     assert.equal(JSON.parse(result.record).status,200);
     assert.deepEqual(requests,[{method:'GET',url:'/v1/catalog/print_providers.json',allowed:true}]);
     assert.equal(JSON.stringify(result).includes(fixtureToken),false);
