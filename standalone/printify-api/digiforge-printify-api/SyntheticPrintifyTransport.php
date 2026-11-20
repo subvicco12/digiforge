@@ -757,7 +757,25 @@ final class SyntheticPrintifyTransport
             return self::error(422, 'shipping_unavailable');
         }
         $cost = 500 + (array_sum(array_column($lines, 'quantity')) - 1) * 200;
-        return self::response(200, ['standard'=>$cost]);
+        $groups=[];
+        $mixedCost=0;
+        foreach ($lines as $line) {
+            $group=self::expressGroup($line['variant_id']);
+            $mixedCost+=self::groupShipping($group,$line['quantity'],!isset($groups[$group]));
+            $groups[$group]=true;
+        }
+        return self::response(200,['standard'=>$cost,'priority'=>$cost+200,
+            'economy'=>max(0,$cost-100),'printify_express'=>$mixedCost]);
+    }
+
+    private static function expressGroup(int $variant): string
+    {
+        return $variant===9?'express':'ordinary';
+    }
+
+    private static function groupShipping(string $group,int $quantity,bool $first): int
+    {
+        return $first?($group==='express'?700:500)+200*($quantity-1):200*$quantity;
     }
 
     private function createOrder(array $body,bool $express=false): array
@@ -775,10 +793,10 @@ final class SyntheticPrintifyTransport
         if ($express) {
             $groups=[];
             foreach ($lines as $index=>$line) {
-                $group=$line['variant_id']===9?'express':'ordinary';
+                $group=self::expressGroup($line['variant_id']);
                 $price=array_column($this->products[$line['product_id']]['variants'],'price','id')[$line['variant_id']];
                 $groups[$group][]=$line+['id'=>'line-'.($index+1),'status'=>'pending',
-                    'cost'=>$price*$line['quantity'],'shipping_cost'=>($group==='express'?700:500)+200*($line['quantity']-1)];
+                    'cost'=>$price*$line['quantity'],'shipping_cost'=>self::groupShipping($group,$line['quantity'],!isset($groups[$group]))];
             }
             if (count($this->orders)+count($groups)>100) {
                 return self::error(429,'fixture_order_limit');
@@ -879,6 +897,13 @@ final class SyntheticPrintifyTransport
         return !$this->connected;
     }
 
+    public function fixturePublicationMatches(string $id,array $details): bool
+    {
+        $product=$this->availableProducts()[$id]??null;
+        return ($product['synthetic_publish_pending']??false)===true
+            && isset($product['fixture_publish_details']) && $product['fixture_publish_details']==$details;
+    }
+
     public function fixtureProductDeleted(string $id): bool
     {
         return ($this->products[$id]['is_deleted']??false)===true;
@@ -897,7 +922,8 @@ final class SyntheticPrintifyTransport
             }
             if ($task['status']==='pending' && in_array($status,['failed','corrupt'],true)) {
                 $this->products[$id]['preview_tasks'][$taskId]['status']=$status;
-                unset($this->products[$id]['preview_tasks'][$taskId]['synthetic_svg']);
+                unset($this->products[$id]['preview_tasks'][$taskId]['synthetic_svg'],
+                    $this->products[$id]['preview_tasks'][$taskId]['synthetic_raster']);
                 return true;
             }
             return $task['status']===$status;
@@ -923,7 +949,7 @@ final class SyntheticPrintifyTransport
                 return self::error(404,'preview_task_not_found');
             }
             if ($task['status']!=='completed') {
-                unset($task['synthetic_svg']);
+                unset($task['synthetic_svg'],$task['synthetic_raster']);
             }
             return self::response(200,$task);
 
@@ -979,8 +1005,12 @@ final class SyntheticPrintifyTransport
         }
         $task=['task_id'=>$taskId,'status'=>'pending','external_id'=>$correlation,
             'product_version'=>$product['synthetic_version'],'variant_ids'=>$body['variant_ids'],'synthetic_svg'=>base64_encode($svg)];
+        $raster=$this->renderRasterPreview($items,$body['format']);
+        if ($raster!==null) {
+            $task['synthetic_raster']=$raster;
+        }
         $this->products[$id]['preview_tasks'][$taskId]=$task;
-        unset($task['synthetic_svg']);
+        unset($task['synthetic_svg'],$task['synthetic_raster']);
         return self::response(202,$task);
     }
 
@@ -1004,6 +1034,59 @@ final class SyntheticPrintifyTransport
         return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="250" viewBox="0 0 480 250">'
             .'<rect width="480" height="250" fill="white"/><text x="12" y="20">Synthetic personalization preview</text>'
             .$content.'</svg>';
+    }
+
+    /** Raster is optional. The portable SVG remains available for Unicode or absent GD support. */
+    private function renderRasterPreview(array $items,string $format): ?array
+    {
+        $encode=$format==='png'?'imagepng':'imagejpeg';
+        if (!function_exists('imagecreatetruecolor') || !function_exists($encode)) {
+            return null;
+        }
+        $art=null;
+        $text='';
+        foreach ($items as $item) {
+            if ($item['type']==='textbox') {
+                $text=$item['input']['text'];
+                if (preg_match('/^[ -~]*$/D',$text)!==1) {
+                    return null;
+                }
+                continue;
+            }
+            $image=array_column($this->availableImages(),null,'preview_url')[$item['input']['image_url']];
+            if ($image['width']>1024 || $image['height']>1024 || !is_string($image['render_png']??null)) {
+                return null;
+            }
+            $art=@imagecreatefromstring(base64_decode($image['render_png'],true) ?: '');
+            if ($art===false) {
+                return null;
+            }
+        }
+        $canvas=imagecreatetruecolor(480,250);
+        if ($canvas===false) {
+            return null;
+        }
+        $background=imagecolorallocate($canvas,255,255,255);
+        $ink=imagecolorallocate($canvas,15,23,42);
+        imagefill($canvas,0,0,$background);
+        imagestring($canvas,3,12,8,'Synthetic personalization preview',$ink);
+        if ($art!==null) {
+            $scale=min(456/imagesx($art),176/imagesy($art));
+            $width=max(1,(int)(imagesx($art)*$scale));
+            $height=max(1,(int)(imagesy($art)*$scale));
+            imagecopyresampled($canvas,$art,intdiv(480-$width,2),30,0,0,$width,$height,imagesx($art),imagesy($art));
+        }
+        imagestring($canvas,3,12,222,$text,$ink);
+        ob_start();
+        try {
+            $ok=$encode($canvas);
+            $bytes=ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+        return $ok && is_string($bytes) && strlen($bytes)<=32768
+            ? ['mime'=>$format==='png'?'image/png':'image/jpeg','base64'=>base64_encode($bytes)]
+            : null;
     }
 
     private function changeOrderAddress(string $orderId,array $body): array

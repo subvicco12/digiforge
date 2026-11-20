@@ -35,7 +35,13 @@ final class SyntheticWorkspacePanel
                 echo '<p role="alert">The synthetic outcome is unknown. Inspect the audit and read back the fixture state.</p>';
             }
             $preview=$result['data']['synthetic_svg']??null;
-            unset($result['data']['synthetic_svg']);
+            $raster=$result['data']['synthetic_raster']??null;
+            unset($result['data']['synthetic_svg'],$result['data']['synthetic_raster']['base64']);
+            if (is_array($raster) && in_array($raster['mime'],['image/png','image/jpeg'],true)) {
+                echo '<figure><img alt="Locally rendered synthetic preview" src="data:'
+                    .\esc_attr($raster['mime']).';base64,'.\esc_attr($raster['base64']).'"></figure>';
+                $preview=null;
+            }
             if (is_string($preview) && strlen($preview)<=32768 && preg_match('/^[A-Za-z0-9+\/=]+$/D',$preview)===1) {
                 echo '<figure><img alt="Locally rendered synthetic preview" src="data:image/svg+xml;base64,'
                     .\esc_attr($preview).'"></figure>';
@@ -60,7 +66,7 @@ final class SyntheticWorkspacePanel
         echo '<p><label for="df-workspace-operation">Operation</label> ';
         echo '<select id="df-workspace-operation" name="df_workspace_operation">';
         $operations=array_values(array_diff(SyntheticPrintifyClient::operations(),['ORDER_SEND_TO_PRODUCTION']));
-        foreach ([...$operations,'FIXTURE_PRODUCTION_CONFIRM','FIXTURE_FULFILL','FIXTURE_WEBHOOK_EVENT'] as $op) {
+        foreach ([...$operations,'FIXTURE_PRODUCTION_CONFIRM','FIXTURE_FULFILL','FIXTURE_WEBHOOK_EVENT','FIXTURE_WEBHOOK_HTTP'] as $op) {
             echo '<option value="'.\esc_attr($op).'">'.\esc_html($op).'</option>';
         }
         echo '</select></p><p><label for="df-workspace-input">Operation input (JSON)</label><br>';

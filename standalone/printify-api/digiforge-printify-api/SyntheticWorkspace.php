@@ -47,7 +47,7 @@ final class SyntheticWorkspace
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM',
-                'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE'], true)) {
+                'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
         }
         try {
@@ -107,6 +107,12 @@ final class SyntheticWorkspace
                 && $transport->completeFixturePreview($product,$task);
             return self::fixtureResult($ok?200:409,$ok?'NONE':'PREVIEW_STATE_OR_ID');
         }
+        if ($op==='FIXTURE_WEBHOOK_HTTP') {
+            $wire=$input['wire']??null;
+            return count($input)===1 && is_string($wire)
+                ? $this->acceptEvent($transport,$client,$wire,$events)
+                : self::fixtureResult(422,'EVENT_HTTP_FRAMING');
+        }
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {
             return $this->acceptEvent($transport, $client, $input, $events);
         }
@@ -140,15 +146,15 @@ final class SyntheticWorkspace
         return $result;
     }
 
-    private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array $event,array &$events):array
+    private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array|string $event,array &$events):array
     {
         $seen=[];
         foreach ($events as $id=>$entry) {
             if (isset($entry['event_digest'])) $seen[$id]=$entry['event_digest'];
         }
         try {
-            $received=SyntheticWebhookReceiver::receiveWire($this->shop,
-                SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($event)),$seen);
+            $wire=is_string($event)?$event:SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($event));
+            $received=SyntheticWebhookReceiver::receiveWire($this->shop,$wire,$seen);
         } catch (\InvalidArgumentException|\JsonException) {
             return self::fixtureResult(422,'EVENT_CONTRACT_OR_SCOPE');
         }
@@ -187,7 +193,7 @@ final class SyntheticWorkspace
             return self::fixtureResult(409,'EVENT_STATUS_CONFLICT');
         }
         if ($received['type']==='product:publish:started' && $received['publish_action']!=='delete'
-            && ($observation['data']['publication_pending']??null)!==true) {
+            && !$transport->fixturePublicationMatches($resource,$received['publish_details'])) {
             return self::fixtureResult(409,'EVENT_PUBLICATION_CONFLICT');
         }
         if ($received['type']==='order:sent-to-production'

@@ -143,7 +143,7 @@ final class SyntheticWebhookReceiver
             'support-request:updated' => ['support_order_id'=>$data['order_id'],'support_type'=>$data['type'],
                 'support_status'=>$data['status'],'support_outcome'=>$data['outcome']],
             'product:publish:started' => [
-                'publish_action'=>$data['action'], 'out_of_stock_publishing'=>$data['out_of_stock_publishing']??null,
+                'publish_action'=>$data['action'],'publish_details'=>$data['publish_details']??null, 'out_of_stock_publishing'=>$data['out_of_stock_publishing']??null,
             ],
             'order:shipment:created' => [
                 'shipment_at'=>self::utcTimestamp($data['shipped_at']), 'tracking_sha256'=>hash('sha256',$data['carrier']['tracking_number']),

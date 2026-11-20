@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use DigiForgePrintifyApi\Runtime;
 use DigiForgePrintifyApi\SyntheticWorkspace;
+use DigiForgePrintifyApi\SyntheticWebhookReceiver;
 
 if (!defined('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY')) {
     define('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY', true);
@@ -184,6 +185,11 @@ try {
         ];
         $op('FIXTURE_WEBHOOK_EVENT',$delivery);
         $op('FIXTURE_WEBHOOK_EVENT',$delivery,'DUPLICATE_EVENT');
+        $staleDelivery=$delivery;
+        $staleDelivery['id']='653b6be8-2ff7-4ab5-a7a6-6889a8b3aaab';
+        $staleDelivery['resource']['data']['delivered_at']='2026-11-19 10:04:00+00:00';
+        $op('FIXTURE_WEBHOOK_EVENT',$staleDelivery,'EVENT_DELIVERY_CONFLICT');
+
 
         $op('ORDER_READ',['order_id'=>'order-1'],'tracking_hash',true);
         $support=['order_id'=>'order-1','reason'=>'incorrect_item','description'=>'Fixture only',
@@ -213,6 +219,11 @@ try {
         $express=array_intersect_key($order,array_flip(['external_id','line_items','address_to']));
         $express['external_id']='operator-scenario-express';
         $express['line_items'][]=['product_id'=>'product-2','variant_id'=>10,'quantity'=>1];
+        $quote=$workspace->execute($workspace->inspect()['revision'],hash('sha256','mixed-shipping'),
+            'ORDER_SHIPPING_QUOTE',['order'=>$express+['shipping_method'=>3,'is_printify_express'=>true,
+                'is_economy_shipping'=>false,'send_shipping_notification'=>false]]);
+        requireFixture(($quote['data']['rates_minor']['printify_express']??null)===1400,'Mixed quote disagrees with groups');
+
         $op('ORDER_EXPRESS_CREATE',['external_id'=>'operator-scenario-express','product_id'=>'product-1',
             'variant_id'=>'9','quantity'=>'2','line_items'=>[['product_id'=>'product-2','variant_id'=>'10','quantity'=>'1']]],
             'ordinary',true);
@@ -241,6 +252,9 @@ try {
                 'publish_details'=>['title'=>true,'description'=>false,'images'=>false,'variants'=>false,'tags'=>false,
                     'key_features'=>false,'shipping_template'=>false]]],
         ];
+        $wrongPublish=$publishEvent;
+        $wrongPublish['resource']['data']['publish_details']['images']=true;
+        $op('FIXTURE_WEBHOOK_EVENT',$wrongPublish,'EVENT_PUBLICATION_CONFLICT');
         $op('FIXTURE_WEBHOOK_EVENT',$publishEvent);
         $deleteEvent=$publishEvent;
         $deleteEvent['id']='653b6be8-2ff7-4ab5-a7a6-6889a8b3aaa4';
@@ -327,7 +341,9 @@ try {
         requireFixture($read['state']==='SYNTHETIC_OBSERVED' && $read['data']['status']==='fulfilled'
             && count($read['data']['shipments'])===1 && $read['data']['shipments'][0]['delivered_at']==='2026-11-19T10:05:00Z'
             && count($read['data']['line_items'])===2 && !$read['provider_outcome_confirmed'],'Restart lost order/tracking state');
-        $row = $db->query('SELECT scope_key,state_json FROM df_printify_fixture_workspace')->fetch(PDO::FETCH_ASSOC);
+        $select=$db->prepare('SELECT scope_key,state_json FROM df_printify_fixture_workspace WHERE scope_key=?');
+        $select->execute([hash('sha256',"107\nfixture-account")]);
+        $row=$select->fetch(PDO::FETCH_ASSOC);
         $tamper=$db->prepare('UPDATE df_printify_fixture_workspace SET state_json=? WHERE scope_key=?');
         $tamper->execute(['{}',$row['scope_key']]);
         try {
@@ -349,6 +365,12 @@ try {
         requireFixture(is_string($svg) && str_contains($svg,'data:image/png;base64,')
             && str_contains($svg,'Fixture inscription') && !$reopenPreview['provider_outcome_confirmed'],
             'Restart lost rendered fixture artifact or misattributed its origin');
+        $raster=$reopenPreview['data']['synthetic_raster']??null;
+        requireFixture(function_exists('imagepng')
+            ? ($raster['mime']??null)==='image/png'
+                && str_starts_with(base64_decode($raster['base64'],true),"\x89PNG\r\n\x1a\n")
+            : $raster===null,'PNG availability or portable SVG fallback was misreported');
+
         $supportAfterRestart=$workspace->execute($workspace->inspect()['revision'],hash('sha256','reopen-support'),
             'SUPPORT_LIST',['order_id'=>'order-1']);
         requireFixture($supportAfterRestart['state']==='SYNTHETIC_OBSERVED'
@@ -374,8 +396,62 @@ try {
     $operator->add_cap('digiforge_printify_review_shop_108');
     try {
         $other=Runtime::syntheticWorkspace('108');
-        requireFixture($other instanceof SyntheticWorkspace && $other->inspect()['revision']===0,
-            'Other authorized shop inherited existing fixture state');
+        requireFixture($other instanceof SyntheticWorkspace,'Other fixture unavailable');
+        if ($phase==='write') {
+            requireFixture($other->inspect()['revision']===0,'Other shop inherited fixture state');
+            $otherRun=static function(string $op,array $input=[]) use ($other):array {
+                $rev=$other->inspect()['revision'];
+                $result=$other->execute($rev,hash('sha256','other:'.$rev),$op,$input);
+                requireFixture($result['state']==='SYNTHETIC_OBSERVED','Other fixture operation failed: '.$op);
+                return $result;
+            };
+            $otherRun('IMAGE_UPLOAD',['file_name'=>'other.png','contents'=>base64_encode($png)]);
+            $otherRun('PRODUCT_CREATE',['title'=>'Other fixture product','description'=>'Other scope','blueprint_id'=>42,
+                'print_provider_id'=>7,'variants'=>[['id'=>9,'price'=>1200,'is_enabled'=>true]],'print_areas'=>[
+                    ['variant_ids'=>[9],'placeholders'=>[['position'=>'front','images'=>[
+                        ['id'=>'image-1','x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0],
+                    ]]]],
+                ]]);
+            $otherRun('PREVIEW_CREATE',['product_id'=>'product-1','external_id'=>'other-jpeg','variant_ids'=>[9],
+                'personalization'=>[$item,$art],'format'=>'jpeg']);
+            $otherRun('FIXTURE_PREVIEW_COMPLETE',['product_id'=>'product-1','task_id'=>'task-product-1-1']);
+            $jpeg=$otherRun('PREVIEW_READ',['product_id'=>'product-1','task_id'=>'task-product-1-1'])['data']['synthetic_raster']??null;
+            requireFixture(function_exists('imagejpeg')
+                ? ($jpeg['mime']??null)==='image/jpeg' && str_starts_with(base64_decode($jpeg['base64'],true),"\xff\xd8")
+                : $jpeg===null,'JPEG availability or portable SVG fallback was misreported');
+            $productEvent=['id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3aadd','type'=>'product:created',
+                'created_at'=>'2026-11-19 10:00:00+00:00',
+                'resource'=>['id'=>'product-1','type'=>'product','data'=>['shop_id'=>108]]];
+            $wire=SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($productEvent));
+            $wireAttempt=static function(string $wire,string $expected) use ($other):void {
+                $rev=$other->inspect()['revision'];
+                $result=$other->execute($rev,hash('sha256','wire:'.$rev),'FIXTURE_WEBHOOK_HTTP',['wire'=>$wire]);
+                requireFixture($result['reason']===$expected,'Unexpected HTTP fixture result: '.$expected);
+            };
+            $wireAttempt(str_replace('sha256=','sha256= ',$wire),'EVENT_FIXTURE_SIGNATURE');
+            $wireAttempt($wire,'NONE');
+            $wireAttempt($wire,'DUPLICATE_EVENT');
+            $productEvent['created_at']='2026-11-19 10:01:00+00:00';
+            $wireAttempt(SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($productEvent)),'EVENT_ID_CONFLICT');
+            $productEvent['resource']['data']['shop_id']=107;
+            $wireAttempt(SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($productEvent)),
+                'EVENT_CONTRACT_OR_SCOPE');
+            $otherRun('PRODUCT_DELETE',['product_id'=>'product-1','expected_version'=>1]);
+            $productEvent['type']='product:deleted';
+            $productEvent['id']='653b6be8-2ff7-4ab5-a7a6-6889a8b3aade';
+            $productEvent['resource']['data']['shop_id']=108;
+            $wireAttempt(SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($productEvent)),'NONE');
+            $disconnect=$otherRun('SHOP_DISCONNECT');
+            requireFixture($disconnect['state']==='SYNTHETIC_OBSERVED','Synthetic disconnect failed');
+            $event=['id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3aadf','type'=>'shop:disconnected',
+                'created_at'=>'2026-11-19 10:00:00+00:00','resource'=>['id'=>108,'type'=>'shop','data'=>null]];
+            $receipt=$other->execute($other->inspect()['revision'],hash('sha256','disconnect-event'),'FIXTURE_WEBHOOK_HTTP',
+                ['wire'=>SyntheticWebhookReceiver::wire(SyntheticWebhookReceiver::delivery($event))]);
+            requireFixture($receipt['state']==='SYNTHETIC_OBSERVED','Disconnect event missing');
+        } else {
+            requireFixture(array_column($other->inspect()['events'],'type')===['product:created','product:deleted','shop:disconnected'],
+                'Disconnect observation did not survive restart');
+        }
     } finally {
         $operator->remove_cap('digiforge_printify_review_shop_108');
     }

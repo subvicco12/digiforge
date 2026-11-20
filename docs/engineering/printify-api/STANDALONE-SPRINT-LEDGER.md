@@ -266,3 +266,27 @@ The full endpoint matrix above still applies. There are 51 typed selectors for 5
 | Webhook simulate | All 13 topic branches select an eligible persisted synthetic resource and use the same signed, bounded HTTP decoder and durable audit path. Stable generated identities deny replay. | Empty or ineligible fixtures deny simulation. The application does not publish a receiver or send network traffic. |
 
 The v0.13 fixture changes sit within the existing Sections 1–24 evidence mapping above. Operational native admission, independent recovery and revocation, credential custody and invalidation, hosted durability, and provider compatibility remain separate qualification gates.
+
+## Standalone 0.14.0 final offline behavior
+
+The endpoint matrix above remains authoritative for this candidate, with 51 selectors for 53 documented method/path pairs. The Sections 1–24 mapping above still applies. This increment adds local raster exports, aligns fixture quote and Express totals, and closes end-to-end coverage for all 13 documented webhook topics.
+
+| Topic | Durable workspace behavior verified in extracted WordPress |
+| --- | --- |
+| `shop:disconnected` | Exact numeric shop identity and local disconnected state. |
+| `product:created` | Existing exact product in the scoped shop. Malformed signatures, duplicate delivery, conflicting event ID, and cross-shop substitution denied. |
+| `product:updated` | Existing product and scoped readback. |
+| `product:deleted` | Scoped tombstone, with no recreation. |
+| `product:publish:started` | Pending product and exact publication flags for create/update. Delete-only event records a scoped observation without mutation. The delete payload carries no shop ID and uses the authenticated fixture workspace as its scope. |
+| `order:created` | Exact existing order and durable event replay protection. |
+| `order:updated` | Held order readback must match the claimed status. |
+| `order:sent-to-production` | Requires an existing explicit fixture transition. |
+| `order:line-item:canceled` | Line must belong to the exact order and already be canceled. |
+| `order:shipment:created` | Tracking digest and exact order line membership. |
+| `order:shipment:delivered` | Tracking digest and delivery timestamp. A conflicting older delivery is denied. |
+| `personalization-preview-task:processed` | Exact pending task or compatible terminal fixture acknowledgment. Completed references must match locally rendered fixture evidence. |
+| `support-request:updated` | Exact persisted order, bounded known support type, monotonic state and preserved terminal outcome. |
+
+All accepted event observations survive a disposable database crash and are checked against the stored audit. Requests are signed with public fixture material, use an isolated HTTP parser, and remain local to the operator workspace. No provider authenticity or delivery is inferred.
+
+Local preview readback preserves the SVG fallback and includes a PNG or JPEG when the selected format, PHP GD, and input bounds allow it. The raster path is restricted to printable ASCII and image dimensions up to 1024×1024. The illustration embeds owned artwork, has an exact output digest, and deliberately avoids provider transforms, color profiles, and product mockup geometry. Multi-placement geometry is persisted and checked independently in product editing. Mixed fulfillment quotes and created fixture groups share the same shipping calculation. Actual Express eligibility, provider prices, approval authority, independent recovery, credential custody, hosted verification, and provider acceptance remain open.

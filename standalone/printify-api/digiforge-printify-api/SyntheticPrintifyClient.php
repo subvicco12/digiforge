@@ -276,6 +276,17 @@ final class SyntheticPrintifyClient
                     throw new \InvalidArgumentException('Missing local preview artifact.');
                 }
                 $local=['synthetic_svg'=>$encoded,'synthetic_svg_sha256'=>hash('sha256',$svg)];
+                $raster=$body['synthetic_raster']??null;
+                if ($raster!==null) {
+                    $sample=$raster['base64']??null;
+                    $bytes=is_string($sample)&&strlen($sample)<=43692?base64_decode($sample,true):false;
+                    $image=$bytes===false?false:@getimagesizefromstring($bytes);
+                    if ($image===false || $image[0]!==480 || $image[1]!==250
+                        || !in_array($image['mime'],['image/png','image/jpeg'],true) || $image['mime']!==($raster['mime']??null)) {
+                        throw new \InvalidArgumentException('Malformed synthetic raster preview.');
+                    }
+                    $local['synthetic_raster']=$raster+['sha256'=>hash('sha256',$bytes)];
+                }
             }
             return PrintifyProductResponse::project(['request'=>$plan,'options'=>[]],$body) + $local
                 + ['buyer_approval_verified'=>false,'provider_configuration_verified'=>false];
