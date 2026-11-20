@@ -41,6 +41,11 @@ final class Runtime
             require_once __DIR__ . '/SyntheticOperatorPanel.php';
             SyntheticOperatorPanel::render();
         }
+        $shop=self::shop();
+        $account=self::fixtureAccount();
+        if ($shop!==null && $account!==null && self::integrationReadiness($shop,$account)!==[]) {
+            echo '<p>Operational provider reads and mutations remain disabled. Offline evidence is synthetic.</p>';
+        }
         $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
         $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
         if ($workspace !== null) {
@@ -230,6 +235,30 @@ final class Runtime
     {
         require_once __DIR__.'/CustodyReadTransport.php';
         return CustodyReadTransport::read($scope,$operation,$input,$exchange,$fixture);
+    }
+
+    /** Explicit local adapter path. Never registered as an HTTP or operator dispatch action. */
+    public static function readFromProviderSimulation(array $scope,string $operation,array $input,
+        \Closure $exchange): array
+    {
+        require_once __DIR__.'/CustodyReadTransport.php';
+        return CustodyReadTransport::read($scope,$operation,$input,$exchange,true,true);
+    }
+
+    public static function integrationReadiness(string $shop,string $account): array
+    {
+        if (!self::permitsFixtureAccount($shop,$account)) {
+            return [];
+        }
+        $blocked='BLOCKED_EXTERNAL';
+        $disabled='DISABLED_BY_POLICY';
+        return [
+            'provider_read'=>[
+                'offline'=>self::providerReadAvailable()?'OFFLINE_VERIFIED':$blocked,
+                'hosted'=>$blocked,'provider'=>$blocked,'dispatch'=>$disabled,
+            ],
+            'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled],
+        ];
     }
 
     private const READ_ENGINE = [

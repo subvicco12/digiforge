@@ -177,5 +177,8 @@ requireFixture($store->read($id) === null, 'Revoked operator context retained ac
 requireFixture($store->readAuthenticated($request, $expected, 1700000001) === null, 'Revoked operator retained signed read permission');
 wp_set_current_user(1);
 require __DIR__ . "/custody-mock-acceptance.php";
+if ($phase==='write') {
+    require __DIR__ . "/operational-sprint-acceptance.php";
+}
 require __DIR__ . "/disposable-workspace.php";
 echo "Disposable snapshot $phase PASS\n";

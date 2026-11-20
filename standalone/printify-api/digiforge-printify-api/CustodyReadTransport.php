@@ -19,7 +19,7 @@ final class CustodyReadTransport
      * The exchange is injected by the trusted host, never read from WordPress settings or operator input.
      * It must enforce the deadline and byte cap while reading, and share quota across workers.
      */
-    public static function read(array $scope, string $operation, array $input, \Closure $exchange, bool $fixture = false): array
+    public static function read(array $scope, string $operation, array $input, \Closure $exchange, bool $fixture = false, bool $providerSimulation = false): array
     {
         $status = Status::snapshot();
         if (!$fixture && ($status['stop_all'] || $status['external_lock'] || $status['release_hold']
@@ -45,7 +45,8 @@ final class CustodyReadTransport
         }
         try {
             $request = [
-                'schema'=>self::REQUEST, 'evidence_class'=>'SIGNED_CUSTODY_FIXTURE',
+                'schema'=>self::REQUEST,
+                'evidence_class'=>$providerSimulation?'SIGNED_PROVIDER_TRANSPORT_SIMULATION':'SIGNED_CUSTODY_FIXTURE',
                 'operation_id'=>bin2hex(random_bytes(32)),
                 'provider'=>'printify', 'shop'=>$scope['shop'], 'account_reference'=>$scope['account_reference'],
                 'credential_reference'=>$scope['credential_reference'], 'source_sha'=>$scope['source_sha'],
@@ -72,7 +73,7 @@ final class CustodyReadTransport
                 return self::result('UNAVAILABLE','CUSTODY_DEADLINE');
             }
             if ($response['state']==='UNKNOWN' && in_array($response['reason'],
-                ['JOURNAL','RECOVERY_REQUIRED','RECEIPT','FINAL_FENCE','CALLER_UNCERTAIN'],true)) {
+                ['JOURNAL','RECOVERY_REQUIRED','RECEIPT','FINAL_FENCE','CALLER_UNCERTAIN','PROVIDER_READ_UNCERTAIN','DEADLINE'],true)) {
                 return self::result('UNKNOWN','CUSTODY_UNCERTAIN');
             }
             return self::result('DENIED','CUSTODY_CONTROL');
@@ -116,7 +117,9 @@ final class CustodyReadTransport
             if ($review['state']!=='OFFLINE_PROVIDER_READ_REVIEWED') {
                 return self::result('DENIED','CUSTODY_BODY');
             }
-            return self::result('AUTHENTICATED_CUSTODY_FIXTURE','NONE')+[
+            $state=$request['evidence_class']==='SIGNED_PROVIDER_TRANSPORT_SIMULATION'
+                ?'AUTHENTICATED_PROVIDER_TRANSPORT_SIMULATION':'AUTHENTICATED_CUSTODY_FIXTURE';
+            return self::result($state,'NONE')+[
                 'evidence_class'=>$record['evidence_class'], 'freshness_verified'=>true,
                 'operation_id'=>$request['operation_id'], 'request_sha256'=>$digest,
                 'response_sha256'=>$record['content_sha256'], 'receipt_sha256'=>hash('sha256',$response['record']),

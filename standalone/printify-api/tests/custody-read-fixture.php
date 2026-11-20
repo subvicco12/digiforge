@@ -78,3 +78,11 @@ foreach (['REGISTER','CLAIM','RECEIPT_READ'] as $action) {
     $assertCustody($native['state']==='BLOCKED' && !$native['provider_execution_authorized']
         && $native['reason']==='NATIVE_CORE_UNAVAILABLE','Standalone fabricated native authority');
 }
+
+$readiness=Runtime::integrationReadiness('107','fixture-account');
+$assertCustody($readiness['provider_read']['offline']==='OFFLINE_VERIFIED'
+    && $readiness['provider_read']['hosted']==='BLOCKED_EXTERNAL'
+    && $readiness['provider_read']['provider']==='BLOCKED_EXTERNAL'
+    && $readiness['provider_read']['dispatch']==='DISABLED_BY_POLICY'
+    && $readiness['native_mutation']['admission']==='BLOCKED_EXTERNAL','Operational capability was overclaimed');
+$assertCustody(Runtime::integrationReadiness('108','fixture-account')===[],'Cross-shop readiness disclosure');
