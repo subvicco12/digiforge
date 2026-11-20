@@ -249,3 +249,20 @@ Combined with the two preceding matrices, the additions below cover 51 selectors
 | 4, 13–14, 20, 24 | Held native inspection remains available. Core mutation admission, independently qualified checkpoint and revocation, exclusive credential custody, old-token invalidation, hosted recovery and live provider acceptance remain external gates. |
 
 The receiver recognizes the 13 documented topics. It binds disconnect and deletion to fixture tombstones, line cancellation and support updates to scoped readback, and failed or corrupt preview events to a pending task. Completed preview events, support status changes without matching authoritative fixture readback, and publication-start delete envelopes remain unsupported. The standalone HTTP fixture sends bounded HTTP bytes over a private socket pair with no listener. The WordPress workspace exercises the same decoder and persists replay digests with audit state. [Printify events](https://developers.printify.com/#events)
+
+## Standalone 0.13.0 offline behavior
+
+The full endpoint matrix above still applies. There are 51 typed selectors for 53 public method/path pairs. This increment changes fixture behavior behind existing routes and adds an explicitly local preview completion control.
+
+| Operations or event topics | Accepted standalone fixture behavior | Remaining limits |
+| --- | --- | --- |
+| Personalization options and configure, preview create and read | Bounded textbox and exact same-shop artwork URL. Pending, completed, failed and corrupt observations. The local SVG embeds selected PNG artwork and escaped text. Completion tests bind the task to the current product revision. | The SVG is a local illustration, with a 16 KiB artwork input ceiling. It does not model provider mockup geometry, generate provider PNG or JPEG results, or establish buyer verification. Older unrenderable tasks cannot be completed online or inferred successful. |
+| Express create, order read/list, cancellation, fixture production and fulfillment | A single request can produce separate Express and ordinary orders. Product, variant, quantity, line identity, cost and shipping amounts are bound. Each group has independent order and line transitions. | Variant eligibility and US costs are deterministic fixture values. Actual rates and production scheduling require provider evidence. |
+| Shop disconnect and product create/update/delete events | Scope and exact resource checks. Disconnection and deletion observations require the corresponding local held tombstone. |
+| Order create/update/production/line-canceled/shipment-created/shipment-delivered | Per-topic order status, line identity or shipment tracking correlation. Distinct event IDs are recorded together with workspace audit state. |
+| Personalization preview task processed | Terminal status checked against the exact task. A completed event must match the task's known synthetic variant references and a locally rendered artifact. |
+| Product publish started | Recognizes create/update and the documented delete-only data shape. The latter is correlated to the exact product in the operator's authenticated fixture shop and records observation without deleting it. |
+| Support request updated | First observation can introduce a known support type for an existing order. Subsequent observations validate timestamp, matching type, monotone status and terminal outcome. No support request implies a confirmed refund or provider mutation. | Unknown support types and terminal outcome rewrites are denied. |
+| Webhook simulate | All 13 topic branches select an eligible persisted synthetic resource and use the same signed, bounded HTTP decoder and durable audit path. Stable generated identities deny replay. | Empty or ineligible fixtures deny simulation. The application does not publish a receiver or send network traffic. |
+
+The v0.13 fixture changes sit within the existing Sections 1–24 evidence mapping above. Operational native admission, independent recovery and revocation, credential custody and invalidation, hosted durability, and provider compatibility remain separate qualification gates.

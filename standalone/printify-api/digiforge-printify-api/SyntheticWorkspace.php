@@ -47,7 +47,7 @@ final class SyntheticWorkspace
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM',
-                'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT'], true)) {
+                'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
         }
         try {
@@ -100,6 +100,13 @@ final class SyntheticWorkspace
 
     private function simulate(SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $op, array $input, array &$events): array
     {
+        if ($op==='FIXTURE_PREVIEW_COMPLETE') {
+            $product=$input['product_id']??null;
+            $task=$input['task_id']??null;
+            $ok=count($input)===2 && is_string($product) && is_string($task)
+                && $transport->completeFixturePreview($product,$task);
+            return self::fixtureResult($ok?200:409,$ok?'NONE':'PREVIEW_STATE_OR_ID');
+        }
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {
             return $this->acceptEvent($transport, $client, $input, $events);
         }
@@ -159,22 +166,16 @@ final class SyntheticWorkspace
             'shop:disconnected'=>['state'=>$transport->fixtureDisconnected()?'SYNTHETIC_OBSERVED':'DENIED'],
             'product:deleted'=>['state'=>$transport->fixtureProductDeleted($resource)?'SYNTHETIC_OBSERVED':'DENIED'],
             'personalization-preview-task:processed'=>[
-                'state'=>$transport->finishFixturePreview($resource,$received['preview_status'])?'SYNTHETIC_OBSERVED':'DENIED'],
-            'support-request:updated'=>$client->run('SUPPORT_DETAIL',[
-                'order_id'=>$received['support_order_id'],'support_request_id'=>$resource]),
+                'state'=>$transport->finishFixturePreview($resource,$received['preview_status'],$received['preview_mockups'])?'SYNTHETIC_OBSERVED':'DENIED'],
+            'support-request:updated'=>[
+                'state'=>$transport->observeFixtureSupport($received)?'SYNTHETIC_OBSERVED':'DENIED',
+            ],
             default=>str_starts_with($topic,'product:')
                 ? (($selection=$transport->fixtureProductSelectors($resource))===null?[]:$client->run('PRODUCT_READ',$selection))
                 : $client->run('ORDER_READ',['order_id'=>$resource]),
         };
         if (($observation['state']??null)!=='SYNTHETIC_OBSERVED') {
             return self::fixtureResult(422,'EVENT_RESOURCE_UNAVAILABLE');
-        }
-        if ($topic==='support-request:updated') {
-            $request=$observation['data']['support_request'];
-            if ($request['type']!==$received['support_type'] || $request['source_status']!==$received['support_status']
-                || $request['outcome']!==$received['support_outcome']) {
-                return self::fixtureResult(409,'EVENT_SUPPORT_CONFLICT');
-            }
         }
         if (isset($received['canceled_line_id'])) {
             $lines=array_column($observation['data']['line_items'],null,'id');
@@ -185,7 +186,7 @@ final class SyntheticWorkspace
         if (isset($received['resource_status']) && $observation['data']['status']!==$received['resource_status']) {
             return self::fixtureResult(409,'EVENT_STATUS_CONFLICT');
         }
-        if ($received['type']==='product:publish:started'
+        if ($received['type']==='product:publish:started' && $received['publish_action']!=='delete'
             && ($observation['data']['publication_pending']??null)!==true) {
             return self::fixtureResult(409,'EVENT_PUBLICATION_CONFLICT');
         }

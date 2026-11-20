@@ -207,15 +207,17 @@ final class SyntheticPrintifyClient
         }
         $remaining=$input['line_items'];
         $result=[];
+        $types=[];
         foreach ($rows as $row) {
             $id=$row['id']??null;
             $attributes=$row['attributes']??null;
             $type=$attributes['fulfilment_type']??null;
             $lines=$attributes['line_items']??null;
             if (($row['type']??null)!=='order'||!self::identity($id)||isset($result[$id])
-                ||!in_array($type,['express','ordinary'],true)||!is_array($lines)||!array_is_list($lines)||$lines===[]) {
+                ||!in_array($type,['express','ordinary'],true)||isset($types[$type])||!is_array($lines)||!array_is_list($lines)||$lines===[]) {
                 throw new \InvalidArgumentException('Unexpected Express order identity or response.');
             }
+            $types[$type]=true;
             $projected=[];
             foreach ($lines as $line) {
                 $identity=array_intersect_key($line,array_flip(['product_id','variant_id','quantity']));
@@ -228,11 +230,13 @@ final class SyntheticPrintifyClient
                         break;
                     }
                 }
-                if ($match===false||($line['status']??null)!=='pending') {
+                if ($match===false||($line['status']??null)!=='pending'
+                    || !is_int($line['cost']??null)||$line['cost']<0
+                    || !is_int($line['shipping_cost']??null)||$line['shipping_cost']<0) {
                     throw new \InvalidArgumentException('Unexpected Express order line.');
                 }
                 unset($remaining[$match]);
-                $projected[]=$identity+['status'=>'pending'];
+                $projected[]=$identity+array_intersect_key($line,array_flip(['id','status','cost','shipping_cost']));
             }
             $result[$id]=['id'=>$id,'fulfilment_type'=>$type,'line_items'=>$projected];
         }
@@ -260,11 +264,20 @@ final class SyntheticPrintifyClient
         if (in_array($operation,['PERSONALIZATION_OPTIONS','PERSONALIZATION_CONFIGURE','PREVIEW_CREATE','PREVIEW_READ'],true)) {
             $expectedStatus=match($operation){'PERSONALIZATION_CONFIGURE'=>201,'PREVIEW_CREATE'=>202,default=>200};
             if ($status!==$expectedStatus||in_array($operation,['PREVIEW_CREATE','PREVIEW_READ'],true)
-                && (!in_array($body['status']??null,$operation==='PREVIEW_CREATE'?['pending']:['pending','failed','corrupt'],true)
+                && (!in_array($body['status']??null,$operation==='PREVIEW_CREATE'?['pending']:['pending','completed','failed','corrupt'],true)
                     ||($body['mockups']??[])!==[])) {
                 throw new \InvalidArgumentException('Unexpected synthetic personalization response.');
             }
-            return PrintifyProductResponse::project(['request'=>$plan,'options'=>[]],$body)
+            $local=[];
+            if ($operation==='PREVIEW_READ' && ($body['status']??null)==='completed') {
+                $encoded=$body['synthetic_svg']??null;
+                $svg=is_string($encoded)&&strlen($encoded)<=32768?base64_decode($encoded,true):false;
+                if ($svg===false || !str_starts_with($svg,'<svg xmlns="http://www.w3.org/2000/svg"')) {
+                    throw new \InvalidArgumentException('Missing local preview artifact.');
+                }
+                $local=['synthetic_svg'=>$encoded,'synthetic_svg_sha256'=>hash('sha256',$svg)];
+            }
+            return PrintifyProductResponse::project(['request'=>$plan,'options'=>[]],$body) + $local
                 + ['buyer_approval_verified'=>false,'provider_configuration_verified'=>false];
         }
         if ($operation==='ORDER_ADDRESS_CHANGE') {

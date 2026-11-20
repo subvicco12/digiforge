@@ -34,6 +34,12 @@ final class SyntheticWorkspacePanel
             } elseif (($result['state'] ?? null) === 'UNKNOWN') {
                 echo '<p role="alert">The synthetic outcome is unknown. Inspect the audit and read back the fixture state.</p>';
             }
+            $preview=$result['data']['synthetic_svg']??null;
+            unset($result['data']['synthetic_svg']);
+            if (is_string($preview) && strlen($preview)<=32768 && preg_match('/^[A-Za-z0-9+\/=]+$/D',$preview)===1) {
+                echo '<figure><img alt="Locally rendered synthetic preview" src="data:image/svg+xml;base64,'
+                    .\esc_attr($preview).'"></figure>';
+            }
             echo '<h3>Operation result</h3><pre>'.\esc_html(
                 json_encode($result, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) ?: ''
             ).'</pre>';
@@ -145,6 +151,7 @@ final class SyntheticWorkspacePanel
         ],
         'Personalization'=>[
             'PERSONALIZATION_OPTIONS'=>['Inspect fixture personalization fields',['product_id']],
+            'FIXTURE_PREVIEW_COMPLETE'=>['Complete local fixture preview',['product_id','task_id']],
             'PREVIEW_READ'=>['Inspect fixture preview task',['product_id','task_id']],
         ],
         'Shipping, orders and tracking'=>[
@@ -171,7 +178,7 @@ final class SyntheticWorkspacePanel
 
     private static function renderOperationForms(string $shop, int $revision): void
     {
-        $supported = [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM', 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT'];
+        $supported = [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM', 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE'];
         foreach (self::FORMS as $section=>$operations) {
             echo '<h3>'.\esc_html($section).'</h3>';
             foreach ($operations as $op=>[$label,$fields]) {

@@ -110,6 +110,7 @@ final class SyntheticPrintifyTransport
             return false;
         }
         $this->orders[$orderId]['status'] = 'fulfilled';
+        $this->advanceExpressLines($orderId,'fulfilled');
         $this->orders[$orderId]['shipments'] = [[
             'carrier'=>'Synthetic carrier', 'number'=>'SYNTHETIC-'.$orderId,
             'url'=>'https://tracking.example.invalid/'.$orderId, 'delivered_at'=>null,
@@ -171,7 +172,9 @@ final class SyntheticPrintifyTransport
             || !is_string($operation) || !is_string($method) || !is_string($endpoint) || !is_array($body)) {
             return self::error(403, 'scope_denied');
         }
-        if (!$this->connected && $operation!=='SHOPS_READ') {
+        if (!$this->connected && $operation!=='SHOPS_READ'
+            && !($operation==='WEBHOOK_SIMULATE' && preg_match('~/webhooks/(webhook-[1-9][0-9]{0,2})/simulate$~D',$endpoint,$match)===1
+                && ($this->webhooks[$match[1]]['topic']??null)==='shop:disconnected')) {
             return self::error(403,'shop_disconnected');
         }
         if (++$this->requests > self::MAX_REQUESTS) {
@@ -294,17 +297,17 @@ final class SyntheticPrintifyTransport
             ]]),
             'CATALOG_SHIPPING_METHOD_READ' => self::catalogShipping($route[0]),
             'IMAGE_UPLOAD' => $this->upload($body),
-            'IMAGE_READ' => self::lookup($this->availableImages(), $route[0]),
-            'UPLOADS_READ' => self::page($this->availableImages(), $route),
+            'IMAGE_READ' => self::lookup($this->availableImages(true), $route[0]),
+            'UPLOADS_READ' => self::page($this->availableImages(true), $route),
             'IMAGE_ARCHIVE' => $this->archiveImage($route[0], $body),
             'PRODUCT_CREATE' => $this->createProduct($body),
             'PERSONALIZATION_OPTIONS','PERSONALIZATION_CONFIGURE','PREVIEW_CREATE','PREVIEW_READ'
                 => $this->personalization($operation,$route,$body),
             'PRODUCT_GPSR_READ' => isset($this->availableProducts()[$route[0]])
                 ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
-            'PRODUCT_READ' => self::lookup($this->availableProducts(), $route[0]),
+            'PRODUCT_READ' => self::lookup($this->availableProducts(true), $route[0]),
             'PRODUCT_UPDATE' => $this->updateProduct($route[0], $body, $version),
-            'PRODUCTS_READ' => self::page($this->availableProducts(), $route),
+            'PRODUCTS_READ' => self::page($this->availableProducts(true), $route),
             'PRODUCT_DELETE' => $this->deleteProduct($route[0], $body, $version),
             'PRODUCT_PUBLISH' => $this->publishProduct($route[0], $body, $version),
             'PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'
@@ -338,14 +341,17 @@ final class SyntheticPrintifyTransport
     private function createExpress(array $body): array
     {
         SyntheticPrintifyClient::validateExpress($body);
-        $order=$this->createOrder($body);
+        $order=$this->createOrder($body,true);
         if ($order['status']!==201) {
             return $order;
         }
-        $row=$order['body'];
-        $lines=array_map(static fn(array $line):array=>$line+['status'=>'pending'],$row['line_items']);
-        return self::response(200,['data'=>[['type'=>'order','id'=>$row['id'],
-            'attributes'=>['fulfilment_type'=>'express','line_items'=>$lines]]]]);
+        $groups=[];
+        foreach ($order['body'] as $row) {
+            $groups[]=['type'=>'order','id'=>$row['id'],'attributes'=>[
+                'fulfilment_type'=>$row['fulfilment_type'],'line_items'=>$row['line_items'],
+            ]];
+        }
+        return self::response(200,['data'=>$groups]);
     }
 
     private function simulateWebhook(string $id,array $body): array
@@ -357,21 +363,109 @@ final class SyntheticPrintifyTransport
         if ($topic===null) {
             return self::error(404,'webhook_not_found');
         }
-        $resourceType=str_starts_with($topic,'product:')?'product':'order';
-        $rows=$resourceType==='product'?$this->availableProducts():$this->orders;
-        $row=end($rows);
-        if ($row===false||!in_array($topic,['order:created','order:updated','product:created','product:updated'],true)) {
+        $resource=$this->simulationResource($topic);
+        if ($resource===null) {
             return self::error(409,'simulation_resource_unavailable');
         }
-        $data=['shop_id'=>(int)$this->shop];
-        if ($topic==='order:updated') {
-            $data['status']=$row['status'];
-        }
-        $fingerprint=hash('sha256',$this->shop.':'.$id.':'.$topic.':'.$row['id']);
+        $fingerprint=hash('sha256',json_encode([$this->shop,$id,$topic,$resource],JSON_THROW_ON_ERROR));
         $eventId=vsprintf('%s%s-%s-%s-%s-%s%s%s',str_split(substr($fingerprint,0,32),4));
-        $this->simulatedEvent=['id'=>$eventId,'type'=>$topic,'created_at'=>'2026-11-19 00:00:00+00:00',
-            'resource'=>['id'=>$row['id'],'type'=>$resourceType,'data'=>$data]];
+        $this->simulatedEvent=['id'=>$eventId,'type'=>$topic,
+            'created_at'=>$this->simulationTime($resource['data']??[]),'resource'=>$resource];
         return self::response(204,[]);
+    }
+
+    private function simulationTime(array $data): string
+    {
+        return $data['shipped_at']??$data['delivered_at']??'2026-11-19 00:00:00+00:00';
+    }
+
+    private function simulationResource(string $topic): ?array
+    {
+        $scope=['shop_id'=>(int)$this->shop];
+        if ($topic==='shop:disconnected') {
+            return $this->connected?null:['id'=>(int)$this->shop,'type'=>'shop','data'=>null];
+        }
+        if (str_starts_with($topic,'product:') || $topic==='personalization-preview-task:processed') {
+            foreach (array_reverse($this->products) as $product) {
+                $deleted=($product['is_deleted']??false)===true;
+                if ($topic==='product:deleted' && $deleted
+                    || in_array($topic,['product:created','product:updated'],true) && !$deleted) {
+                    return ['id'=>$product['id'],'type'=>'product','data'=>$scope];
+                }
+                if ($topic==='product:publish:started' && ($product['synthetic_publish_pending']??false)) {
+                    return ['id'=>$product['id'],'type'=>'product','data'=>$scope+[
+                        'action'=>'create','out_of_stock_publishing'=>0,'publish_details'=>$product['fixture_publish_details']??array_fill_keys(
+                            ['title','description','images','variants','tags','key_features','shipping_template'],false),
+                    ]];
+                }
+                if ($topic==='personalization-preview-task:processed' && !$deleted) {
+                    foreach (array_reverse($product['preview_tasks']??[]) as $task) {
+                        if ($task['status']!=='pending') {
+                            $mockups=$task['status']==='completed'?self::fixtureMockups($task):[];
+                            return ['id'=>$task['task_id'],'type'=>'personalization-preview-task','data'=>$scope+[
+                                'task_id'=>$task['task_id'],'status'=>$task['status'],
+                                'preview_count'=>count($mockups),'mockups'=>$mockups,
+                            ]];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        foreach (array_reverse($this->orders) as $order) {
+            $data=match ($topic) {
+                'order:created'=>$scope,
+                'order:updated'=>$scope+['status'=>$order['status']],
+                'order:sent-to-production'=>isset($order['sent_to_production_at'])?$scope:null,
+                'order:line-item:canceled'=>$this->simulationCanceledLine($order,$scope),
+                'order:shipment:created','order:shipment:delivered'=>$this->simulationShipment($order,$topic,$scope),
+                default=>null,
+            };
+            if ($data!==null) {
+                return ['id'=>$order['id'],'type'=>'order','data'=>$data];
+            }
+            if ($topic==='support-request:updated' && ($order['support_requests']??[])!==[]) {
+                $request=array_values($order['support_requests'])[count($order['support_requests'])-1];
+                return ['id'=>$request['id'],'type'=>'support-request','data'=>$scope+[
+                    'order_id'=>$order['id'],'type'=>$request['type'],'status'=>$request['status'],
+                    'outcome'=>$request['outcome'],'status_details'=>null,
+                ]];
+            }
+        }
+        return null;
+    }
+
+    private function simulationCanceledLine(array $order,array $scope): ?array
+    {
+        foreach ($order['line_items'] as $line) {
+            if (($line['status']??null)==='canceled') {
+                return $scope+['line_item_id'=>$line['id'],'status'=>'canceled','status_details'=>null];
+            }
+        }
+        return null;
+    }
+
+    private function simulationShipment(array $order,string $topic,array $scope): ?array
+    {
+        $shipment=$order['shipments'][0]??null;
+        if ($shipment===null) {
+            return null;
+        }
+        $delivered=$topic==='order:shipment:delivered';
+        if ($delivered && $shipment['delivered_at']===null) {
+            return null;
+        }
+        $active=array_filter($order['line_items'],static fn(array $line):bool=>($line['status']??null)!=='canceled');
+        $data=$scope+['carrier'=>['code'=>'SYNTHETIC','tracking_number'=>$shipment['number'],'tracking_url'=>$shipment['url']],
+            'skus'=>array_values(array_unique(array_map(static fn(array $line):string=>'fixture-sku-'.$line['variant_id'],$active)))];
+        return $delivered?$data+['delivered_at'=>gmdate('Y-m-d H:i:s+00:00',strtotime($shipment['delivered_at']))]
+            :$data+['shipped_at'=>'2026-11-19 00:00:00+00:00','line_item_ids'=>array_values(array_column($active,'id'))];
+    }
+
+    private static function fixtureMockups(array $task): array
+    {
+        return array_map(static fn(int $variant):array=>['variant_id'=>$variant,'mockup_id'=>'Fixture',
+            'src'=>'https://images.example.invalid/'.$task['task_id'].'-'.$variant.'.svg'],$task['variant_ids']??[]);
     }
 
     public function takeSimulatedEvent(): ?array
@@ -400,7 +494,7 @@ final class SyntheticPrintifyTransport
         $id = 'image-'.(count($this->images)+1);
         $row = ['id'=>$id, 'file_name'=>$file, 'width'=>$size[0], 'height'=>$size[1], 'size'=>strlen($bytes),
             'mime_type'=>'image/png', 'preview_url'=>'https://images.example.invalid/'.$id.'.png', 'upload_time'=>'2026-11-19 00:00:00'];
-        $this->images[$id] = $row;
+        $this->images[$id] = $row + (strlen($bytes)<=16384 ? ['render_png'=>base64_encode($bytes)] : []);
         $this->duplicates[$key] = $id;
         return self::response(201, $row);
     }
@@ -442,17 +536,21 @@ final class SyntheticPrintifyTransport
         }
         ++$row['synthetic_version'];
         $this->products[$id] = $row;
+        unset($row['preview_tasks'],$row['personalization_configs']);
         return self::response(200, $row);
     }
 
-    private function availableImages(): array
+    private function availableImages(bool $project=false): array
     {
-        return array_filter($this->images, static fn(array $image): bool => ($image['archived']??false)!==true);
+        $rows=array_filter($this->images,static fn(array $image):bool=>($image['archived']??false)!==true);
+        return $project?array_map(static fn(array $row):array=>array_diff_key($row,['render_png'=>true]),$rows):$rows;
     }
 
-    private function availableProducts(): array
+    private function availableProducts(bool $project=false): array
     {
-        return array_filter($this->products, static fn(array $product): bool => ($product['is_deleted']??false)!==true);
+        $rows=array_filter($this->products,static fn(array $product):bool=>($product['is_deleted']??false)!==true);
+        return $project?array_map(static fn(array $row):array=>array_diff_key($row,
+            ['preview_tasks'=>true,'personalization_configs'=>true]),$rows):$rows;
     }
 
     private function archiveImage(string $id,array $body): array
@@ -519,6 +617,11 @@ final class SyntheticPrintifyTransport
         }
         $this->products[$id]['synthetic_publish_pending']=true;
         $this->products[$id]['synthetic_publication_state']='PENDING';
+        $this->products[$id]['fixture_publish_details']=[
+            'title'=>$fields['title']??false,'description'=>$fields['description']??false,'images'=>$fields['images']??false,
+            'variants'=>$fields['variants']??false,'tags'=>$fields['tags']??false,'key_features'=>$fields['keyFeatures']??false,
+            'shipping_template'=>$fields['shipping_template']??false,
+        ];
         ++$this->products[$id]['synthetic_version'];
         return self::response(200,[]);
     }
@@ -657,7 +760,7 @@ final class SyntheticPrintifyTransport
         return self::response(200, ['standard'=>$cost]);
     }
 
-    private function createOrder(array $body): array
+    private function createOrder(array $body,bool $express=false): array
     {
         $external = $body['external_id'] ?? null;
         $lines = $this->orderLines($body['line_items'] ?? null);
@@ -668,6 +771,30 @@ final class SyntheticPrintifyTransport
         $key = 'order:'.$external;
         if (isset($this->duplicates[$key])) {
             return self::error(409, 'duplicate_order');
+        }
+        if ($express) {
+            $groups=[];
+            foreach ($lines as $index=>$line) {
+                $group=$line['variant_id']===9?'express':'ordinary';
+                $price=array_column($this->products[$line['product_id']]['variants'],'price','id')[$line['variant_id']];
+                $groups[$group][]=$line+['id'=>'line-'.($index+1),'status'=>'pending',
+                    'cost'=>$price*$line['quantity'],'shipping_cost'=>($group==='express'?700:500)+200*($line['quantity']-1)];
+            }
+            if (count($this->orders)+count($groups)>100) {
+                return self::error(429,'fixture_order_limit');
+            }
+            $created=[];
+            foreach ($groups as $group=>$groupLines) {
+                $id='order-'.(count($this->orders)+1);
+                $row=['id'=>$id,'external_id'=>$external,'shop_id'=>(int)$this->shop,'status'=>'on-hold',
+                    'fulfilment_type'=>$group,'line_items'=>$groupLines,'shipments'=>[],'sent_to_production_at'=>null,
+                    'total_price'=>array_sum(array_column($groupLines,'cost')),
+                    'total_shipping'=>array_sum(array_column($groupLines,'shipping_cost'))];
+                $this->orders[$id]=$row;
+                $created[]=$row;
+            }
+            $this->duplicates[$key]=array_column($created,'id');
+            return self::response(201,$created);
         }
         $id = 'order-'.(count($this->orders)+1);
         foreach ($lines as $index => &$line) {
@@ -690,6 +817,7 @@ final class SyntheticPrintifyTransport
             return self::error(409, 'order_not_cancelable');
         }
         $this->orders[$id]['status'] = 'canceled';
+        $this->advanceExpressLines($id,'canceled');
         unset($this->productionConfirmations[$id]);
         return self::response(200, $this->orders[$id]);
     }
@@ -716,8 +844,34 @@ final class SyntheticPrintifyTransport
         }
         unset($this->productionConfirmations[$id]);
         $this->orders[$id]['status'] = 'in-production';
+        $this->advanceExpressLines($id,'in-production');
         $this->orders[$id]['sent_to_production_at'] = '2026-11-19T00:00:00Z';
         return self::response(200, $this->orders[$id]);
+    }
+
+    private function advanceExpressLines(string $id,string $status): void
+    {
+        if (!isset($this->orders[$id]['fulfilment_type'])) {
+            return;
+        }
+        foreach ($this->orders[$id]['line_items'] as &$line) {
+            if ($line['status']!=='canceled') {
+                $line['status']=$status;
+            }
+        }
+        unset($line);
+    }
+
+    public function completeFixturePreview(string $productId,string $taskId): bool
+    {
+        $task=$this->products[$productId]['preview_tasks'][$taskId]??null;
+        if (($task['status']??null)!=='pending'||!isset($task['synthetic_svg'])
+            || !isset($this->availableProducts()[$productId])
+            || $task['product_version']!==$this->products[$productId]['synthetic_version']) {
+            return false;
+        }
+        $this->products[$productId]['preview_tasks'][$taskId]['status']='completed';
+        return true;
     }
 
     public function fixtureDisconnected(): bool
@@ -730,16 +884,23 @@ final class SyntheticPrintifyTransport
         return ($this->products[$id]['is_deleted']??false)===true;
     }
 
-    public function finishFixturePreview(string $taskId,string $status): bool
+    public function finishFixturePreview(string $taskId,string $status,array $mockups): bool
     {
-        if (!in_array($status,['failed','corrupt'],true)) {
-            return false;
-        }
         foreach ($this->availableProducts() as $id=>$product) {
-            if (($product['preview_tasks'][$taskId]['status']??null)==='pending') {
+            $task=$product['preview_tasks'][$taskId]??null;
+            if ($task===null) {
+                continue;
+            }
+            if ($status==='completed') {
+                return $mockups!==[] && $mockups===self::fixtureMockups($task)
+                    && ($task['status']==='completed' || $this->completeFixturePreview($id,$taskId));
+            }
+            if ($task['status']==='pending' && in_array($status,['failed','corrupt'],true)) {
                 $this->products[$id]['preview_tasks'][$taskId]['status']=$status;
+                unset($this->products[$id]['preview_tasks'][$taskId]['synthetic_svg']);
                 return true;
             }
+            return $task['status']===$status;
         }
         return false;
     }
@@ -758,7 +919,14 @@ final class SyntheticPrintifyTransport
         }
         if ($operation==='PREVIEW_READ') {
             $task=$product['preview_tasks'][$route[1]]??null;
-            return $task===null?self::error(404,'preview_task_not_found'):self::response(200,$task);
+            if ($task===null) {
+                return self::error(404,'preview_task_not_found');
+            }
+            if ($task['status']!=='completed') {
+                unset($task['synthetic_svg']);
+            }
+            return self::response(200,$task);
+
         }
         if (array_key_exists('product_id',$body)) {
             return self::error(422,'personalization_body_scope');
@@ -805,9 +973,37 @@ final class SyntheticPrintifyTransport
             }
         }
         $taskId='task-'.$id.'-'.(count($tasks)+1);
-        $task=['task_id'=>$taskId,'status'=>'pending','external_id'=>$correlation];
+        $svg=$this->renderPreview($items);
+        if ($svg===null) {
+            return self::error(422,'preview_artwork_size');
+        }
+        $task=['task_id'=>$taskId,'status'=>'pending','external_id'=>$correlation,
+            'product_version'=>$product['synthetic_version'],'variant_ids'=>$body['variant_ids'],'synthetic_svg'=>base64_encode($svg)];
         $this->products[$id]['preview_tasks'][$taskId]=$task;
+        unset($task['synthetic_svg']);
         return self::response(202,$task);
+    }
+
+    /** Local illustration. The source image is embedded and cannot trigger a network fetch. */
+    private function renderPreview(array $items): ?string
+    {
+        $content='';
+        foreach ($items as $item) {
+            if ($item['type']==='textbox') {
+                $text=htmlspecialchars($item['input']['text'],ENT_XML1|ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+                $content.='<text x="12" y="230" font-size="16">'.$text.'</text>';
+                continue;
+            }
+            $images=array_column($this->availableImages(),null,'preview_url');
+            $artwork=$images[$item['input']['image_url']]['render_png']??null;
+            if ($artwork===null) {
+                return null;
+            }
+            $content.='<image x="12" y="30" width="456" height="176" href="data:image/png;base64,'.$artwork.'"/>';
+        }
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="250" viewBox="0 0 480 250">'
+            .'<rect width="480" height="250" fill="white"/><text x="12" y="20">Synthetic personalization preview</text>'
+            .$content.'</svg>';
     }
 
     private function changeOrderAddress(string $orderId,array $body): array
@@ -879,11 +1075,55 @@ final class SyntheticPrintifyTransport
                 return self::error(409,'support_request_already_pending');
             }
         }
-        $id='support-'.$orderId.'-'.(count($requests)+1);
+        $sequence=count($requests)+1;
+        do {
+            $id='support-'.$orderId.'-'.$sequence++;
+        } while (isset($requests[$id]));
         $entry=['id'=>$id,'order_id'=>$orderId,'type'=>$type,'status'=>'pending','outcome'=>'unresolved',
             'line_item_ids'=>$lineIds,'created_at'=>'2026-11-19T00:00:00Z','updated_at'=>'2026-11-19T00:00:00Z'];
         $this->orders[$orderId]['support_requests'][$id]=$entry;
         return self::response(201,$address?$entry+['resolution'=>'support_request_created']:$entry);
+    }
+
+    /** Apply a signed fixture observation to an exact existing order, with monotone terminal state. */
+    public function observeFixtureSupport(array $event): bool
+    {
+        $order=$event['support_order_id'];
+        $id=$event['resource_id'];
+        $type=$event['support_type'];
+        $status=$event['support_status'];
+        $outcome=$event['support_outcome'];
+        $time=$event['created_at'];
+        if (!isset($this->orders[$order])
+            || preg_match('/^support-(order-[1-9][0-9]{0,2})-[1-9][0-9]*$/D',$id,$match)===1 && $match[1]!==$order
+            || !in_array($type,['order_cancellation','order_address_editing',
+            'order_shipping_upgrade','order_has_issues','order_tracking_status','order_refund','order_reprint'],true)) {
+            return false;
+        }
+        $requests=$this->orders[$order]['support_requests']??[];
+        foreach ($this->orders as $other=>$row) {
+            if ($other!==$order && isset($row['support_requests'][$id])) {
+                return false;
+            }
+        }
+        $prior=$requests[$id]??null;
+        $rank=['pending'=>0,'processing'=>1,'in_progress'=>1,'resolved'=>2];
+        if ($prior!==null && $prior['type']===$type && $prior['status']===$status && $prior['outcome']===$outcome) {
+            return true; // Same observed state, without refreshing its revision or timestamp.
+        }
+        if (($prior===null && count($requests)>=24) || $prior!==null && (
+            $prior['type']!==$type || strtotime($time)<=strtotime($prior['updated_at'])
+            || $rank[$status]<$rank[$prior['status']] || $prior['status']==='resolved'
+        )) {
+            return false;
+        }
+        if ($status==='resolved' && $outcome==='unresolved') {
+            return false;
+        }
+        $record=$prior??['id'=>$id,'order_id'=>$order,'type'=>$type,'line_item_ids'=>[],'created_at'=>$time];
+        $this->orders[$order]['support_requests'][$id]=array_replace($record,
+            ['status'=>$status,'outcome'=>$outcome,'updated_at'=>$time]);
+        return true;
     }
 
     private function createWebhook(array $body): array

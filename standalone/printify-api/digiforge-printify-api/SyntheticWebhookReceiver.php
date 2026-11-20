@@ -110,7 +110,8 @@ final class SyntheticWebhookReceiver
         }
         if (!is_array($event) || !self::envelope($event) || !self::exactJsonMembers($raw, self::expectedMembers($event))
             || preg_match('/^[1-9][0-9]{0,18}$/D', $shop) !== 1
-            || (string)($event['resource']['data']['shop_id'] ?? $event['resource']['id']) !== $shop) {
+            || ($event['type']!=='product:publish:started'||($event['resource']['data']['action']??null)!=='delete')
+                && (string)($event['resource']['data']['shop_id'] ?? $event['resource']['id']) !== $shop) {
             return self::result(422, 'EVENT_CONTRACT_OR_SCOPE');
         }
 
@@ -138,11 +139,11 @@ final class SyntheticWebhookReceiver
         return $observation + match ($event['type']) {
             'order:updated' => ['resource_status'=>$data['status']],
             'order:line-item:canceled' => ['canceled_line_id'=>$data['line_item_id']],
-            'personalization-preview-task:processed' => ['preview_status'=>$data['status']],
+            'personalization-preview-task:processed' => ['preview_status'=>$data['status'],'preview_mockups'=>$data['mockups']],
             'support-request:updated' => ['support_order_id'=>$data['order_id'],'support_type'=>$data['type'],
                 'support_status'=>$data['status'],'support_outcome'=>$data['outcome']],
             'product:publish:started' => [
-                'publish_action'=>$data['action'], 'out_of_stock_publishing'=>$data['out_of_stock_publishing'],
+                'publish_action'=>$data['action'], 'out_of_stock_publishing'=>$data['out_of_stock_publishing']??null,
             ],
             'order:shipment:created' => [
                 'shipment_at'=>self::utcTimestamp($data['shipped_at']), 'tracking_sha256'=>hash('sha256',$data['carrier']['tracking_number']),
@@ -170,6 +171,10 @@ final class SyntheticWebhookReceiver
             return self::keys($resource,['id','type','data']) && $resource['type']==='shop'
                 && is_int($resource['id']) && $resource['id']>0 && $resource['data']===null;
         }
+        if ($event['type']==='product:publish:started' && ($resource['data']??null)===['action'=>'delete']) {
+            return self::keys($resource,['id','type','data']) && $resource['type']==='product'
+                && self::identifier($resource['id']);
+        }
         if (!self::keys($resource, ['id','type','data']) || !self::identifier($resource['id'])
             || $resource['type']!==self::EVENT_TYPES[$event['type']] || !is_array($resource['data'])
             || !is_int($resource['data']['shop_id']??null) || $resource['data']['shop_id']<1) {
@@ -182,9 +187,7 @@ final class SyntheticWebhookReceiver
             'order:line-item:canceled' => self::keys($data,['shop_id','line_item_id','status','status_details'])
                 && self::identifier($data['line_item_id']) && $data['status']==='canceled'
                 && ($data['status_details']===null || self::identifier($data['status_details'])),
-            'personalization-preview-task:processed' => self::keys($data,['shop_id','task_id','status','preview_count','mockups'])
-                && $data['task_id']===$resource['id'] && in_array($data['status'],['failed','corrupt'],true)
-                && $data['preview_count']===0 && $data['mockups']===[],
+            'personalization-preview-task:processed' => self::previewDetails($data,$resource['id']),
             'support-request:updated' => self::keys($data,['shop_id','order_id','type','status','status_details','outcome'])
                 && self::identifier($data['order_id']) && ($data['type']===null || self::identifier($data['type']))
                 && in_array($data['status'],['pending','processing','in_progress','resolved'],true)
@@ -195,6 +198,24 @@ final class SyntheticWebhookReceiver
             'order:shipment:delivered' => self::shipmentDetails($data,'delivered_at'),
             default => self::keys($data,['shop_id']),
         };
+    }
+
+    private static function previewDetails(array $data,string $task): bool
+    {
+        if (!self::keys($data,['shop_id','task_id','status','preview_count','mockups']) || $data['task_id']!==$task
+            || !in_array($data['status'],['completed','failed','corrupt'],true) || !is_array($data['mockups'])
+            || !array_is_list($data['mockups']) || count($data['mockups'])>20
+            || $data['preview_count']!==count($data['mockups'])) {
+            return false;
+        }
+        foreach ($data['mockups'] as $mockup) {
+            if (!is_array($mockup)||!self::keys($mockup,['variant_id','mockup_id','src'])
+                || !is_int($mockup['variant_id'])||$mockup['variant_id']<1||$mockup['mockup_id']!=='Fixture'
+                || $mockup['src']!=='https://images.example.invalid/'.$task.'-'.$mockup['variant_id'].'.svg') {
+                return false;
+            }
+        }
+        return ($data['status']==='completed')===($data['mockups']!==[]);
     }
 
     private static function publishDetails(array $data): bool
@@ -271,7 +292,8 @@ final class SyntheticWebhookReceiver
     {
         $data=$event['resource']['data'] ?? [];
         return 7 + count($data) + match ($event['type']) {
-            'product:publish:started' => count($data['publish_details']),
+            'product:publish:started' => count($data['publish_details']??[]),
+            'personalization-preview-task:processed' => 3*count($data['mockups']),
             'order:shipment:created', 'order:shipment:delivered' => count($data['carrier']),
             default => 0,
         };
