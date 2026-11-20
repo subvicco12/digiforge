@@ -219,6 +219,19 @@ final class Runtime
         return NativeHeldInspection::read($shop, $account, $scope, $binding, $context);
     }
 
+    public static function prepareNativeMutation(string $shop,string $account,array $request): array
+    {
+        require_once __DIR__.'/NativeHeldInspection.php';
+        return NativeHeldInspection::prepareMutation($shop,$account,$request);
+    }
+
+    public static function readFromCustody(array $scope,string $operation,array $input,\Closure $exchange,
+        bool $fixture=false): array
+    {
+        require_once __DIR__.'/CustodyReadTransport.php';
+        return CustodyReadTransport::read($scope,$operation,$input,$exchange,$fixture);
+    }
+
     private const READ_ENGINE = [
         'Listings/Validator.php', 'POD/PrintifyApiRequest.php',
         'POD/PrintifyOrderEvidence.php', 'POD/PrintifyApiReadEvidence.php',

@@ -38,7 +38,7 @@ check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.14.0',
+    'version' => '0.15.0',
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,
@@ -96,6 +96,9 @@ if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
     check(Runtime::validateCatalog('107', $bp, str_repeat(' ', 262145))['state'] === 'DENIED', 'Oversize body accepted');
     check(Runtime::validateCatalog('107', $bp, '{broken')['state'] === 'DENIED', 'Malformed body accepted');
     require __DIR__.'/provider-routing-fixture.php';
+    $GLOBALS['fixture_environment']='local';
+    require __DIR__.'/custody-read-fixture.php';
+    $GLOBALS['fixture_environment']='production';
     require __DIR__.'/native-authority-fixture.php';
     if ($withLifecycle) {
         require __DIR__.'/lifecycle-fixture.php';

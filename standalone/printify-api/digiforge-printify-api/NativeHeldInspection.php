@@ -77,6 +77,36 @@ final class NativeHeldInspection
         }
     }
 
+    /** Check the canonical request for handoff only. No Core writer is invoked. */
+    public static function prepareMutation(string $shop,string $account,array $request): array
+    {
+        if (!Runtime::permitsFixtureAccount($shop,$account)
+            || !in_array($request['action']??null,['REGISTER','CLAIM','RECEIPT_READ'],true)) {
+            return self::result('DENIED','NATIVE_BINDING');
+        }
+        try {
+            if (!class_exists(NativeBuildIdentity::class) || !class_exists(NativePortContract::class)) {
+                return self::result('BLOCKED','NATIVE_CORE_UNAVAILABLE');
+            }
+            $directory=dirname((new \ReflectionClass(NativeBuildIdentity::class))->getFileName());
+            $stamp=@file_get_contents($directory.'/native-build.json',false,null,0,65537);
+            if (!is_string($stamp) || !hash_equals(self::STAMP,hash('sha256',$stamp))
+                || NativeBuildIdentity::source()!==self::CORE || NativePortContract::digest()!==self::SPEC
+                || (new \ReflectionClass(NativePortContract::class))->getFileName()!==$directory.'/NativePortContract.php') {
+                return self::result('BLOCKED','NATIVE_BUILD_INCOMPATIBLE');
+            }
+            if (!NativePortContract::valid('mutation_request',$request)
+                || ($request['binding']['actor_id']??null)!==\get_current_user_id()) {
+                return self::result('DENIED','NATIVE_BINDING');
+            }
+            return self::result('BLOCKED','CURRENT_NATIVE_OPERATIONAL_AUTHORITY_UNAVAILABLE')+[
+                'canonical_action'=>$request['action'],'canonical_request_shape_verified'=>true,
+            ];
+        } catch (\Throwable) {
+            return self::result('BLOCKED','NATIVE_CONTRACT_UNAVAILABLE');
+        }
+    }
+
     private static function result(string $state, string $reason): array
     {
         return ['schema' => 'DF_STANDALONE_NATIVE_HELD_INSPECTION_1', 'state' => $state, 'reason' => $reason,
