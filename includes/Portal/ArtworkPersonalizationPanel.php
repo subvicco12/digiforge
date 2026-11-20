@@ -31,7 +31,15 @@ final class ArtworkPersonalizationPanel
         $this->form('personalization_schema',$commercial,$factory);
         if($selected!==null&&$selected['record']['kind']==='SCHEMA')echo '<input type="hidden" name="parent_hash" value="'.esc_attr($selected['hash']).'">';
         echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option></select></label><p>Spelled-month policy requires required first_name/second_name/date fields; name caps at most 13 for mug or 16 for poster. ISO date cap10 remains separate from native display caps18/24. Native typography/fit remain unverified.</p>';
-        echo '<h4>Save customer-input schema</h4><p>Each key must match one recorded native text rectangle. Types: text/date; explicit character caps 1–80. Changing a schema creates another immutable version.</p><textarea name="fields_json" rows="6" maxlength="16000" required>'.esc_textarea(CommercialResearchContract::json($fields)).'</textarea><button class="df-button">Save field schema</button></form>';
+        echo '<h4>Save customer-input schema</h4><p>Set the customer input for each recorded artwork rectangle. Saving a change creates an immutable schema version.</p>';
+        foreach($fields as $field){
+            $name='fields['.$field['key'].']';
+            echo '<fieldset><legend>'.esc_html(str_replace('_',' ',$field['key'])).'</legend>';
+            echo '<label>Input type <select name="'.esc_attr($name.'[type]').'"><option value="text"'.selected($field['type'],'text',false).'>Text</option><option value="date"'.selected($field['type'],'date',false).'>ISO date</option></select></label>';
+            echo '<label>Character limit <input type="number" min="1" max="80" step="1" required name="'.esc_attr($name.'[max_length]').'" value="'.esc_attr((string)$field['max_length']).'"></label>';
+            echo '<label>Required <select name="'.esc_attr($name.'[required]').'"><option value="1"'.selected($field['required'],true,false).'>Yes</option><option value="0"'.selected($field['required'],false,false).'>No</option></select></label></fieldset>';
+        }
+        echo '<button class="df-button">Save field schema</button></form>';
         if($selected===null){echo '</section>';return;}
         $r=$selected['record'];$schema=$r['kind']==='SCHEMA'?$selected:$repo->read($shop,$r['data']['schema_hash']);
         if(is_wp_error($schema)){echo '<p>Source schema unavailable.</p></section>';return;}
@@ -77,7 +85,12 @@ final class ArtworkPersonalizationPanel
         $repo=new ArtworkPersonalizationRepository();$result=null;
         try{
             $op=$post['operation']??null;$parent=($post['parent_hash']??'')===''?null:$post['parent_hash'];
-            if($op==='personalization_schema'){$raw=$post['fields_json']??null;if(!is_string($raw)||strlen($raw)>16000)throw new \RuntimeException();$fields=json_decode($raw,true,16,JSON_THROW_ON_ERROR);if(!is_array($fields))throw new \RuntimeException();$policy=$post['date_display_policy']??'';if(!is_string($policy))throw new \RuntimeException();$result=$repo->define('personalized_pod',$factory,$fields,$parent,$policy===''?null:$policy);}
+            if($op==='personalization_schema'){
+                $fields=$this->schemaFields($post);
+                $policy=$post['date_display_policy']??'';
+                if(!is_string($policy))throw new \RuntimeException();
+                $result=$repo->define('personalized_pod',$factory,$fields,$parent,$policy===''?null:$policy);
+            }
             elseif(in_array($op,['personalization_sample','personalization_review'],true)){
                 $hash=$post[$op==='personalization_sample'?'schema_hash':'proof_hash']??null;if(!is_string($hash))throw new \RuntimeException();$source=$repo->read('personalized_pod',$hash);if(is_wp_error($source))return $source;if($source['record']['factory_hash']!==$factory)return $this->error();
                 if($op==='personalization_sample'){if(!is_array($post['samples']??null))throw new \RuntimeException();$result=$repo->sample('personalized_pod',$hash,$post['samples'],$parent);}
@@ -97,6 +110,28 @@ final class ArtworkPersonalizationPanel
         if(is_wp_error($result))return $result;if(!is_array($result))return $this->error();
         return ['hash'=>$commercial,'design_factory_hash'=>$factory,'personalization_hash'=>$result['hash']];
     }
+    private function schemaFields(array $post): array
+    {
+        if(!array_key_exists('fields',$post)){
+            $raw=$post['fields_json']??null;
+            if(!is_string($raw)||strlen($raw)>16000)throw new \RuntimeException();
+            return json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+        }
+        $rows=$post['fields'];
+        if(array_key_exists('fields_json',$post)||!is_array($rows)||count($rows)>10)throw new \RuntimeException();
+        $fields=[];
+        foreach($rows as $key=>$row){
+            if(!is_string($key)||!is_array($row)||count($row)!==3||
+                !in_array($row['type']??null,['text','date'],true)||
+                !in_array($row['required']??null,['0','1'],true)||
+                !is_string($row['max_length']??null)||!preg_match('/^(?:[1-9]|[1-7][0-9]|80)$/D',$row['max_length'])){
+                throw new \RuntimeException();
+            }
+            $fields[]=['key'=>$key,'type'=>$row['type'],'required'=>$row['required']==='1','max_length'=>(int)$row['max_length']];
+        }
+        return $fields;
+    }
+
     private function form(string $op,string $commercial,string $factory):void {echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'"><input type="hidden" name="action" value="digiforge_commercial_research"><input type="hidden" name="shop_key" value="personalized_pod"><input type="hidden" name="operation" value="'.esc_attr($op).'"><input type="hidden" name="workflow_hash" value="'.esc_attr($commercial).'"><input type="hidden" name="factory_hash" value="'.esc_attr($factory).'"><input type="hidden" name="return_url" value="'.esc_attr($this->base()).'">';wp_nonce_field('digiforge_commercial_research');}
     private function base():string {$id=get_queried_object_id();$v=$id>0?get_permalink($id):home_url('/');return is_string($v)?$v:home_url('/');}
     private function url(string $commercial,string $factory,string $version):string {return add_query_arg(['df_view'=>'research','df_shop'=>'personalized_pod','df_research_version'=>$commercial,'df_factory_version'=>$factory,'df_personalization_version'=>$version],$this->base()).'#df-artwork-personalization';}

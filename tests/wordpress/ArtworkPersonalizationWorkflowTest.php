@@ -5,6 +5,28 @@ require_once __DIR__.'/fixtures/ArtworkPersonalizationFixture.php';
 use DigiForge\Research\ArtworkPersonalizationRepository as Repo;
 final class ArtworkPersonalizationWorkflowTest extends WP_UnitTestCase
 {
+ public function testStructuredFieldsSaveAndFeedExistingSampleRoute():void
+ {
+  $art=ArtworkPersonalizationFixture::approved();
+  $panel=new DigiForge\Portal\CommercialResearchPanel();
+  $base=['shop_key'=>'personalized_pod','workflow_hash'=>$art['record']['commercial_hash'],'factory_hash'=>$art['hash']];
+  $rows=[];
+  foreach(ArtworkPersonalizationFixture::fields() as $field){
+   $rows[$field['key']]=['type'=>$field['type'],'required'=>$field['required']?'1':'0','max_length'=>(string)$field['max_length']];
+  }
+  $post=$base+['operation'=>'personalization_schema','fields'=>$rows];
+  $bad=$post;
+  $bad['fields']['first_name']['max_length']='13x';
+  self::assertWPError($panel->process($bad));
+  self::assertWPError($panel->process($post+['fields_json'=>'[]']));
+  $saved=$panel->process($post);
+  self::assertNotWPError($saved);
+  $schema=(new Repo())->read('personalized_pod',$saved['personalization_hash']);
+  self::assertNotWPError($schema);
+  self::assertSame(ArtworkPersonalizationFixture::fields(),$schema['record']['data']['fields']);
+  $proof=$panel->process($base+['operation'=>'personalization_sample','schema_hash'=>$saved['personalization_hash'],'samples'=>ArtworkPersonalizationFixture::values()]);
+  self::assertNotWPError($proof);
+ }
  public function testNormalPortalRegistrationMountsResearchPostActions():void {
   (new DigiForge\Portal\Portal())->register();
   self::assertNotFalse(has_action('admin_post_digiforge_commercial_research'));
