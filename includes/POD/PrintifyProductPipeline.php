@@ -93,7 +93,16 @@ final class PrintifyProductPipeline {
  public function plan(string $hash):array|WP_Error {
   $p=$this->get('plan',$hash);if(is_wp_error($p))return $p;if(!is_array($p['request']??null)||!PrintifyProductRequest::intact($p['request']))return self::error('request_integrity');$link=(new Shop2ProductWorkflow())->read($p['workflow']);if(is_wp_error($link))return $link;$valid=(new Shop2ProductWorkflow())->export($link,$p['package']);return is_wp_error($valid)?$valid:$p;
  }
- public function receipt(string $hash):array|WP_Error{$r=$this->get('receipt',$hash);if(is_wp_error($r))return $r;$p=$this->plan($r['plan_hash']);return is_wp_error($p)?$p:$r;}
+ public function receipt(string $hash):array|WP_Error {
+  $validated=$this->receiptWithPlan($hash);
+  return is_wp_error($validated)?$validated:$validated['receipt'];
+ }
+ /** Read the receipt and the exact plan already validated for that receipt. */
+ public function receiptWithPlan(string $hash):array|WP_Error {
+  $receipt=$this->get('receipt',$hash);if(is_wp_error($receipt))return $receipt;
+  $plan=$this->plan($receipt['plan_hash']);if(is_wp_error($plan))return $plan;
+  return ['receipt'=>$receipt,'plan'=>$plan];
+ }
  public function approvalPayload(string $hash):array|WP_Error {
   $p=$this->plan($hash);if(is_wp_error($p))return $p;return ['purpose'=>'printify-product-operation-v1','plan_hash'=>$hash,'request_fingerprint'=>$p['request']['fingerprint'],'package_hash'=>$p['package'],'integration_id'=>$p['integration_id'],'connection_binding_hash'=>$p['connection_scope']['binding_hash']??null,'required_scope'=>$p['request']['required_scope']];
  }
