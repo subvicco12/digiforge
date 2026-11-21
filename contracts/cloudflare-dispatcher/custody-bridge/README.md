@@ -183,3 +183,61 @@ with one singleton each, and one manual Workflow definition. The smoke run
 uses one instance and step with one caller and one bridge DO invocation.
 USD 0 is conditional on a verified Free account with spare quotas. Hosted
 measurements and owner authorization are outstanding.
+
+#### Offline control-plane rehearsal
+
+Run the targeted suite against the two already reviewed first-create archives:
+
+```sh
+DF_FIRST_CREATE_ARCHIVES=/path/to/reviewed/zips python3 -B -m unittest discover \
+  -s contracts/cloudflare-dispatcher/custody-bridge -p test_private_first_create.py -v
+```
+
+The fixed account-scoped sequence is:
+
+1. Check Free entitlement, headroom, zero incremental cost, atomic private
+   creation support, both ZIP digests, and empty Worker, namespace and Workflow
+   inventories. Use one durable SQLite journal in the fixture.
+2. POST twice to `/workers/workers` with public URL flags false and no modules.
+   GET both immutable Worker IDs and verify both URL flags and empty public
+   routing before either first version upload.
+3. POST the bridge version to `/workers/workers/{id}/versions` and deploy its
+   exact version via `/workers/scripts/{name}/deployments`. Observe its SQLite
+   namespace. Repeat for the caller with the bridge service binding and the
+   caller's initial SQLite migration.
+4. PUT `/workflows/digiforge-stage-a-manual` with no schedule. Read back the
+   definition and verify zero instances. Upload and deploy the final caller
+   version with the Workflow binding and the same caller namespace ID, omitting
+   the migration. Verify both active versions, exact binding sets, two private
+   Workers, two unchanged SQLite namespace IDs, one Workflow and zero instances.
+5. Stop on any mismatch or uncertain result. Preserve the consumed local attempt
+   and request fingerprints. Reconcile by read-only inventory of the exact
+   account and known resource IDs. Deletion needs its own approval. Rehearsal
+   neither automatically retries nor deletes resources.
+
+Paths above are relative to `/accounts/{account_id}`. The fixture uses normalized
+observations for route inventory, uploaded version content digest, deployed
+version ID and Workflow instance enumeration. It does not assert Cloudflare
+returns those fields on the depicted calls. A hosted adapter must independently
+establish each observation through the documented APIs, including complete
+routing inventory (zone routes and Worker custom domains), pagination and
+version-content readback, or deny before any code upload. In particular, tests
+do not establish that Cloudflare honors private flags on the first create or
+that a timeout rules out a committed write. The rehearsal has no physical
+transport, credential integration, GitHub workflow or operation to create a
+Workflow instance. The clock budget checks bracket returning fixture calls.
+A separately reviewed physical adapter would also need hard I/O deadlines.
+
+#### Governance handoff
+
+The protected `cloudflare-synthetic-deploy-execution` ref is reserved for the
+accepted inert bootstrap. A manual workflow must exist on the repository's
+default branch and the selected ref must contain the runnable reviewed version.
+The deployment environment allows only the protected ref. A default-branch
+registration by itself would leave the only eligible ref inert. This work
+does not supply an eligible live workflow or substitute for independent
+deployment authorization. Before disabled provisioning, obtain a separately
+approved governed source promotion and workflow registration path, verify the
+effective environment approval and credential custody, and obtain current
+account-level entitlement, effective permission and atomic-privacy evidence
+for the exact frozen artifacts. Hosted invocation remains separate.
