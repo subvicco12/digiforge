@@ -107,3 +107,24 @@ $assertCustody($review(json_encode(['instance_id'=>$prepared['instance_id'],'sta
 $expired=$sign($request,$body,200,0,['observed_at'=>time()-40,'expires_at'=>time()-1]);
 $assertCustody($review(json_encode(['instance_id'=>$prepared['instance_id'],'status'=>'complete','output'=>$expired]))['state']==='DENIED',
     'Expired hosted receipt admitted');
+
+// Exercise the actual Worker and Workflow classes through the offline platform stub.
+$fixturePair=sodium_crypto_sign_seed_keypair(hash('sha256','public-test-only-custody-mock-v1',true));
+$fixtureScope=array_replace($scope,['signer_key'=>base64_encode(sodium_crypto_sign_publickey($fixturePair))]);
+$intent=CustodyReadTransport::prepareHostedFixture($fixtureScope);
+$testDir=dirname(__DIR__,3).'/contracts/cloudflare-dispatcher/test/';
+$process=proc_open(['node','--import',$testDir.'stage-a-platform-register.mjs',$testDir.'custody-first-create-process.mjs'],
+    [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes);
+if (!is_resource($process)) throw new RuntimeException('Cannot start platform fixture');
+try {
+    fwrite($pipes[0],$intent['wire']."\n");
+    fclose($pipes[0]);
+    stream_set_timeout($pipes[1],5);
+    $output=stream_get_contents($pipes[1],270337);
+    $result=CustodyReadTransport::reviewHostedFixture($fixtureScope,$intent['operation_id'],$intent['request_sha256'],$output);
+    $assertCustody($result['state']==='ASYNC_FIXTURE_RECEIPT_VERIFIED','Offline Workflow-to-PHP receipt denied');
+} finally {
+    foreach ($pipes as $pipe) if (is_resource($pipe)) fclose($pipe);
+    proc_terminate($process);
+    proc_close($process);
+}
