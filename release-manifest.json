@@ -1,0 +1,15 @@
+{
+  "execution_branch": "cloudflare-synthetic-exec-v1-c0ce24c4",
+  "execution_enabled": false,
+  "schema": "DF_SYNTHETIC_DEPLOYMENT_GOVERNANCE_V1",
+  "sha256": {
+    ".github/workflows/cloudflare-synthetic-v1-registration.yml": "431c7ee75ebaaad324f9babef24ff6b6b4cc22f2d066d10dfcccc04245b7ddcd",
+    "artifacts/custody-bridge-first-create-disabled.zip": "a7654fe8c3b2bfe9382dccf2fbbe9827c15fb50e77acc8f319f51089cc924b6a",
+    "artifacts/stage-a-caller-first-create-disabled.zip": "4d0773a1dd9552e6a9bbd21fa950b569a2b7684ad3f85d40085fdd646320f92a",
+    "contracts/cloudflare-dispatcher/custody-bridge/README.md": "bd747e381ef4ead9be945c565f67a6a2ca2ffbc0434aefd951d4807290c47d76",
+    "contracts/cloudflare-dispatcher/custody-bridge/private_first_create.py": "1c1f829e8629a0b1a39a7cde204d8483d7a07658a0feb622bc5bc5a2e93b0b79",
+    "contracts/cloudflare-dispatcher/custody-bridge/test_private_first_create.py": "266f77fc6bda3d80634ac88e5b766c299eac25d9f8ddfe2316c115724fa8d479"
+  },
+  "source_sha": "c0ce24c418820c9043558dec9cd89a4e8a4163e2",
+  "source_tree": "e5199252879224bc4e0d00cf68784b622a8bbe53"
+}
