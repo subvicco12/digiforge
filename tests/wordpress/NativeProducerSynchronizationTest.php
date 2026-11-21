@@ -35,6 +35,9 @@ final class NativeProducerSynchronizationTest extends WP_UnitTestCase
         }
         try {
             $wpdb->query('COMMIT');
+            $previousAutocommit = (int) $wpdb->get_var('SELECT @@session.autocommit');
+            self::assertSame(0, $previousAutocommit);
+            self::assertNotFalse($wpdb->query('SET SESSION autocommit = 1'));
             $journal = new NativeProducerPublicationJournal($wpdb);
             $mapping = hash('sha256', 'mapping');
             $operation = hash('sha256', 'operation');
@@ -74,6 +77,9 @@ final class NativeProducerSynchronizationTest extends WP_UnitTestCase
                 $wpdb->query("DROP TABLE {$table}");
             } finally {
                 add_filter('query', [$this, '_drop_temporary_tables']);
+                if (isset($previousAutocommit)) {
+                    $wpdb->query('SET SESSION autocommit = ' . $previousAutocommit);
+                }
             }
         }
     }
