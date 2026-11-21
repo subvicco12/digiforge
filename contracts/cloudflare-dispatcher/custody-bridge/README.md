@@ -123,3 +123,63 @@ The private caller and bridge both use two-second deadlines.
 
 No provider execution, external credential custody or independent witness
 qualification follows from this fixture run.
+
+### Disabled first-create and asynchronous handoff
+
+Run `python3 contracts/cloudflare-dispatcher/custody-bridge/build_first_create.py EXACT_SHA OUTPUT_DIR`.
+The first-create caller archive adds the frozen class's initial SQLite migration. Use it
+only on a fresh target. The older caller overlay omits the migration for an existing
+namespace. The bridge archive defines its own SQLite class. The caller
+has the sole private service binding, to the exact bridge Worker, and carries the
+manual Workflow definition. Both manifests are disabled, route-free, and have empty
+scope. No Workflow instance or signer is created by the builder.
+
+After separately recorded account selection, current Free eligibility and quota
+headroom, effective permissions, independent approval and exact digests:
+
+1. Approve disabled provisioning only. Use the reviewed atomic-private creation
+   mechanism to create both Workers with public URL flags false before uploading
+   code. Install the disabled bridge first, then the disabled caller; use the ZIP
+   manifests exactly. Read back script IDs, deployment versions, disabled URL
+   settings, empty routes, two SQLite class migrations, one Workflow definition,
+   and the caller's exact bridge binding. Stop on ambiguous creation, any public
+   exposure, or a configuration mismatch. Preserve the protected bootstrap and
+   its existing rulesets. The package does not authorize a general Wrangler
+   first upload or validate Cloudflare's atomic API behavior.
+2. On the authorized disposable local WordPress fixture, prepare one intent:
+   `wp --path=LOCAL_WP --user=FIXTURE_OPERATOR eval-file standalone/printify-api/tools/review-hosted-custody.php prepare < scope.json > intent.json`.
+   Supply the local shop, account reference, opaque fixture credential reference,
+   exact source SHA and revisions, and the synthetic signer's public key in the
+   scope envelope. Keep the prepared operation ID and request digest locally.
+3. Obtain separate approval for the exact request bytes, Workflow instance,
+   synthetic signer, deployment versions and a window of at most 120 seconds.
+   Pin the caller config and bridge scope to that evidence. Manually create
+   exactly one `digiforge-stage-a-manual` instance with the generated
+   `stage-a-custody-…` ID and payload `DF_STAGE_A_CUSTODY_READ_1` containing the
+   separately approved identity and compact wire. No provider egress or token.
+4. Read the same Workflow instance via the authorized private Cloudflare
+   management plane. Export only `{instance_id,status,output}`, translating the
+   control-plane instance identifier to `instance_id` and preserving the
+   exact signed record, signature, and body strings. Supply that export
+   as a JSON string in the review input envelope with the original scope,
+   operation ID and approved request digest. Run `wp --path=LOCAL_WP
+   --user=FIXTURE_OPERATOR eval-file standalone/printify-api/tools/review-hosted-custody.php review < review.json`.
+   The PHP importer does not contact Cloudflare. It verifies the signed evidence,
+   not the control plane itself. Finish verification inside the original receipt
+   freshness window. Missing or uncertain output is UNKNOWN. Never invoke a
+   replacement run to extend a receipt or resolve uncertainty.
+5. Close the window, restore disabled mode and preserve replay evidence.
+   Stop if additional quota, paid resources, or separate fault/teardown
+   authorization is needed.
+
+This path is asynchronous. It preserves the original signature and request
+digest, body cap, and the two-second private RPC limit. It does not establish
+that a management-plane round trip can complete inside PHP's synchronous
+two-second exchange deadline. The local fixture tests do not certify hosted
+CPU, persistence, billing, or private first-create behavior.
+
+Expected footprint is two private Workers, two SQLite Durable Object classes
+with one singleton each, and one manual Workflow definition. The smoke run
+uses one instance and step with one caller and one bridge DO invocation.
+USD 0 is conditional on a verified Free account with spare quotas. Hosted
+measurements and owner authorization are outstanding.
