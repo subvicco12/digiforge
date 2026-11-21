@@ -43,9 +43,17 @@ jobs:
           --health-retries=12
     steps:
       - name: Checkout exact candidate source
+        if: ${{ inputs.wordpress_diagnostic != true }}
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.wordpress_diagnostic == true && '762228a6dbc74f6a716059497f717671b37ce0af' || github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Checkout pinned WordPress diagnostic source
+        if: ${{ inputs.wordpress_diagnostic == true }}
+        uses: actions/checkout@v4
+        with:
+          ref: 762228a6dbc74f6a716059497f717671b37ce0af
           fetch-depth: 0
 
       - name: Set up PHP 8.3
