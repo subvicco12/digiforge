@@ -1,0 +1,9 @@
+name: Cloudflare synthetic v1 registration
+'on': workflow_dispatch
+permissions: {}
+jobs:
+  registration:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: ':'
