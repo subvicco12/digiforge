@@ -44,17 +44,7 @@ final class CustodyReadTransport
             return self::result('DENIED', 'READ_CONTRACT');
         }
         try {
-            $request = [
-                'schema'=>self::REQUEST,
-                'evidence_class'=>$providerSimulation?'SIGNED_PROVIDER_TRANSPORT_SIMULATION':'SIGNED_CUSTODY_FIXTURE',
-                'operation_id'=>bin2hex(random_bytes(32)),
-                'provider'=>'printify', 'shop'=>$scope['shop'], 'account_reference'=>$scope['account_reference'],
-                'credential_reference'=>$scope['credential_reference'], 'source_sha'=>$scope['source_sha'],
-                'source_revision'=>$scope['source_revision'], 'authorization_revision'=>$scope['authorization_revision'],
-                'operation'=>$operation, 'method'=>'GET', 'endpoint'=>$typed['endpoint'],
-                'required_scope'=>$typed['required_scope'], 'typed_request_sha256'=>$typed['fingerprint'],
-                'timeout_ms'=>self::TIMEOUT_MS, 'max_response_bytes'=>self::MAX_BYTES,
-            ];
+            $request=self::request($scope,$typed,bin2hex(random_bytes(32)),$providerSimulation);
             $digest=hash('sha256',self::encode($request));
             $start=hrtime(true);
             $response=$exchange($request,self::TIMEOUT_MS,self::MAX_BYTES);
@@ -79,6 +69,80 @@ final class CustodyReadTransport
             return self::result('DENIED','CUSTODY_CONTROL');
         }
         return self::receipt($response,$request,$digest,$scope,$operation,$input);
+    }
+
+    /** Prepare an independently approvable fixture intent. Never calls a management API. */
+    public static function prepareHostedFixture(array $scope): array
+    {
+        $typed=self::hostedPlan($scope);
+        if ($typed===null) {
+            return self::result('DENIED','CUSTODY_SCOPE');
+        }
+        $operation=bin2hex(random_bytes(32));
+        $wire=self::encode(self::request($scope,$typed,$operation,false));
+        return self::result('ASYNC_FIXTURE_PREPARED','NONE')+[
+            'operation_id'=>$operation,'instance_id'=>'stage-a-custody-'.$operation,
+            'request_sha256'=>hash('sha256',$wire),'wire'=>$wire,'synchronous_exchange_verified'=>false,
+        ];
+    }
+
+    /** Verify one separately exported private Workflow observation. This cannot initiate or retry a run. */
+    public static function reviewHostedFixture(array $scope,string $operationId,string $approvedDigest,string $export): array
+    {
+        $qualifiers=['synchronous_exchange_verified'=>false,'hosted_control_plane_attested'=>false];
+        if (strlen($export)>self::MAX_BYTES+8192
+            || preg_match('/^[a-f0-9]{64}$/D',$operationId)!==1
+            || preg_match('/^[a-f0-9]{64}$/D',$approvedDigest)!==1
+            || ($typed=self::hostedPlan($scope))===null) {
+            return self::result('DENIED','ASYNC_FIXTURE_SCOPE')+$qualifiers;
+        }
+        try {
+            $request=self::request($scope,$typed,$operationId,false);
+            if (!hash_equals($approvedDigest,hash('sha256',self::encode($request)))) {
+                return self::result('DENIED','ASYNC_FIXTURE_DIGEST')+$qualifiers;
+            }
+            $result=json_decode($export,true,12,JSON_THROW_ON_ERROR);
+            if (!is_array($result)||count($result)!==3
+                || ($result['instance_id']??null)!=='stage-a-custody-'.$operationId
+                || !is_string($result['status']??null) || !array_key_exists('output',$result)) {
+                return self::result('DENIED','ASYNC_FIXTURE_EXPORT')+$qualifiers;
+            }
+            if ($result['status']!=='complete' || $result['output']===null
+                || (is_array($result['output']) && ($result['output']['state']??null)==='UNKNOWN')) {
+                return self::result('UNKNOWN','ASYNC_FIXTURE_OUTCOME_UNAVAILABLE')+$qualifiers;
+            }
+            $verified=self::receipt($result['output'],$request,$approvedDigest,$scope,'ORDER_READ',['order_id'=>'order-1']);
+            if ($verified['state']==='AUTHENTICATED_CUSTODY_FIXTURE') {
+                $verified['state']='ASYNC_FIXTURE_RECEIPT_VERIFIED';
+            }
+            return $verified+$qualifiers;
+        } catch (\Throwable) {
+            return self::result('DENIED','ASYNC_FIXTURE_EXPORT')+$qualifiers;
+        }
+    }
+
+    private static function hostedPlan(array $scope): ?array
+    {
+        if (!\function_exists('wp_get_environment_type') || \wp_get_environment_type()!=='local'
+            || !\function_exists('sodium_crypto_sign_verify_detached') || !self::validScope($scope)) {
+            return null;
+        }
+        $plan=Runtime::prepareProviderRead($scope['shop'],$scope['account_reference'],'ORDER_READ',['order_id'=>'order-1']);
+        return $plan['state']==='OFFLINE_PROVIDER_READ_PREPARED'?$plan['request']:null;
+    }
+
+    private static function request(array $scope,array $typed,string $operationId,bool $providerSimulation): array
+    {
+        return [
+            'schema'=>self::REQUEST,
+            'evidence_class'=>$providerSimulation?'SIGNED_PROVIDER_TRANSPORT_SIMULATION':'SIGNED_CUSTODY_FIXTURE',
+            'operation_id'=>$operationId,'provider'=>'printify','shop'=>$scope['shop'],
+            'account_reference'=>$scope['account_reference'],'credential_reference'=>$scope['credential_reference'],
+            'source_sha'=>$scope['source_sha'],'source_revision'=>$scope['source_revision'],
+            'authorization_revision'=>$scope['authorization_revision'],'operation'=>$typed['operation'],
+            'method'=>'GET','endpoint'=>$typed['endpoint'],'required_scope'=>$typed['required_scope'],
+            'typed_request_sha256'=>$typed['fingerprint'],'timeout_ms'=>self::TIMEOUT_MS,'max_response_bytes'=>self::MAX_BYTES,
+        ];
     }
 
     private static function receipt(mixed $response,array $request,string $digest,array $scope,string $operation,array $input): array

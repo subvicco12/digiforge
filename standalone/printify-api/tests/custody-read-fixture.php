@@ -86,3 +86,24 @@ $assertCustody($readiness['provider_read']['offline']==='OFFLINE_VERIFIED'
     && $readiness['provider_read']['dispatch']==='DISABLED_BY_POLICY'
     && $readiness['native_mutation']['admission']==='BLOCKED_EXTERNAL','Operational capability was overclaimed');
 $assertCustody(Runtime::integrationReadiness('108','fixture-account')===[],'Cross-shop readiness disclosure');
+
+$prepared=CustodyReadTransport::prepareHostedFixture($scope);
+$assertCustody($prepared['state']==='ASYNC_FIXTURE_PREPARED' && !$prepared['provider_execution_authorized'],
+    'Async preparation unexpectedly authorizes dispatch');
+$request=json_decode($prepared['wire'],true,12,JSON_THROW_ON_ERROR);
+$export=json_encode(['instance_id'=>$prepared['instance_id'],'status'=>'complete',
+    'output'=>$sign($request,$body,200,0)],JSON_THROW_ON_ERROR);
+$review=static fn(string $wire,?string $digest=null):array =>
+    CustodyReadTransport::reviewHostedFixture($scope,$prepared['operation_id'],$digest??$prepared['request_sha256'],$wire);
+$read=$review($export);
+$assertCustody($read['state']==='ASYNC_FIXTURE_RECEIPT_VERIFIED' && $read['observation']['id']==='order-1'
+    && !$read['synchronous_exchange_verified'] && !$read['provider_outcome_confirmed'],'Async readback overclaimed or invalid');
+$assertCustody($review(str_replace($prepared['instance_id'],'wrong',$export))['state']==='DENIED','Wrong workflow instance admitted');
+$assertCustody($review($export,str_repeat('0',64))['state']==='DENIED','Wrong approved digest admitted');
+$assertCustody($review(json_encode(['instance_id'=>$prepared['instance_id'],'status'=>'errored','output'=>null]))['state']==='UNKNOWN',
+    'Failed hosted run loses uncertainty');
+$assertCustody($review(json_encode(['instance_id'=>$prepared['instance_id'],'status'=>'complete','output'=>null]))['state']==='UNKNOWN',
+    'Missing hosted output loses uncertainty');
+$expired=$sign($request,$body,200,0,['observed_at'=>time()-40,'expires_at'=>time()-1]);
+$assertCustody($review(json_encode(['instance_id'=>$prepared['instance_id'],'status'=>'complete','output'=>$expired]))['state']==='DENIED',
+    'Expired hosted receipt admitted');
