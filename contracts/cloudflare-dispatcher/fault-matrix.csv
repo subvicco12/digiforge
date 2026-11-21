@@ -1,0 +1,60 @@
+test,file,qualification
+unconfigured Worker is non-executable,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent issuer creates a bounded immutable session and signed minimized receipt,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+"Worker authenticates signed messages, rejects methods, extra fields and unsafe routes",contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+missing and forged request authentication never reaches sender,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+wrong actor account shop integration credential and deployment bindings deny,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+expired future stale and replayed authority denied,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+restored WordPress signing key cannot issue an independent owner grant,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+email actor proof or approval alone cannot enroll a session,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+owner grant is single-use and never silently renews,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+eleven slots and fabricated catalog permissions denied,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+mutating endpoint and arbitrary host cannot be approved,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+concurrent same-slot dispatch sends once,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+account-wide quota admits at most three per rolling minute,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency before session or reservation prevents admission,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency after reservation and before final dispatch prevents send,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency during provider execution retains lease until terminal and reports UNKNOWN,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency after response during receipt persistence cannot emit a stale success,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+state outage after send preserves uncertainty and never restores slot,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency state-write failure still fences through independent witness,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+witness outage and network partition fail closed,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+provider timeout sends once UNKNOWN with no retry,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+provider rate limit persists Retry-After without retry,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+stream size invalid JSON and redirects rejected without leakage,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+physical sender pins host method TLS redirects timeout and private headers,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+credential unavailable duplicated or host-restorable denies custody,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+WordPress DB filesystem plugin and coordinated rollback cannot reset witness,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+SQLite point-in-time restore cannot replay consumed session,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+Worker code namespace and recovery epoch rollback fail witness binding,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+external recovery epoch change invalidates stale authority,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+dispatcher restart requires recovery and preserves leases,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+SQLite adapter rolls back errors and rejects async transactions,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+lost commit acknowledgement cannot send or reuse slot,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent final sender rejects substituted allowlisted request,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+failed authorized emergency cannot silently rearm after witness recovery,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+unauthenticated emergency cannot quarantine a valid session,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+Cloudflare-compatible DO constructor initializes once and fences restart,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+duplicate keys oversized messages and unsafe origin fail strict HTTP ingress,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+production flags cannot instantiate live dispatcher or sender,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+actual 20-second sender deadline retains uncertain lease when fetch ignores abort,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent witness rejects forged scope even with valid issuer signing key,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent owner approval binds the exact read capability and approved policy revision,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+witness snapshot exposes no mutable session or nonce ledger,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+final witness rejects authority that expires after ADMITTED persistence,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+final witness independently checks short-lived client proof expiry,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+forged caller clock cannot override independent witness expiry,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+caller cannot release a physical lease before sender completion,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent quota witness enforces provider Retry-After despite caller bypass,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+401 and 403 fence credential admission while 5xx never retries,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+emergency during session persistence cannot return usable authority,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+namespace replacement cannot reset witness-authoritative consumed state,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+rollback of BOTH authority stores is explicitly unqualified and never enables production,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,EXPECTED_LIMITATION_REPRODUCED
+streaming body obeys the same 20-second deadline and retains unknown lease,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+concurrent distinct slots share one account budget without replay recovery,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+missing audit signer denies sending and never restores consumed slot,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+independent registration refuses valid signatures from the wrong proof domain,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+owner proof expiry is rechecked after asynchronous registration validation,contracts/cloudflare-dispatcher/test/dispatcher.test.mjs,TESTED_SYNTHETIC
+all frozen GET operations match existing authoritative PHP contracts,contracts/cloudflare-dispatcher/test/parity.test.mjs,TESTED_SYNTHETIC
+pagination host method traversal and malformed requests rejected by both languages,contracts/cloudflare-dispatcher/test/parity.test.mjs,TESTED_SYNTHETIC
+Worker-issued Ed25519 authority remains verifiable by preserved PHP protocol,contracts/cloudflare-dispatcher/test/parity.test.mjs,TESTED_SYNTHETIC

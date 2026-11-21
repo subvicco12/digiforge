@@ -1,0 +1,1810 @@
+[
+  {
+    "pattern": "/digiforge/v1/activations",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::activations",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 232
+  },
+  {
+    "pattern": "/digiforge/v1/activations/(?P<capability>gelato|etsy-publish|order-automation|gst-automation)",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::activate_remaining",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 271
+  },
+  {
+    "pattern": "/digiforge/v1/activations/etsy-draft",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::activate_etsy_draft",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 257
+  },
+  {
+    "pattern": "/digiforge/v1/activations/printify",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::activate_printify",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 243
+  },
+  {
+    "pattern": "/digiforge/v1/ai/(?P<entity>tasks|models|prompts|prompt-versions|runs|outputs|usage|reviews)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\AiController::list",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/ai/commercial-kpis",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\AiEvidenceController::commercial",
+    "permission_callback": "DigiForge\\REST\\AiEvidenceController::canReview",
+    "file": "includes/REST/AiEvidenceController.php",
+    "line": 30
+  },
+  {
+    "pattern": "/digiforge/v1/ai/evidence/(?P<operation>quotes|tariffs|charges|attributions)",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiEvidenceController::import",
+    "permission_callback": "DigiForge\\REST\\AiEvidenceController::canReview",
+    "file": "includes/REST/AiEvidenceController.php",
+    "line": 20
+  },
+  {
+    "pattern": "/digiforge/v1/ai/evidence/usage/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\AiEvidenceController::snapshot",
+    "permission_callback": "DigiForge\\REST\\AiEvidenceController::canReview",
+    "file": "includes/REST/AiEvidenceController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/ai/models",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::createModel",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 27
+  },
+  {
+    "pattern": "/digiforge/v1/ai/prompts",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::createPrompt",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 28
+  },
+  {
+    "pattern": "/digiforge/v1/ai/prompts/(?P<id>\\d+)/versions",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::createPromptVersion",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 29
+  },
+  {
+    "pattern": "/digiforge/v1/ai/runs",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::createRun",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 30
+  },
+  {
+    "pattern": "/digiforge/v1/ai/runs/(?P<id>\\d+)/outputs",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::storeOutput",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 32
+  },
+  {
+    "pattern": "/digiforge/v1/ai/runs/(?P<id>\\d+)/reviews",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::review",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 34
+  },
+  {
+    "pattern": "/digiforge/v1/ai/runs/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::transition",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 31
+  },
+  {
+    "pattern": "/digiforge/v1/ai/runs/(?P<id>\\d+)/usage",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::recordUsage",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 33
+  },
+  {
+    "pattern": "/digiforge/v1/ai/tasks",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\AiController::createTask",
+    "permission_callback": "DigiForge\\REST\\AiController::canManage",
+    "file": "includes/REST/AiController.php",
+    "line": 26
+  },
+  {
+    "pattern": "/digiforge/v1/controls",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::controls",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 208
+  },
+  {
+    "pattern": "/digiforge/v1/controls/(?P<key>[a-z_]+)",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::update_control",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 298
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/approve",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/fields",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/intake",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/publish",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/revoke",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/upload",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/(?P<session>[A-Za-z0-9_-]{1,80})/view",
+    "method": "GET",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/access",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 11
+  },
+  {
+    "pattern": "/digiforge/v1/customer-editor/mockup-evidence",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 12
+  },
+  {
+    "pattern": "/digiforge/v1/digital-download-checks",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_download_check",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-download-checks",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_download_check",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-download-checks/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_download_check",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-download-checks/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_download_check",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-download-checks/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_download_check",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-file-versions",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file_version",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-file-versions",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file_version",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-file-versions/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file_version",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-file-versions/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file_version",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-file-versions/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file_version",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-files",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-files",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-files/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-files/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-files/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_file",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-licenses",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_license",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-licenses",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_license",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-licenses/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_license",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-licenses/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_license",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-licenses/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_license",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-packages",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_package",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-packages",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_package",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-packages/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_package",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-packages/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_package",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-packages/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_package",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-previews",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_preview",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-previews",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_preview",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-previews/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_preview",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-previews/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_preview",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-previews/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_preview",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_product",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_product",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_product",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_product",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_product",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-products/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::transition",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 27
+  },
+  {
+    "pattern": "/digiforge/v1/digital-templates",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_template",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-templates",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_template",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 16
+  },
+  {
+    "pattern": "/digiforge/v1/digital-templates/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_template",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_view",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-templates/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_template",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/digital-templates/(?P<id>\\d+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\DigitalFactoryController::{closure}:digital_template",
+    "permission_callback": "DigiForge\\REST\\DigitalFactoryController::can_manage",
+    "file": "includes/REST/DigitalFactoryController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/controlled-digital-file",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\EtsyControlledExecutionController::uploadDigitalFile",
+    "permission_callback": "DigiForge\\REST\\EtsyControlledExecutionController::canExecute",
+    "file": "includes/REST/EtsyControlledExecutionController.php",
+    "line": 107
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/controlled-draft",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\EtsyControlledExecutionController::execute",
+    "permission_callback": "DigiForge\\REST\\EtsyControlledExecutionController::canExecute",
+    "file": "includes/REST/EtsyControlledExecutionController.php",
+    "line": 140
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/controlled-listing-image",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\EtsyControlledExecutionController::uploadListingImage",
+    "permission_callback": "DigiForge\\REST\\EtsyControlledExecutionController::canExecute",
+    "file": "includes/REST/EtsyControlledExecutionController.php",
+    "line": 47
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/operations",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\EtsyOperationsController::get",
+    "permission_callback": "DigiForge\\REST\\EtsyOperationsController::{closure}",
+    "file": "includes/REST/EtsyOperationsController.php",
+    "line": 8
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/publish-listing",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\EtsyPublishExecutionController::execute",
+    "permission_callback": "DigiForge\\REST\\EtsyPublishExecutionController::canExecute",
+    "file": "includes/REST/EtsyPublishExecutionController.php",
+    "line": 28
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/taxonomy-discovery",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::etsy_taxonomy_discovery",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 222
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/taxonomy-verify",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::etsy_taxonomy_verify",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 214
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/webhook",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\EtsyWebhookController::receive",
+    "permission_callback": "__return_true",
+    "file": "includes/REST/EtsyWebhookController.php",
+    "line": 18
+  },
+  {
+    "pattern": "/digiforge/v1/etsy/webhook-readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\EtsyWebhookController::readiness",
+    "permission_callback": "DigiForge\\REST\\EtsyWebhookController::{closure}",
+    "file": "includes/REST/EtsyWebhookController.php",
+    "line": 17
+  },
+  {
+    "pattern": "/digiforge/v1/finance/(?P<entity>ledger|fx|tax|periods|analytics|alerts|intents)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\FinanceController::list",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 58
+  },
+  {
+    "pattern": "/digiforge/v1/finance/(?P<entity>period|alert|intent)/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::transition",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 94
+  },
+  {
+    "pattern": "/digiforge/v1/finance/analytics",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::createAnalytics",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 88
+  },
+  {
+    "pattern": "/digiforge/v1/finance/fx",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::createFx",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 71
+  },
+  {
+    "pattern": "/digiforge/v1/finance/intents",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::createIntent",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 91
+  },
+  {
+    "pattern": "/digiforge/v1/finance/ledger",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::createLedger",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 68
+  },
+  {
+    "pattern": "/digiforge/v1/finance/periods/calculate",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::calculatePeriod",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 85
+  },
+  {
+    "pattern": "/digiforge/v1/finance/tax",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::createTax",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 74
+  },
+  {
+    "pattern": "/digiforge/v1/finance/tax/(?P<id>\\d+)/review",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\FinanceController::reviewTax",
+    "permission_callback": "DigiForge\\REST\\FinanceController::canManage",
+    "file": "includes/REST/FinanceController.php",
+    "line": 77
+  },
+  {
+    "pattern": "/digiforge/v1/health",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::health",
+    "permission_callback": "DigiForge\\REST\\Controller::can_view",
+    "file": "includes/REST/Controller.php",
+    "line": 60
+  },
+  {
+    "pattern": "/digiforge/v1/integrations",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\IntegrationsController::index",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 38
+  },
+  {
+    "pattern": "/digiforge/v1/integrations",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\IntegrationsController::create",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 49
+  },
+  {
+    "pattern": "/digiforge/v1/integrations/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\IntegrationsController::show",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 45
+  },
+  {
+    "pattern": "/digiforge/v1/integrations/(?P<id>\\d+)",
+    "method": "PATCH",
+    "callback": "DigiForge\\REST\\IntegrationsController::update",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 54
+  },
+  {
+    "pattern": "/digiforge/v1/integrations/(?P<id>\\d+)/secrets/(?P<name>[a-zA-Z0-9_-]+)",
+    "method": "PUT",
+    "callback": "DigiForge\\REST\\IntegrationsController::putSecret",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 64
+  },
+  {
+    "pattern": "/digiforge/v1/integrations/(?P<id>\\d+)/test",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\IntegrationsController::testConnection",
+    "permission_callback": "DigiForge\\REST\\IntegrationsController::canManage",
+    "file": "includes/REST/IntegrationsController.php",
+    "line": 59
+  },
+  {
+    "pattern": "/digiforge/v1/internal-smoke/p5",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::p5_smoke",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 86
+  },
+  {
+    "pattern": "/digiforge/v1/launch/candidates/(?P<id>\\d+)/build-product",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\LaunchController::buildProduct",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canBuildProduct",
+    "file": "includes/REST/LaunchController.php",
+    "line": 140
+  },
+  {
+    "pattern": "/digiforge/v1/launch/candidates/(?P<id>\\d+)/develop",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\LaunchController::develop",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canDevelop",
+    "file": "includes/REST/LaunchController.php",
+    "line": 128
+  },
+  {
+    "pattern": "/digiforge/v1/launch/product-versions/(?P<id>\\d+)/prepare-listing",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\LaunchController::prepareListing",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canPrepareListing",
+    "file": "includes/REST/LaunchController.php",
+    "line": 166
+  },
+  {
+    "pattern": "/digiforge/v1/launch/product-versions/(?P<id>\\d+)/review",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\LaunchController::reviewProduct",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canReviewProduct",
+    "file": "includes/REST/LaunchController.php",
+    "line": 152
+  },
+  {
+    "pattern": "/digiforge/v1/launch/research",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\LaunchController::research",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canResearch",
+    "file": "includes/REST/LaunchController.php",
+    "line": 121
+  },
+  {
+    "pattern": "/digiforge/v1/launch/research/preflight",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\LaunchController::researchPreflight",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canResearch",
+    "file": "includes/REST/LaunchController.php",
+    "line": 116
+  },
+  {
+    "pattern": "/digiforge/v1/launch/status",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\LaunchController::status",
+    "permission_callback": "DigiForge\\REST\\LaunchController::canManage",
+    "file": "includes/REST/LaunchController.php",
+    "line": 90
+  },
+  {
+    "pattern": "/digiforge/v1/listings",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::createListing",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 45
+  },
+  {
+    "pattern": "/digiforge/v1/listings/(?P<entity>listings|seo|media|pod|packages|intents)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ListingController::list",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 35
+  },
+  {
+    "pattern": "/digiforge/v1/listings/(?P<entity>listing|intent)/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::transition",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 66
+  },
+  {
+    "pattern": "/digiforge/v1/listings/(?P<id>\\d+)/legacy-gate3-repair",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::legacyGate3Repair",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 78
+  },
+  {
+    "pattern": "/digiforge/v1/listings/(?P<id>\\d+)/readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ListingController::readiness",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 83
+  },
+  {
+    "pattern": "/digiforge/v1/listings/draft-qa",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::recordDraftQa",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 52
+  },
+  {
+    "pattern": "/digiforge/v1/listings/intents",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::createIntent",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 50
+  },
+  {
+    "pattern": "/digiforge/v1/listings/media",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::bindMedia",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 47
+  },
+  {
+    "pattern": "/digiforge/v1/listings/packages",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::createPackage",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 49
+  },
+  {
+    "pattern": "/digiforge/v1/listings/pod",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::bindPod",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 48
+  },
+  {
+    "pattern": "/digiforge/v1/listings/reviews/(?P<id>\\d+)/decision",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::decideReview",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 72
+  },
+  {
+    "pattern": "/digiforge/v1/listings/seo",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ListingController::setSeo",
+    "permission_callback": "DigiForge\\REST\\ListingController::canManage",
+    "file": "includes/REST/ListingController.php",
+    "line": 46
+  },
+  {
+    "pattern": "/digiforge/v1/opportunities",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:opportunity",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 18
+  },
+  {
+    "pattern": "/digiforge/v1/opportunities",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:opportunity",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 22
+  },
+  {
+    "pattern": "/digiforge/v1/opportunities/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:opportunity",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 24
+  },
+  {
+    "pattern": "/digiforge/v1/opportunities/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:opportunity",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/orders",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::createOrder",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 30
+  },
+  {
+    "pattern": "/digiforge/v1/orders/(?P<entity>orders|items|personalizations|plans|intents|reviews)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\OrderController::list",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 29
+  },
+  {
+    "pattern": "/digiforge/v1/orders/(?P<entity>order|plan|intent)/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::transition",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 36
+  },
+  {
+    "pattern": "/digiforge/v1/orders/(?P<id>\\d+)/readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\OrderController::readiness",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 37
+  },
+  {
+    "pattern": "/digiforge/v1/orders/intents",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::createIntent",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 35
+  },
+  {
+    "pattern": "/digiforge/v1/orders/items",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::createItem",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 31
+  },
+  {
+    "pattern": "/digiforge/v1/orders/personalizations",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::createPersonalization",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 32
+  },
+  {
+    "pattern": "/digiforge/v1/orders/personalizations/(?P<id>\\d+)/review",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::reviewPersonalization",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 33
+  },
+  {
+    "pattern": "/digiforge/v1/orders/plans",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\OrderController::createPlan",
+    "permission_callback": "DigiForge\\REST\\OrderController::canManage",
+    "file": "includes/REST/OrderController.php",
+    "line": 34
+  },
+  {
+    "pattern": "/digiforge/v1/pod/(?P<entity>catalog|mappings|print_areas|personalization|bindings|intents|costs)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PodController::list",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 30
+  },
+  {
+    "pattern": "/digiforge/v1/pod/(?P<entity>catalog|mapping|print_area|personalization|intent|cost)/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::transition",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 63
+  },
+  {
+    "pattern": "/digiforge/v1/pod/bindings",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createBinding",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 60
+  },
+  {
+    "pattern": "/digiforge/v1/pod/catalog",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createCatalog",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 36
+  },
+  {
+    "pattern": "/digiforge/v1/pod/costs",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createCost",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 62
+  },
+  {
+    "pattern": "/digiforge/v1/pod/customer-artwork",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/customer-artwork/qa",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/customer-artwork/review",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/customer-artwork/segment",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/customer-artwork/upload",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/design-family/draft",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/intents",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createIntent",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 61
+  },
+  {
+    "pattern": "/digiforge/v1/pod/local-render",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\DeterministicRenderWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\DeterministicRenderWorkflow::{closure}",
+    "file": "includes/POD/DeterministicRenderWorkflow.php",
+    "line": 15
+  },
+  {
+    "pattern": "/digiforge/v1/pod/local-render/(?P<id>\\d+)/preview/(?P<panel>[a-z][a-z0-9_-]{0,63})",
+    "method": "GET",
+    "callback": "DigiForge\\POD\\DeterministicRenderWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\DeterministicRenderWorkflow::{closure}",
+    "file": "includes/POD/DeterministicRenderWorkflow.php",
+    "line": 14
+  },
+  {
+    "pattern": "/digiforge/v1/pod/mappings",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createMapping",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 37
+  },
+  {
+    "pattern": "/digiforge/v1/pod/mappings/(?P<id>\\d+)/readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PodController::readiness",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 64
+  },
+  {
+    "pattern": "/digiforge/v1/pod/personalization",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createPersonalization",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 59
+  },
+  {
+    "pattern": "/digiforge/v1/pod/print-areas",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PodController::createPrintArea",
+    "permission_callback": "DigiForge\\REST\\PodController::canManage",
+    "file": "includes/REST/PodController.php",
+    "line": 58
+  },
+  {
+    "pattern": "/digiforge/v1/pod/product-mockup/asset",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/product-mockup/bind",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/product-mockup/intake",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/product-mockup/review",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\CustomerEditorWorkflow::{closure}",
+    "file": "includes/POD/CustomerEditorWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/visual-review/assign",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/visual-review/decision",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/visual-review/evidence",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/pod/visual-review/inspect",
+    "method": "POST",
+    "callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "permission_callback": "DigiForge\\POD\\PersonalizedDesignWorkflow::{closure}",
+    "file": "includes/POD/PersonalizedDesignWorkflow.php",
+    "line": 13
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/(?P<sha>[a-f0-9]{64})",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::read",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canRead",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/(?P<sha>[a-f0-9]{64})/evidence/(?P<request_sha>[a-f0-9]{64})",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::evidence",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canRead",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 26
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/(?P<sha>[a-f0-9]{64})/revoke",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::revoke",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canApprove",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 24
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/(?P<sha>[a-f0-9]{64})/safety-exception",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::approveSafetyException",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canApprove",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 22
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/(?P<sha>[a-f0-9]{64})/safety-exception/revoke",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::revokeSafetyException",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canApprove",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 23
+  },
+  {
+    "pattern": "/digiforge/v1/printify/catalog-read/grants",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyCatalogReadController::approve",
+    "permission_callback": "DigiForge\\REST\\PrintifyCatalogReadController::canApprove",
+    "file": "includes/REST/PrintifyCatalogReadController.php",
+    "line": 21
+  },
+  {
+    "pattern": "/digiforge/v1/product-families",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_family",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 18
+  },
+  {
+    "pattern": "/digiforge/v1/product-families",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_family",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 22
+  },
+  {
+    "pattern": "/digiforge/v1/product-families/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_family",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 24
+  },
+  {
+    "pattern": "/digiforge/v1/product-families/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_family",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/product-versions",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_version",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 18
+  },
+  {
+    "pattern": "/digiforge/v1/product-versions",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_version",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 22
+  },
+  {
+    "pattern": "/digiforge/v1/product-versions/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_version",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 24
+  },
+  {
+    "pattern": "/digiforge/v1/product-versions/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product_version",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/production/(?P<entity>specs|plans|intents|revisions|qa|bundles)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductionController::list",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 39
+  },
+  {
+    "pattern": "/digiforge/v1/production/(?P<entity>spec|plan|intent|revision|bundle)/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::transition",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 129
+  },
+  {
+    "pattern": "/digiforge/v1/production/bundles",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createBundle",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 119
+  },
+  {
+    "pattern": "/digiforge/v1/production/bundles/(?P<id>\\d+)/validate",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::validateBundle",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 127
+  },
+  {
+    "pattern": "/digiforge/v1/production/intents",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createIntent",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 50
+  },
+  {
+    "pattern": "/digiforge/v1/production/plans",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createPlan",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 49
+  },
+  {
+    "pattern": "/digiforge/v1/production/plans/(?P<id>\\d+)/assets",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::linkAsset",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 121
+  },
+  {
+    "pattern": "/digiforge/v1/production/qa",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createQa",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 118
+  },
+  {
+    "pattern": "/digiforge/v1/production/revisions",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createRevision",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 51
+  },
+  {
+    "pattern": "/digiforge/v1/production/revisions/(?P<id>\\d+)/approve",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::approveRevision",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 95
+  },
+  {
+    "pattern": "/digiforge/v1/production/revisions/(?P<id>\\d+)/rasterize",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::rasterizeRevision",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 52
+  },
+  {
+    "pattern": "/digiforge/v1/production/revisions/(?P<id>\\d+)/rasterize-and-qa",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::rasterizeAndQa",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 53
+  },
+  {
+    "pattern": "/digiforge/v1/production/specs",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductionController::createSpec",
+    "permission_callback": "DigiForge\\REST\\ProductionController::canManage",
+    "file": "includes/REST/ProductionController.php",
+    "line": 48
+  },
+  {
+    "pattern": "/digiforge/v1/products",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 18
+  },
+  {
+    "pattern": "/digiforge/v1/products",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 22
+  },
+  {
+    "pattern": "/digiforge/v1/products/(?P<id>\\d+)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_view",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 24
+  },
+  {
+    "pattern": "/digiforge/v1/products/(?P<id>\\d+)/state",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ProductFactoryController::{closure}:product",
+    "permission_callback": "DigiForge\\REST\\ProductFactoryController::can_manage",
+    "file": "includes/REST/ProductFactoryController.php",
+    "line": 25
+  },
+  {
+    "pattern": "/digiforge/v1/protection/restore",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::restore_protection",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 209
+  },
+  {
+    "pattern": "/digiforge/v1/readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::readiness",
+    "permission_callback": "DigiForge\\REST\\Controller::can_view",
+    "file": "includes/REST/Controller.php",
+    "line": 67
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/drill-evidence",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_drill_evidence",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 130
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_evidence",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 90
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence/database-backup",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::record_database_backup_evidence",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 118
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence/database-backup/bind",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::bind_database_backup_identity",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 97
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence/database-backup/marker/(?P<operation_key_hash>[a-f0-9]{64})",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_database_backup_marker",
+    "permission_callback": "__return_true",
+    "file": "includes/REST/Controller.php",
+    "line": 91
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence/database-backup/prepare",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::prepare_database_backup_identity",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 108
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/evidence/plugin-package",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::record_plugin_package_evidence",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 124
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_orchestration",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 149
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/drill-accept",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::accept_recovery_drill",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 131
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/drill-review",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_drill_review_candidate",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 189
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/execute",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::execute_recovery_orchestration",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 158
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/plan",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::plan_recovery_orchestration",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 150
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/reconcile-manual",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::reconcile_manual_recovery_orchestration",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 167
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/supersede-stale",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::supersede_stale_recovery",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 140
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/orchestration/verify",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\Controller::verify_recovery_orchestration",
+    "permission_callback": "DigiForge\\REST\\Controller::can_manage",
+    "file": "includes/REST/Controller.php",
+    "line": 196
+  },
+  {
+    "pattern": "/digiforge/v1/recovery/verification-snapshot",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\Controller::recovery_verification_snapshot",
+    "permission_callback": "__return_true",
+    "file": "includes/REST/Controller.php",
+    "line": 68
+  },
+  {
+    "pattern": "/digiforge/v1/research/(?P<entity>sources|observations|evidence|candidates|reviews)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ResearchController::list",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 27
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::createCandidate",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 31
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates/(?P<id>\\d+)/evidence/(?P<evidence_id>\\d+)",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::linkEvidence",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 32
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates/(?P<id>\\d+)/promote",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::promote",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 34
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates/(?P<id>\\d+)/resume-product-factory",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::resumeProductFactory",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 45
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates/(?P<id>\\d+)/retry-product-factory",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::retryProductFactory",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 39
+  },
+  {
+    "pattern": "/digiforge/v1/research/candidates/(?P<id>\\d+)/review",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::review",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 33
+  },
+  {
+    "pattern": "/digiforge/v1/research/observations",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::ingest",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 29
+  },
+  {
+    "pattern": "/digiforge/v1/research/observations/(?P<id>\\d+)/evidence",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::addEvidence",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 30
+  },
+  {
+    "pattern": "/digiforge/v1/research/sources",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ResearchController::createSource",
+    "permission_callback": "DigiForge\\REST\\ResearchController::canManage",
+    "file": "includes/REST/ResearchController.php",
+    "line": 28
+  },
+  {
+    "pattern": "/digiforge/v1/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/(?P<kind>policy|ownership)",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ReviewedContractsController::read",
+    "permission_callback": "DigiForge\\REST\\ReviewedContractsController::canRead",
+    "file": "includes/REST/ReviewedContractsController.php",
+    "line": 89
+  },
+  {
+    "pattern": "/digiforge/v1/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/(?P<kind>policy|ownership)",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ReviewedContractsController::propose",
+    "permission_callback": "DigiForge\\REST\\ReviewedContractsController::canWrite",
+    "file": "includes/REST/ReviewedContractsController.php",
+    "line": 106
+  },
+  {
+    "pattern": "/digiforge/v1/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/(?P<kind>policy|ownership)/decision",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ReviewedContractsController::decide",
+    "permission_callback": "DigiForge\\REST\\ReviewedContractsController::canDecide",
+    "file": "includes/REST/ReviewedContractsController.php",
+    "line": 118
+  },
+  {
+    "pattern": "/digiforge/v1/reviewed-contracts/(?P<shop>digital|personalized_pod|standard_pod|jewelry)/acceptance",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ReviewedContractsController::readAcceptance",
+    "permission_callback": "DigiForge\\REST\\ReviewedContractsController::canReadAcceptance",
+    "file": "includes/REST/ReviewedContractsController.php",
+    "line": 37
+  },
+  {
+    "pattern": "/digiforge/v1/shop-access/grants",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ShopAccessController::assignments",
+    "permission_callback": "DigiForge\\REST\\ShopAccessController::canManage",
+    "file": "includes/REST/ShopAccessController.php",
+    "line": 43
+  },
+  {
+    "pattern": "/digiforge/v1/shop-access/grants",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ShopAccessController::grant",
+    "permission_callback": "DigiForge\\REST\\ShopAccessController::canManage",
+    "file": "includes/REST/ShopAccessController.php",
+    "line": 35
+  },
+  {
+    "pattern": "/digiforge/v1/shop-access/grants/(?P<grant_id>[a-f0-9]{64})/revoke",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\ShopAccessController::revoke",
+    "permission_callback": "DigiForge\\REST\\ShopAccessController::canManage",
+    "file": "includes/REST/ShopAccessController.php",
+    "line": 59
+  },
+  {
+    "pattern": "/digiforge/v1/shop-access/shops",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\ShopAccessController::shops",
+    "permission_callback": "DigiForge\\REST\\ShopAccessController::signedIn",
+    "file": "includes/REST/ShopAccessController.php",
+    "line": 28
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/batches",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::prepare",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 49
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/batches/(?P<sha>[a-f0-9]{64})",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::status",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 55
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/batches/(?P<sha>[a-f0-9]{64})/step",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::step",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 59
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/readiness",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::readiness",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 36
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/receipts",
+    "method": "POST",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::ingest",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 65
+  },
+  {
+    "pattern": "/digiforge/v1/shops/personalized_pod/printify-research/snapshots/(?P<sha>[a-f0-9]{64})",
+    "method": "GET",
+    "callback": "DigiForge\\REST\\PrintifyResearchController::snapshot",
+    "permission_callback": "DigiForge\\REST\\PrintifyResearchController::permission",
+    "file": "includes/REST/PrintifyResearchController.php",
+    "line": 40
+  }
+]

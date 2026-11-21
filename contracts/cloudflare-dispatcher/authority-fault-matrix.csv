@@ -1,0 +1,105 @@
+test,classification
+independent security boundary is implemented outside the existing rollbackable witness,TESTED_SYNTHETIC
+signed workload admission rejects a key restored from WordPress,TESTED_SYNTHETIC
+workload rejects signed mismatched epoch,TESTED_SYNTHETIC
+workload rejects signed mismatched namespace,TESTED_SYNTHETIC
+workload rejects signed mismatched code,TESTED_SYNTHETIC
+workload rejects signed mismatched account,TESTED_SYNTHETIC
+workload rejects signed mismatched credential_binding,TESTED_SYNTHETIC
+workload rejects signed mismatched version,TESTED_SYNTHETIC
+custody denial for exclusive,TESTED_SYNTHETIC
+custody denial for host_copies_invalidated,TESTED_SYNTHETIC
+custody denial for backup_copies_unusable,TESTED_SYNTHETIC
+custody denial for direct_fallback_disabled,TESTED_SYNTHETIC
+minimum deployment version and workload public key are independent journal policy,TESTED_SYNTHETIC
+revoked workload key cannot claim a newer deployment certificate,TESTED_SYNTHETIC
+expired workload identity cannot be silently renewed,TESTED_SYNTHETIC
+independent client rejects arbitrary RPC operations and cannot proxy requests,TESTED_SYNTHETIC
+mutated operation payload cannot reuse workload authentication,TESTED_SYNTHETIC
+durable workload nonce prevents duplicate session admission,TESTED_SYNTHETIC
+concurrent identical workload messages consume a single durable nonce,TESTED_SYNTHETIC
+signed response cannot be substituted from another client request,TESTED_SYNTHETIC
+network partition never causes direct provider fallback or retry,TESTED_SYNTHETIC
+coordinated DO and witness rollback cannot revive authority after independent stop,TESTED_SYNTHETIC
+coordinated rollback before stop is detected by independent state anchor,TESTED_SYNTHETIC
+state namespace replacement remains denied by independent binding,TESTED_SYNTHETIC
+restart never automatically rearms a previously booted authority,TESTED_SYNTHETIC
+unavailable independent storage fails closed,TESTED_SYNTHETIC
+forged emergency authority cannot revoke an otherwise valid owner session,TESTED_SYNTHETIC
+lost emergency write acknowledgement fences old authority after recovery,TESTED_SYNTHETIC
+valid emergency during root outage remains fenced when storage recovers,TESTED_SYNTHETIC
+emergency during physical dispatch reports pending drain and removes observations,TESTED_SYNTHETIC
+late custody revocation before physical request cannot leak a provider call,TESTED_SYNTHETIC
+unknown physical timeout keeps independent lease and cannot acknowledge drain,TESTED_SYNTHETIC
+independent journal capacity fails closed without deleting old nonces,TESTED_SYNTHETIC
+authority client partition has a bounded deadline and no fallback,TESTED_SYNTHETIC
+three-store administrator rollback remains an explicit unsupported qualification failure,EXPECTED_LIMITATION_REPRODUCED
+expired inner owner authority is rejected despite fresh workload identity,TESTED_SYNTHETIC
+concurrent distinct requests retain account-wide provider quota,TESTED_SYNTHETIC
+independent epoch change invalidates current signed workload and owner authority,TESTED_SYNTHETIC
+unknown outcomes cannot restore consumed slots through fresh workload messages,TESTED_SYNTHETIC
+client never discloses transport exception contents,TESTED_SYNTHETIC
+workload proof requires possession of the certificate key,TESTED_SYNTHETIC
+version floor advancement between reservation and final dispatch denies the request,TESTED_SYNTHETIC
+custody credential identity change before final dispatch denies the request,TESTED_SYNTHETIC
+service preserves all ten owner request slots without enlarging the quota,TESTED_SYNTHETIC
+client refuses a signed lower emergency generation even at a newer root revision,TESTED_SYNTHETIC
+unconfigured Worker is non-executable,TESTED_SYNTHETIC
+independent issuer creates a bounded immutable session and signed minimized receipt,TESTED_SYNTHETIC
+"Worker authenticates signed messages, rejects methods, extra fields and unsafe routes",TESTED_SYNTHETIC
+missing and forged request authentication never reaches sender,TESTED_SYNTHETIC
+wrong actor account shop integration credential and deployment bindings deny,TESTED_SYNTHETIC
+expired future stale and replayed authority denied,TESTED_SYNTHETIC
+restored WordPress signing key cannot issue an independent owner grant,TESTED_SYNTHETIC
+email actor proof or approval alone cannot enroll a session,TESTED_SYNTHETIC
+owner grant is single-use and never silently renews,TESTED_SYNTHETIC
+eleven slots and fabricated catalog permissions denied,TESTED_SYNTHETIC
+mutating endpoint and arbitrary host cannot be approved,TESTED_SYNTHETIC
+concurrent same-slot dispatch sends once,TESTED_SYNTHETIC
+account-wide quota admits at most three per rolling minute,TESTED_SYNTHETIC
+emergency before session or reservation prevents admission,TESTED_SYNTHETIC
+emergency after reservation and before final dispatch prevents send,TESTED_SYNTHETIC
+emergency during provider execution retains lease until terminal and reports UNKNOWN,TESTED_SYNTHETIC
+emergency after response during receipt persistence cannot emit a stale success,TESTED_SYNTHETIC
+state outage after send preserves uncertainty and never restores slot,TESTED_SYNTHETIC
+emergency state-write failure still fences through independent witness,TESTED_SYNTHETIC
+witness outage and network partition fail closed,TESTED_SYNTHETIC
+provider timeout sends once UNKNOWN with no retry,TESTED_SYNTHETIC
+provider rate limit persists Retry-After without retry,TESTED_SYNTHETIC
+stream size invalid JSON and redirects rejected without leakage,TESTED_SYNTHETIC
+physical sender pins host method TLS redirects timeout and private headers,TESTED_SYNTHETIC
+credential unavailable duplicated or host-restorable denies custody,TESTED_SYNTHETIC
+WordPress DB filesystem plugin and coordinated rollback cannot reset witness,TESTED_SYNTHETIC
+SQLite point-in-time restore cannot replay consumed session,TESTED_SYNTHETIC
+Worker code namespace and recovery epoch rollback fail witness binding,TESTED_SYNTHETIC
+external recovery epoch change invalidates stale authority,TESTED_SYNTHETIC
+dispatcher restart requires recovery and preserves leases,TESTED_SYNTHETIC
+SQLite adapter rolls back errors and rejects async transactions,TESTED_SYNTHETIC
+lost commit acknowledgement cannot send or reuse slot,TESTED_SYNTHETIC
+independent final sender rejects substituted allowlisted request,TESTED_SYNTHETIC
+failed authorized emergency cannot silently rearm after witness recovery,TESTED_SYNTHETIC
+unauthenticated emergency cannot quarantine a valid session,TESTED_SYNTHETIC
+Cloudflare-compatible DO constructor initializes once and fences restart,TESTED_SYNTHETIC
+duplicate keys oversized messages and unsafe origin fail strict HTTP ingress,TESTED_SYNTHETIC
+production flags cannot instantiate live dispatcher or sender,TESTED_SYNTHETIC
+actual 20-second sender deadline retains uncertain lease when fetch ignores abort,TESTED_SYNTHETIC
+independent witness rejects forged scope even with valid issuer signing key,TESTED_SYNTHETIC
+independent owner approval binds the exact read capability and approved policy revision,TESTED_SYNTHETIC
+witness snapshot exposes no mutable session or nonce ledger,TESTED_SYNTHETIC
+final witness rejects authority that expires after ADMITTED persistence,TESTED_SYNTHETIC
+final witness independently checks short-lived client proof expiry,TESTED_SYNTHETIC
+forged caller clock cannot override independent witness expiry,TESTED_SYNTHETIC
+caller cannot release a physical lease before sender completion,TESTED_SYNTHETIC
+independent quota witness enforces provider Retry-After despite caller bypass,TESTED_SYNTHETIC
+401 and 403 fence credential admission while 5xx never retries,TESTED_SYNTHETIC
+emergency during session persistence cannot return usable authority,TESTED_SYNTHETIC
+namespace replacement cannot reset witness-authoritative consumed state,TESTED_SYNTHETIC
+rollback of BOTH authority stores is explicitly unqualified and never enables production,EXPECTED_LIMITATION_REPRODUCED
+streaming body obeys the same 20-second deadline and retains unknown lease,TESTED_SYNTHETIC
+concurrent distinct slots share one account budget without replay recovery,TESTED_SYNTHETIC
+missing audit signer denies sending and never restores consumed slot,TESTED_SYNTHETIC
+independent registration refuses valid signatures from the wrong proof domain,TESTED_SYNTHETIC
+owner proof expiry is rechecked after asynchronous registration validation,TESTED_SYNTHETIC
+all frozen GET operations match existing authoritative PHP contracts,TESTED_SYNTHETIC
+pagination host method traversal and malformed requests rejected by both languages,TESTED_SYNTHETIC
+Worker-issued Ed25519 authority remains verifiable by preserved PHP protocol,TESTED_SYNTHETIC

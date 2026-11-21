@@ -1,0 +1,22 @@
+{
+  "includes/POD/PrintifyCatalogReadContract.php": {
+    "installed_sha256": "aee0b7dcc428f1f005db92b95842f84af5b86c6fc574c711f616d12927a50526",
+    "candidate_sha256": "783708d7a97f0e00ac1765ea33e186d4aaeca9b4b60d690a8962067546facd46"
+  },
+  "includes/POD/PrintifyResearchMapper.php": {
+    "installed_sha256": "1aeeb1fbfd92c3013f9cf5009c4e9e93eb78229bb222c2ec7695fb01345ebcb5",
+    "candidate_sha256": "c370f90cefbb298665ba45778b1f0ef5e5dfd34eb6f015520bdef8db79f32d66"
+  },
+  "includes/Portal/ProductIntelligencePanel.php": {
+    "installed_sha256": "6a76513aff52c9fa070f8fbf6e97b4e31a217518e336af1fa7b4c1f765ddf4e3",
+    "candidate_sha256": "61a0520fbce9a3a97bf527a7f95dd1735693bc67ffb77945b92346ccc285de40"
+  },
+  "includes/POD/PrintifyResearchDependencies.php": {
+    "installed_sha256": "7e174858adcc498402371eeb72805a1c1c784ccc444aa43e3f6c444278f677e2",
+    "candidate_sha256": "8854221e4e49a4cba69c5362befec42d8d1ceeb3039249d7bdd031daac8cdcdd"
+  },
+  "includes/POD/ScopedProviderConnection.php": {
+    "installed_sha256": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811",
+    "candidate_sha256": "e48d64e7d1bf2f08c50cb0228ab76b082ae3d7c7dc085ec58fb5fac8d494b5cf"
+  }
+}

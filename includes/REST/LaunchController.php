@@ -195,17 +195,29 @@ final class LaunchController
         $reservation = $idempotency->reserve($storageKey, $operation); if (is_wp_error($reservation)) { return $reservation; } if (! $reservation) {
             return new \WP_Error('idempotency_conflict', __('This launch mutation has already been submitted.', 'digiforge'), ['status' => 409]);
         }
+        // Future synchronous product builds bind a public digest to the reservation before effects.
+        // Historical reservations are never backfilled or resolved by this evidence path.
+        $correlation = preg_match('/^u3_build_product_[1-9][0-9]*$/D', $operation) === 1
+            ? ['reservation_reference'=>hash('sha256',$storageKey),'client_key_sha256'=>hash('sha256',$idempotencyKey),'operation'=>$operation] : null;
+        if ($correlation !== null && !\DigiForge\Security\Logger::write('launch_reservation_bound',$correlation,'idempotency_reference',$correlation['reservation_reference'])) {
+            return new \WP_Error('idempotency_correlation_unavailable','Reservation retained; execution blocked because correlation evidence is unavailable.',['status'=>503]);
+        }
         try {
             $result = $callback($idempotencyKey);
         } catch (\Throwable $e) {
-            $idempotency->release($storageKey);
+            if ($correlation !== null) { \DigiForge\Security\Logger::write('launch_reservation_outcome',$correlation+['outcome'=>'UNKNOWN'],'idempotency_reference',$correlation['reservation_reference']); }
+            else { $idempotency->release($storageKey); }
             return new \WP_Error('digiforge_launch_failed', __('Launch execution failed.', 'digiforge'), ['status' => 500]);
         }
         if (is_wp_error($result)) {
-            $idempotency->release($storageKey);
+            if ($correlation !== null) { \DigiForge\Security\Logger::write('launch_reservation_outcome',$correlation+['outcome'=>'UNKNOWN'],'idempotency_reference',$correlation['reservation_reference']); }
+            else { $idempotency->release($storageKey); }
             return $result;
         }
         $encoded = wp_json_encode($result);
+        if ($correlation !== null && !\DigiForge\Security\Logger::write('launch_reservation_outcome',$correlation+['outcome'=>'CALLBACK_COMPLETED','response_sha256'=>hash('sha256',is_string($encoded)?$encoded:''),'result_run_key_sha256'=>is_array($result)&&is_string($result['run_key']??null)?hash('sha256',$result['run_key']):null],'idempotency_reference',$correlation['reservation_reference'])) {
+            return new \WP_Error('idempotency_correlation_unavailable','Callback returned; reservation retained because terminal evidence is unavailable.',['status'=>503]);
+        }
         if (! $idempotency->complete($storageKey, is_string($encoded) ? $encoded : '')) {
             return new \WP_Error('idempotency_finalize_failed', __('Launch execution completed but could not finalize idempotency state.', 'digiforge'), ['status' => 500]);
         }

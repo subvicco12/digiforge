@@ -27,17 +27,15 @@ final class ProductionTemplateContractStructureTest extends TestCase
 
     public function testPrintifyBridgeRequiresNormalizedCatalogIdentityAndExplicitGeometry(): void
     {
-        $source=file_get_contents(dirname(__DIR__,2).'/includes/POD/ProductionTemplateContract.php');
-        self::assertStringContainsString('fromPrintifyCatalog(array $catalog,array $geometry,array $template)',$source);
-        self::assertStringContainsString("(\$catalog['provider']??'')!=='printify'",$source);
-        self::assertStringContainsString("provider_product_key",$source);
-        self::assertStringContainsString("provider_variant_key",$source);
-        self::assertStringContainsString("'print_areas'=>\$geometry",$source);
-        self::assertStringContainsString("array_key_exists(\$reserved,\$template)",$source);
-        self::assertStringContainsString("is derived and cannot be overridden",$source);
-        self::assertStringContainsString("(int)\$product<1",$source);
-        self::assertStringNotContainsString("\$catalog['print_areas']",$source);
-        self::assertStringNotContainsString("\$template+['supplier'",$source);
+        require_once __DIR__.'/../fixtures/PrintifyGeometryFixture.php';
+        $row=PrintifyGeometryFixture::catalog(321,77,88);
+        $t=PrintifyGeometryFixture::candidate($row,'documented-bridge');
+        self::assertSame('printify',$t['supplier']);self::assertSame(321,$t['provider_blueprint_id']);
+        self::assertSame(77,$t['provider_id']);self::assertSame([88],$t['variant_ids']);
+        self::assertSame(1200,$t['print_areas'][0]['width_px']);
+        self::assertSame($row['attributes']['_digiforge_source_evidence']['variant_sha256'],$t['print_areas'][0]['_catalog_bindings'][0]['variant_sha256']);
+        $this->expectException(\InvalidArgumentException::class);
+        \DigiForge\POD\ProductionTemplateContract::fromPrintifyCatalog($row,$t['print_areas'],['template_id'=>'override','template_version'=>1,'supplier'=>'other','personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'NAME_MONOGRAM']);
     }
 
     public function testRepositoryVersionsDriftWithoutMutatingExistingTemplates(): void

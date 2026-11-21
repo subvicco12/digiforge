@@ -1,0 +1,35 @@
+{
+  "contract": "DF_NATIVE_OBSERVER_CONFORMANCE_1",
+  "version": "1.0.0",
+  "core_source_sha": "78e7f973455a3c89319be06f0907caf2103658a7",
+  "companion_source_sha": "4da802a1568b13bcf1bbca28eba009b8b6148ef1",
+  "canonical_native_schema_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "comparator": "DigiForge\\IndependentAcceptance\\NativeObservationConformance::compare",
+  "mode": "PURE_READ_ONLY_DIAGNOSTIC_NO_RUNTIME_REGISTRATION",
+  "signature_verification": "NOT_PERFORMED_BY_COMPARATOR",
+  "context_link_verified": false,
+  "native_runtime_verified": false,
+  "operational_epochs_returned": false,
+  "caller_reference_generation": "Comparison input only, not independently verified currentness",
+  "core_minimized_inspection": "Cannot authenticate origin or current lease from a copied record; request actual protected core inspection for each evaluation",
+  "native_mutation_port_matrix": [
+    {"operation":"READINESS","actual_core":"NativeReadOnlyInspection::snapshot","result":"Protected local read; null epochs and independent_checkpoint_verified=false"},
+    {"operation":"HELD_OPERATION","actual_core":"NativeReadOnlyInspection::snapshot / NativeHeldJournal","result":"Protected local read; UNKNOWN never rearms or grants dispatch"},
+    {"operation":"REGISTER","canonical_schema":true,"actual_core":"NativeCorePort::exchange","result":"DENIED_JOURNAL_AND_INDEPENDENT_CHECKPOINT_REQUIRED"},
+    {"operation":"RESERVE","canonical_schema":false,"result":"DENIED_MUTATION_CONTRACT; canonical reservation action is CLAIM"},
+    {"operation":"CLAIM","canonical_schema":true,"actual_core":"NativeCorePort::exchange","result":"DENIED_JOURNAL_AND_INDEPENDENT_CHECKPOINT_REQUIRED"},
+    {"operation":"PUBLICATION","actual_core":"NativeCorePort::authorizePublication","result":"DENIED_UNDER_STOP_AND_EXTERNAL_LOCK"},
+    {"operation":"ORDER_SUBMIT","actual_core":"ExternalOperationIntent / NativeCorePort::authorizeWorkflow","result":"No mutation-as-GET route; workflow submission denied"},
+    {"operation":"DISPATCH","result":"No comparator sender, permit, callback or operational epoch; actual external requests forbidden"}
+  ],
+  "test_layers": {
+    "portable":"Frozen byte-verified actual core schema validator and held-state source; synthetic core record samples are not native runtime passes",
+    "native_wordpress":"Exact qualified extracted core and companion runtime; actual protected session/scope/nonce/port/journal paths; no mocked missing authority",
+    "fixture_identity":"Native connection provider_shop12 and observer28930593 are distinct synthetic fixtures; mismatch is reported, never substituted"
+  },
+  "known_blockers": ["all-root rollback","usable old credential copies","historical proof currentness","independent administration","credential association/custody","hosted durability","Free entitlement"],
+  "release_hold": true,
+  "mutation_authorized": false,
+  "retry_permitted": false,
+  "automatic_rearm": false
+}
