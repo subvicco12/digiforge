@@ -10,6 +10,32 @@ final class VersionedDatePolicyWorkflowTest extends WP_UnitTestCase
 {
  protected function setUp():void {parent::setUp();$u=self::factory()->user->create_and_get();foreach(['manage_digiforge_pod','manage_digiforge_research']as $c)$u->add_cap($c);wp_set_current_user($u->ID);DigiForge\Core\Activator::activate();ShopAccessFixture::reset();ShopAccessFixture::authorizeActor($u->ID,['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research']);}
  protected function tearDown():void {$_GET=[];global $wpdb;$wpdb->query('COMMIT');PortalAccessFixture::reset();$wpdb->query('COMMIT');$wpdb->query('START TRANSACTION');parent::tearDown();}
+ public function testLiteralDateAdoptionKeepsInvalidCalendarProofHeld():void
+ {
+  $art=ArtworkPersonalizationFixture::approved('fl03_mug_11oz');
+  self::assertNotWPError($art);
+  $repo=new Repo();
+  $fields=$this->fields('fl03_mug_11oz');
+  $old=$repo->define('personalized_pod',$art['hash'],$fields,null,Policy::POLICY);
+  self::assertNotWPError($old);
+  $oldProof=$repo->sample('personalized_pod',$old['hash'],ArtworkPersonalizationFixture::values());
+  self::assertNotWPError($oldProof);
+  $fields[2]=['key'=>'date','type'=>'text','required'=>true,'max_length'=>18];
+  $schema=$repo->define('personalized_pod',$art['hash'],$fields,$old['hash'],DigiForge\Research\ArtworkPersonalizationContract::LITERAL_DATE_POLICY);
+  self::assertNotWPError($schema);
+  $input=array_replace(ArtworkPersonalizationFixture::values(),['date'=>'June 18, 2021']);
+  $proof=$repo->sample('personalized_pod',$schema['hash'],$input);
+  self::assertNotWPError($proof);
+  self::assertSame($input,$proof['record']['data']['result']['samples']);
+  $review=$repo->decide('personalized_pod',$proof['hash'],'APPROVE','Synthetic calendar, literal text and layout checked. Local review only.');
+  self::assertNotWPError($review);
+  self::assertFalse($review['external_execution_authorized']);
+  $held=$repo->sample('personalized_pod',$schema['hash'],array_replace($input,['date'=>'February 29, 2023']));
+  self::assertNotWPError($held);
+  self::assertSame('MANUAL_HOLD',$held['record']['data']['result']['state']);
+  self::assertWPError($repo->decide('personalized_pod',$held['hash'],'APPROVE','Invalid date cannot receive local approval.'));
+  self::assertSame($oldProof,$repo->read('personalized_pod',$oldProof['hash']));
+ }
  private function fields(string $profile):array{$f=ArtworkPersonalizationFixture::fields();$f[0]['max_length']=$f[1]['max_length']=$profile==='fl03_mug_11oz'?13:16;return $f;}
  /** @dataProvider profiles */
  public function testPolicyPersistsAndReplaysWithoutChangingLegacyProofOrReview(string $profile):void {

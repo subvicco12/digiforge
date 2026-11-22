@@ -6,6 +6,8 @@ use DigiForge\POD\{LocalPersonalizationProof, PersonalizationPayloadContract};
 /** Customer samples on exact approved design bytes. Never a production/supplier certificate. */
 final class ArtworkPersonalizationContract
 {
+    public const LITERAL_DATE_POLICY = 'digiforge-fl03-literal-english-date-v1';
+
     public static function fields(array $spec, array $fields): array
     {
         $regions = $spec['layout']['native_regions'] ?? [];
@@ -40,6 +42,17 @@ final class ArtworkPersonalizationContract
     {
         if($policy===null)return null;
         $profile=$spec['profile']??null;$cap=['fl03_mug_11oz'=>13,'fl04_poster_8x10'=>16][$profile]??null;
+        if($policy===self::LITERAL_DATE_POLICY){
+            $expected=[];
+            foreach(['first_name'=>13,'second_name'=>13,'date'=>18] as $key=>$limit){
+                $expected[$key]=['key'=>$key,'type'=>'text','required'=>true,'max_length'=>$limit];
+            }
+            $actual=array_column(self::fields($spec,$fields),null,'key');
+            if($profile!=='fl03_mug_11oz'||$actual!=$expected){
+                throw new \InvalidArgumentException('Exact FL-03 literal date schema required.');
+            }
+            return $policy;
+        }
         if($policy!==\DigiForge\POD\OfflineDateDisplayProof::POLICY||$cap===null||count($fields)!==3)throw new \InvalidArgumentException('Supported explicit date policy and profile required.');
         $by=[];foreach(self::fields($spec,$fields)as $field)$by[$field['key']]=$field;
         foreach(['first_name','second_name','date']as $key){$f=$by[$key]??null;if(!is_array($f)||!$f['required']||$f['type']!==($key==='date'?'date':'text')||$f['max_length']>($key==='date'?10:$cap))throw new \InvalidArgumentException('Policy requires exact required name/name/ISO date fields within preserved native caps.');}
@@ -50,7 +63,16 @@ final class ArtworkPersonalizationContract
     {
         $fields=self::fields($spec,$fields);
         PersonalizationPayloadContract::validate($fields,$samples);
-        if(self::datePolicy($spec,$fields,$datePolicy)!==null){
+        $policy=self::datePolicy($spec,$fields,$datePolicy);
+        $calendarValid=true;
+        if($policy===self::LITERAL_DATE_POLICY){
+            $months=explode(' ','January February March April May June July August September October November December');
+            if(!preg_match('/^([A-Za-z]+) ([1-9][0-9]?), ([0-9]{4})$/D',$samples['date'],$parts)
+                ||($month=array_search($parts[1],$months,true))===false){
+                throw new \InvalidArgumentException('Enter a literal English date such as June 18, 2021.');
+            }
+            $calendarValid=checkdate($month+1,(int)$parts[2],(int)$parts[3]);
+        }elseif($policy!==null){
             $product=$spec['profile']==='fl03_mug_11oz'?'FL-03':'FL-04';
             $display=\DigiForge\POD\OfflineDateDisplayProof::render($product,$spec,$artwork,$samples,$datePolicy);
             $result=$display['proof'];
@@ -63,12 +85,12 @@ final class ArtworkPersonalizationContract
             return $result;
         }
 
-        $values=[];$reasons=[];
+        $values=[];$reasons=$calendarValid?[]:['INVALID_LITERAL_CALENDAR_DATE'];
         foreach($fields as $field){
             $v=$samples[$field['key']]??'';
             if(trim($v)==='' && $field['required'])throw new \InvalidArgumentException('Required value cannot be whitespace.');
             if(preg_match('/[\p{C}\p{Zl}\p{Zp}]/u',$v))throw new \InvalidArgumentException('Single-line plain values required.');
-            if($v!=='' && !preg_match('/^[\p{Latin}\p{M}0-9 .\x{2019}\x{0027}-]+$/u',$v))$reasons[]='GLYPH_COVERAGE_UNVERIFIED';
+            if(!($policy===self::LITERAL_DATE_POLICY&&$field['key']==='date') && $v!=='' && !preg_match('/^[\p{Latin}\p{M}0-9 .\x{2019}\x{0027}-]+$/u',$v))$reasons[]='GLYPH_COVERAGE_UNVERIFIED';
             if(array_key_exists($field['key'],$samples))$values[$field['key']]=$v;
         }
         $svg=null;$render=null;

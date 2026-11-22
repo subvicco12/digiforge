@@ -30,7 +30,12 @@ final class ArtworkPersonalizationPanel
         if($policySchema!==null)$fields=$policySchema['record']['data']['fields'];
         $this->form('personalization_schema',$commercial,$factory);
         if($selected!==null&&$selected['record']['kind']==='SCHEMA')echo '<input type="hidden" name="parent_hash" value="'.esc_attr($selected['hash']).'">';
-        echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option></select></label><p>Spelled-month policy requires required first_name/second_name/date fields; name caps at most 13 for mug or 16 for poster. ISO date cap10 remains separate from native display caps18/24. Native typography/fit remain unverified.</p>';
+        echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option>';
+        if($context['record']['specification']['profile']==='fl03_mug_11oz'){
+            $literal=\DigiForge\Research\ArtworkPersonalizationContract::LITERAL_DATE_POLICY;
+            echo '<option value="'.esc_attr($literal).'"'.selected($policySchema['record']['data']['date_display_policy']??null,$literal,false).'>FL-03 literal English date (manual calendar review)</option>';
+        }
+        echo '</select></label><p>FL-03 literal policy uses required text fields with limits 13 / 13 / 18 and preserves the buyer date as entered. Spelled-month policy requires required first_name/second_name/date fields; name caps at most 13 for mug or 16 for poster. ISO date cap10 remains separate from native display caps18/24. Native typography/fit remain unverified.</p>';
         echo '<h4>Save customer-input schema</h4><p>Set the customer input for each recorded artwork rectangle. Saving a change creates an immutable schema version.</p>';
         foreach($fields as $field){
             $name='fields['.$field['key'].']';
