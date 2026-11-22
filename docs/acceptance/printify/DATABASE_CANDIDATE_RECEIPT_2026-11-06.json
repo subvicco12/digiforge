@@ -1,0 +1,68 @@
+{
+  "artifact_sha256": "800a29e7bca92bcf76804747d4a23f15329b38606649d570df25e1f109fe7677",
+  "artifact_size": 3062782,
+  "source_correction_and_builder": "c46175e3a7246efc8edba02360e708d668f51797",
+  "exact_zip_local_qualification": "PASS_WITH_ONE_OBSOLETE_SKIP",
+  "hosted_exact_zip_audit": "NOT_RUN",
+  "production_installation": "BLOCKED",
+  "production_export_sha256": "af3f3f5d6f58ce31deed3e7d0cef8b76e856e10d834c67a37580f3abf29fc280",
+  "schema": {
+    "tables": 98,
+    "columns": 1146,
+    "indexes": 392,
+    "differences": 0,
+    "markers": {
+      "legacy": 23,
+      "global": 25,
+      "provider": 1
+    }
+  },
+  "owner_copy_boot": {
+    "ddl": 0,
+    "all_129_tables_unchanged": true,
+    "snapshot_restore_match": true
+  },
+  "php_lint": {
+    "files": 507,
+    "errors": []
+  },
+  "tests": {
+    "zip-schema.log": {
+      "sha256": "5c48704f4518276fdfbe46bd0998c27a705582c1af82a933519e1deb275f1df1",
+      "tests": 12,
+      "assertions": 54,
+      "skipped": 0
+    },
+    "zip-wordpress.log": {
+      "sha256": "859cd8561087d20d7ae6e02cd339767818651bfd68859cc6c482244d5eabffa7",
+      "tests": 26,
+      "assertions": 204,
+      "skipped": 1
+    },
+    "zip-rate.log": {
+      "sha256": "8a64da21db88151e731877d069e44b2c046217e471735e374420b3d58d2accb5",
+      "tests": 3,
+      "assertions": 56,
+      "skipped": 0
+    },
+    "sizeguide.log": {
+      "sha256": "cb2f31340c3aa8da78fd6b8145e39e97d2d781920137658f163642e69b2d0681",
+      "tests": 6,
+      "assertions": 26,
+      "skipped": 0
+    }
+  },
+  "contracts_checks": 42,
+  "drive_boundary_checks": 21,
+  "drive_transport_calls": 0,
+  "http_secret_policy": "PASS",
+  "full_site_restore": "UNVERIFIED",
+  "release_acceptance_for_new_digest": "REQUIRED",
+  "production_drift_since_snapshot": "UNVERIFIED",
+  "additional_source_migration_regression": {
+    "tests": 47,
+    "assertions": 415,
+    "result": "PASS",
+    "log_sha256": "18dd27918646ce3b0af9d0cad70f6e65139cbb01bc0ee58c898693ec534af56e"
+  }
+}
