@@ -36,9 +36,7 @@ final class NativeExistingProductMutationEvidenceTest extends WP_UnitTestCase {
    foreach (NativeHeldJournalSchema::statements() as $sql) {
     self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
    }
-   if (!interface_exists(DigiForgePrintifyConnector\Preparation\NativeCorePortInterface::class)) {
-    require_once __DIR__.'/../fixtures/native-printify-companion/NativeCorePortInterface.php';
-   }
+   require_once __DIR__.'/../support/NativePrintifyContractFixture.php';
    $port=PrintifyApiApprovalFixture::checked(NativeBridge::connect('1.0.0'));
    $key=NativePortContract::hash(['DF_CORE_PROVIDER_PRODUCT_UPDATE_1',$scope->shopKey,$scope->integrationId,
     $scope->providerShopId,$scope->environment,'synthetic-product',1]);

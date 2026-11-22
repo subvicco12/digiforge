@@ -122,9 +122,7 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
    self::assertSame('UNKNOWN',$unknown['record']['state']);
    self::assertSame($unknown,(new NativeHeldJournal())->read($binding['operation_id'],$scope->shopKey,1));
    self::assertWPError($journal->fenceScoped($binding,3,$unknown['event_hash'],$pin));
-   if (!interface_exists(DigiForgePrintifyConnector\Preparation\NativeCorePortInterface::class)) {
-    require_once __DIR__.'/../fixtures/native-printify-companion/NativeCorePortInterface.php';
-   }
+   require_once __DIR__.'/../support/NativePrintifyContractFixture.php';
    $port=PrintifyApiApprovalFixture::checked(NativeBridge::connect('1.0.0'));
    $request=['contract_version'=>'1.0.0','action'=>'REGISTER','binding'=>$binding,'context'=>[
     'actor_id'=>1,'logical_reference'=>'product-source:'.$m.':'.$s,
