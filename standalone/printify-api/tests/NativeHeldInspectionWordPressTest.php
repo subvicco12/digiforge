@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use DigiForge\Connector\Printify\{
-    CredentialReference, NativeAuthorityAdapter, NativeBuildIdentity, NativeHeldJournal, NativeHeldJournalSchema,
+    CredentialReference, NativeAuthorityAdapter, NativeBridge, NativeBuildIdentity, NativeHeldJournal, NativeHeldJournalSchema,
     NativePanelAccessAdapter, ShopBinding
 };
 use DigiForgePrintifyApi\Runtime;
@@ -47,6 +47,19 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             $record = PrintifyApiApprovalFixture::checked($journal->register($binding, $key));
             self::assertSame($record, $journal->register($binding, $key));
             $read = static fn(array $b): array => Runtime::inspectNativeHeldOperation('12', $account, $scope, $b, $context);
+            $staleScope = new ShopBinding($scope->shopId, $scope->shopKey, $scope->integrationId,
+                $scope->providerShopId, $scope->environment, $scope->revision + 1, $scope->credential,
+                $scope->bindingHash, $scope->expiresAt);
+            $staleBinding = array_replace($binding, [
+                'scope_fingerprint'=>$staleScope->fingerprint(), 'authorization_revision'=>$staleScope->revision,
+            ]);
+            $staleContext = array_replace($context, [
+                'csrf_token'=>wp_create_nonce(NativePanelAccessAdapter::nonceAction($staleScope, 'unknown')),
+            ]);
+            self::assertSame('DENIED', Runtime::inspectNativeHeldOperation(
+                '12', $account, $staleScope, $staleBinding, $staleContext
+            )['state']);
+
             $held = $read($binding);
             self::assertSame('LOCAL_HELD_OBSERVED', $held['state'], json_encode($held));
             foreach (['payload_fingerprint'=>str_repeat('0',64), 'expected_product_version'=>2, 'provider_shop_id'=>'13',
@@ -60,6 +73,28 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             self::assertFalse($unknown['retry_permitted']);
             self::assertFalse($unknown['provider_outcome_confirmed']);
             self::assertSame($unknown, $read($binding));
+            $core = NativeBridge::connect('1.0.0');
+            self::assertNotWPError($core);
+            $request = NativePrintifyContractFixture::mutation('RECEIPT_READ');
+            $request['binding'] = $binding;
+            $request['context'] = array_replace($request['context'], array_intersect_key(
+                $binding, array_flip(['actor_id', 'authorization_revision', 'approval_reference',
+                    'product_version', 'expected_product_version'])
+            ));
+            $request['duplicate_key'] = $key;
+            $request['data'] = ['receipt_reference'=>$unknown['event_hash']];
+            $response = $core->exchange($request);
+            self::assertWPError($response);
+            self::assertSame('printify_native_held_outcome_unknown', $response->get_error_code());
+            self::assertFalse($response->get_error_data()['retry_permitted']);
+            self::assertFalse($response->get_error_data()['provider_receipt_verified']);
+            foreach (['REGISTER', 'CLAIM'] as $action) {
+                $attempt = array_replace($request, ['action'=>$action, 'data'=>[]]);
+                $denial = $core->exchange($attempt);
+                self::assertWPError($denial);
+                self::assertSame('printify_native_journal_and_independent_checkpoint_required', $denial->get_error_code());
+                self::assertFalse($denial->get_error_data()['network_request_attempted']);
+            }
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {

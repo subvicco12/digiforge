@@ -14,8 +14,8 @@ if (!\defined('ABSPATH')) {
 /** Read-only access to the reviewed Core's held evidence, never to its writer. */
 final class NativeHeldInspection
 {
-    private const CORE = 'd64d32159bea4832b962acb6b4c08fa6fbeae910';
-    private const STAMP = '5cc0c788b263ee5d45ce6e54e260609772713b70becc3154c5bab683c2ad58bf';
+    private const CORE = '3ca5fa241694843628b52f4800c9662bc33521dc';
+    private const STAMP = 'cc1c551336531aa609015cbd285637038af995d305730b47cea67c7cd67584b2';
     private const SPEC = '6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434';
 
     /** Identify the reviewed installed build without invoking the native port. */
