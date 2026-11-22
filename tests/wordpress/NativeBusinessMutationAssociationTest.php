@@ -2,13 +2,14 @@
 declare(strict_types=1);
 require_once __DIR__.'/fixtures/PrintifyApiApprovalFixture.php';
 require_once __DIR__.'/fixtures/NativeBusinessMutationFixture.php';
+require_once __DIR__.'/fixtures/NativeProductRevisionFixture.php';
 use DigiForge\Connector\Printify\{NativeBusinessMutationAssociation as Association,NativeHeldJournalSchema,NativeHeldJournal,NativeBridge};
 use DigiForge\Database\Tables;
 final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
  use NativeBusinessMutationFixture;
  private PrintifyApiApprovalFixture $fixture;private array $snapshots=[];
  protected function setUp():void{parent::setUp();remove_filter('query',[$this,'_create_temporary_tables']);remove_filter('query',[$this,'_drop_temporary_tables']);PortalAccessFixture::reset();DigiForge\Core\Activator::activate();$this->fixture=new PrintifyApiApprovalFixture();$this->fixture->boot();global $wpdb;foreach([Tables::opportunities(),Tables::product_families(),Tables::products(),Tables::product_versions(),Tables::production_plans(),Tables::pod_mappings(),Tables::pod_business_mappings(),Tables::asset_specs(),Tables::production_plan_assets()]as $t)$this->snapshots[$t]=$wpdb->get_results('SELECT * FROM '.$t,ARRAY_A);DigiForge\Core\Settings::protectProduction();}
- protected function tearDown():void{try{global $wpdb;$wpdb->query('ROLLBACK');foreach(NativeHeldJournalSchema::tables()as $t)$wpdb->query('DROP TABLE IF EXISTS '.$t);foreach($this->snapshots as $t=>$rows){$wpdb->query('DELETE FROM '.$t);foreach($rows as $r)$wpdb->insert($t,$r,array_fill(0,count($r),'%s'));}$this->fixture->restore();}finally{parent::tearDown();}}
+ protected function tearDown():void{try{global $wpdb;$wpdb->query('ROLLBACK');$wpdb->query('DROP TABLE IF EXISTS '.NativeProductRevisionFixture::table());foreach(NativeHeldJournalSchema::tables()as $t)$wpdb->query('DROP TABLE IF EXISTS '.$t);foreach($this->snapshots as $t=>$rows){$wpdb->query('DELETE FROM '.$t);foreach($rows as $r)$wpdb->insert($t,$r,array_fill(0,count($r),'%s'));}$this->fixture->restore();}finally{parent::tearDown();}}
  public function testExactIndependentSourceAssociationDoesNotGrantDispatchOrNativeCounters():void {
   self::assertTrue(class_exists(Association::class),'Core-owned independently reviewed source association producer required.');
   $f=$this->businessMutationFixture($this->fixture);$scope=$f['scope'];$m=$f['mapping_id'];$s=$f['spec_id'];$p=$f['plan_hash'];
@@ -61,6 +62,33 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
   self::assertNotFalse($wpdb->query('START TRANSACTION'));
   try {self::assertTrue(is_array($join()),'Rolling back source drift restores the original reviewed source.');}
   finally {$wpdb->query('ROLLBACK');}
+
+  self::assertNotFalse($wpdb->query(NativeProductRevisionFixture::migration()));
+  try {
+   self::assertNotFalse($wpdb->query('START TRANSACTION'));
+   $writer=PrintifyApiApprovalFixture::checked($join());
+   $product=$writer['product_id'];
+   $digest=$writer['source_hash'];
+   self::assertTrue(NativeProductRevisionFixture::advance($scope,$product,0,$digest));
+   self::assertFalse(NativeProductRevisionFixture::advance($scope,$product,0,$digest));
+   self::assertTrue(NativeProductRevisionFixture::lockCurrent($scope,$product,1,$digest));
+   self::assertFalse(NativeProductRevisionFixture::lockCurrent($scope,$product,2,$digest));
+   self::assertFalse(NativeProductRevisionFixture::lockCurrent($scope,$product+1,1,$digest));
+   self::assertNotFalse($wpdb->query('COMMIT'));
+
+   self::assertNotFalse($wpdb->query('START TRANSACTION'));
+   $nextDigest=str_repeat('d',64);
+   self::assertTrue(NativeProductRevisionFixture::advance($scope,$product,1,$nextDigest));
+   self::assertFalse(NativeProductRevisionFixture::advance($scope,$product,1,$digest));
+   self::assertFalse(NativeProductRevisionFixture::lockCurrent($scope,$product,1,$digest));
+   self::assertTrue(NativeProductRevisionFixture::lockCurrent($scope,$product,2,$nextDigest));
+   self::assertNotFalse($wpdb->query('ROLLBACK'));
+   self::assertNotFalse($wpdb->query('START TRANSACTION'));
+   self::assertTrue(NativeProductRevisionFixture::lockCurrent($scope,$product,1,$digest));
+   self::assertNotFalse($wpdb->query('ROLLBACK'));
+  } finally {
+   $wpdb->query('ROLLBACK');
+  }
 
   foreach(NativeHeldJournalSchema::statements() as $sql) self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
   $this->fixture->refreshOwnerVerification();
@@ -126,6 +154,16 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
      self::assertSame('printify_native_canonical_product_intent_mismatch',$denial->get_error_code());
     }
     self::assertWPError($port->exchange(array_replace($request,['duplicate_key'=>str_repeat('f',64)])));
+    $nativeRevision=$request;
+    foreach (['product_version','expected_product_version'] as $field) {
+     $nativeRevision['binding'][$field]=1;
+     $nativeRevision['context'][$field]=1;
+    }
+    foreach (['REGISTER','CLAIM'] as $action) {
+     $denial=$port->exchange(array_replace($nativeRevision,['action'=>$action]));
+     self::assertWPError($denial);
+     self::assertSame('printify_native_product_revision_authority_required',$denial->get_error_code());
+    }
     self::assertSame(2,$writerStarts,'Substituted identities cannot reach a writer transaction.');
    } finally {remove_filter('query',$observe);}
    $receipt=$port->exchange(array_replace($request,['action'=>'RECEIPT_READ','data'=>['receipt_reference'=>$unknown['event_hash']]]));

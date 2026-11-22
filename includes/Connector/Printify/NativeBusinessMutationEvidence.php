@@ -135,8 +135,12 @@ final class NativeBusinessMutationEvidence
         // duplicate digests must bind that same evidence, rather than caller assertions.
         $evidence = $source + ['evidence_hash'=>$association['current_source_evidence_hash']];
         [$expected,$key] = self::heldIdentity($scope,$actor,$evidence);
-        if ($key !== $duplicateKey || NativePortContract::hash($expected) !== NativePortContract::hash($binding)) {
+        $claimedIdentity = array_replace($binding, ['product_version'=>0,'expected_product_version'=>0]);
+        if ($key !== $duplicateKey || NativePortContract::hash($expected) !== NativePortContract::hash($claimedIdentity)) {
             return NativeFailure::error('canonical_product_intent_mismatch');
+        }
+        if ($binding['product_version'] !== 0 || $binding['expected_product_version'] !== 0) {
+            return NativeFailure::error('product_revision_authority_required');
         }
 
         return (new NativeHeldJournal())->checkScopedAdmission($binding,$key,[
