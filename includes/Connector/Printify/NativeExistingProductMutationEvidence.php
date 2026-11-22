@@ -84,6 +84,70 @@ final class NativeExistingProductMutationEvidence
         }
     }
 
+    /** Propose a new Core lifecycle version from the sealed adoption and update plan. */
+    public static function proposeRevision(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan,
+        string $receipt, int $expectedRevision, int $effectiveAt, int $expiresAt, string $requestId): array|\WP_Error
+    {
+        $owner = \DigiForge\PortalAccess\Owner::require($scope->shopKey);
+        if (is_wp_error($owner)) return $owner;
+        $source = self::resolve($scope,$actor,$mapping,$spec,$plan,$receipt);
+        if (is_wp_error($source)) return $source;
+        return \DigiForge\Security\ReviewedLocalEvidence::propose('policy',$scope->shopKey,
+            self::revisionKey($scope,$source['provider_product_id']),self::revisionPayload($source),
+            $effectiveAt,$expiresAt,$requestId,$expectedRevision);
+    }
+
+    /** Use the same scoped, append-only approval writer for confirmation and revocation. */
+    public static function decideRevision(ShopBinding $scope, int $actor, string $product, int $expectedRevision,
+        string $proposal, string $decision, string $requestId): array|\WP_Error
+    {
+        $authority = NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge_products','manage_digiforge_settings']);
+        if (is_wp_error($authority)) return $authority;
+        if (!preg_match('/^[A-Za-z0-9_-]{1,160}$/D',$product)) return self::deny('revision_identity');
+        return \DigiForge\Security\ReviewedLocalEvidence::decide('policy',$scope->shopKey,self::revisionKey($scope,$product),
+            $expectedRevision,$proposal,$decision,$requestId);
+    }
+
+    /** Read a current Core-tracked provider-product version. Provider-side CAS is separately required. */
+    public static function currentRevision(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan,
+        string $receipt, int $expectedVersion): array|\WP_Error
+    {
+        $source = self::resolve($scope,$actor,$mapping,$spec,$plan,$receipt);
+        if (is_wp_error($source)) return $source;
+        $key = self::revisionKey($scope,$source['provider_product_id']);
+        $approval = \DigiForge\Security\ReviewedLocalEvidence::approved('policy',$scope->shopKey,$key);
+        if (is_wp_error($approval)) return $approval;
+        if ($approval['version'] !== $expectedVersion || NativePortContract::hash($approval['payload']) !== NativePortContract::hash(self::revisionPayload($source))) {
+            return self::deny('revision_stale');
+        }
+        $latest = self::resolve($scope,$actor,$mapping,$spec,$plan,$receipt,$source['evidence_hash']);
+        if (is_wp_error($latest)) return $latest;
+        $again = \DigiForge\Security\ReviewedLocalEvidence::approved('policy',$scope->shopKey,$key);
+        if ($again !== $approval) return self::deny('revision_changed');
+        return ['schema'=>'DF_CORE_REVIEWED_PROVIDER_PRODUCT_REVISION_1','scope_fingerprint'=>$scope->fingerprint(),
+            'provider_product_id'=>$source['provider_product_id'],'core_revision'=>$approval['version'],
+            'review_revision'=>$approval['revision'],'review_hash'=>$approval['proposal_hash'],
+            'source'=>$approval['payload'],'native_product_version'=>null,
+            'provider_version_cas_verified'=>false,'external_execution_authorized'=>false,'dispatch_permitted'=>false];
+    }
+
+    private static function revisionKey(ShopBinding $scope, string $product): string
+    {
+        return 'printify-provider-product:'.NativePortContract::hash([
+            $scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment,$product,
+        ]);
+    }
+
+    private static function revisionPayload(array $source): array
+    {
+        return array_intersect_key($source,array_flip([
+            'scope_fingerprint','provider_product_id','product_id','product_version_id','provider_mapping_id',
+            'asset_spec_id','operation','plan_hash','package_hash','artwork_version_hash','payload_fingerprint',
+            'product_read_receipt_hash','source_read_policy_revision','source_read_producer_audit_id',
+            'adopted_product_receipt_hash','adoption_producer_audit_id','plan_policy_hash','plan_policy_revision',
+        ]));
+    }
+
     private static function adoption(PrintifyProductPipeline $pipeline, ShopBinding $scope, array $plan, string $adoptedHash, string $sourceHash, array $observed, string $observedAt, int $sourceAuditId): array|\WP_Error
     {
         $receipt = $pipeline->receipt($adoptedHash);
