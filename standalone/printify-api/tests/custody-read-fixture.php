@@ -86,6 +86,7 @@ $assertCustody($readiness['provider_read']['offline']==='OFFLINE_VERIFIED'
     && $readiness['provider_read']['hosted']==='BLOCKED_EXTERNAL'
     && $readiness['provider_read']['provider']==='BLOCKED_EXTERNAL'
     && $readiness['provider_read']['dispatch']==='DISABLED_BY_POLICY'
+    && $readiness['native_mutation']['core_build']==='NATIVE_CORE_UNAVAILABLE'
     && $readiness['native_mutation']['admission']==='BLOCKED_EXTERNAL','Operational capability was overclaimed');
 $assertCustody(Runtime::integrationReadiness('108','fixture-account')===[],'Cross-shop readiness disclosure');
 

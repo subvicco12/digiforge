@@ -43,8 +43,10 @@ final class Runtime
         }
         $shop=self::shop();
         $account=self::fixtureAccount();
-        if ($shop!==null && $account!==null && self::integrationReadiness($shop,$account)!==[]) {
+        $readiness = $shop !== null && $account !== null ? self::integrationReadiness($shop, $account) : [];
+        if ($readiness !== []) {
             echo '<p>Operational provider reads and mutations remain disabled. Offline evidence is synthetic.</p>';
+            echo '<p>Native Core build: ' . \esc_html($readiness['native_mutation']['core_build']) . '</p>';
         }
         $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
         $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
@@ -252,12 +254,19 @@ final class Runtime
         }
         $blocked='BLOCKED_EXTERNAL';
         $disabled='DISABLED_BY_POLICY';
+        $nativeBuild = 'STANDALONE_ADAPTER_UNAVAILABLE';
+        $adapter = __DIR__ . '/NativeHeldInspection.php';
+        if (is_readable($adapter)) {
+            require_once $adapter;
+            $nativeBuild = NativeHeldInspection::buildStatus();
+        }
         return [
             'provider_read'=>[
                 'offline'=>self::providerReadAvailable()?'OFFLINE_VERIFIED':$blocked,
                 'hosted'=>$blocked,'provider'=>$blocked,'dispatch'=>$disabled,
             ],
-            'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled],
+            'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled,
+                'core_build'=>$nativeBuild],
         ];
     }
 

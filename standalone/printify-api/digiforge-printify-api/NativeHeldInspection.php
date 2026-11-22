@@ -18,6 +18,34 @@ final class NativeHeldInspection
     private const STAMP = '5cc0c788b263ee5d45ce6e54e260609772713b70becc3154c5bab683c2ad58bf';
     private const SPEC = '6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434';
 
+    /** Identify the reviewed installed build without invoking the native port. */
+    public static function buildStatus(): string
+    {
+        try {
+            if (!class_exists(NativeBuildIdentity::class)) {
+                return 'NATIVE_CORE_UNAVAILABLE';
+            }
+            return self::reviewedDirectory() === null ? 'NATIVE_BUILD_INCOMPATIBLE' : 'REVIEWED_BUILD_PRESENT';
+        } catch (\Throwable) {
+            return 'NATIVE_BUILD_INCOMPATIBLE';
+        }
+    }
+
+    private static function reviewedDirectory(): ?string
+    {
+        if (!class_exists(NativePortContract::class)) {
+            return null;
+        }
+        $directory = dirname((new \ReflectionClass(NativeBuildIdentity::class))->getFileName());
+        $stamp = @file_get_contents($directory . '/native-build.json', false, null, 0, 65537);
+        if (!is_string($stamp) || !hash_equals(self::STAMP, hash('sha256', $stamp))
+            || NativeBuildIdentity::source() !== self::CORE || NativePortContract::digest() !== self::SPEC
+            || (new \ReflectionClass(NativePortContract::class))->getFileName() !== $directory . '/NativePortContract.php') {
+            return null;
+        }
+        return $directory;
+    }
+
     public static function read(string $shop, string $account, mixed $scope, array $binding, array $context): array
     {
         if (!Runtime::permitsFixtureAccount($shop, $account)) {
@@ -27,10 +55,8 @@ final class NativeHeldInspection
             if (!class_exists(NativeBuildIdentity::class)) {
                 return self::result('BLOCKED', 'NATIVE_CORE_UNAVAILABLE');
             }
-            $directory = dirname((new \ReflectionClass(NativeBuildIdentity::class))->getFileName());
-            $stamp = @file_get_contents($directory . '/native-build.json', false, null, 0, 65537);
-            if (!is_string($stamp) || !hash_equals(self::STAMP, hash('sha256', $stamp))
-                || NativeBuildIdentity::source() !== self::CORE || NativePortContract::digest() !== self::SPEC
+            $directory = self::reviewedDirectory();
+            if ($directory === null
                 || (new \ReflectionClass(NativeReadOnlyInspection::class))->getFileName() !== $directory . '/NativeReadOnlyInspection.php'
                 || (new \ReflectionClass(NativeHeldJournal::class))->getFileName() !== $directory . '/NativeHeldJournal.php') {
                 return self::result('BLOCKED', 'NATIVE_BUILD_INCOMPATIBLE');
@@ -92,11 +118,7 @@ final class NativeHeldInspection
             if (!class_exists(NativeBuildIdentity::class) || !class_exists(NativePortContract::class)) {
                 return self::result('BLOCKED','NATIVE_CORE_UNAVAILABLE');
             }
-            $directory=dirname((new \ReflectionClass(NativeBuildIdentity::class))->getFileName());
-            $stamp=@file_get_contents($directory.'/native-build.json',false,null,0,65537);
-            if (!is_string($stamp) || !hash_equals(self::STAMP,hash('sha256',$stamp))
-                || NativeBuildIdentity::source()!==self::CORE || NativePortContract::digest()!==self::SPEC
-                || (new \ReflectionClass(NativePortContract::class))->getFileName()!==$directory.'/NativePortContract.php') {
+            if (self::reviewedDirectory() === null) {
                 return self::result('BLOCKED','NATIVE_BUILD_INCOMPATIBLE');
             }
             if (!NativePortContract::valid('mutation_request',$request)
