@@ -45,6 +45,49 @@ final class NativeReadOnlyInspectionTest extends WP_UnitTestCase {
   $unknown=PrintifyApiApprovalFixture::checked($journal->transition($binding['operation_id'],$binding['shop_key'],1,2,'UNKNOWN'));
   self::assertSame('UNKNOWN',$unknown['record']['state']);
   self::assertSame($unknown,(new NativeHeldJournal())->read($binding['operation_id'],$binding['shop_key'],1));
+  $port=DigiForge\Connector\Printify\NativeBridge::connect('1.0.0');
+  self::assertNotWPError($port);
+  $wire=DigiForge\POD\PrintifyProductRequest::prepare('PRODUCT_UPDATE',$binding['provider_shop_id'],[
+   'product_id'=>'fixture-product','title'=>'Held fixture title',
+  ]);
+  $q=NativePrintifyContractFixture::mutation('REGISTER');
+  $q['context']=array_replace($q['context'],['logical_reference'=>'fixture-product','authorization_revision'=>$this->scope->revision]);
+  $q['duplicate_key']=NativePortContract::hash(['PRODUCT_UPDATE',$binding['shop_key'],$binding['integration_id'],
+   $binding['provider_shop_id'],'test','fixture-product:1']);
+  $q['data']=['prepared'=>['core_request'=>$wire,'scope_fingerprint'=>$binding['scope_fingerprint'],'external_execution_authorized'=>false]];
+  $binding['payload_fingerprint']=NativePortContract::hash(array_intersect_key($wire,array_flip(['method','endpoint','body'])));
+  $binding['operation_id']=NativePortContract::hash(['DF_PRINTIFY_PREPARATION_V1',$q['duplicate_key'],$binding['payload_fingerprint']]);
+  $binding['intent_fingerprint']=NativePortContract::hash([$binding['operation_id'],$binding['scope_fingerprint'],$q['context'],$q['data']['prepared']]);
+  $q['binding']=$binding;
+  $substituted=$q;
+  $substituted['data']['prepared']['core_request']['body']['title']='Substituted title';
+  self::assertWPError($port->stageHeldProduct($substituted));
+  // An attacker can recompute unkeyed digests: aliases still cannot create another held slot.
+  $alias=$q;$alias['context']['logical_reference']='fixture-alias';
+  $alias['duplicate_key']=NativePortContract::hash(['PRODUCT_UPDATE',$binding['shop_key'],$binding['integration_id'],
+   $binding['provider_shop_id'],'test','fixture-alias:1']);
+  $alias['binding']['operation_id']=NativePortContract::hash(['DF_PRINTIFY_PREPARATION_V1',$alias['duplicate_key'],$binding['payload_fingerprint']]);
+  $alias['binding']['intent_fingerprint']=NativePortContract::hash([$alias['binding']['operation_id'],
+   $binding['scope_fingerprint'],$alias['context'],$alias['data']['prepared']]);
+  self::assertWPError($port->stageHeldProduct($alias));
+  $malformed=$q;
+  $badWire=$wire;$badWire['body']['unsupported_payload']='data';
+  $badWire['fingerprint']=NativePortContract::hash(array_diff_key($badWire,array_flip(['fingerprint','external_execution_authorized'])));
+  self::assertTrue(DigiForge\POD\PrintifyProductRequest::intact($badWire));
+  $malformed['data']['prepared']['core_request']=$badWire;
+  $malformed['binding']['payload_fingerprint']=NativePortContract::hash(array_intersect_key($badWire,array_flip(['method','endpoint','body'])));
+  $malformed['binding']['operation_id']=NativePortContract::hash(['DF_PRINTIFY_PREPARATION_V1',$q['duplicate_key'],$malformed['binding']['payload_fingerprint']]);
+  $malformed['binding']['intent_fingerprint']=NativePortContract::hash([$malformed['binding']['operation_id'],$binding['scope_fingerprint'],$q['context'],$malformed['data']['prepared']]);
+  self::assertWPError($port->stageHeldProduct($malformed));
+  self::assertWPError($port->exchange($q));
+  $staged=PrintifyApiApprovalFixture::checked($port->stageHeldProduct($q));
+  self::assertSame('HELD',$staged['record']['state']);
+  self::assertFalse($staged['record']['approval_verified']);
+  self::assertWPError($port->stageHeldProduct($q));
+  $consumed=PrintifyApiApprovalFixture::checked($port->fenceHeldProduct($q,1,$staged['event_hash']));
+  self::assertSame('FENCED',$consumed['record']['state']);
+  self::assertFalse($consumed['record']['dispatch_permitted']);
+  self::assertWPError($port->fenceHeldProduct($q,1,$staged['event_hash']));
   $wpdb->query('START TRANSACTION');
  }
 

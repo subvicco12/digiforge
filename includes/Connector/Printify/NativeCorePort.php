@@ -39,6 +39,57 @@ final class NativeCorePort implements NativeCorePortInterface
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.
   return NativeFailure::error('journal_and_independent_checkpoint_required');
  }
+ /**
+  * Prepare local held evidence from a canonical product-update REGISTER request.
+  * Separate from exchange(): this does not admit a mutation or issue a lease.
+  */
+ public function stageHeldProduct(array $request):array|\WP_Error {
+  $candidate=self::heldProductBinding($request);
+  if(is_wp_error($candidate))return $candidate;
+  return (new NativeHeldJournal())->prepareScoped($candidate,$request['duplicate_key']);
+ }
+ /** Consume a local fence on the same canonical intent. */
+ public function fenceHeldProduct(array $request,int $expectedRevision,string $expectedHead):array|\WP_Error {
+  $candidate=self::heldProductBinding($request);
+  if(is_wp_error($candidate))return $candidate;
+  return (new NativeHeldJournal())->fenceScoped($candidate,$expectedRevision,$expectedHead);
+ }
+ private static function heldProductBinding(array $request):array|\WP_Error {
+  $error=NativeFailure::error('held_product_identity');
+  if(!function_exists('wp_get_environment_type')||wp_get_environment_type()!=='local'
+     ||!NativePortContract::valid('mutation_request',$request)||$request['action']!=='REGISTER')return $error;
+  $binding=$request['binding'];$context=$request['context'];$data=$request['data'];
+  if($binding['environment']!=='test'||$binding['shop_key']!=='personalized_pod')return $error;
+  foreach(['actor_id','authorization_revision','approval_reference','product_version','expected_product_version'] as $key){
+   if($binding[$key]!==$context[$key])return $error;
+  }
+  $prepared=$data['prepared']??null;
+  $wire=is_array($prepared)?($prepared['core_request']??null):null;
+  if(count($data)!==1||!is_array($wire)||!\DigiForge\POD\PrintifyProductRequest::intact($wire)
+     ||($prepared['scope_fingerprint']??null)!==$binding['scope_fingerprint']
+     ||($prepared['external_execution_authorized']??null)!==false
+     ||$wire['operation']!=='PRODUCT_UPDATE')return $error;
+  $endpoint='/v1/shops/'.$binding['provider_shop_id'].'/products';
+  if(preg_match('#^'.preg_quote($endpoint,'#').'/([A-Za-z0-9_-]{1,160})\.json$#D',$wire['endpoint'],$match)!==1
+     ||$context['logical_reference']!==$match[1])return $error;
+  try{
+   $input=$wire['body'];
+   if(array_key_exists('product_id',$input)||array_key_exists('known_variant_ids',$input))return $error;
+   $input['product_id']=$match[1];
+   if(isset($input['variants'])&&is_array($input['variants']))$input['known_variant_ids']=array_column($input['variants'],'id');
+   $expected=\DigiForge\POD\PrintifyProductRequest::prepare('PRODUCT_UPDATE',$binding['provider_shop_id'],$input);
+   if(!hash_equals(NativePortContract::hash($expected),NativePortContract::hash($wire)))return $error;
+   $payload=NativePortContract::hash(array_intersect_key($wire,array_flip(['method','endpoint','body'])));
+   $logical=$context['logical_reference'].':'.$context['product_version'];
+   $duplicate=NativePortContract::hash([$wire['operation'],$binding['shop_key'],$binding['integration_id'],
+    $binding['provider_shop_id'],$binding['environment'],$logical]);
+   $operation=NativePortContract::hash(['DF_PRINTIFY_PREPARATION_V1',$duplicate,$payload]);
+   $intent=NativePortContract::hash([$operation,$binding['scope_fingerprint'],$context,$prepared]);
+   if(!hash_equals($request['duplicate_key'],$duplicate)||!hash_equals($binding['operation_id'],$operation)
+      ||!hash_equals($binding['payload_fingerprint'],$payload)||!hash_equals($binding['intent_fingerprint'],$intent))return $error;
+   return array_map(static fn($value)=>$value,$binding);
+  }catch(\Throwable){return $error;}
+ }
  /** Existing v1 references locate a protected association; they never attest its content. */
  private function checkLocalProductAssociation(ShopBinding $scope,array $binding,string $locator,array $references):\WP_Error {
   if(preg_match('/^product-source:([1-9][0-9]{0,18}):([1-9][0-9]{0,18})$/D',$locator,$ids)!==1
