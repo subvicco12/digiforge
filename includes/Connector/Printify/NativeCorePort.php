@@ -38,6 +38,15 @@ final class NativeCorePort implements NativeCorePortInterface
   if(in_array($request['action'],['REGISTER','CLAIM'],true)&&str_starts_with($c['logical_reference'],'product-source:')){
    $locator=self::productSourceLocator($c['logical_reference']);
    $data=$request['data'];
+   if(array_key_exists('reviewed_product_version',$data)){
+    $version=$data['reviewed_product_version'];
+    if($locator===null||count($request['evidence_references'])!==3||count($data)!==1||!is_int($version)||$version<1){
+     return NativeFailure::error('canonical_product_intent_contract');
+    }
+    [$plan,$receipt,$review]=$request['evidence_references'];
+    return NativeExistingProductMutationEvidence::checkCanonicalAdmission($access,$b,$request['duplicate_key'],
+     $locator[0],$locator[1],$plan,$receipt,$review,$version);
+   }
    $sourceVersion=$data['reviewed_source_version']??null;
    if($locator===null||count($request['evidence_references'])!==2
       ||($data!==[]&&(count($data)!==1||!is_int($sourceVersion)||$sourceVersion<1))){

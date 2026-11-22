@@ -41,6 +41,17 @@ final class NativeHeldJournal {
    static fn()=>self::currentScope($binding,$association,$sourceVersion));
   return is_wp_error($result)?$result:self::error('unexpected_admission_result');
  }
+ /** Run a protected existing-product check with no operational success path. */
+ public function checkExistingProductAdmission(array $binding,string $candidateKey,callable $product):\WP_Error {
+  if(!NativePortContract::valid('binding',$binding)||!preg_match('/^[a-f0-9]{64}$/D',$candidateKey))return self::error('contract');
+  $result=$this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),
+   static fn()=>NativeFailure::error('journal_and_independent_checkpoint_required'),$binding['shop_key'],$binding['actor_id'],
+   static function()use($binding,$product):true|\WP_Error {
+    $scope=self::currentScope($binding);
+    return is_wp_error($scope)?$scope:$product();
+   });
+  return is_wp_error($result)?$result:self::error('unexpected_admission_result');
+ }
  private static function normalizeAssociation(array $association):?array {
   $pin=[];
   foreach(['mapping','spec','revision'] as $field){

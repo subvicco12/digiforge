@@ -8,6 +8,7 @@ use DigiForge\Database\Tables;
 /** Protected existing-product PRICE-UPDATE source facts, never mutation admission. */
 final class NativeExistingProductMutationEvidence
 {
+    private const MAX_OBSERVATION_AGE = 300;
     public static function version(): string { return '1.0.0'; }
 
     public static function resolve(ShopBinding $scope, int $actor, int $mapping, int $spec, string $planHash, string $readReceipt, ?string $expectedHash = null): array|\WP_Error
@@ -65,7 +66,8 @@ final class NativeExistingProductMutationEvidence
                 'product_id'=>$business['product_id'],'product_version_id'=>$business['product_version_id'],
                 'provider_mapping_id'=>$mapping,'asset_spec_id'=>$spec,'operation'=>'PRODUCT_UPDATE',
                 'plan_hash'=>$planHash,'package_hash'=>$plan['package_hash'],'artwork_version_hash'=>$artwork['artwork_version_hash'],
-                'supplier_evidence_hash'=>$supplier['evidence_hash'],'provider_product_id'=>$supplier['provider_product_id'],
+                'supplier_evidence_hash'=>$supplier['evidence_hash'],'business_evidence_hash'=>$business['evidence_hash'],
+                'artwork_evidence_hash'=>$artwork['evidence_hash'],'provider_product_id'=>$supplier['provider_product_id'],
                 'blueprint_id'=>$supplier['blueprint_id'],'provider_id'=>$supplier['provider_id'],'variant_id'=>$supplier['variant_id'],
                 'price_minor'=>$options['price_minor'],'currency'=>null,'payload_fingerprint'=>NativePortContract::hash(['method'=>$expected['method'],'endpoint'=>$expected['endpoint'],'body'=>$expected['body']]),
                 'product_read_receipt_hash'=>$readReceipt,'source_read_policy_revision'=>$source['approval_revision'],
@@ -129,6 +131,78 @@ final class NativeExistingProductMutationEvidence
             'review_revision'=>$approval['revision'],'review_hash'=>$approval['proposal_hash'],
             'source'=>$approval['payload'],'native_product_version'=>null,
             'provider_version_cas_verified'=>false,'external_execution_authorized'=>false,'dispatch_permitted'=>false];
+    }
+
+    /** Recheck a governed observation in the admission writer without authorizing a provider mutation. */
+    public static function checkCanonicalAdmission(ShopBinding $scope, array $binding, string $duplicate,
+        int $mapping, int $spec, string $plan, string $receipt, string $review, int $version): \WP_Error
+    {
+        $actor = $binding['actor_id'];
+        $capture = NativeProtectedOptionDependencies::capture(
+            static fn()=>self::currentRevision($scope,$actor,$mapping,$spec,$plan,$receipt,$version)
+        );
+        if (is_wp_error($capture)) return $capture;
+        $revision = $capture['value'];
+        $source = $revision['source'];
+        $product = $revision['provider_product_id'];
+        $read = (new PrintifyApiReadWorkflow())->productSource($receipt);
+        if (is_wp_error($read)) return $read;
+        $observation = $read['receipt'];
+        $observed = strtotime((string)($observation['observed_at'] ?? ''));
+        if ($observed === false || !self::fresh($observed)) return self::deny('observation_stale');
+
+        $business = NativeBusinessEvidence::product($scope,$actor,$mapping);
+        if (is_wp_error($business)) return $business;
+        $artwork = NativeBusinessArtworkEvidence::resolve($scope,$actor,$mapping,$spec);
+        if (is_wp_error($artwork)) return $artwork;
+        $last = self::resolve($scope,$actor,$mapping,$spec,$plan,$receipt);
+        if (is_wp_error($last)) return $last;
+        if ($business['evidence_hash'] !== ($artwork['business_evidence_hash'] ?? null)
+            || $business['evidence_hash'] !== $last['business_evidence_hash']
+            || $artwork['evidence_hash'] !== $last['artwork_evidence_hash']
+            || NativePortContract::hash($source) !== NativePortContract::hash(self::revisionPayload($last))
+            || $read['producer_audit_id'] !== $source['source_read_producer_audit_id']
+            || $read['approval_revision'] !== $source['source_read_policy_revision']) {
+            return self::deny('revision_source_drift');
+        }
+        $key = NativePortContract::hash(['DF_CORE_PROVIDER_PRODUCT_UPDATE_1',$scope->shopKey,$scope->integrationId,
+            $scope->providerShopId,$scope->environment,$product,$version]);
+        $intent = NativePortContract::hash(['DF_CORE_PROVIDER_PRODUCT_INTENT_1',$scope->fingerprint(),$actor,$revision]);
+        $operation = NativePortContract::hash([$key,$source['payload_fingerprint'],$intent]);
+        if ($key !== $duplicate || $review !== $revision['review_hash']
+            || $binding['product_version'] !== 0 || $binding['expected_product_version'] !== 0
+            || $binding['approval_reference'] !== $source['plan_policy_hash']
+            || $binding['payload_fingerprint'] !== $source['payload_fingerprint']
+            || $binding['intent_fingerprint'] !== $intent || $binding['operation_id'] !== $operation) {
+            return self::deny('revision_intent_mismatch');
+        }
+
+        return (new NativeHeldJournal())->checkExistingProductAdmission($binding,$key,
+            static function () use ($scope,$actor,$mapping,$spec,$plan,$product,$revision,$source,$read,$observation,$observed,$business,$artwork,$capture): true|\WP_Error {
+                $policies = [
+                    self::revisionKey($scope,$product)=>[$revision['review_hash'],$revision['review_revision']],
+                    'printify-product:'.$plan=>[$source['plan_policy_hash'],$source['plan_policy_revision']],
+                    'printify-api-read:'.$observation['plan_hash']=>[$read['approval_hash'],$read['approval_revision']],
+                ];
+                foreach ($policies as $key=>[$hash,$expected]) {
+                    $policy = \DigiForge\Security\ReviewedLocalEvidence::lockApprovedPolicy($scope->shopKey,$key);
+                    if (is_wp_error($policy)) return $policy;
+                    if ($policy['proposal_hash'] !== $hash || $policy['revision'] !== $expected) return self::deny('revision_approval_changed');
+                }
+                $locked = NativeBusinessArtworkEvidence::lockCurrent($scope,$actor,$mapping,$spec,
+                    $business['dependency_hashes'],$artwork['dependency_hash']);
+                if (is_wp_error($locked)) return $locked;
+                $options = NativeProtectedOptionDependencies::lockCurrent($scope,$actor,$capture['dependencies']);
+                if (is_wp_error($options)) return $options;
+                return self::fresh($observed) ? true : self::deny('observation_stale');
+            }
+        );
+    }
+
+    private static function fresh(int $observed): bool
+    {
+        $now = time();
+        return $observed <= $now && $observed >= $now-self::MAX_OBSERVATION_AGE;
     }
 
     private static function revisionKey(ShopBinding $scope, string $product): string
