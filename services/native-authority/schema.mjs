@@ -5,6 +5,7 @@ export const BINDING_FIELDS = Object.freeze(['authority_id', 'installation_id', 
 export const BODY_FIELDS = Object.freeze({
   currentCheckpoint: ['grant_reference', 'expected_epoch', 'expected_generation'],
   admitOperation: ['grant_reference', 'operation_id', 'payload_fingerprint', 'product_version', 'expected_product_version', 'approval_reference', 'approval_revision', 'policy_revision', 'expected_epoch', 'expected_generation'],
+  readOperation: ['operation_id', 'payload_fingerprint', 'original_request_id', 'original_challenge', 'expected_epoch', 'expected_generation', 'retained_witness_head', 'retained_witness_sequence'],
   requestEmergency: ['emergency_authority_reference', 'emergency_event_id', 'scope_of_revocation', 'expected_generation'],
   readDrain: ['emergency_event_id', 'generation'],
   recoverInstallation: ['independent_recovery_approval', 'previous_epoch', 'expected_witness_head', 'outstanding_lease_inventory_hash'],
@@ -40,9 +41,10 @@ export function validateRequest(request) {
   requireAuthority(token(request.request_id) && token(request.challenge) && request.request_id !== request.challenge, 'fresh_challenge');
   exactFields(request.method_body, BODY_FIELDS[request.method], 'method_body');
   for (const [key, value] of Object.entries(request.method_body)) {
-    if (['expected_epoch', 'previous_epoch', 'expected_witness_head', 'outstanding_lease_inventory_hash', 'payload_fingerprint', 'new_root_set_digest', 'operation_id'].includes(key)) requireAuthority(digestValue(value), 'method_digest');
+    if (['original_request_id','original_challenge'].includes(key)) requireAuthority(token(value), 'method_token');
+    else if (['retained_witness_head','expected_epoch', 'previous_epoch', 'expected_witness_head', 'outstanding_lease_inventory_hash', 'payload_fingerprint', 'new_root_set_digest', 'operation_id'].includes(key)) requireAuthority(digestValue(value), 'method_digest');
     else if (['product_version', 'expected_product_version'].includes(key)) requireAuthority(integer(value, 0), 'product_version');
-    else if (['expected_generation', 'generation', 'approval_revision', 'policy_revision', 'previous_root_set_revision', 'new_root_set_revision'].includes(key)) requireAuthority(integer(value), 'method_revision');
+    else if (['retained_witness_sequence', 'expected_generation', 'generation', 'approval_revision', 'policy_revision', 'previous_root_set_revision', 'new_root_set_revision'].includes(key)) requireAuthority(integer(value), 'method_revision');
     else requireAuthority(reference(value), 'method_reference');
   }
   return request;

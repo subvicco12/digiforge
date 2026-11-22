@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createProcessFixture, offlineReleasedHolds, witnessBarrier, jsonPost } from './process-fixtures.mjs';
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync, backup } from 'node:sqlite';
 import { digest, sign, PURPOSE } from '../protocol.mjs';
 
 const emergency = f => f.client('emergency').call('requestEmergency', { emergency_authority_reference: 'emergency', emergency_event_id: 'offline-emergency', scope_of_revocation: 'installation', expected_generation: f.state().generation });
@@ -63,6 +65,70 @@ test('N05 actual emergency before custody admission prevents credentialed provid
   assert.equal(f.operation().state, 'ADMITTED');
   assert.equal(f.requests.length, 0);
   assert.equal(f.state().paused, true);
+});
+
+test('Core authenticates the original committed allocation after lost acknowledgement and STOP', async t => {
+  const f = await createProcessFixture(t, { holds: offlineReleasedHolds });
+  const retained = f.state();
+  const body = f.admissionBody();
+  const correlation = { request_id: randomBytes(32).toString('base64url'), challenge: randomBytes(32).toString('base64url') };
+  const proxy = await witnessBarrier(t, f.processes.get('witness').address, (url, e) => url === '/dispatch' && e.message.action === 'operation');
+  await f.stop('issuer');
+  f.configs.issuer.witness_url = proxy.url;
+  await f.launch('issuer');
+  const started = f.client('workload', { timeoutMs: 5000 }).call('admitOperation', body, correlation);
+  await proxy.reached;
+  const rollback = join(f.dirs.witness,'pre-stop-snapshot.sqlite');
+  const source = new DatabaseSync(f.databasePath, { readOnly: true });
+  try { await backup(source,rollback); } finally { source.close(); }
+  const stopped = await emergency(f);
+  assert.equal(stopped.disposition, 'PENDING');
+  proxy.release();
+  await assert.rejects(started, { code: 'authority_http_status' });
+  assert.equal(f.requests.length, 0);
+
+  await f.crash('witness');
+  await f.stop('issuer');
+  await f.launch('witness');
+  f.configs.issuer.witness_url = f.processes.get('witness').address;
+  await f.launch('issuer');
+
+  const read = { operation_id: body.operation_id, payload_fingerprint: body.payload_fingerprint,
+    original_request_id: correlation.request_id, original_challenge: correlation.challenge,
+    expected_epoch: body.expected_epoch, expected_generation: body.expected_generation,
+    retained_witness_head: retained.witness_head, retained_witness_sequence: retained.witness_sequence };
+  const observed = await f.client().call('readOperation', read);
+  assert.equal(observed.disposition, 'ADMITTED');
+  assert.equal(observed.result.external_execution_authorized, false);
+  assert.equal(observed.generation, stopped.generation);
+  assert.equal(observed.result.operation.allocation_id, f.operation().allocation_id);
+  assert.ok(observed.result.operation.admission_event.sequence <= observed.witness_sequence);
+  assert.match(observed.result.operation.admission_event.head, /^[a-f0-9]{64}$/);
+  for (const patch of [
+    { original_challenge: randomBytes(32).toString('base64url') },
+    { payload_fingerprint: digest('foreign payload') },
+    { expected_generation: stopped.generation },
+    { retained_witness_head: digest('stale frontier') },
+    { retained_witness_sequence: observed.witness_sequence + 1 },
+  ]) {
+    const denied = await f.client().call('readOperation', { ...read, ...patch });
+    assert.equal(denied.disposition, 'DENIED');
+    assert.equal(denied.result.operation, null);
+  }
+  await assert.rejects(f.client('owner').call('readOperation',read));
+  await f.stop('issuer');
+  await f.stop('witness');
+  f.configs.witness.database_path = rollback;
+  await f.launch('witness');
+  f.configs.issuer.witness_url = f.processes.get('witness').address;
+  await f.launch('issuer');
+  const restored = await f.client().call('readOperation', {
+    ...read, retained_witness_head: observed.witness_head, retained_witness_sequence: observed.witness_sequence,
+  });
+  assert.equal(restored.disposition, 'DENIED');
+  assert.equal(restored.result.reason, 'witness_frontier_mismatch');
+  assert.equal(restored.result.operation, null);
+  assert.equal(f.requests.length, 0);
 });
 
 test('N06 emergency durably changes generation while in-flight bytes keep drain pending', async t => {

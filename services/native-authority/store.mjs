@@ -114,7 +114,7 @@ export class AuthorityStore {
   this.#db.prepare('INSERT INTO request_tokens(token) VALUES(?)').run(requestId);this.#db.prepare('INSERT INTO request_tokens(token) VALUES(?)').run(challenge);
   this.#db.prepare('INSERT INTO request_claims(request_id,challenge,method,claimed_at) VALUES(?,?,?,?)').run(requestId,challenge,method,now);
  }
- claimRequest(requestId,challenge,method,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);need(['currentCheckpoint','requestEmergency','readDrain','recoverInstallation','rotateRoot'].includes(method),'request_method');return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
+ claimRequest(requestId,challenge,method,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);need(['currentCheckpoint','readOperation','requestEmergency','readDrain','recoverInstallation','rotateRoot'].includes(method),'request_method');return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
  claimDispatchRequest(requestId,challenge,action,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);need(['state','operation','markSending','finish','reconcile','publicResult'].includes(action),'request_method');return this.#tx(()=>{this.#state();const method='dispatch.'+action;this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
  claimRejectedAdmission(requestId,challenge,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,'admitOperation',now);return {request_id:requestId,challenge,method:'admitOperation',claimed_at:now};});}
  #source(approval,s){
@@ -150,6 +150,23 @@ export class AuthorityStore {
    this.#claimTokens(request.request_id,request.challenge,'admitOperation',now);
    const cas=this.#db.prepare('UPDATE approvals SET consumed=1,allocation_revision=? WHERE reference=? AND allocation_revision=? AND consumed=0').run(op.allocation_revision,a.approval_reference,row.allocation_revision);need(cas.changes===1,'allocation_consumed');
    this.#db.prepare('INSERT INTO operations(operation_id,request_id,challenge,allocation_id,payload) VALUES(?,?,?,?,?)').run(op.operation_id,op.request_id,op.challenge,op.allocation_id,canonical(op));this.#event(s,'OPERATION_ADMITTED',{operation_id:op.operation_id,allocation_id:op.allocation_id,allocation_revision:op.allocation_revision,generation:op.generation},now);return op;
+  });
+ }
+ readCommittedOperation(request){
+  const body=request.method_body;
+  return this.#tx(()=>{
+   const s=this.#state();
+   this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
+   const retained=this.#db.prepare('SELECT head FROM witness_events WHERE sequence=?').get(body.retained_witness_sequence);
+   need(retained?.head===body.retained_witness_head,'witness_frontier_mismatch');
+   const op=this.#get('operations',body.operation_id,'operation_id');
+   need(op&&op.payload_fingerprint===body.payload_fingerprint&&op.request_id===body.original_request_id
+    &&op.challenge===body.original_challenge&&op.epoch===body.expected_epoch&&op.generation===body.expected_generation,'operation_readback_binding');
+   this.#sameBinding(op.binding,s);
+   const rows=this.#db.prepare("SELECT sequence,head FROM witness_events WHERE json_extract(event,'$.type')='OPERATION_ADMITTED' AND json_extract(event,'$.data.operation_id')=? AND json_extract(event,'$.data.allocation_id')=? AND json_extract(event,'$.data.allocation_revision')=? AND json_extract(event,'$.data.generation')=? LIMIT 2")
+    .all(op.operation_id,op.allocation_id,op.allocation_revision,op.generation);
+   need(rows.length===1,'operation_event_missing');
+   return {operation:op,state:this.#view(s),admission_event:{sequence:rows[0].sequence,head:rows[0].head}};
   });
  }
  operation(operationId){hash(operationId);try{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}

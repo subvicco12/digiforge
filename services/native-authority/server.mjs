@@ -19,7 +19,7 @@ function authenticate(config, envelope) {
   // must verify before an authenticated request reaches durable state.
   const request = envelope?.message;
   validateRequest(request);
-  const role = ['currentCheckpoint','admitOperation'].includes(request.method) ? 'workload'
+  const role = ['currentCheckpoint','admitOperation','readOperation'].includes(request.method) ? 'workload'
     : request.method === 'requestEmergency' ? 'emergency' : 'recovery';
   const keys = request.method === 'readDrain' ? new Map([...config.keys.emergency, ...config.keys.recovery]) : config.keys[role];
   verify(PURPOSE[request.method], envelope, keys);
@@ -74,9 +74,9 @@ function originalMatchesOperation(request,op) {
   for(const key of ['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision'])need(request.method_body[key]===op[key],'operation_request_binding');
   need(request.method_body.expected_epoch===op.epoch&&request.method_body.expected_generation===op.generation,'operation_request_binding');
 }
-function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null) {
-  const state=store.state(), time=now();
-  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
+function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null, readback=null) {
+  const state=readback?.state??store.state(), time=now();
+  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:readback?{...operationView(operation),admission_event:readback.admission_event}:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
   return signWitness('witness.response.v1',{version:VERSION,request_bindings:request,authority_id:request.authority_id,key_id:config.keyId,root_set_revision:state.root_set_revision,recovery_epoch:state.recovery_epoch,checkpoint_epoch:state.epoch,generation:state.generation,recovery_revision:state.recovery_revision,issued_at:time,expires_at:time+30,disposition,evidence_reference:'witness-event-'+state.witness_sequence,witness_id:state.witness_id,witness_head:state.witness_head,witness_sequence:state.witness_sequence,result},config.privateKey,config.keyId);
 }
 function verifiedResponse(config, envelope, request) {
@@ -143,6 +143,10 @@ function witnessCall(config,store,registry,request) {
           throw error;
         }
         break;
+      }
+      case 'readOperation': {
+        const readback=store.readCommittedOperation(request);
+        return publicResponse(config,store,request,readback.operation.state,readback.operation,null,null,readback);
       }
       case 'requestEmergency': {const s=store.emergency(body.emergency_event_id,body.expected_generation,time);drain=store.drain(body.emergency_event_id,s.generation);state=drain.state;break;}
       case 'readDrain':drain=store.drain(body.emergency_event_id,body.generation);state=drain.state;break;

@@ -8,7 +8,7 @@ import { exactFields, validateBinding, validateRequest, reference, digestValue, 
 const LIMIT = 65536;
 const RESPONSE_FIELDS = Object.freeze(['version', 'request_bindings', 'authority_id', 'key_id', 'root_set_revision', 'recovery_epoch', 'checkpoint_epoch', 'generation', 'recovery_revision', 'issued_at', 'expires_at', 'disposition', 'evidence_reference', 'witness_id', 'witness_head', 'witness_sequence', 'result']);
 const KEY_ID = /^[A-Za-z0-9_-]{1,80}$/;
-const STATES = new Set(['CURRENT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'ADMITTED', 'HELD', 'DENIED', 'PENDING', 'DRAINED', 'RECOVERED_HELD', 'ROOT_ROTATED_HELD']);
+const STATES = new Set(['CURRENT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'ADMITTED', 'SENDING', 'HELD', 'DENIED', 'PENDING', 'DRAINED', 'RECOVERED_HELD', 'ROOT_ROTATED_HELD']);
 const RESULT_FIELDS = ['schema', 'method', 'state', 'operation', 'drain', 'reason', 'external_execution_authorized'];
 const OPERATION_FIELDS = ['operation_id', 'allocation_id', 'allocation_revision', 'product_identity', 'product_version', 'order_identity', 'order_version', 'approval_reference', 'approval_revision', 'policy_revision', 'payload_fingerprint', 'generation', 'checkpoint_epoch', 'state', 'provider_reference'];
 
@@ -98,11 +98,16 @@ export class AuthorityClient {
     this.#timeout = timeoutMs;
   }
 
-  async call(method, methodBody) {
+  /** Core can supply correlation tokens it persisted before a one-shot admission attempt. */
+  async call(method, methodBody, correlation = null) {
     need(Object.hasOwn(PURPOSE, method), 'method_purpose');
-    const requestId = randomBytes(32).toString('base64url');
-    let challenge;
-    do { challenge = randomBytes(32).toString('base64url'); } while (challenge === requestId);
+    if (correlation !== null) {
+      need(method === 'admitOperation', 'admission_correlation_only');
+      exactFields(correlation, ['request_id','challenge'], 'admission_correlation_fields');
+    }
+    const requestId = correlation === null ? randomBytes(32).toString('base64url') : correlation.request_id;
+    let challenge = correlation?.challenge;
+    if (correlation === null) do { challenge = randomBytes(32).toString('base64url'); } while (challenge === requestId);
     const request = validateRequest({ ...this.#binding, version: VERSION, method, message_purpose: PURPOSE[method], request_id: requestId, challenge, method_body: parseCanonical(canonical(methodBody)) });
     const body = canonical(sign(PURPOSE[method], request, this.#privateKey, this.#keyId));
     need(Buffer.byteLength(body) <= LIMIT, 'message_bound');
@@ -136,15 +141,29 @@ export class AuthorityClient {
     need(result.reason === null || reference(result.reason), 'result_reason');
     if (result.operation !== null) {
       const operation = result.operation;
-      exactFields(operation, OPERATION_FIELDS, 'operation_fields');
+      exactFields(operation, request.method === 'readOperation' ? [...OPERATION_FIELDS,'admission_event'] : OPERATION_FIELDS, 'operation_fields');
       for (const field of ['allocation_id', 'product_identity', 'order_identity', 'approval_reference']) need(reference(operation[field]), 'operation_reference');
       for (const field of ['allocation_revision', 'product_version', 'order_version', 'approval_revision', 'policy_revision', 'generation']) need(integer(operation[field]), 'operation_revision');
       for (const field of ['operation_id', 'payload_fingerprint', 'checkpoint_epoch']) need(digestValue(operation[field]), 'operation_digest');
       need(STATES.has(operation.state) && (operation.provider_reference === null || reference(operation.provider_reference)), 'operation_state');
+      if (request.method === 'readOperation') {
+        const body=request.method_body;
+        need(operation.operation_id===body.operation_id && operation.payload_fingerprint===body.payload_fingerprint
+          && operation.generation===body.expected_generation && operation.checkpoint_epoch===body.expected_epoch
+          && operation.state===message.disposition && ['ADMITTED','SENDING','SUCCEEDED','FAILED','UNKNOWN'].includes(operation.state)
+          && message.generation>=operation.generation, 'operation_readback_binding');
+        exactFields(operation.admission_event,['sequence','head'],'admission_event_fields');
+        need(integer(operation.admission_event.sequence)&&digestValue(operation.admission_event.head)
+          && message.witness_sequence>=Math.max(operation.admission_event.sequence,body.retained_witness_sequence)
+          && (message.witness_sequence!==body.retained_witness_sequence||message.witness_head===body.retained_witness_head), 'operation_readback_frontier');
+      }
       if (request.method === 'admitOperation') {
         for (const field of ['operation_id', 'payload_fingerprint', 'product_version', 'approval_reference', 'approval_revision', 'policy_revision']) need(operation[field] === request.method_body[field], 'operation_binding');
         need(operation.generation === request.method_body.expected_generation && operation.checkpoint_epoch === request.method_body.expected_epoch, 'operation_binding');
       }
+    }
+    if (request.method === 'readOperation') {
+      need((message.disposition === 'DENIED') === (result.operation === null) && result.drain === null, 'operation_readback_disposition');
     }
     if (result.drain !== null) {
       exactFields(result.drain, ['state', 'pending_operations'], 'drain_fields');
