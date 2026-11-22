@@ -49,7 +49,9 @@ export class AuthorityStore {
    need(this.#db.prepare('PRAGMA journal_mode').get().journal_mode==='wal'&&this.#db.prepare('PRAGMA synchronous').get().synchronous===2,'storage_durability');
   }catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}
  }
- #tx(fn){try{this.#db.exec('BEGIN IMMEDIATE');try{const value=fn();this.#db.exec('COMMIT');return value;}catch(e){try{this.#db.exec('ROLLBACK');}catch{}throw e;}}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
+ #tx(fn,begin='BEGIN IMMEDIATE'){try{this.#db.exec(begin);try{const value=fn();this.#db.exec('COMMIT');return value;}catch(e){try{this.#db.exec('ROLLBACK');}catch{}throw e;}}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
+ // Integrity verification spans multiple queries and must share one SQLite snapshot.
+ #readSnapshot(fn){return this.#db.isTransaction?fn():this.#tx(fn,'BEGIN');}
  #get(table,id,column='identity'){const row=this.#db.prepare(`SELECT payload FROM ${table} WHERE ${column}=?`).get(id);return row?JSON.parse(row.payload):null;}
  #put(table,id,value,column='identity'){if(table==='operations'){need(this.#db.prepare('UPDATE operations SET payload=? WHERE operation_id=?').run(canonical(value),id).changes===1,'operation_missing');return;}this.#db.prepare(`INSERT INTO ${table}(${column},payload) VALUES(?,?) ON CONFLICT(${column}) DO UPDATE SET payload=excluded.payload`).run(id,canonical(value));}
  #seal(s){
@@ -83,7 +85,7 @@ export class AuthorityStore {
  }
  #unfinished(){return this.#db.prepare('SELECT payload FROM operations ORDER BY operation_id').all().map(r=>JSON.parse(r.payload)).filter(o=>UNRESOLVED.has(o.state));}
  #view(s){const pending=this.#unfinished();return {...s,sequence:s.witness_sequence,head:s.witness_head,inventory_hash:digest(pending),unresolved_operations:pending.length};}
- state(){try{return this.#view(this.#state());}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
+ state(){try{return this.#readSnapshot(()=>this.#view(this.#state()));}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
  inventoryHash(){return this.state().inventory_hash;}
  registerProduct(record){
   keys(record,['binding','core_reference'],['product_identity','product_version']);ref(record.core_reference);need(record.product_version===undefined||record.product_version===1,'native_version_required');
@@ -176,7 +178,7 @@ export class AuthorityStore {
    return {operation:op,state:this.#view(s),admission_event:{sequence:rows[0].sequence,head:rows[0].head},outcome_event:outcomeEvent};
   });
  }
- operation(operationId){hash(operationId);try{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
+ operation(operationId){hash(operationId);try{return this.#readSnapshot(()=>{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;});}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
  markSending(operationId,expectedGeneration,now){
   return this.#markSending(operationId,expectedGeneration,now,null);
  }
