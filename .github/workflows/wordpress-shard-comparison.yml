@@ -1,0 +1,154 @@
+name: WordPress shard comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      approved:
+        description: Owner-approved one-time isolated comparison
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: digiforge-wordpress-shard-comparison
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/main' && github.actor == 'subvicco12' && inputs.approved
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Require terminal mandatory audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(gh api repos/subvicco12/digiforge/actions/runs/45033826711 --jq '.status')
+          test "$status" = completed
+
+  general:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [serial, '0', '1', '2', '3', '4', '5']
+    services:
+      mariadb:
+        image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: digiforge_tests
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      WP_TESTS_DIR: ${{ runner.temp }}/wordpress-tests-lib
+      WP_CORE_DIR: ${{ runner.temp }}/wordpress
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+          persist-credentials: false
+      - name: Verify exact candidate
+        run: test "$(git rev-parse HEAD)" = 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install bounded document text verifier dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          /usr/bin/pdftotext -v
+
+      - name: Install pinned offline cutout processor
+        run: |
+          python3 -m venv /tmp/digiforge-cutout-runtime
+          /tmp/digiforge-cutout-runtime/bin/pip install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=/tmp/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$(/tmp/digiforge-cutout-runtime/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Install isolated WordPress fixture
+        env:
+          WORDPRESS_VERSION: "7.1.5"
+        run: |
+          [[ "$WORDPRESS_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          sudo apt-get install -y -qq subversion default-mysql-client
+          bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 "$WORDPRESS_VERSION"
+
+      - name: Run retained general profile
+        env:
+          PROFILE: ${{ matrix.profile }}
+          DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+        run: |
+          set -euo pipefail
+          mkdir -p "$DF_GOOGLE_PORTAL_FIXTURES" "$RUNNER_TEMP/evidence"
+          name="$PROFILE"
+          if [[ "$PROFILE" != serial ]]; then name="shard-$PROFILE"; fi
+          python3 tests/ci/wordpress-shards.py config "$PROFILE" "$RUNNER_TEMP/phpunit.xml"
+          export DF_WP_AUDIT_METRICS="$RUNNER_TEMP/evidence/$name.metrics.json"
+          sudo groupadd df-audit-phpunit
+          test_group=$(getent group df-audit-phpunit | cut -d: -f3)
+          [[ "$test_group" =~ ^[0-9]+$ ]]
+          cleanup() {
+            sudo iptables -D OUTPUT ! -o lo -m owner --gid-owner "$test_group" -j REJECT || true
+            sudo ip6tables -D OUTPUT ! -o lo -m owner --gid-owner "$test_group" -j REJECT || true
+          }
+          trap cleanup EXIT
+          sudo iptables -I OUTPUT 1 ! -o lo -m owner --gid-owner "$test_group" -j REJECT
+          sudo ip6tables -I OUTPUT 1 ! -o lo -m owner --gid-owner "$test_group" -j REJECT
+          sudo --preserve-env=PATH,WP_TESTS_DIR,WP_CORE_DIR,DF_GOOGLE_PORTAL_FIXTURES,DF_WP_AUDIT_METRICS,DIGIFORGE_CUTOUT_PYTHON,PYTHONPATH \
+            setpriv --reuid "$(id -u)" --regid "$test_group" --clear-groups --no-new-privs \
+            /usr/bin/time -f '%e' -o "$RUNNER_TEMP/evidence/$name.wall" \
+            vendor/bin/phpunit --configuration "$RUNNER_TEMP/phpunit.xml" --debug \
+            --enforce-time-limit --default-time-limit 600 \
+            --log-junit "$RUNNER_TEMP/evidence/$name.xml"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: general-${{ matrix.profile }}
+          path: ${{ runner.temp }}/evidence
+          if-no-files-found: error
+
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [preflight, general]
+    if: always() && needs.preflight.result != 'skipped'
+    steps:
+      - name: Require every comparison runner
+        env:
+          RESULT: ${{ needs.general.result }}
+        run: test "$RESULT" = success
+      - uses: actions/checkout@v4
+        with:
+          ref: 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: general-*
+          path: evidence
+          merge-multiple: true
+      - name: Verify exact test, assertion, and skip parity
+        run: python3 tests/ci/wordpress-shards.py compare evidence | tee "${GITHUB_STEP_SUMMARY}"
+        shell: bash
