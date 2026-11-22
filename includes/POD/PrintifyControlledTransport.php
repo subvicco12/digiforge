@@ -5,6 +5,7 @@ use WP_Error;
 /** No-retry controlled Printify mutation transport. */
 final class PrintifyControlledTransport{
  private $sender;public function __construct(?callable $sender=null){$this->sender=$sender??static fn(string $u,array $a)=>wp_remote_request($u,$a);}
+ public function executeProduct(string $planHash,string $authorizationHash):array|WP_Error{return (new PrintifyProductPipeline())->execute($planHash,$authorizationHash,$this->sender);}
  public function execute(array $permit,array $payload):array|WP_Error{
   $request=PrintifyMutationRequest::prepare($permit,$payload);if(is_wp_error($request))return $request;
   $approvedFingerprint=strtolower(trim((string)($permit['request_fingerprint']??'')));

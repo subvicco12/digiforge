@@ -1,0 +1,64 @@
+name: Printify exact artifact — owner-attested automated audit
+on:
+  workflow_call:
+    inputs:
+      intake_run_id:
+        required: true
+        type: string
+      intake_artifact_id:
+        required: true
+        type: string
+      owner_attestation_comment_id:
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: printify-owner-attested-artifact-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Authenticate and validate approved intake metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTAKE_RUN: ${{ inputs.intake_run_id }}
+          OWNER_ATTESTATION: ${{ inputs.owner_attestation_comment_id }}
+          INTAKE_ARTIFACT: ${{ inputs.intake_artifact_id }}
+        run: |
+          mkdir -p results
+          python3 bin/artifact-audit/control.py owner-attestation "$OWNER_ATTESTATION" "$INTAKE_RUN" "$INTAKE_ARTIFACT" > results/owner-attestation.json
+          python3 bin/artifact-audit/control.py intake "$INTAKE_RUN" "$INTAKE_ARTIFACT" > results/intake.json
+          gh api "repos/subvicco12/digiforge/actions/artifacts/$INTAKE_ARTIFACT/zip" > intake-wrapper.zip
+      - name: Verify exact digest and all members before extraction
+        run: |
+          python3 bin/artifact-audit/control.py unwrap intake-wrapper.zip candidate.zip
+          python3 bin/artifact-audit/verify.py candidate.zip docs/engineering/printify-artifact-audit/preservation-manifest.json extracted > results/admission.json
+      - name: Existing security gates with narrow pinned Drive review
+        run: python3 bin/artifact-audit/security.py extracted/digiforge > results/security.json
+      - name: Prepare isolated test tools and disposable WordPress fixture
+        run: docker build -f bin/artifact-audit/Dockerfile -t printify-artifact-audit .
+      - name: Audit extracted ZIP contents with no external network
+        run: |
+          docker run --rm --network none --cap-drop ALL --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE --cap-add CHOWN --pids-limit 256 --memory 3g --cpus 2 -v "$PWD/extracted:/artifact:ro" -v "$PWD/results:/results" printify-artifact-audit
+      - name: Bind completed tests to exact ZIP and audit source
+        env:
+          AUDIT_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          sha256sum candidate.zip > results/exact-zip.sha256
+          python3 -c 'import json,os;json.dump({"artifact_sha256":"aba29f64dd0a874635098492c4073012d219a404c676e2b237a346c6495b43e1","audit_source_sha":os.environ["AUDIT_SOURCE_SHA"],"production_activation_authorized":False,"audit_mode":"OWNER_ATTESTED_AUTOMATED","independent_human_review":False,"technical_checks":"PASS"},open("results/receipt.json","w"))'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: printify-artifact-audit-evidence
+          path: results/
+          if-no-files-found: error
+          retention-days: 14

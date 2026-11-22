@@ -10,7 +10,7 @@ use WP_Error;
 /** Operator controls over existing held services. Uses the existing nonce-protected portal action. */
 final class ProductPackagePanel
 {
-    public function render(string $shop, string $workflow, string $design): void
+    public function render(string $shop, string $workflow, string $design, ?array $supplierTemplate=null): void
     {
         if (!$this->access($shop)) return;
         $handoff=$this->context($shop,$workflow,$design);
@@ -27,6 +27,7 @@ final class ProductPackagePanel
         echo '<button class="df-button">Inspect held package</button></form>';
         $e=$current['record']['evidence']??$this->template($handoff);
         if ($e instanceof WP_Error) {$this->message($e);echo '</section>';return;}
+        if($current===null&&$supplierTemplate!==null)$e['template']=$supplierTemplate;
         echo '<details'.($current===null?' open':'').'><summary>Create or revise product evidence</summary>';
         $this->form('package_prepare',$workflow,$design);
         if ($current!==null) echo '<input type="hidden" name="parent_hash" value="'.esc_attr($current['hash']).'">';
