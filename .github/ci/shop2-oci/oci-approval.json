@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "approved": false,
+  "repository": "subvicco12/digiforge",
+  "source": {
+    "lane_b": "3ca5fa241694843628b52f4800c9662bc33521dc",
+    "lane_a": "002973a0cfb93cfab132e6c446a5ea34adb27d37",
+    "application_tree": "0259c42e8db360804300ec3d8ca1dee95c5f7711",
+    "composition_commit": "86f3cb995508e18ea8ae3567c9f018613f19dbd4",
+    "zip_sha256": "475e775e270224cc371805ae3252ca1757da7225d37d18a6fb522a211fdb7bd7"
+  },
+  "producer_sha": null,
+  "run_id": null,
+  "run_attempt": null,
+  "artifact_id": null,
+  "github_artifact_digest": null,
+  "archive_sha256": null,
+  "image_manifest_digest": null,
+  "image_config_digest": null,
+  "platform": "linux/amd64",
+  "component_manifest_sha256": null,
+  "qualification_receipt_sha256": null,
+  "input_lock_sha256": null
+}

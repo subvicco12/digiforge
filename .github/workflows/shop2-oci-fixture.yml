@@ -1,0 +1,32 @@
+name: Shop 2 OCI fixture qualification
+on:
+  workflow_dispatch:
+    inputs:
+      approved_workflow_sha:
+        type: string
+        required: true
+        description: Exact independently reviewed and authorized producer revision
+permissions:
+  contents: read
+jobs:
+  fixture:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'subvicco12/digiforge' && github.sha == github.workflow_sha && inputs.approved_workflow_sha == github.workflow_sha }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Require approved exact inputs
+        shell: bash
+        run: jq -e '.schema == 1 and .approved_for_execution == true' .github/ci/shop2-oci/input-lock.json >/dev/null
+      - name: Build and qualify the disposable OCI runtime
+        shell: bash
+        run: bash .github/ci/shop2-oci/qualify-producer.sh "$RUNNER_TEMP/shop2-oci-output"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: shop2-oci-runtime
+          path: ${{ runner.temp }}/shop2-oci-output/
+          if-no-files-found: error
+          retention-days: 14
