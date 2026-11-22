@@ -91,12 +91,29 @@ final class ArtworkPersonalizationWorkflowTest extends WP_UnitTestCase
   $parent=$xpath->evaluate('string(//form[input[@name="operation" and @value="personalization_schema"]]/input[@name="parent_hash"]/@value)');
   self::assertSame($schema['hash'],$parent);
 
-  $fields[0]['max_length']--;
-  $saved=(new DigiForge\Portal\CommercialResearchPanel())->process([
+  $selection=$xpath->evaluate('string(//form[input[@name="operation" and @value="personalization_schema"]]/input[@name="personalization_hash"]/@value)');
+  self::assertSame($proof['hash'],$selection);
+
+  $rows=[];
+  foreach($fields as $field){
+   $rows[$field['key']]=['type'=>$field['type'],'required'=>$field['required']?'1':'0','max_length'=>(string)$field['max_length']];
+  }
+  $post=[
    'operation'=>'personalization_schema','shop_key'=>'personalized_pod',
    'workflow_hash'=>$art['record']['commercial_hash'],'factory_hash'=>$art['hash'],
-   'parent_hash'=>$parent,'fields_json'=>wp_json_encode($fields),
-  ]);
+   'parent_hash'=>$parent,'personalization_hash'=>$selection,'fields'=>$rows,
+  ];
+  $panel=new DigiForge\Portal\CommercialResearchPanel();
+  $before=$repo->recent('personalized_pod',$art['hash']);
+  self::assertIsArray($before);
+  $invalid=$post;
+  $invalid['fields']['first_name']['max_length']='81';
+  self::assertWPError($panel->process($invalid));
+  self::assertSame($before,$repo->recent('personalized_pod',$art['hash']));
+  self::assertSame($reviewed,$repo->read('personalized_pod',$proof['hash']));
+
+  $post['fields']['first_name']['max_length']=(string)($fields[0]['max_length']-1);
+  $saved=$panel->process($post);
   self::assertNotWPError($saved);
   $revised=$repo->read('personalized_pod',$saved['personalization_hash']);
   self::assertNotWPError($revised);

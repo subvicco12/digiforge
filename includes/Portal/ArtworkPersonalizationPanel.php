@@ -30,6 +30,8 @@ final class ArtworkPersonalizationPanel
         if($policySchema!==null)$fields=$policySchema['record']['data']['fields'];
         $this->form('personalization_schema',$commercial,$factory);
         if($policySchema!==null)echo '<input type="hidden" name="parent_hash" value="'.esc_attr($policySchema['hash']).'">';
+        // The supplier route uses this view reference on rejection. The schema parent is separate.
+        if($selected!==null)echo '<input type="hidden" name="personalization_hash" value="'.esc_attr($selected['hash']).'">';
         echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option>';
         if($context['record']['specification']['profile']==='fl03_mug_11oz'){
             $literal=\DigiForge\Research\ArtworkPersonalizationContract::LITERAL_DATE_POLICY;
