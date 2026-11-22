@@ -1,0 +1,30 @@
+{
+  "data": [
+    {
+      "attributes": {
+        "country": {
+          "code": "US"
+        },
+        "handlingTime": {
+          "from": 4,
+          "to": 8
+        },
+        "shippingCost": {
+          "additionalItems": {
+            "amount": 219,
+            "currency": "USD"
+          },
+          "firstItem": {
+            "amount": 399,
+            "currency": "USD"
+          }
+        },
+        "shippingPlanId": "65a7c0825b50fcd56a018e02",
+        "shippingType": "standard",
+        "variantId": 23494
+      },
+      "id": "23494",
+      "type": "variant_shipping_standard_us"
+    }
+  ]
+}

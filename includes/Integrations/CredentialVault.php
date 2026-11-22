@@ -138,7 +138,18 @@ final class CredentialVault {
 
     public static function encrypt(string $plaintext, string $context): string {
         if ($plaintext === '') { throw new \InvalidArgumentException('Secret cannot be empty.'); }
-        $key = self::derive('encryption');
+        return self::encryptWithKey($plaintext, $context, self::derive('encryption'));
+    }
+
+    /** Encrypt without provisioning a key; used by offline native evidence custody. */
+    public static function encryptExisting(string $plaintext, string $context): string {
+        if ($plaintext === '') { throw new \InvalidArgumentException('Evidence cannot be empty.'); }
+        $key = self::deriveExisting('encryption');
+        if ($key === null) { throw new \RuntimeException('Credential key is unavailable.'); }
+        return self::encryptWithKey($plaintext, $context, $key);
+    }
+
+    private static function encryptWithKey(string $plaintext, string $context, string $key): string {
         $aad = self::aad($context);
         if (function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')) {
             $nonce = random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);

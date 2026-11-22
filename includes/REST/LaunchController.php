@@ -92,6 +92,8 @@ final class LaunchController
         return new \WP_REST_Response([
             'engine' => 'launch-execution-u3',
             'research_endpoint' => '/digiforge/v1/launch/research',
+            'research_phases' => ['trend_scan', 'deep_research'],
+            'deep_research_selection' => 'deep_research requires an approved same-shop integer selected_candidate_id; consumes independent shortlist quota and creates separately reviewed evidence',
             'development_endpoint' => '/digiforge/v1/launch/candidates/{id}/develop',
             'product_build_endpoint' => '/digiforge/v1/launch/candidates/{id}/build-product',
             'product_review_endpoint' => '/digiforge/v1/launch/product-versions/{id}/review',

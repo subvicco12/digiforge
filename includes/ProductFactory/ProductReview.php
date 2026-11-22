@@ -151,8 +151,9 @@ final class ProductReview
     {
         global $wpdb;
         $wpdb->last_error = '';
+        // Repeated or arbitrary semantic rows cannot replace required IP/policy coverage.
         $totalRaw = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type LIKE 'semantic_%%'",
+            "SELECT COUNT(DISTINCT check_type) FROM " . Tables::production_qa() . " WHERE target_type='plan' AND target_id=%d AND check_type IN ('semantic_specification_match','semantic_spelling_text_quality','semantic_ip_trademark_risk','semantic_prohibited_content','semantic_link_qr_integrity','semantic_marketing_product_consistency','semantic_mockup_production_separation')",
             $planId
         ));
         if(!empty($wpdb->last_error)||!is_numeric($totalRaw))return $this->error('qa_evidence_unavailable','Product Approval QA evidence is unavailable; approval is blocked.',503);
@@ -209,6 +210,8 @@ final class ProductReview
             if ($total < 1 || $bad > 0) {
                 return $this->error('qa_failed', 'Every required asset must have completed passing QA checks.', 409);
             }
+            $pdfIntegrity = PdfTextIntegrity::validateRevision($revision);
+            if (is_wp_error($pdfIntegrity)) { return $pdfIntegrity; }
             $revisions[] = (int) $revision['id'];
         }
         return $revisions;

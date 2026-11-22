@@ -1,0 +1,26 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
+use DigiForge\Database\Tables;
+use DigiForge\Portal\ProductionTemplatePanel;
+final class PortalProductionTemplateAcceptanceTest extends WP_UnitTestCase
+{
+ private array $ownedTemplates=[];
+ protected function tearDown():void {global $wpdb;$wpdb->query('ROLLBACK');foreach($this->ownedTemplates as $row){$wpdb->delete(Tables::pod_production_templates(),['id'=>$row['id'],'template_id'=>$row['template_id']]);$wpdb->delete(Tables::shop_ai_usage(),['model_key'=>$row['fingerprint'],'workflow'=>'production_template','stage'=>'template_prepare']);}$wpdb->query('START TRANSACTION');parent::tearDown();}
+ protected function setUp():void {parent::setUp();DigiForge\Core\Activator::activate();ShopAccessFixture::reset();wp_set_current_user(self::factory()->user->create(['role'=>'administrator']));ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],DigiForge\Core\Capabilities::ALL);}
+ private function candidate(string $shop):array {
+  $policy=(new DigiForge\AI\ShopAiGovernanceRepository())->savePolicy(['shop_key'=>$shop,'currency'=>'USD','template_cap'=>['limit'=>8,'duration_seconds'=>604800,'anchor_utc'=>'2026-01-05 00:00:00']]);self::assertNotWPError($policy);
+  $row=(new DigiForge\POD\ProductionTemplateRepository())->save(['shop_key'=>$shop,'template_id'=>'panel-'.wp_generate_uuid4(),'template_version'=>1,'supplier'=>'printify','provider_blueprint_id'=>1,'provider_id'=>2,'variant_ids'=>[3],'print_areas'=>[['position'=>'front','decoration_method'=>'dtg','width_px'=>100,'height_px'=>100]],'personalization_pipeline'=>'DIGIFORGE_RENDER','personalization_engine'=>'PHOTO_TEXT']);self::assertNotWPError($row);$this->ownedTemplates[]=$row;return $row;
+ }
+ public function testRealStoredDraftIsScopedBeforeWindowAndCapabilitiesAreNotCertification():void {
+  ShopAccessFixture::authorizeActor(get_current_user_id(),['digital','personalized_pod','standard_pod','jewelry'],DigiForge\Core\Capabilities::ALL);
+  $a=$this->candidate('personalized_pod');$foreign=$this->candidate('standard_pod');$data=(new ProductionTemplatePanel())->snapshot('personalized_pod',1);self::assertSame('AVAILABLE',$data['query_state']);self::assertSame([$a['template_id']],array_column($data['items'],'template_id'));self::assertSame('DRAFT',$data['items'][0]['template_status']);self::assertFalse($data['supplier_certified']);self::assertFalse($data['external_execution_authorized']);ob_start();ProductionTemplatePanel::render('personalized_pod');$html=(string)ob_get_clean();self::assertStringContainsString($a['template_id'],$html);self::assertStringNotContainsString($foreign['template_id'],$html);foreach(DigiForge\POD\TransformationEngineContract::ENGINES as $engine)self::assertStringContainsString($engine,$html);self::assertStringContainsString('NOT_CERTIFIED',$html);self::assertStringContainsString('VINTAGE_PORTRAIT catalog activation remains disabled',$html);$before=$_GET;try{$_GET=['df_view'=>'pod_personalized','df_shop'=>'personalized_pod'];$portal=(new DigiForge\Portal\Portal())->render();$directory=getenv('DF_PORTAL_FIXTURE_DIR');if(is_string($directory)&&$directory!=='')self::assertSame(strlen($portal),file_put_contents($directory.'/portal-pod_personalized--personalized_pod.html',$portal));self::assertStringContainsString('Production templates and engine capabilities',$portal);self::assertStringContainsString($a['template_id'],$portal);self::assertStringNotContainsString($foreign['template_id'],$portal);}finally{$_GET=$before;}
+ }
+ public function testFingerprintDriftAndReadFailureDoNotBecomeVerifiedEmpty():void {
+  $a=$this->candidate('personalized_pod');global $wpdb;self::assertSame(1,$wpdb->update(Tables::pod_production_templates(),['personalization_engine'=>'WATERCOLOR'],['id'=>$a['id']]));$model=new ProductionTemplatePanel();$data=$model->snapshot('personalized_pod');self::assertSame('UNAVAILABLE',$data['query_state']);self::assertSame([],$data['items']);
+  $filter=static function(string $sql):string{return str_contains($sql,'SELECT t.* FROM '.Tables::pod_production_templates())?'SELECT * FROM missing_template_panel_evidence':$sql;};$suppress=$wpdb->suppress_errors(true);add_filter('query',$filter);try{self::assertSame('UNAVAILABLE',$model->snapshot('personalized_pod')['query_state']);}finally{remove_filter('query',$filter);$wpdb->suppress_errors($suppress);}
+ }
+ public function testConflictingReservationOwnerAndUnassignedScopeAreExcluded():void {
+  $a=$this->candidate('personalized_pod');global $wpdb;$usage=$wpdb->get_row($wpdb->prepare('SELECT * FROM '.Tables::shop_ai_usage().' WHERE model_key=%s',$a['fingerprint']),ARRAY_A);self::assertIsArray($usage);unset($usage['id']);$usage['shop_key']='standard_pod';$usage['idempotency_key']='conflict-'.wp_generate_uuid4();self::assertSame(1,$wpdb->insert(Tables::shop_ai_usage(),$usage));$model=new ProductionTemplatePanel();$data=$model->snapshot('personalized_pod');self::assertSame('AVAILABLE',$data['query_state']);self::assertNotContains($a['template_id'],array_column($data['items'],'template_id'));foreach(['standard_pod','all','unknown'] as $shop)self::assertSame('UNAVAILABLE',$model->snapshot($shop)['query_state']);wp_set_current_user(0);self::assertSame('UNAVAILABLE',$model->snapshot('personalized_pod')['query_state']);
+ }
+}

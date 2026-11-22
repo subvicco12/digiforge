@@ -32,7 +32,10 @@
     "test:unit": "phpunit --configuration phpunit.xml.dist",
     "analyse": "phpstan analyse --configuration phpstan.neon.dist --no-progress",
     "standards": "phpcs --standard=phpcs.xml.dist",
-    "test:wordpress": "phpunit --configuration phpunit.wordpress.xml.dist"
+    "test:wordpress": [
+      "phpunit --configuration phpunit.wordpress.xml.dist",
+      "phpunit --configuration phpunit.wordpress.catalog.xml.dist"
+    ]
   },
   "config": {
     "allow-plugins": {},

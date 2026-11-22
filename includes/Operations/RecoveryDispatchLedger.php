@@ -81,6 +81,20 @@ final class RecoveryDispatchLedger
         return true;
     }
 
+    /** Uncached committed safety gate for separately authorized Google execution. */
+    public static function googleExecutionAllowed(): bool
+    {
+        $database = self::database();
+        if ($database instanceof \WP_Error) { return false; }
+        foreach (['stop_all' => false, 'activation_authorized' => true, 'automation_armed' => true,
+                  'product_development' => true, 'product_development_activation_authorized' => true] as $key => $expected) {
+            $row = $database->get_row($database->prepare('SELECT setting_value, setting_type FROM ' . \DigiForge\Database\Tables::settings() . ' WHERE setting_key = %s', $key), ARRAY_A);
+            if (! is_array($row) || ($row['setting_type'] ?? '') !== 'boolean'
+                || json_decode((string) ($row['setting_value'] ?? ''), true) !== $expected) { return false; }
+        }
+        return true;
+    }
+
     public static function artifactsMatch(string $hash): bool
     {
         $backup = self::read('digiforge_recovery_database_backup_evidence');

@@ -1,0 +1,149 @@
+{
+  "schema": "fc01-production-artifact-request-v1",
+  "shop_key": "personalized_pod",
+  "environment": "sandbox",
+  "template": {
+    "id": "fc01-artifact-5d703691-f036-486c-8cf2-39906d16291d",
+    "version": 1,
+    "sha256": "54122527e8e42a278a8aa373ed4fc1048ecc3730d93db981ff9aadeb7820fc05",
+    "provider": "printify",
+    "blueprint_id": 101,
+    "provider_id": 2,
+    "variant_id": 202
+  },
+  "area": {
+    "position": "front",
+    "decoration_method": "dtg",
+    "width_px": 1800,
+    "height_px": 1400,
+    "_catalog_bindings": [
+      {
+        "blueprint_id": 101,
+        "endpoint_path": "/v1/catalog/blueprints/101/print_providers/2/variants.json",
+        "environment": "sandbox",
+        "observed_at": "2026-10-21T16:20:44+00:00",
+        "placeholder_sha256": "c5b65794e2e40855ceb43c3cbff247bd4deb2b3d61bf873c1e11770c8c81bd19",
+        "provider": "printify",
+        "provider_id": 2,
+        "response_sha256": "81025c8357843a173a0c1c616d77e896a2d2afb04547aca929dfa43925091e67",
+        "schema": "printify-placeholder-binding-v1",
+        "source_revision": "synthetic-fixture-v1",
+        "variant_id": 202,
+        "variant_sha256": "81025c8357843a173a0c1c616d77e896a2d2afb04547aca929dfa43925091e67"
+      }
+    ],
+    "dpi": 300,
+    "qa_geometry": {
+      "bleed": {
+        "margins_px": {
+          "bottom": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0
+        },
+        "trim_box": {
+          "height": 1400,
+          "width": 1800,
+          "x": 0,
+          "y": 0
+        }
+      },
+      "min_image_dpi": 300,
+      "safe_zone": {
+        "height": 1400,
+        "width": 1800,
+        "x": 0,
+        "y": 0
+      },
+      "seam_exclusions": []
+    },
+    "region": "US"
+  },
+  "geometry_qa": {
+    "state": "VERIFIED_LOCAL_GEOMETRY",
+    "safe_zone": {
+      "height": 1400,
+      "width": 1800,
+      "x": 0,
+      "y": 0
+    },
+    "seam_exclusions": [],
+    "min_image_dpi": 300,
+    "dpi": 300,
+    "bleed_state": "VERIFIED_LOCAL_BLEED_GEOMETRY",
+    "bleed": {
+      "trim_box": {
+        "height": 1400,
+        "width": 1800,
+        "x": 0,
+        "y": 0
+      },
+      "margins_px": {
+        "bottom": 0,
+        "left": 0,
+        "right": 0,
+        "top": 0
+      }
+    },
+    "supplier_certified": false
+  },
+  "review": {
+    "scope": "fc01-artifact-5d703691-f036-486c-8cf2-39906d16291d",
+    "revision": 2,
+    "sha256": "0d9ffcc31fa956ac654c2dd6b0c78faefce5da0decfa7db7833e746930098f6b",
+    "effective_at": 1,
+    "expires_at": 4102444800
+  },
+  "identity": {
+    "family_id": "FC01",
+    "version": 2,
+    "design_variant": "text-only-noto-serif-v1",
+    "shop_key": "personalized_pod",
+    "spec_sha256": "551cad607cec07315d5335a768d8759685a9486039c62146003d149979740d8c",
+    "font_sha256": "c8f669ceb2c9c60ccf55198b305e08a997ffca79a38cc7eeb551e643cbe66505",
+    "license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+    "glyphs_sha256": "40db3af24bfca02ef9abc32fffbf69fe7fb1816c775443939854346c4ff83e75"
+  },
+  "source_sha256": {
+    "request_builder": "4304cc9329f7f8051162c3efd42063c5a35b8e281e489c7585e12c50d4010ba8",
+    "compiler": "d6e92bda9af5d2fb2ce2e9f06f580a28d1b1389e7b542e82739ef5bb592d136a",
+    "font_provenance": "0a4eea2a44ec6738f332478c0f12e84061dd455a3db6615eb22e2cfbeac494e5"
+  },
+  "personalization": {
+    "family_name": "Avery & Noël",
+    "established": "2016"
+  },
+  "input_sha256": "7e3f5640d764a12b9cb8ca79889345b54abb3eaa9d0f13ddfbdad4263b8478e7",
+  "text_runs": {
+    "header": "OUR FAMILY",
+    "family_name": "Avery & Noël",
+    "established": "ESTABLISHED 2016"
+  },
+  "regions": {
+    "header": {
+      "x": 30,
+      "y": 100,
+      "width": 840,
+      "height": 75
+    },
+    "family_name": {
+      "x": 30,
+      "y": 260,
+      "width": 840,
+      "height": 120
+    },
+    "established": {
+      "x": 30,
+      "y": 430,
+      "width": 840,
+      "height": 75
+    }
+  },
+  "export_policy": "TRANSPARENT_TEXT_UNIFORM_CONCEPT_SCALE_NO_AUTO_FIT",
+  "acceptance_state": "UNVERIFIED",
+  "supplier_certified": false,
+  "rights_certified": false,
+  "production_authorized": false,
+  "external_execution_authorized": false,
+  "request_sha256": "57fb6b1132105216fea98cf9228f91e493df105f790dee2bf0efcb26c69f398b"
+}

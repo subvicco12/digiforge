@@ -1,3 +1,9 @@
+## Unreleased — Customer personalization editor
+
+- Adds account/order-scoped immutable customer drafts, transparent uploads and experimental offline extraction with manual correction, using existing intake and review contracts.
+- Adds responsive cutout inspection and separately approved digital product mockups bound to canonical artwork and verified supplier geometry; invalidates stale customer preferences.
+- Preserves operator certification, safety controls and all external-action/release gates.
+
 ## 1.0.103 — 2026-10-02
 
 - Isolates Approval Inbox and production-provenance database evidence from stale prior query errors while preserving independent later reads.

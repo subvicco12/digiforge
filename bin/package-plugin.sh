@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
+commit="$(git -C "${repo_root}" rev-parse --verify HEAD^{commit})"
 output_arg="${1:-build}"
 
 if [[ "${output_arg}" = /* ]]; then
@@ -23,8 +24,9 @@ git -C "${repo_root}" archive \
   --format=zip \
   --prefix=digiforge/ \
   --output="${temporary_archive}" \
-  HEAD
+  "${commit}"
 
+unzip -tqq "${temporary_archive}"
 mv "${temporary_archive}" "${archive}"
 (
   cd "${output_dir}"
@@ -38,11 +40,12 @@ test -s "${checksum}"
   sha256sum --check digiforge.zip.sha256
 )
 
-version="$(sed -n "s/^const DIGIFORGE_VERSION = '\\([^']*\\)';$/\\1/p" "${repo_root}/digiforge.php")"
-schema="$(sed -n "s/^const DIGIFORGE_DB_VERSION = '\\([^']*\\)';$/\\1/p" "${repo_root}/digiforge.php")"
+# Manifest pins must describe the packaged bytes, even in a dirty checkout.
+plugin_source="$(unzip -p "${archive}" digiforge/digiforge.php)"
+version="$(printf '%s\n' "${plugin_source}" | sed -n "s/^const DIGIFORGE_VERSION = '\([^']*\)';$/\1/p")"
+schema="$(printf '%s\n' "${plugin_source}" | sed -n "s/^const DIGIFORGE_DB_VERSION = '\([^']*\)';$/\1/p")"
 test -n "${version}"
 test -n "${schema}"
-commit="$(git -C "${repo_root}" rev-parse HEAD)"
 archive_sha256="$(awk '{print $1}' "${checksum}")"
 file_count="$(unzip -Z1 "${archive}" | wc -l | tr -d ' ')"
 

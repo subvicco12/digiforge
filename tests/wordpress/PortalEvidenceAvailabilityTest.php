@@ -49,6 +49,7 @@ final class PortalEvidenceAvailabilityTest extends WP_UnitTestCase
             public string $last_error='stale';
             public int $calls=0;
             public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_var(string $sql):?string{return null;}
             public function get_row(string $sql,mixed $format):?array{$this->calls++;return ['quantity'=>2,'estimated_cost'=>1.5,'actual_cost'=>1.0];}
             public function get_results(string $sql,mixed $format):?array{$this->calls++;return [];}
         };
@@ -68,6 +69,7 @@ final class PortalEvidenceAvailabilityTest extends WP_UnitTestCase
             public string $prefix='wp_';
             public string $last_error='';
             public function prepare(string $sql,mixed ...$args):string{return $sql;}
+            public function get_var(string $sql):?string{return null;}
             public function get_row(string $sql,mixed $format):?array{return ['quantity'=>2,'estimated_cost'=>1.5,'actual_cost'=>1.0];}
             public function get_results(string $sql,mixed $format):?array{$this->last_error='breakdown failed';return null;}
         };

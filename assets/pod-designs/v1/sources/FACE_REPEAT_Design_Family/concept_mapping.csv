@@ -1,0 +1,9 @@
+design_id,design_name,intended_source_family,layout,supplier_geometry,artwork_status,production_status
+FR01,Scattered pet faces,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,scattered,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR02,Diagonal dog-face repeat,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,diagonal,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR03,Pet faces and hearts,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,grid,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR04,Human face celebration,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,diagonal,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR05,Couple alternating faces,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,grid,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR06,Minimal monochrome face repeat,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,scattered,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR07,Pet faces with name ribbons,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,grid,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
+FR08,Multi-pet family repeat,DG2-001..DG2-020 face socks; DG2-361..DG2-384 AOP concepts,diagonal,NOT VERIFIED,ILLUSTRATIVE VECTOR PROTOTYPE,BLOCKED
