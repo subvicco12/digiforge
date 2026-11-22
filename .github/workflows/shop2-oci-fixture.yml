@@ -13,10 +13,28 @@ concurrency:
   cancel-in-progress: false
 jobs:
   setup-only:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/review/shop2-oci-runner-setup-v1' && github.sha == github.workflow_sha && inputs.approved_workflow_sha == github.workflow_sha }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/review/shop2-oci-hosted-evidence-v1' && github.sha == github.workflow_sha && inputs.approved_workflow_sha == github.workflow_sha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - name: Verify case-sensitive setup-only execution identity
+        id: identity-preflight
+        shell: bash
+        env:
+          APPROVED_WORKFLOW_SHA: ${{ inputs.approved_workflow_sha }}
+        run: |
+          set -euo pipefail
+          shopt -u nocasematch
+          export LC_ALL=C
+          if [[ "${GITHUB_REF:-}" != 'refs/heads/review/shop2-oci-hosted-evidence-v1' ||
+                "${GITHUB_REPOSITORY:-}" != 'subvicco12/digiforge' ||
+                "${GITHUB_EVENT_NAME:-}" != 'workflow_dispatch' ||
+                ! "${GITHUB_WORKFLOW_SHA:-}" =~ ^[0-9a-f]{40}$ ||
+                "${GITHUB_SHA:-}" != "${GITHUB_WORKFLOW_SHA:-}" ||
+                "${APPROVED_WORKFLOW_SHA:-}" != "${GITHUB_WORKFLOW_SHA:-}" ]]; then
+            printf '%s\n' 'Setup-only execution identity denied.' >&2
+            exit 1
+          fi
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.workflow_sha }}
@@ -137,7 +155,7 @@ jobs:
           }
           capture "$SETUP_EVIDENCE/live-recovered.json" live
       - name: Collect cleanup and independent absence evidence
-        if: ${{ always() && env.SETUP_EVIDENCE != '' }}
+        if: ${{ always() && steps.identity-preflight.outcome == 'success' && env.SETUP_EVIDENCE != '' }}
         id: cleanup
         shell: bash
         env:
@@ -184,7 +202,7 @@ jobs:
           capture "$SETUP_EVIDENCE/host-after.json" host "$SETUP_EVIDENCE"
           exit "$rc"
       - name: Assess required observations and select bounded diagnostics
-        if: ${{ always() && env.SETUP_EVIDENCE != '' }}
+        if: ${{ always() && steps.identity-preflight.outcome == 'success' && env.SETUP_EVIDENCE != '' }}
         id: evidence
         shell: bash
         env:
@@ -225,7 +243,7 @@ jobs:
           printf 'safe=true\n' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         id: setup-upload
-        if: ${{ always() && steps.evidence.outputs.safe == 'true' }}
+        if: ${{ always() && steps.identity-preflight.outcome == 'success' && steps.evidence.outputs.safe == 'true' }}
         env:
           TMPDIR: ${{ env.SETUP_UPLOAD_TMP }}
         with:
@@ -234,7 +252,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Record uploader result and scratch residue
-        if: ${{ always() && env.SETUP_UPLOAD_TMP != '' }}
+        if: ${{ always() && steps.identity-preflight.outcome == 'success' && env.SETUP_UPLOAD_TMP != '' }}
         shell: bash
         env:
           UPLOAD_AGGREGATE_OUTCOME: ${{ steps.setup-upload.outcome }}
