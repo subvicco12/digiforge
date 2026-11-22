@@ -17,7 +17,6 @@ final class NativeExistingProductMutationEvidenceTest extends WP_UnitTestCase {
   $deny=static function(){throw new RuntimeException('No HTTP during update source inspection');};add_filter('pre_http_request',$deny,PHP_INT_MAX);
   try{
    $r=PrintifyApiApprovalFixture::checked(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],$observed['hash']));self::assertSame('PRODUCT_UPDATE',$r['operation']);self::assertSame('synthetic-product',$r['provider_product_id']);self::assertSame($selection['variant_id'],$r['variant_id']);self::assertSame($f['business_version_id'],$r['product_version_id']);self::assertSame($adopted['hash'],$r['adopted_product_receipt_hash']);self::assertSame($observed['hash'],$r['product_read_receipt_hash']);self::assertSame(2199,$r['price_minor']);self::assertFalse($r['provider_currentness_verified']);self::assertTrue($r['revalidation_before_mutation_required']);self::assertFalse($r['provider_version_cas_verified']);self::assertFalse($r['mutation_authorized']);self::assertFalse($r['dispatch_permitted']);self::assertNull($r['native_product_version']);self::assertArrayNotHasKey('body',$r);self::assertArrayNotHasKey('contents',$r);self::assertSame(hash('sha256','{"body":{"variants":[{"id":'.$selection['variant_id'].',"is_enabled":true,"price":2199}]},"endpoint":"\/v1\/shops\/'.$scope->providerShopId.'\/products\/synthetic-product.json","method":"PUT"}'),$r['payload_fingerprint']);self::assertSame(1,$calls);
-   self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$f['plan_hash'],$observed['hash']));self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],str_repeat('a',64)));self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],$observed['hash'],str_repeat('f',64)));
    $this->fixture->refreshOwnerVerification();
    $proposal=PrintifyApiApprovalFixture::checked(Evidence::proposeRevision($scope,1,$f['mapping_id'],$f['spec_id'],
     $update['hash'],$observed['hash'],0,time(),time()+1200,wp_generate_uuid4()));
@@ -73,6 +72,8 @@ final class NativeExistingProductMutationEvidenceTest extends WP_UnitTestCase {
     $table=NativeHeldJournalSchema::tables()[0];
     self::assertNull($wpdb->get_var($wpdb->prepare("SELECT operation_id FROM $table WHERE operation_id=%s",$binding['operation_id'])));
    } finally {remove_filter('query',$countWriter);}
+   // Run the independent rejection probes after the time-bounded writer checks.
+   self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$f['plan_hash'],$observed['hash']));self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],str_repeat('a',64)));self::assertWPError(Evidence::resolve($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],$observed['hash'],str_repeat('f',64)));
    self::assertWPError(Evidence::currentRevision($scope,1,$f['mapping_id'],$f['spec_id'],$update['hash'],$observed['hash'],2));
    PortalAccessFixture::login($this->fixture->reviewer);
    self::assertWPError(Evidence::decideRevision($scope,$this->fixture->reviewer,'foreign-product',$review['revision'],
