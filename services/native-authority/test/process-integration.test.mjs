@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProcessFixture, offlineReleasedHolds, witnessBarrier, jsonPost } from './process-fixtures.mjs';
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { closeSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { digest, sign, PURPOSE } from '../protocol.mjs';
@@ -105,6 +105,8 @@ test('Core authenticates the original committed allocation after lost acknowledg
   const started = f.client('workload', { timeoutMs: 5000 }).call('admitOperation', body, correlation);
   await proxy.reached;
   const rollback = join(f.dirs.witness,'pre-stop-snapshot.sqlite');
+  // SQLite backup opens this file with the runner's umask if it does not exist.
+  closeSync(openSync(rollback, 'wx', 0o600));
   const source = new DatabaseSync(f.databasePath, { readOnly: true });
   try { await backup(source,rollback); } finally { source.close(); }
   const stopped = await emergency(f);
