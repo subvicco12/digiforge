@@ -1,32 +1,150 @@
-name: Shop 2 OCI fixture qualification
+name: Shop 2 OCI runner and storage SETUP ONLY
 on:
   workflow_dispatch:
     inputs:
       approved_workflow_sha:
         type: string
         required: true
-        description: Exact independently reviewed and authorized producer revision
+        description: Exact separately reviewed and authorized setup-only revision
 permissions:
   contents: read
+concurrency:
+  group: shop2-oci-fixture-${{ github.repository }}
+  cancel-in-progress: false
 jobs:
-  fixture:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'subvicco12/digiforge' && github.sha == github.workflow_sha && inputs.approved_workflow_sha == github.workflow_sha }}
+  setup-only:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/review/shop2-oci-runner-setup-v1' && github.sha == github.workflow_sha && inputs.approved_workflow_sha == github.workflow_sha }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Require approved exact inputs
+      - name: Require inert flags and record setup-only identity
         shell: bash
-        run: jq -e '.schema == 1 and .approved_for_execution == true' .github/ci/shop2-oci/input-lock.json >/dev/null
-      - name: Build and qualify the disposable OCI runtime
+        run: |
+          jq -e '.schema == 1 and .approved_for_execution == false' .github/ci/shop2-oci/input-lock.json >/dev/null
+          jq -e '.schema == 1 and .approved == false and
+            (del(.approved,.schema,.repository,.source,.platform)|length==11 and all(.[];.==null))'             .github/ci/shop2-oci/oci-approval.json >/dev/null
+          evidence="$RUNNER_TEMP/df-oci-setup-evidence"
+          mkdir -m 0700 "$evidence"
+          printf 'SETUP_EVIDENCE=%s\n' "$evidence" >> "$GITHUB_ENV"
+          {
+            git rev-parse HEAD HEAD^{tree}
+            sha256sum .github/workflows/shop2-oci-fixture.yml .github/ci/shop2-oci/runner-storage.sh
+            uname -sr
+            systemctl --version | sed -n '1p'
+            df -B1 --output=size,used,avail "$RUNNER_TEMP"
+            printf '%s\n' 'Setup-only gates verified; no data acquisition. Outside-write tracing and full-size uploader behavior UNVERIFIED.'
+          } > "$evidence/baseline.txt"
+          systemctl show docker.service docker.socket -p Id -p ActiveState -p MainPID > "$evidence/global-before.txt"
+      - name: Set up and inspect private backend
+        id: setup
         shell: bash
-        run: bash .github/ci/shop2-oci/qualify-producer.sh "$RUNNER_TEMP/shop2-oci-output"
+        run: |
+          set -o pipefail
+          bash .github/ci/shop2-oci/runner-storage.sh setup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/setup.log"
+          bash .github/ci/shop2-oci/runner-storage.sh observe 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/backend.log"
+      - name: Observe controlled in-volume ENOSPC and recovery
+        id: probe
+        shell: bash
+        run: |
+          set -o pipefail
+          unset DOCKER_CONTEXT
+          bash .github/ci/shop2-oci/runner-storage.sh verify
+          timeout --kill-after=5s 120s python3 - <<'PY' 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/storage.log"
+          import errno, os
+          from pathlib import Path
+
+          work = Path(os.environ["OCI_JOB_DIR"]).resolve(strict=True)
+          host = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
+          cap = 8 * 1024**3
+          assert work.parent == Path("/mnt") / f'df-oci-{os.environ["GITHUB_RUN_ID"]}-{os.environ["GITHUB_RUN_ATTEMPT"]}'
+          assert work.stat().st_dev != host.stat().st_dev
+          info = os.statvfs(work)
+          assert 0 < info.f_blocks * info.f_frsize <= cap
+          def free(path):
+              s = os.statvfs(path)
+              return s.f_bavail * s.f_frsize
+          reserve = 2 * 1024**3
+          assert free(host) >= reserve
+          file = work / "enospc.probe"
+          fd = os.open(file, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+          amount = 0
+          exhausted = False
+          try:
+              chunk = b"\x00" * (8 * 1024**2)
+              while amount < cap:
+                  amount += os.write(fd, chunk[:min(len(chunk), cap - amount)])
+              os.fsync(fd)
+          except OSError as error:
+              if error.errno != errno.ENOSPC:
+                  raise
+              exhausted = True
+          finally:
+              os.close(fd)
+              file.unlink()
+          assert exhausted and free(work) > 0 and free(host) >= reserve
+          fd = os.open(work, os.O_RDONLY | os.O_DIRECTORY)
+          try:
+              os.fsync(fd)
+          finally:
+              os.close(fd)
+          print(f"PASS probe: allocated writes before ENOSPC={amount}; volume writable again; host reserve >=2 GiB.")
+          PY
+          bash .github/ci/shop2-oci/runner-storage.sh observe 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/recovered.log"
+      - name: Collect cleanup and independent absence evidence
+        if: ${{ always() && env.SETUP_EVIDENCE != '' }}
+        id: cleanup
+        shell: bash
+        env:
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+        run: |
+          set -o pipefail
+          rc=0
+          bash .github/ci/shop2-oci/runner-storage.sh cleanup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/cleanup.log" || rc=$?
+          {
+            printf 'setup=%s probe=%s cleanup_exit=%s\n' "$SETUP_OUTCOME" "$PROBE_OUTCOME" "$rc"
+            df -B1 --output=size,used,avail "$RUNNER_TEMP"
+          } > "$SETUP_EVIDENCE/final.txt"
+          systemctl show docker.service docker.socket -p Id -p ActiveState -p MainPID > "$SETUP_EVIDENCE/global-after.txt"
+          if ! cmp -s "$SETUP_EVIDENCE/global-before.txt" "$SETUP_EVIDENCE/global-after.txt"; then
+            printf '%s\n' 'Global Docker identity readback changed; no global action was attempted.' >> "$SETUP_EVIDENCE/final.txt"
+            if [[ "$rc" == 0 ]]; then rc=1; fi
+          fi
+          # Reconciliation is read-only on this path: the previous cleanup must
+          # have removed its marker, mount path and backing file first.
+          key="df-oci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          if [[ "$rc" == 0 ]]; then
+            if [[ -e "$RUNNER_TEMP/$key.started" || -L "$RUNNER_TEMP/$key.started" ]]; then
+              printf '%s\n' 'Lifecycle marker survived cleanup.' >> "$SETUP_EVIDENCE/final.txt"
+              rc=1
+            else
+              bash .github/ci/shop2-oci/runner-storage.sh cleanup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/absence.log" || rc=$?
+            fi
+          fi
+          exit "$rc"
+      - name: Bound and seal sanitized setup-only evidence
+        if: ${{ always() && env.SETUP_EVIDENCE != '' }}
+        id: evidence
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          d = pathlib.Path(os.environ["SETUP_EVIDENCE"])
+          allowed = {"baseline.txt", "setup.log", "backend.log", "storage.log", "recovered.log", "cleanup.log", "absence.log", "final.txt", "global-before.txt", "global-after.txt"}
+          paths = list(d.iterdir())
+          assert paths and all(p.name in allowed and p.is_file() and not p.is_symlink() and
+                               p.stat().st_size <= 262144 for p in paths)
+          assert sum(p.stat().st_size for p in paths) <= 2 * 1024**2
+          PY
+          printf 'safe=true\n' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() && steps.evidence.outputs.safe == 'true' }}
         with:
-          name: shop2-oci-runtime
-          path: ${{ runner.temp }}/shop2-oci-output/
+          name: shop2-oci-setup-only-evidence
+          path: ${{ env.SETUP_EVIDENCE }}/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
