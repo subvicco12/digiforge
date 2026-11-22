@@ -1,0 +1,116 @@
+name: WordPress shard comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      wordpress:
+        description: Exact released WordPress version for all comparison runners
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  general:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [serial, '0', '1', '2', '3', '4', '5']
+    services:
+      mariadb:
+        image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: digiforge_tests
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      WP_TESTS_DIR: ${{ runner.temp }}/wordpress-tests-lib
+      WP_CORE_DIR: ${{ runner.temp }}/wordpress
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install bounded document text verifier dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          /usr/bin/pdftotext -v
+
+      - name: Install pinned offline cutout processor
+        run: |
+          python3 -m venv /tmp/digiforge-cutout-runtime
+          /tmp/digiforge-cutout-runtime/bin/pip install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=/tmp/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$(/tmp/digiforge-cutout-runtime/bin/python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Install isolated WordPress fixture
+        env:
+          WORDPRESS_VERSION: ${{ inputs.wordpress }}
+        run: |
+          [[ "$WORDPRESS_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          sudo apt-get install -y -qq subversion default-mysql-client
+          bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 "$WORDPRESS_VERSION"
+
+      - name: Run retained general profile
+        env:
+          PROFILE: ${{ matrix.profile }}
+          DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
+        run: |
+          set -euo pipefail
+          mkdir -p "$DF_GOOGLE_PORTAL_FIXTURES" "$RUNNER_TEMP/evidence"
+          name="$PROFILE"
+          if [[ "$PROFILE" != serial ]]; then name="shard-$PROFILE"; fi
+          python3 tests/ci/wordpress-shards.py config "$PROFILE" "$RUNNER_TEMP/phpunit.xml"
+          export DF_WP_AUDIT_METRICS="$RUNNER_TEMP/evidence/$name.metrics.json"
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/evidence/$name.wall"             vendor/bin/phpunit --configuration "$RUNNER_TEMP/phpunit.xml" --debug             --enforce-time-limit --default-time-limit 600             --log-junit "$RUNNER_TEMP/evidence/$name.xml"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: general-${{ matrix.profile }}
+          path: ${{ runner.temp }}/evidence
+          if-no-files-found: error
+
+  compare:
+    runs-on: ubuntu-24.04
+    needs: general
+    if: always()
+    steps:
+      - name: Require every comparison runner
+        env:
+          RESULT: ${{ needs.general.result }}
+        run: test "$RESULT" = success
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: general-*
+          path: evidence
+          merge-multiple: true
+      - name: Verify exact test, assertion, and skip parity
+        run: python3 tests/ci/wordpress-shards.py compare evidence | tee "${GITHUB_STEP_SUMMARY}"
+        shell: bash
