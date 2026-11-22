@@ -37,11 +37,15 @@ final class NativeCorePort implements NativeCorePortInterface
   }
   if(in_array($request['action'],['REGISTER','CLAIM'],true)&&str_starts_with($c['logical_reference'],'product-source:')){
    $locator=self::productSourceLocator($c['logical_reference']);
-   if($locator===null||count($request['evidence_references'])!==2||$request['data']!==[]){
+   $data=$request['data'];
+   $sourceVersion=$data['reviewed_source_version']??null;
+   if($locator===null||count($request['evidence_references'])!==2
+      ||($data!==[]&&(count($data)!==1||!is_int($sourceVersion)||$sourceVersion<1))){
     return NativeFailure::error('canonical_product_intent_contract');
    }
    [$plan,$review]=$request['evidence_references'];
-   return NativeBusinessMutationEvidence::checkCanonicalAdmission($access,$b,$request['duplicate_key'],$locator[0],$locator[1],$plan,$review);
+   return NativeBusinessMutationEvidence::checkCanonicalAdmission($access,$b,$request['duplicate_key'],
+    $locator[0],$locator[1],$plan,$review,$sourceVersion);
   }
   // Core's existing option-backed claims are not the specified transactional native journal.
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.

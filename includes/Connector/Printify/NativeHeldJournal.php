@@ -31,14 +31,14 @@ final class NativeHeldJournal {
   return $this->advance($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],$expected,'FENCE',$head,null,$binding,$association);
  }
  /** Run the reviewed admission check under the existing writer lock, then roll back without reserving a slot. */
- public function checkScopedAdmission(array $binding,string $candidateKey,array $association):\WP_Error {
+ public function checkScopedAdmission(array $binding,string $candidateKey,array $association,int $sourceVersion=0):\WP_Error {
   $association=self::normalizeAssociation($association);
   if($association===null||!NativePortContract::valid('binding',$binding)||!preg_match('/^[a-f0-9]{64}$/D',$candidateKey)){
    return self::error('association_contract');
   }
   $result=$this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),
    static fn()=>NativeFailure::error('journal_and_independent_checkpoint_required'),$binding['shop_key'],$binding['actor_id'],
-   static fn()=>self::currentScope($binding,$association));
+   static fn()=>self::currentScope($binding,$association,$sourceVersion));
   return is_wp_error($result)?$result:self::error('unexpected_admission_result');
  }
  private static function normalizeAssociation(array $association):?array {
@@ -51,7 +51,7 @@ final class NativeHeldJournal {
   }
   return count($association)===count($pin)?$pin:null;
  }
- private static function currentScope(array $binding,?array $association=null):true|\WP_Error {
+ private static function currentScope(array $binding,?array $association=null,int $sourceVersion=0):true|\WP_Error {
   $scope=NativeAuthorityAdapter::mutationScope($binding);
   if(is_wp_error($scope))return $scope;
   $owner=\DigiForge\PortalAccess\Owner::require($scope->shopKey);
@@ -61,6 +61,7 @@ final class NativeHeldJournal {
   $locked=NativeBusinessMutationAssociation::lockForWriter($scope,$binding['actor_id'],$association['mapping'],
    $association['spec'],$association['plan'],$association['review'],$association['revision'],$binding['payload_fingerprint']);
   if(is_wp_error($locked))return $locked;
+  if($sourceVersion!==0&&$locked['reviewed_source_version']!==$sourceVersion)return self::error('product_revision_changed');
   return $locked['source_hash']===$association['source'] && $locked['plan_policy_hash']===$binding['approval_reference']
    ? true : self::error('association_changed');
  }

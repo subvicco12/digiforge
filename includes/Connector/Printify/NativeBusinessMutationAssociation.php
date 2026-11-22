@@ -205,7 +205,8 @@ final class NativeBusinessMutationAssociation
         if (is_wp_error($transaction)) return $transaction;
         if (min($approval['expires_at'], $planPolicy['expires_at']) <= time()) return NativeFailure::error('association_writer_expired');
         return ['product_id'=>$product,'product_version_id'=>$source['product_version_id'],
-            'source_hash'=>$source['source_hash'],'review_revision'=>$revision,'plan_policy_hash'=>$planPolicy['proposal_hash'],
+            'source_hash'=>$source['source_hash'],'reviewed_source_version'=>$approval['version'],
+            'review_revision'=>$revision,'plan_policy_hash'=>$planPolicy['proposal_hash'],
             'external_execution_authorized'=>false,'dispatch_permitted'=>false];
     }
 

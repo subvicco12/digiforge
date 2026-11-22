@@ -121,7 +121,7 @@ final class NativeBusinessMutationEvidence
 
     /** Validate the canonical admission attempt. Local evidence cannot satisfy the operational gate. */
     public static function checkCanonicalAdmission(ShopBinding $scope, array $binding, string $duplicateKey,
-        int $mapping, int $spec, string $plan, string $review): \WP_Error
+        int $mapping, int $spec, string $plan, string $review, ?int $sourceVersion = null): \WP_Error
     {
         $actor = $binding['actor_id'];
         $association = NativeBusinessMutationAssociation::read($scope,$actor,$mapping,$spec,$plan);
@@ -135,8 +135,23 @@ final class NativeBusinessMutationEvidence
         // duplicate digests must bind that same evidence, rather than caller assertions.
         $evidence = $source + ['evidence_hash'=>$association['current_source_evidence_hash']];
         [$expected,$key] = self::heldIdentity($scope,$actor,$evidence);
-        $claimedIdentity = array_replace($binding, ['product_version'=>0,'expected_product_version'=>0]);
-        if ($key !== $duplicateKey || NativePortContract::hash($expected) !== NativePortContract::hash($claimedIdentity)) {
+        $claimed = array_replace($binding,['product_version'=>0,'expected_product_version'=>0]);
+        if ($sourceVersion !== null) {
+            if ($sourceVersion < 1 || $association['association_version'] !== $sourceVersion) {
+                return NativeFailure::error('reviewed_source_revision_stale');
+            }
+
+            // The version belongs to the reviewed image source stream. It does
+            // not describe the revision of an existing product at Printify.
+            $expected['intent_fingerprint'] = NativePortContract::hash([
+                'DF_REVIEWED_IMAGE_OPERATION_INTENT_1',$expected['intent_fingerprint'],$review,
+                $association['review_revision'],$sourceVersion,
+            ]);
+            $expected['operation_id'] = NativePortContract::hash([
+                'DF_REVIEWED_IMAGE_OPERATION_1',$key,$expected['payload_fingerprint'],$expected['intent_fingerprint'],
+            ]);
+        }
+        if ($key !== $duplicateKey || NativePortContract::hash($expected) !== NativePortContract::hash($claimed)) {
             return NativeFailure::error('canonical_product_intent_mismatch');
         }
         if ($binding['product_version'] !== 0 || $binding['expected_product_version'] !== 0) {
@@ -146,7 +161,7 @@ final class NativeBusinessMutationEvidence
         return (new NativeHeldJournal())->checkScopedAdmission($binding,$key,[
             'mapping'=>$mapping,'spec'=>$spec,'plan'=>$plan,'review'=>$review,
             'revision'=>$association['review_revision'],'source'=>$source['source_hash'],
-        ]);
+        ],$sourceVersion??0);
     }
 
     private static function heldIdentity(ShopBinding $scope, int $actor, array $evidence): array

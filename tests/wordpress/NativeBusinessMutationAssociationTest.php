@@ -50,6 +50,7 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
    $locked=PrintifyApiApprovalFixture::checked($join());
    self::assertSame($source['product_version_id'],$locked['product_version_id']);
    self::assertSame($source['source_hash'],$locked['source_hash']);
+   self::assertSame(1,$locked['reviewed_source_version']);
    self::assertFalse($locked['dispatch_permitted']);
    foreach ([$join(1), $join(2,str_repeat('f',64))] as $rejected) {
     self::assertWPError($rejected);
@@ -165,6 +166,25 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
      self::assertSame('printify_native_product_revision_authority_required',$denial->get_error_code());
     }
     self::assertSame(2,$writerStarts,'Substituted identities cannot reach a writer transaction.');
+    $reviewed=$request;
+    $reviewed['data']=['reviewed_source_version'=>1];
+    $reviewed['binding']['intent_fingerprint']=DigiForge\Connector\Printify\NativePortContract::hash([
+     'DF_REVIEWED_IMAGE_OPERATION_INTENT_1',$binding['intent_fingerprint'],$proposal['proposal_hash'],2,1,
+    ]);
+    $reviewed['binding']['operation_id']=DigiForge\Connector\Printify\NativePortContract::hash([
+     'DF_REVIEWED_IMAGE_OPERATION_1',$request['duplicate_key'],$binding['payload_fingerprint'],$reviewed['binding']['intent_fingerprint'],
+    ]);
+    $denial=$port->exchange($reviewed);
+    self::assertWPError($denial);
+    self::assertSame('printify_native_journal_and_independent_checkpoint_required',$denial->get_error_code());
+    self::assertSame(3,$writerStarts);
+    $stale=$reviewed;
+    $stale['data']['reviewed_source_version']=2;
+    $denial=$port->exchange($stale);
+    self::assertWPError($denial);
+    self::assertSame('printify_native_reviewed_source_revision_stale',$denial->get_error_code());
+    self::assertSame(3,$writerStarts);
+    self::assertSame(0,$writes);
    } finally {remove_filter('query',$observe);}
    $receipt=$port->exchange(array_replace($request,['action'=>'RECEIPT_READ','data'=>['receipt_reference'=>$unknown['event_hash']]]));
    self::assertWPError($receipt);
@@ -175,7 +195,7 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
   PortalAccessFixture::login($this->fixture->reviewer);
   PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,2,$proposal['proposal_hash'],'REVOKED',wp_generate_uuid4()));
   $this->fixture->owner();
-  self::assertWPError($port->exchange($request),'A revoked review cannot reach the canonical writer.');
+  self::assertWPError($port->exchange($reviewed),'A revoked review cannot reach the canonical writer.');
   self::assertNotFalse($wpdb->query('START TRANSACTION'));
   try {
    $revoked=$join();
