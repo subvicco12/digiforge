@@ -86,6 +86,27 @@ final class NativeHeldJournalWordPressTest extends WP_UnitTestCase {
   }
   self::assertNotWPError((new Journal())->register($this->binding,str_repeat('d',64)));
  }
+ public function testWriterRechecksAuditStorageInsideTransaction():void {
+  global $wpdb;
+  $audit=DigiForge\Database\Tables::audit_log();
+  $inside=false;$observed=false;
+  $filter=static function(string $sql)use($audit,&$inside,&$observed):string {
+   if($sql==='START TRANSACTION')$inside=true;
+   if($inside&&str_contains($sql,'information_schema.TABLES')&&str_contains($sql,"TABLE_NAME='".$audit."'")){
+    $observed=true;
+    return "SELECT 'MyISAM'";
+   }
+   return $sql;
+  };
+  add_filter('query',$filter);
+  try{
+   $result=(new Journal())->prepare($this->binding,str_repeat('d',64));
+   self::assertTrue($observed,'Audit engine must be verified with the writer transaction open.');
+   self::assertWPError($result);
+   self::assertSame('printify_native_held_journal_storage_constraints',$result->get_error_code());
+  }finally{remove_filter('query',$filter);}
+  foreach(Schema::tables() as $table)self::assertSame('0',(string)$wpdb->get_var('SELECT COUNT(*) FROM '.$table));
+ }
  public function testMissingWriterTransactionCannotAutocommitJournalRows():void {
   global $wpdb;
   $filter=static fn(string $sql):string=>$sql==='START TRANSACTION'?'SELECT 1':$sql;

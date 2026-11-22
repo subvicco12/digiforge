@@ -81,7 +81,7 @@ final class NativeHeldJournal {
    $connection=NativeSourceTransaction::id();if(is_wp_error($connection))return self::error('transaction_changed');
    $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
    if(!$this->ownsWriter($database,$connection,$lock))return self::error('transaction_changed');
-   if(!$this->pinIdentityConstraints($database))return self::error('storage_constraints');
+   if(!$this->pinWriterDependencies($database)||!$this->pinIdentityConstraints($database))return self::error('storage_constraints');
    if(!$this->ownsWriter($database,$connection,$lock))return self::error('transaction_changed');
    $result=$work();if(is_wp_error($result))return $result;
    $a=$this->access($shop,$actor);if(is_wp_error($a))return $a;
@@ -90,6 +90,22 @@ final class NativeHeldJournal {
   finally{$clean=true;try{if($started&&$database->query('ROLLBACK')===false)$clean=false;}catch(\Throwable){$clean=false;}try{$database->last_error='';$released=$database->get_var($database->prepare('SELECT RELEASE_LOCK(%s)',$lock));if($database->last_error!==''||(string)$released!=='1')$clean=false;}catch(\Throwable){$clean=false;}if(!$clean)return self::error('cleanup_unknown');}
   // Acknowledgement only after a fresh consistent, audit-anchored readback. Never restore a slot on failure.
   if(!$committed)return $result;$read=$this->read($operationId,$shop,$actor);if(is_wp_error($read)||$read['event_hash']!==$result['event_hash'])return self::error('confirmation_unknown');return $read;
+ }
+ /** Keep the audit and authority tables on transactional storage until commit. */
+ private function pinWriterDependencies(object $database):bool {
+  foreach([Tables::audit_log(),$database->options] as $table){
+   $database->last_error='';
+   // Opening the table retains a metadata lock on the storage used by this writer.
+   if($database->query("SELECT 1 FROM `$table` LIMIT 0")===false||$database->last_error!=='')return false;
+   $engine=$database->get_var($database->prepare(
+    'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s',$table
+   ));
+   if($database->last_error!==''||strtoupper((string)$engine)!=='INNODB')return false;
+   $definition=$database->get_row("SHOW CREATE TABLE `$table`",ARRAY_A);
+   if($database->last_error!==''||!is_string($definition['Create Table']??null)
+    ||preg_match('/\bTEMPORARY\b/i',$definition['Create Table']))return false;
+  }
+  return true;
  }
  /** Check the unique identities while the transaction retains table metadata locks. */
  private function pinIdentityConstraints(object $database):bool {
