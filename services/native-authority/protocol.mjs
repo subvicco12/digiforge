@@ -6,6 +6,7 @@ export const WITNESS_DOMAIN = 'DF_INDEPENDENT_RECOVERY_WITNESS_1';
 export const VERSION = '1.0.0';
 export const PURPOSE = Object.freeze({
   currentCheckpoint: 'checkpoint.request.v1', admitOperation: 'operation.request.v1', readOperation: 'operation.readback.request.v1',
+  reserveOperation: 'operation.reserve.request.v1',
   requestEmergency: 'emergency.request.v1', readDrain: 'drain.request.v1',
   recoverInstallation: 'recovery.request.v1', rotateRoot: 'rotation.request.v1',
 });

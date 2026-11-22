@@ -67,6 +67,32 @@ test('N05 actual emergency before custody admission prevents credentialed provid
   assert.equal(f.state().paused, true);
 });
 
+test('reservation-only RPC consumes one allocation without entering the sender', async t => {
+  const f = await createProcessFixture(t, { holds: offlineReleasedHolds });
+  const body = f.admissionBody();
+  const prior = f.state();
+  const correlation = () => ({ request_id: randomBytes(32).toString('base64url'), challenge: randomBytes(32).toString('base64url') });
+  const tokens = [correlation(),correlation()];
+  const responses = await Promise.all(tokens.map(token => f.client().call('reserveOperation',body,token)));
+  assert.deepEqual(responses.map(r=>r.disposition).sort(), ['ADMITTED','DENIED']);
+  const winner = tokens[responses.findIndex(r=>r.disposition==='ADMITTED')];
+  assert.equal(f.operation().reservation_only,true);
+  assert.equal((await f.client().call('admitOperation',body,winner)).disposition,'DENIED');
+  assert.equal((await emergency(f)).disposition,'PENDING');
+  const receipt = await f.client().call('readOperation', {
+    operation_id:body.operation_id, payload_fingerprint:body.payload_fingerprint,
+    original_request_id:winner.request_id, original_challenge:winner.challenge,
+    expected_epoch:body.expected_epoch, expected_generation:body.expected_generation,
+    retained_witness_head:prior.witness_head, retained_witness_sequence:prior.witness_sequence,
+  });
+  assert.equal(receipt.disposition,'ADMITTED');
+  assert.equal(receipt.result.external_execution_authorized,false);
+  assert.equal(receipt.result.operation.allocation_id,f.operation().allocation_id);
+  assert.match(receipt.result.operation.admission_event.head,/^[a-f0-9]{64}$/);
+  assert.equal((await f.client().call('reserveOperation',body,correlation())).disposition,'DENIED');
+  assert.equal(f.requests.length,0);
+});
+
 test('Core authenticates the original committed allocation after lost acknowledgement and STOP', async t => {
   const f = await createProcessFixture(t, { holds: offlineReleasedHolds });
   const retained = f.state();

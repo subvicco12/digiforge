@@ -5,6 +5,7 @@ export const BINDING_FIELDS = Object.freeze(['authority_id', 'installation_id', 
 export const BODY_FIELDS = Object.freeze({
   currentCheckpoint: ['grant_reference', 'expected_epoch', 'expected_generation'],
   admitOperation: ['grant_reference', 'operation_id', 'payload_fingerprint', 'product_version', 'expected_product_version', 'approval_reference', 'approval_revision', 'policy_revision', 'expected_epoch', 'expected_generation'],
+  reserveOperation: ['grant_reference', 'operation_id', 'payload_fingerprint', 'product_version', 'expected_product_version', 'approval_reference', 'approval_revision', 'policy_revision', 'expected_epoch', 'expected_generation'],
   readOperation: ['operation_id', 'payload_fingerprint', 'original_request_id', 'original_challenge', 'expected_epoch', 'expected_generation', 'retained_witness_head', 'retained_witness_sequence'],
   requestEmergency: ['emergency_authority_reference', 'emergency_event_id', 'scope_of_revocation', 'expected_generation'],
   readDrain: ['emergency_event_id', 'generation'],

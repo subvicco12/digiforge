@@ -102,7 +102,7 @@ export class AuthorityClient {
   async call(method, methodBody, correlation = null) {
     need(Object.hasOwn(PURPOSE, method), 'method_purpose');
     if (correlation !== null) {
-      need(method === 'admitOperation', 'admission_correlation_only');
+      need(['admitOperation','reserveOperation'].includes(method), 'admission_correlation_only');
       exactFields(correlation, ['request_id','challenge'], 'admission_correlation_fields');
     }
     const requestId = correlation === null ? randomBytes(32).toString('base64url') : correlation.request_id;
@@ -157,10 +157,15 @@ export class AuthorityClient {
           && message.witness_sequence>=Math.max(operation.admission_event.sequence,body.retained_witness_sequence)
           && (message.witness_sequence!==body.retained_witness_sequence||message.witness_head===body.retained_witness_head), 'operation_readback_frontier');
       }
-      if (request.method === 'admitOperation') {
+      if (['admitOperation','reserveOperation'].includes(request.method)) {
         for (const field of ['operation_id', 'payload_fingerprint', 'product_version', 'approval_reference', 'approval_revision', 'policy_revision']) need(operation[field] === request.method_body[field], 'operation_binding');
         need(operation.generation === request.method_body.expected_generation && operation.checkpoint_epoch === request.method_body.expected_epoch, 'operation_binding');
       }
+    }
+    if (request.method === 'reserveOperation') {
+      need(['ADMITTED','HELD','DENIED'].includes(message.disposition)
+        && (message.disposition==='ADMITTED')===(result.operation!==null)
+        && (result.operation===null||result.operation.state==='ADMITTED') && result.drain===null, 'reservation_disposition');
     }
     if (request.method === 'readOperation') {
       need((message.disposition === 'DENIED') === (result.operation === null) && result.drain === null, 'operation_readback_disposition');

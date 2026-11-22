@@ -69,6 +69,30 @@ final class NativeCorePort implements NativeCorePortInterface
   if(is_wp_error($candidate))return $candidate;
   return (new NativeHeldJournal())->prepareScoped($candidate,$request['duplicate_key']);
  }
+ /** Persist protected correlation before any future independent witness exchange. */
+ public function stageWitnessAdmission(array $request,array $witnessIntent):array|\WP_Error {
+  $binding=self::heldProductBinding($request);
+  if(is_wp_error($binding))return $binding;
+  try {
+   $expected=['operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference',
+    'approval_revision','policy_revision','grant_reference','expected_epoch','expected_generation'];
+   if(count($witnessIntent)!==count($expected)||array_diff($expected,array_keys($witnessIntent))!==[]){
+    return NativeFailure::error('held_witness_intent_contract');
+   }
+   foreach(['operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference'] as $field){
+    if($witnessIntent[$field]!==$binding[$field])return NativeFailure::error('held_witness_intent_binding');
+   }
+   foreach(['approval_revision','policy_revision','expected_generation'] as $field){
+    if(!is_int($witnessIntent[$field])||$witnessIntent[$field]<1)return NativeFailure::error('held_witness_intent_contract');
+   }
+   if(!is_string($witnessIntent['expected_epoch'])||!preg_match('/^[a-f0-9]{64}$/D',$witnessIntent['expected_epoch'])
+    ||!is_string($witnessIntent['grant_reference'])||!preg_match('/^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,159}$/D',$witnessIntent['grant_reference'])){
+    return NativeFailure::error('held_witness_intent_contract');
+   }
+   return (new NativeHeldJournal())->prepareWitnessCorrelation($binding,$request['duplicate_key'],
+    NativePortContract::hash($witnessIntent));
+  }catch(\Throwable){return NativeFailure::error('held_witness_intent_unavailable');}
+ }
  /** Consume a local fence on the same canonical intent. */
  public function fenceHeldProduct(array $request,int $expectedRevision,string $expectedHead):array|\WP_Error {
   $candidate=self::heldProductBinding($request);

@@ -23,6 +23,17 @@ final class NativeHeldJournal {
   $binding=array_map(static fn($value)=>$value,$binding);
   return $this->registerCandidate($binding,$candidateKey,false,static fn()=>self::currentScope($binding,$association),$association===null?null:NativePortContract::hash($association));
  }
+ /** Persist one correlation for a local held intent. It cannot be submitted or fenced here. */
+ public function prepareWitnessCorrelation(array $binding,string $candidateKey,string $intentDigest):array|\WP_Error {
+  if(!NativePortContract::valid('binding',$binding)||$binding['environment']!=='test'||wp_get_environment_type()!=='local'
+   ||!preg_match('/^[a-f0-9]{64}$/D',$intentDigest))return self::error('witness_correlation_contract');
+  $binding=array_map(static fn($value)=>$value,$binding);
+  $token=static fn()=>rtrim(strtr(base64_encode(random_bytes(32)),'+/','-_'),'=');
+  try{$requestId=$token();do{$challenge=$token();}while($challenge===$requestId);}
+  catch(\Throwable){return self::error('witness_correlation_unavailable');}
+  $correlation=['request_id'=>$requestId,'challenge'=>$challenge,'intent_digest'=>$intentDigest];
+  return $this->registerCandidate($binding,$candidateKey,true,static fn()=>self::currentScope($binding),null,$correlation);
+ }
  /** Consume one local fence only for the exact persisted binding and event head. */
  public function fenceScoped(array $binding,int $expected,string $head,?array $association=null):array|\WP_Error {
   if(!NativePortContract::valid('binding',$binding)||!preg_match('/^[a-f0-9]{64}$/D',$head))return self::error('contract');
@@ -76,8 +87,8 @@ final class NativeHeldJournal {
   return $locked['source_hash']===$association['source'] && $locked['plan_policy_hash']===$binding['approval_reference']
    ? true : self::error('association_changed');
  }
- private function registerCandidate(array $binding,string $candidateKey,bool $exactReplay,?callable $current=null,?string $associationPin=null):array|\WP_Error {
-  try{$state=NativeHeldJournalState::prepare($binding,$candidateKey,time(),$current!==null,$associationPin);}catch(\Throwable){return self::error('contract');}
+ private function registerCandidate(array $binding,string $candidateKey,bool $exactReplay,?callable $current=null,?string $associationPin=null,?array $correlation=null):array|\WP_Error {
+  try{$state=NativeHeldJournalState::prepare($binding,$candidateKey,time(),$current!==null,$associationPin,$correlation);}catch(\Throwable){return self::error('contract');}
   $access=$this->access($binding['shop_key'],$binding['actor_id']);if(is_wp_error($access))return $access;
   return $this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),function()use($state,$binding,$exactReplay){
    global $wpdb;[$j]=NativeHeldJournalSchema::tables();
@@ -87,6 +98,9 @@ final class NativeHeldJournal {
     $existing=$this->load($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],true);
     if(is_wp_error($existing))return $existing;
     if($existing['record']['candidate_key']!==$state['candidate_key']||NativePortContract::hash($existing['record']['binding'])!==NativePortContract::hash($binding))return self::error('replay_substitution');
+    if(($existing['record']['witness_correlation']['intent_digest']??null)!==($state['witness_correlation']['intent_digest']??null)){
+     return self::error('witness_correlation_mismatch');
+    }
     return $existing;
    }
    return $this->append($state,null);

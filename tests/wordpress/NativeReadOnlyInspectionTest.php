@@ -88,6 +88,44 @@ final class NativeReadOnlyInspectionTest extends WP_UnitTestCase {
   self::assertSame('FENCED',$consumed['record']['state']);
   self::assertFalse($consumed['record']['dispatch_permitted']);
   self::assertWPError($port->fenceHeldProduct($q,1,$staged['event_hash']));
+  $correlated=$q;
+  $correlated['context']['product_version']=$correlated['binding']['product_version']=2;
+  $correlated['duplicate_key']=NativePortContract::hash(['PRODUCT_UPDATE',$binding['shop_key'],$binding['integration_id'],
+   $binding['provider_shop_id'],'test','fixture-product:2']);
+  $correlated['binding']['operation_id']=NativePortContract::hash(['DF_PRINTIFY_PREPARATION_V1',
+   $correlated['duplicate_key'],$binding['payload_fingerprint']]);
+  $correlated['binding']['intent_fingerprint']=NativePortContract::hash([$correlated['binding']['operation_id'],
+   $binding['scope_fingerprint'],$correlated['context'],$correlated['data']['prepared']]);
+  $intent=array_intersect_key($correlated['binding'],array_flip(['operation_id','payload_fingerprint','product_version',
+   'expected_product_version','approval_reference']))+['grant_reference'=>'local-fixture-grant',
+   'approval_revision'=>1,'policy_revision'=>1,'expected_epoch'=>str_repeat('a',64),'expected_generation'=>1];
+  self::assertWPError($port->stageWitnessAdmission($correlated,array_replace($intent,['payload_fingerprint'=>str_repeat('f',64)])));
+  $lost=false;
+  $inject=static function(string $sql)use(&$lost,$wpdb):string {
+   if($sql==='COMMIT'&&!$lost){$lost=true;$wpdb->query('COMMIT');return 'SELECT * FROM missing_witness_correlation_ack';}
+   return $sql;
+  };
+  $prior=$wpdb->suppress_errors(true);
+  add_filter('query',$inject);
+  try{
+   $denial=$port->stageWitnessAdmission($correlated,$intent);
+   self::assertWPError($denial);
+   self::assertSame('printify_native_held_journal_commit_unknown',$denial->get_error_code());
+  }finally{remove_filter('query',$inject);$wpdb->suppress_errors($prior);}
+  self::assertTrue($lost);
+  $record=PrintifyApiApprovalFixture::checked($port->stageWitnessAdmission($correlated,$intent));
+  $correlation=$record['record']['witness_correlation'];
+  self::assertSame(NativePortContract::hash($intent),$correlation['intent_digest']);
+  self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/D',$correlation['request_id']);
+  self::assertNotSame($correlation['request_id'],$correlation['challenge']);
+  self::assertSame('HELD',$record['record']['state']);
+  self::assertFalse($record['record']['dispatch_permitted']);
+  self::assertSame($record,$port->stageWitnessAdmission($correlated,$intent));
+  self::assertWPError($port->stageWitnessAdmission($correlated,array_replace($intent,['expected_generation'=>2])));
+  self::assertWPError($port->fenceHeldProduct($correlated,1,$record['event_hash']));
+  self::assertWPError($journal->register($correlated['binding'],$correlated['duplicate_key']));
+  self::assertWPError($journal->transition($correlated['binding']['operation_id'],$binding['shop_key'],1,1,'CANCEL'));
+  self::assertWPError($port->exchange($correlated));
   $wpdb->query('START TRANSACTION');
  }
 

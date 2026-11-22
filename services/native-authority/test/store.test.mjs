@@ -33,6 +33,12 @@ test('real allocation IDs and one-use admission survive connection reopen',t=>{
  const op=f.store.admit(f.request,now);assert.equal(op.state,'ADMITTED');assert.equal(op.allocation_revision,2);assert.equal(op.allocation_id,f.allocation.allocation_id);
  const other=new AuthorityStore(f.path);assert.deepEqual(other.operation(op.operation_id),op);denies(()=>other.admit({...f.request,request_id:randomBytes(32).toString('base64url'),challenge:randomBytes(32).toString('base64url')},now));other.close();
 });
+test('reservation-only records cannot reach the physical writer even before STOP',t=>{
+ const f=fixture(t);
+ const op=f.store.admit({...f.request,method:'reserveOperation'},now);
+ denies(()=>f.store.markSending(op.operation_id,op.generation,now),'separate_sender_admission_required');
+ assert.deepEqual(f.store.operation(op.operation_id),op);
+});
 test('binding, expiry, revocation and actual product/order counters deny stale admission',t=>{
  const f=fixture(t);denies(()=>f.store.admit({...f.request,provider_account_reference:'foreign'},now));denies(()=>f.store.admit(f.request,now+120));
  const p=f.store.advanceProduct('product-1',1,'test-core-next');assert.equal(p.product_version,2);denies(()=>f.store.advanceProduct('product-1',1,'test-core-replay'));denies(()=>f.store.admit(f.request,now));

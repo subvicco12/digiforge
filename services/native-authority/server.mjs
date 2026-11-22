@@ -19,7 +19,7 @@ function authenticate(config, envelope) {
   // must verify before an authenticated request reaches durable state.
   const request = envelope?.message;
   validateRequest(request);
-  const role = ['currentCheckpoint','admitOperation','readOperation'].includes(request.method) ? 'workload'
+  const role = ['currentCheckpoint','admitOperation','reserveOperation','readOperation'].includes(request.method) ? 'workload'
     : request.method === 'requestEmergency' ? 'emergency' : 'recovery';
   const keys = request.method === 'readDrain' ? new Map([...config.keys.emergency, ...config.keys.recovery]) : config.keys[role];
   verify(PURPOSE[request.method], envelope, keys);
@@ -70,6 +70,7 @@ function operationView(op) {
   return {...Object.fromEntries(fields.map(k=>[k,op[k]])),checkpoint_epoch:op.epoch,provider_reference:op.reconciliation?.provider_reference??op.evidence?.provider_reference??null};
 }
 function originalMatchesOperation(request,op) {
+  need(op.reservation_only!==true,'separate_sender_admission_required');
   need(request.request_id===op.request_id&&request.challenge===op.challenge&&same(bindingOf(request),bindingOf(op)),'operation_request_binding');
   for(const key of ['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision'])need(request.method_body[key]===op[key],'operation_request_binding');
   need(request.method_body.expected_epoch===op.epoch&&request.method_body.expected_generation===op.generation,'operation_request_binding');
@@ -129,17 +130,18 @@ function witnessCall(config,store,registry,request) {
   rootGate(config,store);
   try {
     const body=request.method_body,time=now();let op=null,drain=null,state;
-    if(request.method!=='admitOperation')store.claimRequest(request.request_id,request.challenge,request.method,time);
+    if(!['admitOperation','reserveOperation'].includes(request.method))store.claimRequest(request.request_id,request.challenge,request.method,time);
     switch(request.method) {
       case 'currentCheckpoint': { const s=store.state();store.currentGrant(body.grant_reference,time);need(body.expected_epoch===s.epoch&&body.expected_generation===s.generation,'checkpoint_stale');state=s.paused?'HELD':'CURRENT';break; }
+      case 'reserveOperation':
       case 'admitOperation': {
-        if(!released(config)){store.claimRejectedAdmission(request.request_id,request.challenge,time);state='HELD';break;}
+        if(!released(config)){store.claimRejectedAdmission(request.request_id,request.challenge,time,request.method);state='HELD';break;}
         try {op=store.admit(request,time);state='ADMITTED';}
         catch(error){
           // Store.admit rolls its transaction back on refusal. Consume only
           // that refused attempt in the same global ledger; a racing success
           // already owns the tokens and is never overwritten or reallocated.
-          try{store.claimRejectedAdmission(request.request_id,request.challenge,time);}catch(claimError){if(code(claimError)==='request_replay')throw claimError;throw new AuthorityError('admission_claim_unavailable');}
+          try{store.claimRejectedAdmission(request.request_id,request.challenge,time,request.method);}catch(claimError){if(code(claimError)==='request_replay')throw claimError;throw new AuthorityError('admission_claim_unavailable');}
           throw error;
         }
         break;

@@ -116,7 +116,7 @@ export class AuthorityStore {
  }
  claimRequest(requestId,challenge,method,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);need(['currentCheckpoint','readOperation','requestEmergency','readDrain','recoverInstallation','rotateRoot'].includes(method),'request_method');return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
  claimDispatchRequest(requestId,challenge,action,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);need(['state','operation','markSending','finish','reconcile','publicResult'].includes(action),'request_method');return this.#tx(()=>{this.#state();const method='dispatch.'+action;this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
- claimRejectedAdmission(requestId,challenge,now){nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,'admitOperation',now);return {request_id:requestId,challenge,method:'admitOperation',claimed_at:now};});}
+ claimRejectedAdmission(requestId,challenge,now,method='admitOperation'){need(['admitOperation','reserveOperation'].includes(method),'request_method');nonce(requestId);nonce(challenge);need(requestId!==challenge,'request_nonce');integer(now);return this.#tx(()=>{this.#state();this.#claimTokens(requestId,challenge,method,now);return {request_id:requestId,challenge,method,claimed_at:now};});}
  #source(approval,s){
   this.#sameBinding(approval.binding,s);const p=this.#get('products',approval.product_identity);const o=this.#get('orders',approval.order_identity);
   need(p&&o&&o.product_identity===p.product_identity,'native_identity_mismatch');
@@ -139,7 +139,7 @@ export class AuthorityStore {
   const row=this.#db.prepare('SELECT * FROM approvals WHERE reference=?').get(op.approval_reference);need(row,'approval_missing');const a=JSON.parse(row.payload);need(!a.revoked&&a.approval_revision===op.approval_revision&&a.policy_revision===op.policy_revision&&a.operation_id===op.operation_id&&a.payload_fingerprint===op.payload_fingerprint&&row.allocation_id===op.allocation_id,'approval_not_current');this.#source(a,s);return row;
  }
  admit(request,now){
-  integer(now);need(object(request)&&request.method==='admitOperation'&&request.version==='1.0.0','request_method');nonce(request.request_id);nonce(request.challenge);need(request.request_id!==request.challenge,'request_nonce');const body=request.method_body;
+  integer(now);need(object(request)&&['admitOperation','reserveOperation'].includes(request.method)&&request.version==='1.0.0','request_method');nonce(request.request_id);nonce(request.challenge);need(request.request_id!==request.challenge,'request_nonce');const body=request.method_body;
   keys(body,['grant_reference','operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision','expected_epoch','expected_generation']);ref(body.grant_reference);ref(body.approval_reference);hash(body.operation_id);hash(body.payload_fingerprint);hash(body.expected_epoch);for(const k of ['product_version','expected_product_version','approval_revision','policy_revision','expected_generation'])integer(body[k]);
   return this.#tx(()=>{const s=this.#state();need(!s.paused,'authority_paused');need(body.expected_epoch===s.epoch&&body.expected_generation===s.generation,'checkpoint_stale');const b=this.#sameBinding(Object.fromEntries(FIELDS.map(k=>[k,request[k]])),s);
    need(!this.#db.prepare('SELECT operation_id FROM operations WHERE operation_id=? OR request_id=? OR challenge=?').get(body.operation_id,request.request_id,request.challenge),'operation_consumed');
@@ -147,7 +147,8 @@ export class AuthorityStore {
    const grant=this.#get('grants',body.grant_reference,'reference');need(grant,'grant_not_current');
    const op={...b,binding:b,...a,grant_reference:body.grant_reference,issued_at:grant.issued_at,expires_at:grant.expires_at,request_id:request.request_id,challenge:request.challenge,allocation_id:row.allocation_id,allocation_revision:next(row.allocation_revision),generation:s.generation,epoch:s.epoch,recovery_epoch:s.recovery_epoch,state:'ADMITTED',created_at:now,updated_at:now};
    for(const k of ['operation_id','payload_fingerprint','product_version','expected_product_version','approval_reference','approval_revision','policy_revision'])need(body[k]===a[k],'approval_binding_mismatch');this.#currentApproval(op,s,now);
-   this.#claimTokens(request.request_id,request.challenge,'admitOperation',now);
+   if(request.method==='reserveOperation')op.reservation_only=true;
+   this.#claimTokens(request.request_id,request.challenge,request.method,now);
    const cas=this.#db.prepare('UPDATE approvals SET consumed=1,allocation_revision=? WHERE reference=? AND allocation_revision=? AND consumed=0').run(op.allocation_revision,a.approval_reference,row.allocation_revision);need(cas.changes===1,'allocation_consumed');
    this.#db.prepare('INSERT INTO operations(operation_id,request_id,challenge,allocation_id,payload) VALUES(?,?,?,?,?)').run(op.operation_id,op.request_id,op.challenge,op.allocation_id,canonical(op));this.#event(s,'OPERATION_ADMITTED',{operation_id:op.operation_id,allocation_id:op.allocation_id,allocation_revision:op.allocation_revision,generation:op.generation},now);return op;
   });
@@ -171,7 +172,7 @@ export class AuthorityStore {
  }
  operation(operationId){hash(operationId);try{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
  markSending(operationId,expectedGeneration,now){
-  hash(operationId);integer(expectedGeneration);integer(now);return this.#tx(()=>{const s=this.#state();const op=this.operation(operationId);need(!s.paused&&s.generation===expectedGeneration&&op.generation===s.generation,'generation_revoked');need(op.state==='ADMITTED','operation_not_admitted');this.#currentApproval(op,s,now);op.state='SENDING';op.updated_at=now;this.#put('operations',operationId,op,'operation_id');this.#event(s,'OPERATION_SENDING',{operation_id:operationId,generation:op.generation},now);return op;});
+  hash(operationId);integer(expectedGeneration);integer(now);return this.#tx(()=>{const s=this.#state();const op=this.operation(operationId);need(!s.paused&&s.generation===expectedGeneration&&op.generation===s.generation,'generation_revoked');need(op.state==='ADMITTED','operation_not_admitted');need(op.reservation_only!==true,'separate_sender_admission_required');this.#currentApproval(op,s,now);op.state='SENDING';op.updated_at=now;this.#put('operations',operationId,op,'operation_id');this.#event(s,'OPERATION_SENDING',{operation_id:operationId,generation:op.generation},now);return op;});
  }
  finish(operationId,status,record,now){
   hash(operationId);need(TERMINAL.has(status),'outcome_required');integer(now);const proof=evidence(record);
