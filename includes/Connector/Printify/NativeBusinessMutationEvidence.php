@@ -119,6 +119,32 @@ final class NativeBusinessMutationEvidence
             : $journal->fenceScoped($binding,$expectedRevision,$expectedHead,$pin);
     }
 
+    /** Validate the canonical admission attempt. Local evidence cannot satisfy the operational gate. */
+    public static function checkCanonicalAdmission(ShopBinding $scope, array $binding, string $duplicateKey,
+        int $mapping, int $spec, string $plan, string $review): \WP_Error
+    {
+        $actor = $binding['actor_id'];
+        $association = NativeBusinessMutationAssociation::read($scope,$actor,$mapping,$spec,$plan);
+        if (is_wp_error($association)) return $association;
+        $source = $association['source'];
+        if ($review !== $association['review_hash'] || $binding['payload_fingerprint'] !== $source['payload_fingerprint']) {
+            return NativeFailure::error('canonical_product_intent_mismatch');
+        }
+
+        // The producer resolves the sealed method, endpoint and body. The operation and
+        // duplicate digests must bind that same evidence, rather than caller assertions.
+        $evidence = $source + ['evidence_hash'=>$association['current_source_evidence_hash']];
+        [$expected,$key] = self::heldIdentity($scope,$actor,$evidence);
+        if ($key !== $duplicateKey || NativePortContract::hash($expected) !== NativePortContract::hash($binding)) {
+            return NativeFailure::error('canonical_product_intent_mismatch');
+        }
+
+        return (new NativeHeldJournal())->checkScopedAdmission($binding,$key,[
+            'mapping'=>$mapping,'spec'=>$spec,'plan'=>$plan,'review'=>$review,
+            'revision'=>$association['review_revision'],'source'=>$source['source_hash'],
+        ]);
+    }
+
     private static function heldIdentity(ShopBinding $scope, int $actor, array $evidence): array
     {
         $key = NativePortContract::hash(['DF_NATIVE_BUSINESS_MUTATION_CANDIDATE_1',$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment,$evidence['product_id'],$evidence['product_version_id'],$evidence['operation']]);

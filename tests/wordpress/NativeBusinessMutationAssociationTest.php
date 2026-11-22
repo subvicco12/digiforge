@@ -62,7 +62,7 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
   try {self::assertTrue(is_array($join()),'Rolling back source drift restores the original reviewed source.');}
   finally {$wpdb->query('ROLLBACK');}
 
-  foreach(NativeHeldJournalSchema::statements() as $sql) self::assertNotFalse($wpdb->query($sql));
+  foreach(NativeHeldJournalSchema::statements() as $sql) self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
   $this->fixture->refreshOwnerVerification();
   $evidence=PrintifyApiApprovalFixture::checked(Association::read($scope,1,$m,$s,$p));
   $transition=static fn(?int $revision=null,?string $head=null)=>DigiForge\Connector\Printify\NativeBusinessMutationEvidence::transitionReviewedHold(
@@ -102,11 +102,32 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
     'approval_reference'=>$binding['approval_reference'],'authorization_revision'=>$binding['authorization_revision'],
     'product_version'=>0,'expected_product_version'=>0],
     'evidence_references'=>[$p,$proposal['proposal_hash']],'duplicate_key'=>$held['record']['candidate_key'],'data'=>[]];
-   foreach (['REGISTER','CLAIM'] as $action) {
-    $denial=$port->exchange(array_replace($request,['action'=>$action]));
-    self::assertWPError($denial);
-    self::assertSame('printify_native_journal_and_independent_checkpoint_required',$denial->get_error_code());
-   }
+   $writerStarts=0;
+   $writes=0;
+   $observe=static function(string $sql)use(&$writerStarts,&$writes):string {
+    if ($sql==='START TRANSACTION') ++$writerStarts;
+    if (preg_match('/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i',$sql)) ++$writes;
+    return $sql;
+   };
+   add_filter('query',$observe);
+   try {
+    foreach (['REGISTER','CLAIM'] as $action) {
+     $denial=$port->exchange(array_replace($request,['action'=>$action]));
+     self::assertWPError($denial);
+     self::assertSame('printify_native_journal_and_independent_checkpoint_required',$denial->get_error_code());
+    }
+    self::assertSame(2,$writerStarts);
+    self::assertSame(0,$writes);
+    foreach (['operation_id','intent_fingerprint','payload_fingerprint'] as $field) {
+     $substituted=$request;
+     $substituted['binding'][$field]=str_repeat('f',64);
+     $denial=$port->exchange($substituted);
+     self::assertWPError($denial);
+     self::assertSame('printify_native_canonical_product_intent_mismatch',$denial->get_error_code());
+    }
+    self::assertWPError($port->exchange(array_replace($request,['duplicate_key'=>str_repeat('f',64)])));
+    self::assertSame(2,$writerStarts,'Substituted identities cannot reach a writer transaction.');
+   } finally {remove_filter('query',$observe);}
    $receipt=$port->exchange(array_replace($request,['action'=>'RECEIPT_READ','data'=>['receipt_reference'=>$unknown['event_hash']]]));
    self::assertWPError($receipt);
    self::assertSame('UNKNOWN',$receipt->get_error_data()['outcome']);
@@ -116,6 +137,7 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
   PortalAccessFixture::login($this->fixture->reviewer);
   PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,2,$proposal['proposal_hash'],'REVOKED',wp_generate_uuid4()));
   $this->fixture->owner();
+  self::assertWPError($port->exchange($request),'A revoked review cannot reach the canonical writer.');
   self::assertNotFalse($wpdb->query('START TRANSACTION'));
   try {
    $revoked=$join();

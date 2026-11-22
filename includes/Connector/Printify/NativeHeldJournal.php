@@ -30,6 +30,17 @@ final class NativeHeldJournal {
   $binding=array_map(static fn($value)=>$value,$binding);
   return $this->advance($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],$expected,'FENCE',$head,null,$binding,$association);
  }
+ /** Run the reviewed admission check under the existing writer lock, then roll back without reserving a slot. */
+ public function checkScopedAdmission(array $binding,string $candidateKey,array $association):\WP_Error {
+  $association=self::normalizeAssociation($association);
+  if($association===null||!NativePortContract::valid('binding',$binding)||!preg_match('/^[a-f0-9]{64}$/D',$candidateKey)){
+   return self::error('association_contract');
+  }
+  $result=$this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),
+   static fn()=>NativeFailure::error('journal_and_independent_checkpoint_required'),$binding['shop_key'],$binding['actor_id'],
+   static fn()=>self::currentScope($binding,$association));
+  return is_wp_error($result)?$result:self::error('unexpected_admission_result');
+ }
  private static function normalizeAssociation(array $association):?array {
   $pin=[];
   foreach(['mapping','spec','revision'] as $field){

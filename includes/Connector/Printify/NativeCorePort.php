@@ -35,6 +35,14 @@ final class NativeCorePort implements NativeCorePortInterface
    $plan=$this->checkLocalPlanApproval($access,$b,$request['evidence_references'][0]);
    if(is_wp_error($plan))return $plan;
   }
+  if(in_array($request['action'],['REGISTER','CLAIM'],true)&&str_starts_with($c['logical_reference'],'product-source:')){
+   $locator=self::productSourceLocator($c['logical_reference']);
+   if($locator===null||count($request['evidence_references'])!==2||$request['data']!==[]){
+    return NativeFailure::error('canonical_product_intent_contract');
+   }
+   [$plan,$review]=$request['evidence_references'];
+   return NativeBusinessMutationEvidence::checkCanonicalAdmission($access,$b,$request['duplicate_key'],$locator[0],$locator[1],$plan,$review);
+  }
   // Core's existing option-backed claims are not the specified transactional native journal.
   // Never call ControlledExecutionTransaction::execute or trust caller receipts as a passive helper.
   return NativeFailure::error('journal_and_independent_checkpoint_required');
@@ -92,13 +100,11 @@ final class NativeCorePort implements NativeCorePortInterface
  }
  /** Existing v1 references locate a protected association; they never attest its content. */
  private function checkLocalProductAssociation(ShopBinding $scope,array $binding,string $locator,array $references):\WP_Error {
-  if(preg_match('/^product-source:([1-9][0-9]{0,18}):([1-9][0-9]{0,18})$/D',$locator,$ids)!==1
-     ||(string)(int)$ids[1]!==$ids[1]||(string)(int)$ids[2]!==$ids[2]){
-   return NativeFailure::error('current_product_association_required');
-  }
+  $ids=self::productSourceLocator($locator);
+  if($ids===null)return NativeFailure::error('current_product_association_required');
   [$plan,$review]=$references;
   try{
-   $association=NativeBusinessMutationAssociation::read($scope,$binding['actor_id'],(int)$ids[1],(int)$ids[2],$plan);
+   $association=NativeBusinessMutationAssociation::read($scope,$binding['actor_id'],$ids[0],$ids[1],$plan);
    if(is_wp_error($association))return NativeFailure::error('current_product_association_required');
    $source=$association['source'];
    if(!hash_equals($association['review_hash'],$review)
@@ -110,6 +116,11 @@ final class NativeCorePort implements NativeCorePortInterface
    // A protected local product-version row is not the independent native revision.
    return NativeFailure::error('product_revision_authority_required');
   }catch(\Throwable){return NativeFailure::error('current_product_association_required');}
+ }
+ private static function productSourceLocator(string $locator):?array {
+  if(preg_match('/^product-source:([1-9][0-9]{0,18}):([1-9][0-9]{0,18})$/D',$locator,$ids)!==1
+     ||(string)(int)$ids[1]!==$ids[1]||(string)(int)$ids[2]!==$ids[2])return null;
+  return [(int)$ids[1],(int)$ids[2]];
  }
  /** Validate submitted plan evidence without treating it as operational approval. */
  private function checkLocalPlanApproval(ShopBinding $scope,array $binding,string $reference):true|\WP_Error {
