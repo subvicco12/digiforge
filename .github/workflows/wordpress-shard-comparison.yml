@@ -18,18 +18,19 @@ concurrency:
 
 jobs:
   preflight:
-    if: github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/main' && github.actor == 'subvicco12' && inputs.approved
+    if: github.repository == 'subvicco12/digiforge' && github.ref == 'refs/heads/main' && github.actor == 'subvicco12' && github.triggering_actor == 'subvicco12' && inputs.approved
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       actions: read
     steps:
-      - name: Require terminal mandatory audit
+      - name: Require successful exact-head mandatory audit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          status=$(gh api repos/subvicco12/digiforge/actions/runs/45033826711 --jq '.status')
-          test "$status" = completed
+          gh api repos/subvicco12/digiforge/actions/runs/45033826711 |
+            jq -e '.status == "completed" and .conclusion == "success" and
+                   .head_sha == "2c9fcca6e14fbf64f94414661d42d85715039070"' >/dev/null
 
   general:
     needs: preflight
