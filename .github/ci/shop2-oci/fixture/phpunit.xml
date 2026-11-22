@@ -1,0 +1,3 @@
+<phpunit bootstrap="bootstrap.php" failOnWarning="true" failOnRisky="true" cacheResult="false">
+  <testsuites><testsuite name="Disposable OCI fixture"><file>FixtureLifecycleTest.php</file></testsuite></testsuites>
+</phpunit>
