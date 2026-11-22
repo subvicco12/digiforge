@@ -63,6 +63,46 @@ final class ArtworkPersonalizationWorkflowTest extends WP_UnitTestCase
  public function testPanelPersistsAndDisplaysSampleThroughExistingAction():void {
   $a=ArtworkPersonalizationFixture::approved();$panel=new DigiForge\Portal\CommercialResearchPanel();$base=['shop_key'=>'personalized_pod','workflow_hash'=>$a['record']['commercial_hash'],'factory_hash'=>$a['hash']];$s=$panel->process($base+['operation'=>'personalization_schema','fields_json'=>json_encode(ArtworkPersonalizationFixture::fields())]);self::assertIsArray($s);$p=$panel->process($base+['operation'=>'personalization_sample','schema_hash'=>$s['personalization_hash'],'samples'=>ArtworkPersonalizationFixture::values()]);self::assertIsArray($p);$_GET=['df_personalization_version'=>$p['personalization_hash']];try{ob_start();(new DigiForge\Portal\ArtworkPersonalizationPanel())->render('personalized_pod',$base['workflow_hash'],$base['factory_hash']);$html=ob_get_clean();self::assertStringContainsString('MANUAL_REVIEW',$html);self::assertStringContainsString('DO NOT IMPORT',$html);self::assertStringContainsString('samples[first_name]',$html);self::assertStringContainsString('SYNTHETIC',$html);}finally{$_GET=[];}
  }
+ public function testEditingSchemaFromProofPreservesSchemaParentAndReview():void
+ {
+  $art=ArtworkPersonalizationFixture::approved();
+  $repo=new Repo();
+  $fields=ArtworkPersonalizationFixture::fields();
+  $schema=$repo->define('personalized_pod',$art['hash'],$fields);
+  self::assertNotWPError($schema);
+  $proof=$repo->sample('personalized_pod',$schema['hash'],ArtworkPersonalizationFixture::values());
+  self::assertNotWPError($proof);
+  $reviewed=$repo->decide('personalized_pod',$proof['hash'],'APPROVE','Synthetic local review');
+  self::assertNotWPError($reviewed);
+
+  $previous=$_GET;
+  $_GET=['df_personalization_version'=>$proof['hash']];
+  ob_start();
+  try {
+   (new DigiForge\Portal\ArtworkPersonalizationPanel())->render('personalized_pod',$art['record']['commercial_hash'],$art['hash']);
+   $html=ob_get_contents();
+  }finally{
+   ob_end_clean();
+   $_GET=$previous;
+  }
+  $dom=new DOMDocument();
+  $dom->loadHTML($html,LIBXML_NOERROR|LIBXML_NOWARNING);
+  $xpath=new DOMXPath($dom);
+  $parent=$xpath->evaluate('string(//form[input[@name="operation" and @value="personalization_schema"]]/input[@name="parent_hash"]/@value)');
+  self::assertSame($schema['hash'],$parent);
+
+  $fields[0]['max_length']--;
+  $saved=(new DigiForge\Portal\CommercialResearchPanel())->process([
+   'operation'=>'personalization_schema','shop_key'=>'personalized_pod',
+   'workflow_hash'=>$art['record']['commercial_hash'],'factory_hash'=>$art['hash'],
+   'parent_hash'=>$parent,'fields_json'=>wp_json_encode($fields),
+  ]);
+  self::assertNotWPError($saved);
+  $revised=$repo->read('personalized_pod',$saved['personalization_hash']);
+  self::assertNotWPError($revised);
+  self::assertSame($schema['hash'],$revised['record']['parent_hash']);
+  self::assertSame($reviewed,$repo->read('personalized_pod',$proof['hash']));
+ }
  public function testPanelCannotMixFactoryAndSchema():void {
   $a=ArtworkPersonalizationFixture::approved();$b=ArtworkPersonalizationFixture::approved('fl04_poster_8x10');$r=new Repo();$s=$r->define('personalized_pod',$a['hash'],ArtworkPersonalizationFixture::fields());$panel=new DigiForge\Portal\CommercialResearchPanel();self::assertWPError($panel->process(['shop_key'=>'personalized_pod','workflow_hash'=>$b['record']['commercial_hash'],'factory_hash'=>$b['hash'],'operation'=>'personalization_sample','schema_hash'=>$s['hash'],'samples'=>ArtworkPersonalizationFixture::values()]));
  }

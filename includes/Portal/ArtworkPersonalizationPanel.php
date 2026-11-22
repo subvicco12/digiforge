@@ -29,7 +29,7 @@ final class ArtworkPersonalizationPanel
         $fields=[];foreach($context['record']['specification']['layout']['native_regions']as $region)$fields[]=['key'=>$region['name'],'type'=>$region['name']==='date'?'date':'text','required'=>true,'max_length'=>$region['name']==='date'?10:20];
         if($policySchema!==null)$fields=$policySchema['record']['data']['fields'];
         $this->form('personalization_schema',$commercial,$factory);
-        if($selected!==null&&$selected['record']['kind']==='SCHEMA')echo '<input type="hidden" name="parent_hash" value="'.esc_attr($selected['hash']).'">';
+        if($policySchema!==null)echo '<input type="hidden" name="parent_hash" value="'.esc_attr($policySchema['hash']).'">';
         echo '<label>Date display policy <select name="date_display_policy"><option value="">Legacy literal ISO (unchanged)</option><option value="digiforge-en-month-day-year-v1"'.(($policySchema['record']['data']['date_display_policy']??null)==='digiforge-en-month-day-year-v1'?' selected':'').'>English spelled month v1 — new schema/proof/review required</option>';
         if($context['record']['specification']['profile']==='fl03_mug_11oz'){
             $literal=\DigiForge\Research\ArtworkPersonalizationContract::LITERAL_DATE_POLICY;
