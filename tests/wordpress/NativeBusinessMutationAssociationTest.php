@@ -62,6 +62,57 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
   try {self::assertTrue(is_array($join()),'Rolling back source drift restores the original reviewed source.');}
   finally {$wpdb->query('ROLLBACK');}
 
+  foreach(NativeHeldJournalSchema::statements() as $sql) self::assertNotFalse($wpdb->query($sql));
+  $this->fixture->refreshOwnerVerification();
+  $evidence=PrintifyApiApprovalFixture::checked(Association::read($scope,1,$m,$s,$p));
+  $transition=static fn(?int $revision=null,?string $head=null)=>DigiForge\Connector\Printify\NativeBusinessMutationEvidence::transitionReviewedHold(
+   $scope,1,$m,$s,$p,$evidence['current_source_evidence_hash'],$proposal['proposal_hash'],2,$revision,$head);
+  $httpAttempts=0;
+  $deny=static function()use(&$httpAttempts){++$httpAttempts;throw new RuntimeException('No provider HTTP');};
+  add_filter('pre_http_request',$deny,PHP_INT_MAX);
+  try {
+   $held=PrintifyApiApprovalFixture::checked($transition());
+   self::assertSame('HELD',$held['record']['state']);
+   self::assertArrayHasKey('association_pin',$held['record']);
+   $journal=new NativeHeldJournal();
+   $binding=$held['record']['binding'];
+   foreach (['actor_id'=>$this->fixture->reviewer,'provider_shop_id'=>'999','shop_key'=>'standard_pod','payload_fingerprint'=>str_repeat('e',64)] as $field=>$wrong) {
+    self::assertWPError($journal->fenceScoped(array_replace($binding,[$field=>$wrong]),1,$held['event_hash']));
+   }
+   self::assertWPError($journal->prepareScoped($binding,$held['record']['candidate_key']));
+   self::assertWPError($journal->fenceScoped($binding,1,$held['event_hash']), 'A plain scoped fence cannot skip the association.');
+   $pin=['mapping'=>$m,'spec'=>$s,'plan'=>$p,'review'=>$proposal['proposal_hash'],'revision'=>2,'source'=>$source['source_hash']];
+   $wrongPin=array_replace($pin,['source'=>str_repeat('f',64)]);
+   self::assertWPError($journal->fenceScoped($binding,1,$held['event_hash'],$wrongPin));
+   $fenced=PrintifyApiApprovalFixture::checked($transition(1,$held['event_hash']));
+   self::assertSame('FENCED',$fenced['record']['state']);
+   self::assertSame($held['record']['association_pin'],$fenced['record']['association_pin']);
+   self::assertFalse($fenced['record']['dispatch_permitted']);
+   self::assertWPError($journal->fenceScoped($binding,1,$held['event_hash'],$pin));
+   $unknown=PrintifyApiApprovalFixture::checked($journal->transitionPinned($binding['operation_id'],$scope->shopKey,1,2,$fenced['event_hash'],$fenced['record']['fence_hash'],'UNKNOWN'));
+   self::assertSame('UNKNOWN',$unknown['record']['state']);
+   self::assertSame($unknown,(new NativeHeldJournal())->read($binding['operation_id'],$scope->shopKey,1));
+   self::assertWPError($journal->fenceScoped($binding,3,$unknown['event_hash'],$pin));
+   if (!interface_exists(DigiForgePrintifyConnector\Preparation\NativeCorePortInterface::class)) {
+    require_once __DIR__.'/../fixtures/native-printify-companion/NativeCorePortInterface.php';
+   }
+   $port=PrintifyApiApprovalFixture::checked(NativeBridge::connect('1.0.0'));
+   $request=['contract_version'=>'1.0.0','action'=>'REGISTER','binding'=>$binding,'context'=>[
+    'actor_id'=>1,'logical_reference'=>'product-source:'.$m.':'.$s,
+    'approval_reference'=>$binding['approval_reference'],'authorization_revision'=>$binding['authorization_revision'],
+    'product_version'=>0,'expected_product_version'=>0],
+    'evidence_references'=>[$p,$proposal['proposal_hash']],'duplicate_key'=>$held['record']['candidate_key'],'data'=>[]];
+   foreach (['REGISTER','CLAIM'] as $action) {
+    $denial=$port->exchange(array_replace($request,['action'=>$action]));
+    self::assertWPError($denial);
+    self::assertSame('printify_native_journal_and_independent_checkpoint_required',$denial->get_error_code());
+   }
+   $receipt=$port->exchange(array_replace($request,['action'=>'RECEIPT_READ','data'=>['receipt_reference'=>$unknown['event_hash']]]));
+   self::assertWPError($receipt);
+   self::assertSame('UNKNOWN',$receipt->get_error_data()['outcome']);
+   self::assertFalse($receipt->get_error_data()['retry_permitted']);
+   self::assertSame(0,$httpAttempts);
+  } finally {remove_filter('pre_http_request',$deny,PHP_INT_MAX);}
   PortalAccessFixture::login($this->fixture->reviewer);
   PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,2,$proposal['proposal_hash'],'REVOKED',wp_generate_uuid4()));
   $this->fixture->owner();

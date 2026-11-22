@@ -53,6 +53,12 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
                 self.assertEqual(pin['sha256'],entry['baseline_sha256'])
                 self.assertEqual(pin['current_tree_sha256'],entry['current_sha256'])
                 data=qualified_overlay_bytes(data,entry)
+            if 'native_writer_review_overlay' in pin:
+                self.assertEqual('includes/Security/ReviewedLocalEvidence.php',row['path'])
+                entry=pin['native_writer_review_overlay']
+                self.assertEqual('3825f80b9dc229d38b0467d28039e21a9692688a',entry['baseline_source_sha'])
+                self.assertEqual(pin['sha256'],entry['baseline_sha256'])
+                data=qualified_overlay_bytes(data,entry)
             self.assertEqual(pin['sha256'],hashlib.sha256(data).hexdigest(),row['path'])
             if 'native_get_extension' in pin:
                 extension=pin['native_get_extension']

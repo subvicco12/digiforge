@@ -189,6 +189,12 @@ final class NativeBusinessMutationAssociation
             || ($source['plan_hash'] ?? null) !== $plan || ($source['payload_fingerprint'] ?? null) !== $payload) {
             return NativeFailure::error('association_writer_binding');
         }
+        $planPolicy = ReviewedLocalEvidence::lockApprovedPolicy($scope->shopKey, 'printify-product:'.$plan);
+        if (is_wp_error($planPolicy)) return $planPolicy;
+        if ($planPolicy['proposal_hash'] !== ($source['plan_policy_hash'] ?? null)
+            || $planPolicy['revision'] !== ($source['plan_policy_revision'] ?? null)) {
+            return NativeFailure::error('association_writer_plan_approval');
+        }
         $receipt = self::approvedReceipt($scope, $source, $approval);
         if (is_wp_error($receipt)) return $receipt;
         $artwork = NativeBusinessArtworkEvidence::lockCurrent($scope, $actor, $mapping, $spec, $source['business_dependencies'] ?? [], $source['artwork_dependency_hash'] ?? '');
@@ -197,9 +203,9 @@ final class NativeBusinessMutationAssociation
         if (is_wp_error($dependencies)) return $dependencies;
         $transaction = NativeSourceTransaction::verify($database, $connection);
         if (is_wp_error($transaction)) return $transaction;
-        if ($approval['expires_at'] <= time()) return NativeFailure::error('association_writer_expired');
+        if (min($approval['expires_at'], $planPolicy['expires_at']) <= time()) return NativeFailure::error('association_writer_expired');
         return ['product_id'=>$product,'product_version_id'=>$source['product_version_id'],
-            'source_hash'=>$source['source_hash'],'review_revision'=>$revision,
+            'source_hash'=>$source['source_hash'],'review_revision'=>$revision,'plan_policy_hash'=>$planPolicy['proposal_hash'],
             'external_execution_authorized'=>false,'dispatch_permitted'=>false];
     }
 

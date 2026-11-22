@@ -80,15 +80,7 @@ final class NativeBusinessMutationEvidence
         if (!self::digest($expectedHash)) return NativeFailure::error('business_mutation_identity');
         $evidence = self::resolve($scope, $actor, $mapping, $spec, $planHash, $expectedHash);
         if (is_wp_error($evidence)) return $evidence;
-        $key = NativePortContract::hash(['DF_NATIVE_BUSINESS_MUTATION_CANDIDATE_1',$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment,$evidence['product_id'],$evidence['product_version_id'],$evidence['operation']]);
-        $binding = ['operation_id'=>NativePortContract::hash(['DF_NATIVE_BUSINESS_MUTATION_HELD_1',$key,$evidence['payload_fingerprint'],$evidence['evidence_hash']]),
-            'payload_fingerprint'=>$evidence['payload_fingerprint'],'intent_fingerprint'=>$evidence['evidence_hash'],
-            'scope_fingerprint'=>$scope->fingerprint(),'shop_id'=>$scope->shopId,'shop_key'=>$scope->shopKey,
-            'integration_id'=>$scope->integrationId,'credential_reference'=>$scope->credential->integrationId,
-            'provider_shop_id'=>$scope->providerShopId,'environment'=>$scope->environment,'actor_id'=>$actor,
-            'authorization_revision'=>$scope->revision,'approval_reference'=>$evidence['plan_policy_hash'],
-            // Unknown counter placeholders in an unapproved HELD record, not verified native version zero.
-            'product_version'=>0,'expected_product_version'=>0];
+        [$binding,$key] = self::heldIdentity($scope,$actor,$evidence);
         $journal = (new NativeHeldJournal())->register($binding, $key);
         if (is_wp_error($journal)) return $journal;
         $last = self::resolve($scope, $actor, $mapping, $spec, $planHash, $expectedHash);
@@ -100,6 +92,45 @@ final class NativeBusinessMutationEvidence
             'independent_checkpoint_verified'=>false,'external_execution_authorized'=>false,'release_hold'=>true];
         $result['evidence_hash'] = NativePortContract::hash($result);
         return $result;
+    }
+
+    /** Register or consume a reviewed local image-upload hold on the existing Core writer. */
+    public static function transitionReviewedHold(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan,
+        string $expectedEvidence, string $review, int $reviewRevision, ?int $expectedRevision = null, ?string $expectedHead = null): array|\WP_Error
+    {
+        if ($scope->environment !== 'test' || wp_get_environment_type() !== 'local' || !self::digest($expectedEvidence)
+            || !self::digest($review) || $reviewRevision < 1 || (($expectedRevision === null) !== ($expectedHead === null))
+            || ($expectedRevision !== null && ($expectedRevision < 1 || !self::digest($expectedHead)))) {
+            return NativeFailure::error('business_reviewed_hold_identity');
+        }
+        $evidence = self::resolve($scope,$actor,$mapping,$spec,$plan,$expectedEvidence);
+        if (is_wp_error($evidence)) return $evidence;
+        $association = NativeBusinessMutationAssociation::read($scope,$actor,$mapping,$spec,$plan);
+        if (is_wp_error($association)) return $association;
+        if ($association['review_hash'] !== $review || $association['review_revision'] !== $reviewRevision
+            || $association['current_source_evidence_hash'] !== $expectedEvidence) {
+            return NativeFailure::error('business_reviewed_hold_stale');
+        }
+        [$binding,$key] = self::heldIdentity($scope,$actor,$evidence);
+        $pin = ['mapping'=>$mapping,'spec'=>$spec,'plan'=>$plan,'review'=>$review,'revision'=>$reviewRevision,
+            'source'=>$association['source']['source_hash']];
+        $journal = new NativeHeldJournal();
+        return $expectedRevision === null ? $journal->prepareScoped($binding,$key,$pin)
+            : $journal->fenceScoped($binding,$expectedRevision,$expectedHead,$pin);
+    }
+
+    private static function heldIdentity(ShopBinding $scope, int $actor, array $evidence): array
+    {
+        $key = NativePortContract::hash(['DF_NATIVE_BUSINESS_MUTATION_CANDIDATE_1',$scope->shopKey,$scope->integrationId,$scope->providerShopId,$scope->environment,$evidence['product_id'],$evidence['product_version_id'],$evidence['operation']]);
+        $binding = ['operation_id'=>NativePortContract::hash(['DF_NATIVE_BUSINESS_MUTATION_HELD_1',$key,$evidence['payload_fingerprint'],$evidence['evidence_hash']]),
+            'payload_fingerprint'=>$evidence['payload_fingerprint'],'intent_fingerprint'=>$evidence['evidence_hash'],
+            'scope_fingerprint'=>$scope->fingerprint(),'shop_id'=>$scope->shopId,'shop_key'=>$scope->shopKey,
+            'integration_id'=>$scope->integrationId,'credential_reference'=>$scope->credential->integrationId,
+            'provider_shop_id'=>$scope->providerShopId,'environment'=>$scope->environment,'actor_id'=>$actor,
+            'authorization_revision'=>$scope->revision,'approval_reference'=>$evidence['plan_policy_hash'],
+            // Unknown counter placeholders in an unapproved HELD record, not verified native version zero.
+            'product_version'=>0,'expected_product_version'=>0];
+        return [$binding,$key];
     }
 
     private static function digest(mixed $value): bool { return is_string($value) && preg_match('/^[a-f0-9]{64}$/D', $value) === 1; }

@@ -3,14 +3,16 @@ declare(strict_types=1);
 namespace DigiForge\Connector\Printify;
 /** Pure local candidate state. No state, hash or local fence grants provider execution. */
 final class NativeHeldJournalState {
- public static function prepare(array $binding,string $candidateKey,int $now,bool $scoped=false):array {
+ public static function prepare(array $binding,string $candidateKey,int $now,bool $scoped=false,?string $association=null):array {
   if(!NativePortContract::valid('binding',$binding)||$binding['credential_reference']!==$binding['integration_id']||(['personalized_pod'=>2,'standard_pod'=>3][$binding['shop_key']]??null)!==$binding['shop_id']||!preg_match('/^[a-f0-9]{64}$/D',$candidateKey)||$now<1)throw new \InvalidArgumentException('Exact candidate binding required.');
   $state=['schema'=>'DF_NATIVE_HELD_JOURNAL_1','binding'=>$binding,'candidate_key'=>$candidateKey,'state'=>'HELD','revision'=>1,'fence_hash'=>null,'occurred_at'=>$now,'approval_verified'=>false,'dispatch_permitted'=>false,'independent_checkpoint_verified'=>false];
+  if($association!==null&&(!$scoped||!self::hash($association)))throw new \InvalidArgumentException("Invalid association pin.");
   if($scoped)$state['scope_recheck_required']=true;
+  if($association!==null)$state['association_pin']=$association;
   return $state;
  }
  public static function valid(array $r):bool {
-  try{$base=self::prepare($r['binding']??[], $r['candidate_key']??'', $r['occurred_at']??0,($r['scope_recheck_required']??null)===true);if(($r['schema']??null)!==$base['schema']||array_keys($r)!==array_keys($base)||!is_int($r['revision'])||$r['revision']<1||$r['revision']>256||$r['approval_verified']!==false||$r['dispatch_permitted']!==false||$r['independent_checkpoint_verified']!==false)return false;
+  try{$base=self::prepare($r['binding']??[], $r['candidate_key']??'', $r['occurred_at']??0,($r['scope_recheck_required']??null)===true,$r['association_pin']??null);if(($r['schema']??null)!==$base['schema']||array_keys($r)!==array_keys($base)||!is_int($r['revision'])||$r['revision']<1||$r['revision']>256||$r['approval_verified']!==false||$r['dispatch_permitted']!==false||$r['independent_checkpoint_verified']!==false)return false;
    return match($r['state']){'HELD'=>$r['revision']===1&&$r['fence_hash']===null,'CANCELLED'=>$r['revision']===2&&$r['fence_hash']===null,'FENCED'=>$r['revision']===2&&self::hash($r['fence_hash']),'UNKNOWN'=>$r['revision']===3&&self::hash($r['fence_hash']),default=>false};
   }catch(\Throwable){return false;}
  }

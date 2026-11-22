@@ -17,24 +17,44 @@ final class NativeHeldJournal {
  /** Idempotent candidate reconciliation only. Never reissues a fence, lease or operational acknowledgement. */
  public function register(array $binding,string $candidateKey):array|\WP_Error {return $this->registerCandidate($binding,$candidateKey,true);}
  /** Stage a reviewed connection's candidate in the local held journal. */
- public function prepareScoped(array $binding,string $candidateKey):array|\WP_Error {
+ public function prepareScoped(array $binding,string $candidateKey,?array $association=null):array|\WP_Error {
   if(!NativePortContract::valid('binding',$binding))return self::error('contract');
+  if($association!==null){$association=self::normalizeAssociation($association);if($association===null)return self::error('association_contract');}
   $binding=array_map(static fn($value)=>$value,$binding);
-  return $this->registerCandidate($binding,$candidateKey,false,static fn()=>self::currentScope($binding));
+  return $this->registerCandidate($binding,$candidateKey,false,static fn()=>self::currentScope($binding,$association),$association===null?null:NativePortContract::hash($association));
  }
  /** Consume one local fence only for the exact persisted binding and event head. */
- public function fenceScoped(array $binding,int $expected,string $head):array|\WP_Error {
+ public function fenceScoped(array $binding,int $expected,string $head,?array $association=null):array|\WP_Error {
   if(!NativePortContract::valid('binding',$binding)||!preg_match('/^[a-f0-9]{64}$/D',$head))return self::error('contract');
+  if($association!==null){$association=self::normalizeAssociation($association);if($association===null)return self::error('association_contract');}
   $binding=array_map(static fn($value)=>$value,$binding);
-  return $this->advance($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],$expected,'FENCE',$head,null,$binding);
+  return $this->advance($binding['operation_id'],$binding['shop_key'],$binding['actor_id'],$expected,'FENCE',$head,null,$binding,$association);
  }
- private static function currentScope(array $binding):true|\WP_Error {
+ private static function normalizeAssociation(array $association):?array {
+  $pin=[];
+  foreach(['mapping','spec','revision'] as $field){
+   $value=$association[$field]??null;if(!is_int($value)||$value<1)return null;$pin[$field]=$value;
+  }
+  foreach(['plan','review','source'] as $field){
+   $value=$association[$field]??null;if(!is_string($value)||!preg_match('/^[a-f0-9]{64}$/D',$value))return null;$pin[$field]=$value;
+  }
+  return count($association)===count($pin)?$pin:null;
+ }
+ private static function currentScope(array $binding,?array $association=null):true|\WP_Error {
   $scope=NativeAuthorityAdapter::mutationScope($binding);
   if(is_wp_error($scope))return $scope;
-  return \DigiForge\PortalAccess\Owner::require($scope->shopKey);
+  $owner=\DigiForge\PortalAccess\Owner::require($scope->shopKey);
+  if(is_wp_error($owner)||$association===null)return $owner;
+  if($scope->environment!=='test'||wp_get_environment_type()!=='local'
+   ||$binding['product_version']!==0||$binding['expected_product_version']!==0)return self::error('association_scope');
+  $locked=NativeBusinessMutationAssociation::lockForWriter($scope,$binding['actor_id'],$association['mapping'],
+   $association['spec'],$association['plan'],$association['review'],$association['revision'],$binding['payload_fingerprint']);
+  if(is_wp_error($locked))return $locked;
+  return $locked['source_hash']===$association['source'] && $locked['plan_policy_hash']===$binding['approval_reference']
+   ? true : self::error('association_changed');
  }
- private function registerCandidate(array $binding,string $candidateKey,bool $exactReplay,?callable $current=null):array|\WP_Error {
-  try{$state=NativeHeldJournalState::prepare($binding,$candidateKey,time(),$current!==null);}catch(\Throwable){return self::error('contract');}
+ private function registerCandidate(array $binding,string $candidateKey,bool $exactReplay,?callable $current=null,?string $associationPin=null):array|\WP_Error {
+  try{$state=NativeHeldJournalState::prepare($binding,$candidateKey,time(),$current!==null,$associationPin);}catch(\Throwable){return self::error('contract');}
   $access=$this->access($binding['shop_key'],$binding['actor_id']);if(is_wp_error($access))return $access;
   return $this->transaction($binding['operation_id'],self::candidateKey($binding,$candidateKey),function()use($state,$binding,$exactReplay){
    global $wpdb;[$j]=NativeHeldJournalSchema::tables();
@@ -55,17 +75,19 @@ final class NativeHeldJournal {
   if(!preg_match('/^[a-f0-9]{64}$/D',$head)||($fence!==null&&!preg_match('/^[a-f0-9]{64}$/D',$fence)))return self::error('generation_contract');
   return $this->advance($operationId,$shop,$actor,$expected,$action,$head,$fence);
  }
- private function advance(string $operationId,string $shop,int $actor,int $expected,string $action,?string $head,?string $fence,?array $binding=null):array|\WP_Error {
+ private function advance(string $operationId,string $shop,int $actor,int $expected,string $action,?string $head,?string $fence,?array $binding=null,?array $association=null):array|\WP_Error {
   if(!preg_match('/^[a-f0-9]{64}$/D',$operationId)||$expected<1||!in_array($action,['FENCE','CANCEL','UNKNOWN'],true))return self::error('transition_contract');
   $access=$this->access($shop,$actor);if(is_wp_error($access))return $access;
   $guard=$this->storage();if(is_wp_error($guard))return $guard;
   // Read a non-authoritative lock key; immutable row is reread/verified under transaction and row lock.
   global $wpdb;try{[$j]=NativeHeldJournalSchema::tables();$wpdb->last_error='';$key=$wpdb->get_var($wpdb->prepare("SELECT candidate_key FROM $j WHERE operation_id=%s AND shop_key=%s AND actor_id=%d",$operationId,$shop,$actor));}catch(\Throwable){return self::error('lookup_unavailable');}
   if(self::failed()||!is_string($key)||!preg_match('/^[a-f0-9]{64}$/D',$key))return self::error('missing_or_unavailable');
-  $current=$binding===null?null:static fn()=>self::currentScope($binding);
-  return $this->transaction($operationId,$key,function()use($operationId,$shop,$actor,$expected,$action,$head,$fence,$binding){
+  $current=$binding===null?null:static fn()=>self::currentScope($binding,$association);
+  $associationPin=$association===null?null:NativePortContract::hash($association);
+  return $this->transaction($operationId,$key,function()use($operationId,$shop,$actor,$expected,$action,$head,$fence,$binding,$associationPin){
    $prior=$this->load($operationId,$shop,$actor,true);if(is_wp_error($prior))return $prior;
    if($action==='FENCE' && (($prior['record']['scope_recheck_required']??false)!==($binding!==null)))return self::error('scope_recheck_required');
+   if($action==='FENCE' && ($prior['record']['association_pin']??null)!==$associationPin)return self::error('association_recheck_required');
    if($binding!==null&&!hash_equals(NativePortContract::hash($prior['record']['binding']),NativePortContract::hash($binding)))return self::error('binding_changed');
    if($head!==null&&($prior['event_hash']!==$head||$prior['record']['fence_hash']!==$fence))return self::error('stale_generation');
    try{$state=NativeHeldJournalState::advance($prior['record'],$action,$expected,time(),$action==='FENCE'?hash('sha256',random_bytes(32)):null);}catch(\Throwable){return self::error('stale_or_terminal');}
