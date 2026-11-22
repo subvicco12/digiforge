@@ -16,4 +16,36 @@ final class NativeReadOnlyInspectionTest extends WP_UnitTestCase {
  public function testHeldInspectionUsesActualJournalWithoutRearmingOrExportingFence():void{
   self::assertTrue(class_exists(Inspection::class));global $wpdb;$wpdb->query('COMMIT');$wpdb->query('SET autocommit=1');foreach(NativeHeldJournalSchema::statements()as $sql)self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',DigiForge\Connector\Printify\NativeOrderSourceSchema::statement())));$oc=$this->context;$oc['view']='orders';$oc['csrf_token']=wp_create_nonce(NativePanelAccessAdapter::nonceAction($this->scope,'orders'));$orders=Inspection::snapshot($this->scope,1,$oc,['kind'=>'ORDER_OBSERVATIONS','limit'=>20]);self::assertNotWPError($orders);self::assertSame([],$orders['observation']['items']);$b=NativePrintifyContractFixture::binding();foreach(['scope_fingerprint'=>$this->scope->fingerprint(),'integration_id'=>$this->scope->integrationId,'credential_reference'=>$this->scope->integrationId,'provider_shop_id'=>$this->scope->providerShopId,'environment'=>$this->scope->environment,'authorization_revision'=>$this->scope->revision]as $k=>$v)$b[$k]=$v;$b['operation_id']=hash('sha256',wp_generate_uuid4());$j=new NativeHeldJournal();$first=PrintifyApiApprovalFixture::checked($j->register($b,hash('sha256',$b['operation_id'].':fixture')));$q=['kind'=>'HELD_OPERATION','operation_id'=>$b['operation_id']];$delayed=false;$inspectionWrites=0;$slow=static function(string $sql)use(&$delayed,&$inspectionWrites):string{if(preg_match('/^\s*(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE)\b/i',$sql))++$inspectionWrites;if(!$delayed&&$sql==='START TRANSACTION READ ONLY'){$delayed=true;usleep(1100000);}return $sql;};add_filter('query',$slow);try{$r=Inspection::snapshot($this->scope,1,$this->context,$q);}finally{remove_filter('query',$slow);}self::assertTrue($delayed);self::assertSame(0,$inspectionWrites);self::assertNotWPError($r);self::assertSame('HELD',$r['observation']['state']);self::assertSame($first,$j->read($b['operation_id'],'personalized_pod',1));$f=PrintifyApiApprovalFixture::checked($j->transition($b['operation_id'],'personalized_pod',1,1,'FENCE'));$u=PrintifyApiApprovalFixture::checked($j->transition($b['operation_id'],'personalized_pod',1,2,'UNKNOWN'));$r=Inspection::snapshot($this->scope,1,$this->context,$q);self::assertNotWPError($r);self::assertSame('UNKNOWN',$r['observation']['state']);self::assertTrue($r['observation']['fence_present']);self::assertArrayNotHasKey('fence_hash',$r['observation']);self::assertSame($u,$j->read($b['operation_id'],'personalized_pod',1));$other=$b;$other['operation_id']=hash('sha256',wp_generate_uuid4());$other['integration_id']++;$other['credential_reference']++;PrintifyApiApprovalFixture::checked($j->register($other,hash('sha256',$other['operation_id'].':fixture')));self::assertWPError(Inspection::snapshot($this->scope,1,$this->context,['kind'=>'HELD_OPERATION','operation_id'=>$other['operation_id']]));wp_set_current_user(0);self::assertWPError(Inspection::snapshot($this->scope,1,$this->context,$q));$this->f->owner();$wpdb->query('START TRANSACTION');
  }
+ public function testScopedWriterBindsCurrentOwnerAndOneUseFence():void {
+  global $wpdb;
+  foreach(NativeHeldJournalSchema::statements() as $sql)self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
+  $binding=array_replace(NativePrintifyContractFixture::binding(),[
+   'operation_id'=>hash('sha256',wp_generate_uuid4()),'scope_fingerprint'=>$this->scope->fingerprint(),
+   'integration_id'=>$this->scope->integrationId,'credential_reference'=>$this->scope->integrationId,
+   'provider_shop_id'=>$this->scope->providerShopId,'environment'=>$this->scope->environment,
+   'authorization_revision'=>$this->scope->revision,
+  ]);
+  $key=hash('sha256','scoped:'.$binding['operation_id']);
+  $journal=new NativeHeldJournal();
+  $stale=array_replace($binding,['authorization_revision'=>$binding['authorization_revision']+1]);
+  self::assertWPError($journal->prepareScoped($stale,$key));
+  $held=PrintifyApiApprovalFixture::checked($journal->prepareScoped($binding,$key));
+  self::assertTrue($held['record']['scope_recheck_required']);
+  self::assertFalse($held['record']['dispatch_permitted']);
+  self::assertWPError($journal->prepareScoped($binding,$key));
+  self::assertWPError($journal->transition($binding['operation_id'],$binding['shop_key'],1,1,'FENCE'));
+  self::assertWPError($journal->fenceScoped($stale,1,$held['event_hash']));
+  $wrongPayload=array_replace($binding,['payload_fingerprint'=>str_repeat('f',64)]);
+  self::assertWPError($journal->fenceScoped($wrongPayload,1,$held['event_hash']));
+  $fenced=PrintifyApiApprovalFixture::checked($journal->fenceScoped($binding,1,$held['event_hash']));
+  self::assertSame('FENCED',$fenced['record']['state']);
+  self::assertFalse($fenced['record']['dispatch_permitted']);
+  self::assertFalse($fenced['record']['independent_checkpoint_verified']);
+  self::assertWPError($journal->fenceScoped($binding,1,$held['event_hash']));
+  $unknown=PrintifyApiApprovalFixture::checked($journal->transition($binding['operation_id'],$binding['shop_key'],1,2,'UNKNOWN'));
+  self::assertSame('UNKNOWN',$unknown['record']['state']);
+  self::assertSame($unknown,(new NativeHeldJournal())->read($binding['operation_id'],$binding['shop_key'],1));
+  $wpdb->query('START TRANSACTION');
+ }
+
 }
