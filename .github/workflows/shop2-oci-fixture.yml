@@ -32,20 +32,51 @@ jobs:
           printf 'SETUP_EVIDENCE=%s\n' "$evidence" >> "$GITHUB_ENV"
           {
             git rev-parse HEAD HEAD^{tree}
-            sha256sum .github/workflows/shop2-oci-fixture.yml .github/ci/shop2-oci/runner-storage.sh
+            sha256sum .github/workflows/shop2-oci-fixture.yml .github/ci/shop2-oci/{runner-storage.sh,hosted-evidence.py}
             uname -sr
             systemctl --version | sed -n '1p'
             df -B1 --output=size,used,avail "$RUNNER_TEMP"
             printf '%s\n' 'Setup-only gates verified; no data acquisition. Outside-write tracing and full-size uploader behavior UNVERIFIED.'
           } > "$evidence/baseline.txt"
           systemctl show docker.service docker.socket -p Id -p ActiveState -p MainPID > "$evidence/global-before.txt"
+          capture() {
+            local receipt=$1 rc=0
+            shift
+            timeout --kill-after=1s 10s python3 .github/ci/shop2-oci/hosted-evidence.py "$@" > "$receipt" || rc=$?
+            if [[ "$rc" == 124 || "$rc" == 137 ]]; then
+              printf '{"schema":1,"status":"TIMEOUT","reason":"outer deadline","exit":%s}\n' "$rc" > "$receipt"
+            elif ! jq -e --argjson rc "$rc" '.schema==1 and (.status|type)=="string" and ($rc==0 or .status!="OBSERVED")' "$receipt" >/dev/null 2>&1; then
+              printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
+            fi
+          }
+          cutoff=$(python3 -c 'import time; print(time.monotonic()+480)')
+          printf 'OBSERVATION_PRE_CLEANUP_CUTOFF=%s\n' "$cutoff" >> "$GITHUB_ENV"
+          export OBSERVATION_PRE_CLEANUP_CUTOFF="$cutoff"
+          capture "$evidence/runtime-baseline.json" tools
+          capture "$evidence/global-before.json" global
+          capture "$evidence/host-before.json" host "$evidence"
       - name: Set up and inspect private backend
         id: setup
         shell: bash
         run: |
           set -o pipefail
-          bash .github/ci/shop2-oci/runner-storage.sh setup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/setup.log"
-          bash .github/ci/shop2-oci/runner-storage.sh observe 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/backend.log"
+          rc=0
+          bash .github/ci/shop2-oci/runner-storage.sh setup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/setup.log" || rc=$?
+          if [[ "$rc" == 0 ]]; then
+            bash .github/ci/shop2-oci/runner-storage.sh observe 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/backend.log" || rc=$?
+          fi
+          capture() {
+            local receipt=$1 rc=0
+            shift
+            timeout --kill-after=1s 10s python3 .github/ci/shop2-oci/hosted-evidence.py "$@" > "$receipt" || rc=$?
+            if [[ "$rc" == 124 || "$rc" == 137 ]]; then
+              printf '{"schema":1,"status":"TIMEOUT","reason":"outer deadline","exit":%s}\n' "$rc" > "$receipt"
+            elif ! jq -e --argjson rc "$rc" '.schema==1 and (.status|type)=="string" and ($rc==0 or .status!="OBSERVED")' "$receipt" >/dev/null 2>&1; then
+              printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
+            fi
+          }
+          capture "$SETUP_EVIDENCE/live-before.json" live
+          exit "$rc"
       - name: Observe controlled in-volume ENOSPC and recovery
         id: probe
         shell: bash
@@ -94,6 +125,17 @@ jobs:
           print(f"PASS probe: allocated writes before ENOSPC={amount}; volume writable again; host reserve >=2 GiB.")
           PY
           bash .github/ci/shop2-oci/runner-storage.sh observe 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/recovered.log"
+          capture() {
+            local receipt=$1 rc=0
+            shift
+            timeout --kill-after=1s 10s python3 .github/ci/shop2-oci/hosted-evidence.py "$@" > "$receipt" || rc=$?
+            if [[ "$rc" == 124 || "$rc" == 137 ]]; then
+              printf '{"schema":1,"status":"TIMEOUT","reason":"outer deadline","exit":%s}\n' "$rc" > "$receipt"
+            elif ! jq -e --argjson rc "$rc" '.schema==1 and (.status|type)=="string" and ($rc==0 or .status!="OBSERVED")' "$receipt" >/dev/null 2>&1; then
+              printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
+            fi
+          }
+          capture "$SETUP_EVIDENCE/live-recovered.json" live
       - name: Collect cleanup and independent absence evidence
         if: ${{ always() && env.SETUP_EVIDENCE != '' }}
         id: cleanup
@@ -103,6 +145,7 @@ jobs:
           PROBE_OUTCOME: ${{ steps.probe.outcome }}
         run: |
           set -o pipefail
+          unset OBSERVATION_PRE_CLEANUP_CUTOFF
           rc=0
           bash .github/ci/shop2-oci/runner-storage.sh cleanup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/cleanup.log" || rc=$?
           {
@@ -125,26 +168,98 @@ jobs:
               bash .github/ci/shop2-oci/runner-storage.sh cleanup 2>&1 | tail -c 262144 > "$SETUP_EVIDENCE/absence.log" || rc=$?
             fi
           fi
+          capture() {
+            local receipt=$1 rc=0
+            shift
+            timeout --kill-after=1s 10s python3 .github/ci/shop2-oci/hosted-evidence.py "$@" > "$receipt" || rc=$?
+            if [[ "$rc" == 124 || "$rc" == 137 ]]; then
+              printf '{"schema":1,"status":"TIMEOUT","reason":"outer deadline","exit":%s}\n' "$rc" > "$receipt"
+            elif ! jq -e --argjson rc "$rc" '.schema==1 and (.status|type)=="string" and ($rc==0 or .status!="OBSERVED")' "$receipt" >/dev/null 2>&1; then
+              printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
+            fi
+          }
+          capture "$SETUP_EVIDENCE/owned-absence.json" absence
+          capture "$SETUP_EVIDENCE/global-after.json" global
+          capture "$SETUP_EVIDENCE/global-comparison.json" global-diff "$SETUP_EVIDENCE/global-before.json" "$SETUP_EVIDENCE/global-after.json"
+          capture "$SETUP_EVIDENCE/host-after.json" host "$SETUP_EVIDENCE"
           exit "$rc"
-      - name: Bound and seal sanitized setup-only evidence
+      - name: Assess required observations and select bounded diagnostics
         if: ${{ always() && env.SETUP_EVIDENCE != '' }}
         id: evidence
         shell: bash
+        env:
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          CLEANUP_OUTCOME: ${{ steps.cleanup.outcome }}
         run: |
-          python3 - <<'PY'
-          import os, pathlib
-          d = pathlib.Path(os.environ["SETUP_EVIDENCE"])
-          allowed = {"baseline.txt", "setup.log", "backend.log", "storage.log", "recovered.log", "cleanup.log", "absence.log", "final.txt", "global-before.txt", "global-after.txt"}
-          paths = list(d.iterdir())
-          assert paths and all(p.name in allowed and p.is_file() and not p.is_symlink() and
-                               p.stat().st_size <= 262144 for p in paths)
-          assert sum(p.stat().st_size for p in paths) <= 2 * 1024**2
-          PY
+          unset OBSERVATION_PRE_CLEANUP_CUTOFF
+          collector=.github/ci/shop2-oci/hosted-evidence.py
+          scratch="$RUNNER_TEMP/df-oci-upload-scratch"
+          payload="$RUNNER_TEMP/df-oci-diagnostic-payload"
+          mkdir -m 0700 "$scratch"
+          printf 'SETUP_UPLOAD_TMP=%s\n' "$scratch" >> "$GITHUB_ENV"
+          printf 'SETUP_PAYLOAD=%s\n' "$payload" >> "$GITHUB_ENV"
+          capture() {
+            local receipt=$1 rc=0
+            shift
+            timeout --kill-after=1s 10s python3 .github/ci/shop2-oci/hosted-evidence.py "$@" > "$receipt" || rc=$?
+            if [[ "$rc" == 124 || "$rc" == 137 ]]; then
+              printf '{"schema":1,"status":"TIMEOUT","reason":"outer deadline","exit":%s}\n' "$rc" > "$receipt"
+            elif ! jq -e --argjson rc "$rc" '.schema==1 and (.status|type)=="string" and ($rc==0 or .status!="OBSERVED")' "$receipt" >/dev/null 2>&1; then
+              printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
+            fi
+          }
+          # Capture source membership before writing its self-description.
+          capture "$RUNNER_TEMP/df-oci-source.json" upload-source "$SETUP_EVIDENCE"
+          mv "$RUNNER_TEMP/df-oci-source.json" "$SETUP_EVIDENCE/upload-source.json"
+          if ! timeout --kill-after=1s 10s python3 "$collector" assess "$SETUP_EVIDENCE" "$payload"; then
+            # Assessment failure still gets a standalone safe diagnostic payload.
+            payload="$RUNNER_TEMP/df-oci-assessment-error"
+            mkdir -m 0700 "$payload"
+            printf 'SETUP_PAYLOAD=%s\n' "$payload" >> "$GITHUB_ENV"
+            jq -n --arg setup "$SETUP_OUTCOME" --arg probe "$PROBE_OUTCOME" --arg cleanup "$CLEANUP_OUTCOME" \
+              '{schema:2,overall_qualification:"NOT_QUALIFIED",mandatory_observations_pass:false,
+                assessment_error:"collector deadline or unavailable",
+                technical_step_outcomes:{setup:$setup,probe:$probe,cleanup:$cleanup}}' > "$payload/assessment.json"
+          fi
           printf 'safe=true\n' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: setup-upload
         if: ${{ always() && steps.evidence.outputs.safe == 'true' }}
+        env:
+          TMPDIR: ${{ env.SETUP_UPLOAD_TMP }}
         with:
           name: shop2-oci-setup-only-evidence
-          path: ${{ env.SETUP_EVIDENCE }}/
+          path: ${{ env.SETUP_PAYLOAD }}/
           if-no-files-found: error
           retention-days: 7
+      - name: Record uploader result and scratch residue
+        if: ${{ always() && env.SETUP_UPLOAD_TMP != '' }}
+        shell: bash
+        env:
+          UPLOAD_AGGREGATE_OUTCOME: ${{ steps.setup-upload.outcome }}
+          UPLOAD_ARTIFACT_ID: ${{ steps.setup-upload.outputs.artifact-id }}
+          UPLOAD_ARTIFACT_DIGEST: ${{ steps.setup-upload.outputs.artifact-digest }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os, pathlib, re
+          scratch = pathlib.Path(os.environ["SETUP_UPLOAD_TMP"])
+          assert scratch.is_dir() and not scratch.is_symlink()
+          residue = next(scratch.iterdir(), None) is not None
+          artifact = os.environ["UPLOAD_ARTIFACT_ID"]
+          digest = os.environ["UPLOAD_ARTIFACT_DIGEST"]
+          outcome = os.environ["UPLOAD_AGGREGATE_OUTCOME"]
+          print("Setup evidence upload outcome:", outcome if outcome in {"success","failure","skipped","cancelled"} else "unknown")
+          print("Artifact ID:", artifact if re.fullmatch(r"[0-9]{1,20}", artifact) else "unavailable")
+          print("Artifact digest:", digest if re.fullmatch(r"(?:sha256:)?[0-9a-f]{64}", digest) else "unavailable")
+          print("Designated scratch device:", os.major(scratch.stat().st_dev), os.minor(scratch.stat().st_dev))
+          print("Designated scratch residue:", residue)
+          print("Transient uploader staging and whole-host writer identity: UNVERIFIED")
+          import json
+          assessed = json.loads((pathlib.Path(os.environ["SETUP_PAYLOAD"]) / "assessment.json").read_bytes())
+          print("Overall qualification:", assessed["overall_qualification"])
+          if assessed.get("mandatory_observations_pass") is not True:
+              raise SystemExit(1)
+          if residue or outcome != "success" or (not re.fullmatch(r"[0-9]{1,20}", artifact) or not re.fullmatch(r"(?:sha256:)?[0-9a-f]{64}", digest)):
+              raise SystemExit(1)
+          PY
