@@ -32,9 +32,6 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=12
-    env:
-      WP_TESTS_DIR: ${{ runner.temp }}/wordpress-tests-lib
-      WP_CORE_DIR: ${{ runner.temp }}/wordpress
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +64,8 @@ jobs:
 
       - name: Install isolated WordPress fixture
         env:
+          WP_TESTS_DIR: ${{ runner.temp }}/wordpress-tests-lib
+          WP_CORE_DIR: ${{ runner.temp }}/wordpress
           WORDPRESS_VERSION: ${{ inputs.wordpress }}
         run: |
           [[ "$WORDPRESS_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
@@ -75,6 +74,8 @@ jobs:
 
       - name: Run retained general profile
         env:
+          WP_TESTS_DIR: ${{ runner.temp }}/wordpress-tests-lib
+          WP_CORE_DIR: ${{ runner.temp }}/wordpress
           PROFILE: ${{ matrix.profile }}
           DF_GOOGLE_PORTAL_FIXTURES: ${{ runner.temp }}/google-portal-fixtures
         run: |
