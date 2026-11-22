@@ -164,6 +164,45 @@ final class NativeBusinessMutationAssociation
         return $out;
     }
 
+    /**
+     * Join a preflighted local association to current persisted state in the caller's writer.
+     * The reviewed hash identifies the approved revision; the caller cannot supply its contents.
+     */
+    public static function lockForWriter(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan, string $proposal, int $revision, string $payload): array|\WP_Error
+    {
+        global $wpdb;
+        $database = $wpdb;
+        $connection = NativeSourceTransaction::id();
+        if (is_wp_error($connection)) return $connection;
+        $authority = NativeAuthorityAdapter::scope($scope, $actor, ['manage_digiforge_pod','manage_digiforge_products','manage_digiforge_listings','manage_digiforge_research']);
+        if (is_wp_error($authority)) return $authority;
+        $product = self::productIdentity($mapping);
+        if (is_wp_error($product)) return $product;
+        $approval = ReviewedLocalEvidence::lockApprovedPolicy($scope->shopKey, self::key($scope, $product));
+        if (is_wp_error($approval)) return $approval;
+        $source = $approval['payload'];
+        if ($approval['revision'] !== $revision || !hash_equals($approval['proposal_hash'], $proposal)
+            || ($source['schema'] ?? null) !== 'DF_NATIVE_MUTATION_ASSOCIATION_SOURCE_1'
+            || ($source['scope_fingerprint'] ?? null) !== $scope->fingerprint()
+            || ($source['product_id'] ?? null) !== $product
+            || ($source['provider_mapping_id'] ?? null) !== $mapping || ($source['asset_spec_id'] ?? null) !== $spec
+            || ($source['plan_hash'] ?? null) !== $plan || ($source['payload_fingerprint'] ?? null) !== $payload) {
+            return NativeFailure::error('association_writer_binding');
+        }
+        $receipt = self::approvedReceipt($scope, $source, $approval);
+        if (is_wp_error($receipt)) return $receipt;
+        $artwork = NativeBusinessArtworkEvidence::lockCurrent($scope, $actor, $mapping, $spec, $source['business_dependencies'] ?? [], $source['artwork_dependency_hash'] ?? '');
+        if (is_wp_error($artwork)) return $artwork;
+        $dependencies = NativeProtectedOptionDependencies::lockCurrent($scope, $actor, $source['data_option_dependencies'] ?? []);
+        if (is_wp_error($dependencies)) return $dependencies;
+        $transaction = NativeSourceTransaction::verify($database, $connection);
+        if (is_wp_error($transaction)) return $transaction;
+        if ($approval['expires_at'] <= time()) return NativeFailure::error('association_writer_expired');
+        return ['product_id'=>$product,'product_version_id'=>$source['product_version_id'],
+            'source_hash'=>$source['source_hash'],'review_revision'=>$revision,
+            'external_execution_authorized'=>false,'dispatch_permitted'=>false];
+    }
+
     public static function uploadDescriptor(ShopBinding $scope, int $actor, int $mapping, int $spec, string $plan, string $expectedSource): array|\WP_Error
     {
         $association = self::read($scope, $actor, $mapping, $spec, $plan);

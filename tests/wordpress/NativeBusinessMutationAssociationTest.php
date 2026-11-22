@@ -33,6 +33,46 @@ final class NativeBusinessMutationAssociationTest extends WP_UnitTestCase {
    PortalAccessFixture::login($this->fixture->reviewer);$r=PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,4,$next['proposal_hash'],'REVOKED',wp_generate_uuid4()));self::assertSame('REVOKED',$r['status']);$this->fixture->owner();self::assertWPError(Association::read($scope,1,$m,$s,$p));self::assertTrue(DigiForge\Core\Settings::get('stop_all',true));self::assertTrue(DigiForge\Core\Settings::safety_locked());
   } finally {remove_filter('pre_http_request',$deny,PHP_INT_MAX);}
  }
+ public function testWriterJoinsCurrentSourceAndRejectsStaleOrRevokedReview():void {
+  global $wpdb;
+  $f=$this->businessMutationFixture($this->fixture);
+  $scope=$f['scope'];$m=$f['mapping_id'];$s=$f['spec_id'];$p=$f['plan_hash'];
+  $source=PrintifyApiApprovalFixture::checked(Association::source($scope,1,$m,$s,$p));
+  $proposal=PrintifyApiApprovalFixture::checked(Association::propose($scope,1,$m,$s,$p,$source['source_hash'],0,time(),time()+600,wp_generate_uuid4()));
+  PortalAccessFixture::login($this->fixture->reviewer);
+  PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,1,$proposal['proposal_hash'],'APPROVED',wp_generate_uuid4()));
+  $this->fixture->owner();
+  $join=static fn(int $revision=2,?string $payload=null)=>Association::lockForWriter($scope,1,$m,$s,$p,$proposal['proposal_hash'],$revision,$payload??$source['payload_fingerprint']);
+  self::assertWPError($join(),'The join requires a caller-owned writer transaction.');
+  self::assertNotFalse($wpdb->query('START TRANSACTION'));
+  try {
+   $locked=PrintifyApiApprovalFixture::checked($join());
+   self::assertSame($source['product_version_id'],$locked['product_version_id']);
+   self::assertSame($source['source_hash'],$locked['source_hash']);
+   self::assertFalse($locked['dispatch_permitted']);
+   foreach ([$join(1), $join(2,str_repeat('f',64))] as $rejected) {
+    self::assertWPError($rejected);
+    self::assertSame('printify_native_association_writer_binding',$rejected->get_error_code());
+   }
+   self::assertWPError(Association::lockForWriter($scope,$this->fixture->reviewer,$m,$s,$p,$proposal['proposal_hash'],2,$source['payload_fingerprint']));
+   self::assertSame(1,$wpdb->update(Tables::product_versions(),['notes'=>'changed during writer admission'],['id'=>$f['business_version_id']]));
+   self::assertWPError($join());
+  } finally {$wpdb->query('ROLLBACK');}
+  self::assertNotFalse($wpdb->query('START TRANSACTION'));
+  try {self::assertTrue(is_array($join()),'Rolling back source drift restores the original reviewed source.');}
+  finally {$wpdb->query('ROLLBACK');}
+
+  PortalAccessFixture::login($this->fixture->reviewer);
+  PrintifyApiApprovalFixture::checked(Association::decide($scope,$this->fixture->reviewer,$m,$s,$p,2,$proposal['proposal_hash'],'REVOKED',wp_generate_uuid4()));
+  $this->fixture->owner();
+  self::assertNotFalse($wpdb->query('START TRANSACTION'));
+  try {
+   $revoked=$join();
+   self::assertWPError($revoked);
+   self::assertSame('digiforge_local_review_not_currently_approved',$revoked->get_error_code());
+  }
+  finally {$wpdb->query('ROLLBACK');}
+ }
  public function testMissingSessionCannotProbeBusinessSourceLocator():void {
   $v=PrintifyApiApprovalFixture::checked((new DigiForge\POD\ScopedProviderConnection())->verified('personalized_pod',$this->fixture->integration,'printify.connection.read'));$scope=new DigiForge\Connector\Printify\ShopBinding(2,'personalized_pod',$this->fixture->integration,$v['external_shop_reference'],$v['environment'],$v['review_revision'],new DigiForge\Connector\Printify\CredentialReference($this->fixture->integration),$v['binding_hash'],$v['expires_at']);$probed=false;
   $filter=static function(string $sql)use(&$probed):string{if(str_contains($sql,'FROM '.Tables::pod_mappings()))$probed=true;return $sql;};add_filter('query',$filter,PHP_INT_MIN);

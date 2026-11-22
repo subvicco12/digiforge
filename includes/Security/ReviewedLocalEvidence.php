@@ -54,6 +54,11 @@ final class ReviewedLocalEvidence
 
     public static function read(string $kind,string $shop,string $key): array|WP_Error|null
     {
+        return self::readState($kind,$shop,$key,false);
+    }
+
+    private static function readState(string $kind,string $shop,string $key,bool $lock): array|WP_Error|null
+    {
         $valid=self::identity($kind,$shop,$key);
         if (is_wp_error($valid)) { return $valid; }
         $access=ShopAccess::authorize($shop,'manage_digiforge');
@@ -62,14 +67,42 @@ final class ReviewedLocalEvidence
             $access=ShopAccess::authorize($shop,'manage_digiforge_finance');
             if (is_wp_error($access)) return $access;
         }
-        $events=self::events($valid,false);
+        $events=self::events($valid,$lock,$lock);
         if (is_wp_error($events)) { return $events; }
         return $events===[] ? null : $events[count($events)-1]['state'];
     }
 
     public static function approved(string $kind,string $shop,string $key): array|WP_Error
     {
-        $state=self::read($kind,$shop,$key);
+        return self::currentApproval($kind,$shop,self::read($kind,$shop,$key));
+    }
+
+    /** Read the latest committed review under the same row lock used by review and revocation. */
+    public static function lockApprovedPolicy(string $shop,string $key): array|WP_Error
+    {
+        global $wpdb;
+        $database=$wpdb;
+        $connection=\DigiForge\Connector\Printify\NativeSourceTransaction::id();
+        if (is_wp_error($connection)) return $connection;
+        $valid=self::identity('policy',$shop,$key);
+        if (is_wp_error($valid)) return $valid;
+
+        // Acquire the same locks in the same order as the review writer.
+        $aclKey='digiforge_shop_access_state_'.$shop;
+        $wpdb->last_error='';
+        $locked=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s FOR UPDATE",$aclKey));
+        if (QueryEvidence::failed() || !is_string($locked)) return self::error('assignment_lock',503);
+        $observed=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s",$aclKey));
+        if (QueryEvidence::failed() || $locked!==$observed) return self::error('assignment_snapshot_stale',409);
+
+        $approval=self::currentApproval('policy',$shop,self::readState('policy',$shop,$key,true));
+        if (is_wp_error($approval)) return $approval;
+        $transaction=\DigiForge\Connector\Printify\NativeSourceTransaction::verify($database,$connection);
+        return is_wp_error($transaction)?$transaction:$approval;
+    }
+
+    private static function currentApproval(string $kind,string $shop,array|WP_Error|null $state): array|WP_Error
+    {
         if (is_wp_error($state)) { return $state; }
         if ($state===null || $state['status']!=='APPROVED' || $state['effective_at']>time() || $state['expires_at']<=time()) {
             return self::error('not_currently_approved',409);
@@ -170,13 +203,13 @@ final class ReviewedLocalEvidence
     }
 
     /** Validate the complete contiguous signed stream against independently persisted audit rows. */
-    private static function events(string $stream,bool $lock): array|WP_Error
+    private static function events(string $stream,bool $lock,bool $lockAudit=false): array|WP_Error
     {
         global $wpdb;
         $wpdb->last_error='';
         $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s".($lock?' FOR UPDATE':''),'digiforge_local_review_'.$stream));
         if (QueryEvidence::failed()) { return self::error('read_unavailable',503); }
-        $rows=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,CASE WHEN OCTET_LENGTH(context)<=65536 THEN context ELSE NULL END AS context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s ORDER BY id ASC LIMIT 501',self::OBJECT,$stream),ARRAY_A);
+        $rows=$wpdb->get_results($wpdb->prepare('SELECT event_type,actor_id,CASE WHEN OCTET_LENGTH(context)<=65536 THEN context ELSE NULL END AS context FROM '.Tables::audit_log().' WHERE object_type=%s AND object_id=%s ORDER BY id ASC LIMIT 501'.($lockAudit?' FOR UPDATE':''),self::OBJECT,$stream),ARRAY_A);
         if (QueryEvidence::failed() || !is_array($rows)) { return self::error('read_unavailable',503); }
         if ($raw===null) { return $rows===[]?[]:self::error('history_mismatch',409); }
         if (!is_string($raw) || strlen($raw)>1048576) { return self::error('history_mismatch',409); }
