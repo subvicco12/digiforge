@@ -56,10 +56,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+          ref: 05c5a0234961a5f3f1300f2567e3f2aa6adcdc17
           persist-credentials: false
       - name: Verify exact candidate
-        run: test "$(git rev-parse HEAD)" = 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+        run: test "$(git rev-parse HEAD)" = 05c5a0234961a5f3f1300f2567e3f2aa6adcdc17
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -144,7 +144,7 @@ jobs:
         run: test "$RESULT" = success
       - uses: actions/checkout@v4
         with:
-          ref: 86d8d4368d3c38e9e06190c2e7a6fd32b07b5c37
+          ref: 05c5a0234961a5f3f1300f2567e3f2aa6adcdc17
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
