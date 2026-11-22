@@ -52,7 +52,9 @@ $plan=PrintifyProductRequest::prepare('PRODUCT_CREATE','107',[
 ]);
 requireFixture($plan['external_execution_authorized']===false,'Product plan became authorizing');
 foreach (['REGISTER','CLAIM','RECEIPT_READ'] as $action) {
-    $native=Runtime::prepareNativeMutation('107','fixture-account',['action'=>$action]);
+    $native=Runtime::prepareNativeMutation('107','fixture-account',[
+        'action'=>$action,'binding'=>['provider_shop_id'=>'107','environment'=>'test'],
+    ]);
     requireFixture($native['state']==='BLOCKED' && !$native['provider_execution_authorized'],
         'Native admission bypassed: '.$action);
 }

@@ -80,8 +80,12 @@ final class NativeHeldInspection
     /** Check the canonical request for handoff only. No Core writer is invoked. */
     public static function prepareMutation(string $shop,string $account,array $request): array
     {
-        if (!Runtime::permitsFixtureAccount($shop,$account)
-            || !in_array($request['action']??null,['REGISTER','CLAIM','RECEIPT_READ'],true)) {
+        $binding = $request['binding'] ?? null;
+        if (!Runtime::permitsFixtureAccount($shop, $account)
+            || !in_array($request['action'] ?? null, ['REGISTER', 'CLAIM', 'RECEIPT_READ'], true)
+            || !is_array($binding)
+            || ($binding['provider_shop_id'] ?? null) !== $shop
+            || ($binding['environment'] ?? null) !== 'test') {
             return self::result('DENIED','NATIVE_BINDING');
         }
         try {
@@ -96,7 +100,7 @@ final class NativeHeldInspection
                 return self::result('BLOCKED','NATIVE_BUILD_INCOMPATIBLE');
             }
             if (!NativePortContract::valid('mutation_request',$request)
-                || ($request['binding']['actor_id']??null)!==\get_current_user_id()) {
+                || ($binding['actor_id'] ?? null) !== \get_current_user_id()) {
                 return self::result('DENIED','NATIVE_BINDING');
             }
             return self::result('BLOCKED','CURRENT_NATIVE_OPERATIONAL_AUTHORITY_UNAVAILABLE')+[

@@ -74,7 +74,9 @@ foreach (['timeout','substituted','cross_shop','stale','synthetic_promote','over
 
 $GLOBALS['fixture_caps']=['manage_options','digiforge_printify_review_shop_107'];
 foreach (['REGISTER','CLAIM','RECEIPT_READ'] as $action) {
-    $native=Runtime::prepareNativeMutation('107','fixture-account',['action'=>$action]);
+    $native=Runtime::prepareNativeMutation('107','fixture-account',[
+        'action'=>$action,'binding'=>['provider_shop_id'=>'107','environment'=>'test'],
+    ]);
     $assertCustody($native['state']==='BLOCKED' && !$native['provider_execution_authorized']
         && $native['reason']==='NATIVE_CORE_UNAVAILABLE','Standalone fabricated native authority');
 }
