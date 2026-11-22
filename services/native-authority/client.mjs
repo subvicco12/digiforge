@@ -149,7 +149,7 @@ export class AuthorityClient {
     need(result.reason === null || reference(result.reason), 'result_reason');
     if (result.operation !== null) {
       const operation = result.operation;
-      exactFields(operation, request.method === 'readOperation' ? [...OPERATION_FIELDS,'admission_event','reservation_only'] : OPERATION_FIELDS, 'operation_fields');
+      exactFields(operation, request.method === 'readOperation' ? [...OPERATION_FIELDS,'admission_event','outcome_event','reservation_only'] : OPERATION_FIELDS, 'operation_fields');
       for (const field of ['allocation_id', 'product_identity', 'order_identity', 'approval_reference']) need(reference(operation[field]), 'operation_reference');
       for (const field of ['allocation_revision', 'product_version', 'order_version', 'approval_revision', 'policy_revision', 'generation']) need(integer(operation[field]), 'operation_revision');
       for (const field of ['operation_id', 'payload_fingerprint', 'checkpoint_epoch']) need(digestValue(operation[field]), 'operation_digest');
@@ -165,6 +165,12 @@ export class AuthorityClient {
         need(integer(operation.admission_event.sequence)&&digestValue(operation.admission_event.head)
           && message.witness_sequence>=Math.max(operation.admission_event.sequence,body.retained_witness_sequence)
           && (message.witness_sequence!==body.retained_witness_sequence||message.witness_head===body.retained_witness_head), 'operation_readback_frontier');
+        if(operation.state==='UNKNOWN'){
+          exactFields(operation.outcome_event,['sequence','head'],'outcome_event_fields');
+          need(integer(operation.outcome_event.sequence)&&digestValue(operation.outcome_event.head)
+            && operation.outcome_event.sequence>operation.admission_event.sequence
+            && operation.outcome_event.sequence<=message.witness_sequence,'operation_outcome_frontier');
+        }else need(operation.outcome_event===null,'operation_outcome_frontier');
       }
       if (['admitOperation','reserveOperation'].includes(request.method)) {
         for (const field of ['operation_id', 'payload_fingerprint', 'product_version', 'approval_reference', 'approval_revision', 'policy_revision']) need(operation[field] === request.method_body[field], 'operation_binding');

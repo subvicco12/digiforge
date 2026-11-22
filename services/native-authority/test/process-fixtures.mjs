@@ -32,7 +32,7 @@ export function jsonPost(url, value) {
 }
 
 /** Starts real role processes and a clearly synthetic local provider. No authority response is mocked. */
-export async function createProcessFixture(t, { holds = closedHolds, providerBehavior = 'success', grantSeconds = 240 } = {}) {
+export async function createProcessFixture(t, { holds = closedHolds, providerBehavior = 'success', grantSeconds = 240, coreScope = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'df-native-process-')); chmodSync(dir, 0o700);
   const dirs = Object.fromEntries(['issuer', 'witness', 'administrator'].map(role => { const path = join(dir, role); mkdirSync(path, { mode: 0o700 }); return [role, path]; }));
   const processes = new Map(); let provider; let providerRelease; let disposed = false;
@@ -56,7 +56,7 @@ export async function createProcessFixture(t, { holds = closedHolds, providerBeh
   const signingPaths = Object.fromEntries(roles.map(role => [role, write(role === 'issuer' || role === 'witness' ? dirs[role] : dirs.administrator, role + '.pem', pairs[role].privateKey.export({ type: 'pkcs8', format: 'pem' }))]));
   const secret = 'offline-test-' + randomBytes(32).toString('base64url');
   const suffix = randomUUID();
-  const binding = { authority_id: 'authority-' + suffix, installation_id: 'installation-' + suffix, owner_id: 'owner-' + suffix, owner_proof_reference: 'owner-proof-' + suffix, workload_id: 'workload-' + suffix, deployment_digest: serviceBuildDigest(), compatibility_floor: '1.0.0', provider: 'printify', provider_account_reference: 'offline-account-' + suffix, environment: 'test', integration_id: 37, credential_reference: 37, shop_id: 2, shop_key: 'personalized_pod' };
+  const binding = { authority_id: 'authority-' + suffix, installation_id: 'installation-' + suffix, owner_id: 'owner-' + suffix, owner_proof_reference: 'owner-proof-' + suffix, workload_id: 'workload-' + suffix, deployment_digest: serviceBuildDigest(), compatibility_floor: '1.0.0', provider: 'printify', provider_account_reference: coreScope?.account ?? ('offline-account-' + suffix), environment: 'test', integration_id: coreScope?.integration ?? 37, credential_reference: coreScope?.integration ?? 37, shop_id: 2, shop_key: 'personalized_pod' };
   const identity = { ...binding, witness_id: 'witness-' + suffix, root_set_digest: digest(publicMaps.issuer), root_set_revision: 1 };
   const productId = 'product-' + randomUUID(), orderId = 'order-' + randomUUID();
   const lines = [{ line_identity: 'line-' + randomUUID(), quantity: 2 }];
@@ -65,7 +65,7 @@ export async function createProcessFixture(t, { holds = closedHolds, providerBeh
   const product = { binding, product_identity: productId, core_reference: 'offline-native-product-core-reference' };
   const order = { binding, order_identity: orderId, product_identity: productId, lines, core_reference: 'offline-native-order-core-reference' };
   const grant = { grant_reference: 'grant-' + suffix, binding, issued_at: now() - 1, expires_at: now() + grantSeconds, revoked: false };
-  const approval = { approval_reference: 'approval-' + suffix, approval_revision: 1, policy_revision: 1, operation_id: operationId, order_identity: orderId, order_version: 1, listing_identity: 'offline-listing-' + suffix, product_identity: productId, product_version: 1, expected_product_version: 1, payload_fingerprint: digest(payloadBody), lines, binding };
+  const approval = { approval_reference: coreScope ? digest('approval-' + suffix) : 'approval-' + suffix, approval_revision: 1, policy_revision: 1, operation_id: operationId, order_identity: orderId, order_version: 1, listing_identity: 'offline-listing-' + suffix, product_identity: productId, product_version: 1, expected_product_version: 1, payload_fingerprint: digest(payloadBody), lines, binding };
   const databasePath = join(dirs.witness, 'witness.sqlite');
   const inspect = fn => { const store = new AuthorityStore(databasePath); try { return fn(store); } finally { store.close(); } };
   const requests = []; let firstRequestResolve;
@@ -94,10 +94,11 @@ export async function createProcessFixture(t, { holds = closedHolds, providerBeh
   });
   await new Promise(r => provider.listen(0, '127.0.0.1', r));
   const providerUrl = 'http://127.0.0.1:' + provider.address().port;
-  const credential = { credential_reference: 37, secret, binding, provider_shop_id: '12345' };
-  const payload = { operation_id: operationId, order_identity: orderId, provider_shop_id: '12345', method: 'POST', path: '/v1/shops/12345/orders.json', body: payloadBody, payload_fingerprint: digest(payloadBody) };
+  const providerShop = coreScope?.providerShop ?? '12345';
+  const credential = { credential_reference: binding.credential_reference, secret, binding, provider_shop_id: providerShop };
+  const payload = { operation_id: operationId, order_identity: orderId, provider_shop_id: providerShop, method: 'POST', path: '/v1/shops/' + providerShop + '/orders.json', body: payloadBody, payload_fingerprint: digest(payloadBody) };
   const { body: omitted, ...payloadMetadata } = payload;
-  const provisioning = { schema: 'DF_NATIVE_INSTALLATION_1', version: '1.0.0', identity, mode: 'OFFLINE_TEST', provider_base_url: providerUrl, principal_set_digest: digest(publicMaps), holds, products: [product], orders: [order], grants: [grant], approvals: [approval], credential_inventory: [{ credential_reference: 37, binding, provider_shop_id: '12345', secret_sha256: createHash('sha256').update(secret).digest('hex') }], payload_inventory: [payloadMetadata], issued_at: now() - 1, expires_at: now() + 240 };
+  const provisioning = { schema: 'DF_NATIVE_INSTALLATION_1', version: '1.0.0', identity, mode: 'OFFLINE_TEST', provider_base_url: providerUrl, principal_set_digest: digest(publicMaps), holds, products: [product], orders: [order], grants: [grant], approvals: [approval], credential_inventory: [{ credential_reference: binding.credential_reference, binding, provider_shop_id: providerShop, secret_sha256: createHash('sha256').update(secret).digest('hex') }], payload_inventory: [payloadMetadata], issued_at: now() - 1, expires_at: now() + 240 };
   const dual = (prefix, message) => ({ owner: sign(prefix + '.owner.v1', message, pairs.owner.privateKey, 'owner'), recovery: sign(prefix + '.recovery.v1', message, pairs.recovery.privateKey, 'recovery') });
   const configs = {};
   const configPaths = {};

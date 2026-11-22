@@ -11,7 +11,7 @@ import { AuthorityError, requireAuthority as need } from './errors.mjs';
 const sourceRoot=dirname(fileURLToPath(import.meta.url)), repositoryRoot=resolve(sourceRoot,'../..');
 const roles=['workload','issuer','witness','owner','emergency','recovery'];
 const loaded=new WeakMap();
-const controls=['REGISTER_GRANT','REGISTER_APPROVAL','ADVANCE_PRODUCT','ADVANCE_ORDER','RECOVERY_APPROVAL','ROTATION_APPROVAL','RECONCILE_OPERATION','ABANDON_UNSENT'];
+const controls=['REGISTER_GRANT','REGISTER_APPROVAL','ADVANCE_PRODUCT','ADVANCE_ORDER','RECOVERY_APPROVAL','ROTATION_APPROVAL','RECONCILE_OPERATION','ABANDON_UNSENT','SEND_RESERVED'];
 const hashBytes=v=>createHash('sha256').update(v).digest('hex');
 const now=()=>Math.floor(Date.now()/1000);
 function boundary(path, absent=false){

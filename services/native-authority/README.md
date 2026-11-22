@@ -23,6 +23,8 @@ The witness process opens its journal and witness key, not provider credentials 
 
 The service-only dual-signed `ABANDON_UNSENT` control resolves a revoked allocation whose intact witness journal is still ADMITTED. It requires the exact operation, allocation/revision, original generation and current witness head. The witness records FAILED with `revoked_before_send`; it keeps the allocation consumed and denies SENDING/UNKNOWN/terminal or current-generation operations. This is a witness journal decision, not a provider observation. Operations that might have sent bytes still require authenticated readback.
 
+The offline `SEND_RESERVED` control is dual-signed and binds the exact allocation, payload, epoch, generation, committed admission event, and Core journal head and receipt digest. The witness consumes the reservation in the existing SENDING transaction. The reserved path does not enter the legacy combined sender. The separate sender remains limited to synthetic loopback custody. Core can journal a signed UNKNOWN outcome against the exact held reservation without authorizing a repeat attempt.
+
 ## Reproduction
 
 Node 24 with built-in `node:sqlite` is required; there are no package-install steps. Run the disposable component/process tests from the repository root:

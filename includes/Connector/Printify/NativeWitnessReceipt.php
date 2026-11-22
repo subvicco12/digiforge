@@ -27,6 +27,8 @@ final class NativeWitnessReceipt
             $body = $request['method_body'];
             $operation = $outer['result']['operation'];
             $event = $operation['admission_event'];
+            $prior = $record['witness_receipt'] ?? null;
+            $expectedState = $prior === null ? 'ADMITTED' : 'UNKNOWN';
             $binding = $record['binding'];
             foreach (['integration_id','credential_reference','shop_id','shop_key','environment'] as $field) {
                 if ($request[$field] !== $binding[$field]) return self::deny();
@@ -50,13 +52,21 @@ final class NativeWitnessReceipt
                 || $operation['generation'] !== $intent['expected_generation']
                 || $body['retained_witness_head'] !== $pins['retained_head'] || $body['retained_witness_sequence'] !== $pins['retained_sequence']
                 || $outer['result']['method'] !== 'readOperation' || $outer['result']['schema'] !== 'DF_NATIVE_AUTHORITY_RESULT_1'
-                || $outer['disposition'] !== 'ADMITTED' || $outer['result']['state'] !== 'ADMITTED' || $operation['state'] !== 'ADMITTED'
+                || $outer['disposition'] !== $expectedState || $outer['result']['state'] !== $expectedState || $operation['state'] !== $expectedState
                 || $operation['reservation_only'] !== true || $outer['result']['external_execution_authorized'] !== false
                 || !is_int($outer['issued_at']) || !is_int($outer['expires_at']) || $outer['issued_at'] > $now
                 || $outer['expires_at'] <= $now || $outer['expires_at']-$outer['issued_at'] > 30
                 || !is_int($outer['witness_sequence']) || $outer['witness_sequence'] < $pins['retained_sequence']
                 || !is_int($event['sequence']) || $event['sequence'] <= $pins['retained_sequence'] || $event['sequence'] > $outer['witness_sequence']
                 || ($outer['witness_sequence'] === $event['sequence'] && $outer['witness_head'] !== $event['head'])) return self::deny();
+
+            if ($prior !== null) {
+                if ($operation['allocation_id'] !== $prior['allocation_id'] || $operation['allocation_revision'] !== $prior['allocation_revision']
+                    || $event['sequence'] !== $prior['witness_sequence'] || $event['head'] !== $prior['witness_head']) return self::deny();
+                $event = $operation['outcome_event'];
+                if (!is_int($event['sequence']) || $event['sequence'] <= $prior['witness_sequence'] || $event['sequence'] > $outer['witness_sequence']
+                    || ($event['sequence'] === $outer['witness_sequence'] && $event['head'] !== $outer['witness_head'])) return self::deny();
+            }
 
             $receipt = ['receipt_digest'=>hash('sha256',$raw),'allocation_id'=>$operation['allocation_id'],
                 'allocation_revision'=>$operation['allocation_revision'],'epoch'=>$operation['checkpoint_epoch'],

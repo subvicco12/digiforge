@@ -167,13 +167,52 @@ export class AuthorityStore {
    const rows=this.#db.prepare("SELECT sequence,head FROM witness_events WHERE json_extract(event,'$.type')='OPERATION_ADMITTED' AND json_extract(event,'$.data.operation_id')=? AND json_extract(event,'$.data.allocation_id')=? AND json_extract(event,'$.data.allocation_revision')=? AND json_extract(event,'$.data.generation')=? LIMIT 2")
     .all(op.operation_id,op.allocation_id,op.allocation_revision,op.generation);
    need(rows.length===1,'operation_event_missing');
-   return {operation:op,state:this.#view(s),admission_event:{sequence:rows[0].sequence,head:rows[0].head}};
+   let outcomeEvent=null;
+   if(op.state==='UNKNOWN'){
+    const outcomes=this.#db.prepare("SELECT sequence,head FROM witness_events WHERE json_extract(event,'$.type')='OPERATION_FINISHED' AND json_extract(event,'$.data.operation_id')=? AND json_extract(event,'$.data.outcome')='UNKNOWN' LIMIT 2").all(op.operation_id);
+    need(outcomes.length===1&&outcomes[0].sequence>rows[0].sequence,'operation_outcome_event_missing');
+    outcomeEvent={sequence:outcomes[0].sequence,head:outcomes[0].head};
+   }
+   return {operation:op,state:this.#view(s),admission_event:{sequence:rows[0].sequence,head:rows[0].head},outcome_event:outcomeEvent};
   });
  }
  operation(operationId){hash(operationId);try{this.#state();const op=this.#get('operations',operationId,'operation_id');need(op,'operation_missing');return op;}catch(e){if(e instanceof AuthorityError)throw e;fail('storage_unavailable');}}
  markSending(operationId,expectedGeneration,now){
-  hash(operationId);integer(expectedGeneration);integer(now);return this.#tx(()=>{const s=this.#state();const op=this.operation(operationId);need(!s.paused&&s.generation===expectedGeneration&&op.generation===s.generation,'generation_revoked');need(op.state==='ADMITTED','operation_not_admitted');need(op.reservation_only!==true,'separate_sender_admission_required');this.#currentApproval(op,s,now);op.state='SENDING';op.updated_at=now;this.#put('operations',operationId,op,'operation_id');this.#event(s,'OPERATION_SENDING',{operation_id:operationId,generation:op.generation},now);return op;});
+  return this.#markSending(operationId,expectedGeneration,now,null);
  }
+ markReservedSending(operationId,expectedGeneration,now,authorization){
+  return this.#markSending(operationId,expectedGeneration,now,authorization);
+ }
+ #markSending(operationId,expectedGeneration,now,authorization){
+  hash(operationId);integer(expectedGeneration);integer(now);
+  return this.#tx(()=>{
+   const s=this.#state();const op=this.operation(operationId);
+   need(!s.paused&&s.generation===expectedGeneration&&op.generation===s.generation,'generation_revoked');
+   need(op.state==='ADMITTED','operation_not_admitted');
+   if(authorization===null){
+    need(op.reservation_only!==true,'separate_sender_admission_required');
+   }else{
+    need(op.reservation_only===true,'reservation_required');
+    for(const [field,value] of Object.entries({operation_id:op.operation_id,payload_fingerprint:op.payload_fingerprint,
+     allocation_id:op.allocation_id,allocation_revision:op.allocation_revision,checkpoint_epoch:op.epoch,generation:op.generation})){
+     need(authorization[field]===value,'sender_reservation_binding');
+    }
+    const row=this.#db.prepare('SELECT head,event FROM witness_events WHERE sequence=?').get(authorization.admission_sequence);
+    need(row?.head===authorization.admission_head,'sender_admission_event');
+    const admitted=JSON.parse(row.event);
+    need(admitted.type==='OPERATION_ADMITTED'&&admitted.data.operation_id===operationId
+     &&admitted.data.allocation_id===op.allocation_id&&admitted.data.allocation_revision===op.allocation_revision
+     &&admitted.data.generation===expectedGeneration,'sender_admission_event');
+   }
+   this.#currentApproval(op,s,now);
+   op.state='SENDING';op.updated_at=now;
+   const evidence=authorization===null?{}:{core_journal_head:authorization.core_journal_head,receipt_digest:authorization.receipt_digest};
+   this.#put('operations',operationId,op,'operation_id');
+   this.#event(s,'OPERATION_SENDING',{operation_id:operationId,generation:op.generation,...evidence},now);
+   return op;
+  });
+ }
+
  finish(operationId,status,record,now){
   hash(operationId);need(TERMINAL.has(status),'outcome_required');integer(now);const proof=evidence(record);
   return this.#tx(()=>{const s=this.#state();const op=this.operation(operationId);need(op.state==='SENDING','operation_not_sending');op.state=op.generation===s.generation&&now<op.expires_at?status:'UNKNOWN';op.evidence=proof;op.updated_at=now;this.#put('operations',operationId,op,'operation_id');this.#event(s,'OPERATION_FINISHED',{operation_id:operationId,outcome:op.state,evidence:proof},now);return op;});

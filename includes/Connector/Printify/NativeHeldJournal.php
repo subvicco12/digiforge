@@ -57,8 +57,10 @@ final class NativeHeldJournal {
     }
     $receipt=NativeWitnessReceipt::verify($raw,$pins,$intent,$record,$account);
     if(is_wp_error($receipt))return $receipt;
-    if(isset($record['witness_receipt']))return self::error('witness_receipt_consumed');
-    return $this->append(NativeHeldJournalState::bindWitness($record,$receipt,time()),$prior);
+    if(isset($record['witness_outcome']))return self::error('witness_receipt_consumed');
+    $next=isset($record['witness_receipt']) ? NativeHeldJournalState::bindWitnessUnknown($record,$receipt,time())
+     : NativeHeldJournalState::bindWitness($record,$receipt,time());
+    return $this->append($next,$prior);
    },$binding['shop_key'],$binding['actor_id'],static fn()=>self::currentScope($binding));
  }
  /** Consume one local fence only for the exact persisted binding and event head. */
@@ -273,7 +275,8 @@ final class NativeHeldJournal {
    unset($v['seal']);if(!hash_equals(hash_hmac('sha256',self::encode($v),wp_salt('auth')),$seal)||!NativeHeldJournalState::valid($v['record'])||$v['previous_hash']!==($prior['event_hash']??str_repeat('0',64))||(int)$entry['revision']!==$index+1||$v['record']['revision']!==$index+1)return self::error('history_integrity');
    $state=$v['record'];if($state['binding']['operation_id']!==$op||$state['binding']['shop_key']!==$shop||$state['binding']['actor_id']!==$actor||self::candidateKey($state['binding'],$state['candidate_key'])!==$row['candidate_key'])return self::error('history_scope');
    if($prior!==null){try{
-    if(isset($state['witness_receipt']))$next=NativeHeldJournalState::bindWitness($prior['record'],$state['witness_receipt'],$state['occurred_at']);
+    if(isset($state['witness_outcome']))$next=NativeHeldJournalState::bindWitnessUnknown($prior['record'],$state['witness_outcome'],$state['occurred_at']);
+    elseif(isset($state['witness_receipt']))$next=NativeHeldJournalState::bindWitness($prior['record'],$state['witness_receipt'],$state['occurred_at']);
     else{$action=match($state['state']){'FENCED'=>'FENCE','CANCELLED'=>'CANCEL','UNKNOWN'=>'UNKNOWN',default=>throw new \InvalidArgumentException()};$next=NativeHeldJournalState::advance($prior['record'],$action,$index,$state['occurred_at'],$action==='FENCE'?$state['fence_hash']:null);}if($next!==$state)return self::error('history_transition');}catch(\Throwable){return self::error('history_transition');}}
    $wpdb->last_error='';$anchors=$wpdb->get_col($wpdb->prepare('SELECT context FROM '.Tables::audit_log().' WHERE event_type=%s AND object_type=%s AND object_id=%s AND actor_id=%d LIMIT 2',self::EVENT,self::OBJECT,$entry['event_hash'],$actor));
    if(self::failed()||!is_array($anchors)||count($anchors)!==1)return self::error('audit_integrity');$a=json_decode($anchors[0],true);if(!is_array($a)||($a['shop_key']??null)!==$shop||($a['operation_id']??null)!==$op||($a['event_hash']??null)!==$entry['event_hash']||($a['revision']??null)!==$index+1||($a['dispatch_permitted']??null)!==false)return self::error('audit_integrity');

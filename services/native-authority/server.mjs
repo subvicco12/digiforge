@@ -77,7 +77,7 @@ function originalMatchesOperation(request,op) {
 }
 function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null, readback=null) {
   const state=readback?.state??store.state(), time=now();
-  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:readback?{...operationView(operation),admission_event:readback.admission_event,reservation_only:operation.reservation_only===true}:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
+  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:readback?{...operationView(operation),admission_event:readback.admission_event,outcome_event:readback.outcome_event,reservation_only:operation.reservation_only===true}:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
   return signWitness('witness.response.v1',{version:VERSION,request_bindings:request,authority_id:request.authority_id,key_id:config.keyId,root_set_revision:state.root_set_revision,recovery_epoch:state.recovery_epoch,checkpoint_epoch:state.epoch,generation:state.generation,recovery_revision:state.recovery_revision,issued_at:time,expires_at:time+30,disposition,evidence_reference:'witness-event-'+state.witness_sequence,witness_id:state.witness_id,witness_head:state.witness_head,witness_sequence:state.witness_sequence,result},config.privateKey,config.keyId);
 }
 function verifiedResponse(config, envelope, request) {
@@ -160,6 +160,17 @@ function witnessCall(config,store,registry,request) {
   }catch(error){if(['admission_claim_unavailable','storage_unavailable'].includes(code(error)))throw error;return publicResponse(config,store,request,'DENIED',null,null,code(error));}
 }
 
+function validateSendControl(control) {
+  const d=control.data;
+  exactFields(d,['operation_id','payload_fingerprint','allocation_id','allocation_revision','checkpoint_epoch','generation',
+    'admission_sequence','admission_head','core_journal_head','receipt_digest']);
+  for(const field of ['operation_id','payload_fingerprint','checkpoint_epoch','admission_head','core_journal_head','receipt_digest']){
+    need(digestValue(d[field]),'sender_control_digest');
+  }
+  need(reference(d.allocation_id)&&integer(d.allocation_revision)&&integer(d.generation)&&integer(d.admission_sequence),'sender_control_revision');
+  return d;
+}
+
 function dispatchCall(config,store,registry,envelope) {
   const m=verify('sender.store.request.v1',envelope,config.keys.issuer);
   exactFields(m,['version','binding','action','operation_id','request_id','challenge','arguments','original_envelope','control_envelope']);
@@ -169,22 +180,34 @@ function dispatchCall(config,store,registry,envelope) {
   // Original admission is authenticated again without consuming its native nonce.
   let original=null,op=null;
   if(m.original_envelope!==null){original=authenticate(config,m.original_envelope);need(original.method==='admitOperation','dispatch_original');}
-  const reconciliation=m.control_envelope!==null;let control=null;
-  if(reconciliation){need(['state','operation','reconcile'].includes(m.action)&&m.original_envelope===null,'reconciliation_action');control=verifyControl(config,m.control_envelope);need(control.type==='RECONCILE_OPERATION','reconciliation_control');exactFields(control.data,['operation_id']);need(digestValue(control.data.operation_id)&&(m.action==='state'||control.data.operation_id===m.operation_id),'reconciliation_control');need(same(bindingOf(store.operation(control.data.operation_id)),m.binding),'reconciliation_binding');}
-  else need(m.control_envelope===null,'unexpected_control');
+  let control=null, send=null, reconciliation=false;
+  if(m.control_envelope!==null){
+    need(m.original_envelope===null,'control_original_conflict');
+    control=verifyControl(config,m.control_envelope);
+    if(control.type==='SEND_RESERVED'){
+      need(['state','operation','markSending','finish'].includes(m.action),'sender_control_action');
+      send=validateSendControl(control);
+    }else{
+      need(control.type==='RECONCILE_OPERATION'&&['state','operation','reconcile'].includes(m.action),'reconciliation_control');
+      exactFields(control.data,['operation_id']);reconciliation=true;
+    }
+    const operationId=control.data.operation_id;
+    need(digestValue(operationId)&&(m.action==='state'||operationId===m.operation_id),'control_operation_scope');
+    need(same(bindingOf(store.operation(operationId)),m.binding),'control_operation_binding');
+  }
   need(m.action!=='reconcile'||reconciliation,'reconciliation_control');
   if(m.action==='state'){
-    need(m.operation_id===null&&m.arguments.length===0&&(original!==null||reconciliation),'dispatch_arguments');
+    need(m.operation_id===null&&m.arguments.length===0&&(original!==null||reconciliation||send!==null),'dispatch_arguments');
     if(original)originalMatchesOperation(original,store.operation(original.method_body.operation_id));
   }
-  else {need(digestValue(m.operation_id),'operation_identity');op=store.operation(m.operation_id);need(same(bindingOf(op),m.binding),'operation_binding');if(!reconciliation){need(original!==null,'operation_request_binding');originalMatchesOperation(original,op);}}
+  else {need(digestValue(m.operation_id),'operation_identity');op=store.operation(m.operation_id);need(same(bindingOf(op),m.binding),'operation_binding');if(!reconciliation&&send===null){need(original!==null,'operation_request_binding');originalMatchesOperation(original,op);}}
   store.claimDispatchRequest(m.request_id,m.challenge,m.action,now());
   let result=null,error=null,ok=true;
   try {
     switch(m.action){
       case 'state':result=store.state();break;
       case 'operation':need(m.arguments.length===0,'dispatch_arguments');result=op;break;
-      case 'markSending':need(m.arguments.length===2&&integer(m.arguments[0])&&integer(m.arguments[1],0),'dispatch_arguments');need(released(config),'holds_active');result=store.markSending(m.operation_id,m.arguments[0],now());break;
+      case 'markSending':need(m.arguments.length===2&&integer(m.arguments[0])&&integer(m.arguments[1],0),'dispatch_arguments');need(released(config),'holds_active');result=send===null?store.markSending(m.operation_id,m.arguments[0],now()):store.markReservedSending(m.operation_id,m.arguments[0],now(),send);break;
       case 'finish':need(m.arguments.length===3&&integer(m.arguments[2],0),'dispatch_arguments');result=store.finish(m.operation_id,m.arguments[0],m.arguments[1],now());break;
       case 'reconcile':need(m.arguments.length===2&&integer(m.arguments[1],0),'dispatch_arguments');registry.register(control,m.control_envelope);registry.consume(control.reference,'RECONCILE_OPERATION',control.data);result=store.reconcile(m.operation_id,m.arguments[0],now());break;
       case 'publicResult':need(m.arguments.length===0,'dispatch_arguments');need(['SUCCEEDED','FAILED','UNKNOWN'].includes(op.state),'operation_not_terminal');result=publicResponse(config,store,original,op.state,op);break;
@@ -222,7 +245,14 @@ export async function startAuthorityServer(configPath,role) {
       if(role==='witness'&&req.url==='/dispatch'){reply(200,dispatchCall(config,store,registry,envelope));return;}
       if(req.url==='/control'){
         if(role==='witness'){reply(200,controlAction(config,store,registry,envelope));return;}
-        const control=verifyControl(config,envelope);need(control.type==='RECONCILE_OPERATION','control_role');exactFields(control.data,['operation_id']);need(digestValue(control.data.operation_id),'operation_identity');
+        const control=verifyControl(config,envelope);
+        if(control.type==='SEND_RESERVED'){
+          const send=validateSendControl(control);
+          need(released(config),'holds_active');
+          const result=await sender(gateway(null,envelope)).send(send.operation_id);
+          reply(200,{state:result.state,operation_id:send.operation_id,external_execution_authorized:false});return;
+        }
+        need(control.type==='RECONCILE_OPERATION','control_role');exactFields(control.data,['operation_id']);need(digestValue(control.data.operation_id),'operation_identity');
         const remote=gateway(null,envelope),evidence=await sender(remote).reconcile(control.data.operation_id);
         const result=await remote.reconcile(control.data.operation_id,evidence,now());reply(200,{state:result.state,operation_id:result.operation_id,external_execution_authorized:false});return;
       }
