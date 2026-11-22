@@ -100,6 +100,14 @@ export class AuthorityClient {
 
   /** Core can supply correlation tokens it persisted before a one-shot admission attempt. */
   async call(method, methodBody, correlation = null) {
+    return (await this.#call(method,methodBody,correlation)).message;
+  }
+
+  async readOperationEnvelope(methodBody) {
+    return this.#call('readOperation',methodBody,null);
+  }
+
+  async #call(method, methodBody, correlation) {
     need(Object.hasOwn(PURPOSE, method), 'method_purpose');
     if (correlation !== null) {
       need(['admitOperation','reserveOperation'].includes(method), 'admission_correlation_only');
@@ -123,7 +131,7 @@ export class AuthorityClient {
     for (const field of RESPONSE_FIELDS.filter(k => k !== 'key_id')) {
       need(canonical(outer[field]) === canonical(witness[field]), 'witness_response_mismatch');
     }
-    return outer;
+    return envelope;
   }
 
   #validateMessage(message, request) {
@@ -141,13 +149,14 @@ export class AuthorityClient {
     need(result.reason === null || reference(result.reason), 'result_reason');
     if (result.operation !== null) {
       const operation = result.operation;
-      exactFields(operation, request.method === 'readOperation' ? [...OPERATION_FIELDS,'admission_event'] : OPERATION_FIELDS, 'operation_fields');
+      exactFields(operation, request.method === 'readOperation' ? [...OPERATION_FIELDS,'admission_event','reservation_only'] : OPERATION_FIELDS, 'operation_fields');
       for (const field of ['allocation_id', 'product_identity', 'order_identity', 'approval_reference']) need(reference(operation[field]), 'operation_reference');
       for (const field of ['allocation_revision', 'product_version', 'order_version', 'approval_revision', 'policy_revision', 'generation']) need(integer(operation[field]), 'operation_revision');
       for (const field of ['operation_id', 'payload_fingerprint', 'checkpoint_epoch']) need(digestValue(operation[field]), 'operation_digest');
       need(STATES.has(operation.state) && (operation.provider_reference === null || reference(operation.provider_reference)), 'operation_state');
       if (request.method === 'readOperation') {
         const body=request.method_body;
+        need(typeof operation.reservation_only==='boolean','operation_readback_reservation');
         need(operation.operation_id===body.operation_id && operation.payload_fingerprint===body.payload_fingerprint
           && operation.generation===body.expected_generation && operation.checkpoint_epoch===body.expected_epoch
           && operation.state===message.disposition && ['ADMITTED','SENDING','SUCCEEDED','FAILED','UNKNOWN'].includes(operation.state)

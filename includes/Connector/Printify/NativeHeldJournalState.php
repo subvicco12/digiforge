@@ -20,10 +20,21 @@ final class NativeHeldJournalState {
   return $state;
  }
  public static function valid(array $r):bool {
-  try{$base=self::prepare($r['binding']??[], $r['candidate_key']??'', $r['occurred_at']??0,($r['scope_recheck_required']??null)===true,$r['association_pin']??null,$r['witness_correlation']??null);if(($r['schema']??null)!==$base['schema']||array_keys($r)!==array_keys($base)||!is_int($r['revision'])||$r['revision']<1||$r['revision']>256||$r['approval_verified']!==false||$r['dispatch_permitted']!==false||$r['independent_checkpoint_verified']!==false)return false;
+  try{$base=self::prepare($r['binding']??[], $r['candidate_key']??'', $r['occurred_at']??0,($r['scope_recheck_required']??null)===true,$r['association_pin']??null,$r['witness_correlation']??null);if(isset($r['witness_receipt'])){
+   if(!isset($base['witness_correlation'])||$r['revision']!==2||!NativeWitnessReceipt::valid($r['witness_receipt']))return false;
+   $base['witness_receipt']=$r['witness_receipt'];
+  }if(($r['schema']??null)!==$base['schema']||array_keys($r)!==array_keys($base)||!is_int($r['revision'])||$r['revision']<1||$r['revision']>256||$r['approval_verified']!==false||$r['dispatch_permitted']!==false||$r['independent_checkpoint_verified']!==false)return false;
    if(isset($r['witness_correlation'])&&$r['state']!=='HELD')return false;
-   return match($r['state']){'HELD'=>$r['revision']===1&&$r['fence_hash']===null,'CANCELLED'=>$r['revision']===2&&$r['fence_hash']===null,'FENCED'=>$r['revision']===2&&self::hash($r['fence_hash']),'UNKNOWN'=>$r['revision']===3&&self::hash($r['fence_hash']),default=>false};
+   return match($r['state']){'HELD'=>$r['revision']===(isset($r['witness_receipt'])?2:1)&&$r['fence_hash']===null,'CANCELLED'=>$r['revision']===2&&$r['fence_hash']===null,'FENCED'=>$r['revision']===2&&self::hash($r['fence_hash']),'UNKNOWN'=>$r['revision']===3&&self::hash($r['fence_hash']),default=>false};
   }catch(\Throwable){return false;}
+ }
+ public static function bindWitness(array $record,array $receipt,int $now):array {
+  if(!self::valid($record)||!isset($record['witness_correlation'])||$record['revision']!==1
+   ||$now<$record['occurred_at']||!NativeWitnessReceipt::valid($receipt))throw new \InvalidArgumentException('Exact held correlation required.');
+  $record['revision']=2;
+  $record['occurred_at']=$now;
+  $record['witness_receipt']=$receipt;
+  return $record;
  }
  public static function advance(array $r,string $action,int $expected,int $now,?string $fence=null):array {
   if(!self::valid($r)||isset($r['witness_correlation'])||$r['revision']!==$expected||$now<$r['occurred_at'])throw new \InvalidArgumentException('Current held revision required.');

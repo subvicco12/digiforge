@@ -126,6 +126,58 @@ final class NativeReadOnlyInspectionTest extends WP_UnitTestCase {
   self::assertWPError($journal->register($correlated['binding'],$correlated['duplicate_key']));
   self::assertWPError($journal->transition($correlated['binding']['operation_id'],$binding['shop_key'],1,1,'CANCEL'));
   self::assertWPError($port->exchange($correlated));
+  $sign=static function(array $message,string $id,string $domain,string $purpose,string $key):array {
+   $json=DigiForge\Listings\Validator::canonicalJson($message);
+   return ['key_id'=>$id,'message'=>$message,'signature'=>sodium_bin2base64(
+    sodium_crypto_sign_detached($domain."\n".$purpose."\n".$json,$key),SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)];
+  };
+  $issuer=sodium_crypto_sign_keypair();$witness=sodium_crypto_sign_keypair();
+  $pins=['issuer_id'=>'fixture-issuer','witness_key_id'=>'fixture-key','witness_id'=>'fixture-witness',
+   'issuer_key'=>sodium_bin2base64(sodium_crypto_sign_publickey($issuer),SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING),
+   'witness_key'=>sodium_bin2base64(sodium_crypto_sign_publickey($witness),SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING),
+   'installation_id'=>'fixture-installation','authority_id'=>'fixture-authority','workload_id'=>'fixture-workload',
+   'root_set_revision'=>1,'deployment_digest'=>str_repeat('b',64),'retained_sequence'=>1,'retained_head'=>str_repeat('c',64)];
+  $current=PrintifyApiApprovalFixture::checked(NativeAuthorityAdapter::scope($this->scope,1));
+  $request=array_intersect_key($correlated['binding'],array_flip(['integration_id','credential_reference','shop_id','shop_key','environment']))+[
+   'method'=>'readOperation','message_purpose'=>'operation.readback.request.v1','version'=>'1.0.0','provider'=>'printify',
+   'provider_account_reference'=>$current['scope']['external_account_reference'],'authority_id'=>$pins['authority_id'],
+   'installation_id'=>$pins['installation_id'],'deployment_digest'=>$pins['deployment_digest'],'workload_id'=>$pins['workload_id'],
+   'method_body'=>array_intersect_key($intent,array_flip(['operation_id','payload_fingerprint','expected_epoch','expected_generation']))+[
+    'original_request_id'=>$correlation['request_id'],'original_challenge'=>$correlation['challenge'],
+    'retained_witness_head'=>$pins['retained_head'],'retained_witness_sequence'=>1,
+   ],
+  ];
+  $event=['sequence'=>2,'head'=>str_repeat('d',64)];
+  $operation=array_intersect_key($intent,array_flip(['operation_id','payload_fingerprint','approval_reference','approval_revision','policy_revision','product_version']))+[
+   'allocation_id'=>'fixture-allocation','allocation_revision'=>2,'checkpoint_epoch'=>$intent['expected_epoch'],
+   'generation'=>1,'state'=>'ADMITTED','reservation_only'=>true,'admission_event'=>$event,
+  ];
+  $observation=['version'=>'1.0.0','request_bindings'=>$request,'authority_id'=>$pins['authority_id'],'key_id'=>$pins['witness_key_id'],
+   'witness_id'=>$pins['witness_id'],'root_set_revision'=>1,'checkpoint_epoch'=>$intent['expected_epoch'],'generation'=>1,
+   'issued_at'=>time(),'expires_at'=>time()+29,'witness_sequence'=>2,'witness_head'=>$event['head'],'disposition'=>'ADMITTED',
+   'result'=>['method'=>'readOperation','schema'=>'DF_NATIVE_AUTHORITY_RESULT_1','state'=>'ADMITTED',
+    'operation'=>$operation,'external_execution_authorized'=>false],
+  ];
+  $envelope=static function(array $message)use($sign,$pins,$witness,$issuer):string {
+   $proof=$sign($message,$pins['witness_key_id'],'DF_INDEPENDENT_RECOVERY_WITNESS_1','witness.response.v1',sodium_crypto_sign_secretkey($witness));
+   $message['key_id']=$pins['issuer_id'];$message['witness_attestation']=$proof;
+   return DigiForge\Listings\Validator::canonicalJson($sign($message,$pins['issuer_id'],
+    'DF_INDEPENDENT_CHECKPOINT_AUTHORITY_1','issuer.response.v1',sodium_crypto_sign_secretkey($issuer)));
+  };
+  $bind=static fn(string $raw,string $head)=>$journal->bindWitnessReceipt($correlated['binding'],$correlated['duplicate_key'],$head,$intent,$raw,$pins);
+  $raw=$envelope($observation);
+  self::assertWPError($bind(str_replace('fixture-allocation','forged-allocation',$raw),$record['event_hash']));
+  self::assertWPError($bind($envelope(array_replace($observation,['generation'=>2])),$record['event_hash']));
+  self::assertWPError($bind($raw,str_repeat('0',64)));
+  $receipt=PrintifyApiApprovalFixture::checked($bind($raw,$record['event_hash']));
+  self::assertSame('HELD',$receipt['record']['state']);
+  self::assertSame(2,$receipt['record']['revision']);
+  self::assertSame(hash('sha256',$raw),$receipt['record']['witness_receipt']['receipt_digest']);
+  self::assertFalse($receipt['record']['dispatch_permitted']);
+  self::assertFalse($receipt['record']['independent_checkpoint_verified']);
+  self::assertSame($receipt,$journal->read($correlated['binding']['operation_id'],$binding['shop_key'],1));
+  self::assertWPError($bind($raw,$record['event_hash']));
+  self::assertWPError($bind($raw,$receipt['event_hash']));
   $wpdb->query('START TRANSACTION');
  }
 

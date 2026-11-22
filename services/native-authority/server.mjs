@@ -77,7 +77,7 @@ function originalMatchesOperation(request,op) {
 }
 function publicResponse(config, store, request, disposition, operation=null, drain=null, reason=null, readback=null) {
   const state=readback?.state??store.state(), time=now();
-  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:readback?{...operationView(operation),admission_event:readback.admission_event}:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
+  const result={schema:'DF_NATIVE_AUTHORITY_RESULT_1',method:request.method,state:disposition,operation:readback?{...operationView(operation),admission_event:readback.admission_event,reservation_only:operation.reservation_only===true}:operationView(operation),drain:drain?{state:drain.state,pending_operations:drain.pending_leases}:null,reason,external_execution_authorized:false};
   return signWitness('witness.response.v1',{version:VERSION,request_bindings:request,authority_id:request.authority_id,key_id:config.keyId,root_set_revision:state.root_set_revision,recovery_epoch:state.recovery_epoch,checkpoint_epoch:state.epoch,generation:state.generation,recovery_revision:state.recovery_revision,issued_at:time,expires_at:time+30,disposition,evidence_reference:'witness-event-'+state.witness_sequence,witness_id:state.witness_id,witness_head:state.witness_head,witness_sequence:state.witness_sequence,result},config.privateKey,config.keyId);
 }
 function verifiedResponse(config, envelope, request) {
