@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace DigiForgePrintifyApi;
 
 use DigiForge\Connector\Printify\{
-    NativeAuthorityAdapter, NativeBuildIdentity, NativeHeldJournal, NativePanelAccessAdapter, NativePortContract, NativeReadOnlyInspection, ShopBinding
+    NativeAuthorityAdapter, NativeBridge, NativeBuildIdentity, NativeCorePort, NativeHeldJournal, NativePanelAccessAdapter, NativePortContract, NativeReadOnlyInspection, ShopBinding
 };
 
 if (!\defined('ABSPATH')) {
@@ -14,8 +14,8 @@ if (!\defined('ABSPATH')) {
 /** Read-only access to the reviewed Core's held evidence, never to its writer. */
 final class NativeHeldInspection
 {
-    private const CORE = '3ca5fa241694843628b52f4800c9662bc33521dc';
-    private const STAMP = 'cc1c551336531aa609015cbd285637038af995d305730b47cea67c7cd67584b2';
+    private const CORE = '2c9fcca6e14fbf64f94414661d42d85715039070';
+    private const STAMP = 'b06ad4959429685f54ff5fc754eefa9c80e09b096a2b35c67af6b017e25e67a9';
     private const SPEC = '6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434';
 
     /** Identify the reviewed installed build without invoking the native port. */
@@ -116,7 +116,7 @@ final class NativeHeldInspection
     {
         $binding = $request['binding'] ?? null;
         if (!Runtime::permitsFixtureAccount($shop, $account)
-            || !in_array($request['action'] ?? null, ['REGISTER', 'CLAIM', 'RECEIPT_READ'], true)
+            || !in_array($request['action'] ?? null, ['AUTHORIZE', 'REGISTER', 'CLAIM', 'RECEIPT_READ'], true)
             || !is_array($binding)
             || ($binding['provider_shop_id'] ?? null) !== $shop
             || ($binding['environment'] ?? null) !== 'test') {
@@ -126,12 +126,49 @@ final class NativeHeldInspection
             if (!class_exists(NativeBuildIdentity::class) || !class_exists(NativePortContract::class)) {
                 return self::result('BLOCKED','NATIVE_CORE_UNAVAILABLE');
             }
-            if (self::reviewedDirectory() === null) {
+            $directory = self::reviewedDirectory();
+            if ($directory === null
+                || (new \ReflectionClass(NativeAuthorityAdapter::class))->getFileName() !== $directory . '/NativeAuthorityAdapter.php') {
                 return self::result('BLOCKED','NATIVE_BUILD_INCOMPATIBLE');
             }
             if (!NativePortContract::valid('mutation_request',$request)
                 || ($binding['actor_id'] ?? null) !== \get_current_user_id()) {
                 return self::result('DENIED','NATIVE_BINDING');
+            }
+            foreach (['actor_id', 'authorization_revision', 'approval_reference', 'product_version', 'expected_product_version'] as $field) {
+                if ($binding[$field] !== $request['context'][$field]) {
+                    return self::result('DENIED', 'NATIVE_BINDING');
+                }
+            }
+            $actor = $binding['actor_id'];
+            $scope = NativeAuthorityAdapter::mutationScope($binding);
+            if (!$scope instanceof ShopBinding) {
+                return self::result('DENIED', 'NATIVE_BINDING');
+            }
+            $current = NativeAuthorityAdapter::scope($scope, $actor, ['manage_digiforge_pod']);
+            if (!is_array($current) || ($current['scope']['external_account_reference'] ?? null) !== $account) {
+                return self::result('DENIED', 'NATIVE_ACCOUNT_OR_SESSION');
+            }
+            if ($request['action'] === 'AUTHORIZE') {
+                if ((new \ReflectionClass(NativeBridge::class))->getFileName() !== $directory . '/NativeBridge.php'
+                    || (new \ReflectionClass(NativeCorePort::class))->getFileName() !== $directory . '/NativeCorePort.php') {
+                    return self::result('BLOCKED', 'NATIVE_BUILD_INCOMPATIBLE');
+                }
+                $core = NativeBridge::connect('1.0.0');
+                if (!$core instanceof NativeCorePort) {
+                    return self::result('BLOCKED', 'NATIVE_COMPANION_INCOMPATIBLE');
+                }
+                // AUTHORIZE inspects current local evidence. No writer, claim or provider call is delegated.
+                $decision = $core->exchange($request);
+                if (!$decision instanceof \WP_Error) {
+                    return self::result('BLOCKED', 'UNEXPECTED_NATIVE_AUTHORITY_RESULT');
+                }
+                if (!in_array($decision->get_error_code(), [
+                    'printify_native_journal_and_independent_checkpoint_required',
+                    'printify_native_product_revision_authority_required',
+                ], true)) {
+                    return self::result('DENIED', 'NATIVE_AUTHORIZATION_DENIED');
+                }
             }
             return self::result('BLOCKED','CURRENT_NATIVE_OPERATIONAL_AUTHORITY_UNAVAILABLE')+[
                 'canonical_action'=>$request['action'],'canonical_request_shape_verified'=>true,

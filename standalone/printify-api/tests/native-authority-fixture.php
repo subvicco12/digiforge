@@ -10,7 +10,7 @@ check($missing['state'] === 'BLOCKED' && $missing['reason'] === 'NATIVE_CORE_UNA
 $foreign = Runtime::inspectNativeHeldOperation('108', 'fixture-account', null, [], []);
 check($foreign['state'] === 'DENIED' && $foreign['reason'] === 'OPERATOR_SCOPE', 'Foreign shop reached Core');
 
-foreach (['REGISTER', 'CLAIM', 'RECEIPT_READ'] as $action) {
+foreach (['AUTHORIZE', 'REGISTER', 'CLAIM', 'RECEIPT_READ'] as $action) {
     foreach ([
         [],
         ['provider_shop_id' => '108', 'environment' => 'test'],

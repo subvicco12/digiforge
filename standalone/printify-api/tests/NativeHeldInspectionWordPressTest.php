@@ -100,6 +100,31 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
                 self::assertSame('printify_native_journal_and_independent_checkpoint_required', $denial->get_error_code());
                 self::assertFalse($denial->get_error_data()['network_request_attempted']);
             }
+            $authorize = array_replace($request, ['action'=>'AUTHORIZE', 'data'=>[]]);
+            $prepare = static fn(array $r): array => Runtime::prepareNativeMutation('12', $account, $r);
+            $prepared = $prepare($authorize);
+            self::assertSame('BLOCKED', $prepared['state'], json_encode($prepared));
+            self::assertSame('CURRENT_NATIVE_OPERATIONAL_AUTHORITY_UNAVAILABLE', $prepared['reason']);
+            self::assertFalse($prepared['provider_execution_authorized']);
+            self::assertFalse($prepared['retry_permitted']);
+            self::assertSame($prepared, $prepare($authorize));
+            foreach (['actor_id'=>2, 'authorization_revision'=>$scope->revision + 1,
+                'approval_reference'=>str_repeat('1', 64), 'expected_product_version'=>2] as $field=>$value) {
+                $wrongContext = array_replace($authorize['context'], [$field=>$value]);
+                self::assertSame('DENIED', $prepare(array_replace($authorize, ['context'=>$wrongContext]))['state'], $field);
+            }
+            self::assertSame('DENIED', Runtime::prepareNativeMutation('12', 'wrong-account', $authorize)['state']);
+            self::assertSame('DENIED', Runtime::prepareNativeMutation('13', $account, $authorize)['state']);
+            $wrongOperation = array_replace($binding, ['operation_id'=>str_repeat('0',64)]);
+            self::assertSame('DENIED', $read($wrongOperation)['state']);
+            $malformed = array_replace($authorize, ['evidence_references'=>['unreviewed']]);
+            self::assertSame('DENIED', $prepare($malformed)['state']);
+
+            $token = wp_get_session_token();
+            WP_Session_Tokens::get_instance(1)->destroy($token);
+            self::assertSame(1, get_current_user_id());
+            self::assertSame('DENIED', $prepare($authorize)['state']);
+            self::assertSame('DENIED', $read($binding)['state']);
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {
