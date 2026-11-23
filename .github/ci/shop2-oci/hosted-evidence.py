@@ -51,11 +51,11 @@ class Budget:
             raise CaptureError("DEADLINE", "aggregate collector deadline")
         return left
 
-    def use(self, category, count):
+    def use(self, category, count, stage=None):
         self.remaining()
         left = getattr(self, category) - count
         if left < 0:
-            raise CaptureError("LIMIT", category + " aggregate limit")
+            raise CaptureError("LIMIT", (stage + ": " if stage else "") + category + " aggregate limit")
         setattr(self, category, left)
 
 budget = Budget()
@@ -69,20 +69,50 @@ def bounded_entries(path, limit):
                 raise CaptureError("LIMIT", "directory entry limit")
             yield entry
 
+CGROUP_DIRECTORIES = 24
+CGROUP_ENTRIES_PER_DIRECTORY = 64
+
+
 def cgroup_files(root):
+    # At most 24 directories x 64 raw entries. Charge directories, not
+    # kernel-generated control files, to the shared traversal budget.
+    count = 0
     def walk(directory, depth):
+        nonlocal count
         budget.remaining()
-        if depth > DEPTH:
-            raise CaptureError("LIMIT", "cgroup recursion depth")
-        for entry in bounded_entries(directory, 64):
-            if entry.is_dir(follow_symlinks=False):
-                yield from walk(entry.path, depth+1)
-            elif entry.name == "cgroup.procs" and entry.is_file(follow_symlinks=False):
-                yield Path(entry.path)
-    for n, path in enumerate(walk(root, 0), 1):
-        if n > 24:
-            raise CaptureError("LIMIT", "cgroup record limit")
-        yield path
+        count += 1
+        if depth > DEPTH or count > CGROUP_DIRECTORIES:
+            raise CaptureError("LIMIT", "cgroup discovery depth or directory count")
+        budget.use("entries", 1, "cgroup discovery")
+        yield directory / "cgroup.procs"
+        with os.scandir(directory) as entries:
+            for index, entry in enumerate(entries, 1):
+                budget.remaining()
+                if index > CGROUP_ENTRIES_PER_DIRECTORY:
+                    raise CaptureError("LIMIT", "cgroup discovery per-directory entries")
+                if entry.is_dir(follow_symlinks=False):
+                    yield from walk(Path(entry.path), depth+1)
+    yield from walk(root, 0)
+
+
+def cgroup_members(root, main_pid):
+    members = {}
+    for path in cgroup_files(root):
+        if not path.is_file() or path.is_symlink():
+            raise CaptureError("UNAVAILABLE", "cgroup membership file missing or invalid")
+        pids = set()
+        for value in command("sudo", "-n", "cat", str(path)).split():
+            require(re.fullmatch(r"[1-9][0-9]{0,9}", value), "invalid PID")
+            pid = int(value)
+            require(pid not in members, "duplicate cgroup PID")
+            members[pid] = path
+            pids.add(pid)
+            if len(members) > PROCESSES:
+                raise CaptureError("LIMIT", "cgroup membership process count")
+        # Retain empty groups in the snapshot to detect inconsistent coverage.
+        yield path, frozenset(pids)
+    require(main_pid in members, "missing private main PID")
+
 
 def data(path, limit=MEMBER):
     budget.remaining()
@@ -174,8 +204,16 @@ def command(*argv):
             process.stdout.close()
 
 def sysprops(unit, fields):
-    raw = command("systemctl", "show", "--all", unit, *["-p"+name for name in fields])
-    return dict(row.split("=", 1) for row in raw.splitlines() if "=" in row)
+    raw = command("systemctl", "show", "--all", "--no-pager", unit,
+                  *["--property="+name for name in fields])
+    props = {}
+    for row in raw.splitlines():
+        key, separator, value = row.partition("=")
+        if not separator or key not in fields or key in props:
+            raise CaptureError("INCOMPLETE_READ", "malformed or duplicate systemd property")
+        props[key] = value
+    return props
+
 
 def fsid(number):
     return f"{os.major(number)}:{os.minor(number)}"
@@ -262,10 +300,18 @@ def hashes(path, daemon=False):
     except (OSError,ValueError) as error:
         return {"state":getattr(error,"status","unavailable")}
 
-GLOBAL_SCOPE = "docker-default-systemd-allowlist-v2"
+GLOBAL_SCOPE = "docker-default-systemd-allowlist-v3"
 UNIT_NAMES = ("docker.service","docker.socket")
-UNIT_FIELDS = ("Id","LoadState","ActiveState","FragmentPath","DropInPaths","MainPID","Type",
-               "KillMode","Restart","EnvironmentFiles","ExecStart","Listen")
+COMMON_FIELDS = ("Id","LoadState","ActiveState","FragmentPath","DropInPaths")
+SERVICE_FIELDS = COMMON_FIELDS + ("MainPID","Type","KillMode","Restart","ExecStart")
+SOCKET_FIELDS = COMMON_FIELDS + ("Listen",)
+
+
+class MissingUnitProperties(CaptureError):
+    def __init__(self, missing, present_empty):
+        super().__init__("UNAVAILABLE", "missing mandatory unit properties")
+        self.details = {"missing_keys": missing, "present_empty_keys": present_empty}
+
 
 def valid_hash(value):
     return isinstance(value,str) and bool(re.fullmatch(r"[0-9a-f]{64}",value))
@@ -275,10 +321,11 @@ def valid_unit_path(unit,path):
         r"/(?:(?:usr/)?lib|etc|run)/systemd/system/"+re.escape(unit)+r"(?:\.d/[A-Za-z0-9._-]+\.conf)?",path))
 
 def collect_unit(unit, files):
-    props=sysprops(unit, UNIT_FIELDS)
-    expected={"Id","LoadState","ActiveState","FragmentPath","DropInPaths","EnvironmentFiles"}
-    expected.update(("MainPID","Type","KillMode","Restart","ExecStart") if unit.endswith(".service") else ("Listen",))
-    require(expected<=props.keys(),"missing mandatory unit properties")
+    fields = SERVICE_FIELDS if unit.endswith(".service") else SOCKET_FIELDS
+    props = sysprops(unit, fields)
+    missing = sorted(set(fields)-props.keys())
+    if missing:
+        raise MissingUnitProperties(missing, sorted(key for key,value in props.items() if value==""))
     require(props["Id"]==unit and props["LoadState"]=="loaded" and props["ActiveState"] in {"active","inactive","failed"},
             "invalid effective unit identity")
     fragment=props["FragmentPath"]
@@ -290,9 +337,20 @@ def collect_unit(unit, files):
         digest=hashes(path)
         require(digest.get("state")=="hashed","unit fragment or drop-in unavailable")
         files[path]=digest
-    require(not props["EnvironmentFiles"],"environment files outside allowlist")
+    # systemctl v255 omits an empty EnvironmentFiles struct array even
+    # with --all. Query that specific typed property, never all environment.
+    interface = "Service" if unit.endswith(".service") else "Socket"
+    object_path = "/org/freedesktop/systemd1/unit/" + unit.replace(".", "_2e")
+    try:
+        environment_files = command("busctl","--system","get-property","org.freedesktop.systemd1",
+                                    object_path,"org.freedesktop.systemd1."+interface,"EnvironmentFiles")
+    except (OSError,CaptureError) as error:
+        failure = MissingUnitProperties(["EnvironmentFiles"], [])
+        failure.status = getattr(error,"status","UNAVAILABLE")
+        raise failure from None
+    require(environment_files.strip()=="a(sb) 0","environment files nonempty or unsupported typed format")
     info={"id":unit,"loaded":True,"active":props["ActiveState"],"fragment":fragment,
-          "dropins":{"state":"verified","paths":dropins}}
+          "dropins":{"state":"verified","paths":dropins},"environment_files":"VERIFIED_EMPTY"}
     if unit.endswith(".service"):
         require(re.fullmatch(r"[0-9]{1,10}",props["MainPID"])
                 and all(re.fullmatch(r"[a-z-]{1,30}",props[k]) for k in ("Type","KillMode","Restart")),
@@ -319,7 +377,8 @@ def global_docker():
             units[unit]=collect_unit(unit,files)
         except (CaptureError,OSError,ValueError) as error:
             incomplete.append({"unit":unit,"status":getattr(error,"status","UNAVAILABLE"),
-                               "reason":str(error) if isinstance(error,ValueError) else "unit probe read failed"})
+                               "reason":str(error) if isinstance(error,CaptureError) or type(error) is ValueError else "unit probe read failed",
+                               **getattr(error,"details",{})})
     cfg=hashes("/etc/docker/daemon.json",daemon=True)
     if cfg["state"] not in {"absent","hashed"}:
         incomplete.append({"unit":"daemon config","status":cfg["state"]})
@@ -343,6 +402,7 @@ def complete_global(record):
     referenced=set()
     for name,unit in record["units"].items():
         if (unit.get("id")!=name or unit.get("loaded") is not True or
+                unit.get("environment_files")!="VERIFIED_EMPTY" or
                 unit.get("active") not in {"active","inactive","failed"}):
             return False
         fragment=unit.get("fragment")
@@ -408,30 +468,38 @@ def namespaces(label, mount, device):
         group=props.get("ControlGroup")
         require(group=="/system.slice/"+unit,"unexpected private cgroup")
         root=Path("/sys/fs/cgroup"+group)
-        def members():
-            pids=set()
-            count=0
-            for node in cgroup_files(root):
-                count+=1
-                for value in command("sudo","-n","cat",str(node)).split():
-                    require(re.fullmatch(r"[1-9][0-9]{0,9}",value),"invalid PID")
-                    pids.add(int(value))
-                    require(len(pids)<=PROCESSES,"process inventory limit")
-            require(count and pids and int(props["MainPID"]) in pids,"missing cgroup process set")
-            return pids
-        pids=members()
+        require(re.fullmatch(r"[1-9][0-9]{0,9}",props.get("MainPID","")),"missing private main PID property")
+        snapshot=dict(cgroup_members(root,int(props["MainPID"])))
+        pids=set().union(*snapshot.values())
+        require(not pids.intersection(r["pid"] for r in records),"duplicate process across private units")
+        owned_groups={pid:group+str(path.parent)[len(str(root)):]
+                      for path, members in snapshot.items() for pid in members}
         for pid in sorted(pids):
             loc=f"/proc/{pid}"
             ns1=command("sudo","-n","readlink",loc+"/ns/mnt").strip()
             require(re.fullmatch(r"mnt:\[[0-9]+\]",ns1),"invalid mount namespace")
             membership=command("sudo","-n","cat",loc+"/cgroup").splitlines()
-            require(any(l=="0::"+group or l.startswith("0::"+group+"/") for l in membership),"cgroup membership changed")
+            require("0::"+owned_groups[pid] in membership,"cgroup membership changed")
             raw=command("sudo","-n","cat",loc+"/mountinfo")
             view=parse_mounts(raw,str(mount),device)
             require(command("sudo","-n","readlink",loc+"/ns/mnt").strip()==ns1,"namespace changed")
             records.append({"pid":pid,"cgroup":group,"mount_namespace":ns1,**view})
-        require(members()==pids,"unstable process inventory")
-    return {"records":records,"effective_mount_checks_passed":all(r["consistent"] for r in records),"scope":"owned cgroup membership at observation; detached descendants and races not ruled out"}
+        if dict(cgroup_members(root,int(props["MainPID"])))!=snapshot:
+            raise CaptureError("INCOMPLETE_READ","cgroup membership changed during observation")
+    return {"records":records,"device":device,"effective_mount_checks_passed":all(r["consistent"] for r in records),"scope":"owned cgroup membership at observation; detached descendants and races not ruled out"}
+
+def namespace_device(mount):
+    # Anchor namespace mount identity without depending on backing-file/loop
+    # qualification. The assessor reconciles the device with the loop receipt.
+    rows=json.loads(command("findmnt","--json","--mountpoint",str(mount),
+                            "--output","TARGET,FSTYPE,MAJ:MIN"))["filesystems"]
+    require(len(rows)==1 and rows[0]["target"]==str(mount) and rows[0]["fstype"]=="ext4",
+            "namespace mount anchor unavailable")
+    device=rows[0]["maj:min"]
+    require(re.fullmatch(r"[0-9]+:[0-9]+", device)
+            and fsid(mount.stat().st_dev)==device, "namespace mount anchor disagrees")
+    return device
+
 
 def absence(label,mount,backing,marker):
     mounts=command("findmnt","--raw","--noheadings","--output","TARGET").splitlines()
@@ -548,7 +616,7 @@ def tool_identity():
 
 OBSERVATIONS = {
     "runtime-baseline.json","global-before.json","global-after.json","global-comparison.json",
-    "live-before.json","live-recovered.json","owned-absence.json","host-before.json","host-after.json","upload-source.json",
+    "loop-before.json","loop-recovered.json","namespaces-before.json","namespaces-recovered.json","owned-absence.json","host-before.json","host-after.json","upload-source.json",
 }
 DIAGNOSTICS = {"baseline.txt","setup.log","backend.log","storage.log","recovered.log","cleanup.log","absence.log",
                "final.txt","global-before.txt","global-after.txt","coverage.txt"}
@@ -571,8 +639,7 @@ def assess(observations, outcomes, omitted):
         except (KeyError,TypeError,ValueError,AttributeError):
             return "NOT_QUALIFIED"
     def namespace_ok(value):
-        ns=value["namespaces"]
-        return ns["effective_mount_checks_passed"] is True and bool(ns["records"])
+        return value["effective_mount_checks_passed"] is True and bool(value["records"])
     def baseline_ok(b):
         return (b["runner_arch"]=="X64" and b["kernel_arch"]=="x86_64"
                 and b["collector_sha256"]==hashlib.sha256(data(Path(__file__))).hexdigest()
@@ -580,9 +647,10 @@ def assess(observations, outcomes, omitted):
                 and all(item["status"]=="HASHED" and valid_hash(item["sha256"]) for item in b["tools"].values()))
     verdicts={
         "baseline_identity":state(["runtime-baseline.json"],baseline_ok),
-        "loop_identity":state(["live-before.json","live-recovered.json"],
-            lambda a,b:loop_gate(a["volume"])==loop_gate(b["volume"])),
-        "scoped_namespaces":state(["live-before.json","live-recovered.json"],lambda a,b:namespace_ok(a) and namespace_ok(b)),
+        "loop_identity":state(["loop-before.json","loop-recovered.json"],
+            lambda a,b:loop_gate(a)==loop_gate(b)),
+        "scoped_namespaces":state(["namespaces-before.json","namespaces-recovered.json"],
+            lambda a,b:namespace_ok(a) and namespace_ok(b) and a["device"]==b["device"]),
         "global_docker_allowlist":state(["global-before.json","global-after.json","global-comparison.json"],
             lambda a,b,c:compare_global(a,b)==c["classification"] and c["classification"] in
             {"BYTE_IDENTICAL_ALLOWLIST","SEMANTICALLY_UNCHANGED_ALLOWLIST"}),
@@ -593,6 +661,10 @@ def assess(observations, outcomes, omitted):
         "uploader_source":state(["upload-source.json"],lambda a:bool(a["files"]) and 0<=a["aggregate_bytes"]<=TOTAL),
         "capture_integrity":"NOT_QUALIFIED" if omitted else "OBSERVED_PASS",
     }
+    if verdicts["loop_identity"]==verdicts["scoped_namespaces"]=="OBSERVED_PASS":
+        if any(records(f"loop-{stage}.json")["loop"]["major_minor"]!=
+               records(f"namespaces-{stage}.json")["device"] for stage in ("before","recovered")):
+            verdicts["scoped_namespaces"]="OBSERVED_FAIL"
     for step in ("setup","probe","cleanup"):
         verdicts[step+"_step"]={"success":"OBSERVED_PASS","failure":"OBSERVED_FAIL",
                                 "skipped":"NOT_OBSERVED","cancelled":"NOT_QUALIFIED"}.get(outcomes.get(step),"NOT_QUALIFIED")
@@ -672,15 +744,16 @@ def main():
         result=upload_source(sys.argv[2])
     else:
         label,mount,backing,marker=roots()
-        if mode=="live":
-            volume=read_loop(mount,backing)
-            result={"volume":volume,"namespaces":namespaces(label,mount,volume["loop"]["major_minor"])}
+        if mode=="loop":
+            result=read_loop(mount,backing)
+        elif mode=="namespaces":
+            result=namespaces(label,mount,namespace_device(mount))
         elif mode=="absence":
             result=absence(label,mount,backing,marker)
         else:
             raise ValueError("unknown observation")
     status="OBSERVED"
-    if mode=="live" and result["namespaces"]["effective_mount_checks_passed"] is False:
+    if mode=="namespaces" and result["effective_mount_checks_passed"] is False:
         status="CONTRADICTORY"
     elif mode=="global" and not complete_global(result):
         status="UNAVAILABLE"

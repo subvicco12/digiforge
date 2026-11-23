@@ -93,7 +93,8 @@ jobs:
               printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
             fi
           }
-          capture "$SETUP_EVIDENCE/live-before.json" live
+          capture "$SETUP_EVIDENCE/loop-before.json" loop
+          capture "$SETUP_EVIDENCE/namespaces-before.json" namespaces
           exit "$rc"
       - name: Observe controlled in-volume ENOSPC and recovery
         id: probe
@@ -153,7 +154,8 @@ jobs:
               printf '{"schema":1,"status":"COLLECTOR_EXIT","reason":"missing or inconsistent receipt","exit":%s}\n' "$rc" > "$receipt"
             fi
           }
-          capture "$SETUP_EVIDENCE/live-recovered.json" live
+          capture "$SETUP_EVIDENCE/loop-recovered.json" loop
+          capture "$SETUP_EVIDENCE/namespaces-recovered.json" namespaces
       - name: Collect cleanup and independent absence evidence
         if: ${{ always() && steps.identity-preflight.outcome == 'success' && env.SETUP_EVIDENCE != '' }}
         id: cleanup
