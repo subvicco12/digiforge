@@ -16,11 +16,11 @@ final class NativeArtifactIntegrityAcceptance extends WP_UnitTestCase {
   $f=new PrintifyApiApprovalFixture();$f->boot();$calls=0;$fake=static function()use(&$calls){++$calls;return PrintifyApiApprovalFixture::response([]);};add_filter('pre_http_request',$fake,100);
   try{
    $i=new ExternalOperationIntent(1,'personalized_pod',$f->integration,'SHOPS_READ',[],bin2hex(random_bytes(16)));
-   self::assertSame('d64d32159bea4832b962acb6b4c08fa6fbeae910',DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest()['core_source_sha']);
+   self::assertSame('2c9fcca6e14fbf64f94414661d42d85715039070',DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest()['core_source_sha']);
    if($added!==null)self::assertNotFalse(file_put_contents($added,"<?php\n// Synthetic unexpected runtime inventory member.\n"));else self::assertNotFalse(file_put_contents($path,$changed));
    $manifestDenied=false;try{DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest();}catch(RuntimeException){$manifestDenied=true;}self::assertTrue($manifestDenied,'Altered identity, contract or runtime inventory must deny manifest admission itself');
    self::assertWPError(DigiForgePrintifyConnector\Plugin::nativePort()->read($i));self::assertSame(0,$calls);
   }finally{if($added!==null){if(is_file($added))unlink($added);}else file_put_contents($path,$before);remove_filter('pre_http_request',$fake,100);$f->restore();}
-  self::assertSame('d64d32159bea4832b962acb6b4c08fa6fbeae910',DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest()['core_source_sha']);
+  self::assertSame('2c9fcca6e14fbf64f94414661d42d85715039070',DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest()['core_source_sha']);
  }
 }

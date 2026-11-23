@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DigiForge Printify Read Connector
  * Description: Thin GET-only adapter to the DigiForge-owned provider interface. No credentials or independent execution authority.
- * Version: 0.7.5
+ * Version: 0.7.6
  * Requires at least: 7.1
  * Requires PHP: 8.3
  * Requires Plugins: digiforge
