@@ -19,7 +19,9 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
         $fixture = new PrintifyApiApprovalFixture();
         $fixture->boot();
         global $wpdb;
-        $replay = 'df_checkpoint_'.bin2hex(random_bytes(5));
+        $suffix = bin2hex(random_bytes(5));
+        $replay = 'df_checkpoint_'.$suffix;
+        $authority = 'df_authority_'.$suffix;
         try {
             $fixture->setting('stop_all', true);
             $fixture->setting('automation_armed', false);
@@ -158,7 +160,7 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
                     self::assertSame(1, $wpdb->update($heads, $current, $journalKey));
                 }
             };
-            $verifyCheckpoint = $this->exerciseSyntheticCheckpoint($binding, $account, $context, $held, $unknown, $restoreProbe, $replay);
+            $verifyCheckpoint = $this->exerciseSyntheticCheckpoint($binding, $account, $context, $held, $unknown, $restoreProbe, $replay, $authority);
             self::assertSame($unknown, $read($binding));
             $token = wp_get_session_token();
             WP_Session_Tokens::get_instance(1)->destroy($token);
@@ -169,13 +171,13 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {
-            $wpdb->query('DROP TABLE IF EXISTS '.$replay);
+            $wpdb->query('DROP TABLE IF EXISTS '.$replay.', '.$authority);
             $fixture->restore();
         }
     }
 
     private function exerciseSyntheticCheckpoint(
-        array $binding, string $account, array $context, array $held, array $unknown, Closure $restoreProbe, string $replay
+        array $binding, string $account, array $context, array $held, array $unknown, Closure $restoreProbe, string $replay, string $authority
     ): Closure {
         require_once __DIR__ . '/SyntheticCheckpointFixture.php';
         $identity = $binding + [
@@ -210,11 +212,30 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             operation_id CHAR(64) PRIMARY KEY, identity_digest CHAR(64) NOT NULL,
             owner VARCHAR(16) NOT NULL, expires_at INT NOT NULL, outcome VARCHAR(16) NOT NULL DEFAULT 'RESERVED'
         ) ENGINE=InnoDB"));
+        self::assertNotFalse($wpdb->query("CREATE TABLE $authority (
+            operation_id CHAR(64) PRIMARY KEY, identity_digest CHAR(64) NOT NULL,
+            actor_id INT NOT NULL, session_hash CHAR(64) NOT NULL, authorization_revision INT NOT NULL,
+            generation INT NOT NULL, generation_floor INT NOT NULL, expires_at INT NOT NULL,
+            witness_hash CHAR(64) NOT NULL, anchor_hash CHAR(64) NOT NULL,
+            revoked TINYINT NOT NULL DEFAULT 0, witness_revoked TINYINT NOT NULL DEFAULT 0
+        ) ENGINE=InnoDB"));
+        $hash = DigiForge\Connector\Printify\NativePortContract::hash(...);
+        $grant = [
+            'operation_id'=>$binding['operation_id'], 'identity_digest'=>$bound['identity_digest'],
+            'actor_id'=>$binding['actor_id'], 'session_hash'=>$identity['session_fingerprint'],
+            'authorization_revision'=>$binding['authorization_revision'], 'generation'=>2,
+            'generation_floor'=>2, 'expires_at'=>100,
+            'witness_hash'=>$hash($witness), 'anchor_hash'=>$hash($anchor),
+        ];
+        self::assertSame(1, $wpdb->insert($authority, $grant));
         [$journal] = NativeHeldJournalSchema::tables();
         $query = [
             'socket'=>substr(DB_HOST, strpos(DB_HOST, ':') + 1), 'database'=>DB_NAME,
-            'user'=>DB_USER, 'password'=>DB_PASSWORD, 'replay'=>$replay, 'journal'=>$journal,
+            'user'=>DB_USER, 'password'=>DB_PASSWORD, 'replay'=>$replay, 'journal'=>$journal, 'authority'=>$authority, 'usermeta'=>$wpdb->usermeta,
             'shop'=>$binding['shop_key'], 'operation'=>$binding['operation_id'],
+            'actor'=>$grant['actor_id'], 'session'=>$grant['session_hash'],
+            'authorization_revision'=>$grant['authorization_revision'], 'generation'=>$grant['generation'],
+            'witness_hash'=>$grant['witness_hash'], 'anchor_hash'=>$grant['anchor_hash'],
             'revision'=>$bound['journal_revision'], 'head'=>$bound['journal_head'], 'digest'=>$bound['identity_digest'],
         ];
         $worker = static fn(string $command, string $owner, int $tick): array =>
@@ -230,9 +251,31 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
                 return self::readCheckpointWorker($worker('reserve', 'restarted', 30)) === 'RESERVED';
             }
             $attempted = true;
-            $a = $worker('park', 'worker-a', 10);
-            $b = $worker('park', 'worker-b', 10);
+            $barrier = tempnam('/tmp', 'df-writer-');
+            self::assertIsString($barrier);
+            $a = self::startCheckpointWorker($query + ['command'=>'park', 'owner'=>'worker-a', 'tick'=>10, 'barrier'=>$barrier]);
+            try {
+                self::assertSame('LOCKED', trim((string)fgets($a[1])));
+                $b = $worker('park', 'worker-b', 10);
+                // A second database session tries to acquire the exact row a revoker
+                // must lock. NOWAIT confirms the writer still owns it before commit.
+                $revoker = new PDO('mysql:unix_socket='.$query['socket'].';dbname='.$query['database'],
+                    $query['user'], $query['password']);
+                $revoker->beginTransaction();
+                try {
+                    $lock = $revoker->prepare('SELECT operation_id FROM '.$query['authority'].' WHERE operation_id=? FOR UPDATE NOWAIT');
+                    $lock->execute([$query['operation']]);
+                    self::fail('Revoker acquired authority row before writer commit');
+                } catch (PDOException $error) {
+                    self::assertSame(1205, $error->errorInfo[1]);
+                } finally {
+                    $revoker->rollBack();
+                }
+            } finally {
+                file_put_contents($barrier, 'release');
+            }
             $first = self::readCheckpointWorker($a);
+            unlink($barrier);
             $second = self::readCheckpointWorker($b);
             self::assertSame(['DENIED', 'RESERVED'], array_values(array_unique(
                 array_intersect(['DENIED', 'RESERVED'], [$first, $second])
@@ -274,12 +317,57 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             'command'=>'reserve', 'owner'=>'stale', 'tick'=>9,
         ]));
         self::assertSame('DENIED', self::readCheckpointWorker($staleWorker));
+        $denyReservation = static fn(array $changes): string => self::readCheckpointWorker(
+            self::startCheckpointWorker(array_replace($query, ['command'=>'reserve', 'owner'=>'invalid', 'tick'=>9], $changes))
+        );
+        foreach (['actor'=>2, 'session'=>str_repeat('0', 64), 'authorization_revision'=>0,
+            'witness_hash'=>str_repeat('0', 64), 'anchor_hash'=>str_repeat('0', 64)] as $field=>$value) {
+            self::assertSame('DENIED', $denyReservation([$field=>$value]), $field);
+        }
+        $key = ['operation_id'=>$grant['operation_id']];
+        $authorityState = static function (array $state) use ($wpdb, $authority, $key): void {
+            self::assertSame(1, $wpdb->update($authority, $state, $key));
+        };
+        $authorityState(['witness_revoked'=>1]);
+        self::assertSame('DENIED', $denyReservation([]));
+        $authorityState(['witness_revoked'=>0, 'generation'=>1]);
+        self::assertSame('DENIED', $denyReservation(['generation'=>1]));
+        $authorityState(['generation'=>2]);
+
+        // A writer started during revocation must wait for the revoker's row lock,
+        // then see the committed revoked value even with an earlier valid preflight.
+        self::assertNotFalse($wpdb->query('START TRANSACTION'));
+        try {
+            $authorityState(['revoked'=>1]);
+            $racing = $worker('reserve', 'revoked', 9);
+            self::assertNotFalse($wpdb->query('COMMIT'));
+        } finally {
+            $wpdb->query('ROLLBACK');
+        }
+        self::assertSame('DENIED', self::readCheckpointWorker($racing));
+        self::assertSame('0', (string)$wpdb->get_var("SELECT COUNT(*) FROM $replay"));
+        $authorityState(['revoked'=>0]);
+        $token = wp_get_session_token();
+        $sessions = WP_Session_Tokens::get_instance($grant['actor_id']);
+        $session = $sessions->get($token);
+        self::assertIsArray($session);
+        $sessions->destroy($token);
+        try {
+            self::assertSame('DENIED', $denyReservation([]));
+            self::assertSame('0', (string)$wpdb->get_var("SELECT COUNT(*) FROM $replay"));
+        } finally {
+            $sessions->update($token, $session);
+        }
         $matched = $inspect($unknown);
         self::assertSame('SYNTHETIC_CHECKPOINT_MATCHED', $matched['state']);
         self::assertSame('UNKNOWN', $matched['outcome']);
         self::assertFalse($matched['provider_execution_authorized']);
         self::assertFalse($matched['retry_permitted']);
         self::assertNotNull($owner);
+        $authorityState(['revoked'=>1]);
+        self::assertSame('DENIED', self::readCheckpointWorker($worker('finalize', $owner, 11)));
+        self::assertSame('RESERVED', $wpdb->get_var("SELECT outcome FROM $replay"));
+        $authorityState(['revoked'=>0]);
         self::assertSame('DENIED', self::readCheckpointWorker($worker('finalize', 'foreign', 11)));
         self::assertNotFalse($wpdb->query("ALTER TABLE $replay ADD COLUMN schema_revision INT NOT NULL DEFAULT 2"));
         self::assertSame('UNKNOWN', self::readCheckpointWorker($worker('finalize', $owner, 12)));
