@@ -61,6 +61,10 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             )['state']);
 
             $held = $read($binding);
+            [$heads, $events] = NativeHeldJournalSchema::tables();
+            $journalKey = ['operation_id'=>$binding['operation_id'], 'shop_key'=>$binding['shop_key']];
+            $where = $wpdb->prepare('operation_id=%s AND shop_key=%s', ...array_values($journalKey));
+            $heldRow = $wpdb->get_row('SELECT * FROM '.$heads.' WHERE '.$where, ARRAY_A);
             self::assertSame('LOCAL_HELD_OBSERVED', $held['state'], json_encode($held));
             foreach (['payload_fingerprint'=>str_repeat('0',64), 'expected_product_version'=>2,
                 'approval_reference'=>str_repeat('1',64)] as $field=>$value) {
@@ -138,15 +142,101 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             }
             self::assertSame($unknown, $read($binding));
 
+            $restoreProbe = static function () use ($wpdb, $heads, $events, $journalKey, $where, $heldRow, $read, $binding): array {
+                $current = $wpdb->get_row('SELECT * FROM '.$heads.' WHERE '.$where, ARRAY_A);
+                $suffix = $wpdb->get_results('SELECT * FROM '.$events.' WHERE '.$where.' AND revision>1', ARRAY_A);
+                self::assertCount(2, $suffix);
+                try {
+                    self::assertSame(2, $wpdb->query('DELETE FROM '.$events.' WHERE '.$where.' AND revision>1'));
+                    self::assertSame(1, $wpdb->update($heads, $heldRow, $journalKey));
+                    return $read($binding);
+                } finally {
+                    foreach ($suffix as $event) {
+                        self::assertSame(1, $wpdb->insert($events, $event));
+                    }
+                    self::assertSame(1, $wpdb->update($heads, $current, $journalKey));
+                }
+            };
+            $verifyCheckpoint = $this->exerciseSyntheticCheckpoint($binding, $account, $context, $held, $unknown, $restoreProbe);
+            self::assertSame($unknown, $read($binding));
             $token = wp_get_session_token();
             WP_Session_Tokens::get_instance(1)->destroy($token);
             self::assertSame(1, get_current_user_id());
             self::assertSame('DENIED', $prepare($authorize)['state']);
             self::assertSame('DENIED', $read($binding)['state']);
+            self::assertSame('DENIED', $verifyCheckpoint($read($binding))['state']);
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {
             $fixture->restore();
         }
+    }
+
+    private function exerciseSyntheticCheckpoint(
+        array $binding, string $account, array $context, array $held, array $unknown, Closure $restoreProbe
+    ): Closure {
+        require_once __DIR__ . '/SyntheticCheckpointFixture.php';
+        $identity = $binding + [
+            'account_reference'=>$account,
+            'session_fingerprint'=>$context['session_fingerprint'],
+            'correlation_id'=>hash('sha256', 'synthetic-checkpoint:' . $binding['operation_id']),
+        ];
+        $bound = [
+            'identity_digest'=>DigiForge\Connector\Printify\NativePortContract::hash($identity),
+            'journal_head'=>$unknown['event_hash'],
+            'journal_revision'=>$unknown['journal_revision'],
+        ];
+        $witness = ['fixture'=>'witness-v1', 'witness_revision'=>1] + $bound;
+        $anchor = ['fixture'=>'rollback-anchor-v1'] + $bound;
+        $witnessFile = tmpfile();
+        $anchorFile = tmpfile();
+        self::assertIsResource($witnessFile);
+        self::assertIsResource($anchorFile);
+        $write = static function ($file, ?array $record): void {
+            rewind($file);
+            ftruncate($file, 0);
+            fwrite($file, json_encode($record, JSON_THROW_ON_ERROR));
+            fflush($file);
+        };
+        $read = static function ($file): ?array {
+            rewind($file);
+            return json_decode(stream_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
+        };
+        $write($anchorFile, $anchor);
+        $fixture = new SyntheticCheckpointFixture(
+            static fn(): ?array => $read($witnessFile),
+            static fn(): ?array => $read($anchorFile)
+        );
+        $inspect = static fn(array $observation): array => $fixture->inspect($identity, $observation);
+        foreach ([null, array_replace($witness, ['witness_revision'=>0]),
+            array_replace($witness, ['identity_digest'=>str_repeat('0', 64)])] as $badWitness) {
+            $write($witnessFile, $badWitness);
+            self::assertSame('DENIED', $inspect($unknown)['state']);
+        }
+        $write($witnessFile, $witness);
+        foreach ([null, array_replace($anchor, ['fixture'=>'wrong-anchor']),
+            array_replace($anchor, ['journal_revision'=>$held['journal_revision']])] as $badAnchor) {
+            $write($anchorFile, $badAnchor);
+            self::assertSame('DENIED', $inspect($unknown)['state']);
+        }
+        $write($anchorFile, $anchor);
+        foreach (['provider_shop_id'=>'13', 'account_reference'=>'wrong-account', 'operation_id'=>str_repeat('0',64),
+            'credential_reference'=>$binding['credential_reference']+1, 'payload_fingerprint'=>str_repeat('0',64),
+            'expected_product_version'=>$binding['expected_product_version']+1,
+            'authorization_revision'=>$binding['authorization_revision']+1] as $field=>$value) {
+            self::assertSame('DENIED', $fixture->inspect(array_replace($identity, [$field=>$value]), $unknown)['state'], $field);
+        }
+        $stale = array_replace($unknown, [
+            'event_hash'=>$held['event_hash'], 'journal_revision'=>$held['journal_revision'],
+        ]);
+        self::assertSame('DENIED', $inspect($stale)['state']);
+        self::assertSame('DENIED', $inspect($restoreProbe())['state']);
+        $matched = $inspect($unknown);
+        self::assertSame('SYNTHETIC_CHECKPOINT_MATCHED', $matched['state']);
+        self::assertSame('UNKNOWN', $matched['outcome']);
+        self::assertFalse($matched['provider_execution_authorized']);
+        self::assertFalse($matched['retry_permitted']);
+        self::assertSame('DENIED', $inspect($unknown)['state']);
+        return $inspect;
     }
 }
