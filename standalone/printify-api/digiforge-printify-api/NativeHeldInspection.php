@@ -65,6 +65,12 @@ final class NativeHeldInspection
             if (!$scope instanceof ShopBinding || $scope->environment !== 'test' || $scope->providerShopId !== $shop
                 || $actor < 1 || !NativePortContract::valid('binding', $binding)
                 || $binding['actor_id'] !== $actor || $binding['scope_fingerprint'] !== $scope->fingerprint()
+                || $binding['shop_id'] !== $scope->shopId || $binding['shop_key'] !== $scope->shopKey
+                || $binding['provider_shop_id'] !== $scope->providerShopId
+                || $binding['integration_id'] !== $scope->integrationId
+                || $binding['credential_reference'] !== $scope->credential->integrationId
+                || $binding['environment'] !== $scope->environment
+                || $binding['authorization_revision'] !== $scope->revision
                 || !NativePortContract::valid('panel_context', $context) || $context['view'] !== 'unknown') {
                 return self::result('DENIED', 'NATIVE_BINDING');
             }
@@ -78,6 +84,8 @@ final class NativeHeldInspection
             $journal = (new NativeHeldJournal())->read($binding['operation_id'], $scope->shopKey, $actor);
             $observation = $inspection['observation'];
             if (!is_array($journal) || $journal['event_hash'] !== $observation['event_hash']
+                || $journal['record']['revision'] !== $observation['journal_revision']
+                || $journal['record']['state'] !== $observation['state']
                 || NativePortContract::hash($journal['record']['binding']) !== NativePortContract::hash($binding)
                 || !in_array($observation['state'], ['HELD', 'FENCED', 'UNKNOWN', 'CANCELLED'], true)) {
                 return self::result('BLOCKED', 'EXACT_JOURNAL_READBACK_UNAVAILABLE');

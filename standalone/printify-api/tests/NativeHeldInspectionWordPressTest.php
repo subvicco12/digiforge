@@ -62,9 +62,14 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
 
             $held = $read($binding);
             self::assertSame('LOCAL_HELD_OBSERVED', $held['state'], json_encode($held));
-            foreach (['payload_fingerprint'=>str_repeat('0',64), 'expected_product_version'=>2, 'provider_shop_id'=>'13',
+            foreach (['payload_fingerprint'=>str_repeat('0',64), 'expected_product_version'=>2,
                 'approval_reference'=>str_repeat('1',64)] as $field=>$value) {
                 self::assertSame('BLOCKED', $read(array_replace($binding, [$field=>$value]))['state']);
+            }
+            foreach (['shop_id'=>3, 'shop_key'=>'standard_pod', 'provider_shop_id'=>'13',
+                'integration_id'=>$scope->integrationId + 1, 'credential_reference'=>$scope->integrationId + 1,
+                'environment'=>'sandbox', 'authorization_revision'=>$scope->revision + 1] as $field=>$value) {
+                self::assertSame('DENIED', $read(array_replace($binding, [$field=>$value]))['state'], $field);
             }
             PrintifyApiApprovalFixture::checked($journal->transition($binding['operation_id'], 'personalized_pod', 1, 1, 'FENCE'));
             PrintifyApiApprovalFixture::checked($journal->transition($binding['operation_id'], 'personalized_pod', 1, 2, 'UNKNOWN'));
