@@ -120,6 +120,24 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             $malformed = array_replace($authorize, ['evidence_references'=>['unreviewed']]);
             self::assertSame('DENIED', $prepare($malformed)['state']);
 
+            [, $events] = NativeHeldJournalSchema::tables();
+            $eventKey = ['operation_id'=>$binding['operation_id'], 'shop_key'=>$binding['shop_key'], 'revision'=>1];
+            $originalPayload = $wpdb->get_var($wpdb->prepare(
+                'SELECT payload FROM '.$events.' WHERE operation_id=%s AND shop_key=%s AND revision=%d',
+                $eventKey['operation_id'], $eventKey['shop_key'], $eventKey['revision']
+            ));
+            self::assertIsString($originalPayload);
+            self::assertSame(1, $wpdb->update($events, ['payload'=>'{}'], $eventKey));
+            try {
+                $corrupt = $read($binding);
+                self::assertSame('DENIED', $corrupt['state']);
+                self::assertFalse($corrupt['retry_permitted']);
+                self::assertFalse($corrupt['provider_execution_authorized']);
+            } finally {
+                self::assertSame(1, $wpdb->update($events, ['payload'=>$originalPayload], $eventKey));
+            }
+            self::assertSame($unknown, $read($binding));
+
             $token = wp_get_session_token();
             WP_Session_Tokens::get_instance(1)->destroy($token);
             self::assertSame(1, get_current_user_id());
