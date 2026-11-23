@@ -4,9 +4,7 @@ declare(strict_types=1);
 /** Test-only verifier. The two injected readers are external to the disposable WordPress database. */
 final class SyntheticCheckpointFixture
 {
-    private array $seen = [];
-
-    public function __construct(private Closure $readWitness, private Closure $readAnchor)
+    public function __construct(private Closure $readWitness, private Closure $readAnchor, private Closure $reserve)
     {
     }
 
@@ -32,11 +30,10 @@ final class SyntheticCheckpointFixture
         ];
         if ($anchor !== ['fixture'=>'rollback-anchor-v1'] + $binding
             || $witness !== ['fixture'=>'witness-v1', 'witness_revision'=>1] + $binding
-            || isset($this->seen[$identityDigest])) {
+            || !($this->reserve)($identity, $binding)) {
             return $denied;
         }
 
-        $this->seen[$identityDigest] = true;
         return ['state'=>'SYNTHETIC_CHECKPOINT_MATCHED', 'outcome'=>'UNKNOWN'] + $denied;
     }
 }

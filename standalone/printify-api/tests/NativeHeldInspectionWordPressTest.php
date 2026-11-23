@@ -18,6 +18,8 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
         remove_filter('query', [$this, '_drop_temporary_tables']);
         $fixture = new PrintifyApiApprovalFixture();
         $fixture->boot();
+        global $wpdb;
+        $replay = 'df_checkpoint_'.bin2hex(random_bytes(5));
         try {
             $fixture->setting('stop_all', true);
             $fixture->setting('automation_armed', false);
@@ -38,7 +40,6 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
                 'integration_id'=>$scope->integrationId, 'credential_reference'=>$scope->integrationId,
                 'provider_shop_id'=>'12', 'environment'=>'test', 'authorization_revision'=>$scope->revision,
             ]);
-            global $wpdb;
             foreach (NativeHeldJournalSchema::statements() as $sql) {
                 self::assertNotFalse($wpdb->query(preg_replace('/^CREATE TABLE /', 'CREATE TABLE IF NOT EXISTS ', $sql)));
             }
@@ -157,7 +158,7 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
                     self::assertSame(1, $wpdb->update($heads, $current, $journalKey));
                 }
             };
-            $verifyCheckpoint = $this->exerciseSyntheticCheckpoint($binding, $account, $context, $held, $unknown, $restoreProbe);
+            $verifyCheckpoint = $this->exerciseSyntheticCheckpoint($binding, $account, $context, $held, $unknown, $restoreProbe, $replay);
             self::assertSame($unknown, $read($binding));
             $token = wp_get_session_token();
             WP_Session_Tokens::get_instance(1)->destroy($token);
@@ -168,12 +169,13 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {
+            $wpdb->query('DROP TABLE IF EXISTS '.$replay);
             $fixture->restore();
         }
     }
 
     private function exerciseSyntheticCheckpoint(
-        array $binding, string $account, array $context, array $held, array $unknown, Closure $restoreProbe
+        array $binding, string $account, array $context, array $held, array $unknown, Closure $restoreProbe, string $replay
     ): Closure {
         require_once __DIR__ . '/SyntheticCheckpointFixture.php';
         $identity = $binding + [
@@ -203,9 +205,45 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             return json_decode(stream_get_contents($file), true, 8, JSON_THROW_ON_ERROR);
         };
         $write($anchorFile, $anchor);
+        global $wpdb;
+        self::assertNotFalse($wpdb->query("CREATE TABLE $replay (
+            operation_id CHAR(64) PRIMARY KEY, identity_digest CHAR(64) NOT NULL,
+            owner VARCHAR(16) NOT NULL, expires_at INT NOT NULL, outcome VARCHAR(16) NOT NULL DEFAULT 'RESERVED'
+        ) ENGINE=InnoDB"));
+        [$journal] = NativeHeldJournalSchema::tables();
+        $query = [
+            'socket'=>substr(DB_HOST, strpos(DB_HOST, ':') + 1), 'database'=>DB_NAME,
+            'user'=>DB_USER, 'password'=>DB_PASSWORD, 'replay'=>$replay, 'journal'=>$journal,
+            'shop'=>$binding['shop_key'], 'operation'=>$binding['operation_id'],
+            'revision'=>$bound['journal_revision'], 'head'=>$bound['journal_head'], 'digest'=>$bound['identity_digest'],
+        ];
+        $worker = static fn(string $command, string $owner, int $tick): array =>
+            self::startCheckpointWorker($query + compact('command', 'owner', 'tick'));
+        $owner = null;
+        $attempted = false;
+        $reserve = static function (array $id, array $current) use ($worker, $query, &$owner, &$attempted): bool {
+            if ($id['operation_id'] !== $query['operation'] || $current['identity_digest'] !== $query['digest']
+                || $current['journal_head'] !== $query['head'] || $current['journal_revision'] !== $query['revision']) {
+                return false;
+            }
+            if ($attempted) {
+                return self::readCheckpointWorker($worker('reserve', 'restarted', 30)) === 'RESERVED';
+            }
+            $attempted = true;
+            $a = $worker('park', 'worker-a', 10);
+            $b = $worker('park', 'worker-b', 10);
+            $first = self::readCheckpointWorker($a);
+            $second = self::readCheckpointWorker($b);
+            self::assertSame(['DENIED', 'RESERVED'], array_values(array_unique(
+                array_intersect(['DENIED', 'RESERVED'], [$first, $second])
+            )));
+            $owner = $first === 'RESERVED' ? 'worker-a' : 'worker-b';
+            return true;
+        };
         $fixture = new SyntheticCheckpointFixture(
             static fn(): ?array => $read($witnessFile),
-            static fn(): ?array => $read($anchorFile)
+            static fn(): ?array => $read($anchorFile),
+            $reserve
         );
         $inspect = static fn(array $observation): array => $fixture->inspect($identity, $observation);
         foreach ([null, array_replace($witness, ['witness_revision'=>0]),
@@ -231,12 +269,54 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
         ]);
         self::assertSame('DENIED', $inspect($stale)['state']);
         self::assertSame('DENIED', $inspect($restoreProbe())['state']);
+        $staleWorker = self::startCheckpointWorker(array_replace($query, [
+            'head'=>$held['event_hash'], 'revision'=>$held['journal_revision'],
+            'command'=>'reserve', 'owner'=>'stale', 'tick'=>9,
+        ]));
+        self::assertSame('DENIED', self::readCheckpointWorker($staleWorker));
         $matched = $inspect($unknown);
         self::assertSame('SYNTHETIC_CHECKPOINT_MATCHED', $matched['state']);
         self::assertSame('UNKNOWN', $matched['outcome']);
         self::assertFalse($matched['provider_execution_authorized']);
         self::assertFalse($matched['retry_permitted']);
+        self::assertNotNull($owner);
+        self::assertSame('DENIED', self::readCheckpointWorker($worker('finalize', 'foreign', 11)));
+        self::assertNotFalse($wpdb->query("ALTER TABLE $replay ADD COLUMN schema_revision INT NOT NULL DEFAULT 2"));
+        self::assertSame('UNKNOWN', self::readCheckpointWorker($worker('finalize', $owner, 12)));
+        self::assertSame('DENIED', self::readCheckpointWorker($worker('finalize', $owner, 13)));
+        self::assertSame('DENIED', self::readCheckpointWorker($worker('finalize', $owner, 20)));
+        self::assertSame('UNKNOWN', $wpdb->get_var("SELECT outcome FROM $replay"));
+        self::assertNotFalse($wpdb->query("ALTER TABLE $replay DROP COLUMN schema_revision"));
         self::assertSame('DENIED', $inspect($unknown)['state']);
+        self::assertSame('UNKNOWN', $wpdb->get_var("SELECT outcome FROM $replay"));
         return $inspect;
+    }
+
+    private static function startCheckpointWorker(array $query): array
+    {
+        $process = proc_open([PHP_BINARY, __DIR__.'/durable-checkpoint-worker.php'],
+            [['pipe','r'], ['pipe','w'], ['pipe','w']], $pipes);
+        self::assertIsResource($process);
+        fwrite($pipes[0], json_encode($query, JSON_THROW_ON_ERROR));
+        fclose($pipes[0]);
+        stream_set_timeout($pipes[1], 8);
+        return [$process, $pipes[1], $pipes[2], $query['command']];
+    }
+
+    private static function readCheckpointWorker(array $worker): string
+    {
+        [$process, $stdout, $stderr, $command] = $worker;
+        try {
+            $result = trim((string)fgets($stdout));
+            self::assertContains($result, ['DENIED', 'RESERVED', 'UNKNOWN']);
+            if ($command === 'park' && $result === 'RESERVED') {
+                self::assertTrue(proc_terminate($process, 9));
+            }
+            return $result;
+        } finally {
+            fclose($stdout);
+            fclose($stderr);
+            proc_close($process);
+        }
     }
 }
