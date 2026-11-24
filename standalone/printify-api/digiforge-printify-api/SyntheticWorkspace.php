@@ -287,17 +287,18 @@ final class SyntheticWorkspace
         return ['state'=>$state,'reason'=>'EXECUTION_HELD','status'=>200,'proposal'=>$current];
     }
 
-    public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false): array
+    public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false, ?\Closure $custodyExchange = null): array
     {
         $actor = \get_current_user_id();
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
+            || (($operation === 'FIXTURE_CUSTODY_READ') !== ($custodyExchange !== null))
             || ($edit !== [] && !$preview && !$correlatedCreate)
             || ($correlatedCreate && ($preview || $edit === [] || !in_array($operation, self::CORRELATED_CREATE_OPERATIONS, true)))
             || ($preview && !in_array($operation, self::PREVIEW_OPERATIONS, true))
             || ($readFault !== null && !($operation === 'FIXTURE_READ_SYNC' && in_array($readFault, ['timeout','rate_limit'], true))
                 && !(($preview || $correlatedCreate) && $readFault === 'lost_ack'))
-            || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PROPOSAL_REVIEW', 'FIXTURE_PRODUCTION_CONFIRM',
+            || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PROPOSAL_REVIEW', 'FIXTURE_CUSTODY_READ', 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
         }
@@ -314,9 +315,10 @@ final class SyntheticWorkspace
             $client = new SyntheticPrintifyClient($this->shop, $transport);
             $events = $row['events'];
             $sync = $operation === 'FIXTURE_READ_SYNC';
-            $profile = $sync ? AccountProfile::current() : null;
+            $custody = $operation === 'FIXTURE_CUSTODY_READ';
+            $profile = ($sync || $custody) ? AccountProfile::current() : null;
             $review = $operation === 'FIXTURE_PROPOSAL_REVIEW';
-            $proposalScope = ($preview || $review || $correlatedCreate) ? $this->proposalScope() : null;
+            $proposalScope = ($preview || $review || $correlatedCreate || $custody) ? $this->proposalScope() : null;
             $edited = null;
             if ($edit !== []) {
                 $editId = $edit['id'] ?? null;
@@ -334,9 +336,12 @@ final class SyntheticWorkspace
             if ($readFault !== null) {
                 $transport->faultNext($readFault);
             }
-            $result = $sync ? $this->synchronization($transport, $expected, $input)
-                : ($review ? self::reviewProposal($row['audit'], $input, $proposalScope, $expected)
-                    : $this->simulate($transport, $client, $operation, $input, $events));
+            $result = match (true) {
+                $sync => $this->synchronization($transport, $expected, $input),
+                $review => self::reviewProposal($row['audit'], $input, $proposalScope, $expected),
+                $custody => $this->custodyObservation($proposalScope, $input, $custodyExchange),
+                default => $this->simulate($transport, $client, $operation, $input, $events),
+            };
             if ($correlatedCreate) {
                 $resource = $this->creationEvidence($transport, $row['transport'], $result, $operation, $expected);
                 $approvedRevision = $edited['revision'];
@@ -365,7 +370,7 @@ final class SyntheticWorkspace
                     'state'=>$result['state'], 'status'=>$result['status'],
                 ];
             }
-            if (!$preview && !$sync && !$review && (!$correlatedCreate || $result['fixture_effect_committed'])) {
+            if (!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed'])) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
@@ -399,11 +404,11 @@ final class SyntheticWorkspace
                 'operation'=>$operation,'state'=>$result['state'],'reason'=>$result['reason'] ?? 'NONE',
                 'status'=>$result['status'],'operation_id'=>$operationId,
                 'actor_id'=>$actor,'occurred_at'=>gmdate('c'),
-            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true, 'transport_receipt'=>true]);
+            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true, 'transport_receipt'=>true, 'custody_receipt'=>true]);
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
                 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)
-                || ($sync && AccountProfile::current() !== $profile)
+                || (($sync || $custody) && AccountProfile::current() !== $profile)
                 || (($preview || $review || $correlatedCreate) && $this->proposalScope() !== $proposalScope) || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
@@ -430,6 +435,57 @@ final class SyntheticWorkspace
         } catch (\Throwable) {
             return ['state'=>'UNKNOWN','reason'=>'WORKSPACE_UNAVAILABLE']+$flags;
         }
+    }
+
+    private function custodyObservation(?array $scope, array $input, \Closure $exchange): array
+    {
+        $wireScope = $input['scope'] ?? null;
+        $operation = $input['operation'] ?? null;
+        $selection = $input['selection'] ?? null;
+        if ($scope === null || count($input) !== 4 || ($input['integration'] ?? null) !== $scope['integration']
+            || !is_array($wireScope) || ($wireScope['shop'] ?? null) !== $scope['shop']
+            || ($wireScope['account_reference'] ?? null) !== $scope['account']
+            || !is_string($operation) || !is_array($selection)) {
+            return self::fixtureResult(403, 'CUSTODY_AUDIT_SCOPE');
+        }
+        $read = Runtime::readFromConfiguredCustodyFixture($scope['integration'], $wireScope, $operation, $selection, $exchange);
+        $status = match ($read['state']) {
+            'AUTHENTICATED_CUSTODY_FIXTURE'=>200, 'RATE_LIMITED'=>429, default=>0,
+        };
+        return $read + ['status'=>$status,'custody_receipt'=>['scope'=>$scope,'status'=>$status]
+            + array_intersect_key($read, array_fill_keys(['state','reason','operation_id','request_sha256',
+                'response_sha256','receipt_sha256','observed_at','expires_at','retry_after'], true))];
+    }
+
+    /** A field allowlist keeps request payloads, profile references and credentials out of the export. */
+    public function redactedAuditExport(): ?array
+    {
+        $scope = $this->proposalScope();
+        if ($scope === null) {
+            return null;
+        }
+        try {
+            $row = $this->load();
+        } catch (\Throwable) {
+            return null;
+        }
+        $entries = [];
+        foreach ($row['audit'] as $entry) {
+            $receipt = $entry['custody_receipt'] ?? $entry['sync_receipt'] ?? $entry['transport_receipt'] ?? $entry['proposal'] ?? [];
+            if (($receipt['scope'] ?? null) !== $scope) {
+                continue;
+            }
+            $safe = array_intersect_key($entry, array_fill_keys(['operation','state','reason','status','operation_id','occurred_at'], true));
+            $safe += array_intersect_key($receipt, array_fill_keys(['projection_sha256','request_sha256','response_sha256',
+                'receipt_sha256','freshness','provider_execution_authorized'], true));
+            if (isset($entry['proposal'])) {
+                $safe['proposal'] = array_intersect_key($entry['proposal'], array_fill_keys(
+                    ['id','revision','state','receipt_sha256','referral'], true));
+            }
+            $entries[] = $safe;
+        }
+        return ['schema'=>'DF_PRINTIFY_REDACTED_AUDIT_1','evidence'=>'FIXTURE_ONLY',
+            'revision'=>$row['revision'],'entries'=>$entries,'profile'=>AccountProfile::diagnostics()];
     }
 
     private function simulate(SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $op, array $input, array &$events): array

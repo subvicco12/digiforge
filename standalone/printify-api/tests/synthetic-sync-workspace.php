@@ -379,6 +379,56 @@ if ($phase === 'write') {
         'ORDER_READ',['order_id'=>'order-1'],$exchange)['state']==='DENIED' && $calls===1, 'Credential override reached custody');
     requireFixture(Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope,'PRODUCT_PUBLISH',[],$exchange)['state']==='DENIED'
         && $calls===1, 'Mutation reached fixture custody');
+    $auditId = hash('sha256','durable-custody-fixture');
+    $audit = static fn(int $revision, string $id, \Closure $call): array =>
+        Runtime::auditConfiguredCustodyFixture($revision,$id,'fixture-read',$scope,'ORDER_READ',['order_id'=>'order-1'],$call);
+    $revision = $workspace->inspect()['revision'];
+    $recorded = $audit($revision,$auditId,$exchange);
+    requireFixture($recorded['state']==='AUTHENTICATED_CUSTODY_FIXTURE' && $calls===2
+        && isset($recorded['custody_receipt']['receipt_sha256']) && !$recorded['provider_execution_authorized'],
+        'Signed read was not durably journaled');
+    requireFixture($audit($revision,$auditId,$exchange)['reason']==='OPERATION_ALREADY_RECORDED' && $calls===2,
+        'Durable custody receipt replay reached exchange');
+    $lastRevision = $workspace->inspect()['revision'];
+    $changed = $audit($lastRevision,hash('sha256','scope-change-custody'),static function (array $r,int $t,int $m) use ($exchange,$profile,$nonce): array {
+        $receipt = $exchange($r,$t,$m);
+        \DigiForgePrintifyApi\AccountProfile::save($profile,$nonce);
+        return $receipt;
+    });
+    requireFixture($changed['state']==='DENIED' && $workspace->inspect()['revision']===$lastRevision && $calls===3,
+        'Changed custody alias admitted an obsolete receipt');
+    requireFixture(\DigiForgePrintifyApi\AccountProfile::save($custodyProfile,$nonce)==='SAVED_LOCAL_METADATA', 'Custody alias restore failed');
+    $redacted=$workspace->redactedAuditExport();
+    $encoded=json_encode($redacted, JSON_THROW_ON_ERROR);
+    requireFixture($redacted['schema']==='DF_PRINTIFY_REDACTED_AUDIT_1'
+        && str_contains($encoded,$recorded['custody_receipt']['receipt_sha256'])
+        && $redacted['profile']['custody']==='FIXTURE_REFERENCE_CONFIGURED'
+        && $redacted['profile']['change_receipts'][0]['alias_changed']
+        && !str_contains($encoded,'fixture-cp5') && !str_contains($encoded,'workspace@example.invalid')
+        && !str_contains($encoded,'fixture-account') && !str_contains($encoded,'signer_key'),
+        'Redacted audit is incomplete or contains sensitive fields');
+    $getExport = static function(string $nonce): string {
+        $prior=$_POST;
+        $_POST=['df_workspace_shop'=>'107','df_printify_audit_export'=>'1','df_printify_audit_nonce'=>$nonce];
+        ob_start();
+        try {
+            Runtime::panel();
+            return (string)ob_get_contents();
+        } finally {
+            ob_end_clean();
+            $_POST=$prior;
+        }
+    };
+    requireFixture(!str_contains($getExport('invalid'), 'data:application/json;base64,'), 'Invalid export nonce admitted');
+    $html=$getExport(wp_create_nonce('digiforge_printify_redacted_fixture_audit:107'));
+    requireFixture(preg_match('/data:application\/json;base64,([A-Za-z0-9+\/=]+)/', $html, $match)===1
+        && json_decode(base64_decode($match[1],true),true,24,JSON_THROW_ON_ERROR)===$redacted,
+        'Protected export differs from its redacted projection');
+    wp_set_current_user(0);
+    requireFixture($workspace->redactedAuditExport()===null &&
+        !str_contains($getExport('invalid'),'data:application/json;base64,'), 'Anonymous export admitted');
+    wp_set_current_user(1);
+    echo "Consolidated durable custody, alias-change denial and protected redacted export PASS\n";
     echo "Checkpoint 5 correlated product/order creation, UNKNOWN and signed profile custody PASS\n";
     echo "Checkpoint 4 quote variants, request receipts, UNKNOWN referral and field differences PASS\n";
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
@@ -403,6 +453,11 @@ if ($phase === 'write') {
         'Correlated creation receipts lost on reopen');
     requireFixture(count(array_filter($history, static fn(array $p): bool =>
         $p['operation']==='ORDER_CREATE' && $p['state']==='UNKNOWN' && isset($p['referral'])))===1, 'Create UNKNOWN lost on reopen');
+    $freshExport=$workspace->redactedAuditExport();
+    $custodyAudit=array_values(array_filter($freshExport['entries'], static fn(array $row): bool =>
+        $row['operation']==='FIXTURE_CUSTODY_READ' && isset($row['receipt_sha256'])));
+    requireFixture(count($custodyAudit)===1 && $freshExport['profile']['change_receipts']!==[], 'Durable custody evidence lost on reopen');
+    echo "Consolidated custody and profile receipts reopen PASS\n";
     echo "Checkpoint 5 correlated receipts and UNKNOWN reopen PASS\n";
     echo "Checkpoint 4 durable reconciliation and UNKNOWN reopen PASS\n";
     echo "Checkpoint 3 proposals reopen PASS\n";

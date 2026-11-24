@@ -11,6 +11,10 @@ final class SyntheticWorkspacePanel
 {
     private const ACTION = 'df_printify_synthetic_workspace_v1';
     private const EXTRA_ROWS = 3;
+    private const PUBLICATION_FIELDS = [
+        'title'=>'Title','description'=>'Description','images'=>'Images','variants'=>'Variants','tags'=>'Tags',
+        'keyFeatures'=>'Key features','shipping_template'=>'Shipping template',
+    ];
 
     public static function render(SyntheticWorkspace $workspace, string $shop, array $shops): void
     {
@@ -215,7 +219,7 @@ final class SyntheticWorkspacePanel
             echo '<input type="hidden" name="df_workspace_sync[kind]" value="'.\esc_attr($kind).'">';
             echo '<input type="hidden" name="df_workspace_sync[integration]" value="'.\esc_attr($profile['integration']).'">';
             $fields = $kind === 'catalog'
-                ? ['blueprint_id'=>'Blueprint ID','provider_id'=>'Provider ID','variant_id'=>'Variant ID','method'=>'Shipping method','page'=>'Page']
+                ? ['blueprint_id'=>'Blueprint ID','provider_id'=>'Provider ID','variant_id'=>'Variant ID','variant_enabled'=>'Variant availability','method'=>'Shipping method','page'=>'Page']
                 : ['id'=>'Fixture record ID (detail)','page'=>'Page','limit'=>'Page size'];
             echo '<fieldset><legend>'.\esc_html($label).'</legend>';
             foreach ($fields as $key=>$title) {
@@ -274,9 +278,11 @@ final class SyntheticWorkspacePanel
             'IMAGE_READ'=>['Inspect fixture image', ['image_id']],
             'UPLOADS_READ'=>['List fixture images', ['page','limit']],
             'IMAGE_ARCHIVE'=>['Archive fixture image', ['image_id']],
-            'PRODUCT_CREATE'=>['Create fixture product', ['title','description','blueprint_id','print_provider_id','variant_id','price','image_id','position','x','y','scale','angle']],
-            'PRODUCT_UPDATE'=>['Update fixture product', ['product_id','expected_version','title','description','variant_id','price']],
-            'PRODUCT_PUBLISH'=>['Preview product publishing', ['product_id','expected_version','publication_field']],
+            'PRODUCT_CREATE'=>['Create fixture product', ['title','description','blueprint_id','print_provider_id','variant_id','price','variant_enabled','image_id','position','x','y','scale','angle']],
+            'PRODUCT_UPDATE'=>['Update fixture product', ['product_id','expected_version','title','description','variant_id','price','variant_enabled']],
+            'PRODUCT_PUBLISH'=>['Preview product publishing', ['product_id','expected_version','publication_fields']],
+            'PRODUCT_PUBLISH_SUCCEEDED'=>['Record fixture publication success', ['product_id','expected_version','publication_reference']],
+            'PRODUCT_PUBLISH_FAILED'=>['Record fixture publication failure', ['product_id','expected_version','publication_reason']],
             'PRODUCT_UNPUBLISH_NOTIFY'=>['Preview product unpublishing', ['product_id','expected_version']],
             'PRODUCT_DELETE'=>['Delete fixture product', ['product_id','expected_version']],
             'PRODUCT_READ'=>['Inspect fixture product', ['product_id','blueprint_id','provider_id','variant_id']],
@@ -296,6 +302,10 @@ final class SyntheticWorkspacePanel
             'ORDERS_READ'=>['List fixture orders', ['page','limit']],
             'ORDER_READ'=>['Inspect order and tracking', ['order_id']],
             'ORDER_CANCEL'=>['Cancel fixture order', ['order_id']],
+            'ORDER_ADDRESS_CHANGE'=>['Change held fixture order address', ['order_id','destination']],
+            'SUPPORT_ADDRESS_CHANGE'=>['Request fixture address change', ['order_id','destination']],
+            'SUPPORT_LIST'=>['List fixture support requests', ['order_id']],
+            'SUPPORT_DETAIL'=>['Inspect fixture support request', ['order_id','support_request_id']],
             'LINE_ITEM_CANCEL'=>['Cancel fixture order line', ['order_id','line_item_id']],
             'FIXTURE_PRODUCTION_CONFIRM'=>['Confirm simulated production', ['order_id']],
             'FIXTURE_FULFILL'=>['Simulate fulfillment', ['order_id']],
@@ -330,6 +340,12 @@ final class SyntheticWorkspacePanel
                 echo '<input type="hidden" name="df_workspace_fields_present" value="1">';
                 if ($op === 'ORDER_SHIPPING_QUOTE' || $op === 'ORDER_CREATE') {
                     echo '<p>Use a synthetic destination preset. Fixture quotations do not guarantee provider coverage.</p>';
+                }
+                if (in_array($op, ['ORDER_ADDRESS_CHANGE','SUPPORT_ADDRESS_CHANGE'], true)) {
+                    echo '<p>Uses a synthetic address preset. Enter fixture order IDs only.</p>';
+                }
+                if (in_array($op, ['PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED'], true)) {
+                    echo '<p>Records a simulated publication result for an existing pending fixture product.</p>';
                 }
                 if ($op === 'PRODUCT_UPDATE') {
                     echo '<p>Read the product to find its synthetic version. For a variant edit, include every current variant and its price.</p>';
@@ -373,14 +389,33 @@ final class SyntheticWorkspacePanel
         $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields'.\esc_attr($key).'"';
         $required = $group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required';
         $value = $group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '';
+        if ($field === 'publication_fields') {
+            echo '<fieldset><legend>'.\esc_html($label).'</legend>';
+            foreach (self::PUBLICATION_FIELDS as $key=>$title) {
+                echo '<label><input type="checkbox" name="df_workspace_fields[publication_fields][]" value="'
+                    .\esc_attr($key).'"> '.\esc_html($title).'</label> ';
+            }
+            echo '</fieldset>';
+            return;
+        }
         $options = self::options($field);
         echo '<p><label for="'.\esc_attr($id).'">'.\esc_html($label).'</label><br>';
         if ($options !== null) {
             echo '<select'.$attrs.$required.'>';
+            if ($field === 'variant_enabled') {
+                echo '<option value="">Use enabled default</option>';
+            }
             foreach ($options as $option) {
                 $display = match ($field) {
                     'shipping_method'=>['1'=>'Standard','2'=>'Priority','3'=>'Printify Express','4'=>'Economy'][$option],
-                    'destination'=>['us'=>'United States fixture','ca'=>'Canada fixture','gb_unavailable'=>'United Kingdom fixture (unavailable)','invalid_address'=>'Invalid address fixture'][$option],
+                    'destination'=>[
+                        'us'=>'United States — California fixture','us_east'=>'United States — New York fixture',
+                        'ca'=>'Canada — Ontario fixture','ca_west'=>'Canada — British Columbia fixture',
+                        'gb_unavailable'=>'United Kingdom fixture (unavailable)','au_unavailable'=>'Australia fixture (unavailable)',
+                        'invalid_address'=>'Invalid address fixture',
+                    ][$option],
+                    'variant_enabled'=>['enabled'=>'Enabled','disabled'=>'Disabled'][$option],
+                    'publication_reason'=>['CHANNEL_REJECTED'=>'Channel rejected','CHANNEL_TIMEOUT'=>'Channel timed out','HUMAN_REJECTED'=>'Human rejected'][$option],
                     default=>$option,
                 };
                 echo '<option value="'.\esc_attr($option).'"'.($value===$option?' selected':'').'>'.\esc_html($display).'</option>';
@@ -401,7 +436,9 @@ final class SyntheticWorkspacePanel
         'product_id'=>'Product ID','task_id'=>'Preview task ID','title'=>'Product title','description'=>'Product description',
         'price'=>'Price (minor units)','position'=>'Print-area position','x'=>'Horizontal position (0–1)',
         'y'=>'Vertical position (0–1)','scale'=>'Artwork scale','angle'=>'Artwork angle in degrees',
-        'publication_field'=>'Publication field (title, description, images, variants or tags)',
+        'publication_field'=>'Publication field','publication_fields'=>'Fields to include in the publishing preview',
+        'publication_reference'=>'Synthetic listing reference','publication_reason'=>'Synthetic failure reason',
+        'support_request_id'=>'Support request ID',
         'expected_version'=>'Expected synthetic product version','external_id'=>'Fixture reference',
         'quantity'=>'Quantity','destination'=>'Synthetic destination','shipping_method'=>'Shipping method','order_id'=>'Order ID','line_item_id'=>'Line item ID',
         'topic'=>'Event topic','url'=>'Synthetic callback destination','webhook_id'=>'Webhook ID',
@@ -425,7 +462,7 @@ final class SyntheticWorkspacePanel
 
     private static function optional(string $op, string $field): bool
     {
-        return $field==='destination' || ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
+        return in_array($field,['destination','variant_enabled'],true) || ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
             || ($op==='PRODUCT_CREATE' && in_array($field,['x','y','scale','angle'],true));
     }
 
@@ -434,7 +471,9 @@ final class SyntheticWorkspacePanel
         return match ($field) {
             'method'=>['standard','priority','express','economy'],
             'shipping_method'=>['1','2','3','4'],
-            'destination'=>['us','ca','gb_unavailable','invalid_address'],
+            'destination'=>['us','us_east','ca','ca_west','gb_unavailable','au_unavailable','invalid_address'],
+            'variant_enabled'=>['enabled','disabled'],
+            'publication_reason'=>['CHANNEL_REJECTED','CHANNEL_TIMEOUT','HUMAN_REJECTED'],
             'topic'=>SyntheticPrintifyTransport::WEBHOOK_TOPICS,
             'url'=>SyntheticPrintifyTransport::WEBHOOK_URLS,
             default=>null,
@@ -445,7 +484,7 @@ final class SyntheticWorkspacePanel
     {
         return match ($op) {
             'PRODUCT_CREATE','PRODUCT_UPDATE'=>[
-                'variants'=>['variant_id','price'],
+                'variants'=>['variant_id','price','variant_enabled'],
                 'placements'=>['variant_id','image_id','position','x','y','scale','angle'],
             ],
             'PRODUCT_READ','PRODUCT_GPSR_READ'=>['variants'=>['variant_id']],
@@ -487,7 +526,11 @@ final class SyntheticWorkspacePanel
             if ($parsed===[]) {
                 continue;
             }
-            $required = $group==='placements' ? ['variant_id','image_id','position'] : $keys;
+            $required = match ($group) {
+                'placements'=>['variant_id','image_id','position'],
+                'variants'=>array_values(array_diff($keys,['variant_enabled'])),
+                default=>$keys,
+            };
             if (array_diff($required,array_keys($parsed))!==[]) {
                 throw new \InvalidArgumentException($group);
             }
@@ -518,11 +561,22 @@ final class SyntheticWorkspacePanel
             }
         }
         $groups = self::groups($op);
+        if ($op === 'PRODUCT_PUBLISH' && is_array($fields) && array_key_exists('publication_field',$fields)) {
+            if (array_key_exists('publication_fields',$fields) || !is_string($fields['publication_field'])) {
+                throw new \InvalidArgumentException('publication_fields');
+            }
+            $fields['publication_fields'] = [$fields['publication_field']];
+            unset($fields['publication_field']);
+        }
         if (!isset($keys) || !is_array($fields) || array_diff(array_keys($fields),$keys,array_keys($groups))!==[]) {
             throw new \InvalidArgumentException('OPERATION_FIELDS');
         }
         $typed = [];
         foreach ($keys as $field) {
+            if ($field === 'publication_fields') {
+                $typed['publish_fields'] = self::publicationFields($fields[$field] ?? null);
+                continue;
+            }
             $value = self::normalize($field,$fields[$field] ?? '');
             if ($value==='' && self::optional($op,$field)) {
                 continue;
@@ -535,15 +589,22 @@ final class SyntheticWorkspacePanel
         foreach ($groups as $group=>$keys) {
             $typed[$group] = self::readRows($group,$fields[$group] ?? [],$keys);
         }
-        if ($op === 'PRODUCT_PUBLISH') {
-            $field = $typed['publication_field'];
-            if (!in_array($field, ['title','description','images','variants','tags'], true)) {
-                throw new \InvalidArgumentException('publication_field');
-            }
-            unset($typed['publication_field']);
-            $typed['publish_fields'] = [$field=>true];
-        }
         return self::assemble($shop,$op,$typed);
+    }
+
+    private static function publicationFields(mixed $fields): array
+    {
+        if (!is_array($fields) || !array_is_list($fields) || $fields === [] || count($fields)>count(self::PUBLICATION_FIELDS)) {
+            throw new \InvalidArgumentException('publication_fields');
+        }
+        $selected = [];
+        foreach ($fields as $field) {
+            if (!is_string($field) || !isset(self::PUBLICATION_FIELDS[$field]) || isset($selected[$field])) {
+                throw new \InvalidArgumentException('publication_fields');
+            }
+            $selected[$field] = true;
+        }
+        return array_intersect_key(array_fill_keys(array_keys(self::PUBLICATION_FIELDS),true),$selected);
     }
 
     private static function fieldValue(string $field, string $value): string|int|float
@@ -560,7 +621,8 @@ final class SyntheticWorkspacePanel
             'limit'=>10, 'price'=>100000000, 'expected_version','quantity'=>1000, default=>null,
         };
         if ($max !== null) {
-            if (preg_match('/^[1-9][0-9]{0,9}$/D',$value)!==1 || (int)$value>$max) {
+            $pattern = $field==='price' ? '/^(?:0|[1-9][0-9]{0,8})$/D' : '/^[1-9][0-9]{0,9}$/D';
+            if (preg_match($pattern,$value)!==1 || (int)$value>$max) {
                 throw new \InvalidArgumentException($field);
             }
             return (int)$value;
@@ -578,6 +640,7 @@ final class SyntheticWorkspacePanel
             'title','description'=>preg_match('//u',$value)===1 && !preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/',$value),
             'file_name'=>preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}\.png$/D',$value)===1 && !str_contains($value,'..'),
             'contents'=>self::isFixturePng($value),
+            'publication_reference'=>preg_match('/^[A-Za-z0-9_-]{1,80}$/D',$value)===1,
             'event_id'=>preg_match('/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/D',$value)===1,
             'created_at'=>preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/D',$value)===1
                 && ($date=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP',$value))!==false
@@ -628,27 +691,30 @@ final class SyntheticWorkspacePanel
         }
         if (in_array($op,['ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_EXPRESS_CREATE'],true)) {
             $method=$op==='ORDER_EXPRESS_CREATE'?3:$fields['shipping_method'];
-            $destination = $fields['destination'] ?? 'us';
-            $location = match ($destination) {
-                'ca'=>['country'=>'CA','region'=>'ON','zip'=>'A1A 1A1'],
-                'gb_unavailable'=>['country'=>'GB','region'=>'','zip'=>'SW1A 1AA'],
-                'invalid_address'=>['country'=>'US','region'=>'CA','zip'=>''],
-                default=>['country'=>'US','region'=>'CA','zip'=>'90001'],
-            };
             $order = [
                 'external_id'=>$fields['external_id'],
                 'line_items'=>[array_intersect_key($fields,array_flip(['product_id','variant_id','quantity'])), ...$fields['line_items']],
                 'shipping_method'=>$method,
                 'is_printify_express'=>$method===3, 'is_economy_shipping'=>$method===4,
                 'send_shipping_notification'=>false,
-                'address_to'=>['first_name'=>'Fixture','last_name'=>'Only','email'=>'workspace@example.invalid','phone'=>'',
-                    'address1'=>'Fixture street','address2'=>'','city'=>'Fixture']+$location,
+                'address_to'=>self::fixtureAddress($fields['destination'] ?? 'us'),
             ];
             if ($op==='ORDER_EXPRESS_CREATE') {
                 unset($order['is_printify_express'],$order['is_economy_shipping']);
                 return $order;
             }
             return $op==='ORDER_CREATE'?$order:['order'=>$order];
+        }
+        if (in_array($op,['ORDER_ADDRESS_CHANGE','SUPPORT_ADDRESS_CHANGE'],true)) {
+            return ['order_id'=>$fields['order_id']]+self::fixtureAddress($fields['destination'] ?? 'us');
+        }
+        if ($op === 'PRODUCT_PUBLISH_SUCCEEDED') {
+            return ['product_id'=>$fields['product_id'],'expected_version'=>$fields['expected_version'],
+                'external'=>['id'=>$fields['publication_reference'],
+                    'handle'=>'https://products.example.invalid/'.$fields['publication_reference']]];
+        }
+        if ($op === 'PRODUCT_PUBLISH_FAILED') {
+            return ['product_id'=>$fields['product_id'],'expected_version'=>$fields['expected_version'],'reason'=>$fields['publication_reason']];
         }
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {
             return [
@@ -659,6 +725,22 @@ final class SyntheticWorkspacePanel
         return $fields;
     }
 
+    private static function fixtureAddress(string $destination): array
+    {
+        $location = match ($destination) {
+            'us_east'=>['country'=>'US','region'=>'NY','zip'=>'10001'],
+            'ca'=>['country'=>'CA','region'=>'ON','zip'=>'A1A 1A1'],
+            'ca_west'=>['country'=>'CA','region'=>'BC','zip'=>'V1V 1V1'],
+            'gb_unavailable'=>['country'=>'GB','region'=>'','zip'=>'SW1A 1AA'],
+            'au_unavailable'=>['country'=>'AU','region'=>'NSW','zip'=>'2000'],
+            'invalid_address'=>['country'=>'US','region'=>'CA','zip'=>''],
+            'us'=>['country'=>'US','region'=>'CA','zip'=>'90001'],
+            default=>throw new \InvalidArgumentException('destination'),
+        };
+        return ['first_name'=>'Fixture','last_name'=>'Only','email'=>'workspace@example.invalid','phone'=>'',
+            'address1'=>'Fixture street','address2'=>'','city'=>'Fixture']+$location;
+    }
+
     private static function assembleProduct(string $op, array $fields): array
     {
         $create = $op==='PRODUCT_CREATE';
@@ -667,8 +749,11 @@ final class SyntheticWorkspacePanel
         if (isset($fields['price'])!==isset($fields['variant_id'])) {
             throw new \InvalidArgumentException(isset($fields['price'])?'variant_id':'price');
         }
+        if (isset($fields['variant_enabled']) && !isset($fields['variant_id'])) {
+            throw new \InvalidArgumentException('variant_id');
+        }
         if (isset($fields['variant_id'])) {
-            array_unshift($variants,['variant_id'=>$fields['variant_id'],'price'=>$fields['price']]);
+            array_unshift($variants,array_intersect_key($fields,['variant_id'=>true,'price'=>true,'variant_enabled'=>true]));
         }
         if ($create) {
             array_unshift($placements,array_intersect_key($fields,array_flip(self::groups($op)['placements'])));
@@ -676,7 +761,14 @@ final class SyntheticWorkspacePanel
         $data = array_intersect_key($fields,array_flip(['title','description','blueprint_id','print_provider_id','product_id','expected_version']));
         $ids = self::variantIds($variants);
         if ($ids!==[]) {
-            $data['variants']=array_map(static fn(array $v):array=>['id'=>$v['variant_id'],'price'=>$v['price'],'is_enabled'=>true],$variants);
+            $data['variants']=[];
+            foreach ($variants as $variant) {
+                $enabled = ($variant['variant_enabled'] ?? 'enabled') === 'enabled';
+                if ($enabled && $variant['price'] === 0) {
+                    throw new \InvalidArgumentException('price');
+                }
+                $data['variants'][] = ['id'=>$variant['variant_id'],'price'=>$variant['price'],'is_enabled'=>$enabled];
+            }
             if (!$create) {
                 $data['known_variant_ids']=$ids;
             }

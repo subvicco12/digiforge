@@ -28,12 +28,23 @@ final class AccountProfile
         if ($profile === null || !\current_user_can('digiforge_printify_review_shop_'.$profile['shop'])) {
             return 'INVALID_OR_UNASSIGNED_SCOPE';
         }
-        $previous = \get_option(self::OPTION, null);
-        if (is_array($previous) && self::validate($previous) === $previous
-            && !\current_user_can('digiforge_printify_review_shop_'.$previous['shop'])) {
+        $stored = \get_option(self::OPTION, null);
+        $previous = self::storedProfile($stored);
+        if ($previous !== null && !\current_user_can('digiforge_printify_review_shop_'.$previous['shop'])) {
             return 'DENIED';
         }
-        if ($previous === $profile || \update_option(self::OPTION, $profile, false)) {
+        if ($previous === $profile) {
+            return 'SAVED_LOCAL_METADATA';
+        }
+        $history = self::history($stored);
+        $history[] = [
+            'changed_at'=>gmdate('c'),
+            'before'=>self::fingerprint($previous),
+            'after'=>self::fingerprint($profile),
+            'scope_changed'=>$previous === null || array_diff_assoc(array_diff_key($profile, ['custody'=>true]), $previous) !== [],
+            'alias_changed'=>($previous['custody'] ?? '') !== $profile['custody'],
+        ];
+        if (\update_option(self::OPTION, ['profile'=>$profile,'history'=>array_slice($history,-20)], false)) {
             return 'SAVED_LOCAL_METADATA';
         }
         return 'SAVE_FAILED';
@@ -45,9 +56,46 @@ final class AccountProfile
             return null;
         }
         $stored = \get_option(self::OPTION, null);
-        $profile = is_array($stored) ? self::validate($stored) : null;
+        $profile = self::storedProfile($stored);
         return $profile !== null && \current_user_can('digiforge_printify_review_shop_'.$profile['shop'])
             ? $profile : null;
+    }
+
+    public static function diagnostics(): array
+    {
+        $profile = self::current();
+        if ($profile === null) {
+            return [];
+        }
+        $fingerprint = self::fingerprint($profile);
+        return [
+            'custody'=>$profile['custody'] === '' ? 'NO_REFERENCE' : 'FIXTURE_REFERENCE_CONFIGURED',
+            'operational_resolution'=>'BLOCKED_EXTERNAL',
+            'change_receipts'=>array_values(array_filter(self::history(\get_option(self::OPTION, null)),
+                static fn(array $receipt): bool => $receipt['after'] === $fingerprint)),
+        ];
+    }
+
+    private static function storedProfile(mixed $stored): ?array
+    {
+        $data = is_array($stored) ? ($stored['profile'] ?? $stored) : null;
+        return is_array($data) ? self::validate($data) : null;
+    }
+
+    private static function fingerprint(?array $profile): ?string
+    {
+        return $profile === null ? null : hash_hmac('sha256', json_encode($profile, JSON_THROW_ON_ERROR), \wp_salt('auth'));
+    }
+
+    private static function history(mixed $stored): array
+    {
+        $rows = is_array($stored) && is_array($stored['history'] ?? null) ? $stored['history'] : [];
+        return array_values(array_filter(array_slice($rows,-20), static fn(mixed $row): bool =>
+            is_array($row) && array_keys($row) === ['changed_at','before','after','scope_changed','alias_changed']
+            && is_string($row['changed_at']) && preg_match('/^[0-9T:+-]{25}$/D', $row['changed_at']) === 1
+            && ($row['before'] === null || is_string($row['before']) && preg_match('/^[a-f0-9]{64}$/D', $row['before']) === 1)
+            && is_string($row['after']) && preg_match('/^[a-f0-9]{64}$/D', $row['after']) === 1
+            && is_bool($row['scope_changed']) && is_bool($row['alias_changed'])));
     }
 
     /** Create a GET plan only. The purpose selects a reviewed contract, never an arbitrary URL. */
@@ -112,6 +160,8 @@ final class AccountProfile
         }
         echo '<button type="submit">Save local configuration</button></form>';
         if ($profile !== null) {
+            $diagnostics = self::diagnostics();
+            echo '<p>'.\esc_html('Custody: '.$diagnostics['custody'].' · '.$diagnostics['operational_resolution']).'</p>';
             echo '<ul>';
             foreach (['catalog'=>'Catalog', 'products'=>'Products', 'orders'=>'Orders'] as $purpose=>$label) {
                 $plan = self::plan($profile['shop'], $profile['account'], $profile['integration'], $purpose);
