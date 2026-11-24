@@ -37,6 +37,7 @@ final class Runtime
             echo '<dt>' . \esc_html($label) . '</dt><dd>' . \esc_html($value) . '</dd>';
         }
         echo '</dl>';
+        AccountProfile::render($_POST);
         if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
             require_once __DIR__ . '/SyntheticOperatorPanel.php';
             SyntheticOperatorPanel::render();

@@ -16,6 +16,7 @@ if (! defined('ABSPATH')) {
 }
 
 require_once __DIR__ . '/Status.php';
+require_once __DIR__ . '/AccountProfile.php';
 
 if (!class_exists(\DigiForgePrintifyApi\Runtime::class, false)) {
     require_once __DIR__ . '/Runtime.php';

@@ -19,7 +19,15 @@ function add_filter(...$args): never { throw new RuntimeException('Unexpected fi
 function register_activation_hook(...$args): never { throw new RuntimeException('Unexpected activation hook'); }
 function register_rest_route(...$args): never { throw new RuntimeException('Unexpected route'); }
 function wp_remote_request(...$args): never { throw new RuntimeException('Unexpected network request'); }
-function get_option(...$args): never { throw new RuntimeException('Unexpected option access'); }
+function get_option(string $name, mixed $default = false): mixed
+{
+    if (($GLOBALS['fixture_account_panel'] ?? false) && $name === 'digiforge_printify_account_profile_v1') {
+        return $default;
+    }
+    throw new RuntimeException('Unexpected option access');
+}
+function wp_nonce_field(...$args): void { }
+function esc_attr(string $value): string { return esc_html($value); }
 function update_option(...$args): never { throw new RuntimeException('Unexpected option write'); }
 
 $GLOBALS['fixture_hooks'] = [];
@@ -58,9 +66,11 @@ Runtime::panel();
 check(ob_get_clean() === '', 'Unauthorized operator saw diagnostics');
 check(Runtime::discover()['capabilities'] === [], 'Unauthorized discovery');
 $GLOBALS['fixture_caps'] = ['manage_options'];
+$GLOBALS['fixture_account_panel'] = true;
 ob_start();
 Runtime::panel();
 check(str_contains(ob_get_clean(), 'Provider dispatch'), 'Diagnostics panel missing');
+unset($GLOBALS['fixture_account_panel']);
 check(Runtime::discover()['capabilities'] === ['PANEL/DIAGNOSTICS'], 'Unscoped catalog advertised');
 $GLOBALS['fixture_caps'][] = 'digiforge_printify_review_shop_107';
 if (is_file(dirname($plugin) . '/Engine/PrintifyCatalogReadContract.php')) {
