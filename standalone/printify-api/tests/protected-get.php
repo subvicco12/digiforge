@@ -105,3 +105,33 @@ $policy['release_hold'] = false;
 check($gate->read($request,$grant,$sign($grant),$now)['state']==='DENIED','Post-read revocation ignored');
 check($gate->read($request,$grant,$sign($grant),$now)['state']==='DENIED','Revoked admission repeated');
 echo "Eleven extracted fixture projections, detail scope, pagination and in-flight revocation passed.\n";
+
+$product = ['id'=>'product-1','shop_id'=>107,'blueprint_id'=>42,'print_provider_id'=>7,
+    'variants'=>[['id'=>9,'price'=>1000,'is_enabled'=>true]],'print_areas'=>[]];
+$order = ['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture','status'=>'partially-fulfilled',
+    'line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>2]],
+    'address_to'=>['email'=>'never-disclose@example.invalid'],
+    'shipments'=>[['carrier'=>'FixtureCarrier','number'=>'fixture-tracking-1','url'=>'https://example.invalid/receipt']]];
+$detail = ProtectedGet::request($scope,'PRODUCT_READ',
+    ['product_id'=>'product-1','blueprint_id'=>42,'provider_id'=>7,'variant_ids'=>[9]]);
+check(ProtectedGet::project($detail,json_encode($product,JSON_THROW_ON_ERROR))['id']==='product-1','Product detail unavailable');
+$detail = ProtectedGet::request($scope,'ORDER_READ',['order_id'=>'order-1']);
+$projection = ProtectedGet::project($detail,json_encode($order,JSON_THROW_ON_ERROR));
+check($projection['status']==='partially-fulfilled'
+    && $projection['shipments'][0]['tracking_hash']===hash('sha256','fixture-tracking-1')
+    && !str_contains(json_encode($projection,JSON_THROW_ON_ERROR),'example.invalid'),'Order scope, tracking or address leak');
+$last = ProtectedGet::request($scope,'ORDERS_READ',['page'=>40,'limit'=>2]);
+$projection = ProtectedGet::project($last,json_encode(['data'=>[$order],'current_page'=>40,
+    'per_page'=>2,'last_page'=>42,'next_page_url'=>'https://example.invalid'],JSON_THROW_ON_ERROR));
+check($projection['next_page']===null && $projection['page_window_exhausted'],'Continuation exceeded page window');
+
+$rateGateway = new FixtureReadGateway(sodium_crypto_sign_publickey($keys),
+    static fn(): array => ['revision'=>1,'stop_all'=>false,'external_lock'=>false,'release_hold'=>false,'revoked'=>[]],
+    static fn(): array => ['status'=>429,'body'=>'{"sensitive":"do not expose"}']);
+for ($offset = 0; $offset < 11; ++$offset) {
+    $grant['id'] = sprintf('%032x', $offset);
+    $rate = $rateGateway->read($request,$grant,$sign($grant),$now);
+    check($rate['state']==='UNAVAILABLE' && $rate['reason']===($offset < 10 ? 'RATE_LIMITED' : 'FIXTURE_QUOTA_EXHAUSTED')
+        && !$rate['retry_permitted'] && !isset($rate['data']),'Rate limit, fixture quota or redaction');
+}
+echo "Product and order detail, partial fulfillment, private tracking projection, rate limit and quota passed.\n";
