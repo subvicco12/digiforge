@@ -66,12 +66,40 @@ if ($phase === 'write') {
     $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];
     $response = ProtectedGetPanel::prepare($form);
     verify($response['state']==='OBSERVED','Signed exchange: '.$response['reason']);
-    verify(count(json_decode(file_get_contents($journal),true))===1,'Unexpected grants admitted');
     verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Duplicate workspace was reused');
+    $cases = [
+        ['BLUEPRINTS_READ',[]], ['BLUEPRINT_PROVIDERS_READ',['blueprint_id'=>'42']],
+        ['VARIANTS_READ',['blueprint_id'=>'42','provider_id'=>'7']],
+        ['VARIANT_READ',['blueprint_id'=>'42','provider_id'=>'7','variant_id'=>'9']],
+        ['CATALOG_SHIPPING_METHOD_READ',['blueprint_id'=>'42','provider_id'=>'7','method'=>'standard']],
+        ['PRODUCTS_READ',['page'=>'1']],
+        ['PRODUCT_READ',['product_id'=>'product-1','blueprint_id'=>'42','provider_id'=>'7','variant_ids'=>'9']],
+        ['ORDERS_READ',['page'=>'1']], ['ORDER_READ',['order_id'=>'order-1']],
+    ];
+    foreach ($cases as [$operation,$selection]) {
+        $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];
+        $form['df_printify_get_operation'] = $operation;
+        $form['df_printify_get'] = $selection;
+        $response = ProtectedGetPanel::prepare($form);
+        verify($response['state']==='OBSERVED',$operation.': '.$response['reason']);
+    }
+    verify(count(json_decode(file_get_contents($journal),true))===10,'Unexpected grants admitted');
+    $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];
+    $stale = $form;
+    $stale['df_printify_get_revision'] = str_repeat('0',64);
+    verify(ProtectedGetPanel::prepare($stale)['reason']==='SCOPE_OR_REVISION_UNAVAILABLE','Stale profile was admitted');
+    $manager = WP_Session_Tokens::get_instance(1);
+    $oldToken = wp_get_session_token();
+    $session = $manager->get($oldToken);
+    $manager->destroy($oldToken);
+    $form['df_printify_get_nonce'] = wp_create_nonce('df_printify_protected_get_v1');
+    verify(ProtectedGetPanel::prepare($form)['state']==='BLOCKED','Destroyed session was admitted');
+    $manager->update($oldToken,$session);
+    echo "10 signed operator selectors through separate gateway processes. Stale profile, stale workspace and destroyed session denied.\n";
 }
 ob_start();
 ProtectedGetPanel::render([]);
 $html = ob_get_clean();
-verify(str_contains($html,'Synthetic gateway shop') && str_contains($html,'Recent fixture'),'Stored observation not shown');
+verify(str_contains($html,'partially-fulfilled') && str_contains($html,'tracking_hash') && str_contains($html,'Recent fixture'),'Stored observation not shown');
 verify(get_option('active_plugins')===['digiforge-printify-api/digiforge-printify-api.php'],'Unexpected active plugin');
 echo $phase.': standalone-only WordPress panel rendered persisted synthetic observation; provider HTTP trapped.'.PHP_EOL;

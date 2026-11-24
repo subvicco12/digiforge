@@ -55,7 +55,10 @@ final class ProtectedGetPanel
                 $receipt = $record['receipt'];
                 $freshness = time() - $record['stored_at'] <= 60 ? 'Recent fixture' : 'Stale fixture';
                 echo '<p>'.\esc_html($freshness.' · '.gmdate('c', $record['stored_at'])
-                    .' · '.$receipt['operation'].' · '.$receipt['state']).'</p>';
+                    .' · '.$receipt['operation'].' · '.$receipt['state'].' · '.$receipt['reason']).'</p>';
+                if (($receipt['source'] ?? null) === 'SYNTHETIC_PRINTIFY') {
+                    echo '<p>'.\esc_html('Synthetic Printify evidence · observed '.gmdate('c', $receipt['observed_at'])).'</p>';
+                }
                 if (isset($receipt['data'])) {
                     echo '<pre>'.\esc_html(json_encode($receipt['data'], JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
                 }

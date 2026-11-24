@@ -150,7 +150,7 @@ final class ProtectedGet
             }
             if ($receipt['state'] === 'OBSERVED'
                 && (($receipt['source'] ?? null) !== 'SYNTHETIC_PRINTIFY' || !is_array($receipt['data'] ?? null)
-                    || $receipt['observed_at'] !== $receipt['issued_at']
+                    || ($receipt['observed_at'] ?? null) !== $receipt['issued_at']
                     || !is_string($receipt['response_sha256'] ?? null)
                     || !preg_match('/^[a-f0-9]{64}$/D', $receipt['response_sha256']))) {
                 return $invalid;
