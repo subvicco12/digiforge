@@ -41,6 +41,48 @@ final class SyntheticWorkspace
         return ['revision'=>$row['revision'], 'audit'=>array_values($row['audit']), 'events'=>array_values($row['events'])];
     }
 
+    /** Read the sealed fixture snapshot without writing workspace state or audit events. */
+    public function readRecords(string $kind, ?string $id, int $page, int $limit): array
+    {
+        if (!in_array($kind, ['products', 'orders'], true) || $page < 1 || $page > 100
+            || $limit < 1 || $limit > 10 || ($id !== null && ($page !== 1
+                || preg_match($kind === 'products' ? '/^product-[1-9][0-9]{0,2}$/D' : '/^order-[1-9][0-9]{0,2}$/D', $id) !== 1))) {
+            return ['state'=>'DENIED', 'reason'=>'INVALID_SELECTION'];
+        }
+        try {
+            $snapshot = $this->load();
+            $transport = new SyntheticPrintifyTransport($this->shop);
+            $transport->restoreFixtureState($snapshot['transport']);
+            $operation = $kind === 'products' ? 'PRODUCTS_READ' : 'ORDERS_READ';
+            $input = ['page'=>$page, 'limit'=>$limit];
+            if ($id !== null && $kind === 'products') {
+                $operation = 'PRODUCT_READ';
+                $input = $transport->fixtureProductSelectors($id);
+                if ($input === null) {
+                    return ['state'=>'FAILED_READ', 'reason'=>'RECORD_NOT_FOUND'];
+                }
+            } elseif ($id !== null) {
+                $operation = 'ORDER_READ';
+                $input = ['order_id'=>$id];
+            }
+            $result = (new SyntheticPrintifyClient($this->shop, $transport))->run($operation, $input);
+            if ($result['state'] !== 'SYNTHETIC_OBSERVED') {
+                return ['state'=>'FAILED_READ', 'reason'=>$result['reason'],
+                    'retry_after'=>$result['bounded_retry_after'] ?? null];
+            }
+            $data = $result['data'];
+            if ($operation === 'ORDER_READ') {
+                foreach ($data['shipments'] as &$shipment) {
+                    $shipment['tracking_reference'] = $transport->fixtureTrackingReference($id, $shipment['tracking_hash']);
+                }
+                unset($shipment);
+            }
+            return ['state'=>'OBSERVED', 'reason'=>null, 'data'=>$data, 'workspace_revision'=>$snapshot['revision']];
+        } catch (\Throwable) {
+            return ['state'=>'FAILED_READ', 'reason'=>'WORKSPACE_UNAVAILABLE'];
+        }
+    }
+
     public function execute(int $expected, string $operationId, string $operation, array $input): array
     {
         $actor = \get_current_user_id();

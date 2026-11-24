@@ -169,6 +169,56 @@ try {
         ];
         $op('FIXTURE_WEBHOOK_EVENT',$productionEvent);
         $op('FIXTURE_FULFILL',['order_id'=>'order-1'],'SYNTHETIC_OBSERVED',true);
+        $priorRead = $workspace->inspect();
+        $read = static fn(string $kind, ?string $id = null, int $page = 1): array =>
+            Runtime::browseRecords(1, '107', 'fixture-account', $kind, $id, $page, 1);
+        $products = $read('products');
+        requireFixture($products['state'] === 'OBSERVED' && $products['data']['data'][0]['id'] === 'product-1'
+            && $products['freshness'] === 'FIXTURE_ONLY' && $products['provider_observed_at'] === null
+            && $products['data']['next_page'] === ['page'=>2, 'limit'=>1]
+            && $read('products', null, 2)['data']['data'][0]['id'] !== 'product-1'
+            && !$products['provider_execution_authorized'], 'Product list or provenance failed');
+        requireFixture($read('products', 'product-1')['data']['blueprint_id'] === 42
+            && $read('products', 'product-999')['reason'] === 'RECORD_NOT_FOUND', 'Product detail failed');
+        requireFixture($read('products', null, 100)['data']['data'] === [], 'Empty product page failed');
+        requireFixture($read('orders')['data']['data'][0]['id'] === 'order-1', 'Order list failed');
+        $orderRead = $read('orders', 'order-1');
+        requireFixture($orderRead['data']['status'] === 'fulfilled'
+            && $orderRead['data']['shipments'][0]['tracking_reference'] === 'SYNTHETIC-order-1'
+            && $orderRead['data']['shipments'][0]['delivered_at'] === null, 'Tracking projection failed');
+        requireFixture($read('ORDER_CREATE')['reason'] === 'INVALID_SELECTION'
+            && $read('orders', 'product-1')['reason'] === 'INVALID_SELECTION'
+            && $read('orders', null, 101)['reason'] === 'INVALID_SELECTION', 'Read selector admitted invalid values');
+        requireFixture(Runtime::browseRecords(2, '107', 'fixture-account', 'products')['reason'] === 'INCOMPATIBLE_VERSION'
+            && Runtime::browseRecords(1, '107', 'fixture-other-account', 'products')['state'] === 'DENIED'
+            && Runtime::browseRecords(1, '108', 'fixture-account', 'orders')['state'] === 'DENIED', 'Read scope or version bypass');
+        $renderRead = static function (array $query): string {
+            $prior = $_GET;
+            $_GET = ['df_records_shop'=>'107'] + $query;
+            ob_start();
+            try {
+                Runtime::panel();
+                return (string)ob_get_contents();
+            } finally {
+                ob_end_clean();
+                $_GET = $prior;
+            }
+        };
+        requireFixture(str_contains($renderRead(['df_records_kind'=>'products']), 'df_records_id=product-1')
+            && str_contains($renderRead(['df_records_kind'=>'products', 'df_records_id'=>'product-1']), 'Blueprint 42')
+            && str_contains($renderRead(['df_records_kind'=>'orders']), 'df_records_id=order-1')
+            && str_contains($renderRead(['df_records_kind'=>'orders', 'df_records_id'=>'order-1']), 'SYNTHETIC-order-1')
+            && !str_contains($renderRead(['df_records_kind'=>'orders', 'df_records_id'=>'order-1']), 'tracking.example.invalid'),
+            'Protected read-only panel failed');
+        wp_set_current_user(0);
+        try {
+            requireFixture($read('orders', 'order-1')['state'] === 'DENIED'
+                && $renderRead(['df_records_kind'=>'orders']) === '', 'Anonymous read was not denied');
+        } finally {
+            wp_set_current_user(1);
+        }
+        requireFixture($workspace->inspect() === $priorRead && $http === 0, 'Read-only navigation changed state or attempted HTTP');
+        echo "Product, order and shipment read-only journey PASS (10 checks)\n";
         $carrier=['code'=>'USPS','tracking_number'=>'SYNTHETIC-order-1','tracking_url'=>'https://tracking.example.invalid/order-1'];
         $shipment=[
             'id'=>'653b6be8-2ff7-4ab5-a7a6-6889a8b3bbf9','type'=>'order:shipment:created','created_at'=>'2026-11-19 10:04:00+00:00',

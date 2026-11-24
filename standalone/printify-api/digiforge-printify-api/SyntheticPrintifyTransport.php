@@ -131,6 +131,18 @@ final class SyntheticPrintifyTransport
         ];
     }
 
+    /** Return only a fixture-issued reference already bound by the validated order projection. */
+    public function fixtureTrackingReference(string $orderId, string $trackingHash): ?string
+    {
+        $reference = 'SYNTHETIC-'.$orderId;
+        foreach ($this->orders[$orderId]['shipments'] ?? [] as $shipment) {
+            if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
+                return $reference;
+            }
+        }
+        return null;
+    }
+
     /** Record delivery only for a matching, already fulfilled fixture shipment. */
     public function recordFixtureDelivery(string $orderId,string $trackingSha256,string $deliveredAt): bool
     {

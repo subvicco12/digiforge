@@ -55,6 +55,8 @@ final class Runtime
             self::loadCatalogBrowser();
             require_once __DIR__ . '/CatalogBrowserPanel.php';
             CatalogBrowserPanel::render($catalogScopes, $_GET);
+            require_once __DIR__ . '/RecordBrowserPanel.php';
+            RecordBrowserPanel::render($catalogScopes, $_GET);
         }
         $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
         $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
@@ -175,6 +177,22 @@ final class Runtime
         require_once __DIR__ . '/SyntheticPrintifyTransport.php';
         require_once __DIR__ . '/SyntheticPrintifyClient.php';
         require_once __DIR__ . '/CatalogBrowser.php';
+    }
+
+    public static function browseRecords(
+        int $version, string $shop, string $account, string $kind, ?string $id = null, int $page = 1, int $limit = 10
+    ): array {
+        $metadata = ['version'=>1, 'source'=>'SYNTHETIC_PRINTIFY', 'freshness'=>'FIXTURE_ONLY',
+            'provider_observed_at'=>null, 'provider_fact_verified'=>false, 'provider_execution_authorized'=>false];
+        if ($version !== 1) {
+            return ['state'=>'DENIED', 'reason'=>'INCOMPATIBLE_VERSION'] + $metadata;
+        }
+        $workspace = self::permitsWorkspaceAccount($shop, $account) ? self::syntheticWorkspace($shop) : null;
+        if ($workspace === null) {
+            return ['state'=>'DENIED', 'reason'=>'SCOPE_OR_TRANSPORT_UNAVAILABLE'] + $metadata;
+        }
+        return $workspace->readRecords($kind, $id, $page, $limit) + $metadata
+            + ['scope'=>['shop'=>$shop, 'account'=>$account, 'integration'=>null], 'observed_at'=>time()];
     }
 
     public static function syntheticWorkspace(?string $shop = null): ?SyntheticWorkspace
