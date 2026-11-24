@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "source_commit": "5c51fa08256309600a52e9c36e9ec0ab8ed272f0",
+  "evidence_status": "HISTORICAL_SOURCE_DELTA_PENDING_INDEPENDENT_REVIEW",
+  "runtime_authority_provisioned": false,
+  "grant_limits_changed": false,
+  "path": "includes/POD/PrintifyCatalogReadContract.php",
+  "baseline_sha256": "2618082f073d2180c9c6990947cab1551f388a72f84746ad94b40da7cd7330e2",
+  "overlay_sha256": "b315a133a866e8bb0dd0f84a3d3aa89bcd1441d7cd6c7e4c1314ceac8a9653ec",
+  "hunks": [
+    {
+      "baseline_text": "  self::records($variants);if($r['kind']==='variants')return $data;\n  $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \\InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];\n }\n",
+      "reviewed_text": "  self::records($variants);\n  if(array_key_exists('id',$data)&&$data['id']!==$r['blueprint_id'])throw new \\InvalidArgumentException('Variant blueprint identity mismatch.');\n  foreach ($variants as $variant) {\n   self::variantAreas($variant);\n  }\n  if($r['kind']==='variants')return $data;\n  $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \\InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];\n }\n    public static function variantAreas(array $variant): ?array\n    {\n        if (!array_key_exists('placeholders', $variant)) {\n            return null;\n        }\n        $areas = $variant['placeholders'];\n        if (!is_array($areas) || !array_is_list($areas) || count($areas)>50) {\n            throw new \\InvalidArgumentException('Invalid catalog print-area evidence.');\n        }\n        $out = [];\n        $seen = [];\n        foreach ($areas as $area) {\n            if (!is_array($area) || !is_string($area['position'] ?? null)\n                || preg_match('/^[A-Za-z0-9_-]{1,60}$/D', $area['position']) !== 1 || isset($seen[$area['position']])) {\n                throw new \\InvalidArgumentException('Invalid catalog print-area evidence.');\n            }\n            $seen[$area['position']] = true;\n            foreach (['width', 'height'] as $dimension) {\n                if (isset($area[$dimension]) && (!is_int($area[$dimension]) || ($area[$dimension]<1 || $area[$dimension]>2147483647))) {\n                    throw new \\InvalidArgumentException('Invalid catalog print-area evidence.');\n                }\n            }\n            $out[] = ['position'=>$area['position'], 'width'=>$area['width'] ?? null,\n                'height'=>$area['height'] ?? null, 'bleed'=>null, 'safe_zone'=>null];\n        }\n        return $out;\n    }\n"
+    }
+  ]
+}

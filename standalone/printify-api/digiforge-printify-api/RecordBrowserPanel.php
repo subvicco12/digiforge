@@ -11,7 +11,7 @@ final class RecordBrowserPanel
 {
     public static function render(array $scopes, array $query): void
     {
-        echo '<section><h2>Read-only products and orders</h2>';
+        echo '<section id="df-records"><h2>Read-only products and orders</h2>';
         echo '<p>Local synthetic records. Provider freshness is unavailable.</p>';
         $shop = $query['df_records_shop'] ?? null;
         $kind = $query['df_records_kind'] ?? '';

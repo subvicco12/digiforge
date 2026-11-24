@@ -44,6 +44,7 @@ final class SyntheticPrintifyTransport
     private array $duplicates = [];
     private array $productionConfirmations = [];
     private int $requests = 0;
+    private array $admittedRequests = [];
     private ?string $nextFault = null;
 
     public function __construct(private readonly string $shop)
@@ -104,17 +105,32 @@ final class SyntheticPrintifyTransport
         return true;
     }
 
-    public function fulfill(string $orderId): bool
+    public function fulfill(string $orderId, ?string $lineId = null): bool
     {
-        if (($this->orders[$orderId]['status'] ?? null) !== 'in-production') {
+        $order = $this->orders[$orderId] ?? null;
+        if ($order === null || !in_array($order['status'], ['in-production','partially-fulfilled'], true)
+            || ($lineId === null && $order['status'] !== 'in-production')) {
             return false;
         }
-        $this->orders[$orderId]['status'] = 'fulfilled';
-        $this->advanceExpressLines($orderId,'fulfilled');
-        $this->orders[$orderId]['shipments'] = [[
-            'carrier'=>'Synthetic carrier', 'number'=>'SYNTHETIC-'.$orderId,
-            'url'=>'https://tracking.example.invalid/'.$orderId, 'delivered_at'=>null,
-        ]];
+        $pending = array_filter($order['line_items'], static fn(array $line): bool =>
+            !in_array($line['status'] ?? null, ['canceled','fulfilled'], true));
+        $selected = $lineId === null ? $pending : array_filter($pending, static fn(array $line): bool => $line['id'] === $lineId);
+        if ($selected === [] || ($lineId !== null && count($selected) !== 1)) {
+            return false;
+        }
+        if ($lineId !== null || isset($order['fulfilment_type'])) {
+            foreach (array_keys($selected) as $index) {
+                $order['line_items'][$index]['status'] = 'fulfilled';
+            }
+        }
+        $order['status'] = count($selected) === count($pending) ? 'fulfilled' : 'partially-fulfilled';
+        $reference = 'SYNTHETIC-'.$orderId.($lineId === null ? '' : '-shipment-'.(count($order['shipments'])+1));
+        $order['shipments'][] = [
+            'carrier'=>'Synthetic carrier', 'number'=>$reference,
+            'url'=>'https://tracking.example.invalid/'.($lineId === null ? $orderId : $reference), 'delivered_at'=>null,
+            'line_item_ids'=>array_values(array_column($selected, 'id')),
+        ];
+        $this->orders[$orderId] = $order;
         return true;
     }
 
@@ -134,10 +150,32 @@ final class SyntheticPrintifyTransport
     /** Return only a fixture-issued reference already bound by the validated order projection. */
     public function fixtureTrackingReference(string $orderId, string $trackingHash): ?string
     {
-        $reference = 'SYNTHETIC-'.$orderId;
-        foreach ($this->orders[$orderId]['shipments'] ?? [] as $shipment) {
-            if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
-                return $reference;
+        foreach ($this->orders[$orderId]['shipments'] ?? [] as $index=>$shipment) {
+            $base = 'SYNTHETIC-'.$orderId;
+            foreach ([$base, $base.'-shipment-'.($index+1)] as $reference) {
+                if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
+                    return $reference;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Resolve an exact fixture shipment, allowing single-shipment legacy snapshots. */
+    public function fixtureShipmentLines(string $orderId, string $trackingHash): ?array
+    {
+        $order = $this->orders[$orderId] ?? [];
+        $shipments = $order['shipments'] ?? [];
+        foreach ($shipments as $shipment) {
+            if (hash('sha256', $shipment['number']) !== $trackingHash) {
+                continue;
+            }
+            if (isset($shipment['line_item_ids'])) {
+                return $shipment['line_item_ids'];
+            }
+            if (count($shipments) === 1) {
+                return array_values(array_column(array_filter($order['line_items'], static fn(array $line): bool =>
+                    ($line['status'] ?? null) !== 'canceled'), 'id'));
             }
         }
         return null;
@@ -146,7 +184,7 @@ final class SyntheticPrintifyTransport
     /** Record delivery only for a matching, already fulfilled fixture shipment. */
     public function recordFixtureDelivery(string $orderId,string $trackingSha256,string $deliveredAt): bool
     {
-        if (($this->orders[$orderId]['status']??null)!=='fulfilled'
+        if (!in_array($this->orders[$orderId]['status']??null, ['partially-fulfilled','fulfilled'], true)
             ||preg_match('/^[a-f0-9]{64}$/D',$trackingSha256)!==1
             ||preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/D',$deliveredAt)!==1) {
             return false;
@@ -171,6 +209,12 @@ final class SyntheticPrintifyTransport
         }
         $this->orders[$orderId]['shipments'][$index]['delivered_at']=$deliveredAt;
         return true;
+    }
+
+    /** Return only the method and path of validated synthetic requests, never their bodies. */
+    public function admittedRequests(): array
+    {
+        return $this->admittedRequests;
     }
 
     public function request(array $plan): array
@@ -204,6 +248,7 @@ final class SyntheticPrintifyTransport
         if ($route === null || ($method === 'GET' && $body !== [])) {
             return self::error(404, 'route_unavailable');
         }
+        $this->admittedRequests[] = ['method'=>$method,'endpoint'=>$endpoint,'operation'=>$operation];
         $fault = $this->nextFault;
         $this->nextFault = null;
         if ($fault === 'rate_limit') {
@@ -228,7 +273,7 @@ final class SyntheticPrintifyTransport
     {
         $shopRoot = '/v1/shops/'.$this->shop;
         $id = '([A-Za-z0-9_-]{1,80})';
-        $paging = '(?:\?page=([1-9][0-9]{0,5})&limit=([1-9]|10))?';
+        $paging = '(?:\?page=([1-9][0-9]{0,9})&limit=([1-9]|10))?';
         $route = match ($operation) {
             'SHOP_DISCONNECT' => ['DELETE', $shopRoot.'/connection\.json'],
             'ORDER_EXPRESS_CREATE' => ['POST', $shopRoot.'/orders/express\.json'],
@@ -236,8 +281,10 @@ final class SyntheticPrintifyTransport
             'SHOPS_READ' => ['GET', '/v1/shops\.json'],
             'BLUEPRINTS_READ' => ['GET', '/v1/catalog/blueprints\.json'],
             'BLUEPRINT_READ' => ['GET', '/v1/catalog/blueprints/42\.json'],
-            'PROVIDERS_READ', 'BLUEPRINT_PROVIDERS_READ' => ['GET', '/v1/catalog/(?:blueprints/42/)?print_providers\.json'],
-            'PROVIDER_READ', 'BLUEPRINT_PROVIDER_READ' => ['GET', '/v1/catalog/(?:blueprints/42/)?print_providers/7\.json'],
+            'PROVIDERS_READ' => ['GET', '/v1/catalog/print_providers\.json'],
+            'BLUEPRINT_PROVIDERS_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers\.json'],
+            'PROVIDER_READ' => ['GET', '/v1/catalog/print_providers/7\.json'],
+            'BLUEPRINT_PROVIDER_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7\.json'],
             'VARIANTS_READ', 'VARIANT_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/variants\.json'],
             'SIZE_GUIDE_READ' => ['GET', '/v1/catalog/blueprints/42/size_guide\.json'],
             'CATALOG_SHIPPING_V1_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/shipping\.json'],
@@ -280,8 +327,14 @@ final class SyntheticPrintifyTransport
             'WEBHOOK_DELETE' => ['DELETE', $shopRoot.'/webhooks/'.$id.'\.json\?host=webhooks\.example\.invalid'],
             default => null,
         };
-        return $route !== null && $method === $route[0] && preg_match('~^'.$route[1].'$~D', $endpoint, $matches) === 1
-            ? array_slice($matches, 1) : null;
+        if ($route === null || $method !== $route[0] || preg_match('~^'.$route[1].'$~D', $endpoint, $matches) !== 1) {
+            return null;
+        }
+        if (in_array($operation, ['PRODUCTS_READ','ORDERS_READ','UPLOADS_READ'], true)
+            && isset($matches[1]) && (int)$matches[1] > 2147483647) {
+            return null;
+        }
+        return array_slice($matches, 1);
     }
 
     private function dispatch(string $operation, array $route, array $body, ?int $version): array
@@ -459,10 +512,10 @@ final class SyntheticPrintifyTransport
 
     private function simulationShipment(array $order,string $topic,array $scope): ?array
     {
-        $shipment=$order['shipments'][0]??null;
-        if ($shipment===null) {
+        if (count($order['shipments'] ?? []) !== 1 || $order['status'] === 'partially-fulfilled') {
             return null;
         }
+        $shipment=$order['shipments'][0];
         $delivered=$topic==='order:shipment:delivered';
         if ($delivered && $shipment['delivered_at']===null) {
             return null;
@@ -765,10 +818,14 @@ final class SyntheticPrintifyTransport
     private function quote(array $body): array
     {
         $lines = $this->orderLines($body['line_items'] ?? null);
-        if ($lines === null || ($body['address_to']['country'] ?? null) !== 'US') {
+        $country = $body['address_to']['country'] ?? null;
+        if ($lines === null || !in_array($country, ['US','CA'], true)) {
             return self::error(422, 'shipping_unavailable');
         }
         $cost = 500 + (array_sum(array_column($lines, 'quantity')) - 1) * 200;
+        if ($country === 'CA') {
+            return self::response(200,['standard'=>$cost+300,'economy'=>$cost+150]);
+        }
         $groups=[];
         $mixedCost=0;
         foreach ($lines as $line) {
@@ -795,8 +852,11 @@ final class SyntheticPrintifyTransport
         $external = $body['external_id'] ?? null;
         $lines = $this->orderLines($body['line_items'] ?? null);
         if (!is_string($external) || preg_match('/^[A-Za-z0-9_-]{1,120}$/D', $external) !== 1
-            || $lines === null || ($body['address_to']['country'] ?? null) !== 'US') {
+            || $lines === null || !in_array($body['address_to']['country'] ?? null, ['US','CA'], true)) {
             return self::error(422, 'order_invalid');
+        }
+        if ($body['address_to']['country'] === 'CA' && ($express || !in_array($body['shipping_method'] ?? null, [1,4], true))) {
+            return self::error(422, 'shipping_unavailable');
         }
         $key = 'order:'.$external;
         if (isset($this->duplicates[$key])) {

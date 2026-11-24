@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace DigiForgePrintifyApi;
 
+use DigiForgePrintifyApi\Engine\PrintifyCatalogReadContract;
+
 if (!\defined('ABSPATH')) {
     exit;
 }
@@ -49,7 +51,8 @@ final class CatalogBrowser
         $read = static function (string $operation, array $input = []) use ($client): array {
             $result = $client->run($operation, $input);
             if ($result['state'] !== 'SYNTHETIC_OBSERVED') {
-                throw new \RuntimeException(match ($result['status']) {429=>'RATE_LIMITED',403=>'SCOPE_OR_TRANSPORT_UNAVAILABLE',default=>$result['reason']});
+                throw new \RuntimeException(match ($result['status']) {429=>'RATE_LIMITED',403=>'SCOPE_OR_TRANSPORT_UNAVAILABLE',default=>$result['reason']},
+                    (int)($result['bounded_retry_after'] ?? 0));
             }
             return $result['data'];
         };
@@ -78,7 +81,7 @@ final class CatalogBrowser
             if (isset($plan['variant_id'])) {
                 self::selected($variants, $plan['variant_id']);
                 $variant = $read('VARIANT_READ', $plan);
-                $data['print_areas'] = self::areas($variant);
+                $data['print_areas'] = PrintifyCatalogReadContract::variantAreas($variant);
                 $methods = $read('CATALOG_SHIPPING_READ', $provider);
                 $data['shipping_methods'] = array_map(static fn(array $row): string => $row['attributes']['name'], $methods['data']);
             }
@@ -103,7 +106,7 @@ final class CatalogBrowser
             return ['state'=>'OBSERVED', 'scope'=>['shop'=>$shop, 'account'=>$account, 'integration'=>null],
                 'source'=>'SYNTHETIC_PRINTIFY', 'observed_at'=>time(), 'freshness'=>'FIXTURE_ONLY', 'data'=>$data] + $base;
         } catch (\RuntimeException $error) {
-            return ['error'=>in_array($error->getMessage(), ['RATE_LIMITED','SCOPE_OR_TRANSPORT_UNAVAILABLE','REQUEST_VALIDATION','RESPONSE_VALIDATION',
+            return ['retry_after'=>$error->getCode() > 0 ? $error->getCode() : null, 'error'=>in_array($error->getMessage(), ['RATE_LIMITED','SCOPE_OR_TRANSPORT_UNAVAILABLE','REQUEST_VALIDATION','RESPONSE_VALIDATION',
                 'UNSUPPORTED_SELECTION'], true) ? $error->getMessage() : 'READ_UNAVAILABLE'] + $base;
         } catch (\Throwable) {
             return ['error'=>'RESPONSE_VALIDATION'] + $base;
@@ -129,31 +132,5 @@ final class CatalogBrowser
         return ['rows'=>array_slice($rows, ($page-1)*self::PAGE_SIZE, self::PAGE_SIZE),
             'page'=>$page, 'next_page'=>count($rows)>$page*self::PAGE_SIZE ? $page+1 : null,
             'provider_pagination_followed'=>false];
-    }
-
-    private static function areas(array $variant): ?array
-    {
-        if (!array_key_exists('placeholders', $variant)) {
-            return null;
-        }
-        $areas = $variant['placeholders'];
-        if (!is_array($areas) || !array_is_list($areas) || count($areas)>50) {
-            throw new \RuntimeException('RESPONSE_VALIDATION');
-        }
-        $out = [];
-        foreach ($areas as $area) {
-            if (!is_array($area) || !is_string($area['position'] ?? null)
-                || preg_match('/^[A-Za-z0-9_-]{1,60}$/D', $area['position']) !== 1) {
-                throw new \RuntimeException('RESPONSE_VALIDATION');
-            }
-            foreach (['width', 'height'] as $dimension) {
-                if (isset($area[$dimension]) && (!is_int($area[$dimension]) || $area[$dimension]<1)) {
-                    throw new \RuntimeException('RESPONSE_VALIDATION');
-                }
-            }
-            $out[] = ['position'=>$area['position'], 'width'=>$area['width'] ?? null,
-                'height'=>$area['height'] ?? null, 'bleed'=>null, 'safe_zone'=>null];
-        }
-        return $out;
     }
 }

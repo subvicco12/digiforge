@@ -16,11 +16,26 @@ class PrintifySharedDependencyBoundaryTest(unittest.TestCase):
         self.assertFalse(any(manifest['policy'].values()))
         self.assertEqual(16,sum(x['consumption']=='owner-approved-shared-core' for x in manifest['runtime_files']))
         for ref in manifest['refs'].values(): self.assertRegex(ref,r'^[a-f0-9]{40}$')
+        geometry = json.loads((ROOT/'docs/engineering/printify-catalog-geometry-successor-overlay.json').read_text())
+        self.assertEqual(1, geometry['schema_version'])
+        self.assertEqual('5c51fa08256309600a52e9c36e9ec0ab8ed272f0', geometry['source_commit'])
+        self.assertEqual('includes/POD/PrintifyCatalogReadContract.php', geometry['path'])
+        self.assertFalse(geometry['runtime_authority_provisioned'])
+        self.assertFalse(geometry['grant_limits_changed'])
         for row in manifest['runtime_files']:
             self.assertTrue(row['path'].startswith('includes/'))
             self.assertNotIn('..',Path(row['path']).parts)
             self.assertRegex(row['selected_sha256'],r'^[a-f0-9]{64}$')
             data=(ROOT/row['path']).read_bytes()
+            # Undo the later geometry change before the historical qualification overlays.
+            if row['path'] == geometry['path']:
+                self.assertEqual(geometry['overlay_sha256'], hashlib.sha256(data).hexdigest())
+                text = data.decode()
+                for hunk in reversed(geometry['hunks']):
+                    self.assertEqual(1, text.count(hunk['reviewed_text']))
+                    text = text.replace(hunk['reviewed_text'], hunk['baseline_text'], 1)
+                data = text.encode()
+                self.assertEqual(geometry['baseline_sha256'], hashlib.sha256(data).hexdigest())
             acceptance=json.loads((ROOT/'docs/engineering/printify-acceptance-overlay.json').read_text())
             self.assertEqual('OWNER_GET_ONLY_ACCEPTANCE_BRIDGE_PR1260',acceptance['authorization'])
             self.assertFalse(acceptance['runtime_authority_provisioned'])

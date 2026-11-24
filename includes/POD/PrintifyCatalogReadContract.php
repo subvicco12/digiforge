@@ -36,9 +36,41 @@ final class PrintifyCatalogReadContract {
   }
   if(in_array($r['kind'],['blueprints','providers'],true)){self::records($data);return $data;}
   $variants=$data['variants']??null;if(!is_array($variants))throw new \InvalidArgumentException('Variant response missing.');
-  self::records($variants);if($r['kind']==='variants')return $data;
+  self::records($variants);
+  if(array_key_exists('id',$data)&&$data['id']!==$r['blueprint_id'])throw new \InvalidArgumentException('Variant blueprint identity mismatch.');
+  foreach ($variants as $variant) {
+   self::variantAreas($variant);
+  }
+  if($r['kind']==='variants')return $data;
   $matches=array_values(array_filter($variants,static fn($v)=>$v['id']===$r['variant_id']));if(count($matches)!==1)throw new \InvalidArgumentException('Exact variant is absent or ambiguous.');return $matches[0];
  }
+    public static function variantAreas(array $variant): ?array
+    {
+        if (!array_key_exists('placeholders', $variant)) {
+            return null;
+        }
+        $areas = $variant['placeholders'];
+        if (!is_array($areas) || !array_is_list($areas) || count($areas)>50) {
+            throw new \InvalidArgumentException('Invalid catalog print-area evidence.');
+        }
+        $out = [];
+        $seen = [];
+        foreach ($areas as $area) {
+            if (!is_array($area) || !is_string($area['position'] ?? null)
+                || preg_match('/^[A-Za-z0-9_-]{1,60}$/D', $area['position']) !== 1 || isset($seen[$area['position']])) {
+                throw new \InvalidArgumentException('Invalid catalog print-area evidence.');
+            }
+            $seen[$area['position']] = true;
+            foreach (['width', 'height'] as $dimension) {
+                if (isset($area[$dimension]) && (!is_int($area[$dimension]) || ($area[$dimension]<1 || $area[$dimension]>2147483647))) {
+                    throw new \InvalidArgumentException('Invalid catalog print-area evidence.');
+                }
+            }
+            $out[] = ['position'=>$area['position'], 'width'=>$area['width'] ?? null,
+                'height'=>$area['height'] ?? null, 'bleed'=>null, 'safe_zone'=>null];
+        }
+        return $out;
+    }
  /** Blueprint-specific provider evidence from the official v1 object. */
  private static function provider(array $data):void {
   self::exact($data,['id','title','decoration_methods','production_time']);self::record($data);

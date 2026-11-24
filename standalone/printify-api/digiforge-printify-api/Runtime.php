@@ -36,7 +36,12 @@ final class Runtime
         ] as $label => $value) {
             echo '<dt>' . \esc_html($label) . '</dt><dd>' . \esc_html($value) . '</dd>';
         }
-        echo '</dl>';
+        echo '</dl><nav aria-label="Standalone sections"><a href="#df-account">Account configuration</a>';
+        if (self::syntheticModulesAvailable() && self::workspaceScopes() !== []) {
+            echo ' · <a href="#df-catalog">Catalog browser</a> · <a href="#df-records">Product and order records</a>';
+        }
+        echo '</nav>';
+        AccountProfile::render($_POST);
         if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
             require_once __DIR__ . '/SyntheticOperatorPanel.php';
             SyntheticOperatorPanel::render();
@@ -63,8 +68,32 @@ final class Runtime
         if ($workspace !== null) {
             require_once __DIR__ . '/SyntheticWorkspacePanel.php';
             SyntheticWorkspacePanel::render($workspace, $selection, array_keys(self::workspaceScopes()));
+            self::renderAuditExport($workspace, $selection);
         }
         echo '</div>';
+    }
+
+    private static function renderAuditExport(SyntheticWorkspace $workspace, string $shop): void
+    {
+        $action = 'digiforge_printify_redacted_fixture_audit:'.$shop;
+        echo '<section><h3>Redacted audit export</h3><form method="post">';
+        echo '<input type="hidden" name="df_workspace_shop" value="'.\esc_attr($shop).'">';
+        \wp_nonce_field($action, 'df_printify_audit_nonce');
+        echo '<button type="submit" name="df_printify_audit_export" value="1">Prepare redacted JSON</button></form>';
+        if (isset($_POST['df_printify_audit_export'])) {
+            $nonce = $_POST['df_printify_audit_nonce'] ?? null;
+            $audit = is_string($nonce) && \wp_verify_nonce($nonce, $action) ? $workspace->redactedAuditExport() : null;
+            if ($audit === null) {
+                echo '<p role="status">Audit export denied or unavailable for this fixture scope.</p>';
+            } else {
+                $json = json_encode($audit, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE);
+                if ($json !== false) {
+                    echo '<a download="printify-fixture-audit.json" href="'.\esc_attr('data:application/json;base64,'.base64_encode($json))
+                        .'">Download redacted fixture audit</a>';
+                }
+            }
+        }
+        echo '</section>';
     }
 
     /** The config supplies only a local shop scope, never provider authority. */
@@ -289,6 +318,29 @@ final class Runtime
     {
         require_once __DIR__.'/CustodyReadTransport.php';
         return CustodyReadTransport::read($scope,$operation,$input,$exchange,$fixture);
+    }
+
+    /** Internal fixture-only entry point. No operational custody or HTTP route is enabled. */
+    public static function readFromConfiguredCustodyFixture(
+        string $integration, array $scope, string $operation, array $input, \Closure $exchange
+    ): array {
+        require_once __DIR__.'/CustodyReadTransport.php';
+        return CustodyReadTransport::readFromProfile($integration, $scope, $operation, $input, $exchange);
+    }
+
+    /** A signed fixture observation is returned only after the local audit receipt is committed. */
+    public static function auditConfiguredCustodyFixture(
+        int $revision, string $correlationId, string $integration, array $scope, string $operation, array $input, \Closure $exchange
+    ): array {
+        $shop = $scope['shop'] ?? null;
+        $workspace = is_string($shop) ? self::syntheticWorkspace($shop) : null;
+        if ($workspace === null) {
+            return ['state'=>'DENIED','reason'=>'CUSTODY_AUDIT_WORKSPACE_UNAVAILABLE',
+                'provider_execution_authorized'=>false,'retry_permitted'=>false];
+        }
+        return $workspace->execute($revision,$correlationId,'FIXTURE_CUSTODY_READ',
+            ['integration'=>$integration,'scope'=>$scope,'operation'=>$operation,'selection'=>$input],
+            custodyExchange:$exchange);
     }
 
     /** Explicit local adapter path. Never registered as an HTTP or operator dispatch action. */
