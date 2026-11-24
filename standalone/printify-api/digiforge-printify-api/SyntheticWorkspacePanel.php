@@ -426,7 +426,8 @@ final class SyntheticWorkspacePanel
         $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields'.\esc_attr($key).'"';
         $required = $prefix !== '' && $field === 'destination' ? ' required'
             : ($group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required');
-        $value = $preset ?? ($group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '');
+        $value = $preset ?? ($group === null && !($op === 'PRODUCT_UPDATE' && $field === 'variant_id')
+            ? (self::FIELD_DEFAULTS[$field] ?? '') : '');
         if ($field === 'publication_fields') {
             echo '<fieldset><legend>'.\esc_html($label).'</legend>';
             foreach (self::PUBLICATION_FIELDS as $key=>$title) {
