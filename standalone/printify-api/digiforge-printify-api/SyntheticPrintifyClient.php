@@ -336,7 +336,7 @@ final class SyntheticPrintifyClient
             $projection=PrintifyApiReadEvidence::project($operation,$body,$this->shop,$input);
             if ($operation === 'PRODUCT_READ' && array_key_exists('synthetic_version', $body)) {
                 $version = $body['synthetic_version'];
-                $pending = $body['synthetic_publish_pending'] ?? false;
+                $pending = array_key_exists('synthetic_publish_pending', $body) ? $body['synthetic_publish_pending'] : false;
                 $state = $body['synthetic_publication_state'] ?? ($pending ? 'PENDING' : 'UNPUBLISHED');
                 if (!is_int($version) || $version < 1 || !is_bool($pending)
                     || !in_array($state, ['PENDING','PUBLISHED','UNPUBLISHED','FAILED'], true)
@@ -390,8 +390,11 @@ final class SyntheticPrintifyClient
         }
         if ($operation==='IMAGE_UPLOAD'||$operation==='IMAGE_READ') {
             $image=self::projectImage($body);
-            if ($operation==='IMAGE_UPLOAD'&&$image['file_name']!==$input['file_name']) {
-                throw new \InvalidArgumentException('Mismatched image filename.');
+            if ($operation === 'IMAGE_UPLOAD') {
+                if ($status !== 201 || $image['file_name'] !== $input['file_name']) {
+                    throw new \InvalidArgumentException('Mismatched image upload response.');
+                }
+                PrintifyProductResponse::project(['request'=>$plan,'options'=>[]], $body);
             }
             return $image;
         }

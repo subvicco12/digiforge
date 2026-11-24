@@ -59,6 +59,60 @@ $cases = [
     ['ORDER_CANCEL', $orderId, $order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json']],
     ['LINE_ITEM_CANCEL', [], ['bad'=>true], ['endpoint'=>'/v1/shops/107/orders/order-1/line_items/line-1/cancel.json'], 204],
 ];
+$webhook = ['id'=>'webhook-1','topic'=>'order:created','shop_id'=>107,'url'=>'https://webhooks.example.invalid/printify'];
+$webhooks = '/v1/shops/107/webhooks';
+$personalization = '/v1/shops/107/products/product-1/personalization';
+$cases = array_merge($cases, [
+    ['BLUEPRINT_PROVIDERS_READ', ['blueprint_id'=>42], [['id'=>7],['id'=>7]]],
+    ['PROVIDER_READ', ['provider_id'=>7], ['id'=>8,'title'=>'Other provider']],
+    ['SIZE_GUIDE_READ', ['blueprint_id'=>42], ['sizes'=>['S','S'],'types'=>[]]],
+    ['CATALOG_SHIPPING_READ', $catalog, ['data'=>[],'links'=>['standard'=>'https://wrong.example.invalid']]],
+    ['CATALOG_SHIPPING_V1_READ', $catalog, ['handling_time'=>['value'=>2,'unit'=>'days'],'profiles'=>['malformed']]],
+    ['IMAGE_ARCHIVE', $imageId, [], [], 201],
+    ['PRODUCTS_READ', [], ['data'=>[$product,$product],'current_page'=>1,'per_page'=>10,'last_page'=>1]],
+    ['PRODUCT_GPSR_READ', $catalog+$productId+['variant_ids'=>[9]], [['title'=>[], 'text'=>'Malformed']]],
+    ['PRODUCT_DELETE', $productId, ['id'=>'different']],
+    ['ORDER_READ', $orderId, ['id'=>'order-2']+$order],
+    ['ORDERS_READ', [], ['data'=>[$order,$order],'current_page'=>1]],
+    ['WEBHOOKS_READ', [], [$webhook,$webhook], ['endpoint'=>$webhooks.'.json','body'=>[]]],
+    ['WEBHOOK_CREATE', [], ['shop_id'=>108]+$webhook, ['endpoint'=>$webhooks.'.json','body'=>[]], 201],
+    ['WEBHOOK_UPDATE', [], ['id'=>'webhook-2']+$webhook, ['endpoint'=>$webhooks.'/webhook-1.json',
+        'body'=>[],'input'=>['webhook_id'=>'webhook-1']]],
+    ['WEBHOOK_DELETE', [], ['id'=>'webhook-2'], ['endpoint'=>$webhooks.'/webhook-1.json?host=webhooks.example.invalid']],
+    ['PERSONALIZATION_OPTIONS', $productId, [['field_id'=>'name','type'=>'unknown']], ['body'=>[],'endpoint'=>$personalization.'_options.json']],
+    ['PERSONALIZATION_CONFIGURE', $productId, ['personalisation_strategy'=>false], ['body'=>[],'endpoint'=>$personalization.'.json'], 201],
+    ['PREVIEW_CREATE', $productId, ['status'=>'pending'], ['body'=>[],'endpoint'=>$personalization.'_previews.json'], 202],
+    ['PREVIEW_READ', $productId, ['task_id'=>'wrong-task','status'=>'pending'],
+        ['body'=>[],'endpoint'=>$personalization.'_previews/tasks/preview-1.json']],
+    ['SHOP_DISCONNECT', [], ['unexpected'=>true]],
+    ['ORDER_EXPRESS_CREATE', $orderInput, ['data'=>[]]],
+    ['WEBHOOK_SIMULATE', [], ['unexpected'=>true], [], 204],
+]);
+$prepare = new ReflectionMethod($client, 'prepare');
+$address = $orderId+['first_name'=>'Fixture','last_name'=>'Buyer','address1'=>'2 Fixture Street','city'=>'Testville','country'=>'US','zip'=>'90210'];
+$supportItems = $orderId+['reason'=>'wrong_design','description'=>'Fixture','line_items'=>[['line_item_id'=>'line-1','quantity'=>1]]];
+foreach ([
+    ['SUPPORT_LIST',$orderId,['data'=>null],200],
+    ['SUPPORT_DETAIL',$orderId+['support_request_id'=>'support-order-1-1'],['data'=>null],200],
+    ['SUPPORT_REFUND',$supportItems,['id'=>null],201],
+    ['SUPPORT_REPRINT',$supportItems,['id'=>null],201],
+    ['SUPPORT_ADDRESS_CHANGE',$address,['resolution'=>'updated_directly','order_id'=>'wrong-order'],200],
+    ['ORDER_ADDRESS_CHANGE',$address,['resolution'=>'updated_directly','order_id'=>'wrong-order'],200],
+] as [$selector,$input,$body,$status]) {
+    $cases[] = [$selector,$input,$body,$prepare->invoke($client,$selector,$input),$status];
+}
+$pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC';
+$cases[] = ['IMAGE_UPLOAD', ['file_name'=>'fixture.png'], [
+    'id'=>'image-1','file_name'=>'fixture.png','width'=>2,'height'=>1,
+    'size'=>strlen(base64_decode($pixel,true)),'mime_type'=>'image/png',
+], ['body'=>['contents'=>$pixel]], 201];
+foreach (['standard','priority','express','economy'] as $method) {
+    $cases[] = ['CATALOG_SHIPPING_METHOD_READ',$catalog+['method'=>$method],['data'=>[['id'=>'9','type'=>'wrong-type',
+        'attributes'=>['shippingType'=>$method,'country'=>['code'=>'US'],'variantId'=>9]]]]];
+}
+if (array_diff($client::operations(), array_unique(array_column($cases, 0))) !== []) {
+    throw new RuntimeException('Missing reviewed selector response case');
+}
 foreach ($cases as $case) {
     [$selector,$input,$body] = $case;
     $plan = ($case[3] ?? []) + ['operation'=>$selector,'provider_shop_id'=>'107'];
@@ -71,3 +125,12 @@ foreach ($cases as $case) {
     throw new RuntimeException('Malformed response admitted for '.$selector);
 }
 echo 'Response qualification PASS ('.count($cases)." malformed responses)\n";
+
+foreach (['standard','priority','express','economy'] as $method) {
+    $result = $client->run('CATALOG_SHIPPING_METHOD_READ', $catalog+['method'=>$method]);
+    if ($result['state'] !== 'SYNTHETIC_OBSERVED' || $result['provider_execution_authorized']
+        || ($method === 'standard' ? count($result['data']['data']) !== 1 : $result['data']['data'] !== [])) {
+        throw new RuntimeException('Unexpected fixture rate for '.$method);
+    }
+}
+echo "Catalog method availability PASS: standard fixture rate and three empty observations\n";
