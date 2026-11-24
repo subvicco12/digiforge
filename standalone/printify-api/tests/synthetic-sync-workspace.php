@@ -160,6 +160,58 @@ if ($phase === 'write') {
     }
     requireFixture($before === $workspace->readRecords('orders', null, 1, 10)['data']
         && $beforeProducts === $workspace->readRecords('products', null, 1, 10)['data'], 'Preview changed fixture records');
+    $submit = static function (string $op, array $input, bool $preview = false, array $edit = []) use ($workspace): array {
+        $revision = $workspace->inspect()['revision'];
+        return $workspace->execute($revision, hash('sha256','proposal:'.$revision), $op, $input, $preview, null, $edit);
+    };
+    $review = static fn(array $proposal, string $decision, array $extra = []): array => $submit('FIXTURE_PROPOSAL_REVIEW',
+        ['proposal_id'=>$proposal['id'],'proposal_revision'=>$proposal['revision'],'decision'=>$decision] + $extra);
+    requireFixture(str_contains($send('PRODUCT_PUBLISH', ['product_id'=>'product-1','expected_version'=>'1',
+        'publication_field'=>'title'], true), 'PENDING_APPROVAL'), 'Structured publishing preview failed');
+    requireFixture(str_contains($send('PRODUCT_UNPUBLISH_NOTIFY', ['product_id'=>'product-2','expected_version'=>'3'], true),
+        'PENDING_APPROVAL'), 'Structured unpublishing preview failed');
+    $approval = $submit('ORDER_CANCEL', ['order_id'=>'order-2'], true)['proposal'];
+    requireFixture($approval['state']==='PENDING_APPROVAL' && $approval['revision']===1, 'Pending proposal not persisted');
+    $edit = ['id'=>$approval['id'],'revision'=>1];
+    $updated = $submit('ORDER_CANCEL', ['order_id'=>'order-2'], true, $edit)['proposal'];
+    requireFixture($updated['id']===$approval['id'] && $updated['revision']===2, 'Revision did not advance');
+    requireFixture($submit('ORDER_CANCEL', ['order_id'=>'order-2'], true, $edit)['reason']
+        === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Stale edit admitted');
+    requireFixture($review($approval, 'approve')['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION', 'Stale approval admitted');
+    $held = $review($updated, 'approve');
+    requireFixture($held['state']==='APPROVED_HELD' && !$held['provider_execution_authorized'], 'Approval granted execution');
+    requireFixture($review($updated, 'approve')['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION', 'Duplicate approval admitted');
+    $wrong = $submit('FIXTURE_READ_SYNC', ['kind'=>'orders','integration'=>'fixture-read','selection'=>['id'=>'order-1']]);
+    $receipts = array_values(array_filter($workspace->inspect()['audit'], static fn(array $a): bool => isset($a['sync_receipt'])));
+    $wrongId = end($receipts)['operation_id'];
+    requireFixture($wrong['state']==='OBSERVED' && $review($held['proposal'], 'reconcile', ['receipt_id'=>$wrongId])['reason']
+        === 'PROPOSAL_RECEIPT_MISMATCH', 'Wrong-resource receipt admitted');
+    $submit('FIXTURE_READ_SYNC', ['kind'=>'orders','integration'=>'fixture-read','selection'=>['id'=>'order-2']]);
+    $receipts = array_values(array_filter($workspace->inspect()['audit'], static fn(array $a): bool => isset($a['sync_receipt'])));
+    $receiptId = end($receipts)['operation_id'];
+    $reconciled = $review($held['proposal'], 'reconcile', ['receipt_id'=>$receiptId]);
+    requireFixture($reconciled['state']==='RECONCILED_FIXTURE_OBSERVATION' && !$reconciled['provider_outcome_confirmed'],
+        'Matching receipt did not link as observation');
+    $bad = $submit('ORDER_CANCEL', ['order_id'=>'order-99'], true)['proposal'];
+    requireFixture($bad['state']==='BLOCKED' && $review($bad, 'reject')['state']==='REJECTED', 'Blocked proposal not rejectable');
+    $cancel = $submit('ORDER_CANCEL', ['order_id'=>'order-2'], true)['proposal'];
+    requireFixture($review($cancel, 'cancel')['state']==='CANCELLED', 'Cancellation decision not retained');
+    $otherProfile = ['account'=>'different-fixture'] + $profile;
+    requireFixture(\DigiForgePrintifyApi\AccountProfile::save($otherProfile,
+        wp_create_nonce('digiforge_printify_account_profile_save')) === 'SAVED_LOCAL_METADATA', 'Other scope setup failed');
+    requireFixture($workspace->inspect()['proposals'] === [] && $review($reconciled['proposal'], 'cancel')['reason']
+        === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Cross-account proposal disclosed or accepted');
+    requireFixture(\DigiForgePrintifyApi\AccountProfile::save($profile,
+        wp_create_nonce('digiforge_printify_account_profile_save')) === 'SAVED_LOCAL_METADATA', 'Original scope restore failed');
+    requireFixture($submit('FIXTURE_PROPOSAL_REVIEW',
+        ['proposal_id'=>$cancel['id'],'proposal_revision'=>['malformed'],'decision'=>'cancel'])['reason']
+        === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Malformed proposal revision admitted');
+    wp_set_current_user(0);
+    requireFixture($workspace->execute(0, hash('sha256','anonymous'), 'FIXTURE_PROPOSAL_REVIEW', [])['state']==='DENIED',
+        'Anonymous review admitted');
+    wp_set_current_user(1);
+    requireFixture($before === $workspace->readRecords('orders', null, 1, 10)['data'], 'Review mutated order data');
+    echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
 } else {
     $retained = array_column($workspace->inspect()['audit'], 'sync_receipt');
@@ -167,5 +219,10 @@ if ($phase === 'write') {
         && preg_match('/^[a-f0-9]{64}$/D', $retained[0]['projection_sha256']) === 1, 'Synchronization receipt lost on reopen');
     requireFixture(count(array_filter($workspace->inspect()['audit'], static fn(array $a): bool =>
         ($a['preview_only'] ?? false) === true)) >= 8, 'Preview audit lost on reopen');
+    $states = array_column($workspace->inspect()['proposals'], 'state');
+    foreach (['REJECTED','CANCELLED','RECONCILED_FIXTURE_OBSERVATION'] as $state) {
+        requireFixture(in_array($state,$states,true), 'Proposal state lost on reopen: '.$state);
+    }
+    echo "Checkpoint 3 proposals reopen PASS\n";
     echo "Checkpoint 2 durable receipts and previews reopen PASS\n";
 }

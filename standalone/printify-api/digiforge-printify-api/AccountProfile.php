@@ -89,7 +89,7 @@ final class AccountProfile
         if (!\current_user_can('manage_options')) {
             return;
         }
-        echo '<section><h2>Account configuration</h2>';
+        echo '<section id="df-account"><h2>Account configuration</h2>';
         echo '<p>Save shop and account references for offline planning. Provider connectivity is disabled. Do not enter credentials.</p>';
         if (isset($post[self::FORM])) {
             $input = $post['df_printify_profile'] ?? null;

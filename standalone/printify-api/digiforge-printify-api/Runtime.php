@@ -36,7 +36,11 @@ final class Runtime
         ] as $label => $value) {
             echo '<dt>' . \esc_html($label) . '</dt><dd>' . \esc_html($value) . '</dd>';
         }
-        echo '</dl>';
+        echo '</dl><nav aria-label="Standalone sections"><a href="#df-account">Account configuration</a>';
+        if (self::syntheticModulesAvailable() && self::workspaceScopes() !== []) {
+            echo ' · <a href="#df-catalog">Catalog browser</a> · <a href="#df-records">Product and order records</a>';
+        }
+        echo '</nav>';
         AccountProfile::render($_POST);
         if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
             require_once __DIR__ . '/SyntheticOperatorPanel.php';

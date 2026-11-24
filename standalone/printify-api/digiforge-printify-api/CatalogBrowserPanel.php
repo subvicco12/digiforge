@@ -11,7 +11,7 @@ final class CatalogBrowserPanel
 {
     public static function render(array $scopes, array $query): void
     {
-        echo '<section><h2>Read-only catalog browser</h2>';
+        echo '<section id="df-catalog"><h2>Read-only catalog browser</h2>';
         echo '<p>Synthetic observations only. Printify network access is disabled.</p>';
         $shops = [];
         foreach ($scopes as $id=>$account) {

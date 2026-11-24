@@ -63,7 +63,9 @@ final class SyntheticWorkspacePanel
             }
             echo '</select> <button type="submit">Open workspace</button></form>';
         }
+        echo '<nav aria-label="Fixture operations"><a href="#df-sync">Synchronization</a> · <a href="#df-products">Products</a> · <a href="#df-orders">Orders and shipment tracking</a> · <a href="#df-proposals">Approval queue</a> · <a href="#df-workspace-audit">Audit and reconciliation</a></nav>';
         self::renderSync($shop, $current['revision']);
+        self::renderProposals($shop, $current['revision'], $current['proposals']);
         self::renderOperationForms($shop, $current['revision']);
         echo '<details><summary>Advanced operation input (JSON)</summary>';
         self::startForm($shop, $current['revision']);
@@ -139,10 +141,48 @@ final class SyntheticWorkspacePanel
         }
     }
 
+    private static function renderProposals(string $shop, int $revision, array $proposals): void
+    {
+        echo '<h3 id="df-proposals">Approval queue</h3><p>Local review decisions never authorize execution. UNKNOWN stays quarantined.</p>';
+        if ($proposals === []) {
+            echo '<p>Preview a supported operation in the configured shop to save a proposal.</p>';
+        }
+        foreach (array_reverse($proposals) as $proposal) {
+            $state = $proposal['state'];
+            echo '<details><summary>'.\esc_html($proposal['operation'].' · '.$state.' · revision '.$proposal['revision']).'</summary>';
+            echo '<p>Proposal <code>'.\esc_html($proposal['id']).'</code></p>';
+            if (isset($proposal['receipt_id'])) {
+                echo '<p>Fixture receipt <code>'.\esc_html($proposal['receipt_id']).'</code></p>';
+            }
+            echo '<pre>'.\esc_html(json_encode($proposal['configuration'], JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) ?: '').'</pre>';
+            if (isset($proposal['quote_projection'])) {
+                echo '<p>Synthetic quotation</p><pre>'.\esc_html(json_encode($proposal['quote_projection'], JSON_PRETTY_PRINT) ?: '').'</pre>';
+            }
+            $decisions = match ($state) {
+                'PENDING_APPROVAL'=>['approve'=>'Approve and hold','reject'=>'Reject','cancel'=>'Cancel'],
+                'BLOCKED'=>['reject'=>'Reject','cancel'=>'Cancel'],
+                'APPROVED_HELD'=>['cancel'=>'Cancel','reconcile'=>'Link fixture receipt'],
+                default=>[],
+            };
+            foreach ($decisions as $decision=>$label) {
+                self::startForm($shop, $revision);
+                echo '<input type="hidden" name="df_workspace_operation" value="FIXTURE_PROPOSAL_REVIEW">';
+                foreach (['proposal_id'=>$proposal['id'],'proposal_revision'=>(string)$proposal['revision'],'decision'=>$decision] as $field=>$value) {
+                    echo '<input type="hidden" name="df_proposal['.\esc_attr($field).']" value="'.\esc_attr($value).'">';
+                }
+                if ($decision === 'reconcile') {
+                    echo '<label>New fixture detail receipt ID <input name="df_proposal[receipt_id]" maxlength="64" required></label> ';
+                }
+                echo '<button type="submit">'.\esc_html($label).'</button></form>';
+            }
+            echo '</details>';
+        }
+    }
+
     private static function renderSync(string $shop, int $revision): void
     {
         $profile = AccountProfile::current();
-        echo '<h3>Synthetic synchronization</h3>';
+        echo '<h3 id="df-sync">Synthetic synchronization</h3>';
         if (($profile['shop'] ?? null) !== $shop) {
             echo '<p>Save matching account configuration to synchronize this fixture shop.</p>';
             return;
@@ -214,6 +254,8 @@ final class SyntheticWorkspacePanel
             'IMAGE_ARCHIVE'=>['Archive fixture image', ['image_id']],
             'PRODUCT_CREATE'=>['Create fixture product', ['title','description','blueprint_id','print_provider_id','variant_id','price','image_id','position','x','y','scale','angle']],
             'PRODUCT_UPDATE'=>['Update fixture product', ['product_id','expected_version','title','description','variant_id','price']],
+            'PRODUCT_PUBLISH'=>['Preview product publishing', ['product_id','expected_version','publication_field']],
+            'PRODUCT_UNPUBLISH_NOTIFY'=>['Preview product unpublishing', ['product_id','expected_version']],
             'PRODUCT_DELETE'=>['Delete fixture product', ['product_id','expected_version']],
             'PRODUCT_READ'=>['Inspect fixture product', ['product_id','blueprint_id','provider_id','variant_id']],
             'PRODUCTS_READ'=>['List fixture products', ['page','limit']],
@@ -250,7 +292,12 @@ final class SyntheticWorkspacePanel
     {
         $supported = [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM', 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE'];
         foreach (self::FORMS as $section=>$operations) {
-            echo '<h3>'.\esc_html($section).'</h3>';
+            $anchor = match ($section) {
+                'Fixture artwork and products'=>'df-products',
+                'Shipping, orders and tracking'=>'df-orders',
+                default=>null,
+            };
+            echo '<h3'.($anchor === null ? '' : ' id="'.\esc_attr($anchor).'"').'>'.\esc_html($section).'</h3>';
             foreach ($operations as $op=>[$label,$fields]) {
                 if (!in_array($op,$supported,true)) {
                     continue;
@@ -281,9 +328,14 @@ final class SyntheticWorkspacePanel
                     echo '<p>Choose one PNG file or paste its base64 contents.</p>';
                 }
                 if (in_array($op, SyntheticWorkspace::PREVIEW_OPERATIONS, true)) {
+                    echo '<p><label>Existing proposal ID (optional) <input name="df_edit_proposal_id" maxlength="64"></label> ';
+                    echo '<label>Proposal revision <input name="df_edit_proposal_revision" inputmode="numeric" maxlength="3"></label></p>';
                     echo '<button type="submit" name="df_workspace_preview" value="1">Preview without changing fixture records</button> ';
                 }
-                echo '<p><button type="submit" class="button">'.\esc_html($label).'</button></p></form></details>';
+                if (!in_array($op, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
+                    echo '<p><button type="submit" class="button">'.\esc_html($label).'</button></p>';
+                }
+                echo '</form></details>';
             }
         }
     }
@@ -319,6 +371,7 @@ final class SyntheticWorkspacePanel
         'product_id'=>'Product ID','task_id'=>'Preview task ID','title'=>'Product title','description'=>'Product description',
         'price'=>'Price (minor units)','position'=>'Print-area position','x'=>'Horizontal position (0–1)',
         'y'=>'Vertical position (0–1)','scale'=>'Artwork scale','angle'=>'Artwork angle in degrees',
+        'publication_field'=>'Publication field (title, description, images, variants or tags)',
         'expected_version'=>'Expected synthetic product version','external_id'=>'Fixture reference',
         'quantity'=>'Quantity','shipping_method'=>'Shipping method code','order_id'=>'Order ID','line_item_id'=>'Line item ID',
         'topic'=>'Event topic','url'=>'Synthetic callback destination','webhook_id'=>'Webhook ID',
@@ -450,6 +503,14 @@ final class SyntheticWorkspacePanel
         }
         foreach ($groups as $group=>$keys) {
             $typed[$group] = self::readRows($group,$fields[$group] ?? [],$keys);
+        }
+        if ($op === 'PRODUCT_PUBLISH') {
+            $field = $typed['publication_field'];
+            if (!in_array($field, ['title','description','images','variants','tags'], true)) {
+                throw new \InvalidArgumentException('publication_field');
+            }
+            unset($typed['publication_field']);
+            $typed['publish_fields'] = [$field=>true];
         }
         return self::assemble($shop,$op,$typed);
     }
@@ -647,6 +708,25 @@ final class SyntheticWorkspacePanel
         if ($preview !== null && ($preview !== '1' || !in_array($op, SyntheticWorkspace::PREVIEW_OPERATIONS, true))) {
             return ['state'=>'DENIED','reason'=>'INVALID_PREVIEW_OPERATION'];
         }
+        if ($op === 'FIXTURE_PROPOSAL_REVIEW') {
+            $review = $_POST['df_proposal'] ?? null;
+            if (!is_array($review) || !is_string($review['proposal_revision'] ?? null)
+                || preg_match('/^[1-9][0-9]{0,2}$/D', $review['proposal_revision']) !== 1) {
+                return ['state'=>'DENIED','reason'=>'INVALID_PROPOSAL_REVIEW'];
+            }
+            $review['proposal_revision'] = (int)$review['proposal_revision'];
+            return $workspace->execute((int)$revision, $id, $op, $review);
+        }
+        $edit = [];
+        $editId = $_POST['df_edit_proposal_id'] ?? '';
+        $editRevision = $_POST['df_edit_proposal_revision'] ?? '';
+        if ($editId !== '' || $editRevision !== '') {
+            if ($preview !== '1' || !is_string($editId) || preg_match('/^[a-f0-9]{64}$/D', $editId) !== 1
+                || !is_string($editRevision) || preg_match('/^[1-9][0-9]{0,2}$/D', $editRevision) !== 1) {
+                return ['state'=>'DENIED','reason'=>'INVALID_PROPOSAL_EDIT'];
+            }
+            $edit = ['id'=>$editId,'revision'=>(int)$editRevision];
+        }
         if ($op === 'FIXTURE_READ_SYNC') {
             $input = self::syncInput($_POST['df_workspace_sync'] ?? null);
             return $input === null ? ['state'=>'DENIED','reason'=>'INVALID_SELECTION']
@@ -662,7 +742,7 @@ final class SyntheticWorkspacePanel
             } catch (\InvalidArgumentException $e) {
                 return ['state'=>'DENIED','reason'=>'INVALID_OPERATION_FIELD','field'=>$e->getMessage()];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1');
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit);
         }
         $raw=$_POST['df_workspace_input']??null;
         if (array_key_exists('df_workspace_fields',$_POST) || !is_string($raw) || strlen($raw)>3000000) {
@@ -674,7 +754,7 @@ final class SyntheticWorkspacePanel
             if (!str_starts_with($json,'{')||!is_array($input)) {
                 return ['state'=>'DENIED','reason'=>'INPUT_MUST_BE_JSON_OBJECT'];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1');
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit);
         } catch (\JsonException) {
             return ['state'=>'DENIED','reason'=>'MALFORMED_OPERATION_JSON'];
         }
