@@ -35,6 +35,7 @@ if ($phase === 'write') {
 }
 $workspace = Runtime::syntheticWorkspace('107');
 requireFixture($workspace !== null, 'Configured disposable workspace unavailable');
+$structured = getenv('DF_STANDALONE_TEST_SCENARIO') === 'structured';
 if ($phase === 'write') {
     $run = static function (string $op, array $input) use ($workspace): void {
         $rev = $workspace->inspect()['revision'];
@@ -107,6 +108,15 @@ if ($phase === 'write') {
             }
         }
     };
+    $operationResult = static function (string $html): array {
+        requireFixture(preg_match('/<pre[^>]+aria-labelledby="df-operation-result"[^>]*>(.*?)<\/pre>/s', $html, $m) === 1,
+            'Operation output missing');
+        return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), true, 24, JSON_THROW_ON_ERROR);
+    };
+    if ($structured) {
+        require __DIR__.'/structured-operator-wordpress.php';
+        return;
+    }
     $sync = static fn(string $kind, array $select = []): string =>
         $send('FIXTURE_READ_SYNC', ['kind'=>$kind,'integration'=>'fixture-read']+$select);
     $catalog = $sync('catalog', ['blueprint_id'=>'42','provider_id'=>'7','variant_id'=>'9','method'=>'standard']);
@@ -216,11 +226,6 @@ if ($phase === 'write') {
         'Anonymous review admitted');
     wp_set_current_user(1);
     requireFixture($before === $workspace->readRecords('orders', null, 1, 10)['data'], 'Review mutated order data');
-    $operationResult = static function (string $html): array {
-        requireFixture(preg_match('/<pre[^>]+aria-labelledby="df-operation-result"[^>]*>(.*?)<\/pre>/s', $html, $m) === 1,
-            'Operation output missing');
-        return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), true, 24, JSON_THROW_ON_ERROR);
-    };
     $quote = ['external_id'=>'cp4-quote','product_id'=>'product-1','variant_id'=>'9','quantity'=>'1'];
     foreach (['1','2','3','4'] as $method) {
         $html = $send('ORDER_SHIPPING_QUOTE', $quote + ['destination'=>'us','shipping_method'=>$method], true);
@@ -434,6 +439,10 @@ if ($phase === 'write') {
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
 } else {
+    if ($structured) {
+        require __DIR__.'/structured-operator-wordpress.php';
+        return;
+    }
     $retained = array_column($workspace->inspect()['audit'], 'sync_receipt');
     requireFixture(count($retained) >= 7 && $retained[0]['freshness'] === 'FIXTURE_ONLY'
         && preg_match('/^[a-f0-9]{64}$/D', $retained[0]['projection_sha256']) === 1, 'Synchronization receipt lost on reopen');
@@ -457,6 +466,7 @@ if ($phase === 'write') {
     $custodyAudit=array_values(array_filter($freshExport['entries'], static fn(array $row): bool =>
         $row['operation']==='FIXTURE_CUSTODY_READ' && isset($row['receipt_sha256'])));
     requireFixture(count($custodyAudit)===1 && $freshExport['profile']['change_receipts']!==[], 'Durable custody evidence lost on reopen');
+    require __DIR__.'/workspace-restore-wordpress.php';
     echo "Consolidated custody and profile receipts reopen PASS\n";
     echo "Checkpoint 5 correlated receipts and UNKNOWN reopen PASS\n";
     echo "Checkpoint 4 durable reconciliation and UNKNOWN reopen PASS\n";

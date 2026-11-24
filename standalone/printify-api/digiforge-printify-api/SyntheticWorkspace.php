@@ -37,7 +37,7 @@ final class SyntheticWorkspace
 
     public function inspect(): array
     {
-        $row = $this->load();
+        $row = $this->load(validateTransport: true);
         return ['revision'=>$row['revision'], 'audit'=>array_values($row['audit']), 'events'=>array_values($row['events']),
             'proposals'=>array_values(self::proposals($row['audit'], $this->proposalScope())),
             'detail_receipts'=>self::detailReceipts($row['audit'], $this->proposalScope())];
@@ -465,7 +465,7 @@ final class SyntheticWorkspace
             return null;
         }
         try {
-            $row = $this->load();
+            $row = $this->load(validateTransport: true);
         } catch (\Throwable) {
             return null;
         }
@@ -621,7 +621,7 @@ final class SyntheticWorkspace
         return ['state'=>$status===200?'SYNTHETIC_OBSERVED':'DENIED','status'=>$status,'reason'=>$reason];
     }
 
-    private function load():array
+    private function load(bool $validateTransport = false):array
     {
         if (!Runtime::permitsWorkspaceAccount($this->shop,$this->account) || !$this->idle()) {
             throw new \RuntimeException('Workspace scope or connection changed');
@@ -639,6 +639,9 @@ final class SyntheticWorkspace
         if (!is_array($decoded)||!array_is_list($decoded)||count($decoded)!==3
             || !is_array($decoded[0])||!is_array($decoded[1])||!is_array($decoded[2])||count($decoded[2])!==$revision) {
             throw new \RuntimeException('Fixture state invalid');
+        }
+        if ($validateTransport) {
+            (new SyntheticPrintifyTransport($this->shop))->restoreFixtureState($decoded[0]);
         }
         return ['revision'=>$revision,'transport'=>$decoded[0],'events'=>$decoded[1],'audit'=>$decoded[2],'seal'=>$row['seal']];
     }
