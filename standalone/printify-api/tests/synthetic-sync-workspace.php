@@ -211,6 +211,76 @@ if ($phase === 'write') {
         'Anonymous review admitted');
     wp_set_current_user(1);
     requireFixture($before === $workspace->readRecords('orders', null, 1, 10)['data'], 'Review mutated order data');
+    $operationResult = static function (string $html): array {
+        requireFixture(preg_match('/<pre[^>]+aria-labelledby="df-operation-result"[^>]*>(.*?)<\/pre>/s', $html, $m) === 1,
+            'Operation output missing');
+        return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), true, 24, JSON_THROW_ON_ERROR);
+    };
+    $quote = ['external_id'=>'cp4-quote','product_id'=>'product-1','variant_id'=>'9','quantity'=>'1'];
+    foreach (['1','2','3','4'] as $method) {
+        $html = $send('ORDER_SHIPPING_QUOTE', $quote + ['destination'=>'us','shipping_method'=>$method], true);
+        $result = $operationResult($html);
+        requireFixture($result['state']==='SYNTHETIC_OBSERVED' && isset($result['data']['rates_minor']), 'US fixture method denied: '.$method);
+    }
+    foreach ([
+        ['ca','4','SYNTHETIC_OBSERVED'], ['ca','2','FIXTURE_SHIPPING_METHOD_UNAVAILABLE'],
+        ['gb_unavailable','1','FIXTURE_SHIPPING_UNAVAILABLE'], ['invalid_address','1','REQUEST_VALIDATION'],
+    ] as [$destination,$method,$expected]) {
+        $html = $send('ORDER_SHIPPING_QUOTE', $quote + ['destination'=>$destination,'shipping_method'=>$method], true);
+        $result = $operationResult($html);
+        requireFixture(($expected === 'SYNTHETIC_OBSERVED' ? $result['state'] : $result['reason']) === $expected,
+            'Incorrect quote state for '.$destination.' '.$method);
+    }
+    $draft = $send('ORDER_CREATE', ['external_id'=>'cp4-ca-order'] + $quote + ['destination'=>'ca','shipping_method'=>'1'], true);
+    requireFixture(str_contains($draft, 'PENDING_APPROVAL') && $before === $workspace->readRecords('orders', null, 1, 10)['data'],
+        'Canada fixture preview committed an order or failed readiness');
+    $art = "\x89PNG\r\n\x1a\n".$chunk('IHDR',pack('NNCCCCC',1,1,8,2,0,0,0))
+        .$chunk('IDAT',gzcompress("\0\xff\0\0")).$chunk('IEND','');
+    $image = $submit('IMAGE_UPLOAD', ['file_name'=>'preview-four.png','contents'=>base64_encode($art)], true);
+    requireFixture($image['proposal']['state']==='PENDING_APPROVAL' &&
+        $image['transport_receipt']['requests'] === [['method'=>'POST','endpoint'=>'/v1/uploads/images.json','operation'=>'IMAGE_UPLOAD']]
+        && !$image['provider_execution_authorized'] && !str_contains(json_encode($workspace->inspect(), JSON_THROW_ON_ERROR), base64_encode($art)),
+        'Image preparation did not remain held or retained its bytes: '.($image['reason'] ?? 'none'));
+    $revision = $workspace->inspect()['revision'];
+    $unknown = $workspace->execute($revision, hash('sha256','checkpoint-4-lost-ack'), 'ORDER_CANCEL',
+        ['order_id'=>'order-2'], true, 'lost_ack');
+    requireFixture($unknown['proposal']['state']==='UNKNOWN' && !$unknown['retry_permitted']
+        && $before === $workspace->readRecords('orders', null, 1, 10)['data'], 'Ambiguous preview escaped quarantine');
+    $referred = $review($unknown['proposal'], 'refer_unknown');
+    requireFixture($referred['state']==='UNKNOWN' && $referred['proposal']['referral']==='MANUAL_RECONCILIATION_REQUIRED'
+        && !$referred['retry_permitted'] && $review($referred['proposal'], 'refer_unknown')['reason']==='PROPOSAL_TRANSITION_DENIED'
+        && $review($referred['proposal'], 'approve')['reason']==='PROPOSAL_TRANSITION_DENIED', 'UNKNOWN referral compromised quarantine');
+
+    $observe = static function (string $kind, string $resource) use ($submit,$workspace): string {
+        $result = $submit('FIXTURE_READ_SYNC', ['kind'=>$kind,'integration'=>'fixture-read','selection'=>['id'=>$resource]]);
+        $audit = $workspace->inspect()['audit'];
+        requireFixture($result['state']==='OBSERVED' && $result['transport_receipt']['requests'][0]['method']==='GET',
+            'Detail receipt not admitted');
+        return end($audit)['operation_id'];
+    };
+    $observe('products','product-1');
+    $editPayload=['product_id'=>'product-1','expected_version'=>1,'title'=>'Reconciled fixture version'];
+    $productHeld = $review($submit('PRODUCT_UPDATE',$editPayload,true)['proposal'], 'approve')['proposal'];
+    requireFixture($submit('PRODUCT_UPDATE',$editPayload)['state']==='SYNTHETIC_OBSERVED', 'Independent fixture product update failed');
+    $productReceipt = $observe('products','product-1');
+    $newProduct = $review($productHeld,'reconcile',['receipt_id'=>$productReceipt]);
+    requireFixture(($newProduct['proposal']['observation_comparison']['changes']['synthetic_version'] ?? null)
+        === ['before'=>1,'after'=>2] && !$newProduct['provider_outcome_confirmed'], 'Product observation difference incorrect');
+
+    $observe('orders','order-2');
+    $orderHeld = $review($submit('FIXTURE_PRODUCTION_CONFIRM',['order_id'=>'order-2'],true)['proposal'],'approve')['proposal'];
+    requireFixture($submit('FIXTURE_PRODUCTION_CONFIRM',['order_id'=>'order-2'])['state']==='SYNTHETIC_OBSERVED'
+        && $submit('FIXTURE_FULFILL',['order_id'=>'order-2'])['state']==='SYNTHETIC_OBSERVED', 'Fixture fulfillment failed');
+    $html = $sync('orders',['id'=>'order-2']);
+    requireFixture(str_contains($html, '<select name="df_proposal[receipt_id]"') && str_contains($html, 'Choose an observation'),
+        'Scoped receipt selection unavailable');
+    $recent = $workspace->inspect()['audit'];
+    $shipment = $review($orderHeld,'reconcile',['receipt_id'=>end($recent)['operation_id']]);
+    $changes = $shipment['proposal']['observation_comparison']['changes'] ?? [];
+    requireFixture(($changes['shipments_count'] ?? null)===['before'=>0,'after'=>1]
+        && ($changes['status'] ?? null)===['before'=>'on-hold','after'=>'fulfilled'] && !$shipment['provider_outcome_confirmed'],
+        'Shipment receipt difference incorrect');
+    echo "Checkpoint 4 quote variants, request receipts, UNKNOWN referral and field differences PASS\n";
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
 } else {
@@ -223,6 +293,12 @@ if ($phase === 'write') {
     foreach (['REJECTED','CANCELLED','RECONCILED_FIXTURE_OBSERVATION'] as $state) {
         requireFixture(in_array($state,$states,true), 'Proposal state lost on reopen: '.$state);
     }
+    $history = $workspace->inspect()['proposals'];
+    requireFixture(count(array_filter($history, static fn(array $p): bool => ($p['referral'] ?? null)
+        === 'MANUAL_RECONCILIATION_REQUIRED' && $p['state'] === 'UNKNOWN')) === 1, 'UNKNOWN referral lost on reopen');
+    requireFixture(count(array_filter($history, static fn(array $p): bool => isset($p['observation_comparison']['changes']['shipments_count']))) === 1,
+        'Shipment difference lost on reopen');
+    echo "Checkpoint 4 durable reconciliation and UNKNOWN reopen PASS\n";
     echo "Checkpoint 3 proposals reopen PASS\n";
     echo "Checkpoint 2 durable receipts and previews reopen PASS\n";
 }

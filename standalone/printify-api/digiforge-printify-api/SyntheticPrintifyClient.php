@@ -82,6 +82,10 @@ final class SyntheticPrintifyClient
                 return self::result($write?'UNKNOWN':'DENIED',0,'RESPONSE_VALIDATION');
             }
             $status=$response['status'];
+            if ($status === 422 && in_array($operation, ['ORDER_SHIPPING_QUOTE','ORDER_CREATE','ORDER_EXPRESS_CREATE'], true)
+                && ($response['body']['code'] ?? null) === 'shipping_unavailable') {
+                return self::result('UNAVAILABLE', 422, 'FIXTURE_SHIPPING_UNAVAILABLE');
+            }
             $outcome=PrintifyApiOutcome::classify($status,$response['headers']??[],1,$plan['method'],1767225600);
             if ($outcome['category']!=='SUCCESS') {
                 return self::result($outcome['category'],$status,$outcome['reason_code'])
@@ -91,8 +95,14 @@ final class SyntheticPrintifyClient
             if (strlen(json_encode($body,JSON_THROW_ON_ERROR,24))>262144) {
                 throw new \InvalidArgumentException('Response exceeds fixture bounds.');
             }
-            return self::result('SYNTHETIC_OBSERVED',$status,'NONE')
-                + ['data'=>$this->project($operation,$input,$plan,$body,$status)];
+            $projection = $this->project($operation,$input,$plan,$body,$status);
+            if ($operation === 'ORDER_SHIPPING_QUOTE') {
+                $method = [1=>'standard',2=>'priority',3=>'printify_express',4=>'economy'][$input['order']['shipping_method']];
+                if ($projection['rates_minor'][$method] === null) {
+                    return self::result('UNAVAILABLE', $status, 'FIXTURE_SHIPPING_METHOD_UNAVAILABLE') + ['data'=>$projection];
+                }
+            }
+            return self::result('SYNTHETIC_OBSERVED',$status,'NONE') + ['data'=>$projection];
         } catch (\Throwable) {
             return self::result($write?'UNKNOWN':'DENIED',0,'RESPONSE_VALIDATION');
         }

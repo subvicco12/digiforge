@@ -39,7 +39,8 @@ final class SyntheticWorkspace
     {
         $row = $this->load();
         return ['revision'=>$row['revision'], 'audit'=>array_values($row['audit']), 'events'=>array_values($row['events']),
-            'proposals'=>array_values(self::proposals($row['audit'], $this->proposalScope()))];
+            'proposals'=>array_values(self::proposals($row['audit'], $this->proposalScope())),
+            'detail_receipts'=>self::detailReceipts($row['audit'], $this->proposalScope())];
     }
 
     /** Read the sealed fixture snapshot without writing workspace state or audit events. */
@@ -90,7 +91,7 @@ final class SyntheticWorkspace
     }
 
     public const PREVIEW_OPERATIONS = [
-        'PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY',
+        'IMAGE_UPLOAD','PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY',
         'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
     ];
 
@@ -136,6 +137,15 @@ final class SyntheticWorkspace
         if ($state === 'OBSERVED') {
             if ($kind !== 'catalog' && isset($selection['id'])) {
                 $receipt['resource_id'] = $read['data']['id'];
+                $fields = $kind === 'orders'
+                    ? ['status','sent_to_production_at','cost','shipping_cost']
+                    : ['blueprint_id','print_provider_id','synthetic_version','publication_state','publication_pending'];
+                $receipt['fields'] = array_intersect_key($read['data'], array_fill_keys($fields, true));
+                foreach ($kind === 'orders' ? ['line_items','shipments'] : ['variants','print_areas','images'] as $field) {
+                    $items = $read['data'][$field] ?? [];
+                    $receipt['fields'][$field.'_count'] = count($items);
+                    $receipt['fields'][$field.'_sha256'] = hash('sha256', json_encode($items, JSON_THROW_ON_ERROR));
+                }
             }
             $receipt['projection_sha256'] = hash('sha256', json_encode($read['data'], JSON_THROW_ON_ERROR));
         }
@@ -165,6 +175,34 @@ final class SyntheticWorkspace
         return $latest;
     }
 
+    private static function detailReceipts(array $audit, ?array $scope): array
+    {
+        $receipts = [];
+        if ($scope === null) {
+            return $receipts;
+        }
+        foreach ($audit as $id=>$entry) {
+            $receipt = $entry['sync_receipt'] ?? null;
+            if (($receipt['scope'] ?? null) === $scope && ($receipt['source'] ?? null) === 'SYNTHETIC_PRINTIFY'
+                && isset($receipt['resource_id'], $receipt['projection_sha256'])) {
+                $receipts[$id] = $receipt;
+            }
+        }
+        return $receipts;
+    }
+
+    private static function difference(array $before, array $after): array
+    {
+        $changes = [];
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $key) {
+            if (array_key_exists($key, $before) !== array_key_exists($key, $after)
+                || ($before[$key] ?? null) !== ($after[$key] ?? null)) {
+                $changes[$key] = ['before'=>$before[$key] ?? null,'after'=>$after[$key] ?? null];
+            }
+        }
+        return $changes;
+    }
+
     private static function reviewProposal(array $audit, array $input, ?array $scope, int $revision): array
     {
         $id = $input['proposal_id'] ?? null;
@@ -178,23 +216,37 @@ final class SyntheticWorkspace
             'approve' => $current['state'] === 'PENDING_APPROVAL' ? 'APPROVED_HELD' : null,
             'reject' => in_array($current['state'], ['PENDING_APPROVAL','BLOCKED'], true) ? 'REJECTED' : null,
             'cancel' => in_array($current['state'], ['PENDING_APPROVAL','APPROVED_HELD','BLOCKED'], true) ? 'CANCELLED' : null,
+            'refer_unknown' => $current['state'] === 'UNKNOWN' && !isset($current['referral']) ? 'UNKNOWN' : null,
             'reconcile' => $current['state'] === 'APPROVED_HELD' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
             default => null,
         };
         if ($state === null || ($decision !== 'reconcile' && isset($input['receipt_id']))) {
             return self::fixtureResult(409, 'PROPOSAL_TRANSITION_DENIED');
         }
+        if ($decision === 'refer_unknown') {
+            $current['referral'] = 'MANUAL_RECONCILIATION_REQUIRED';
+        }
         if ($decision === 'reconcile') {
             $receiptId = $input['receipt_id'] ?? null;
-            $receipt = is_string($receiptId) ? ($audit[$receiptId]['sync_receipt'] ?? []) : [];
-            if (($receipt['scope'] ?? null) !== $scope || ($receipt['source'] ?? null) !== 'SYNTHETIC_PRINTIFY'
-                || ($receipt['workspace_revision'] ?? -1) < $current['workspace_revision']
-                || !isset($receipt['projection_sha256']) || $current['resource_id'] === null
+            $receipts = self::detailReceipts($audit, $scope);
+            $receipt = is_string($receiptId) ? ($receipts[$receiptId] ?? []) : [];
+            if (($receipt['workspace_revision'] ?? -1) < $current['workspace_revision'] || $current['resource_id'] === null
                 || ($receipt['resource_id'] ?? null) !== $current['resource_id']) {
                 return self::fixtureResult(409, 'PROPOSAL_RECEIPT_MISMATCH');
             }
+            $prior = null;
+            foreach ($receipts as $previousId=>$previous) {
+                if ($previous['resource_id'] === $current['resource_id']
+                    && $previous['workspace_revision'] < $receipt['workspace_revision']
+                    && ($prior === null || $previous['workspace_revision'] > $prior['workspace_revision'])) {
+                    $prior = ['id'=>$previousId]+$previous;
+                }
+            }
             $current['receipt_id'] = $receiptId;
             $current['receipt_sha256'] = $receipt['projection_sha256'];
+            $current['observation_comparison'] = $prior !== null && isset($prior['fields'], $receipt['fields'])
+                ? ['state'=>'COMPARED','before_receipt_id'=>$prior['id'],'changes'=>self::difference($prior['fields'], $receipt['fields'])]
+                : ['state'=>'NO_COMPARABLE_PRIOR_OBSERVATION'];
         }
         $current['state'] = $state;
         $current['revision']++;
@@ -209,7 +261,8 @@ final class SyntheticWorkspace
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || ($edit !== [] && !$preview)
             || ($preview && !in_array($operation, self::PREVIEW_OPERATIONS, true))
-            || ($readFault !== null && ($operation !== 'FIXTURE_READ_SYNC' || !in_array($readFault, ['timeout','rate_limit'], true)))
+            || ($readFault !== null && !($operation === 'FIXTURE_READ_SYNC' && in_array($readFault, ['timeout','rate_limit'], true))
+                && !($preview && $readFault === 'lost_ack'))
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PROPOSAL_REVIEW', 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
@@ -245,6 +298,15 @@ final class SyntheticWorkspace
             $result = $sync ? $this->synchronization($transport, $expected, $input)
                 : ($review ? self::reviewProposal($row['audit'], $input, $proposalScope, $expected)
                     : $this->simulate($transport, $client, $operation, $input, $events));
+            if ($preview || $sync) {
+                $profileForReceipt = $preview ? AccountProfile::current() : $profile;
+                $result['transport_receipt'] = [
+                    'mode'=>'SYNTHETIC_ONLY', 'scope'=>$preview ? $proposalScope : ($result['sync_receipt']['scope'] ?? null),
+                    'requests'=>$transport->admittedRequests(), 'provider_execution_authorized'=>false,
+                    'custody'=>($profileForReceipt['custody'] ?? '') === '' ? 'NO_REFERENCE' : 'REFERENCE_UNRESOLVED',
+                    'state'=>$result['state'], 'status'=>$result['status'],
+                ];
+            }
             if (!$preview && !$sync && !$review) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
@@ -258,7 +320,7 @@ final class SyntheticWorkspace
                     $ready = $result['state'] === 'SYNTHETIC_OBSERVED';
                     $configuration = $ready ? array_intersect_key($input, array_fill_keys([
                         'blueprint_id','print_provider_id','variants','print_areas','expected_version',
-                        'product_id','order_id','line_items','shipping_method','publish_fields','title','description',
+                        'product_id','order_id','line_items','shipping_method','publish_fields','title','description','file_name',
                     ], true)) : [];
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $configuration = array_intersect_key($input['order'], ['line_items'=>true,'shipping_method'=>true]);
@@ -279,7 +341,7 @@ final class SyntheticWorkspace
                 'operation'=>$operation,'state'=>$result['state'],'reason'=>$result['reason'] ?? 'NONE',
                 'status'=>$result['status'],'operation_id'=>$operationId,
                 'actor_id'=>$actor,'occurred_at'=>gmdate('c'),
-            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true]);
+            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true, 'transport_receipt'=>true]);
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
                 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)

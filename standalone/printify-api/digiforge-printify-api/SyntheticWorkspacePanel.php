@@ -65,7 +65,7 @@ final class SyntheticWorkspacePanel
         }
         echo '<nav aria-label="Fixture operations"><a href="#df-sync">Synchronization</a> · <a href="#df-products">Products</a> · <a href="#df-orders">Orders and shipment tracking</a> · <a href="#df-proposals">Approval queue</a> · <a href="#df-workspace-audit">Audit and reconciliation</a></nav>';
         self::renderSync($shop, $current['revision']);
-        self::renderProposals($shop, $current['revision'], $current['proposals']);
+        self::renderProposals($shop, $current['revision'], $current['proposals'], $current['detail_receipts']);
         self::renderOperationForms($shop, $current['revision']);
         echo '<details><summary>Advanced operation input (JSON)</summary>';
         self::startForm($shop, $current['revision']);
@@ -141,7 +141,7 @@ final class SyntheticWorkspacePanel
         }
     }
 
-    private static function renderProposals(string $shop, int $revision, array $proposals): void
+    private static function renderProposals(string $shop, int $revision, array $proposals, array $receipts): void
     {
         echo '<h3 id="df-proposals">Approval queue</h3><p>Local review decisions never authorize execution. UNKNOWN stays quarantined.</p>';
         if ($proposals === []) {
@@ -154,6 +154,12 @@ final class SyntheticWorkspacePanel
             if (isset($proposal['receipt_id'])) {
                 echo '<p>Fixture receipt <code>'.\esc_html($proposal['receipt_id']).'</code></p>';
             }
+            if (isset($proposal['observation_comparison'])) {
+                echo '<p>Fixture observation comparison</p><pre>'.\esc_html(json_encode($proposal['observation_comparison'], JSON_PRETTY_PRINT) ?: '').'</pre>';
+            }
+            if (isset($proposal['referral'])) {
+                echo '<p>Manual reconciliation required. The outcome remains UNKNOWN.</p>';
+            }
             echo '<pre>'.\esc_html(json_encode($proposal['configuration'], JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE) ?: '').'</pre>';
             if (isset($proposal['quote_projection'])) {
                 echo '<p>Synthetic quotation</p><pre>'.\esc_html(json_encode($proposal['quote_projection'], JSON_PRETTY_PRINT) ?: '').'</pre>';
@@ -162,6 +168,7 @@ final class SyntheticWorkspacePanel
                 'PENDING_APPROVAL'=>['approve'=>'Approve and hold','reject'=>'Reject','cancel'=>'Cancel'],
                 'BLOCKED'=>['reject'=>'Reject','cancel'=>'Cancel'],
                 'APPROVED_HELD'=>['cancel'=>'Cancel','reconcile'=>'Link fixture receipt'],
+                'UNKNOWN'=>isset($proposal['referral']) ? [] : ['refer_unknown'=>'Refer for manual reconciliation'],
                 default=>[],
             };
             foreach ($decisions as $decision=>$label) {
@@ -171,7 +178,15 @@ final class SyntheticWorkspacePanel
                     echo '<input type="hidden" name="df_proposal['.\esc_attr($field).']" value="'.\esc_attr($value).'">';
                 }
                 if ($decision === 'reconcile') {
-                    echo '<label>New fixture detail receipt ID <input name="df_proposal[receipt_id]" maxlength="64" required></label> ';
+                    echo '<label>Fixture detail receipt <select name="df_proposal[receipt_id]" required><option value="">Choose an observation</option>';
+                    foreach (array_reverse($receipts, true) as $id=>$receipt) {
+                        if (($proposal['resource_id'] ?? null) === $receipt['resource_id']
+                            && $receipt['workspace_revision'] >= $proposal['workspace_revision']) {
+                            echo '<option value="'.\esc_attr($id).'">'.\esc_html($receipt['resource_id']
+                                .' · '.gmdate('Y-m-d H:i:s', $receipt['observed_at']).' UTC · revision '.$receipt['workspace_revision']).'</option>';
+                        }
+                    }
+                    echo '</select></label> ';
                 }
                 echo '<button type="submit">'.\esc_html($label).'</button></form>';
             }
@@ -267,10 +282,10 @@ final class SyntheticWorkspacePanel
             'PREVIEW_READ'=>['Inspect fixture preview task',['product_id','task_id']],
         ],
         'Shipping, orders and tracking'=>[
-            'ORDER_SHIPPING_QUOTE'=>['Quote fixture shipping', ['external_id','product_id','variant_id','quantity','shipping_method']],
+            'ORDER_SHIPPING_QUOTE'=>['Quote fixture shipping', ['external_id','product_id','variant_id','quantity','shipping_method','destination']],
             'SHOP_DISCONNECT'=>['Disconnect fixture shop', []],
             'ORDER_EXPRESS_CREATE'=>['Create fixture Express order', ['external_id','product_id','variant_id','quantity']],
-            'ORDER_CREATE'=>['Create fixture order', ['external_id','product_id','variant_id','quantity','shipping_method']],
+            'ORDER_CREATE'=>['Create fixture order', ['external_id','product_id','variant_id','quantity','shipping_method','destination']],
             'ORDERS_READ'=>['List fixture orders', ['page','limit']],
             'ORDER_READ'=>['Inspect order and tracking', ['order_id']],
             'ORDER_CANCEL'=>['Cancel fixture order', ['order_id']],
@@ -307,7 +322,7 @@ final class SyntheticWorkspacePanel
                 echo '<input type="hidden" name="df_workspace_operation" value="'.\esc_attr($op).'">';
                 echo '<input type="hidden" name="df_workspace_fields_present" value="1">';
                 if ($op === 'ORDER_SHIPPING_QUOTE' || $op === 'ORDER_CREATE') {
-                    echo '<p>Uses a fixed synthetic US shipping address.</p>';
+                    echo '<p>Use a synthetic destination preset. Fixture quotations do not guarantee provider coverage.</p>';
                 }
                 if ($op === 'PRODUCT_UPDATE') {
                     echo '<p>Read the product to find its synthetic version. For a variant edit, include every current variant and its price.</p>';
@@ -353,7 +368,12 @@ final class SyntheticWorkspacePanel
         if ($options !== null) {
             echo '<select'.$attrs.$required.'>';
             foreach ($options as $option) {
-                echo '<option value="'.\esc_attr($option).'"'.($value===$option?' selected':'').'>'.\esc_html($option).'</option>';
+                $display = match ($field) {
+                    'shipping_method'=>['1'=>'Standard','2'=>'Priority','3'=>'Printify Express','4'=>'Economy'][$option],
+                    'destination'=>['us'=>'United States fixture','ca'=>'Canada fixture','gb_unavailable'=>'United Kingdom fixture (unavailable)','invalid_address'=>'Invalid address fixture'][$option],
+                    default=>$option,
+                };
+                echo '<option value="'.\esc_attr($option).'"'.($value===$option?' selected':'').'>'.\esc_html($display).'</option>';
             }
             echo '</select>';
         } elseif (in_array($field, ['contents','description'],true)) {
@@ -373,7 +393,7 @@ final class SyntheticWorkspacePanel
         'y'=>'Vertical position (0–1)','scale'=>'Artwork scale','angle'=>'Artwork angle in degrees',
         'publication_field'=>'Publication field (title, description, images, variants or tags)',
         'expected_version'=>'Expected synthetic product version','external_id'=>'Fixture reference',
-        'quantity'=>'Quantity','shipping_method'=>'Shipping method code','order_id'=>'Order ID','line_item_id'=>'Line item ID',
+        'quantity'=>'Quantity','destination'=>'Synthetic destination','shipping_method'=>'Shipping method','order_id'=>'Order ID','line_item_id'=>'Line item ID',
         'topic'=>'Event topic','url'=>'Synthetic callback destination','webhook_id'=>'Webhook ID',
         'event_id'=>'Event UUID','created_at'=>'Event time (YYYY-MM-DD HH:MM:SS+00:00)',
         'variants'=>'Additional variants','placements'=>'Additional artwork placements','line_items'=>'Additional order lines',
@@ -382,7 +402,7 @@ final class SyntheticWorkspacePanel
     private const FIELD_DEFAULTS = [
         'page'=>'1','limit'=>'10','blueprint_id'=>'42','provider_id'=>'7','print_provider_id'=>'7','variant_id'=>'9',
         'file_name'=>'fixture.png','position'=>'front','x'=>'0.5','y'=>'0.5','scale'=>'1','angle'=>'0',
-        'quantity'=>'1','shipping_method'=>'1','created_at'=>'2026-01-01 00:00:00+00:00',
+        'quantity'=>'1','destination'=>'us','shipping_method'=>'1','created_at'=>'2026-01-01 00:00:00+00:00',
     ];
 
     private static function length(string $field): int
@@ -395,7 +415,7 @@ final class SyntheticWorkspacePanel
 
     private static function optional(string $op, string $field): bool
     {
-        return ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
+        return $field==='destination' || ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
             || ($op==='PRODUCT_CREATE' && in_array($field,['x','y','scale','angle'],true));
     }
 
@@ -404,6 +424,7 @@ final class SyntheticWorkspacePanel
         return match ($field) {
             'method'=>['standard','priority','express','economy'],
             'shipping_method'=>['1','2','3','4'],
+            'destination'=>['us','ca','gb_unavailable','invalid_address'],
             'topic'=>SyntheticPrintifyTransport::WEBHOOK_TOPICS,
             'url'=>SyntheticPrintifyTransport::WEBHOOK_URLS,
             default=>null,
@@ -597,6 +618,13 @@ final class SyntheticWorkspacePanel
         }
         if (in_array($op,['ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_EXPRESS_CREATE'],true)) {
             $method=$op==='ORDER_EXPRESS_CREATE'?3:$fields['shipping_method'];
+            $destination = $fields['destination'] ?? 'us';
+            $location = match ($destination) {
+                'ca'=>['country'=>'CA','region'=>'ON','zip'=>'A1A 1A1'],
+                'gb_unavailable'=>['country'=>'GB','region'=>'','zip'=>'SW1A 1AA'],
+                'invalid_address'=>['country'=>'US','region'=>'CA','zip'=>''],
+                default=>['country'=>'US','region'=>'CA','zip'=>'90001'],
+            };
             $order = [
                 'external_id'=>$fields['external_id'],
                 'line_items'=>[array_intersect_key($fields,array_flip(['product_id','variant_id','quantity'])), ...$fields['line_items']],
@@ -604,7 +632,7 @@ final class SyntheticWorkspacePanel
                 'is_printify_express'=>$method===3, 'is_economy_shipping'=>$method===4,
                 'send_shipping_notification'=>false,
                 'address_to'=>['first_name'=>'Fixture','last_name'=>'Only','email'=>'workspace@example.invalid','phone'=>'',
-                    'country'=>'US','region'=>'CA','address1'=>'Fixture street','address2'=>'','city'=>'Fixture','zip'=>'90001'],
+                    'address1'=>'Fixture street','address2'=>'','city'=>'Fixture']+$location,
             ];
             if ($op==='ORDER_EXPRESS_CREATE') {
                 unset($order['is_printify_express'],$order['is_economy_shipping']);

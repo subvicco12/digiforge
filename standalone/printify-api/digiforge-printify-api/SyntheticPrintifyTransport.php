@@ -44,6 +44,7 @@ final class SyntheticPrintifyTransport
     private array $duplicates = [];
     private array $productionConfirmations = [];
     private int $requests = 0;
+    private array $admittedRequests = [];
     private ?string $nextFault = null;
 
     public function __construct(private readonly string $shop)
@@ -173,6 +174,12 @@ final class SyntheticPrintifyTransport
         return true;
     }
 
+    /** Return only the method and path of validated synthetic requests, never their bodies. */
+    public function admittedRequests(): array
+    {
+        return $this->admittedRequests;
+    }
+
     public function request(array $plan): array
     {
         $this->simulatedEvent = null;
@@ -204,6 +211,7 @@ final class SyntheticPrintifyTransport
         if ($route === null || ($method === 'GET' && $body !== [])) {
             return self::error(404, 'route_unavailable');
         }
+        $this->admittedRequests[] = ['method'=>$method,'endpoint'=>$endpoint,'operation'=>$operation];
         $fault = $this->nextFault;
         $this->nextFault = null;
         if ($fault === 'rate_limit') {
@@ -765,10 +773,14 @@ final class SyntheticPrintifyTransport
     private function quote(array $body): array
     {
         $lines = $this->orderLines($body['line_items'] ?? null);
-        if ($lines === null || ($body['address_to']['country'] ?? null) !== 'US') {
+        $country = $body['address_to']['country'] ?? null;
+        if ($lines === null || !in_array($country, ['US','CA'], true)) {
             return self::error(422, 'shipping_unavailable');
         }
         $cost = 500 + (array_sum(array_column($lines, 'quantity')) - 1) * 200;
+        if ($country === 'CA') {
+            return self::response(200,['standard'=>$cost+300,'economy'=>$cost+150]);
+        }
         $groups=[];
         $mixedCost=0;
         foreach ($lines as $line) {
@@ -795,8 +807,11 @@ final class SyntheticPrintifyTransport
         $external = $body['external_id'] ?? null;
         $lines = $this->orderLines($body['line_items'] ?? null);
         if (!is_string($external) || preg_match('/^[A-Za-z0-9_-]{1,120}$/D', $external) !== 1
-            || $lines === null || ($body['address_to']['country'] ?? null) !== 'US') {
+            || $lines === null || !in_array($body['address_to']['country'] ?? null, ['US','CA'], true)) {
             return self::error(422, 'order_invalid');
+        }
+        if ($body['address_to']['country'] === 'CA' && ($express || !in_array($body['shipping_method'] ?? null, [1,4], true))) {
+            return self::error(422, 'shipping_unavailable');
         }
         $key = 'order:'.$external;
         if (isset($this->duplicates[$key])) {
