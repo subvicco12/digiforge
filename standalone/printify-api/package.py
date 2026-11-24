@@ -14,7 +14,7 @@ import zipfile
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN = "digiforge-printify-api"
 SOURCE = f"standalone/printify-api/{PLUGIN}"
-MEMBERS = ("CustodyReadTransport.php", "SyntheticWebhookReceiver.php", "SyntheticWorkspace.php", "SyntheticWorkspacePanel.php", "SyntheticJourney.php", "SyntheticOperatorPanel.php", "SyntheticPrintifyClient.php", "SyntheticPrintifyTransport.php", "NativeHeldInspection.php", "HeldAuthorityAdapter.php", "held-authority.v1.json", "SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
+MEMBERS = ("CustodyReadTransport.php", "SyntheticWebhookReceiver.php", "SyntheticWorkspace.php", "SyntheticWorkspacePanel.php", "SyntheticJourney.php", "SyntheticOperatorPanel.php", "SyntheticPrintifyClient.php", "SyntheticPrintifyTransport.php", "NativeHeldInspection.php", "HeldAuthorityAdapter.php", "HeldSignedEvidence.php", "held-authority.v1.json", "SnapshotEvidence.php", "FixtureSnapshotStore.php", "OfflineLifecycle.php", "Runtime.php", "Status.php", "digiforge-printify-api.php", "readme.txt")
 
 
 def git(*args: str) -> bytes:

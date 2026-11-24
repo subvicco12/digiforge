@@ -37,3 +37,26 @@ check($boundary['schema'] === 'DF_STANDALONE_HELD_AUTHORITY_1'
     && $boundary['acknowledgment'] === 'UNVERIFIED'
     && !$boundary['provider_execution_authorized'] && !$boundary['retry_permitted'],
     'Held runtime boundary admitted execution without Core or an external authority');
+
+require_once dirname($plugin).'/HeldSignedEvidence.php';
+$wire = rtrim(file_get_contents(__DIR__.'/authority/signed-positive-vector.json'), "\n");
+$vector = json_decode($wire, true, 8, JSON_THROW_ON_ERROR);
+$identity = array_diff_key($vector['manifest'], array_flip(['version', 'issuer', 'audience', 'phase', 'issued', 'expires']));
+$key = hex2bin('2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12');
+$verify = static fn(string $bytes, array $expected, int $now, bool $revoked = false): bool =>
+    DigiForgePrintifyApi\HeldSignedEvidence::matches(
+        $bytes, 'fixture-v1', 'fixture-witness', 'fixture-sender', $key, $revoked, $now, $expected
+    );
+check($verify($wire, $identity, 1700000000) === function_exists('sodium_crypto_sign_verify_detached'),
+    'Signed offline vector produced incorrect evidence result');
+check(!$verify($wire, $identity, 1700000015), 'Expired signed vector accepted');
+check(!$verify($wire, $identity, 1700000000, true), 'Revoked signer accepted');
+check(!$verify(' '.$wire, $identity, 1700000000), 'Noncanonical encoding accepted');
+check(!$verify(str_replace('"version":1', '"version":1,"version":1', $wire), $identity, 1700000000),
+    'Duplicate JSON key accepted');
+check(!$verify($wire, array_replace($identity, ['shop'=>'13']), 1700000000), 'Cross-shop envelope accepted');
+check(!$verify($wire, array_replace($identity, ['sequence'=>3]), 1700000000), 'Stale witness sequence accepted');
+check(!$verify($wire, array_replace($identity, ['event_hash'=>str_repeat('0',64)]), 1700000000),
+    'Restored journal head accepted');
+check(DigiForgePrintifyApi\HeldAuthorityAdapter::admissionStatus() === $boundary,
+    'Evidence verification changed the direct admission boundary');
