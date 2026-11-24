@@ -74,15 +74,16 @@ final class CustodyReadTransport
     /** Bind a configured alias to the existing signed, local fixture reader. */
     public static function readFromProfile(string $integration, array $scope, string $operation, array $input, \Closure $exchange): array
     {
+        $revision = AccountProfile::revisionToken();
         $profile = AccountProfile::current();
-        if ($profile === null || $profile['integration'] !== $integration || $profile['shop'] !== ($scope['shop'] ?? null)
+        if ($revision === null || $profile === null || $profile['integration'] !== $integration || $profile['shop'] !== ($scope['shop'] ?? null)
             || $profile['account'] !== ($scope['account_reference'] ?? null) || $profile['custody'] === ''
             || array_key_exists('credential_reference', $scope)) {
             return self::result('DENIED', 'CUSTODY_PROFILE_SCOPE');
         }
         $scope['credential_reference'] = substr($profile['custody'], strlen('custody-ref:'));
         $result = self::read($scope, $operation, $input, $exchange, true, false, $integration);
-        if (AccountProfile::current() !== $profile) {
+        if (AccountProfile::revisionToken() !== $revision || AccountProfile::current() !== $profile) {
             return self::result('DENIED', 'CUSTODY_PROFILE_CHANGED');
         }
         return $result;
@@ -198,6 +199,10 @@ final class CustodyReadTransport
             if ($review['state']!=='OFFLINE_PROVIDER_READ_REVIEWED') {
                 return self::result('DENIED','CUSTODY_BODY');
             }
+            $observation = $review['observation'];
+            if ($operation === 'ORDER_READ' && isset($request['integration_reference'])) {
+                $observation = self::signedFixtureTracking($observation, $body);
+            }
             $state=$request['evidence_class']==='SIGNED_PROVIDER_TRANSPORT_SIMULATION'
                 ?'AUTHENTICATED_PROVIDER_TRANSPORT_SIMULATION':'AUTHENTICATED_CUSTODY_FIXTURE';
             return self::result($state,'NONE')+[
@@ -207,11 +212,26 @@ final class CustodyReadTransport
                 'source_sha'=>$request['source_sha'], 'source_revision'=>$request['source_revision'],
                 'authorization_revision'=>$request['authorization_revision'], 'shop'=>$request['shop'],
                 'account_reference'=>$request['account_reference'], 'observed_at'=>$record['observed_at'],
-                'expires_at'=>$record['expires_at'], 'observation'=>$review['observation'],
+                'expires_at'=>$record['expires_at'], 'observation'=>$observation,
             ];
         } catch (\Throwable) {
             return self::result('DENIED','CUSTODY_RECEIPT');
         }
+    }
+
+    /** Only expose a recognized local synthetic reference from the authenticated, normalized order. */
+    private static function signedFixtureTracking(array $observation, string $body): array
+    {
+        $order = json_decode($body, true, 24, JSON_THROW_ON_ERROR);
+        $base = 'SYNTHETIC-'.$observation['id'];
+        $pattern = '/^'.preg_quote($base,'/').'(?:-shipment-[1-9][0-9]{0,2})?$/D';
+        foreach ($observation['shipments'] as $index=>&$shipment) {
+            $reference = $order['shipments'][$index]['number'] ?? null;
+            $shipment['tracking_reference'] = is_string($reference) && preg_match($pattern,$reference)
+                && hash_equals($shipment['tracking_hash'],hash('sha256',$reference)) ? $reference : null;
+        }
+        unset($shipment);
+        return $observation;
     }
 
     private static function validScope(array $scope): bool

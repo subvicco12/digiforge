@@ -375,7 +375,7 @@ if ($phase === 'write') {
         requireFixture($deadline===2000 && $maximum===262144 && $request['method']==='GET'
             && $request['endpoint']==='/v1/shops/107/orders/order-1.json' && $request['credential_reference']==='fixture-cp5'
             && $request['integration_reference']==='fixture-read', 'Custody route or alias mismatch');
-        $body='{"id":"order-1","shop_id":107,"status":"fulfilled","line_items":[]}';
+        $body='{"id":"order-1","shop_id":107,"status":"fulfilled","line_items":[],"shipments":[{"number":"SYNTHETIC-order-1","carrier":"Fixture","url":"https://tracking.example.invalid/order-1"},{"number":"private-carrier-reference","carrier":"Fixture","url":"https://tracking.example.invalid/opaque"}]}';
         $record=json_encode(['schema'=>'DF_PRINTIFY_CUSTODY_READ_RECEIPT_1','evidence_class'=>'SIGNED_CUSTODY_FIXTURE',
             'request_sha256'=>hash('sha256',json_encode($request, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)),
             'content_sha256'=>hash('sha256',$body),'observed_at'=>time(),'expires_at'=>time()+30,'status'=>200,'retry_after'=>0],
@@ -386,6 +386,8 @@ if ($phase === 'write') {
     $read=Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope,'ORDER_READ',['order_id'=>'order-1'],$exchange);
     requireFixture($read['state']==='AUTHENTICATED_CUSTODY_FIXTURE' && !$read['provider_execution_authorized'] && $calls===1,
         'Configured signed custody fixture was not verified');
+    requireFixture($read['observation']['shipments'][0]['tracking_reference'] === 'SYNTHETIC-order-1'
+        && $read['observation']['shipments'][1]['tracking_reference'] === null, 'Tracking fixture projection was not restricted');
     requireFixture(Runtime::readFromConfiguredCustodyFixture('different-integration',$scope,'ORDER_READ',
         ['order_id'=>'order-1'],$exchange)['state']==='DENIED' && $calls===1, 'Wrong integration reached custody');
     requireFixture(Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope+['credential_reference'=>'override'],
@@ -403,9 +405,10 @@ if ($phase === 'write') {
     requireFixture($audit($revision,$auditId,$exchange)['reason']==='OPERATION_ALREADY_RECORDED' && $calls===2,
         'Durable custody receipt replay reached exchange');
     $lastRevision = $workspace->inspect()['revision'];
-    $changed = $audit($lastRevision,hash('sha256','scope-change-custody'),static function (array $r,int $t,int $m) use ($exchange,$profile,$nonce): array {
+    $changed = $audit($lastRevision,hash('sha256','scope-change-custody'),static function (array $r,int $t,int $m) use ($exchange,$profile,$custodyProfile,$nonce): array {
         $receipt = $exchange($r,$t,$m);
         \DigiForgePrintifyApi\AccountProfile::save($profile,$nonce);
+        \DigiForgePrintifyApi\AccountProfile::save($custodyProfile,$nonce);
         return $receipt;
     });
     requireFixture($changed['state']==='DENIED' && $workspace->inspect()['revision']===$lastRevision && $calls===3,
@@ -418,7 +421,8 @@ if ($phase === 'write') {
         && $redacted['profile']['custody']==='FIXTURE_REFERENCE_CONFIGURED'
         && $redacted['profile']['change_receipts'][0]['alias_changed']
         && !str_contains($encoded,'fixture-cp5') && !str_contains($encoded,'workspace@example.invalid')
-        && !str_contains($encoded,'fixture-account') && !str_contains($encoded,'signer_key'),
+        && !str_contains($encoded,'fixture-account') && !str_contains($encoded,'signer_key')
+        && !str_contains($encoded,'SYNTHETIC-order-1') && !str_contains($encoded,'private-carrier-reference'),
         'Redacted audit is incomplete or contains sensitive fields');
     $getExport = static function(string $nonce): string {
         $prior=$_POST;
@@ -432,7 +436,10 @@ if ($phase === 'write') {
             $_POST=$prior;
         }
     };
-    requireFixture(!str_contains($getExport('invalid'), 'data:application/json;base64,'), 'Invalid export nonce admitted');
+    $diagnosticsHtml = $getExport('invalid');
+    requireFixture(!str_contains($diagnosticsHtml, 'data:application/json;base64,'), 'Invalid export nonce admitted');
+    requireFixture(str_contains($diagnosticsHtml, 'Signed fixture tracking · SYNTHETIC-order-1')
+        && !str_contains($diagnosticsHtml, 'private-carrier-reference'), 'Operator tracking view disclosed an unqualified reference');
     $html=$getExport(wp_create_nonce('digiforge_printify_redacted_fixture_audit:107'));
     requireFixture(preg_match('/data:application\/json;base64,([A-Za-z0-9+\/=]+)/', $html, $match)===1
         && json_decode(base64_decode($match[1],true),true,24,JSON_THROW_ON_ERROR)===$redacted,

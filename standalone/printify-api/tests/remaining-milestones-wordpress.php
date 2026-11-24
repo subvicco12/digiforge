@@ -7,7 +7,7 @@ use DigiForgePrintifyApi\Runtime;
 $active = ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>''];
 $alternate = ['shop'=>'107','account'=>'fixture-account','integration'=>'alternate-fixture','custody'=>'custody-ref:synthetic-alias'];
 $key = static fn(array $p): string => hash('sha256', implode("\n", [$p['shop'],$p['account'],$p['integration']]));
-$expected = static fn(array $p): string => hash_hmac('sha256', json_encode($p, JSON_THROW_ON_ERROR), wp_salt('auth'));
+$expected = AccountProfile::revisionToken();
 $nonce = wp_create_nonce('digiforge_printify_account_profile_save');
 if ($phase === 'reopen') {
     require_once ABSPATH.'wp-admin/includes/plugin.php';
@@ -19,7 +19,7 @@ if ($phase === 'reopen') {
         'Standalone reactivation lost workspace evidence');
     requireFixture(AccountProfile::current() === $alternate && AccountProfile::diagnostics()['custody'] === 'FIXTURE_REFERENCE_CONFIGURED'
         && $workspace->inspect()['proposals'] === [], 'Active profile or scope isolation lost after reopen');
-    requireFixture(AccountProfile::switchProfile($key($active), $expected($alternate), $nonce) === 'SAVED_LOCAL_METADATA',
+    requireFixture(AccountProfile::switchProfile($key($active), AccountProfile::revisionToken(), $nonce) === 'SAVED_LOCAL_METADATA',
         'Previously validated profile could not be restored');
     $proposals = $workspace->inspect()['proposals'];
     requireFixture(count(array_filter($proposals, static fn(array $p): bool => $p['state'] === 'UNKNOWN')) === 2
@@ -79,12 +79,12 @@ requireFixture($workspace->readRecords('products','product-2',1,10)['data']['pub
     'Unacknowledged fixture effect escaped quarantine');
 
 requireFixture(AccountProfile::save($alternate,$nonce) === 'SAVED_LOCAL_METADATA'
-    && AccountProfile::switchProfile($key($active), $expected($active), $nonce) === 'INVALID_OR_UNASSIGNED_SCOPE'
+    && AccountProfile::switchProfile($key($active), $expected, $nonce) === 'PROFILE_STALE'
     && $workspace->redactedAuditExport()['entries'] === []
     && AccountProfile::plan('107','fixture-account','fixture-read','orders')['state'] === 'DENIED',
     'Stale profile or previous integration evidence crossed scope');
-requireFixture(AccountProfile::switchProfile($key($active), $expected($alternate), $nonce) === 'SAVED_LOCAL_METADATA'
-    && AccountProfile::switchProfile($key($alternate), $expected($active), $nonce) === 'SAVED_LOCAL_METADATA'
+requireFixture(AccountProfile::switchProfile($key($active), AccountProfile::revisionToken(), $nonce) === 'SAVED_LOCAL_METADATA'
+    && AccountProfile::switchProfile($key($alternate), AccountProfile::revisionToken(), $nonce) === 'SAVED_LOCAL_METADATA'
     && AccountProfile::plan('107','fixture-account','alternate-fixture','orders')['transport'] === 'DISABLED',
     'Saved local switch failed or enabled transport');
 echo "Remaining fixture milestones PASS: scoped profile switching, bounded continuation, archive denial, eight quote cases, publication/cancellation UNKNOWN\n";

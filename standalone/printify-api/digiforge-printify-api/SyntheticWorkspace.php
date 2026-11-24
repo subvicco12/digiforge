@@ -386,6 +386,7 @@ final class SyntheticWorkspace
             $events = $row['events'];
             $sync = $operation === 'FIXTURE_READ_SYNC';
             $custody = $operation === 'FIXTURE_CUSTODY_READ';
+            $profileRevision = ($sync || $custody) ? AccountProfile::revisionToken() : null;
             $profile = ($sync || $custody) ? AccountProfile::current() : null;
             $review = $operation === 'FIXTURE_PROPOSAL_REVIEW';
             $proposalScope = ($preview || $review || $correlatedCreate || $custody) ? $this->proposalScope() : null;
@@ -505,7 +506,7 @@ final class SyntheticWorkspace
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
                 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)
-                || (($sync || $custody) && AccountProfile::current() !== $profile)
+                || (($sync || $custody) && (AccountProfile::current() !== $profile || AccountProfile::revisionToken() !== $profileRevision))
                 || (($preview || $review || $correlatedCreate) && $this->proposalScope() !== $proposalScope)
                 || (isset($result['shipment_receipt']) && $result['shipment_receipt']['scope'] !==
                     ($this->proposalScope() ?? ['shop'=>$this->shop,'account'=>$this->account,'integration'=>null]))
@@ -552,7 +553,12 @@ final class SyntheticWorkspace
         $status = match ($read['state']) {
             'AUTHENTICATED_CUSTODY_FIXTURE'=>200, 'RATE_LIMITED'=>429, default=>0,
         };
-        return $read + ['status'=>$status,'custody_receipt'=>['scope'=>$scope,'status'=>$status]
+        $projection = $read['observation'] ?? null;
+        $details = $projection === null ? [] : [
+            'projection_sha256'=>hash('sha256',json_encode($projection,JSON_THROW_ON_ERROR)),
+            'fixture_tracking'=>array_values(array_filter(array_column($projection['shipments'] ?? [],'tracking_reference'),'is_string')),
+        ];
+        return $read + ['status'=>$status,'custody_receipt'=>['scope'=>$scope,'status'=>$status] + $details
             + array_intersect_key($read, array_fill_keys(['state','reason','operation_id','request_sha256',
                 'response_sha256','receipt_sha256','observed_at','expires_at','retry_after'], true))];
     }

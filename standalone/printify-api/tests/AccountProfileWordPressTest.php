@@ -25,7 +25,7 @@ final class AccountProfileWordPressTest extends WP_UnitTestCase
 
         $previous = $_POST;
         $_POST = ['digiforge_printify_account_profile_save'=>'1', 'df_printify_profile'=>$profile,
-            'df_printify_profile_nonce'=>$nonce];
+            'df_printify_profile_nonce'=>$nonce,'df_printify_previous_profile'=>AccountProfile::revisionToken()];
         ob_start();
         try {
             Runtime::panel();

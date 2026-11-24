@@ -99,15 +99,21 @@ final class SyntheticWorkspacePanel
             .'<table class="widefat striped"><thead><tr>';
         foreach (['Operation','Result','Reason','Reference','Actor ID','Time (UTC)','Receipt'] as $label) echo '<th scope="col">'.\esc_html($label).'</th>';
         echo '</tr></thead><tbody>';
+        $profile = AccountProfile::current();
         foreach (array_reverse(array_slice($current['audit'],-20)) as $entry) {
             echo '<tr>';
             foreach (['operation','state','reason','operation_id','actor_id','occurred_at'] as $field) {
                 echo '<td>'.\esc_html((string)($entry[$field]??'—')).'</td>';
             }
             $receipt = $entry['sync_receipt'] ?? null;
-            echo '<td>'.\esc_html(is_array($receipt)
-                ? ($receipt['kind'].' · '.$receipt['freshness'].' · '.($receipt['projection_sha256'] ?? 'No projection'))
-                : (($entry['preview_only'] ?? false) ? 'Preview only' : '—')).'</td></tr>';
+            $custody = $entry['custody_receipt'] ?? [];
+            $scope = $custody['scope'] ?? [];
+            $tracking = ($profile['shop'] ?? null) === ($scope['shop'] ?? null) && $profile !== null
+                && ($scope['account'] ?? null) === $profile['account'] && ($scope['integration'] ?? null) === $profile['integration']
+                ? ($custody['fixture_tracking'] ?? []) : [];
+            echo '<td>'.\esc_html($tracking !== [] ? 'Signed fixture tracking · '.implode(', ', $tracking)
+                : (is_array($receipt) ? ($receipt['kind'].' · '.$receipt['freshness'].' · '.($receipt['projection_sha256'] ?? 'No projection'))
+                    : (($entry['preview_only'] ?? false) ? 'Preview only' : '—'))).'</td></tr>';
         }
         echo '</tbody></table></div>';
         self::renderEvents($current['events'] ?? []);

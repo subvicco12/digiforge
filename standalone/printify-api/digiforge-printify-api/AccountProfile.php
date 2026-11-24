@@ -20,22 +20,71 @@ final class AccountProfile
         'custody'=>'Custody reference (optional)',
     ];
 
-    public static function save(array $input, string $nonce): string
+    public static function save(array $input, string $nonce, ?string $expected = null): string
     {
         if (!\current_user_can('manage_options') || !\wp_verify_nonce($nonce, self::FORM)) {
             return 'DENIED';
         }
         $profile = self::validate($input);
-        if ($profile === null || !\current_user_can('digiforge_printify_review_shop_'.$profile['shop'])) {
+        if ($profile === null) {
             return 'INVALID_OR_UNASSIGNED_SCOPE';
         }
-        $stored = \get_option(self::OPTION, null);
+        $snapshot = self::optionSnapshot();
+        if ($snapshot === null) {
+            return 'SAVE_FAILED';
+        }
+        if ($expected !== null && !hash_equals(self::token($snapshot['raw']), $expected)) {
+            return 'PROFILE_STALE';
+        }
+        return self::persist($snapshot, $profile);
+    }
+
+    /** Read database bytes directly so compare-and-swap never depends on a worker's option cache. */
+    private static function optionSnapshot(): ?array
+    {
+        global $wpdb;
+        $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::OPTION));
+        if ($wpdb->last_error !== '') {
+            return null;
+        }
+        return ['raw'=>$raw, 'stored'=>$raw === null ? null : \maybe_unserialize($raw)];
+    }
+
+    private static function token(?string $raw): string
+    {
+        return hash_hmac('sha256', "DF_PRINTIFY_PROFILE_1\n".($raw ?? ''), \wp_salt('auth'));
+    }
+
+    public static function revisionToken(): ?string
+    {
+        if (!\current_user_can('manage_options')) {
+            return null;
+        }
+        $snapshot = self::optionSnapshot();
+        $profile = self::storedProfile($snapshot['stored'] ?? null);
+        if ($snapshot === null || ($profile !== null && !\current_user_can('digiforge_printify_review_shop_'.$profile['shop']))) {
+            return null;
+        }
+        return self::token($snapshot['raw']);
+    }
+
+    private static function persist(array $snapshot, array $profile): string
+    {
+        global $wpdb;
+        $stored = $snapshot['stored'];
         $previous = self::storedProfile($stored);
+        if (!\current_user_can('digiforge_printify_review_shop_'.$profile['shop'])) {
+            return 'INVALID_OR_UNASSIGNED_SCOPE';
+        }
         if ($previous !== null && !\current_user_can('digiforge_printify_review_shop_'.$previous['shop'])) {
             return 'DENIED';
         }
         if ($previous === $profile) {
             return 'SAVED_LOCAL_METADATA';
+        }
+        $revision = $stored['revision'] ?? 0;
+        if (!is_int($revision) || $revision < 0 || $revision === PHP_INT_MAX) {
+            return 'SAVE_FAILED';
         }
         $history = self::history($stored);
         $history[] = [
@@ -52,9 +101,21 @@ final class AccountProfile
         $key = self::scopeKey($profile);
         unset($saved[$key]);
         $saved[$key] = $profile;
-        if (\update_option(self::OPTION, ['profile'=>$profile,'history'=>array_slice($history,-20),
-            'saved'=>array_slice($saved, -self::MAX_SAVED, null, true)], false)) {
-            return 'SAVED_LOCAL_METADATA';
+        $next = \maybe_serialize(['profile'=>$profile,'history'=>array_slice($history,-20),
+            'saved'=>array_slice($saved, -self::MAX_SAVED, null, true),'revision'=>$revision+1]);
+        $raw = $snapshot['raw'];
+        if ($raw === null) {
+            $changed = $wpdb->query($wpdb->prepare("INSERT IGNORE INTO {$wpdb->options}
+                (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::OPTION, $next));
+        } else {
+            $changed = $wpdb->query($wpdb->prepare("UPDATE {$wpdb->options} SET option_value = %s, autoload = 'no'
+                WHERE option_name = %s AND BINARY option_value = BINARY %s", $next, self::OPTION, $raw));
+        }
+        if ($changed === 1 || $changed === 0) {
+            \wp_cache_delete(self::OPTION, 'options');
+            \wp_cache_delete('alloptions', 'options');
+            \wp_cache_delete('notoptions', 'options');
+            return $changed === 1 ? 'SAVED_LOCAL_METADATA' : 'PROFILE_STALE';
         }
         return 'SAVE_FAILED';
     }
@@ -82,14 +143,19 @@ final class AccountProfile
         if (!\current_user_can('manage_options') || !\wp_verify_nonce($nonce, self::FORM)) {
             return 'DENIED';
         }
-        $stored = \get_option(self::OPTION, null);
-        $current = self::current();
-        $target = self::savedProfiles($stored)[$key] ?? null;
-        if ($current === null || !hash_equals((string)self::fingerprint($current), $expected)
-            || $target === null || !\current_user_can('digiforge_printify_review_shop_'.$target['shop'])) {
+        $snapshot = self::optionSnapshot();
+        if ($snapshot === null) {
+            return 'SAVE_FAILED';
+        }
+        if (!hash_equals(self::token($snapshot['raw']), $expected)) {
+            return 'PROFILE_STALE';
+        }
+        $current = self::storedProfile($snapshot['stored']);
+        $target = self::savedProfiles($snapshot['stored'])[$key] ?? null;
+        if ($current === null || $target === null) {
             return 'INVALID_OR_UNASSIGNED_SCOPE';
         }
-        return self::save($target, $nonce);
+        return self::persist($snapshot, $target);
     }
 
     public static function current(): ?array
@@ -189,19 +255,21 @@ final class AccountProfile
             $status = match (true) {
                 is_string($switch) && is_string($expected) && is_string($nonce) && !isset($post[self::FORM])
                     => self::switchProfile($switch, $expected, $nonce),
-                $switch === null && is_array($input) && is_string($nonce) => self::save($input, $nonce),
+                $switch === null && is_array($input) && is_string($nonce) && is_string($expected) => self::save($input, $nonce, $expected),
                 default => 'DENIED',
             };
             echo '<p role="status">'.\esc_html(match ($status) {
                 'SAVED_LOCAL_METADATA'=>'Local metadata saved.',
                 'INVALID_OR_UNASSIGNED_SCOPE'=>'Check the references and your assigned shop.',
                 'SAVE_FAILED'=>'Local metadata could not be saved.',
+                'PROFILE_STALE'=>'Profile changed. Reload the form and review the current scope.',
                 default=>'Account configuration change denied.',
             }).'</p>';
         }
         $profile = self::current();
         echo '<form method="post"><input type="hidden" name="'.self::FORM.'" value="1">';
         \wp_nonce_field(self::FORM, 'df_printify_profile_nonce');
+        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr(self::revisionToken() ?? '').'">';
         foreach (self::FIELDS as $key=>$label) {
             echo '<p><label>'.\esc_html($label).' <input name="df_printify_profile['.$key.']" maxlength="100"'
                 .($key === 'custody' ? ' placeholder="custody-ref:example"' : ' required')
@@ -236,7 +304,7 @@ final class AccountProfile
         }
         echo '<form method="post">';
         \wp_nonce_field(self::FORM, 'df_printify_profile_nonce');
-        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr((string)self::fingerprint($current)).'">';
+        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr(self::revisionToken() ?? '').'">';
         echo '<label>Saved local profile <select name="df_printify_switch_profile" required><option value="">Choose a profile</option>';
         foreach ($options as $key=>$label) {
             echo '<option value="'.\esc_attr($key).'">'.\esc_html($label).'</option>';

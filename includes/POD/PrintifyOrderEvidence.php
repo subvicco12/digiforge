@@ -71,7 +71,7 @@ final class PrintifyOrderEvidence
             $shipments[] = ['carrier'=>$shipment['carrier'],'tracking_hash'=>$trackingHash,'url_observed'=>true,'delivered_at'=>$delivered];
         }
         $external=$order['external_id']??null;if($external!==null)self::text($external,128);
-        $sent=$order['sent_to_production_at']??null;if($sent!==null&&(!is_string($sent)||strlen($sent)>40||!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D',$sent)||strtotime($sent)===false))throw new \InvalidArgumentException('Invalid production timestamp.');
+        $sent=$order['sent_to_production_at']??null;if($sent!==null&&(!is_string($sent)||strlen($sent)>40||!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D',$sent)||!self::validTimestamp($sent)))throw new \InvalidArgumentException('Invalid production timestamp.');
         return ['id'=>$expectedId,'external_id'=>$external,'sent_to_production_at'=>$sent,'status'=>$order['status'],'line_items'=>$lines,'shipments'=>$shipments,'cost'=>self::amount($order['total_price'] ?? null),'shipping_cost'=>self::amount($order['total_shipping'] ?? null),'production_certified'=>false];
     }
     private static function validTimestamp(string $value): bool
