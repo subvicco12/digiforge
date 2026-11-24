@@ -50,6 +50,12 @@ final class Runtime
             echo '<p>Held authority interface: ' . \esc_html($readiness['native_mutation']['handoff_contract'])
                 . ' (execution disabled)</p>';
         }
+        $catalogScopes = self::syntheticModulesAvailable() ? self::workspaceScopes() : [];
+        if ($catalogScopes !== []) {
+            self::loadCatalogBrowser();
+            require_once __DIR__ . '/CatalogBrowserPanel.php';
+            CatalogBrowserPanel::render($catalogScopes, $_GET);
+        }
         $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
         $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
         if ($workspace !== null) {
@@ -151,6 +157,24 @@ final class Runtime
     public static function permitsWorkspaceAccount(string $shop, string $account): bool
     {
         return (self::workspaceScopes()[$shop] ?? null) === $account;
+    }
+
+    public static function permitsCatalogFixture(string $shop, string $account): bool
+    {
+        return self::syntheticModulesAvailable() && self::permitsWorkspaceAccount($shop, $account);
+    }
+
+    public static function browseCatalog(int $version, string $shop, string $account, array $selection = []): array
+    {
+        self::loadCatalogBrowser();
+        return CatalogBrowser::read($version, $shop, $account, $selection);
+    }
+
+    private static function loadCatalogBrowser(): void
+    {
+        require_once __DIR__ . '/SyntheticPrintifyTransport.php';
+        require_once __DIR__ . '/SyntheticPrintifyClient.php';
+        require_once __DIR__ . '/CatalogBrowser.php';
     }
 
     public static function syntheticWorkspace(?string $shop = null): ?SyntheticWorkspace
