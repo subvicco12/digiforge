@@ -386,9 +386,11 @@ final class SyntheticWorkspace
             $events = $row['events'];
             $sync = $operation === 'FIXTURE_READ_SYNC';
             $custody = $operation === 'FIXTURE_CUSTODY_READ';
-            $profileRevision = ($sync || $custody) ? AccountProfile::revisionToken() : null;
-            $profile = ($sync || $custody) ? AccountProfile::current() : null;
             $review = $operation === 'FIXTURE_PROPOSAL_REVIEW';
+            $profileSensitive = $sync || $custody || $preview || $review || $correlatedCreate
+                || in_array($operation, ['FIXTURE_WEBHOOK_EVENT','FIXTURE_WEBHOOK_HTTP','WEBHOOK_SIMULATE'], true);
+            $profileRevision = $profileSensitive ? AccountProfile::revisionToken() : null;
+            $profile = ($sync || $custody) ? AccountProfile::current() : null;
             $proposalScope = ($preview || $review || $correlatedCreate || $custody) ? $this->proposalScope() : null;
             $edited = null;
             if ($edit !== []) {
@@ -513,20 +515,31 @@ final class SyntheticWorkspace
                 || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
+            $profileBound = $profile !== null || $proposalScope !== null
+                || isset($result['shipment_receipt']['scope']['integration']);
+            $guard = '';
+            if ($profileBound) {
+                $connection = (int)$this->db->get_var('SELECT CONNECTION_ID()');
+                if ($profileRevision === null || $connection < 1) {
+                    return ['state'=>'DENIED','reason'=>'PROFILE_COMMIT_UNAVAILABLE']+$flags;
+                }
+                // A wpdb reconnect must never execute a write after losing the profile lock.
+                $guard = $this->db->prepare(' AND CONNECTION_ID() = %d AND @@session.in_transaction = 1', $connection);
+            }
+
             $next = $expected + 1;
             $key = $this->key();
             $seal = $this->seal($next, $bytes);
             if ($expected === 0) {
                 $sql = $this->db->prepare('INSERT INTO '.self::TABLE.' (scope_key,revision,state_json,seal)
-                    VALUES (%s,%d,%s,%s) ON DUPLICATE KEY UPDATE scope_key=scope_key', $key, $next, $bytes, $seal);
+                    SELECT %s,%d,%s,%s WHERE 1=1'.$guard.' ON DUPLICATE KEY UPDATE scope_key=scope_key', $key, $next, $bytes, $seal);
             } else {
                 $sql = $this->db->prepare('UPDATE '.self::TABLE.' SET revision=%d,state_json=%s,seal=%s
-                    WHERE scope_key=%s AND revision=%d AND seal=%s', $next, $bytes, $seal, $key, $expected, $row['seal']);
+                    WHERE scope_key=%s AND revision=%d AND seal=%s'.$guard, $next, $bytes, $seal, $key, $expected, $row['seal']);
             }
-            $changed = $this->db->query($sql);
-            if ($changed !== 1) {
-                return ['state'=>$changed === 0 ? 'DENIED' : 'UNKNOWN',
-                    'reason'=>$changed === 0 ? 'WORKSPACE_CHANGED' : 'COMMIT_UNCONFIRMED']+$flags;
+            $reason = $this->commitWorkspace($sql, $profileBound ? $profileRevision : null);
+            if ($reason !== null) {
+                return ['state'=>$reason === 'COMMIT_UNCONFIRMED' ? 'UNKNOWN' : 'DENIED','reason'=>$reason]+$flags;
             }
             $confirmed = $this->load();
             if ($confirmed['revision'] !== $next || $confirmed['seal'] !== $seal) {
@@ -535,6 +548,39 @@ final class SyntheticWorkspace
             return $result + $flags;
         } catch (\Throwable) {
             return ['state'=>'UNKNOWN','reason'=>'WORKSPACE_UNAVAILABLE']+$flags;
+        }
+    }
+
+    private function commitWorkspace(string $sql, ?string $profileRevision): ?string
+    {
+        if ($profileRevision === null) {
+            return match ($this->db->query($sql)) {
+                1 => null, 0 => 'WORKSPACE_CHANGED', default => 'COMMIT_UNCONFIRMED',
+            };
+        }
+        $engine = $this->db->get_var($this->db->prepare(
+            'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+            $this->db->options
+        ));
+        if (strtoupper((string)$engine) !== 'INNODB' || !$this->idle()
+            || $this->db->query('START TRANSACTION') === false) {
+            return 'PROFILE_COMMIT_UNAVAILABLE';
+        }
+        $committed = false;
+        try {
+            if (!AccountProfile::lockRevision($this->db, $profileRevision)) {
+                return 'PROFILE_STALE';
+            }
+            $changed = $this->db->query($sql);
+            if ($changed !== 1) {
+                return $changed === 0 ? 'WORKSPACE_CHANGED' : 'COMMIT_UNCONFIRMED';
+            }
+            $committed = $this->db->query('COMMIT') !== false;
+            return $committed ? null : 'COMMIT_UNCONFIRMED';
+        } finally {
+            if (!$committed) {
+                $this->db->query('ROLLBACK');
+            }
         }
     }
 

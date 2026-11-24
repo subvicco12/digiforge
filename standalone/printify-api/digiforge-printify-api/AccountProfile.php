@@ -40,13 +40,14 @@ final class AccountProfile
     }
 
     /** Read database bytes directly so compare-and-swap never depends on a worker's option cache. */
-    private static function optionSnapshot(): ?array
+    private static function optionSnapshot(bool $lock = false): ?array
     {
         global $wpdb;
         if (!$wpdb instanceof \wpdb) {
             return null;
         }
-        $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::OPTION));
+        $query = "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s";
+        $raw = $wpdb->get_var($wpdb->prepare($query.($lock ? ' FOR UPDATE' : ''), self::OPTION));
         if ($wpdb->last_error !== '') {
             return null;
         }
@@ -74,6 +75,17 @@ final class AccountProfile
     public static function revisionToken(): ?string
     {
         return self::readableSnapshot()['token'] ?? null;
+    }
+
+    /** Confirm the active revision under the caller's short workspace transaction. */
+    public static function lockRevision(object $connection, string $expected): bool
+    {
+        global $wpdb;
+        if ($connection !== $wpdb) {
+            return false;
+        }
+        $snapshot = self::optionSnapshot(lock: true);
+        return is_string($snapshot['raw'] ?? null) && hash_equals(self::token($snapshot['raw']), $expected);
     }
 
     private static function persist(array $snapshot, array $profile): string
