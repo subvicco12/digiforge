@@ -118,8 +118,10 @@ final class SyntheticPrintifyTransport
         if ($selected === [] || ($lineId !== null && count($selected) !== 1)) {
             return false;
         }
-        foreach (array_keys($selected) as $index) {
-            $order['line_items'][$index]['status'] = 'fulfilled';
+        if ($lineId !== null || isset($order['fulfilment_type'])) {
+            foreach (array_keys($selected) as $index) {
+                $order['line_items'][$index]['status'] = 'fulfilled';
+            }
         }
         $order['status'] = count($selected) === count($pending) ? 'fulfilled' : 'partially-fulfilled';
         $reference = 'SYNTHETIC-'.$orderId.($lineId === null ? '' : '-shipment-'.(count($order['shipments'])+1));

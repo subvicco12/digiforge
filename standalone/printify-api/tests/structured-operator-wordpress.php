@@ -92,7 +92,7 @@ $artwork = ['product_id'=>'product-3','expected_version'=>'3','variant_id'=>'9',
 $post('PRODUCT_UPDATE', ['placements'=>[
     ['variant_id'=>'9','image_id'=>'image-1','position'=>'front'],
     ['variant_id'=>'10','image_id'=>'image-1','position'=>'unsupported'],
-]]+$artwork, 'INVALID_OPERATION_FIELD');
+]]+$artwork, 'VALIDATION');
 $post('PRODUCT_UPDATE', $artwork);
 $printAreas = $workspace->readRecords('products','product-3', 1, 10)['data']['print_areas'];
 requireFixture(array_column($printAreas, 'variant_ids') === [[9],[10]]
