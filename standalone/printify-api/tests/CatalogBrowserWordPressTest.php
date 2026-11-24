@@ -45,6 +45,11 @@ final class CatalogBrowserWordPressTest extends WP_UnitTestCase
         self::assertSame('RATE_LIMITED', CatalogBrowser::read(1,'12','fixture-catalog',[],$fixture)['error']);
         self::assertSame('SCOPE_OR_TRANSPORT_UNAVAILABLE', CatalogBrowser::read(1,'12','fixture-catalog',[],new SyntheticPrintifyTransport('13'))['error']);
 
+        self::assertSame('DENIED', Runtime::validateCatalog('12', ['kind'=>'blueprints'], '{')['state']);
+        self::assertSame('DENIED', Runtime::validateCatalog('12', ['kind'=>'blueprints'], '{"last_page":2}')['state']);
+        $unattributed = Runtime::validateCatalog('12', ['kind'=>'blueprints'], '[{"id":42}]');
+        self::assertSame('UNATTRIBUTED_OFFLINE_INPUT', $unattributed['evidence_class']);
+        self::assertFalse($unattributed['freshness_verified']);
         $areas = new ReflectionMethod(CatalogBrowser::class, 'areas');
         self::assertNull($areas->invoke(null, ['id'=>9]));
         self::assertSame([['position'=>'front','width'=>null,'height'=>null,'bleed'=>null,'safe_zone'=>null]],
