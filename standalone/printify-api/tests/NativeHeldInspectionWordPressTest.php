@@ -377,6 +377,21 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
         self::assertNotFalse($wpdb->query("ALTER TABLE $replay DROP COLUMN schema_revision"));
         self::assertSame('DENIED', $inspect($unknown)['state']);
         self::assertSame('UNKNOWN', $wpdb->get_var("SELECT outcome FROM $replay"));
+        // This synthetic IPC contains digests and fixture references only. The
+        // external reference test runs after the MariaDB writes have finished.
+        $receiptPath = getenv('DF_OFFLINE_AUTHORITY_RECEIPT');
+        if ($receiptPath !== false) {
+            self::assertMatchesRegularExpression('#^/tmp/df-[a-zA-Z0-9/-]+/authority-receipt\.json$#D', $receiptPath);
+            self::assertNotFalse(file_put_contents($receiptPath, json_encode([
+                'operation_id'=>$identity['operation_id'], 'correlation_id'=>$identity['correlation_id'],
+                'idempotency_id'=>hash('sha256', 'fixture-admission:'.$identity['operation_id']),
+                'shop'=>$identity['provider_shop_id'], 'account'=>$identity['account_reference'],
+                'integration'=>(string)$identity['integration_id'], 'actor'=>$identity['actor_id'],
+                'session_generation'=>$grant['generation'], 'authorization_revision'=>$grant['authorization_revision'],
+                'policy_revision'=>1, 'payload_digest'=>$identity['payload_fingerprint'],
+                'journal_revision'=>$unknown['journal_revision'], 'event_hash'=>$unknown['event_hash'],
+            ], JSON_THROW_ON_ERROR), LOCK_EX));
+        }
         return $inspect;
     }
 
