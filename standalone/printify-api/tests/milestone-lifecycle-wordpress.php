@@ -14,6 +14,9 @@ if ($phase === 'reopen') {
         && $workspace->readRecords('orders','order-3',1,10)['data']['status'] === 'on-hold', 'Order effects were lost or guessed');
     requireFixture(count(array_filter($history, static fn(array $p): bool => $p['state'] === 'UNKNOWN')) === 1,
         'Uncertain production outcome was lost or replayed');
+    $product = $workspace->readRecords('products','product-1',1,10)['data'];
+    requireFixture($product['synthetic_version'] === 2 && $product['variants'][0]['price'] === 1550,
+        'Reconfigured product did not survive reopening');
     echo "Lifecycle receipts and UNKNOWN quarantine survived reopen\n";
     return;
 }
@@ -60,3 +63,29 @@ requireFixture($result['state'] === 'UNKNOWN' && !$result['fixture_effect_commit
 requireFixture($decision($unknown, 'simulate_held')['reason'] === 'FIXTURE_TRANSITION_APPROVAL_MISMATCH',
     'Uncertain transition could be replayed');
 echo "Lifecycle fixture PASS: publication and unpublication, line cancellation, production, stale cancellation, four replay denials and UNKNOWN\n";
+$alternate = "\x89PNG\r\n\x1a\n".$chunk('IHDR',pack('NNCCCCC',1,1,8,2,0,0,0))
+    .$chunk('IDAT',gzcompress("\0\0\0\xff")).$chunk('IEND','');
+$image = $operationResult($send('IMAGE_UPLOAD', ['file_name'=>'replacement.png','contents'=>base64_encode($alternate)]));
+requireFixture(($image['data']['id'] ?? null) === 'image-2', 'Replacement artwork did not upload');
+$configuration = ['product_id'=>'product-1','expected_version'=>'1','title'=>'Reconfigured local product',
+    'description'=>'Replacement fixture art','variant_id'=>'9','price'=>'1450',
+    'variants'=>[['variant_id'=>'10','price'=>'0','variant_enabled'=>'disabled']],
+    'placements'=>[
+        ['variant_id'=>'9','image_id'=>'image-2','position'=>'front','scale'=>'1.1'],
+        ['variant_id'=>'10','image_id'=>'image-1','position'=>'back'],
+    ]];
+$old = $approve('PRODUCT_UPDATE', $configuration);
+$amended = ['price'=>'1550']+$configuration;
+$revised = $operationResult($send('PRODUCT_UPDATE',$amended,true,[],$old))['proposal'];
+requireFixture($revised['state'] === 'PENDING_APPROVAL' && $revised['revision'] === $old['revision']+1
+    && $revised['intent_sha256'] !== $old['intent_sha256']
+    && $decision($old,'approve')['reason'] === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Product edit did not invalidate approval');
+$updated = $operationResult($send('PRODUCT_UPDATE', $amended));
+requireFixture($updated['state'] === 'SYNTHETIC_OBSERVED' && $updated['data']['synthetic_version'] === 2
+    && !$updated['provider_execution_authorized'], 'Structured replacement could not be applied');
+$read = $workspace->readRecords('products','product-1',1,10)['data'];
+requireFixture($read['variants'] === [['id'=>9,'price'=>1550,'is_enabled'=>true],['id'=>10,'price'=>0,'is_enabled'=>false]]
+    && $read['print_areas'][0]['placeholders'][0]['images'][0]['id'] === 'image-2'
+    && $read['print_areas'][1]['placeholders'][0]['position'] === 'back',
+    'Structured product update lost price, variant availability, or exact artwork mapping');
+echo "Structured product milestone PASS: replacement PNG, pricing, disabled variant, per-variant areas and stale approval denial\n";
