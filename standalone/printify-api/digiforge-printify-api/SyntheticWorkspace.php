@@ -521,8 +521,11 @@ final class SyntheticWorkspace
         }
         if ($op === 'FIXTURE_PRODUCTION_CONFIRM' || $op === 'FIXTURE_FULFILL') {
             $id = $input['order_id'] ?? null;
-            $ok = count($input) === 1 && is_string($id) && preg_match('/^order-[1-9][0-9]{0,2}$/D',$id)
-                && ($op === 'FIXTURE_FULFILL' ? $transport->fulfill($id)
+            $line = $input['line_item_id'] ?? null;
+            $exactInput = count($input) === 1 || ($op === 'FIXTURE_FULFILL' && count($input) === 2
+                && is_string($line) && preg_match('/^line-[1-9][0-9]{0,2}$/D', $line));
+            $ok = $exactInput && is_string($id) && preg_match('/^order-[1-9][0-9]{0,2}$/D',$id)
+                && ($op === 'FIXTURE_FULFILL' ? $transport->fulfill($id, $line)
                     : $transport->confirmProductionSimulation($id));
             if ($ok && $op === 'FIXTURE_PRODUCTION_CONFIRM') {
                 // Confirmation is request-local and consumed by the synthetic transport.

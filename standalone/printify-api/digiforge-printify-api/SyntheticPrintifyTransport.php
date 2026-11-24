@@ -105,17 +105,29 @@ final class SyntheticPrintifyTransport
         return true;
     }
 
-    public function fulfill(string $orderId): bool
+    public function fulfill(string $orderId, ?string $lineId = null): bool
     {
-        if (($this->orders[$orderId]['status'] ?? null) !== 'in-production') {
+        $order = $this->orders[$orderId] ?? null;
+        if ($order === null || !in_array($order['status'], ['in-production','partially-fulfilled'], true)
+            || ($lineId === null && $order['status'] !== 'in-production')) {
             return false;
         }
-        $this->orders[$orderId]['status'] = 'fulfilled';
-        $this->advanceExpressLines($orderId,'fulfilled');
-        $this->orders[$orderId]['shipments'] = [[
-            'carrier'=>'Synthetic carrier', 'number'=>'SYNTHETIC-'.$orderId,
-            'url'=>'https://tracking.example.invalid/'.$orderId, 'delivered_at'=>null,
-        ]];
+        $pending = array_filter($order['line_items'], static fn(array $line): bool =>
+            !in_array($line['status'] ?? null, ['canceled','fulfilled'], true));
+        $selected = $lineId === null ? $pending : array_filter($pending, static fn(array $line): bool => $line['id'] === $lineId);
+        if ($selected === [] || ($lineId !== null && count($selected) !== 1)) {
+            return false;
+        }
+        foreach (array_keys($selected) as $index) {
+            $order['line_items'][$index]['status'] = 'fulfilled';
+        }
+        $order['status'] = count($selected) === count($pending) ? 'fulfilled' : 'partially-fulfilled';
+        $reference = 'SYNTHETIC-'.$orderId.($lineId === null ? '' : '-shipment-'.(count($order['shipments'])+1));
+        $order['shipments'][] = [
+            'carrier'=>'Synthetic carrier', 'number'=>$reference,
+            'url'=>'https://tracking.example.invalid/'.($lineId === null ? $orderId : $reference), 'delivered_at'=>null,
+        ];
+        $this->orders[$orderId] = $order;
         return true;
     }
 
@@ -135,10 +147,12 @@ final class SyntheticPrintifyTransport
     /** Return only a fixture-issued reference already bound by the validated order projection. */
     public function fixtureTrackingReference(string $orderId, string $trackingHash): ?string
     {
-        $reference = 'SYNTHETIC-'.$orderId;
-        foreach ($this->orders[$orderId]['shipments'] ?? [] as $shipment) {
-            if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
-                return $reference;
+        foreach ($this->orders[$orderId]['shipments'] ?? [] as $index=>$shipment) {
+            $base = 'SYNTHETIC-'.$orderId;
+            foreach ([$base, $base.'-shipment-'.($index+1)] as $reference) {
+                if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
+                    return $reference;
+                }
             }
         }
         return null;
@@ -147,7 +161,7 @@ final class SyntheticPrintifyTransport
     /** Record delivery only for a matching, already fulfilled fixture shipment. */
     public function recordFixtureDelivery(string $orderId,string $trackingSha256,string $deliveredAt): bool
     {
-        if (($this->orders[$orderId]['status']??null)!=='fulfilled'
+        if (!in_array($this->orders[$orderId]['status']??null, ['partially-fulfilled','fulfilled'], true)
             ||preg_match('/^[a-f0-9]{64}$/D',$trackingSha256)!==1
             ||preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/D',$deliveredAt)!==1) {
             return false;
@@ -469,10 +483,10 @@ final class SyntheticPrintifyTransport
 
     private function simulationShipment(array $order,string $topic,array $scope): ?array
     {
-        $shipment=$order['shipments'][0]??null;
-        if ($shipment===null) {
+        if (count($order['shipments'] ?? []) !== 1 || $order['status'] === 'partially-fulfilled') {
             return null;
         }
+        $shipment=$order['shipments'][0];
         $delivered=$topic==='order:shipment:delivered';
         if ($delivered && $shipment['delivered_at']===null) {
             return null;

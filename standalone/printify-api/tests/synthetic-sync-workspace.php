@@ -71,7 +71,7 @@ if ($phase === 'write') {
     $profile = ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>''];
     requireFixture(\DigiForgePrintifyApi\AccountProfile::save($profile,
         wp_create_nonce('digiforge_printify_account_profile_save')) === 'SAVED_LOCAL_METADATA', 'Fixture profile setup failed');
-    $send = static function (string $operation, array $fields, bool $preview = false, array $approvedCreate = []) use ($workspace): string {
+    $send = static function (string $operation, array $fields, bool $preview = false, array $approvedCreate = [], array $edit = []) use ($workspace): string {
         $revision = $workspace->inspect()['revision'];
         $prior = $_POST;
         $method = $_SERVER['REQUEST_METHOD'] ?? null;

@@ -17,6 +17,10 @@ if ($phase === 'reopen') {
     requireFixture(count($drafts) === 1 && $drafts[0]['revision'] === 3 && $drafts[0]['state'] === 'PENDING_APPROVAL'
         && $drafts[0]['configuration']['line_items'][1] === ['product_id'=>'product-3','variant_id'=>10,'quantity'=>3],
         'Order revision or line edit did not survive restart');
+    $shipments = $workspace->readRecords('orders', 'order-3', 1, 10)['data']['shipments'];
+    requireFixture(array_column($shipments, 'tracking_reference') === [
+        'SYNTHETIC-order-3-shipment-1','SYNTHETIC-order-3-shipment-2',
+    ], 'Multiple fixture tracking references did not survive restart');
     echo "Structured WordPress forms: two publication outcomes, revision and four operation receipts survived reopen\n";
     return;
 }
@@ -83,7 +87,7 @@ $third = $product;
 $third['variants'][] = ['id'=>10,'price'=>1300,'is_enabled'=>true];
 $third['print_areas'][0]['variant_ids'][] = 10;
 $run('PRODUCT_UPDATE', ['product_id'=>'product-3','expected_version'=>3,
-    'variants'=>$third['variants'],'print_areas'=>$third['print_areas']]);
+    'variants'=>$third['variants'],'known_variant_ids'=>[9,10],'print_areas'=>$third['print_areas']]);
 $unavailable = ['line_items'=>[['product_id'=>'product-3','variant_id'=>'11','quantity'=>'3']]] + $change;
 $result = $operationResult($send('ORDER_CREATE', $unavailable, true, [], $approved));
 requireFixture($result['state'] !== 'SYNTHETIC_OBSERVED' && !isset($result['proposal']), 'Unavailable variant superseded a valid revision');
@@ -101,3 +105,30 @@ requireFixture($decide($initial, 'stale order approval')['reason'] === 'PROPOSAL
     && $workspace->readRecords('orders', null, 1, 10)['data'] === $before,
     'Stale approval advanced or edited a persisted order');
 echo "Structured order editing PASS: line quantities and variant revised, destination corrected, invalid and stale revisions denied\n";
+
+$quote = ['quantity'=>'2','shipping_method'=>'4'] + $change;
+foreach (['us_east'=>null,'ca_west'=>null,'au_unavailable'=>'FIXTURE_SHIPPING_UNAVAILABLE'] as $destination=>$reason) {
+    $result = $operationResult($send('ORDER_SHIPPING_QUOTE', ['destination'=>$destination]+$quote, true));
+    requireFixture($reason === null ? $result['state'] === 'SYNTHETIC_OBSERVED'
+        : $result['state'] === 'UNAVAILABLE' && $result['reason'] === $reason, 'Incorrect bounded quote for '.$destination);
+}
+$result = $operationResult($send('ORDER_SHIPPING_QUOTE', ['destination'=>'ca_west','shipping_method'=>'3']+$quote, true));
+requireFixture($result['reason'] === 'FIXTURE_SHIPPING_METHOD_UNAVAILABLE', 'Unavailable express quote was synthesized');
+
+$run('ORDER_CREATE', ['external_id'=>'split-fulfillment-fixture','line_items'=>[
+    ['product_id'=>'product-1','variant_id'=>9,'quantity'=>1],
+    ['product_id'=>'product-3','variant_id'=>10,'quantity'=>2],
+]]+$order);
+$run('FIXTURE_PRODUCTION_CONFIRM', ['order_id'=>'order-3']);
+$post('FIXTURE_FULFILL', ['order_id'=>'order-3','line_item_id'=>'line-1']);
+$partial = $workspace->readRecords('orders', 'order-3', 1, 10)['data'];
+requireFixture($partial['status'] === 'partially-fulfilled' && count($partial['shipments']) === 1
+    && $partial['line_items'][0]['status'] === 'fulfilled' && ($partial['line_items'][1]['status'] ?? null) !== 'fulfilled',
+    'Selected line advanced the entire order');
+$post('FIXTURE_FULFILL', ['order_id'=>'order-3','line_item_id'=>'line-1'], 'ORDER_STATE_OR_ID');
+$post('FIXTURE_FULFILL', ['order_id'=>'order-3'], 'ORDER_STATE_OR_ID');
+$post('FIXTURE_FULFILL', ['order_id'=>'order-3','line_item_id'=>'line-2']);
+$complete = $workspace->readRecords('orders', 'order-3', 1, 10)['data'];
+requireFixture($complete['status'] === 'fulfilled' && count($complete['shipments']) === 2
+    && $complete['shipments'][0] === $partial['shipments'][0], 'Final line replaced the first shipment or failed to advance status');
+echo "Structured quotes and split fulfillment PASS: four quotes, duplicate shipment denial and two tracking references\n";

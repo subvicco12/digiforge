@@ -50,21 +50,33 @@ final class PrintifyOrderEvidence
             $row=array_intersect_key($line,array_flip(['id','product_id','variant_id','quantity']));if(isset($line['status'])){if(!is_string($line['status'])||strlen($line['status'])>80)throw new \InvalidArgumentException('Malformed fulfillment status.');$row['status']=in_array($line['status'],self::STATES,true)?$line['status']:'UNRECOGNIZED_PROVIDER_STATE';}foreach(['cost','shipping_cost'] as $money){$row[$money]=self::amount($line[$money]??null);}$lines[]=$row;
         }
         $shipments = [];
+        $seenTracking = [];
         if (!is_array($order['shipments'] ?? []) || !array_is_list($order['shipments'] ?? []) || count($order['shipments'] ?? []) > 100) { throw new \InvalidArgumentException('Malformed shipments.'); }
         foreach ($order['shipments'] ?? [] as $shipment) {
             if (!is_array($shipment)) { throw new \InvalidArgumentException('Malformed shipment.'); }
             self::text($shipment['carrier'] ?? null, 100);
             self::text($shipment['number'] ?? null, 255);
+            $trackingHash = hash('sha256', $shipment['number']);
+            if (isset($seenTracking[$trackingHash])) {
+                throw new \InvalidArgumentException('Ambiguous shipment tracking identity.');
+            }
+            $seenTracking[$trackingHash] = true;
             $url = $shipment['url'] ?? null;
             if (!is_string($url) || strlen($url) > 2048 || !filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http','https'], true) || parse_url($url, PHP_URL_USER) !== null || parse_url($url, PHP_URL_PASS) !== null) { throw new \InvalidArgumentException('Malformed tracking reference.'); }
             $delivered = $shipment['delivered_at'] ?? null;
-            if ($delivered !== null && (!is_string($delivered) || strlen($delivered) > 40 || !preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D', $delivered) || strtotime($delivered) === false)) { throw new \InvalidArgumentException('Invalid delivery timestamp.'); }
-            $shipments[] = ['carrier'=>$shipment['carrier'],'tracking_hash'=>hash('sha256',$shipment['number']),'url_observed'=>true,'delivered_at'=>$delivered];
+            if ($delivered !== null && (!is_string($delivered) || strlen($delivered) > 40 || !preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D', $delivered) || !self::validTimestamp($delivered))) { throw new \InvalidArgumentException('Invalid delivery timestamp.'); }
+            $shipments[] = ['carrier'=>$shipment['carrier'],'tracking_hash'=>$trackingHash,'url_observed'=>true,'delivered_at'=>$delivered];
         }
         $external=$order['external_id']??null;if($external!==null)self::text($external,128);
         $sent=$order['sent_to_production_at']??null;if($sent!==null&&(!is_string($sent)||strlen($sent)>40||!preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?$/D',$sent)||strtotime($sent)===false))throw new \InvalidArgumentException('Invalid production timestamp.');
         return ['id'=>$expectedId,'external_id'=>$external,'sent_to_production_at'=>$sent,'status'=>$order['status'],'line_items'=>$lines,'shipments'=>$shipments,'cost'=>self::amount($order['total_price'] ?? null),'shipping_cost'=>self::amount($order['total_shipping'] ?? null),'production_certified'=>false];
     }
+    private static function validTimestamp(string $value): bool
+    {
+        $date = date_parse($value);
+        return $date['warning_count'] === 0 && $date['error_count'] === 0;
+    }
+
     private static function amount(mixed $value): ?int
     {
         if ($value === null) { return null; }

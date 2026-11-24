@@ -311,7 +311,7 @@ final class SyntheticWorkspacePanel
             'SUPPORT_DETAIL'=>['Inspect fixture support request', ['order_id','support_request_id']],
             'LINE_ITEM_CANCEL'=>['Cancel fixture order line', ['order_id','line_item_id']],
             'FIXTURE_PRODUCTION_CONFIRM'=>['Confirm simulated production', ['order_id']],
-            'FIXTURE_FULFILL'=>['Simulate fulfillment', ['order_id']],
+            'FIXTURE_FULFILL'=>['Simulate fulfillment', ['order_id','line_item_id']],
         ],
         'Webhooks and events'=>[
             'WEBHOOKS_READ'=>['List fixture webhooks', []],
@@ -355,6 +355,9 @@ final class SyntheticWorkspacePanel
                 }
                 if ($op === 'PRODUCT_CREATE' || $op === 'PRODUCT_UPDATE') {
                     echo '<p>When setting placements, include artwork for each selected variant. Blank geometry centers the artwork at full scale.</p>';
+                }
+                if ($op === 'FIXTURE_FULFILL') {
+                    echo '<p>Select a line to simulate a separate shipment. Leave it blank to fulfill a new order in one shipment.</p>';
                 }
                 if ($op === 'FIXTURE_PRODUCTION_CONFIRM') {
                     echo '<p>Submit this separate confirmation to advance the fixture order into simulated production.</p>';
@@ -415,7 +418,8 @@ final class SyntheticWorkspacePanel
         $id = 'df-synthetic-'.($prefix === '' ? '' : $prefix.'-').strtolower($op).($group===null?'':"-$group-$row").'-'.$field;
         $key = $group===null ? "[$field]" : "[$group][$row][$field]";
         $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields'.\esc_attr($key).'"';
-        $required = $group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required';
+        $required = $prefix !== '' && $field === 'destination' ? ' required'
+            : ($group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required');
         $value = $preset ?? ($group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '');
         if ($field === 'publication_fields') {
             echo '<fieldset><legend>'.\esc_html($label).'</legend>';
@@ -493,7 +497,7 @@ final class SyntheticWorkspacePanel
 
     private static function optional(string $op, string $field): bool
     {
-        return in_array($field,['destination','variant_enabled'],true) || ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
+        return in_array($field,['destination','variant_enabled'],true) || ($op==='FIXTURE_FULFILL' && $field==='line_item_id') || ($op==='PRODUCT_UPDATE' && in_array($field,['title','description','variant_id','price'],true))
             || ($op==='PRODUCT_CREATE' && in_array($field,['x','y','scale','angle'],true));
     }
 
@@ -904,6 +908,9 @@ final class SyntheticWorkspacePanel
             }
             try {
                 $fields=array_key_exists('df_workspace_fields',$_POST)?$_POST['df_workspace_fields']:[];
+                if ($op === 'ORDER_CREATE' && $preview === '1' && $edit !== [] && empty($fields['destination'])) {
+                    throw new \InvalidArgumentException('destination');
+                }
                 $input=self::fieldInput($shop,$op,self::artworkFields($op,$fields));
             } catch (\InvalidArgumentException $e) {
                 return ['state'=>'DENIED','reason'=>'INVALID_OPERATION_FIELD','field'=>$e->getMessage()];
