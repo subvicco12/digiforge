@@ -473,6 +473,7 @@ final class SyntheticPrintifyClient
             throw new \InvalidArgumentException('Malformed synthetic legacy shipping catalog.');
         }
         $normalized=[];
+        $associations=[];
         foreach ($profiles as $row) {
             if (!is_array($row)||count($row)!==4
                 ||!is_array($row['variant_ids']??null)||!array_is_list($row['variant_ids'])||$row['variant_ids']===[]
@@ -489,6 +490,15 @@ final class SyntheticPrintifyClient
             foreach ($row['countries'] as $country) {
                 if (!is_string($country)||preg_match('/^(?:[A-Z]{2}|REST_OF_THE_WORLD)$/D',$country)!==1) {
                     throw new \InvalidArgumentException('Malformed synthetic shipping country.');
+                }
+            }
+            foreach ($row['variant_ids'] as $variant) {
+                foreach ($row['countries'] as $country) {
+                    $key = $variant.':'.$country;
+                    if (isset($associations[$key])) {
+                        throw new \InvalidArgumentException('Ambiguous synthetic shipping coverage.');
+                    }
+                    $associations[$key] = true;
                 }
             }
             foreach (['first_item','additional_items'] as $key) {

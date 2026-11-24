@@ -117,8 +117,12 @@ if ($phase === 'write') {
             'Operation output missing');
         return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), true, 24, JSON_THROW_ON_ERROR);
     };
-    if (in_array($scenario, ['structured','milestones'], true)) {
-        require __DIR__.($scenario === 'structured' ? '/structured-operator-wordpress.php' : '/milestone-lifecycle-wordpress.php');
+    if (in_array($scenario, ['structured','milestones','nine'], true)) {
+        require __DIR__.match ($scenario) {
+            'structured'=>'/structured-operator-wordpress.php',
+            'milestones'=>'/milestone-lifecycle-wordpress.php',
+            'nine'=>'/remaining-milestones-wordpress.php',
+        };
         return;
     }
     $sync = static fn(string $kind, array $select = []): string =>
@@ -443,8 +447,12 @@ if ($phase === 'write') {
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
 } else {
-    if (in_array($scenario, ['structured','milestones'], true)) {
-        require __DIR__.($scenario === 'structured' ? '/structured-operator-wordpress.php' : '/milestone-lifecycle-wordpress.php');
+    if (in_array($scenario, ['structured','milestones','nine'], true)) {
+        require __DIR__.match ($scenario) {
+            'structured'=>'/structured-operator-wordpress.php',
+            'milestones'=>'/milestone-lifecycle-wordpress.php',
+            'nine'=>'/remaining-milestones-wordpress.php',
+        };
         return;
     }
     $retained = array_column($workspace->inspect()['audit'], 'sync_receipt');

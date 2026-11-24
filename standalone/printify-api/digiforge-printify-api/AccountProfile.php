@@ -12,6 +12,7 @@ final class AccountProfile
 {
     private const OPTION = 'digiforge_printify_account_profile_v1';
     private const FORM = 'digiforge_printify_account_profile_save';
+    private const MAX_SAVED = 8;
     private const FIELDS = [
         'shop'=>'Printify shop ID',
         'account'=>'Account reference',
@@ -44,10 +45,51 @@ final class AccountProfile
             'scope_changed'=>$previous === null || array_diff_assoc(array_diff_key($profile, ['custody'=>true]), $previous) !== [],
             'alias_changed'=>($previous['custody'] ?? '') !== $profile['custody'],
         ];
-        if (\update_option(self::OPTION, ['profile'=>$profile,'history'=>array_slice($history,-20)], false)) {
+        $saved = self::savedProfiles($stored);
+        if ($previous !== null) {
+            $saved[self::scopeKey($previous)] = $previous;
+        }
+        $key = self::scopeKey($profile);
+        unset($saved[$key]);
+        $saved[$key] = $profile;
+        if (\update_option(self::OPTION, ['profile'=>$profile,'history'=>array_slice($history,-20),
+            'saved'=>array_slice($saved, -self::MAX_SAVED, null, true)], false)) {
             return 'SAVED_LOCAL_METADATA';
         }
         return 'SAVE_FAILED';
+    }
+
+    private static function scopeKey(array $profile): string
+    {
+        return hash('sha256', implode("\n", [$profile['shop'], $profile['account'], $profile['integration']]));
+    }
+
+    private static function savedProfiles(mixed $stored): array
+    {
+        $rows = is_array($stored) && is_array($stored['saved'] ?? null) ? $stored['saved'] : [];
+        $saved = [];
+        foreach (array_slice($rows, -self::MAX_SAVED, null, true) as $key=>$row) {
+            $profile = is_array($row) ? self::validate($row) : null;
+            if ($profile !== null && self::scopeKey($profile) === $key) {
+                $saved[$key] = $profile;
+            }
+        }
+        return $saved;
+    }
+
+    public static function switchProfile(string $key, string $expected, string $nonce): string
+    {
+        if (!\current_user_can('manage_options') || !\wp_verify_nonce($nonce, self::FORM)) {
+            return 'DENIED';
+        }
+        $stored = \get_option(self::OPTION, null);
+        $current = self::current();
+        $target = self::savedProfiles($stored)[$key] ?? null;
+        if ($current === null || !hash_equals((string)self::fingerprint($current), $expected)
+            || $target === null || !\current_user_can('digiforge_printify_review_shop_'.$target['shop'])) {
+            return 'INVALID_OR_UNASSIGNED_SCOPE';
+        }
+        return self::save($target, $nonce);
     }
 
     public static function current(): ?array
@@ -139,10 +181,17 @@ final class AccountProfile
         }
         echo '<section id="df-account"><h2>Account configuration</h2>';
         echo '<p>Save shop and account references for offline planning. Provider connectivity is disabled. Do not enter credentials.</p>';
-        if (isset($post[self::FORM])) {
+        if (isset($post[self::FORM]) || isset($post['df_printify_switch_profile'])) {
             $input = $post['df_printify_profile'] ?? null;
             $nonce = $post['df_printify_profile_nonce'] ?? null;
-            $status = is_array($input) && is_string($nonce) ? self::save($input, $nonce) : 'DENIED';
+            $switch = $post['df_printify_switch_profile'] ?? null;
+            $expected = $post['df_printify_previous_profile'] ?? null;
+            $status = match (true) {
+                is_string($switch) && is_string($expected) && is_string($nonce) && !isset($post[self::FORM])
+                    => self::switchProfile($switch, $expected, $nonce),
+                $switch === null && is_array($input) && is_string($nonce) => self::save($input, $nonce),
+                default => 'DENIED',
+            };
             echo '<p role="status">'.\esc_html(match ($status) {
                 'SAVED_LOCAL_METADATA'=>'Local metadata saved.',
                 'INVALID_OR_UNASSIGNED_SCOPE'=>'Check the references and your assigned shop.',
@@ -160,6 +209,7 @@ final class AccountProfile
         }
         echo '<button type="submit">Save local configuration</button></form>';
         if ($profile !== null) {
+            self::renderSavedProfiles($profile);
             $diagnostics = self::diagnostics();
             echo '<p>'.\esc_html('Custody: '.$diagnostics['custody'].' · '.$diagnostics['operational_resolution']).'</p>';
             echo '<ul>';
@@ -171,6 +221,27 @@ final class AccountProfile
             echo '</ul>';
         }
         echo '</section>';
+    }
+
+    private static function renderSavedProfiles(array $current): void
+    {
+        $options = [];
+        foreach (self::savedProfiles(\get_option(self::OPTION, null)) as $key=>$target) {
+            if ($key !== self::scopeKey($current) && \current_user_can('digiforge_printify_review_shop_'.$target['shop'])) {
+                $options[$key] = implode(' · ', [$target['shop'], $target['account'], $target['integration']]);
+            }
+        }
+        if ($options === []) {
+            return;
+        }
+        echo '<form method="post">';
+        \wp_nonce_field(self::FORM, 'df_printify_profile_nonce');
+        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr((string)self::fingerprint($current)).'">';
+        echo '<label>Saved local profile <select name="df_printify_switch_profile" required><option value="">Choose a profile</option>';
+        foreach ($options as $key=>$label) {
+            echo '<option value="'.\esc_attr($key).'">'.\esc_html($label).'</option>';
+        }
+        echo '</select></label> <button type="submit">Switch local profile</button></form>';
     }
 
     private static function validate(array $input): ?array
