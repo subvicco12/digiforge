@@ -43,6 +43,9 @@ final class AccountProfile
     private static function optionSnapshot(): ?array
     {
         global $wpdb;
+        if (!$wpdb instanceof \wpdb) {
+            return null;
+        }
         $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::OPTION));
         if ($wpdb->last_error !== '') {
             return null;
@@ -55,7 +58,7 @@ final class AccountProfile
         return hash_hmac('sha256', "DF_PRINTIFY_PROFILE_1\n".($raw ?? ''), \wp_salt('auth'));
     }
 
-    public static function revisionToken(): ?string
+    private static function readableSnapshot(): ?array
     {
         if (!\current_user_can('manage_options')) {
             return null;
@@ -65,7 +68,12 @@ final class AccountProfile
         if ($snapshot === null || ($profile !== null && !\current_user_can('digiforge_printify_review_shop_'.$profile['shop']))) {
             return null;
         }
-        return self::token($snapshot['raw']);
+        return $snapshot + ['profile'=>$profile,'token'=>self::token($snapshot['raw'])];
+    }
+
+    public static function revisionToken(): ?string
+    {
+        return self::readableSnapshot()['token'] ?? null;
     }
 
     private static function persist(array $snapshot, array $profile): string
@@ -160,18 +168,13 @@ final class AccountProfile
 
     public static function current(): ?array
     {
-        if (!\current_user_can('manage_options')) {
-            return null;
-        }
-        $stored = \get_option(self::OPTION, null);
-        $profile = self::storedProfile($stored);
-        return $profile !== null && \current_user_can('digiforge_printify_review_shop_'.$profile['shop'])
-            ? $profile : null;
+        return self::readableSnapshot()['profile'] ?? null;
     }
 
     public static function diagnostics(): array
     {
-        $profile = self::current();
+        $snapshot = self::readableSnapshot();
+        $profile = $snapshot['profile'] ?? null;
         if ($profile === null) {
             return [];
         }
@@ -179,7 +182,7 @@ final class AccountProfile
         return [
             'custody'=>$profile['custody'] === '' ? 'NO_REFERENCE' : 'FIXTURE_REFERENCE_CONFIGURED',
             'operational_resolution'=>'BLOCKED_EXTERNAL',
-            'change_receipts'=>array_values(array_filter(self::history(\get_option(self::OPTION, null)),
+            'change_receipts'=>array_values(array_filter(self::history($snapshot['stored']),
                 static fn(array $receipt): bool => $receipt['after'] === $fingerprint)),
         ];
     }
@@ -266,10 +269,11 @@ final class AccountProfile
                 default=>'Account configuration change denied.',
             }).'</p>';
         }
-        $profile = self::current();
+        $snapshot = self::readableSnapshot();
+        $profile = $snapshot['profile'] ?? null;
         echo '<form method="post"><input type="hidden" name="'.self::FORM.'" value="1">';
         \wp_nonce_field(self::FORM, 'df_printify_profile_nonce');
-        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr(self::revisionToken() ?? '').'">';
+        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr($snapshot['token'] ?? '').'">';
         foreach (self::FIELDS as $key=>$label) {
             echo '<p><label>'.\esc_html($label).' <input name="df_printify_profile['.$key.']" maxlength="100"'
                 .($key === 'custody' ? ' placeholder="custody-ref:example"' : ' required')
@@ -277,7 +281,7 @@ final class AccountProfile
         }
         echo '<button type="submit">Save local configuration</button></form>';
         if ($profile !== null) {
-            self::renderSavedProfiles($profile);
+            self::renderSavedProfiles($snapshot);
             $diagnostics = self::diagnostics();
             echo '<p>'.\esc_html('Custody: '.$diagnostics['custody'].' · '.$diagnostics['operational_resolution']).'</p>';
             echo '<ul>';
@@ -291,10 +295,11 @@ final class AccountProfile
         echo '</section>';
     }
 
-    private static function renderSavedProfiles(array $current): void
+    private static function renderSavedProfiles(array $snapshot): void
     {
+        $current = $snapshot['profile'];
         $options = [];
-        foreach (self::savedProfiles(\get_option(self::OPTION, null)) as $key=>$target) {
+        foreach (self::savedProfiles($snapshot['stored']) as $key=>$target) {
             if ($key !== self::scopeKey($current) && \current_user_can('digiforge_printify_review_shop_'.$target['shop'])) {
                 $options[$key] = implode(' · ', [$target['shop'], $target['account'], $target['integration']]);
             }
@@ -304,7 +309,7 @@ final class AccountProfile
         }
         echo '<form method="post">';
         \wp_nonce_field(self::FORM, 'df_printify_profile_nonce');
-        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr(self::revisionToken() ?? '').'">';
+        echo '<input type="hidden" name="df_printify_previous_profile" value="'.\esc_attr($snapshot['token'] ?? '').'">';
         echo '<label>Saved local profile <select name="df_printify_switch_profile" required><option value="">Choose a profile</option>';
         foreach ($options as $key=>$label) {
             echo '<option value="'.\esc_attr($key).'">'.\esc_html($label).'</option>';
