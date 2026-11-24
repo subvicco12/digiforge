@@ -4,14 +4,15 @@ declare(strict_types=1);
 if ($phase === 'reopen') {
     $history = $workspace->inspect()['proposals'];
     $receipts = array_column($history, 'transition_receipt');
-    requireFixture(count($receipts) === 4, 'Lifecycle receipts were lost across restart');
+    requireFixture(count($receipts) === 5, 'Lifecycle receipts were lost across restart');
     foreach ($receipts as $receipt) {
         requireFixture($receipt['before_sha256'] !== $receipt['after_sha256']
             && $receipt['scope'] === ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read'],
             'Receipt lost exact scope or lifecycle evidence');
     }
     requireFixture($workspace->readRecords('orders','order-2',1,10)['data']['status'] === 'in-production'
-        && $workspace->readRecords('orders','order-3',1,10)['data']['status'] === 'on-hold', 'Order effects were lost or guessed');
+        && $workspace->readRecords('orders','order-3',1,10)['data']['status'] === 'on-hold'
+        && $workspace->readRecords('orders','order-4',1,10)['data']['status'] === 'canceled', 'Order effects were lost or guessed');
     requireFixture(count(array_filter($history, static fn(array $p): bool => $p['state'] === 'UNKNOWN')) === 1,
         'Uncertain production outcome was lost or replayed');
     $product = $workspace->readRecords('products','product-1',1,10)['data'];
@@ -62,7 +63,16 @@ requireFixture($result['state'] === 'UNKNOWN' && !$result['fixture_effect_commit
     'Lost acknowledgment did not preserve UNKNOWN quarantine');
 requireFixture($decision($unknown, 'simulate_held')['reason'] === 'FIXTURE_TRANSITION_APPROVAL_MISMATCH',
     'Uncertain transition could be replayed');
-echo "Lifecycle fixture PASS: publication and unpublication, line cancellation, production, stale cancellation, four replay denials and UNKNOWN\n";
+$run('ORDER_CREATE', ['external_id'=>'whole-cancel-fixture']+$order);
+$blockedProduction = $approve('FIXTURE_PRODUCTION_CONFIRM', ['order_id'=>'order-4']);
+$whole = $approve('ORDER_CANCEL', ['order_id'=>'order-4']);
+$simulate($whole);
+requireFixture($decision($blockedProduction, 'simulate_held')['reason'] === 'FIXTURE_TRANSITION_BASELINE_CHANGED',
+    'A previously approved production transition ignored cancellation');
+$draft = $operationResult($send('LINE_ITEM_CANCEL', ['order_id'=>'order-2','line_item_id'=>'line-1'], true));
+requireFixture($draft['state'] === 'DEFINITIVE_ERROR' && $draft['proposal']['state'] === 'BLOCKED',
+    'Line cancellation became eligible during production');
+echo "Lifecycle fixture PASS: publication and unpublication, line and whole cancellation, production conflicts both ways, five replay denials and UNKNOWN\n";
 $alternate = "\x89PNG\r\n\x1a\n".$chunk('IHDR',pack('NNCCCCC',1,1,8,2,0,0,0))
     .$chunk('IDAT',gzcompress("\0\0\0\xff")).$chunk('IEND','');
 $image = $operationResult($send('IMAGE_UPLOAD', ['file_name'=>'replacement.png','contents'=>base64_encode($alternate)]));
