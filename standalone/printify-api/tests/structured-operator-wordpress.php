@@ -83,11 +83,20 @@ requireFixture(str_contains($html,'Save fixture order revision') && str_contains
 $change = ['quantity'=>'4','destination'=>'ca_west','line_items'=>[
     ['product_id'=>'product-3','variant_id'=>'10','quantity'=>'3'],
 ]] + $fields;
-$third = $product;
-$third['variants'][] = ['id'=>10,'price'=>1300,'is_enabled'=>true];
-$third['print_areas'][0]['variant_ids'][] = 10;
-$run('PRODUCT_UPDATE', ['product_id'=>'product-3','expected_version'=>3,
-    'variants'=>$third['variants'],'known_variant_ids'=>[9,10],'print_areas'=>$third['print_areas']]);
+$artwork = ['product_id'=>'product-3','expected_version'=>'3','variant_id'=>'9','price'=>'1234',
+    'variants'=>[['variant_id'=>'10','price'=>'1300','variant_enabled'=>'enabled']],
+    'placements'=>[
+        ['variant_id'=>'9','image_id'=>'image-1','position'=>'front','scale'=>'0.8'],
+        ['variant_id'=>'10','image_id'=>'image-1','position'=>'back','scale'=>'1.2'],
+    ]];
+$post('PRODUCT_UPDATE', ['placements'=>[
+    ['variant_id'=>'9','image_id'=>'image-1','position'=>'front'],
+    ['variant_id'=>'10','image_id'=>'image-1','position'=>'unsupported'],
+]]+$artwork, 'INVALID_OPERATION_FIELD');
+$post('PRODUCT_UPDATE', $artwork);
+$printAreas = $workspace->readRecords('products','product-3', 1, 10)['data']['print_areas'];
+requireFixture(array_column($printAreas, 'variant_ids') === [[9],[10]]
+    && $printAreas[1]['placeholders'][0]['position'] === 'back', 'Variant-specific artwork mapping lost');
 $unavailable = ['line_items'=>[['product_id'=>'product-3','variant_id'=>'11','quantity'=>'3']]] + $change;
 $result = $operationResult($send('ORDER_CREATE', $unavailable, true, [], $approved));
 requireFixture($result['state'] !== 'SYNTHETIC_OBSERVED' && !isset($result['proposal']), 'Unavailable variant superseded a valid revision');

@@ -6,6 +6,7 @@ use DigiForgePrintifyApi\SyntheticPrintifyTransport;
 use DigiForgePrintifyApi\Engine\POD\PrintifyApiReadEvidence;
 
 define('ABSPATH', __DIR__.'/fixture-wordpress/');
+function wp_json_encode(mixed $value, int $flags = 0): string|false { return json_encode($value, $flags); }
 $plugin = $argv[1] ?? __DIR__.'/../digiforge-printify-api';
 require_once $plugin.'/SyntheticPrintifyTransport.php';
 require_once $plugin.'/SyntheticPrintifyClient.php';
