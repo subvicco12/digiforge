@@ -51,9 +51,9 @@ export class RecoveryAnchor {
     insist(row, 'ANCHOR_MISSING');
     return JSON.parse(row.stamp);
   }
-  acknowledge(before, after) {
+  acknowledge(before, after, epochAdvance = false) {
     insist(!this.offline, 'ANCHOR_OFFLINE');
-    insist(after.epoch === before.epoch && after.sequence === before.sequence + 1, 'ANCHOR_ORDER');
+    insist((epochAdvance ? after.epoch !== before.epoch : after.epoch === before.epoch) && after.sequence === before.sequence + 1, 'ANCHOR_ORDER');
     insist(this.db.prepare('UPDATE floor SET stamp=? WHERE id=1 AND stamp=?').run(canonical(after), canonical(before)).changes === 1, 'ANCHOR_DIVERGENCE');
     insist(!this.loseAck, 'ANCHOR_ACK_UNKNOWN');
   }
@@ -62,8 +62,9 @@ export class RecoveryAnchor {
 
 /** Offline reference sequencer. Never exported by, or packaged into, the plugin. */
 export class FixtureSequencer {
-  constructor(path, anchor) {
+  constructor(path, anchor, recoveryFault = () => {}) {
     this.anchor = anchor;
+    this.recoveryFault = recoveryFault;
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS witness (id INT PRIMARY KEY CHECK(id=1), state TEXT NOT NULL)');
   }
@@ -79,7 +80,7 @@ export class FixtureSequencer {
   stamp(state = this.state()) {
     return { epoch: state.epoch, sequence: state.sequence, state_digest: digest(state) };
   }
-  change(edit) {
+  #change(edit, epochAdvance = false) {
     // Anchor I/O is outside the witness write transaction. The predicate compares
     // the anchored snapshot after acquiring the writer lock, fencing intervening writes.
     const before = this.anchor.read();
@@ -91,27 +92,29 @@ export class FixtureSequencer {
       edit(state);
       state.sequence += 1;
       this.db.prepare('UPDATE witness SET state=? WHERE id=1').run(canonical(state));
+      if (epochAdvance) this.recoveryFault('before-commit');
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
       throw e;
     }
-    this.anchor.acknowledge(before, this.stamp(state));
+    if (epochAdvance) this.recoveryFault('after-commit');
+    this.anchor.acknowledge(before, this.stamp(state), epochAdvance);
   }
   hold(identity) {
     exactKeys(identity, identityFields);
-    this.change(s => {
+    this.#change(s => {
       insist(!s.stopped && !s.held, 'HELD_DENIED');
       s.held = canonical(identity);
     });
   }
-  stop() { this.change(s => { s.stopped = true; }); }
-  revoke() { this.change(s => { s.revoked = true; }); }
+  stop() { this.#change(s => { s.stopped = true; }); }
+  revoke() { this.#change(s => { s.revoked = true; }); }
   async admit(wire, clock, pin) {
     const manifest = await verifyEnvelope(wire, pin, clock());
     const now = clock();
     let result;
-    this.change(s => {
+    this.#change(s => {
       const identity = Object.fromEntries(identityFields.map(key => [key, manifest[key]]));
       insist(!s.stopped && !s.revoked && !pin.revoked && !s.outcome && s.held === canonical(identity), 'ADMISSION_DENIED');
       insist(manifest.epoch === s.epoch && manifest.sequence === s.sequence && now < manifest.expires, 'STALE');
@@ -122,11 +125,45 @@ export class FixtureSequencer {
     return result;
   }
   quarantine(admission) {
-    this.change(s => {
+    this.#change(s => {
       // STOP can advance the sequence while this same admission is draining.
       insist(s.outcome === 'IN_FLIGHT' && canonical(s.admission) === canonical(admission), 'NO_ADMISSION');
       s.outcome = 'UNKNOWN';
     });
+  }
+  recoveryStatus() {
+    const s = this.state();
+    const stamp = this.stamp(s);
+    insist(canonical(stamp) === canonical(this.anchor.read()), 'RECOVERY_HOLD');
+    return { stamp, admission: s.admission ?? null, stopped: s.stopped, outcome: s.outcome, effect: s.effect ?? null };
+  }
+  async recover(wires, pins, clock) {
+    const sender = await recoveryManifest(wires.sender, pins.sender, 'SENDER', clock());
+    const administrator = await recoveryManifest(wires.administrator, pins.administrator, 'ADMINISTRATOR', clock());
+    const anchor = await recoveryManifest(wires.anchor, pins.anchor, 'ANCHOR', clock());
+    const principals = [pins.sender, pins.administrator, pins.anchor];
+    const keys = await Promise.all(principals.map(p => crypto.subtle.exportKey('spki', p.key)));
+    insist(new Set(keys.map(k => Buffer.from(k).toString('hex'))).size === 3, 'ROLE_SEPARATION');
+    const statement = manifest => Object.fromEntries(recoveryFields.map(k => [k, manifest[k]]));
+    const binding = canonical(statement(administrator));
+    insist(binding === canonical(statement(anchor)) && binding === canonical(statement(sender)), 'RECOVERY_BINDING');
+    this.#change(s => {
+      insist(principals.every(p => !p.revoked), 'RECOVERY_REVOKED');
+      const now = clock();
+      insist([sender, administrator, anchor].every(m => m.issued <= now && now < m.expires), 'RECOVERY_EXPIRY');
+      insist(s.stopped && ['IN_FLIGHT', 'UNKNOWN'].includes(s.outcome), 'RECOVERY_STOP_REQUIRED');
+      const identity = JSON.parse(s.held);
+      insist(canonical(this.stamp(s)) === canonical(administrator.stamp)
+        && canonical(s.admission) === canonical(administrator.admission)
+        && identity.journal_revision === administrator.journal_revision
+        && identity.event_hash === administrator.journal_head, 'RECOVERY_STALE');
+      insist(administrator.next_epoch !== s.epoch && !(s.epochs ?? []).includes(administrator.next_epoch), 'RECOVERY_EPOCH');
+      s.epochs = [...(s.epochs ?? []), s.epoch];
+      s.epoch = administrator.next_epoch;
+      s.outcome = 'UNKNOWN';
+      s.effect = administrator.effect;
+    }, true);
+    return this.recoveryStatus();
   }
   close() { this.db.close(); }
 }
@@ -139,4 +176,27 @@ export async function sendSynthetic(wire, pin, clock, sequencer, sink) {
     sequencer.quarantine(receipt);
   }
   return { outcome: 'UNKNOWN', retry_permitted: false, provider_execution_authorized: false };
+}
+
+
+const recoveryFields = [
+  'stamp', 'admission', 'journal_revision', 'journal_head', 'next_epoch', 'effect', 'terminal',
+];
+
+async function recoveryManifest(wire, pin, role, now) {
+  insist(typeof wire === 'string' && Buffer.byteLength(wire) <= 4096 && pin.revoked !== true, 'RECOVERY_PIN');
+  const envelope = JSON.parse(wire);
+  insist(canonical(envelope) === wire, 'NON_CANONICAL');
+  exactKeys(envelope, ['key_id', 'manifest', 'signature']);
+  const m = await verify(envelope, pin.keyId, pin.key);
+  exactKeys(m, [...recoveryFields, 'version', 'issuer', 'audience', 'role', 'issued', 'expires']);
+  insist(m.version === 1 && m.issuer === pin.issuer && m.audience === 'fixture-recovery' && m.role === role, 'RECOVERY_CONTRACT');
+  exactKeys(m.stamp, ['epoch', 'sequence', 'state_digest']);
+  exactKeys(m.admission, ['epoch', 'sequence', 'operation_id']);
+  insist([m.stamp.epoch, m.stamp.state_digest, m.admission.epoch, m.admission.operation_id,
+    m.journal_head, m.next_epoch].every(v => hex(v)), 'RECOVERY_DIGEST');
+  insist([m.stamp.sequence, m.admission.sequence, m.journal_revision, m.issued, m.expires, now].every(integer)
+    && m.issued <= now && now < m.expires && m.expires - m.issued <= 30, 'RECOVERY_EXPIRY');
+  insist(m.terminal === 'UNKNOWN' && ['UNOBSERVED','ATTEMPTED','ACKNOWLEDGED'].includes(m.effect), 'RECOVERY_EFFECT');
+  return m;
 }
