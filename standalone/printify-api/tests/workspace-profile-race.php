@@ -19,7 +19,7 @@ wp_set_current_user(1);
 add_filter('pre_http_request',static function(): never { throw new RuntimeException('Fixture HTTP forbidden'); },PHP_INT_MAX);
 $nonce=wp_create_nonce('digiforge_printify_account_profile_save');
 $a=['shop'=>'107','account'=>'fixture-account','integration'=>'profile-a','custody'=>''];
-$b=['integration'=>'profile-b']+$a;
+$b=array_replace($a,['integration'=>'profile-b']);
 $expect=static function(bool $pass,string $message): void {
     if (!$pass) throw new RuntimeException($message);
 };
@@ -127,7 +127,8 @@ foreach ([
         ." reason=".($result['reason'] ?? 'NONE')." revision=".$inspect['revision']." receipt=".($seen?'present':'absent').PHP_EOL;
     $expect($armed && $inspect['revision']===$revision+$expectedDelta && $seen===$allowed
         && (!$allowed || ($probed && $result['state']==='OBSERVED' && AccountProfile::current()===$b))
-        && ($allowed || ($result['state']==='DENIED' && !isset($result['sync_receipt']))),
+        && ($allowed || ($result['state']==='DENIED' && !isset($result['sync_receipt'])
+            && $result['reason']===($action==='displace' ? 'WORKSPACE_CHANGED' : 'PROFILE_STALE'))),
         "$id did not order workspace receipt and profile write correctly");
 }
 $expect($sync(0,'explicit-stale')['reason']==='STALE_REVISION_OR_WORKSPACE_LIMIT','Expired workspace revision was admitted');

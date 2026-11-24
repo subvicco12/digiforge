@@ -531,8 +531,9 @@ final class SyntheticWorkspace
             $key = $this->key();
             $seal = $this->seal($next, $bytes);
             if ($expected === 0) {
-                $sql = $this->db->prepare('INSERT INTO '.self::TABLE.' (scope_key,revision,state_json,seal)
-                    SELECT %s,%d,%s,%s WHERE 1=1'.$guard.' ON DUPLICATE KEY UPDATE scope_key=scope_key', $key, $next, $bytes, $seal);
+                $insert = $guard === '' ? 'VALUES (%s,%d,%s,%s)' : 'SELECT %s,%d,%s,%s WHERE 1=1'.$guard;
+                $sql = $this->db->prepare('INSERT INTO '.self::TABLE.' (scope_key,revision,state_json,seal) '
+                    .$insert.' ON DUPLICATE KEY UPDATE scope_key=scope_key', $key, $next, $bytes, $seal);
             } else {
                 $sql = $this->db->prepare('UPDATE '.self::TABLE.' SET revision=%d,state_json=%s,seal=%s
                     WHERE scope_key=%s AND revision=%d AND seal=%s'.$guard, $next, $bytes, $seal, $key, $expected, $row['seal']);
