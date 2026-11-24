@@ -29,7 +29,12 @@ def build(source: str) -> bytes:
     commit = git("rev-parse", "--verify", "--end-of-options", f"{source}^{{commit}}").decode().strip()
     if not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("Expected an exact SHA-1 Git commit")
-    blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in MEMBERS}
+    members = MEMBERS
+    protected_get = f"{commit}:{SOURCE}/ProtectedGet.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", protected_get),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("ProtectedGet.php", "ProtectedGetPanel.php")
+    blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in members}
     contracts = (
         ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),
         ("POD/PrintifyProductRequest.php", "Engine/POD/PrintifyProductRequest.php"),

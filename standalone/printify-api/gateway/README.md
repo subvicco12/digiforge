@@ -1,0 +1,7 @@
+# Protected GET v1 offline reference
+
+The WordPress plugin plans manual requests without contacting a gateway. The fixture gateway and its deterministic test key are outside the plugin ZIP. The gateway accepts a typed GET intent, a short-lived Ed25519 grant bound to the canonical intent digest, and a current independent policy snapshot. The process-local consumed-grant set is bounded and models admission only within one fixture instance. It provides no cross-process revocation, replay or rate guarantee. The fixture exchange returns synthetic responses without HTTP.
+
+A production transport needs authenticated peer identity, a trusted grant issuer and current policy, credential custody outside WordPress, signed correlated responses, a fixed provider origin and disabled redirects, durable atomic grant admission and quotas, timeouts, body limits, and independent STOP and drain qualification. Its policy must reject requests under the current release hold. A Worker is a candidate deployment target if the account and operator boundary are independently approved. A single durable authority must own admission and revocation ordering. Worker environment secrets are acceptable for provider credentials only if independently governed access and rotation are proven. Cloudflare entitlement, credential scopes and production identity are unverified. There is no deployable Worker or live provider adapter in this change.
+
+Run the extracted-package fixture from the repository with `php standalone/printify-api/tests/protected-get.php /path/to/digiforge-printify-api`.
