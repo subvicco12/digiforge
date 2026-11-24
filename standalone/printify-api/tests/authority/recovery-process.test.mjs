@@ -133,3 +133,52 @@ test('crash before epoch commit rolls back; crash after commit without floor ack
   assert.equal(f.seq.state().stopped,true);
   assert.equal(f.sink.prepare('SELECT COUNT(*) n FROM effects').get().n,0);
 });
+
+test('witness ahead repairs only a proven successor, with exactly one anchor CAS', async t => {
+  const f = await setup(t);
+  f.seq.stop();
+  const statement = f.statement();
+  const wires = f.wires(statement);
+  assert.equal(f.command({command:'recover',wires,crash:'after-commit'}).status,43);
+  assert.equal(f.command({command:'status'}).value.denied,'RECOVERY_HOLD');
+  assert.equal(f.command({command:'reconcile',wires,revoked:'anchor'}).status,1);
+  assert.equal(f.command({command:'reconcile',wires:{...wires,sender:wires.administrator}}).status,1);
+  assert.equal(f.command({command:'reconcile',wires:f.wires(statement,{issued:now-30})}).status,1);
+  assert.equal(f.command({command:'reconcile',wires:f.wires({...statement,next_epoch:'2'.repeat(64)})}).value.denied,'DIVERGENCE_SUCCESSOR');
+  assert.equal(f.seq.state().stopped,true);
+  const results = await Promise.all([f.parallel({command:'reconcile',wires}),f.parallel({command:'reconcile',wires})]);
+  assert.deepEqual(results.map(r=>r.status).sort(),[0,1]);
+  const final = f.command({command:'status'}).value;
+  assert.equal(final.stamp.epoch,next);
+  assert.equal(final.stamp.sequence,statement.stamp.sequence+1);
+  assert.equal(final.outcome,'UNKNOWN');
+  assert.deepEqual(final.admission,statement.admission);
+  assert.equal(final.stopped,true);
+  assert.equal(f.sink.prepare('SELECT COUNT(*) n FROM effects').get().n,0);
+});
+
+test('anchor ahead of restored witness, absent floor and lost repair acknowledgment fail closed', async t => {
+  const f = await setup(t);
+  f.seq.stop();
+  const prior = canonical(f.seq.state());
+  const floor = f.anchor.read();
+  const wires = f.wires(f.statement());
+  assert.equal(f.command({command:'recover',wires,crash:'after-commit'}).status,43);
+  const committed = canonical(f.seq.state());
+  f.anchor.db.exec('DELETE FROM floor');
+  assert.equal(f.command({command:'reconcile',wires}).value.denied,'ANCHOR_MISSING');
+  f.anchor.initialize(floor);
+  assert.equal(f.command({command:'reconcile',wires,loseAck:true}).value.denied,'ANCHOR_ACK_UNKNOWN');
+  assert.equal(f.command({command:'status'}).value.outcome,'UNKNOWN');
+  assert.equal(f.command({command:'reconcile',wires}).status,1);
+  const anchored = f.anchor.read();
+  f.seq.db.prepare('UPDATE witness SET state=? WHERE id=1').run(prior);
+  assert.equal(f.command({command:'reconcile',wires}).status,1);
+  assert.equal(f.command({command:'status'}).value.denied,'RECOVERY_HOLD');
+  assert.deepEqual(f.anchor.read(),anchored);
+  assert.equal(f.seq.state().stopped,true);
+  // Restoring the exact committed successor returns UNKNOWN; it never replays an effect.
+  f.seq.db.prepare('UPDATE witness SET state=? WHERE id=1').run(committed);
+  assert.equal(f.command({command:'status'}).value.outcome,'UNKNOWN');
+  assert.equal(f.sink.prepare('SELECT COUNT(*) n FROM effects').get().n,0);
+});

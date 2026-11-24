@@ -44,14 +44,15 @@ async function run(q) {
         audience:'fixture-recovery', issued:q.issued ?? now, expires:(q.issued ?? now)+15,
       }));
     }
-    if (q.command === 'recover') {
+    if (q.command === 'recover' || q.command === 'reconcile') {
       const pins = {};
       for (const role of ['sender','administrator','anchor']) {
         pins[role] = (await fixtureKey(role)).pin;
         pins[role].revoked = role === q.revoked;
       }
       floor.loseAck = q.loseAck === true;
-      return await seq.recover(q.wires,pins,()=>now);
+      return q.command === 'recover' ? await seq.recover(q.wires,pins,()=>now)
+        : await seq.reconcileDivergence(q.wires,pins,()=>now);
     }
     throw Error('UNKNOWN_COMMAND');
   } finally { seq.close(); floor.close(); }

@@ -66,7 +66,7 @@ export class FixtureSequencer {
     this.anchor = anchor;
     this.recoveryFault = recoveryFault;
     this.db = new DatabaseSync(path);
-    this.db.exec('PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS witness (id INT PRIMARY KEY CHECK(id=1), state TEXT NOT NULL)');
+    this.db.exec('PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS witness (id INT PRIMARY KEY CHECK(id=1), state TEXT NOT NULL); CREATE TABLE IF NOT EXISTS recovery_predecessor (id INT PRIMARY KEY CHECK(id=1), state TEXT NOT NULL)');
   }
   initialize(epoch) {
     insist(hex(epoch), 'EPOCH');
@@ -89,6 +89,7 @@ export class FixtureSequencer {
     try {
       state = this.state();
       insist(canonical(this.stamp(state)) === canonical(before), 'RECOVERY_HOLD');
+      if (epochAdvance) this.db.prepare("REPLACE INTO recovery_predecessor VALUES (1,?)").run(canonical(state));
       edit(state);
       state.sequence += 1;
       this.db.prepare('UPDATE witness SET state=? WHERE id=1').run(canonical(state));
@@ -138,32 +139,42 @@ export class FixtureSequencer {
     return { stamp, admission: s.admission ?? null, stopped: s.stopped, outcome: s.outcome, effect: s.effect ?? null };
   }
   async recover(wires, pins, clock) {
-    const sender = await recoveryManifest(wires.sender, pins.sender, 'SENDER', clock());
-    const administrator = await recoveryManifest(wires.administrator, pins.administrator, 'ADMINISTRATOR', clock());
-    const anchor = await recoveryManifest(wires.anchor, pins.anchor, 'ANCHOR', clock());
-    const principals = [pins.sender, pins.administrator, pins.anchor];
-    const keys = await Promise.all(principals.map(p => crypto.subtle.exportKey('spki', p.key)));
-    insist(new Set(keys.map(k => Buffer.from(k).toString('hex'))).size === 3, 'ROLE_SEPARATION');
-    const statement = manifest => Object.fromEntries(recoveryFields.map(k => [k, manifest[k]]));
-    const binding = canonical(statement(administrator));
-    insist(binding === canonical(statement(anchor)) && binding === canonical(statement(sender)), 'RECOVERY_BINDING');
-    this.#change(s => {
-      insist(principals.every(p => !p.revoked), 'RECOVERY_REVOKED');
-      const now = clock();
-      insist([sender, administrator, anchor].every(m => m.issued <= now && now < m.expires), 'RECOVERY_EXPIRY');
-      insist(s.stopped && ['IN_FLIGHT', 'UNKNOWN'].includes(s.outcome), 'RECOVERY_STOP_REQUIRED');
-      const identity = JSON.parse(s.held);
-      insist(canonical(this.stamp(s)) === canonical(administrator.stamp)
-        && canonical(s.admission) === canonical(administrator.admission)
-        && identity.journal_revision === administrator.journal_revision
-        && identity.event_hash === administrator.journal_head, 'RECOVERY_STALE');
-      insist(administrator.next_epoch !== s.epoch && !(s.epochs ?? []).includes(administrator.next_epoch), 'RECOVERY_EPOCH');
-      s.epochs = [...(s.epochs ?? []), s.epoch];
-      s.epoch = administrator.next_epoch;
-      s.outcome = 'UNKNOWN';
-      s.effect = administrator.effect;
-    }, true);
+    const proof = await recoveryProof(wires, pins, clock);
+    this.#change(s => this.#advance(s, proof, clock), true);
     return this.recoveryStatus();
+  }
+  async reconcileDivergence(wires, pins, clock) {
+    const proof = await recoveryProof(wires, pins, clock);
+    const floor = this.anchor.read();
+    const current = this.state();
+    const saved = this.db.prepare('SELECT state FROM recovery_predecessor WHERE id=1').get();
+    insist(saved && canonical(proof.manifest.stamp) === canonical(floor), 'DIVERGENCE_UNPROVEN');
+    const previous = JSON.parse(saved.state);
+    insist(canonical(this.stamp(previous)) === canonical(floor), 'DIVERGENCE_PREDECESSOR');
+    this.#advance(previous, proof, clock);
+    previous.sequence += 1;
+    insist(canonical(previous) === canonical(current), 'DIVERGENCE_SUCCESSOR');
+    // The witness is already committed. Repair only the anchor, by CAS against
+    // the exact signed predecessor. Ordinary witness writers are fenced until then.
+    this.anchor.acknowledge(floor, this.stamp(current), true);
+    return this.recoveryStatus();
+  }
+  #advance(s, proof, clock) {
+    const { manifest: administrator, signatures, principals } = proof;
+    insist(principals.every(p => !p.revoked), 'RECOVERY_REVOKED');
+    const now = clock();
+    insist(signatures.every(m => m.issued <= now && now < m.expires), 'RECOVERY_EXPIRY');
+    insist(s.stopped && ['IN_FLIGHT', 'UNKNOWN'].includes(s.outcome), 'RECOVERY_STOP_REQUIRED');
+    const identity = JSON.parse(s.held);
+    insist(canonical(this.stamp(s)) === canonical(administrator.stamp)
+      && canonical(s.admission) === canonical(administrator.admission)
+      && identity.journal_revision === administrator.journal_revision
+      && identity.event_hash === administrator.journal_head, 'RECOVERY_STALE');
+    insist(administrator.next_epoch !== s.epoch && !(s.epochs ?? []).includes(administrator.next_epoch), 'RECOVERY_EPOCH');
+    s.epochs = [...(s.epochs ?? []), s.epoch];
+    s.epoch = administrator.next_epoch;
+    s.outcome = 'UNKNOWN';
+    s.effect = administrator.effect;
   }
   close() { this.db.close(); }
 }
@@ -199,4 +210,17 @@ async function recoveryManifest(wire, pin, role, now) {
     && m.issued <= now && now < m.expires && m.expires - m.issued <= 30, 'RECOVERY_EXPIRY');
   insist(m.terminal === 'UNKNOWN' && ['UNOBSERVED','ATTEMPTED','ACKNOWLEDGED'].includes(m.effect), 'RECOVERY_EFFECT');
   return m;
+}
+
+async function recoveryProof(wires, pins, clock) {
+  const sender = await recoveryManifest(wires.sender, pins.sender, 'SENDER', clock());
+  const administrator = await recoveryManifest(wires.administrator, pins.administrator, 'ADMINISTRATOR', clock());
+  const anchor = await recoveryManifest(wires.anchor, pins.anchor, 'ANCHOR', clock());
+  const principals = [pins.sender, pins.administrator, pins.anchor];
+  const keys = await Promise.all(principals.map(p => crypto.subtle.exportKey('spki', p.key)));
+  insist(new Set(keys.map(k => Buffer.from(k).toString('hex'))).size === 3, 'ROLE_SEPARATION');
+  const statement = manifest => Object.fromEntries(recoveryFields.map(k => [k, manifest[k]]));
+  const binding = canonical(statement(administrator));
+  insist(binding === canonical(statement(anchor)) && binding === canonical(statement(sender)), 'RECOVERY_BINDING');
+  return { manifest: administrator, signatures: [sender, administrator, anchor], principals };
 }
