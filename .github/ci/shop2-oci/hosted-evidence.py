@@ -432,36 +432,128 @@ def complete_global(record):
         return config.get("verified") is True
     return config.get("state")=="hashed" and valid_hash(config.get("sha256")) and valid_hash(config.get("canonical_json_sha256"))
 
-def parse_mounts(raw, owned, device):
+MOUNT_DETAIL_ROWS = 64
+MOUNT_DETAIL_BYTES = 16 * 1024
+
+
+def mount_details():
+    return {"schema": 1, "correlation": "within_record_only", "omitted_rows": 0, "rows": []}
+
+
+def mount_detail_add(details, row):
+    # Prioritize unexpected rows over context rows without changing the verdict.
+    rows = details["rows"]
+    rows.append(row)
+    while len(rows) > MOUNT_DETAIL_ROWS or len(json.dumps(details, sort_keys=True).encode()) > MOUNT_DETAIL_BYTES - 16:
+        index = next((i for i in range(len(rows)-1, -1, -1)
+                      if rows[i]["disposition"] != "UNEXPECTED_WRITABLE"), len(rows)-1)
+        rows.pop(index)
+        details["omitted_rows"] += 1
+
+
+def mount_access(options):
+    modes = {"ro", "rw"}.intersection(options.split(","))
+    require(len(modes) == 1, "ambiguous mount access flags")
+    return modes.pop()
+
+
+def mount_propagation(tags):
+    result = {"unknown_tag_count": 0}
+    for tag in tags:
+        name, separator, value = tag.partition(":")
+        if name in {"shared", "master", "propagate_from"}:
+            require(separator and re.fullmatch(r"[1-9][0-9]{0,9}", value)
+                    and name not in result, "invalid mount propagation")
+            result[name] = int(value)
+        elif tag == "unbindable":
+            require("unbindable" not in result, "duplicate mount propagation")
+            result["unbindable"] = True
+        else:
+            result["unknown_tag_count"] += 1
+    if "unbindable" in result:
+        result["role"] = "unbindable"
+    elif "shared" in result:
+        result["role"] = "shared_slave" if "master" in result else "shared"
+    elif "master" in result:
+        result["role"] = "slave"
+    else:
+        result["role"] = "unknown" if result["unknown_tag_count"] or "propagate_from" in result else "private"
+    return result
+
+
+def decode_mount_field(field):
+    require(not re.search(r"\\(?!040|011|012|134)", field), "unsupported mount escape")
+    return re.sub(r"\\([0-7]{3})", lambda match: chr(int(match[1], 8)), field)
+
+
+def parse_mounts(raw, owned, device, details=None, record_index=0):
+    require(raw.endswith("\n"), "incomplete mountinfo line")
     good_root=good_data=False
     unexpected=[]
     control=[]
+    seen_ids=set()
+    identities={k:{} for k in ("target","root","source")}
+
+    def opaque(kind,value):
+        table=identities[kind]
+        return kind[0]+str(table.setdefault(value,len(table)+1))
+
     for n,line in enumerate(io.StringIO(raw),1):
         budget.remaining()
         require(n<=512,"mountinfo row limit")
-        left,right=line.split(" - ",1)
+        left, separator, right=line.partition(" - ")
         fields=left.split()
-        kind=right.split()[0]
-        # Decode kernel mount escapes to prevent misclassification.
-        target=re.sub(r"\\([0-7]{3})",lambda m:chr(int(m[1],8)),fields[4])
-        options=fields[5].split(",")
+        tail=right.split()
+        require(separator and len(fields)>=6 and len(tail)==3,"invalid mountinfo row")
+        require(all(re.fullmatch(r"[1-9][0-9]{0,9}",value) for value in fields[:2])
+                and re.fullmatch(r"[0-9]{1,10}:[0-9]{1,10}",fields[2]),"invalid mount identity")
+        mount_id,parent_id=map(int,fields[:2])
+        require(mount_id not in seen_ids,"duplicate mount ID")
+        seen_ids.add(mount_id)
+        kind=tail[0]
+        require(re.fullmatch(r"[A-Za-z0-9_.+-]{1,64}",kind),"unsupported filesystem type field")
+        root,target,source=map(decode_mount_field,(fields[3],fields[4],tail[1]))
+        require(root.startswith("/") and target.startswith("/"),"invalid mount path shape")
+        vfs=mount_access(fields[5])
+        superblock=mount_access(tail[2])
+        propagation=mount_propagation(fields[6:])
         on_data=target==owned or target.startswith(owned+"/")
-        if target=="/" and "ro" in options: good_root=True
-        if target==owned and "rw" in options and fields[2]==device and kind=="ext4": good_data=True
-        if "rw" in options and not (on_data and fields[2]==device):
-            if (target=="/dev/shm" and kind=="tmpfs" or target=="/dev" and kind in {"devtmpfs","tmpfs"}
+        owned_device=fields[2]==device
+        if target=="/" and vfs=="ro": good_root=True
+        if target==owned and vfs=="rw" and owned_device and kind=="ext4": good_data=True
+        if vfs=="ro":
+            disposition="READ_ONLY_ROW"
+        elif on_data and owned_device:
+            disposition="OWNED_DEVICE_PATH_MATCH"
+        elif (target=="/dev/shm" and kind=="tmpfs" or target=="/dev" and kind in {"devtmpfs","tmpfs"}
                 or target=="/dev/pts" and kind=="devpts" or target=="/proc" and kind=="proc"
                 or target=="/sys/fs/cgroup" and kind=="cgroup2"):
-                control.append([target,kind])
-            else:
-                # Report a stable identity without leaking unrelated paths.
-                unexpected.append({"target_sha256":hashlib.sha256(target.encode()).hexdigest(),"filesystem":kind})
+            disposition="EXISTING_CONTROL_MATCH"
+            control.append([target,kind])
+        else:
+            disposition="UNEXPECTED_WRITABLE"
+            unexpected.append({"target_sha256":hashlib.sha256(target.encode()).hexdigest(),"filesystem":kind})
+        if details is not None:
+            # IDs denote equality within this record only, not host path names.
+            mount_detail_add(details,{
+                "record_index":record_index,"mount_id":mount_id,"parent_id":parent_id,
+                "filesystem":kind,"device":fields[2],"owned_device":owned_device,
+                "target_id":opaque("target",target),"root_id":opaque("root",root),
+                "source_id":opaque("source",source),"subtree_root":root!="/",
+                "target_class":"ROOT" if target=="/" else "OWNED_ROOT" if target==owned
+                    else "OWNED_DESCENDANT" if on_data else target if disposition=="EXISTING_CONTROL_MATCH" else "OTHER",
+                "vfs_access":vfs,"superblock_access":superblock,"propagation":propagation,
+                "disposition":disposition,
+                "classification":"UNCLASSIFIED" if disposition=="UNEXPECTED_WRITABLE" else disposition,
+            })
     require(good_root and good_data,"missing effective root-RO or owned device-RW")
     return {"root_ro":good_root,"own_data_rw":good_data,"allowed_control_mounts":control,
             "unexpected_writable":unexpected,"consistent":not unexpected}
 
+
 def namespaces(label, mount, device):
     records=[]
+    details=mount_details()
     for suffix in ("docker","ctrd"):
         unit=f"{label}-{suffix}.service"
         props=sysprops(unit,("MainPID","ControlGroup"))
@@ -481,12 +573,13 @@ def namespaces(label, mount, device):
             membership=command("sudo","-n","cat",loc+"/cgroup").splitlines()
             require("0::"+owned_groups[pid] in membership,"cgroup membership changed")
             raw=command("sudo","-n","cat",loc+"/mountinfo")
-            view=parse_mounts(raw,str(mount),device)
+            view=parse_mounts(raw,str(mount),device,details,len(records))
             require(command("sudo","-n","readlink",loc+"/ns/mnt").strip()==ns1,"namespace changed")
-            records.append({"pid":pid,"cgroup":group,"mount_namespace":ns1,**view})
+            records.append({"pid":pid,"cgroup":group,"mount_namespace":ns1,
+                            "daemon_role":"docker" if suffix=="docker" else "containerd",**view})
         if dict(cgroup_members(root,int(props["MainPID"])))!=snapshot:
             raise CaptureError("INCOMPLETE_READ","cgroup membership changed during observation")
-    return {"records":records,"device":device,"effective_mount_checks_passed":all(r["consistent"] for r in records),"scope":"owned cgroup membership at observation; detached descendants and races not ruled out"}
+    return {"records":records,"device":device,"mount_details":details,"effective_mount_checks_passed":all(r["consistent"] for r in records),"scope":"owned cgroup membership at observation; detached descendants and races not ruled out"}
 
 def namespace_device(mount):
     # Anchor namespace mount identity without depending on backing-file/loop
