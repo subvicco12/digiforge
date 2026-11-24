@@ -169,7 +169,7 @@ if($operation instanceof WP_Error)return $operation;
         $listingShop=(string)($listing['shop_reference']??'');
         $operationShop=(string)($operation['shop_reference']??'');
         if (!hash_equals($listingShop,$operationShop)
-            && (!ctype_digit($operationShop) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$operationShop) instanceof WP_Error)) {
+            && (!ctype_digit($operationShop) || EtsyVerifiedShopIdentity::resolveAny($listingShop,(int)$operationShop,(string)($listing['environment']??'')) instanceof WP_Error)) {
             return $this->error('listing_not_approved', 'Referenced listing shop scope is no longer valid.', 409);
         }
 

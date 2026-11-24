@@ -20,7 +20,7 @@ final class PrintifyCatalogPersistenceStructureTest extends TestCase
     public function testFreshObservationDoesNotCountAsMaterialSupplierChange(): void
     {
         $source=$this->source();self::assertStringContainsString('materialChanged',$source);self::assertStringContainsString("'observed_at'=>\$data['observed_at']??null",$source);
-        $material="foreach(['title','variant_label','attributes','currency','base_cost','shipping_profile','availability_state','source_revision']";self::assertStringContainsString($material,$source);
+        $material="foreach(['title','variant_label','currency','base_cost','shipping_profile','availability_state','source_revision']";self::assertStringContainsString($material,$source);self::assertStringContainsString('comparableAttributes($existing[\'attributes\']',$source);
         self::assertStringNotContainsString("'source_revision','observed_at'] as \$field",$source);
     }
 

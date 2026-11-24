@@ -1,0 +1,33 @@
+{
+  "schema": "fc01-font-provenance-v1",
+  "family": "Noto Serif",
+  "style": "Regular",
+  "version": "2.007",
+  "upstream_repository": "https://github.com/notofonts/noto-fonts",
+  "upstream_commit": "ffebf8c1ee449e544955a7e813c54f9b73848eac",
+  "font_source": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/hinted/ttf/NotoSerif/NotoSerif-Regular.ttf",
+  "license_source": "https://raw.githubusercontent.com/notofonts/noto-fonts/ffebf8c1ee449e544955a7e813c54f9b73848eac/LICENSE",
+  "font_sha256": "c8f669ceb2c9c60ccf55198b305e08a997ffca79a38cc7eeb551e643cbe66505",
+  "license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+  "license": "SIL-OFL-1.1",
+  "retrieved_date": "2026-10-21",
+  "font_modified": false,
+  "font_copyright": [
+    "Copyright 2015-2021 Google LLC. All Rights Reserved."
+  ],
+  "font_embedded_license": [
+    "This Font Software is licensed under the SIL Open Font License, Version 1.1. This Font Software is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the SIL Open Font License for the specific language, permissions and limitations governing your use of this Font Software."
+  ],
+  "glyph_subset_cmap_verified": true,
+  "rendered_glyph_count": 157,
+  "production_authorized": false,
+  "artwork_rights_certified": false,
+  "glyph_generator_path": "bin/build-fc01-text-glyphs.py",
+  "glyph_generator_sha256": "7f3d67e2dc28c668ee45d8edd563d5b9a3dffd6eb2a4ab7fb3d7295c678250a0",
+  "rasterizer": {
+    "pillow": "13.0.0",
+    "freetype": "2.14.3",
+    "layout": "BASIC_INDIVIDUAL_GLYPHS_NO_KERNING_OR_SHAPING"
+  },
+  "cmap_verification_tool": "fontTools4.61.1"
+}

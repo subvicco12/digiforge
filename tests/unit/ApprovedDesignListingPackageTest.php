@@ -230,6 +230,16 @@ final class ApprovedDesignListingPackageTest extends TestCase
             'provider_blueprint_id'=>1,'provider_id'=>2,'variant_ids'=>[3],
             'print_areas'=>[['position'=>'front','decoration_method'=>'print','width_px'=>2418,'height_px'=>3018]],
             'personalization_pipeline'=>'PRINTIFY_NATIVE','personalization_engine'=>'NATIVE','template_status'=>'VALIDATED'];
+        // The installed schema-25 contract requires authoritative-shaped catalog bindings.
+        // All identities/digests below remain synthetic unit evidence, not supplier certification.
+        $payload=['id'=>3,'placeholders'=>[['position'=>'front','decoration_method'=>'print','width'=>2418,'height'=>3018]]];
+        $row=['provider'=>'printify','environment'=>'test','provider_product_key'=>'1','provider_variant_key'=>'2:3',
+            'source_revision'=>'synthetic-unit-only','attributes'=>$payload+['_digiforge_source_evidence'=>[
+                'schema'=>'printify-variant-evidence-v1','blueprint_id'=>1,'provider_id'=>2,'variant_id'=>3,'environment'=>'test',
+                'endpoint_path'=>'/v1/catalog/blueprints/1/print_providers/2/variants.json',
+                'response_sha256'=>hash('sha256','synthetic response'),'variant_sha256'=>hash('sha256',wp_json_encode($payload,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)),
+                'observed_at'=>'2026-11-03T12:00:00Z']]];
+        $e['template']=\DigiForge\POD\ProductionTemplateContract::fromPrintifyCatalog($row,[array_merge($e['template']['print_areas'][0],['region'=>'US'])],array_diff_key($e['template'],array_fill_keys(['supplier','provider_blueprint_id','provider_id','variant_ids','print_areas'],true)));
         $template=\DigiForge\POD\ProductionTemplateContract::normalize($e['template']);
         $assetHash=hash('sha256',$d['record']['input']['artwork']['svg']);
         $e['provider_binding']=['shop_key'=>'personalized_pod','environment'=>'test',

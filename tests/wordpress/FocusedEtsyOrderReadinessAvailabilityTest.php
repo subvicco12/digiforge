@@ -44,7 +44,7 @@ final class FocusedEtsyOrderReadinessAvailabilityTest extends WP_UnitTestCase
             public function prepare(string $sql,mixed ...$args):string{return $sql;}
             public function get_row(string $sql,mixed $format):array {
                 return ['id'=>17,'state'=>'APPROVED','approved_by'=>1,
-                    'approved_at'=>'2026-09-28 00:00:00','personalization_required'=>1];
+                    'approved_at'=>'2026-09-28 00:00:00','personalization_required'=>1,'environment'=>'sandbox','channel'=>'etsy','shop_reference'=>'digital'];
             }
             public function get_var(string $sql):?string {
                 $this->countCall++;

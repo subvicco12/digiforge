@@ -351,7 +351,7 @@ final class ProductPackageRepository
 
     private function access(string $shop): bool
     {
-        return $shop === 'personalized_pod' && get_current_user_id() > 0
+        return $shop === 'personalized_pod' && \DigiForge\Security\PersonalizedPodAccess::allows()&&get_current_user_id() > 0
             && current_user_can('manage_digiforge_pod') && current_user_can('manage_digiforge_research');
     }
 

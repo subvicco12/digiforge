@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 
 use DigiForge\POD\ApprovedDesignListingPackage;
 use DigiForge\Tests\ApprovedDesignListingPackageTest;
@@ -18,7 +19,7 @@ final class ApprovedDesignListingPackageWorkflowTest extends \WP_UnitTestCase
         $user=self::factory()->user->create();
         $actor=new \WP_User($user);
         $actor->add_cap('manage_digiforge_pod'); $actor->add_cap('manage_digiforge_research');
-        wp_set_current_user($user);
+        wp_set_current_user($user);DigiForge\Core\Activator::activate();ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research']);
         $input=$this->fixtures()->design()['record']['input'];
         foreach ($input['briefs'] as $i=>&$brief) $brief['visual_direction']='Original direction '.$i;
         unset($brief);
@@ -45,7 +46,7 @@ final class ApprovedDesignListingPackageWorkflowTest extends \WP_UnitTestCase
     public function testCurrentAuthenticationAndCapabilityCannotBeSpoofedBySavedApproval(): void
     {
         $saved=$this->saved(true); $e=$this->fixtures()->evidence();
-        wp_get_current_user()->remove_cap('manage_digiforge_pod');
+        wp_get_current_user()->add_cap('manage_digiforge_pod',false);
         self::assertWPError(ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$saved['version_hash'],$e));
         wp_set_current_user(0);
         self::assertWPError(ApprovedDesignListingPackage::fromApprovedVersion('personalized_pod',$saved['version_hash'],$e));

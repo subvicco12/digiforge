@@ -8,16 +8,17 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
     {
         DigiForge\Core\Activator::activate();
         wp_set_current_user(self::factory()->user->create(['role' => 'administrator']));
+        $suffix=wp_generate_uuid4();
         $repository = new DigiForge\Research\Repository();
         $attention = new DigiForge\Portal\AttentionReadModel();
         $pendingBefore = $attention->summary()['research_reviews'];
 
-        $source = $repository->createSource([
+        $source = $repository->createSource(['shop_key'=>'digital',
             'name' => 'Manual Etsy research',
             'source_type' => 'manual',
             'environment' => 'sandbox',
             'config' => ['note' => 'fixture'],
-        ], 'research-source-1');
+        ], 'research-source-1-'.$suffix);
         self::assertIsArray($source);
         self::assertSame(0, (int) $source['enabled']);
         self::assertSame('sandbox', $source['environment']);
@@ -28,7 +29,7 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
             'title' => 'Personalized family mug opportunity',
             'body' => 'Manual evidence only; no network collection.',
             'provenance' => ['origin' => 'manual_test'],
-        ], 'research-observation-1');
+        ], 'research-observation-1-'.$suffix);
         self::assertIsArray($observation);
 
         $duplicateObservation = $repository->ingest([
@@ -44,11 +45,11 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
             'evidence_type' => 'manual_note',
             'value' => 'Observed demand signal entered manually.',
             'provenance' => ['reviewer' => 'fixture'],
-        ], 'research-evidence-1');
+        ], 'research-evidence-1-'.$suffix);
         self::assertIsArray($evidence);
 
-        $candidate = $repository->createCandidate([
-            'title' => 'Personalized Family Mug',
+        $candidate = $repository->createCandidate(['shop_key'=>'digital',
+            'title' => 'Personalized Family Mug '.$suffix,
             'summary' => 'Candidate produced from stored manual evidence.',
             'signals' => [
                 'demand' => 80,
@@ -57,14 +58,14 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
                 'trend' => 50,
                 'evidence_quality' => 90,
             ],
-        ], 'research-candidate-1');
+        ], 'research-candidate-1-'.$suffix);
         self::assertIsArray($candidate);
         self::assertSame('v1', $candidate['score_version']);
         self::assertSame(DigiForge\Research\Repository::REVIEW_PENDING, $candidate['review_status']);
         self::assertSame($pendingBefore + 1, $attention->summary()['research_reviews']);
         self::assertEqualsWithDelta(71.0, (float) $candidate['score'], 0.001);
 
-        $duplicateCandidate = $repository->createCandidate(['title' => '  PERSONALIZED   FAMILY MUG  ']);
+        $duplicateCandidate = $repository->createCandidate(['shop_key'=>'digital','title' => '  PERSONALIZED   FAMILY MUG  '.$suffix]);
         self::assertIsArray($duplicateCandidate);
         self::assertTrue((bool) ($duplicateCandidate['deduplicated'] ?? false));
 
@@ -79,11 +80,11 @@ final class ResearchRepositoryTest extends WP_UnitTestCase
         self::assertSame(DigiForge\Research\Repository::REVIEW_APPROVED, $approved['review_status']);
         self::assertSame($pendingBefore, $attention->summary()['research_reviews']);
 
-        $opportunity = $repository->promote((int) $candidate['id'], 'research-promotion-1');
+        $opportunity = $repository->promote((int) $candidate['id'], 'research-promotion-1-'.$suffix);
         self::assertIsArray($opportunity);
         self::assertGreaterThan(0, (int) $opportunity['id']);
 
-        $replay = $repository->promote((int) $candidate['id'], 'research-promotion-1');
+        $replay = $repository->promote((int) $candidate['id'], 'research-promotion-1-'.$suffix);
         self::assertIsArray($replay);
         self::assertTrue((bool) ($replay['idempotent_replay'] ?? false));
         self::assertSame((int) $opportunity['id'], (int) $replay['id']);

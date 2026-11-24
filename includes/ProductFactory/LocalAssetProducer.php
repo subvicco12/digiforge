@@ -22,8 +22,16 @@ final class LocalAssetProducer
         $filename = $this->filename($filename, $format);
         if ($filename === '') { return $this->error('invalid_filename', 'Filename and declared format must be safe and consistent.'); }
         $storageVariant = sanitize_key($storageVariant);
-        $bytes = $format === 'pdf' ? $this->pdf($content, $filename) : $this->text($format, $content);
-        if (is_wp_error($bytes)) { return $bytes; }
+        $evidence = [];
+        if ($format === 'pdf') {
+            $rendered = $this->pdf($content, $filename);
+            if (is_wp_error($rendered)) { return $rendered; }
+            $bytes = $rendered['bytes'];
+            $evidence = $rendered['evidence'];
+        } else {
+            $bytes = $this->text($format, $content);
+            if (is_wp_error($bytes)) { return $bytes; }
+        }
         if ($bytes === '' || strlen($bytes) > self::MAX_ASSET_BYTES) { return $this->error('invalid_asset_size', 'Generated asset is empty or too large.'); }
         $uploads = wp_upload_dir();
         if (! empty($uploads['error']) || empty($uploads['basedir'])) { return $this->error('upload_directory', 'WordPress uploads directory is unavailable.', 500); }
@@ -34,7 +42,7 @@ final class LocalAssetProducer
         if (is_file($path)) {
             $existingHash = hash_file('sha256', $path);
             $newHash = hash('sha256', $bytes);
-            if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { return $this->metadata($path, $filename, $format, $relativeDir); }
+            if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { return $this->metadata($path, $filename, $format, $relativeDir) + $evidence; }
             return $this->error('asset_replay_conflict', 'Existing generated asset differs from replay payload.', 409);
         }
         $temp = $path . '.tmp-' . wp_generate_password(8, false, false);
@@ -43,12 +51,12 @@ final class LocalAssetProducer
             if (is_file($path)) {
                 $existingHash = hash_file('sha256', $path);
                 $newHash = hash_file('sha256', $temp);
-                if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, $format, $relativeDir); }
+                if (is_string($existingHash) && hash_equals($existingHash, $newHash)) { @unlink($temp); return $this->metadata($path, $filename, $format, $relativeDir) + $evidence; }
             }
             @unlink($temp);
             return $this->error('asset_commit', 'Unable to finalize generated asset.', 500);
         }
-        return $this->metadata($path, $filename, $format, $relativeDir);
+        return $this->metadata($path, $filename, $format, $relativeDir) + $evidence;
     }
 
 
@@ -173,16 +181,25 @@ final class LocalAssetProducer
         return false;
     }
 
-    /** @param mixed $content */
-    private function pdf($content, string $filename = ''): string|WP_Error
+    /** @param mixed $content @return array{bytes:string,evidence:array<string,mixed>}|WP_Error */
+    private function pdf($content, string $filename = ''): array|WP_Error
     {
-        $pages = is_array($content) ? $content : preg_split('/\\s*\\[\\[PAGE_BREAK\\]\\]\\s*/u', (string) $content);
-        $pages = is_array($pages) ? $pages : [(string) $content];
-        $pages = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $pages), static fn(string $v): bool => $v !== ''));
-        if ($pages === []) { return $this->error('invalid_pdf_content', 'PDF requires at least one text page.'); }
-        $geometry=$this->pdfGeometry($filename);$objects=[];$pageIds=[];$fontId=3;$nextId=4;
-        foreach($pages as $pageText){$pageId=$nextId++;$contentId=$nextId++;$pageIds[]=$pageId;$lines=$this->wrap(strip_tags($pageText),(int)$geometry['wrap']);$stream="BT /F1 11 Tf ".(int)$geometry['x']." ".(int)$geometry['y']." Td 14 TL\n";foreach($lines as $line){if(function_exists('iconv')){$converted=iconv('UTF-8','Windows-1252//TRANSLIT',$line);if(is_string($converted)){$line=$converted;}}$safe=str_replace(['\\','(',')'],['\\\\','\\(','\\)'],$line);$stream.='('.$safe.") Tj T*\n";}$stream.="ET";$objects[$pageId]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ".(int)$geometry['width']." ".(int)$geometry['height']."] /Resources << /Font << /F1 {$fontId} 0 R >> >> /Contents {$contentId} 0 R >>";$objects[$contentId]="<< /Length ".strlen($stream)." >>\nstream\n{$stream}\nendstream";}
-        $kids=implode(' ',array_map(static fn(int $id):string=>$id.' 0 R',$pageIds));$objects[1]='<< /Type /Catalog /Pages 2 0 R >>';$objects[2]='<< /Type /Pages /Kids ['.$kids.'] /Count '.count($pageIds).' >>';$objects[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';ksort($objects);$pdf="%PDF-1.4\n";$offsets=[0];foreach($objects as $id=>$object){$offsets[$id]=strlen($pdf);$pdf.=$id." 0 obj\n".$object."\nendobj\n";}$xref=strlen($pdf);$max=max(array_keys($objects));$pdf.="xref\n0 ".($max+1)."\n0000000000 65535 f \n";for($id=1;$id<=$max;$id++){$pdf.=sprintf('%010d 00000 n ',$offsets[$id]??0)."\n";}$pdf.="trailer\n<< /Size ".($max+1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";return $pdf;
+        $geometry=$this->pdfGeometry($filename);
+        $prepared=PdfTextIntegrity::prepare($content,$geometry);
+        if(is_wp_error($prepared))return $prepared;
+        $objects=[];$pageIds=[];$fontId=3;$nextId=4;
+        foreach($prepared['pages'] as $pageText){
+            $pageId=$nextId++;$contentId=$nextId++;$pageIds[]=$pageId;
+            $stream="BT /F1 11 Tf ".(int)$geometry['x']." ".(int)$geometry['y']." Td 14 TL\n";
+            foreach(explode("\n",$pageText) as $line){
+                $safe=str_replace(['\\','(',')'],['\\\\','\\(','\\)'],$line);
+                $stream.='('.$safe.") Tj T*\n";
+            }
+            $stream.="ET";
+            $objects[$pageId]="<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ".(int)$geometry['width']." ".(int)$geometry['height']."] /Resources << /Font << /F1 {$fontId} 0 R >> >> /Contents {$contentId} 0 R >>";
+            $objects[$contentId]="<< /Length ".strlen($stream)." >>\nstream\n{$stream}\nendstream";
+        }
+        $kids=implode(' ',array_map(static fn(int $id):string=>$id.' 0 R',$pageIds));$objects[1]='<< /Type /Catalog /Pages 2 0 R >>';$objects[2]='<< /Type /Pages /Kids ['.$kids.'] /Count '.count($pageIds).' >>';$objects[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';ksort($objects);$pdf="%PDF-1.4\n% ".PdfTextIntegrity::PROFILE."\n";$offsets=[0];foreach($objects as $id=>$object){$offsets[$id]=strlen($pdf);$pdf.=$id." 0 obj\n".$object."\nendobj\n";}$xref=strlen($pdf);$max=max(array_keys($objects));$pdf.="xref\n0 ".($max+1)."\n0000000000 65535 f \n";for($id=1;$id<=$max;$id++){$pdf.=sprintf('%010d 00000 n ',$offsets[$id]??0)."\n";}$pdf.="trailer\n<< /Size ".($max+1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";unset($prepared['pages']);return ['bytes'=>$pdf,'evidence'=>$prepared];
     }
 
     /** @return array{width:int,height:int,x:int,y:int,wrap:int} */
@@ -194,8 +211,6 @@ final class LocalAssetProducer
         return ['width'=>612,'height'=>792,'x'=>50,'y'=>742,'wrap'=>92];
     }
 
-    /** @return list<string> */
-    private function wrap(string $text,int $width):array{$lines=[];foreach(preg_split('/\R/u',$text)?:[] as $paragraph){$wrapped=wordwrap(trim($paragraph),$width,"\n",true);foreach(explode("\n",$wrapped) as $line){$lines[]=function_exists('mb_substr')?mb_substr($line,0,180):substr($line,0,180);}$lines[]='';}return array_slice($lines,0,54);}
     private function filename(string $filename,string $format):string{$filename=sanitize_file_name($filename);if($filename===''){return '';}$extension=strtolower(pathinfo($filename,PATHINFO_EXTENSION));if($extension!==$format){return '';}return substr($filename,0,160);}
     /** @return array<string,mixed> */
     private function metadata(string $path,string $filename,string $format,string $relativeDir):array{return['filename'=>$filename,'format'=>$format,'absolute_path'=>$path,'storage_reference'=>$relativeDir.'/'.$filename,'checksum_sha256'=>hash_file('sha256',$path),'byte_size'=>(int)filesize($path),'mime_type'=>$format==='zip'?'application/zip':$this->mime($format)];}

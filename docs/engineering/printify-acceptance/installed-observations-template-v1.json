@@ -1,0 +1,103 @@
+{
+  "schema": "digiforge-printify-installed-acceptance-v1",
+  "status": "UNOBSERVED_NOT_PRODUCTION_ACCEPTANCE",
+  "candidate_commit": null,
+  "artifact_sha256": null,
+  "observed_at": null,
+  "observer": null,
+  "read_only_observation_method": null,
+  "external_execution_authorized": false,
+  "secrets_permitted": false,
+  "observations": [
+    {
+      "check": "installed_exact_commit_and_artifact_hash",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "installed_source_file_hashes",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "portal_owner_resolution_approval",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "site_url_blog_and_environment_binding",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "core_and_additive_schema_versions",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "provider_connection_schema_columns_indexes_engines",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "audit_options_registry_integration_schema_engines",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "protected_safety_posture_and_release_hold",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "independent_current_owner_authority",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "actor_shop_capability_assignments_and_audit_integrity",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "integration_account_shop_registry_and_material_binding",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "provider_connection_review_and_revocation_state",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "research_snapshot_provenance_and_integrity",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "catalog_grant_exception_reservation_receipt_inventory",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    },
+    {
+      "check": "historical_deployment_receipt_applicability",
+      "status": "UNOBSERVED",
+      "evidence_reference": null,
+      "evidence_sha256": null
+    }
+  ]
+}

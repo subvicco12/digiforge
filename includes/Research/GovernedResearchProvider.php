@@ -18,7 +18,7 @@ final class GovernedResearchProvider implements ResearchProvider
     }
     public static function executionAllowed(): bool
     {
-        return get_current_user_id()>0 && current_user_can('manage_digiforge_pod') && current_user_can('manage_digiforge_research') && current_user_can('manage_digiforge_ai') && !Settings::safety_locked() && Settings::is_enabled('research') && Settings::is_enabled('ai');
+        return \DigiForge\Security\PersonalizedPodAccess::allows(true)&&get_current_user_id()>0 && current_user_can('manage_digiforge_pod') && current_user_can('manage_digiforge_research') && current_user_can('manage_digiforge_ai') && !Settings::safety_locked() && Settings::is_enabled('research') && Settings::is_enabled('ai');
     }
     public function generate(array $research,string $attemptKey): array|WP_Error
     {

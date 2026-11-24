@@ -21,10 +21,10 @@ final class RecoveryEvidence
             'database_backup_retrievable' => self::backupVerified($backup),
             'database_backup_verification_fresh' => self::backupVerificationFresh($backup),
             'database_backup_identity_recorded' => self::complete($backup, ['identifier','captured_at','location']),
-            'plugin_package_available' => self::complete($package, ['identifier','version','source_commit','sha256','location']),
-            'plugin_package_retrievable' => self::truthy($package, 'retrievable'),
-            'plugin_package_identity_recorded' => self::complete($package, ['identifier','version','source_commit','sha256','location']),
-            'checksum_verified' => self::truthy($package, 'checksum_verified'),
+            'plugin_package_available' => self::packageIdentityValid($package),
+            'plugin_package_retrievable' => self::packageIdentityValid($package) && self::truthy($package, 'retrievable'),
+            'plugin_package_identity_recorded' => self::packageIdentityValid($package),
+            'checksum_verified' => self::packageIdentityValid($package) && self::truthy($package, 'checksum_verified'),
         ];
     }
 
@@ -133,7 +133,10 @@ final class RecoveryEvidence
         return self::truthy($record, 'retrievable')
             && ($record['verification_status'] ?? '') === 'VERIFIED'
             && self::complete($record, ['verification_method','verified_at','verified_by'])
-            && self::backupVerificationFresh($record);
+            && self::backupVerificationFresh($record)
+            && isset($record['captured_at']) && is_string($record['captured_at'])
+            && self::validTimestamp($record['captured_at'])
+            && strtotime((string) $record['verified_at']) >= strtotime($record['captured_at']);
     }
 
     /** @param array<string,mixed> $record */
@@ -147,9 +150,27 @@ final class RecoveryEvidence
 
     private static function validTimestamp(string $value): bool
     {
-        if (trim($value) === '') return false;
-        $parsed = strtotime($value);
-        return $parsed !== false;
+        return self::absoluteTimestamp($value) !== null;
+    }
+
+    /** Durable freshness must not depend on relative dates or the host timezone. */
+    public static function absoluteTimestamp(string $value): ?int
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/D', $value) !== 1) return null;
+        $value = str_ends_with($value, 'Z') ? substr($value, 0, -1) . '+00:00' : $value;
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:sP', $value);
+        if ($date === false || $date->format('Y-m-d\TH:i:sP') !== $value) return null;
+        return $date->getTimestamp();
+    }
+
+    /** @param array<string,mixed> $record */
+    private static function packageIdentityValid(array $record): bool
+    {
+        foreach (['identifier','version','source_commit','sha256','location'] as $key) {
+            if (! isset($record[$key]) || ! is_string($record[$key]) || trim($record[$key]) === '') return false;
+        }
+        return preg_match('/^[a-f0-9]{40}$/', $record['source_commit']) === 1
+            && preg_match('/^[a-f0-9]{64}$/', $record['sha256']) === 1;
     }
 
     /** @param array<string,mixed> $record */
