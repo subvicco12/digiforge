@@ -1,0 +1,77 @@
+<?php
+declare(strict_types=1);
+
+use DigiForgePrintifyApi\AccountProfile;
+use DigiForgePrintifyApi\ProtectedGetPanel;
+use DigiForgePrintifyApi\ProtectedGetWorkspace;
+
+$root = getenv('DF_PRINTIFY_WP_FIXTURE_ROOT');
+$socket = getenv('DF_PRINTIFY_WP_FIXTURE_SOCKET');
+$phase = $argv[1] ?? '';
+if (!is_string($root) || !str_starts_with($root,'/tmp/df-printify-')
+    || !is_string($socket) || !str_starts_with($socket,'/tmp/df-printify-')
+    || !in_array($phase,['write','reopen'],true)) {
+    throw new RuntimeException('Isolated fixture required');
+}
+define('DIGIFORGE_PRINTIFY_PROTECTED_GET_FIXTURE',true);
+define('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY',bin2hex(sodium_crypto_sign_publickey(
+    sodium_crypto_sign_seed_keypair(str_repeat('b',32)))));
+require $root.'/wp-load.php';
+if (DB_HOST !== 'localhost:'.$socket || DB_NAME !== 'printify_fixture' || wp_get_environment_type() !== 'local') {
+    throw new RuntimeException('Local fixture database required');
+}
+add_filter('pre_http_request',static function (): never { throw new RuntimeException('Unexpected HTTP'); },PHP_INT_MAX);
+wp_set_current_user(1);
+$plugin = WP_PLUGIN_DIR.'/digiforge-printify-api';
+require $plugin.'/ProtectedGetPanel.php';
+function verify(bool $condition, string $message): void {
+    if (!$condition) { throw new RuntimeException($message); }
+}
+$state = dirname($root).'/fixture.state';
+if ($phase === 'write') {
+    $expires = time()+600;
+    $token = WP_Session_Tokens::get_instance(1)->create($expires);
+    $cookie = wp_generate_auth_cookie(1,$expires,'logged_in',$token);
+    file_put_contents($state,$cookie);
+    chmod($state,0600);
+} else {
+    $cookie = file_get_contents($state);
+}
+$_COOKIE[LOGGED_IN_COOKIE] = $cookie;
+$profile = ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>'custody-ref:fixture'];
+$journal = dirname($root).'/gateway.json';
+if ($phase === 'write') {
+    verify(AccountProfile::save($profile,wp_create_nonce('digiforge_printify_account_profile_save'))==='SAVED_LOCAL_METADATA','Profile save failed');
+    file_put_contents($journal,'[]');
+    $worker = static function (mixed $previous,array $request,string $correlation) use ($plugin,$journal): array {
+        $process = proc_open([PHP_BINARY,__DIR__.'/protected-get-worker.php',$plugin,$journal],
+            [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
+        if (!is_resource($process)) { throw new RuntimeException('Worker unavailable'); }
+        fwrite($pipes[0],json_encode(['request'=>$request,'correlation'=>$correlation],JSON_THROW_ON_ERROR));
+        fclose($pipes[0]);
+        $output=stream_get_contents($pipes[1]);
+        $stderr=stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        if (proc_close($process)!==0) { throw new RuntimeException('Worker failed: '.$stderr); }
+        return json_decode($output,true,24,JSON_THROW_ON_ERROR);
+    };
+    $form = ['df_printify_get_nonce'=>wp_create_nonce('df_printify_protected_get_v1'),
+        'df_printify_get_revision'=>AccountProfile::revisionToken(),'df_printify_get_workspace'=>ProtectedGetWorkspace::snapshot()['revision'],
+        'df_printify_get_operation'=>'SHOPS_READ','df_printify_get'=>[]];
+    $response = ProtectedGetPanel::prepare($form);
+    verify($response['state']==='BLOCKED','Missing gateway did not fail closed');
+    add_filter('digiforge_printify_protected_get_fixture_reply',$worker,10,3);
+    verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Stale workspace was reused');
+    $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];
+    $response = ProtectedGetPanel::prepare($form);
+    verify($response['state']==='OBSERVED','Signed exchange: '.$response['reason']);
+    verify(count(json_decode(file_get_contents($journal),true))===1,'Unexpected grants admitted');
+    verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Duplicate workspace was reused');
+}
+ob_start();
+ProtectedGetPanel::render([]);
+$html = ob_get_clean();
+verify(str_contains($html,'Synthetic gateway shop') && str_contains($html,'Recent fixture'),'Stored observation not shown');
+verify(get_option('active_plugins')===['digiforge-printify-api/digiforge-printify-api.php'],'Unexpected active plugin');
+echo $phase.': standalone-only WordPress panel rendered persisted synthetic observation; provider HTTP trapped.'.PHP_EOL;

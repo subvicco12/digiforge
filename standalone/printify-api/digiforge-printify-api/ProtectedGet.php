@@ -21,6 +21,7 @@ require_once __DIR__.'/Engine/POD/PrintifyOrderEvidence.php';
 final class ProtectedGet
 {
     public const VERSION = 'DF_STANDALONE_GET_1';
+    public const REPLY_VERSION = 'DF_STANDALONE_GET_REPLY_1';
     public const MAX_PAGE = 40;
 
     private const CATALOG = [
@@ -126,6 +127,38 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    public static function verifyReply(array $request, string $grantId, array $reply, string $key, int $now): array
+    {
+        $invalid = ['state'=>'UNAVAILABLE','reason'=>'REPLY_UNVERIFIED'] + self::denied();
+        try {
+            $receipt = $reply['receipt'] ?? null;
+            $signature = $reply['signature'] ?? null;
+            if (count($reply) !== 2 || !is_array($receipt) || !is_string($signature)
+                || !preg_match('/^[a-f0-9]{128}$/D', $signature)
+                || ($receipt['schema'] ?? null) !== self::REPLY_VERSION
+                || ($receipt['request_digest'] ?? null) !== self::digest($request)
+                || ($receipt['grant_id'] ?? null) !== $grantId
+                || !is_int($receipt['issued_at'] ?? null) || $receipt['issued_at'] > $now
+                || $receipt['issued_at'] < $now - 30
+                || !in_array($receipt['state'] ?? null, ['OBSERVED','DENIED','UNAVAILABLE'], true)
+                || ($receipt['retry_permitted'] ?? null) !== false
+                || ($receipt['provider_execution_authorized'] ?? null) !== false
+                || !sodium_crypto_sign_verify_detached(hex2bin($signature), self::digest($receipt), $key)) {
+                return $invalid;
+            }
+            if ($receipt['state'] === 'OBSERVED'
+                && (($receipt['source'] ?? null) !== 'SYNTHETIC_PRINTIFY' || !is_array($receipt['data'] ?? null)
+                    || $receipt['observed_at'] !== $receipt['issued_at']
+                    || !is_string($receipt['response_sha256'] ?? null)
+                    || !preg_match('/^[a-f0-9]{64}$/D', $receipt['response_sha256']))) {
+                return $invalid;
+            }
+            return $receipt;
+        } catch (\Throwable) {
+            return $invalid;
+        }
     }
 
     public static function denied(): array

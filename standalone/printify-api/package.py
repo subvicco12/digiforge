@@ -34,6 +34,10 @@ def build(source: str) -> bytes:
     if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", protected_get),
                       capture_output=True, check=False).returncode == 0:
         members += ("ProtectedGet.php", "ProtectedGetPanel.php")
+    workspace = f"{commit}:{SOURCE}/ProtectedGetWorkspace.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", workspace),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("ProtectedGetWorkspace.php",)
     blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in members}
     contracts = (
         ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),

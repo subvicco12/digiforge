@@ -13,6 +13,17 @@ function check(bool $result, string $message): void
     if (!$result) { throw new RuntimeException($message); }
 }
 
+function journal(): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'df-get-');
+    file_put_contents($path, '[]');
+    register_shutdown_function(static function () use ($path): void {
+        @unlink($path);
+        @unlink($path.'.lock');
+    });
+    return $path;
+}
+
 $requests = 0;
 $held = false;
 $keys = sodium_crypto_sign_seed_keypair(str_repeat('a', 32));
@@ -32,7 +43,7 @@ $gateway = new FixtureReadGateway(sodium_crypto_sign_publickey($keys),
         ++$requests;
         check($scope['shop']==='107' && $method==='GET' && $path==='/v1/shops.json', 'Unexpected provider intent');
         return ['status'=>200,'body'=>'[{"id":107,"title":"Synthetic","sales_channel":"fixture"},{"id":108,"title":"private","sales_channel":"fixture"}]'];
-    });
+    }, journal());
 check(ProtectedGet::denied()['state']==='BLOCKED', 'Default hold missing');
 $bad = $request;
 $bad['scope']['shop'] = '108';
@@ -96,7 +107,7 @@ $gate = new FixtureReadGateway(sodium_crypto_sign_publickey($keys),
     static function () use (&$policy): array {
         $policy['revoked'][] = str_repeat('5',32);
         return ['status'=>200,'body'=>'[]'];
-    });
+    }, journal());
 check($gate->read($request,$grant,$sign($grant),$now)['state']==='DENIED','External lock ignored');
 $policy['external_lock'] = false;
 $policy['release_hold'] = true;
@@ -127,7 +138,7 @@ check($projection['next_page']===null && $projection['page_window_exhausted'],'C
 
 $rateGateway = new FixtureReadGateway(sodium_crypto_sign_publickey($keys),
     static fn(): array => ['revision'=>1,'stop_all'=>false,'external_lock'=>false,'release_hold'=>false,'revoked'=>[]],
-    static fn(): array => ['status'=>429,'body'=>'{"sensitive":"do not expose"}']);
+    static fn(): array => ['status'=>429,'body'=>'{"sensitive":"do not expose"}'], journal());
 for ($offset = 0; $offset < 11; ++$offset) {
     $grant['id'] = sprintf('%032x', $offset);
     $rate = $rateGateway->read($request,$grant,$sign($grant),$now);
@@ -135,3 +146,60 @@ for ($offset = 0; $offset < 11; ++$offset) {
         && !$rate['retry_permitted'] && !isset($rate['data']),'Rate limit, fixture quota or redaction');
 }
 echo "Product and order detail, partial fulfillment, private tracking projection, rate limit and quota passed.\n";
+
+$journal = journal();
+try {
+    $grant['id'] = str_repeat('b',32);
+    $policy = static fn (): array => ['revision'=>1,'stop_all'=>false,'external_lock'=>false,'release_hold'=>false,'revoked'=>[]];
+    $fixtureShop = static fn (): array => ['status'=>200,'body'=>'[{"id":107,"title":"Fixture","sales_channel":"api"}]'];
+    $make = static fn () => new FixtureReadGateway(sodium_crypto_sign_publickey($keys),$policy,$fixtureShop,$journal);
+    $signed = $make()->exchange($request,$grant,$sign($grant),$now,$key);
+    $publicKey = sodium_crypto_sign_publickey($keys);
+    check(ProtectedGet::verifyReply($request,$grant['id'],$signed,$publicKey,$now)['state']==='OBSERVED','Signed receipt rejected');
+    $replay = $make()->exchange($request,$grant,$sign($grant),$now,$key);
+    check(ProtectedGet::verifyReply($request,$grant['id'],$replay,$publicKey,$now)['state']==='DENIED','Replay after reopen admitted');
+    $signed['receipt']['data']['shops'][0]['id'] = 108;
+    check(ProtectedGet::verifyReply($request,$grant['id'],$signed,$publicKey,$now)['state']==='UNAVAILABLE','Modified response accepted');
+    echo "Signed request/response, tamper rejection and durable restart replay passed.\n";
+} finally {
+    @unlink($journal);
+    @unlink($journal.'.lock');
+}
+
+if (!function_exists('pcntl_fork')) {
+    throw new RuntimeException('pcntl required for concurrent fixture admission');
+}
+$journal = journal();
+$grant['id'] = str_repeat('c',32);
+$dir = $journal.'.race';
+mkdir($dir,0700);
+$children = [];
+for ($i=0;$i<2;++$i) {
+    $pid = pcntl_fork();
+    if ($pid === 0) {
+        $limit = microtime(true)+5;
+        while (!is_file($dir.'/start') && microtime(true)<$limit) { usleep(1000); }
+        $gateway = new FixtureReadGateway($publicKey,$policy,static function () use ($fixtureShop,$dir): array {
+            file_put_contents($dir.'/admissions',"1\n",FILE_APPEND|LOCK_EX);
+            return $fixtureShop();
+        },$journal);
+        $result = $gateway->read($request,$grant,$sign($grant),$now);
+        file_put_contents($dir.'/'.$i,$result['state']);
+        // Avoid fixture shutdown cleanup inherited from the parent.
+        posix_kill(getmypid(), SIGKILL);
+        exit(1);
+    }
+    check($pid>0,'Worker start failed');
+    $children[] = $pid;
+}
+touch($dir.'/start');
+foreach ($children as $pid) { pcntl_waitpid($pid,$status); }
+check(file_get_contents($dir.'/admissions')==="1\n",'Multiple workers admitted');
+$results = [file_get_contents($dir.'/0'),file_get_contents($dir.'/1')];
+check(count(array_filter($results,static fn(string $state): bool => $state==='OBSERVED'))===1,'Concurrent observations diverged');
+foreach (glob($dir.'/*') as $file) { unlink($file); }
+rmdir($dir);
+unlink($journal);
+check((new FixtureReadGateway($publicKey,$policy,$fixtureShop,$journal))->read($request,$grant,$sign($grant),$now)['reason']
+    === 'ADMISSION_STORE_UNAVAILABLE','Missing admission state reopened');
+echo "Separate workers admitted once, and lost journal state denied.\n";
