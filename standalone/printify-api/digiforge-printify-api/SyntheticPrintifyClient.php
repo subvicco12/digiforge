@@ -209,7 +209,7 @@ final class SyntheticPrintifyClient
             'is_economy_shipping'=>false,'send_shipping_notification'=>false]);
     }
 
-    private static function projectExpress(array $input,array $body): array
+    private function projectExpress(array $input,array $body): array
     {
         $rows=$body['data']??null;
         if (!is_array($rows)||!array_is_list($rows)||$rows===[]||count($rows)>2) {
@@ -219,8 +219,17 @@ final class SyntheticPrintifyClient
         $result=[];
         $types=[];
         foreach ($rows as $row) {
+            if (!is_array($row) || !is_array($row['attributes'] ?? null)) {
+                throw new \InvalidArgumentException('Malformed Express order response member.');
+            }
             $id=$row['id']??null;
-            $attributes=$row['attributes']??null;
+            $attributes=$row['attributes'];
+            foreach ([$row, $attributes] as $part) {
+                if (array_key_exists('shop_id', $part) && !in_array($part['shop_id'], [$this->shop, (int)$this->shop], true)) {
+                    throw new \InvalidArgumentException('Mismatched Express response shop.');
+                }
+                self::assertOptionalEcho($part, $input, ['external_id']);
+            }
             $type=$attributes['fulfilment_type']??null;
             $lines=$attributes['line_items']??null;
             if (($row['type']??null)!=='order'||!self::identity($id)||isset($result[$id])
@@ -229,7 +238,15 @@ final class SyntheticPrintifyClient
             }
             $types[$type]=true;
             $projected=[];
+            $lineIds=[];
             foreach ($lines as $line) {
+                if (!is_array($line) || (array_key_exists('id',$line)
+                    && (!self::identity($line['id']) || isset($lineIds[$line['id']])))) {
+                    throw new \InvalidArgumentException('Missing or conflicting Express line identity.');
+                }
+                if (isset($line['id'])) {
+                    $lineIds[$line['id']]=true;
+                }
                 $identity=array_intersect_key($line,array_flip(['product_id','variant_id','quantity']));
                 $match=false;
                 foreach ($remaining as $index=>$expected) {
@@ -259,7 +276,7 @@ final class SyntheticPrintifyClient
     private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
         if ($operation==='ORDER_EXPRESS_CREATE' && $status===200) {
-            return self::projectExpress($input,$body);
+            return $this->projectExpress($input,$body);
         }
         if (in_array($operation,['SHOP_DISCONNECT','WEBHOOK_SIMULATE'],true)
             && $status===($operation==='SHOP_DISCONNECT'?200:204) && $body===[]) {
@@ -337,10 +354,13 @@ final class SyntheticPrintifyClient
             if ($operation === 'PRODUCT_READ' && array_key_exists('synthetic_version', $body)) {
                 $version = $body['synthetic_version'];
                 $pending = array_key_exists('synthetic_publish_pending', $body) ? $body['synthetic_publish_pending'] : false;
-                $state = $body['synthetic_publication_state'] ?? ($pending ? 'PENDING' : 'UNPUBLISHED');
+                $state = array_key_exists('synthetic_publication_state', $body)
+                    ? $body['synthetic_publication_state'] : ($pending ? 'PENDING' : 'UNPUBLISHED');
+                $visibilityConflicts = array_key_exists('visible',$body) && (!is_bool($body['visible'])
+                    || (array_key_exists('synthetic_publication_state',$body) && $body['visible'] !== ($state === 'PUBLISHED')));
                 if (!is_int($version) || $version < 1 || !is_bool($pending)
                     || !in_array($state, ['PENDING','PUBLISHED','UNPUBLISHED','FAILED'], true)
-                    || $pending !== ($state === 'PENDING')) {
+                    || $pending !== ($state === 'PENDING') || $visibilityConflicts) {
                     throw new \InvalidArgumentException('Inconsistent synthetic publication state.');
                 }
                 $projection += ['synthetic_version'=>$version,'publication_pending'=>$pending,'publication_state'=>$state];
@@ -417,6 +437,7 @@ final class SyntheticPrintifyClient
         if ($operation === 'ORDER_CREATE' || $operation === 'ORDER_SEND_TO_PRODUCTION') {
             $order = PrintifyOrderEvidence::project($body, $body['id']);
             if ($operation === 'ORDER_CREATE') {
+                self::assertOptionalEcho($body, $input, ['shipping_method','is_printify_express','is_economy_shipping','send_shipping_notification']);
                 if ($status !== 201 || $order['status'] !== 'on-hold' || $order['external_id'] !== $input['external_id']
                     || $order['shipments'] !== [] || $order['sent_to_production_at'] !== null
                     || self::orderLineIdentity($order['line_items']) !== self::orderLineIdentity($input['line_items'])) {
@@ -431,6 +452,16 @@ final class SyntheticPrintifyClient
             $projection['synthetic_version']=$body['synthetic_version'];
         }
         return $projection;
+    }
+
+    private static function assertOptionalEcho(array $response, array $request, array $fields): void
+    {
+        foreach ($fields as $field) {
+            if (array_key_exists($field,$response)
+                && (!array_key_exists($field,$request) || $response[$field] !== $request[$field])) {
+                throw new \InvalidArgumentException('Conflicting optional lifecycle response field.');
+            }
+        }
     }
 
     private static function orderLineIdentity(array $lines): array

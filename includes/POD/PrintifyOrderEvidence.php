@@ -12,6 +12,9 @@ final class PrintifyOrderEvidence
         self::text($body['external_id'] ?? null, 128);
         $allowed = ['external_id','label','line_items','shipping_method','is_printify_express','is_economy_shipping','send_shipping_notification','address_to'];
         if (array_diff(array_keys($body), $allowed)) { throw new \InvalidArgumentException('Unsupported order fields.'); }
+        if (array_key_exists('label', $body)) {
+            self::text($body['label'], 128);
+        }
         if (!is_array($body['line_items'] ?? null) || !array_is_list($body['line_items']) || count($body['line_items']) < 1 || count($body['line_items']) > 100) { throw new \InvalidArgumentException('Bounded order lines required.'); }
         foreach ($body['line_items'] as $index => $line) {
             if (!is_array($line) || array_diff(array_keys($line), ['product_id','variant_id','quantity','external_id','personalisation'])) { throw new \InvalidArgumentException('Only existing mapped products supported.'); }
@@ -23,7 +26,7 @@ final class PrintifyOrderEvidence
                 PrintifyNativeOrderEvidence::configuration($line['personalisation']);
                 if (!in_array($index, array_column($nativeEvidence, 'line_index'), true)) { throw new \InvalidArgumentException('Resolved native configuration required.'); }
             }
-            if (isset($line['external_id'])) { self::text($line['external_id'], 128); }
+            if (array_key_exists('external_id', $line)) { self::text($line['external_id'], 128); }
         }
         if (!is_int($body['shipping_method'] ?? null) || !in_array($body['shipping_method'], [1,2,3,4], true)) { throw new \InvalidArgumentException('Explicit supported shipping method required.'); }
         foreach (['is_printify_express','is_economy_shipping','send_shipping_notification'] as $field) {
