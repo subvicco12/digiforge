@@ -191,6 +191,10 @@ final class SyntheticWorkspacePanel
                 'UNKNOWN'=>isset($proposal['referral']) ? [] : ['refer_unknown'=>'Refer for manual reconciliation'],
                 default=>[],
             };
+            if ($state === 'APPROVED_HELD' && isset($proposal['baseline_sha256'])
+                && in_array($proposal['operation'], SyntheticWorkspace::APPROVED_TRANSITIONS, true)) {
+                $decisions['simulate_held'] = 'Run approved fixture transition';
+            }
             foreach ($decisions as $decision=>$label) {
                 self::startForm($shop, $revision);
                 echo '<input type="hidden" name="df_workspace_operation" value="FIXTURE_PROPOSAL_REVIEW">';

@@ -95,6 +95,10 @@ final class SyntheticWorkspace
         'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
     ];
 
+    public const APPROVED_TRANSITIONS = [
+        'PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+    ];
+
     private function synchronization(SyntheticPrintifyTransport $transport, int $revision, array $input): array
     {
         $profile = AccountProfile::current();
@@ -293,12 +297,69 @@ final class SyntheticWorkspace
             return $proposal['state'] === 'APPROVED_HELD';
         }
         return in_array($proposal['state'], ['PENDING_APPROVAL','BLOCKED'], true)
-            || ($proposal['operation'] === 'ORDER_CREATE' && $proposal['state'] === 'APPROVED_HELD');
+            || ($proposal['state'] === 'APPROVED_HELD'
+                && in_array($proposal['operation'], ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true));
+    }
+
+    private static function transitionObservation(
+        SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $operation, string $resource
+    ): ?array {
+        if (in_array($operation, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
+            $selectors = $transport->fixtureProductSelectors($resource);
+            $read = $selectors === null ? null : $client->run('PRODUCT_READ', $selectors);
+        } else {
+            $read = $client->run('ORDER_READ', ['order_id'=>$resource]);
+        }
+        return ($read['state'] ?? null) === 'SYNTHETIC_OBSERVED' ? $read['data'] : null;
+    }
+
+    private function applyApprovedTransition(
+        array $current, SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client,
+        array &$events, int $revision, string $correlation, ?string $fault
+    ): array {
+        $operation = $current['operation'];
+        $configuration = $current['configuration'];
+        $resource = $current['resource_id'];
+        $before = self::transitionObservation($transport, $client, $operation, $resource);
+        if ($before === null || !hash_equals($current['baseline_sha256'], hash('sha256', json_encode($before, JSON_THROW_ON_ERROR)))) {
+            return self::fixtureResult(409, 'FIXTURE_TRANSITION_BASELINE_CHANGED');
+        }
+        if ($fault !== null) {
+            $transport->faultNext($fault);
+        }
+        $attempt = $this->simulate($transport, $client, $operation, $configuration, $events, $revision);
+        if ($attempt['state'] !== 'SYNTHETIC_OBSERVED' && $attempt['state'] !== 'UNKNOWN') {
+            return $attempt;
+        }
+        $after = $attempt['state'] === 'SYNTHETIC_OBSERVED'
+            ? self::transitionObservation($transport, $client, $operation, $resource) : null;
+        $recorded = $after !== null && match ($operation) {
+            'PRODUCT_PUBLISH' => $after['publication_state'] === 'PENDING',
+            'PRODUCT_UNPUBLISH_NOTIFY' => $after['publication_state'] === 'UNPUBLISHED',
+            'FIXTURE_PRODUCTION_CONFIRM' => $after['status'] === 'in-production',
+            'ORDER_CANCEL' => $after['status'] === 'canceled',
+            'LINE_ITEM_CANCEL' => (array_column($after['line_items'], 'status', 'id')[$configuration['line_item_id']] ?? null) === 'canceled',
+        };
+        $current['state'] = $recorded ? 'RECONCILED_FIXTURE_TRANSITION' : 'UNKNOWN';
+        if ($recorded) {
+            $current['receipt_id'] = $correlation;
+            $current['receipt_sha256'] = hash('sha256', json_encode($after, JSON_THROW_ON_ERROR));
+            $current['transition_receipt'] = [
+                'scope'=>$current['scope'],'resource_id'=>$resource,'approved_revision'=>$current['revision'],
+                'intent_sha256'=>$current['intent_sha256'],'before_sha256'=>$current['baseline_sha256'],
+                'after_sha256'=>$current['receipt_sha256'],'workspace_revision'=>$revision+1,'source'=>'SYNTHETIC_PRINTIFY',
+            ];
+        }
+        ++$current['revision'];
+        $current['workspace_revision'] = $revision+1;
+        return ['state'=>$current['state'],'reason'=>$recorded ? 'EXECUTION_HELD' : 'FIXTURE_TRANSITION_NOT_VERIFIED',
+            'status'=>$attempt['status'],'proposal'=>$current,'fixture_effect_committed'=>$recorded];
     }
 
     public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false, ?\Closure $custodyExchange = null): array
     {
         $actor = \get_current_user_id();
+        $transition = $operation === 'FIXTURE_PROPOSAL_REVIEW' && ($input['decision'] ?? null) === 'simulate_held';
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || (($operation === 'FIXTURE_CUSTODY_READ') !== ($custodyExchange !== null))
@@ -306,7 +367,7 @@ final class SyntheticWorkspace
             || ($correlatedCreate && ($preview || $edit === [] || !in_array($operation, self::CORRELATED_CREATE_OPERATIONS, true)))
             || ($preview && !in_array($operation, self::PREVIEW_OPERATIONS, true))
             || ($readFault !== null && !($operation === 'FIXTURE_READ_SYNC' && in_array($readFault, ['timeout','rate_limit'], true))
-                && !(($preview || $correlatedCreate) && $readFault === 'lost_ack'))
+                && !(($preview || $correlatedCreate || $transition) && $readFault === 'lost_ack'))
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PROPOSAL_REVIEW', 'FIXTURE_CUSTODY_READ', 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
@@ -342,11 +403,30 @@ final class SyntheticWorkspace
                 hash_hmac('sha256', json_encode($input, JSON_THROW_ON_ERROR), \wp_salt('auth')))) {
                 return ['state'=>'DENIED','reason'=>'FIXTURE_CREATE_INTENT_MISMATCH']+$flags;
             }
-            if ($readFault !== null) {
+            $baseline = null;
+            if ($preview && in_array($operation, self::APPROVED_TRANSITIONS, true)) {
+                $resource = $input['product_id'] ?? $input['order_id'] ?? null;
+                if (is_string($resource)) {
+                    $baseline = self::transitionObservation($transport, $client, $operation, $resource);
+                }
+            }
+            if ($transition) {
+                $id = $input['proposal_id'] ?? null;
+                $approved = is_string($id) ? (self::proposals($row['audit'], $proposalScope)[$id] ?? null) : null;
+                if ($approved === null || count($input) !== 3 || ($input['proposal_revision'] ?? null) !== $approved['revision']
+                    || $approved['state'] !== 'APPROVED_HELD' || !in_array($approved['operation'], self::APPROVED_TRANSITIONS, true)
+                    || !is_string($approved['baseline_sha256'] ?? null) || !is_string($approved['resource_id'])
+                    || !hash_equals($approved['intent_sha256'], hash_hmac('sha256', json_encode($approved['configuration'],
+                        JSON_THROW_ON_ERROR), \wp_salt('auth')))) {
+                    return ['state'=>'DENIED','reason'=>'FIXTURE_TRANSITION_APPROVAL_MISMATCH']+$flags;
+                }
+            }
+            if ($readFault !== null && !$transition) {
                 $transport->faultNext($readFault);
             }
             $result = match (true) {
                 $sync => $this->synchronization($transport, $expected, $input),
+                $transition => $this->applyApprovedTransition($approved, $transport, $client, $events, $expected, $operationId, $readFault),
                 $review => self::reviewProposal($row['audit'], $input, $proposalScope, $expected),
                 $custody => $this->custodyObservation($proposalScope, $input, $custodyExchange),
                 default => $this->simulate($transport, $client, $operation, $input, $events, $expected),
@@ -379,11 +459,12 @@ final class SyntheticWorkspace
                     'state'=>$result['state'], 'status'=>$result['status'],
                 ];
             }
-            if (!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed'])) {
+            if ((!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed']))
+                || ($transition && ($result['fixture_effect_committed'] ?? false))) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
-            if ($preview && $edited !== null && $operation === 'ORDER_CREATE'
+            if ($preview && $edited !== null && in_array($operation, ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true)
                 && $result['state'] !== 'SYNTHETIC_OBSERVED' && $result['state'] !== 'UNKNOWN') {
                 return $result + $flags;
             }
@@ -396,7 +477,7 @@ final class SyntheticWorkspace
                     $ready = $result['state'] === 'SYNTHETIC_OBSERVED';
                     $configuration = $ready ? array_intersect_key($input, array_fill_keys([
                         'blueprint_id','print_provider_id','variants','print_areas','expected_version',
-                        'product_id','order_id','line_items','shipping_method','publish_fields','title','description','file_name',
+                        'product_id','order_id','line_items','line_item_id','shipping_method','publish_fields','title','description','file_name',
                     ], true)) : [];
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $configuration = array_intersect_key($input['order'], ['line_items'=>true,'shipping_method'=>true]);
@@ -408,6 +489,9 @@ final class SyntheticWorkspace
                         'intent_sha256'=>hash_hmac('sha256', json_encode($input, JSON_THROW_ON_ERROR), \wp_salt('auth')),
                         'resource_id'=>$resource, 'configuration'=>$configuration,
                     ];
+                    if ($ready && $baseline !== null) {
+                        $result['proposal']['baseline_sha256'] = hash('sha256', json_encode($baseline, JSON_THROW_ON_ERROR));
+                    }
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $result['proposal']['quote_projection'] = $result['data'];
                     }

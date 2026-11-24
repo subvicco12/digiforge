@@ -35,7 +35,7 @@ if ($phase === 'write') {
 }
 $workspace = Runtime::syntheticWorkspace('107');
 requireFixture($workspace !== null, 'Configured disposable workspace unavailable');
-$structured = getenv('DF_STANDALONE_TEST_SCENARIO') === 'structured';
+$scenario = getenv('DF_STANDALONE_TEST_SCENARIO');
 if ($phase === 'write') {
     $run = static function (string $op, array $input) use ($workspace): void {
         $rev = $workspace->inspect()['revision'];
@@ -117,8 +117,8 @@ if ($phase === 'write') {
             'Operation output missing');
         return json_decode(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'), true, 24, JSON_THROW_ON_ERROR);
     };
-    if ($structured) {
-        require __DIR__.'/structured-operator-wordpress.php';
+    if (in_array($scenario, ['structured','milestones'], true)) {
+        require __DIR__.($scenario === 'structured' ? '/structured-operator-wordpress.php' : '/milestone-lifecycle-wordpress.php');
         return;
     }
     $sync = static fn(string $kind, array $select = []): string =>
@@ -443,8 +443,8 @@ if ($phase === 'write') {
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
 } else {
-    if ($structured) {
-        require __DIR__.'/structured-operator-wordpress.php';
+    if (in_array($scenario, ['structured','milestones'], true)) {
+        require __DIR__.($scenario === 'structured' ? '/structured-operator-wordpress.php' : '/milestone-lifecycle-wordpress.php');
         return;
     }
     $retained = array_column($workspace->inspect()['audit'], 'sync_receipt');
