@@ -44,51 +44,109 @@ final class SyntheticWorkspace
     /** Read the sealed fixture snapshot without writing workspace state or audit events. */
     public function readRecords(string $kind, ?string $id, int $page, int $limit): array
     {
-        if (!in_array($kind, ['products', 'orders'], true) || $page < 1 || $page > 100
-            || $limit < 1 || $limit > 10 || ($id !== null && ($page !== 1
-                || preg_match($kind === 'products' ? '/^product-[1-9][0-9]{0,2}$/D' : '/^order-[1-9][0-9]{0,2}$/D', $id) !== 1))) {
-            return ['state'=>'DENIED', 'reason'=>'INVALID_SELECTION'];
-        }
         try {
             $snapshot = $this->load();
             $transport = new SyntheticPrintifyTransport($this->shop);
             $transport->restoreFixtureState($snapshot['transport']);
-            $operation = $kind === 'products' ? 'PRODUCTS_READ' : 'ORDERS_READ';
-            $input = ['page'=>$page, 'limit'=>$limit];
-            if ($id !== null && $kind === 'products') {
-                $operation = 'PRODUCT_READ';
-                $input = $transport->fixtureProductSelectors($id);
-                if ($input === null) {
-                    return ['state'=>'FAILED_READ', 'reason'=>'RECORD_NOT_FOUND'];
-                }
-            } elseif ($id !== null) {
-                $operation = 'ORDER_READ';
-                $input = ['order_id'=>$id];
-            }
-            $result = (new SyntheticPrintifyClient($this->shop, $transport))->run($operation, $input);
-            if ($result['state'] !== 'SYNTHETIC_OBSERVED') {
-                return ['state'=>'FAILED_READ', 'reason'=>$result['reason'],
-                    'retry_after'=>$result['bounded_retry_after'] ?? null];
-            }
-            $data = $result['data'];
-            if ($operation === 'ORDER_READ') {
-                foreach ($data['shipments'] as &$shipment) {
-                    $shipment['tracking_reference'] = $transport->fixtureTrackingReference($id, $shipment['tracking_hash']);
-                }
-                unset($shipment);
-            }
-            return ['state'=>'OBSERVED', 'reason'=>null, 'data'=>$data, 'workspace_revision'=>$snapshot['revision']];
+            return $this->projectRecords($transport, $snapshot['revision'], $kind, $id, $page, $limit);
         } catch (\Throwable) {
             return ['state'=>'FAILED_READ', 'reason'=>'WORKSPACE_UNAVAILABLE'];
         }
     }
 
-    public function execute(int $expected, string $operationId, string $operation, array $input): array
+    private function projectRecords(SyntheticPrintifyTransport $transport, int $revision, string $kind, ?string $id, int $page, int $limit): array
+    {
+        if (!in_array($kind, ['products', 'orders'], true) || $page < 1 || $page > 100
+            || $limit < 1 || $limit > 10 || ($id !== null && ($page !== 1
+                || preg_match($kind === 'products' ? '/^product-[1-9][0-9]{0,2}$/D' : '/^order-[1-9][0-9]{0,2}$/D', $id) !== 1))) {
+            return ['state'=>'DENIED', 'reason'=>'INVALID_SELECTION'];
+        }
+        $operation = $kind === 'products' ? 'PRODUCTS_READ' : 'ORDERS_READ';
+        $input = ['page'=>$page, 'limit'=>$limit];
+        if ($id !== null && $kind === 'products') {
+            $operation = 'PRODUCT_READ';
+            $input = $transport->fixtureProductSelectors($id);
+            if ($input === null) {
+                return ['state'=>'FAILED_READ', 'reason'=>'RECORD_NOT_FOUND'];
+            }
+        } elseif ($id !== null) {
+            $operation = 'ORDER_READ';
+            $input = ['order_id'=>$id];
+        }
+        $result = (new SyntheticPrintifyClient($this->shop, $transport))->run($operation, $input);
+        if ($result['state'] !== 'SYNTHETIC_OBSERVED') {
+            return ['state'=>'FAILED_READ', 'reason'=>$result['reason'], 'status'=>$result['status'],
+                'retry_after'=>$result['bounded_retry_after'] ?? null];
+        }
+        $data = $result['data'];
+        if ($operation === 'ORDER_READ') {
+            foreach ($data['shipments'] as &$shipment) {
+                $shipment['tracking_reference'] = $transport->fixtureTrackingReference($id, $shipment['tracking_hash']);
+            }
+            unset($shipment);
+        }
+        return ['state'=>'OBSERVED', 'reason'=>null, 'data'=>$data, 'workspace_revision'=>$revision];
+    }
+
+    public const PREVIEW_OPERATIONS = [
+        'PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY',
+        'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+    ];
+
+    private function synchronization(SyntheticPrintifyTransport $transport, int $revision, array $input): array
+    {
+        $profile = AccountProfile::current();
+        $kind = $input['kind'] ?? null;
+        $selection = $input['selection'] ?? null;
+        if ($profile === null || $profile['shop'] !== $this->shop || $profile['account'] !== $this->account
+            || count($input) !== 3 || ($input['integration'] ?? null) !== $profile['integration']
+            || !is_string($kind) || !is_array($selection)
+            || AccountProfile::plan($this->shop, $this->account, $profile['integration'], $kind)['state'] !== 'PREPARED_OFFLINE') {
+            return ['state'=>'BLOCKED','reason'=>'SYNC_SCOPE_OR_TRANSPORT','status'=>0];
+        }
+        if ($kind === 'catalog') {
+            require_once __DIR__.'/CatalogBrowser.php';
+            $read = CatalogBrowser::read(1, $this->shop, $this->account, $selection, $transport);
+            $reason = $read['error'];
+        } else {
+            if (array_diff_key($selection, ['id'=>true,'page'=>true,'limit'=>true]) !== []
+                || (isset($selection['id']) && !is_string($selection['id']))
+                || !is_int($selection['page'] ?? 1) || !is_int($selection['limit'] ?? 10)) {
+                return ['state'=>'DENIED','reason'=>'INVALID_SELECTION','status'=>0];
+            }
+            $read = $this->projectRecords($transport, $revision, $kind, $selection['id'] ?? null,
+                $selection['page'] ?? 1, $selection['limit'] ?? 10);
+            $reason = $read['reason'];
+        }
+        $status = $read['status'] ?? ($reason === 'RATE_LIMITED' ? 429 : 0);
+        $state = match (true) {
+            $read['state'] === 'OBSERVED' => 'OBSERVED',
+            $status === 429 => 'RATE_LIMITED',
+            $reason === 'SCOPE_OR_TRANSPORT_UNAVAILABLE' => 'BLOCKED',
+            in_array($reason, ['INVALID_SELECTION','UNSUPPORTED_SELECTION'], true) => 'DENIED',
+            default => 'UNAVAILABLE',
+        };
+        $timestamp = time();
+        $receipt = ['source'=>'SYNTHETIC_PRINTIFY','freshness'=>$state === 'OBSERVED' ? 'FIXTURE_ONLY' : 'UNAVAILABLE',
+            'attempted_at'=>$timestamp,'observed_at'=>$state === 'OBSERVED' ? $timestamp : null,
+            'provider_observed_at'=>null,'provider_fact_verified'=>false,'workspace_revision'=>$revision,
+            'kind'=>$kind,'scope'=>['shop'=>$this->shop,'account'=>$this->account,'integration'=>$profile['integration']],
+            'selection_sha256'=>hash('sha256', json_encode($selection, JSON_THROW_ON_ERROR))];
+        if ($state === 'OBSERVED') {
+            $receipt['projection_sha256'] = hash('sha256', json_encode($read['data'], JSON_THROW_ON_ERROR));
+        }
+        return ['state'=>$state,'reason'=>$reason ?? 'NONE','status'=>$state === 'OBSERVED' ? 200 : $status,
+            'retry_after'=>$read['retry_after'] ?? null,'data'=>$read['data'] ?? null,'sync_receipt'=>$receipt];
+    }
+
+    public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null): array
     {
         $actor = \get_current_user_id();
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
-            || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_PRODUCTION_CONFIRM',
+            || ($preview && !in_array($operation, self::PREVIEW_OPERATIONS, true))
+            || ($readFault !== null && ($operation !== 'FIXTURE_READ_SYNC' || !in_array($readFault, ['timeout','rate_limit'], true)))
+            || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
         }
@@ -103,16 +161,31 @@ final class SyntheticWorkspace
             $transport = new SyntheticPrintifyTransport($this->shop);
             $transport->restoreFixtureState($row['transport']);
             $client = new SyntheticPrintifyClient($this->shop, $transport);
-            $result = $this->simulate($transport, $client, $operation, $input, $row['events']);
-            $row['transport'] = $transport->exportFixtureState();
+            $events = $row['events'];
+            $sync = $operation === 'FIXTURE_READ_SYNC';
+            $profile = $sync ? AccountProfile::current() : null;
+            if ($readFault !== null) {
+                $transport->faultNext($readFault);
+            }
+            $result = $sync ? $this->synchronization($transport, $expected, $input)
+                : $this->simulate($transport, $client, $operation, $input, $events);
+            if (!$preview && !$sync) {
+                $row['transport'] = $transport->exportFixtureState();
+                $row['events'] = $events;
+            }
+            if ($preview) {
+                $result['preview_only'] = true;
+                $result['fixture_effect_committed'] = false;
+            }
             $row['audit'][$operationId] = [
                 'operation'=>$operation,'state'=>$result['state'],'reason'=>$result['reason'] ?? 'NONE',
                 'status'=>$result['status'],'operation_id'=>$operationId,
                 'actor_id'=>$actor,'occurred_at'=>gmdate('c'),
-            ];
+            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true]);
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
-                || !Runtime::permitsWorkspaceAccount($this->shop, $this->account) || !$this->idle()) {
+                || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)
+                || ($sync && AccountProfile::current() !== $profile) || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
             $next = $expected + 1;

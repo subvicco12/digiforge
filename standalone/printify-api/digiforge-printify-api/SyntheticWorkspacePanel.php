@@ -28,6 +28,9 @@ final class SyntheticWorkspacePanel
         echo '<h2>Synthetic operator workspace</h2><p>Configured fixture shop '
             .\esc_html($shop).'. Provider execution is disabled. Enter fixture values only.</p>';
         if ($result !== null) {
+            if (($result['preview_only'] ?? false) === true) {
+                echo '<p role="status">Preview only. No fixture product or order was changed.</p>';
+            }
             if (($result['reason'] ?? null) === 'INVALID_OPERATION_FIELD') {
                 $field = self::FIELD_LABELS[$result['field']] ?? 'Required fields';
                 echo '<p role="alert">Check the fixture input for '.\esc_html($field).'.</p>';
@@ -60,6 +63,7 @@ final class SyntheticWorkspacePanel
             }
             echo '</select> <button type="submit">Open workspace</button></form>';
         }
+        self::renderSync($shop, $current['revision']);
         self::renderOperationForms($shop, $current['revision']);
         echo '<details><summary>Advanced operation input (JSON)</summary>';
         self::startForm($shop, $current['revision']);
@@ -77,6 +81,7 @@ final class SyntheticWorkspacePanel
             'Artwork: file_name and base64 contents of a PNG.',
             'Product creation: title, description, blueprint_id, print_provider_id, variants and print_areas.',
             'Product update: product_id, expected_version and changed fields. Read the product first to find its synthetic version.',
+            'Publication preview: select PRODUCT_PUBLISH with product_id, expected_version and publish_fields (for example {"title":true}), or PRODUCT_UNPUBLISH_NOTIFY with product_id and expected_version. Use Preview supported operation.',
             'Shipping quote: {"order":{…}}. Order creation: external_id, line_items, shipping_method, flags and a fixture address_to.',
             'Order read, cancellation, synthetic production and fulfillment: {"order_id":"order-1"}.',
             'Event fixture: id, type, created_at and resource with type, id and integer shop_id under data.',
@@ -86,14 +91,17 @@ final class SyntheticWorkspacePanel
         echo '<h3 id="df-workspace-audit">Recent synthetic audit</h3>'
             .'<div role="region" aria-labelledby="df-workspace-audit" tabindex="0" style="max-width:100%;overflow:auto">'
             .'<table class="widefat striped"><thead><tr>';
-        foreach (['Operation','Result','Reason','Reference','Actor ID','Time (UTC)'] as $label) echo '<th scope="col">'.\esc_html($label).'</th>';
+        foreach (['Operation','Result','Reason','Reference','Actor ID','Time (UTC)','Receipt'] as $label) echo '<th scope="col">'.\esc_html($label).'</th>';
         echo '</tr></thead><tbody>';
         foreach (array_reverse(array_slice($current['audit'],-20)) as $entry) {
             echo '<tr>';
             foreach (['operation','state','reason','operation_id','actor_id','occurred_at'] as $field) {
                 echo '<td>'.\esc_html((string)($entry[$field]??'—')).'</td>';
             }
-            echo '</tr>';
+            $receipt = $entry['sync_receipt'] ?? null;
+            echo '<td>'.\esc_html(is_array($receipt)
+                ? ($receipt['kind'].' · '.$receipt['freshness'].' · '.($receipt['projection_sha256'] ?? 'No projection'))
+                : (($entry['preview_only'] ?? false) ? 'Preview only' : '—')).'</td></tr>';
         }
         echo '</tbody></table></div>';
         self::renderEvents($current['events'] ?? []);
@@ -129,6 +137,58 @@ final class SyntheticWorkspacePanel
         foreach (['shop'=>$shop, 'revision'=>(string)$revision, 'id'=>bin2hex(random_bytes(32))] as $field=>$value) {
             echo '<input type="hidden" name="df_workspace_'.$field.'" value="'.\esc_attr($value).'">';
         }
+    }
+
+    private static function renderSync(string $shop, int $revision): void
+    {
+        $profile = AccountProfile::current();
+        echo '<h3>Synthetic synchronization</h3>';
+        if (($profile['shop'] ?? null) !== $shop) {
+            echo '<p>Save matching account configuration to synchronize this fixture shop.</p>';
+            return;
+        }
+        foreach (['catalog'=>'Catalog','products'=>'Products','orders'=>'Orders and tracking'] as $kind=>$label) {
+            self::startForm($shop, $revision);
+            echo '<input type="hidden" name="df_workspace_operation" value="FIXTURE_READ_SYNC">';
+            echo '<input type="hidden" name="df_workspace_sync[kind]" value="'.\esc_attr($kind).'">';
+            echo '<input type="hidden" name="df_workspace_sync[integration]" value="'.\esc_attr($profile['integration']).'">';
+            $fields = $kind === 'catalog'
+                ? ['blueprint_id'=>'Blueprint ID','provider_id'=>'Provider ID','variant_id'=>'Variant ID','method'=>'Shipping method','page'=>'Page']
+                : ['id'=>'Fixture record ID (detail)','page'=>'Page','limit'=>'Page size'];
+            echo '<fieldset><legend>'.\esc_html($label).'</legend>';
+            foreach ($fields as $key=>$title) {
+                echo '<label>'.\esc_html($title).' <input name="df_workspace_sync['.\esc_attr($key).']" maxlength="32"></label> ';
+            }
+            echo '<button type="submit">Synchronize fixture</button></fieldset></form>';
+        }
+    }
+
+    private static function syncInput(mixed $fields): ?array
+    {
+        if (!is_array($fields) || !is_string($fields['kind'] ?? null) || !is_string($fields['integration'] ?? null)) {
+            return null;
+        }
+        $kind = $fields['kind'];
+        $input = ['kind'=>$kind, 'integration'=>$fields['integration'], 'selection'=>[]];
+        unset($fields['kind'], $fields['integration']);
+        $numeric = $kind === 'catalog' ? ['blueprint_id','provider_id','variant_id','page'] : ['page','limit'];
+        $strings = $kind === 'catalog' ? ['method'] : ['id'];
+        foreach ($fields as $key=>$value) {
+            if (!is_string($value) || strlen($value)>32 || !in_array($key, [...$numeric,...$strings], true)) {
+                return null;
+            }
+            if ($value === '') {
+                continue;
+            }
+            if (in_array($key, $numeric, true)) {
+                if (preg_match('/^[1-9][0-9]{0,8}$/D', $value) !== 1) {
+                    return null;
+                }
+                $value = (int)$value;
+            }
+            $input['selection'][$key] = $value;
+        }
+        return $input;
     }
 
     /** Labels and typed input keys for every operation exposed by the workspace. */
@@ -219,6 +279,9 @@ final class SyntheticWorkspacePanel
                     echo '<p><label for="df-fixture-artwork">Fixture PNG file</label><br>';
                     echo '<input id="df-fixture-artwork" type="file" name="df_workspace_artwork" accept=".png,image/png"></p>';
                     echo '<p>Choose one PNG file or paste its base64 contents.</p>';
+                }
+                if (in_array($op, SyntheticWorkspace::PREVIEW_OPERATIONS, true)) {
+                    echo '<button type="submit" name="df_workspace_preview" value="1">Preview without changing fixture records</button> ';
                 }
                 echo '<p><button type="submit" class="button">'.\esc_html($label).'</button></p></form></details>';
             }
@@ -580,6 +643,15 @@ final class SyntheticWorkspacePanel
             || !is_string($revision) || !preg_match('/^(?:0|[1-9][0-9]{0,2})$/D',$revision)) {
             return ['state'=>'DENIED','reason'=>'INVALID_FORM_OR_SESSION'];
         }
+        $preview = $_POST['df_workspace_preview'] ?? null;
+        if ($preview !== null && ($preview !== '1' || !in_array($op, SyntheticWorkspace::PREVIEW_OPERATIONS, true))) {
+            return ['state'=>'DENIED','reason'=>'INVALID_PREVIEW_OPERATION'];
+        }
+        if ($op === 'FIXTURE_READ_SYNC') {
+            $input = self::syncInput($_POST['df_workspace_sync'] ?? null);
+            return $input === null ? ['state'=>'DENIED','reason'=>'INVALID_SELECTION']
+                : $workspace->execute((int)$revision, $id, $op, $input);
+        }
         if (array_key_exists('df_workspace_fields_present',$_POST)) {
             if ($_POST['df_workspace_fields_present']!=='1' || array_key_exists('df_workspace_input',$_POST)) {
                 return ['state'=>'DENIED','reason'=>'INVALID_FORM_OR_SESSION'];
@@ -590,7 +662,7 @@ final class SyntheticWorkspacePanel
             } catch (\InvalidArgumentException $e) {
                 return ['state'=>'DENIED','reason'=>'INVALID_OPERATION_FIELD','field'=>$e->getMessage()];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input);
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1');
         }
         $raw=$_POST['df_workspace_input']??null;
         if (array_key_exists('df_workspace_fields',$_POST) || !is_string($raw) || strlen($raw)>3000000) {
@@ -602,7 +674,7 @@ final class SyntheticWorkspacePanel
             if (!str_starts_with($json,'{')||!is_array($input)) {
                 return ['state'=>'DENIED','reason'=>'INPUT_MUST_BE_JSON_OBJECT'];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input);
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1');
         } catch (\JsonException) {
             return ['state'=>'DENIED','reason'=>'MALFORMED_OPERATION_JSON'];
         }
