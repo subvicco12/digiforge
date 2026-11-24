@@ -1,0 +1,104 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "journal_state",
+    "handoff",
+    "admission",
+    "dispatch",
+    "attempt_id",
+    "acknowledgment",
+    "authority",
+    "recovery_floor_verified",
+    "reconciliation",
+    "provider_execution_authorized",
+    "retry_permitted"
+  ],
+  "properties": {
+    "schema": {
+      "const": "DF_STANDALONE_HELD_AUTHORITY_1"
+    },
+    "journal_state": {
+      "enum": [
+        "UNAVAILABLE",
+        "HELD",
+        "FENCED",
+        "UNKNOWN",
+        "CANCELLED"
+      ]
+    },
+    "handoff": {
+      "oneOf": [
+        {
+          "const": null
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation_id",
+            "identity_digest",
+            "payload_digest",
+            "journal_revision",
+            "event_hash"
+          ],
+          "properties": {
+            "operation_id": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "identity_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "payload_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "journal_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "event_hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    },
+    "admission": {
+      "const": "DENIED"
+    },
+    "dispatch": {
+      "const": "DISABLED_BY_POLICY"
+    },
+    "attempt_id": {
+      "const": null
+    },
+    "acknowledgment": {
+      "const": "UNVERIFIED"
+    },
+    "authority": {
+      "const": "BLOCKED_EXTERNAL"
+    },
+    "recovery_floor_verified": {
+      "const": false
+    },
+    "reconciliation": {
+      "enum": [
+        "BLOCKED",
+        "NOT_APPLICABLE",
+        "MANUAL_REVIEW_REQUIRED"
+      ]
+    },
+    "provider_execution_authorized": {
+      "const": false
+    },
+    "retry_permitted": {
+      "const": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

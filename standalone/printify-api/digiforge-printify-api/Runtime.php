@@ -47,6 +47,8 @@ final class Runtime
         if ($readiness !== []) {
             echo '<p>Operational provider reads and mutations remain disabled. Offline evidence is synthetic.</p>';
             echo '<p>Native Core build: ' . \esc_html($readiness['native_mutation']['core_build']) . '</p>';
+            echo '<p>Held authority interface: ' . \esc_html($readiness['native_mutation']['handoff_contract'])
+                . ' (execution disabled)</p>';
         }
         $selection = $_POST['df_workspace_shop'] ?? $_GET['df_workspace_shop'] ?? self::shop();
         $workspace = is_string($selection) ? self::syntheticWorkspace($selection) : null;
@@ -226,6 +228,14 @@ final class Runtime
         return NativeHeldInspection::read($shop, $account, $scope, $binding, $context);
     }
 
+    public static function inspectHeldAuthority(
+        string $shop, string $account, mixed $scope, array $binding, array $context
+    ): array {
+        require_once __DIR__ . '/NativeHeldInspection.php';
+        require_once __DIR__ . '/HeldAuthorityAdapter.php';
+        return HeldAuthorityAdapter::inspect($shop, $account, $scope, $binding, $context);
+    }
+
     public static function prepareNativeMutation(string $shop,string $account,array $request): array
     {
         require_once __DIR__.'/NativeHeldInspection.php';
@@ -266,8 +276,14 @@ final class Runtime
                 'hosted'=>$blocked,'provider'=>$blocked,'dispatch'=>$disabled,
             ],
             'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled,
-                'core_build'=>$nativeBuild],
+                'core_build'=>$nativeBuild,'handoff_contract'=>self::heldAuthorityContract()],
         ];
+    }
+
+    private static function heldAuthorityContract(): string
+    {
+        require_once __DIR__ . '/HeldAuthorityAdapter.php';
+        return HeldAuthorityAdapter::CONTRACT;
     }
 
     private const READ_ENGINE = [

@@ -64,6 +64,19 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             )['state']);
 
             $held = $read($binding);
+            $handoff = static fn(array $b): array => Runtime::inspectHeldAuthority('12', $account, $scope, $b, $context);
+            $heldAuthority = $handoff($binding);
+            self::assertSame('DF_STANDALONE_HELD_AUTHORITY_1', $heldAuthority['schema']);
+            self::assertSame('HELD', $heldAuthority['journal_state']);
+            self::assertSame($binding['operation_id'], $heldAuthority['handoff']['operation_id']);
+            self::assertSame($binding['payload_fingerprint'], $heldAuthority['handoff']['payload_digest']);
+            self::assertSame($held['journal_revision'], $heldAuthority['handoff']['journal_revision']);
+            self::assertSame($held['event_hash'], $heldAuthority['handoff']['event_hash']);
+            self::assertSame('DENIED', $heldAuthority['admission']);
+            self::assertFalse($heldAuthority['provider_execution_authorized']);
+            self::assertNull($heldAuthority['attempt_id']);
+            self::assertNull($handoff(array_replace($binding, ['credential_reference'=>$scope->integrationId+1]))['handoff']);
+            self::assertNull(Runtime::inspectHeldAuthority('13', $account, $scope, $binding, $context)['handoff']);
             [$heads, $events] = NativeHeldJournalSchema::tables();
             $journalKey = ['operation_id'=>$binding['operation_id'], 'shop_key'=>$binding['shop_key']];
             $where = $wpdb->prepare('operation_id=%s AND shop_key=%s', ...array_values($journalKey));
@@ -82,6 +95,13 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             PrintifyApiApprovalFixture::checked($journal->transition($binding['operation_id'], 'personalized_pod', 1, 2, 'UNKNOWN'));
             $unknown = $read($binding);
             self::assertSame('UNKNOWN', $unknown['state']);
+            $unknownAuthority = $handoff($binding);
+            self::assertSame('UNKNOWN', $unknownAuthority['journal_state']);
+            self::assertSame('MANUAL_REVIEW_REQUIRED', $unknownAuthority['reconciliation']);
+            self::assertSame($unknown['event_hash'], $unknownAuthority['handoff']['event_hash']);
+            self::assertSame('UNVERIFIED', $unknownAuthority['acknowledgment']);
+            self::assertFalse($unknownAuthority['retry_permitted']);
+            self::assertFalse($unknownAuthority['recovery_floor_verified']);
             self::assertFalse($unknown['retry_permitted']);
             self::assertFalse($unknown['provider_outcome_confirmed']);
             self::assertSame($unknown, $read($binding));
@@ -137,6 +157,7 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             self::assertSame(1, $wpdb->update($events, ['payload'=>'{}'], $eventKey));
             try {
                 $corrupt = $read($binding);
+                self::assertNull($handoff($binding)['handoff']);
                 self::assertSame('DENIED', $corrupt['state']);
                 self::assertFalse($corrupt['retry_permitted']);
                 self::assertFalse($corrupt['provider_execution_authorized']);
@@ -168,6 +189,7 @@ final class NativeHeldInspectionWordPressTest extends WP_UnitTestCase
             self::assertSame('DENIED', $prepare($authorize)['state']);
             self::assertSame('DENIED', $read($binding)['state']);
             self::assertSame('DENIED', $verifyCheckpoint($read($binding))['state']);
+            self::assertNull($handoff($binding)['handoff']);
             wp_set_current_user(0);
             self::assertSame('DENIED', $read($binding)['state']);
         } finally {

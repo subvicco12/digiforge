@@ -27,3 +27,13 @@ foreach (['AUTHORIZE', 'REGISTER', 'CLAIM', 'RECEIPT_READ'] as $action) {
             'Native handoff accepted a missing or substituted fixture binding: ' . $action);
     }
 }
+
+
+$boundary = Runtime::inspectHeldAuthority('107', 'fixture-account', null, [], []);
+check($boundary['schema'] === 'DF_STANDALONE_HELD_AUTHORITY_1'
+    && $boundary['admission'] === 'DENIED'
+    && $boundary['dispatch'] === 'DISABLED_BY_POLICY'
+    && $boundary['handoff'] === null && $boundary['attempt_id'] === null
+    && $boundary['acknowledgment'] === 'UNVERIFIED'
+    && !$boundary['provider_execution_authorized'] && !$boundary['retry_permitted'],
+    'Held runtime boundary admitted execution without Core or an external authority');
