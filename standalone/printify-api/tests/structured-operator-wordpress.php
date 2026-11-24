@@ -21,6 +21,14 @@ if ($phase === 'reopen') {
     requireFixture(array_column($shipments, 'tracking_reference') === [
         'SYNTHETIC-order-3-shipment-1','SYNTHETIC-order-3-shipment-2',
     ], 'Multiple fixture tracking references did not survive restart');
+    $history = array_column($workspace->inspect()['events'], 'shipment_receipt');
+    $export = $workspace->redactedAuditExport();
+    requireFixture(count($history) === 3 && $history[0]['outcome'] === 'DELIVERY_OBSERVED'
+        && $history[0]['order_status'] === 'partially-fulfilled'
+        && $history[2]['order_status'] === 'fulfilled'
+        && $shipments[0]['delivered_at'] === '2026-11-19T10:05:00Z'
+        && in_array($history[0]['event_digest'], array_column($export['entries'], 'event_digest'), true),
+        'Shipment chronology, delivery state or scoped receipt export did not survive reopen');
     echo "Structured WordPress forms: two publication outcomes, revision and four operation receipts survived reopen\n";
     return;
 }
@@ -136,8 +144,48 @@ requireFixture($partial['status'] === 'partially-fulfilled' && count($partial['s
     'Selected line advanced the entire order');
 $post('FIXTURE_FULFILL', ['order_id'=>'order-3','line_item_id'=>'line-1'], 'ORDER_STATE_OR_ID');
 $post('FIXTURE_FULFILL', ['order_id'=>'order-3'], 'ORDER_STATE_OR_ID');
+$observeShipment = static function (int $sequence, string $type, int $shipment, string $instant, array $extra = [])
+    use ($workspace): array {
+    $id = sprintf('653b6be8-2ff7-4ab5-a7a6-%012x', $sequence);
+    $created = $type === 'created';
+    $data = $extra + ['shop_id'=>107, ($created ? 'shipped_at' : 'delivered_at')=>$instant,
+        'carrier'=>['code'=>'SYNTHETIC','tracking_number'=>'SYNTHETIC-order-3-shipment-'.$shipment,
+            'tracking_url'=>'https://tracking.example.invalid/SYNTHETIC-order-3-shipment-'.$shipment],
+        'skus'=>['fixture-sku-'.($shipment === 1 ? '9' : '10')]];
+    if ($created) {
+        $data += ['line_item_ids'=>['line-'.$shipment]];
+    }
+    return $workspace->execute($workspace->inspect()['revision'], hash('sha256', $id), 'FIXTURE_WEBHOOK_EVENT', [
+        'id'=>$id,'type'=>'order:shipment:'.$type,'created_at'=>'2026-11-19 12:00:00+00:00',
+        'resource'=>['id'=>'order-3','type'=>'order','data'=>$data],
+    ]);
+};
+$result = $observeShipment(1, 'delivered', 1, '2026-11-19 10:05:00+00:00');
+requireFixture($result['state'] === 'SYNTHETIC_OBSERVED' && $result['shipment_receipt']['order_status'] === 'partially-fulfilled'
+    && $result['shipment_receipt']['scope'] === ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read']
+    && $result['shipment_receipt']['workspace_revision'] === $workspace->inspect()['revision']
+    && !$result['provider_execution_authorized'] && !$result['retry_permitted'], 'Partial delivery receipt lost scope or authority hold');
+foreach ([
+    [2,'created',1,'2026-11-19 10:04:00+00:00',['line_item_ids'=>['line-2']],'EVENT_SHIPMENT_LINE_CONFLICT'],
+    [3,'created',1,'2026-11-19 10:06:00+00:00',[],'EVENT_SHIPMENT_TIME_CONFLICT'],
+    [4,'delivered',1,'2026-11-19 10:05:00+00:00',[],'DUPLICATE_SHIPMENT_OBSERVATION'],
+    [5,'delivered',1,'2026-11-19 10:06:00+00:00',[],'EVENT_DELIVERY_CONFLICT'],
+    [6,'created',2,'2026-11-19 10:04:00+00:00',[],'EVENT_SHIPMENT_CONFLICT'],
+    [7,'created',1,'2026-11-19 10:04:00+00:00',['shop_id'=>108],'EVENT_CONTRACT_OR_SCOPE'],
+] as [$seq,$type,$shipment,$time,$extra,$reason]) {
+    $result = $observeShipment($seq, $type, $shipment, $time, $extra);
+    requireFixture($result['state'] === 'DENIED' && $result['reason'] === $reason && !isset($result['shipment_receipt']),
+        'Invalid shipment observation: '.json_encode($result));
+}
+requireFixture($observeShipment(8, 'created', 1, '2026-11-19 10:04:00+00:00')['state'] === 'SYNTHETIC_OBSERVED',
+    'Delayed creation observation before delivery time was denied');
+$partial = $workspace->readRecords('orders', 'order-3', 1, 10)['data'];
 $post('FIXTURE_FULFILL', ['order_id'=>'order-3','line_item_id'=>'line-2']);
 $complete = $workspace->readRecords('orders', 'order-3', 1, 10)['data'];
 requireFixture($complete['status'] === 'fulfilled' && count($complete['shipments']) === 2
     && $complete['shipments'][0] === $partial['shipments'][0], 'Final line replaced the first shipment or failed to advance status');
 echo "Structured quotes and split fulfillment PASS: four quotes, duplicate shipment denial and two tracking references\n";
+
+requireFixture($observeShipment(9, 'created', 2, '2026-11-19 10:07:00+00:00')['shipment_receipt']['order_status'] === 'fulfilled',
+    'Second receipt did not bind to the completed order');
+echo "Shipment receipt PASS: six invalid observations, delayed creation, partial delivery and final receipt\n";

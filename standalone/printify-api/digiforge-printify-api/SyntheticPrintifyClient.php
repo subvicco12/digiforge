@@ -334,10 +334,16 @@ final class SyntheticPrintifyClient
         }
         if (PrintifyApiReadEvidence::supported($operation)) {
             $projection=PrintifyApiReadEvidence::project($operation,$body,$this->shop,$input);
-            if ($operation==='PRODUCT_READ' && is_int($body['synthetic_version']??null) && $body['synthetic_version']>0) {
-                $projection['synthetic_version']=$body['synthetic_version'];
-                $projection['publication_pending']=($body['synthetic_publish_pending']??false)===true;
-                $projection['publication_state']=$body['synthetic_publication_state']??($projection['publication_pending']?'PENDING':'UNPUBLISHED');
+            if ($operation === 'PRODUCT_READ' && array_key_exists('synthetic_version', $body)) {
+                $version = $body['synthetic_version'];
+                $pending = $body['synthetic_publish_pending'] ?? false;
+                $state = $body['synthetic_publication_state'] ?? ($pending ? 'PENDING' : 'UNPUBLISHED');
+                if (!is_int($version) || $version < 1 || !is_bool($pending)
+                    || !in_array($state, ['PENDING','PUBLISHED','UNPUBLISHED','FAILED'], true)
+                    || $pending !== ($state === 'PENDING')) {
+                    throw new \InvalidArgumentException('Inconsistent synthetic publication state.');
+                }
+                $projection += ['synthetic_version'=>$version,'publication_pending'=>$pending,'publication_state'=>$state];
             }
             return $projection;
         }
@@ -389,11 +395,44 @@ final class SyntheticPrintifyClient
             }
             return $image;
         }
+        if (in_array($operation, ['PRODUCT_CREATE','PRODUCT_UPDATE'], true)) {
+            $version = $body['synthetic_version'] ?? null;
+            $expectedVersion = $operation === 'PRODUCT_CREATE' ? 1 : (($plan['expected_version'] ?? 0) + 1);
+            if ($status !== ($operation === 'PRODUCT_CREATE' ? 201 : 200) || !is_int($version)
+                || $version < 1 || (isset($plan['expected_version']) || $operation === 'PRODUCT_CREATE') && $version !== $expectedVersion) {
+                throw new \InvalidArgumentException('Mismatched synthetic product revision.');
+            }
+            $product = PrintifyApiReadEvidence::project('PRODUCTS_READ', [
+                'data'=>[$body],'current_page'=>1,'per_page'=>10,'last_page'=>1,
+            ], $this->shop, [])['data'][0];
+            foreach (array_intersect_key($plan['body'], array_flip(['blueprint_id','print_provider_id','variants','print_areas'])) as $field=>$value) {
+                if ($product[$field] != $value) {
+                    throw new \InvalidArgumentException('Mismatched synthetic product configuration.');
+                }
+            }
+        }
+        if ($operation === 'ORDER_CREATE' || $operation === 'ORDER_SEND_TO_PRODUCTION') {
+            $order = PrintifyOrderEvidence::project($body, $body['id']);
+            if ($operation === 'ORDER_CREATE') {
+                if ($status !== 201 || $order['status'] !== 'on-hold' || $order['external_id'] !== $input['external_id']
+                    || $order['shipments'] !== [] || $order['sent_to_production_at'] !== null
+                    || self::orderLineIdentity($order['line_items']) !== self::orderLineIdentity($input['line_items'])) {
+                    throw new \InvalidArgumentException('Mismatched synthetic order creation response.');
+                }
+            } elseif ($order['status'] !== 'in-production' || $order['sent_to_production_at'] === null) {
+                throw new \InvalidArgumentException('Missing synthetic production observation.');
+            }
+        }
         $projection=['id'=>$body['id']];
         if (is_int($body['synthetic_version']??null)&&$body['synthetic_version']>0) {
             $projection['synthetic_version']=$body['synthetic_version'];
         }
         return $projection;
+    }
+
+    private static function orderLineIdentity(array $lines): array
+    {
+        return array_map(static fn(array $line): array => [$line['product_id'], $line['variant_id'], $line['quantity']], $lines);
     }
 
     /** Only the private in-memory transport's own synthetic images are returned. */

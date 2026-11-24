@@ -349,7 +349,7 @@ final class SyntheticWorkspace
                 $sync => $this->synchronization($transport, $expected, $input),
                 $review => self::reviewProposal($row['audit'], $input, $proposalScope, $expected),
                 $custody => $this->custodyObservation($proposalScope, $input, $custodyExchange),
-                default => $this->simulate($transport, $client, $operation, $input, $events),
+                default => $this->simulate($transport, $client, $operation, $input, $events, $expected),
             };
             if ($correlatedCreate) {
                 $resource = $this->creationEvidence($transport, $row['transport'], $result, $operation, $expected);
@@ -417,12 +417,15 @@ final class SyntheticWorkspace
                 'operation'=>$operation,'state'=>$result['state'],'reason'=>$result['reason'] ?? 'NONE',
                 'status'=>$result['status'],'operation_id'=>$operationId,
                 'actor_id'=>$actor,'occurred_at'=>gmdate('c'),
-            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true, 'transport_receipt'=>true, 'custody_receipt'=>true]);
+            ] + array_intersect_key($result, ['sync_receipt'=>true, 'preview_only'=>true, 'retry_after'=>true, 'proposal'=>true, 'transport_receipt'=>true, 'custody_receipt'=>true, 'shipment_receipt'=>true]);
             $bytes = json_encode([$row['transport'],$row['events'],$row['audit']], JSON_THROW_ON_ERROR, 24);
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
                 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)
                 || (($sync || $custody) && AccountProfile::current() !== $profile)
-                || (($preview || $review || $correlatedCreate) && $this->proposalScope() !== $proposalScope) || !$this->idle()) {
+                || (($preview || $review || $correlatedCreate) && $this->proposalScope() !== $proposalScope)
+                || (isset($result['shipment_receipt']) && $result['shipment_receipt']['scope'] !==
+                    ($this->proposalScope() ?? ['shop'=>$this->shop,'account'=>$this->account,'integration'=>null]))
+                || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
             $next = $expected + 1;
@@ -484,13 +487,13 @@ final class SyntheticWorkspace
         }
         $entries = [];
         foreach ($row['audit'] as $entry) {
-            $receipt = $entry['custody_receipt'] ?? $entry['sync_receipt'] ?? $entry['transport_receipt'] ?? $entry['proposal'] ?? [];
+            $receipt = $entry['custody_receipt'] ?? $entry['shipment_receipt'] ?? $entry['sync_receipt'] ?? $entry['transport_receipt'] ?? $entry['proposal'] ?? [];
             if (($receipt['scope'] ?? null) !== $scope) {
                 continue;
             }
             $safe = array_intersect_key($entry, array_fill_keys(['operation','state','reason','status','operation_id','occurred_at'], true));
             $safe += array_intersect_key($receipt, array_fill_keys(['projection_sha256','request_sha256','response_sha256',
-                'receipt_sha256','freshness','provider_execution_authorized'], true));
+                'receipt_sha256','event_digest','tracking_sha256','shipment_at','outcome','workspace_revision','freshness','provider_execution_authorized'], true));
             if (isset($entry['proposal'])) {
                 $safe['proposal'] = array_intersect_key($entry['proposal'], array_fill_keys(
                     ['id','revision','state','receipt_sha256','referral'], true));
@@ -501,7 +504,7 @@ final class SyntheticWorkspace
             'revision'=>$row['revision'],'entries'=>$entries,'profile'=>AccountProfile::diagnostics()];
     }
 
-    private function simulate(SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $op, array $input, array &$events): array
+    private function simulate(SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $op, array $input, array &$events, int $revision): array
     {
         if ($op==='FIXTURE_PREVIEW_COMPLETE') {
             $product=$input['product_id']??null;
@@ -513,11 +516,11 @@ final class SyntheticWorkspace
         if ($op==='FIXTURE_WEBHOOK_HTTP') {
             $wire=$input['wire']??null;
             return count($input)===1 && is_string($wire)
-                ? $this->acceptEvent($transport,$client,$wire,$events)
+                ? $this->acceptEvent($transport,$client,$wire,$events,$revision)
                 : self::fixtureResult(422,'EVENT_HTTP_FRAMING');
         }
         if ($op === 'FIXTURE_WEBHOOK_EVENT') {
-            return $this->acceptEvent($transport, $client, $input, $events);
+            return $this->acceptEvent($transport, $client, $input, $events, $revision);
         }
         if ($op === 'FIXTURE_PRODUCTION_CONFIRM' || $op === 'FIXTURE_FULFILL') {
             $id = $input['order_id'] ?? null;
@@ -544,15 +547,15 @@ final class SyntheticWorkspace
         }
         $result=$client->run($op,$input);
         if ($op==='WEBHOOK_SIMULATE' && ($event=$transport->takeSimulatedEvent())!==null) {
-            $delivery=$this->acceptEvent($transport,$client,$event,$events);
-            if ($result['state']==='SYNTHETIC_OBSERVED' && $delivery['state']!=='SYNTHETIC_OBSERVED') {
-                return $delivery;
+            $delivery=$this->acceptEvent($transport,$client,$event,$events,$revision);
+            if ($result['state']==='SYNTHETIC_OBSERVED') {
+                return $delivery['state']!=='SYNTHETIC_OBSERVED' ? $delivery : $result + array_intersect_key($delivery, ['shipment_receipt'=>true]);
             }
         }
         return $result;
     }
 
-    private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array|string $event,array &$events):array
+    private function acceptEvent(SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,array|string $event,array &$events,int $revision):array
     {
         $seen=[];
         foreach ($events as $id=>$entry) {
@@ -606,30 +609,50 @@ final class SyntheticWorkspace
             && !is_string($observation['data']['sent_to_production_at']??null)) {
             return self::fixtureResult(409,'EVENT_PRODUCTION_CONFLICT');
         }
-        if (isset($received['line_item_ids'])) {
-            $lines=array_filter($observation['data']['line_items']??[],static fn(array $line):bool=>
-                ($line['status']??null)!=='canceled');
-            if (array_diff($received['line_item_ids'],array_column($lines,'id'))!==[]) {
-                return self::fixtureResult(409,'EVENT_SHIPMENT_LINE_CONFLICT');
-            }
-        }
+        $receipt = [];
         if (isset($received['tracking_sha256'])) {
-            $shipments=$observation['data']['shipments']??[];
-            $matches=array_filter($shipments,static fn(array $shipment):bool=>
-                ($shipment['tracking_hash']??null)===$received['tracking_sha256']);
-            if (count($matches)!==1) {
-                return self::fixtureResult(409,'EVENT_SHIPMENT_CONFLICT');
+            $hash = $received['tracking_sha256'];
+            $tracked = array_filter($observation['data']['shipments'] ?? [], static fn(array $shipment): bool =>
+                $shipment['tracking_hash'] === $hash);
+            $lines = $transport->fixtureShipmentLines($resource, $hash);
+            if (count($tracked) !== 1 || $lines === null) {
+                return self::fixtureResult(409, 'EVENT_SHIPMENT_CONFLICT');
             }
-            if ($received['type']==='order:shipment:delivered'
-                && !$transport->recordFixtureDelivery($resource,$received['tracking_sha256'],$received['shipment_at'])) {
-                return self::fixtureResult(409,'EVENT_DELIVERY_CONFLICT');
+            $reported = $received['line_item_ids'] ?? $lines;
+            if (count($reported) !== count($lines) || array_diff($lines, $reported) !== []) {
+                return self::fixtureResult(409, 'EVENT_SHIPMENT_LINE_CONFLICT');
             }
+            $delivered = $topic === 'order:shipment:delivered';
+            foreach ($events as $prior) {
+                if (($prior['resource_id'] ?? null) !== $resource || ($prior['tracking_sha256'] ?? null) !== $hash) {
+                    continue;
+                }
+                $previousTime = $prior['shipment_at'];
+                $currentTime = $received['shipment_at'];
+                if ($prior['type'] === $topic) {
+                    return self::fixtureResult(409, $previousTime === $currentTime
+                        ? 'DUPLICATE_SHIPMENT_OBSERVATION' : ($delivered ? 'EVENT_DELIVERY_CONFLICT' : 'EVENT_SHIPMENT_CONFLICT'));
+                }
+                if ($delivered ? $currentTime < $previousTime : $currentTime > $previousTime) {
+                    return self::fixtureResult(409, 'EVENT_SHIPMENT_TIME_CONFLICT');
+                }
+            }
+            if ($delivered && !$transport->recordFixtureDelivery($resource, $hash, $received['shipment_at'])) {
+                return self::fixtureResult(409, 'EVENT_DELIVERY_CONFLICT');
+            }
+            $receipt = ['shipment_receipt'=>[
+                'scope'=>$this->proposalScope() ?? ['shop'=>$this->shop,'account'=>$this->account,'integration'=>null],
+                'workspace_revision'=>$revision+1, 'order_id'=>$resource, 'event_id'=>$id, 'event_digest'=>$received['event_digest'],
+                'tracking_sha256'=>$hash, 'line_item_ids'=>$lines, 'order_status'=>$observation['data']['status'],
+                'shipment_at'=>$received['shipment_at'], 'outcome'=>$delivered?'DELIVERY_OBSERVED':'SHIPMENT_OBSERVED',
+                'source'=>'SYNTHETIC_PRINTIFY', 'provider_execution_authorized'=>false,
+            ]];
         }
         $events[$id]=[
             'type'=>$received['type'],'resource_id'=>$resource,'created_at'=>$received['created_at'],
             'event_digest'=>$received['event_digest'],
-        ]+array_intersect_key($received,array_flip(['tracking_sha256','shipment_at','publish_action','canceled_line_id','preview_status','support_status']));
-        return self::fixtureResult(200,'NONE');
+        ]+array_intersect_key($received,array_flip(['tracking_sha256','shipment_at','publish_action','canceled_line_id','preview_status','support_status']))+$receipt;
+        return self::fixtureResult(200,'NONE')+$receipt;
     }
 
     private static function fixtureResult(int $status,string $reason):array

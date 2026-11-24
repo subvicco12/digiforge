@@ -128,6 +128,7 @@ final class SyntheticPrintifyTransport
         $order['shipments'][] = [
             'carrier'=>'Synthetic carrier', 'number'=>$reference,
             'url'=>'https://tracking.example.invalid/'.($lineId === null ? $orderId : $reference), 'delivered_at'=>null,
+            'line_item_ids'=>array_values(array_column($selected, 'id')),
         ];
         $this->orders[$orderId] = $order;
         return true;
@@ -155,6 +156,26 @@ final class SyntheticPrintifyTransport
                 if (($shipment['number'] ?? null) === $reference && hash_equals(hash('sha256', $reference), $trackingHash)) {
                     return $reference;
                 }
+            }
+        }
+        return null;
+    }
+
+    /** Resolve an exact fixture shipment, allowing single-shipment legacy snapshots. */
+    public function fixtureShipmentLines(string $orderId, string $trackingHash): ?array
+    {
+        $order = $this->orders[$orderId] ?? [];
+        $shipments = $order['shipments'] ?? [];
+        foreach ($shipments as $shipment) {
+            if (hash('sha256', $shipment['number']) !== $trackingHash) {
+                continue;
+            }
+            if (isset($shipment['line_item_ids'])) {
+                return $shipment['line_item_ids'];
+            }
+            if (count($shipments) === 1) {
+                return array_values(array_column(array_filter($order['line_items'], static fn(array $line): bool =>
+                    ($line['status'] ?? null) !== 'canceled'), 'id'));
             }
         }
         return null;
