@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace DigiForgePrintifyApi;
 
+use DigiForgePrintifyApi\Engine\PrintifyCatalogReadContract;
+
 if (!\defined('ABSPATH')) {
     exit;
 }
@@ -79,7 +81,7 @@ final class CatalogBrowser
             if (isset($plan['variant_id'])) {
                 self::selected($variants, $plan['variant_id']);
                 $variant = $read('VARIANT_READ', $plan);
-                $data['print_areas'] = self::areas($variant);
+                $data['print_areas'] = PrintifyCatalogReadContract::variantAreas($variant);
                 $methods = $read('CATALOG_SHIPPING_READ', $provider);
                 $data['shipping_methods'] = array_map(static fn(array $row): string => $row['attributes']['name'], $methods['data']);
             }
@@ -130,31 +132,5 @@ final class CatalogBrowser
         return ['rows'=>array_slice($rows, ($page-1)*self::PAGE_SIZE, self::PAGE_SIZE),
             'page'=>$page, 'next_page'=>count($rows)>$page*self::PAGE_SIZE ? $page+1 : null,
             'provider_pagination_followed'=>false];
-    }
-
-    private static function areas(array $variant): ?array
-    {
-        if (!array_key_exists('placeholders', $variant)) {
-            return null;
-        }
-        $areas = $variant['placeholders'];
-        if (!is_array($areas) || !array_is_list($areas) || count($areas)>50) {
-            throw new \RuntimeException('RESPONSE_VALIDATION');
-        }
-        $out = [];
-        foreach ($areas as $area) {
-            if (!is_array($area) || !is_string($area['position'] ?? null)
-                || preg_match('/^[A-Za-z0-9_-]{1,60}$/D', $area['position']) !== 1) {
-                throw new \RuntimeException('RESPONSE_VALIDATION');
-            }
-            foreach (['width', 'height'] as $dimension) {
-                if (isset($area[$dimension]) && (!is_int($area[$dimension]) || $area[$dimension]<1)) {
-                    throw new \RuntimeException('RESPONSE_VALIDATION');
-                }
-            }
-            $out[] = ['position'=>$area['position'], 'width'=>$area['width'] ?? null,
-                'height'=>$area['height'] ?? null, 'bleed'=>null, 'safe_zone'=>null];
-        }
-        return $out;
     }
 }

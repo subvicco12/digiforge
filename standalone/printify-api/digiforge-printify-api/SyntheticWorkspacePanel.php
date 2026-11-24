@@ -121,17 +121,23 @@ final class SyntheticWorkspacePanel
         echo '<h3 id="df-workspace-events">Recent fixture event observations</h3>'
             .'<div role="region" aria-labelledby="df-workspace-events" tabindex="0" style="max-width:100%;overflow:auto">'
             .'<table class="widefat striped"><thead><tr>';
-        foreach (['Event','Resource ID','Event time','Shipment time'] as $label) {
+        foreach (['Event','Resource ID','Event time','Shipment time','Shipment receipt'] as $label) {
             echo '<th scope="col">'.\esc_html($label).'</th>';
         }
         echo '</tr></thead><tbody>';
+        $profile = AccountProfile::current();
         foreach (array_reverse(array_slice($events,-10)) as $event) {
             echo '<tr>';
             foreach ([$event['type']??null,$event['resource_id']??$event['order_id']??null,
                 $event['created_at']??null,$event['shipment_at']??null] as $value) {
                 echo '<td>'.\esc_html(is_string($value)&&strlen($value)<=160?$value:'—').'</td>';
             }
-            echo '</tr>';
+            $receipt = $event['shipment_receipt'] ?? null;
+            $scope = $receipt['scope'] ?? null;
+            $matches = $scope !== null && ($profile['shop'] ?? null) === $scope['shop']
+                && $profile['account'] === $scope['account'] && $profile['integration'] === $scope['integration'];
+            echo '<td>'.($matches ? \esc_html($receipt['outcome'].' · revision '.$receipt['workspace_revision']
+                .' · tracking '.$receipt['tracking_sha256']) : '—').'</td></tr>';
         }
         echo '</tbody></table></div>';
     }
