@@ -273,7 +273,7 @@ final class SyntheticPrintifyTransport
     {
         $shopRoot = '/v1/shops/'.$this->shop;
         $id = '([A-Za-z0-9_-]{1,80})';
-        $paging = '(?:\?page=([1-9][0-9]{0,5})&limit=([1-9]|10))?';
+        $paging = '(?:\?page=([1-9][0-9]{0,9})&limit=([1-9]|10))?';
         $route = match ($operation) {
             'SHOP_DISCONNECT' => ['DELETE', $shopRoot.'/connection\.json'],
             'ORDER_EXPRESS_CREATE' => ['POST', $shopRoot.'/orders/express\.json'],
@@ -327,8 +327,14 @@ final class SyntheticPrintifyTransport
             'WEBHOOK_DELETE' => ['DELETE', $shopRoot.'/webhooks/'.$id.'\.json\?host=webhooks\.example\.invalid'],
             default => null,
         };
-        return $route !== null && $method === $route[0] && preg_match('~^'.$route[1].'$~D', $endpoint, $matches) === 1
-            ? array_slice($matches, 1) : null;
+        if ($route === null || $method !== $route[0] || preg_match('~^'.$route[1].'$~D', $endpoint, $matches) !== 1) {
+            return null;
+        }
+        if (in_array($operation, ['PRODUCTS_READ','ORDERS_READ','UPLOADS_READ'], true)
+            && isset($matches[1]) && (int)$matches[1] > 2147483647) {
+            return null;
+        }
+        return array_slice($matches, 1);
     }
 
     private function dispatch(string $operation, array $route, array $body, ?int $version): array
