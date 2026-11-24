@@ -49,7 +49,7 @@ final class CatalogBrowser
         $read = static function (string $operation, array $input = []) use ($client): array {
             $result = $client->run($operation, $input);
             if ($result['state'] !== 'SYNTHETIC_OBSERVED') {
-                throw new \RuntimeException($result['status'] === 429 ? 'RATE_LIMITED' : $result['reason']);
+                throw new \RuntimeException(match ($result['status']) {429=>'RATE_LIMITED',403=>'SCOPE_OR_TRANSPORT_UNAVAILABLE',default=>$result['reason']});
             }
             return $result['data'];
         };
@@ -103,7 +103,7 @@ final class CatalogBrowser
             return ['state'=>'OBSERVED', 'scope'=>['shop'=>$shop, 'account'=>$account, 'integration'=>null],
                 'source'=>'SYNTHETIC_PRINTIFY', 'observed_at'=>time(), 'freshness'=>'FIXTURE_ONLY', 'data'=>$data] + $base;
         } catch (\RuntimeException $error) {
-            return ['error'=>in_array($error->getMessage(), ['RATE_LIMITED','REQUEST_VALIDATION','RESPONSE_VALIDATION',
+            return ['error'=>in_array($error->getMessage(), ['RATE_LIMITED','SCOPE_OR_TRANSPORT_UNAVAILABLE','REQUEST_VALIDATION','RESPONSE_VALIDATION',
                 'UNSUPPORTED_SELECTION'], true) ? $error->getMessage() : 'READ_UNAVAILABLE'] + $base;
         } catch (\Throwable) {
             return ['error'=>'RESPONSE_VALIDATION'] + $base;

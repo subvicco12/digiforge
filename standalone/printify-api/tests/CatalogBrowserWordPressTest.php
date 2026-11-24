@@ -43,7 +43,7 @@ final class CatalogBrowserWordPressTest extends WP_UnitTestCase
         $fixture = new SyntheticPrintifyTransport('12');
         $fixture->faultNext('rate_limit');
         self::assertSame('RATE_LIMITED', CatalogBrowser::read(1,'12','fixture-catalog',[],$fixture)['error']);
-        self::assertSame('RESPONSE_VALIDATION', CatalogBrowser::read(1,'12','fixture-catalog',[],new SyntheticPrintifyTransport('13'))['error']);
+        self::assertSame('SCOPE_OR_TRANSPORT_UNAVAILABLE', CatalogBrowser::read(1,'12','fixture-catalog',[],new SyntheticPrintifyTransport('13'))['error']);
 
         $areas = new ReflectionMethod(CatalogBrowser::class, 'areas');
         self::assertNull($areas->invoke(null, ['id'=>9]));
