@@ -296,6 +296,14 @@ final class Runtime
         return CustodyReadTransport::read($scope,$operation,$input,$exchange,$fixture);
     }
 
+    /** Internal fixture-only entry point. No operational custody or HTTP route is enabled. */
+    public static function readFromConfiguredCustodyFixture(
+        string $integration, array $scope, string $operation, array $input, \Closure $exchange
+    ): array {
+        require_once __DIR__.'/CustodyReadTransport.php';
+        return CustodyReadTransport::readFromProfile($integration, $scope, $operation, $input, $exchange);
+    }
+
     /** Explicit local adapter path. Never registered as an HTTP or operator dispatch action. */
     public static function readFromProviderSimulation(array $scope,string $operation,array $input,
         \Closure $exchange): array

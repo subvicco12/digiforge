@@ -203,6 +203,26 @@ final class SyntheticWorkspace
         return $changes;
     }
 
+    public const CORRELATED_CREATE_OPERATIONS = ['PRODUCT_CREATE','ORDER_CREATE'];
+
+    /** Verify the one resource added by this local attempt using the existing typed detail projection. */
+    private function creationEvidence(
+        SyntheticPrintifyTransport $transport, array $before, array $result, string $operation, int $revision
+    ): ?array {
+        $index = $operation === 'PRODUCT_CREATE' ? 1 : 2;
+        $id = $result['data']['id'] ?? null;
+        $after = $transport->exportFixtureState();
+        $created = array_diff_key($after[$index], $before[$index]);
+        if ($result['state'] !== 'SYNTHETIC_OBSERVED' || !is_string($id) || array_keys($created) !== [$id]) {
+            return null;
+        }
+        $read = $this->projectRecords($transport, $revision, $index === 1 ? 'products' : 'orders', $id, 1, 10);
+        if ($read['state'] !== 'OBSERVED' || ($read['data']['id'] ?? null) !== $id) {
+            return null;
+        }
+        return ['resource_id'=>$id,'projection_sha256'=>hash('sha256', json_encode($read['data'], JSON_THROW_ON_ERROR))];
+    }
+
     private static function reviewProposal(array $audit, array $input, ?array $scope, int $revision): array
     {
         $id = $input['proposal_id'] ?? null;
@@ -217,6 +237,7 @@ final class SyntheticWorkspace
             'reject' => in_array($current['state'], ['PENDING_APPROVAL','BLOCKED'], true) ? 'REJECTED' : null,
             'cancel' => in_array($current['state'], ['PENDING_APPROVAL','APPROVED_HELD','BLOCKED'], true) ? 'CANCELLED' : null,
             'refer_unknown' => $current['state'] === 'UNKNOWN' && !isset($current['referral']) ? 'UNKNOWN' : null,
+            'reconcile_create' => $current['state'] === 'FIXTURE_CREATE_RECORDED' ? 'RECONCILED_FIXTURE_CREATION' : null,
             'reconcile' => $current['state'] === 'APPROVED_HELD' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
             default => null,
         };
@@ -225,6 +246,18 @@ final class SyntheticWorkspace
         }
         if ($decision === 'refer_unknown') {
             $current['referral'] = 'MANUAL_RECONCILIATION_REQUIRED';
+        }
+        if ($decision === 'reconcile_create') {
+            $creation = $current['creation_receipt'] ?? null;
+            if (!is_array($creation) || ($creation['scope'] ?? null) !== $scope
+                || ($creation['proposal_id'] ?? null) !== $id || ($creation['approved_revision'] ?? null) !== $current['revision'] - 1
+                || ($creation['resource_id'] ?? null) !== $current['resource_id'] || ($creation['source'] ?? null) !== 'SYNTHETIC_PRINTIFY'
+                || ($creation['intent_sha256'] ?? null) !== $current['intent_sha256']
+                || !isset($creation['projection_sha256'], $creation['correlation_id'])) {
+                return self::fixtureResult(409, 'FIXTURE_CREATE_RECEIPT_MISMATCH');
+            }
+            $current['receipt_id'] = $creation['correlation_id'];
+            $current['receipt_sha256'] = $creation['projection_sha256'];
         }
         if ($decision === 'reconcile') {
             $receiptId = $input['receipt_id'] ?? null;
@@ -254,15 +287,16 @@ final class SyntheticWorkspace
         return ['state'=>$state,'reason'=>'EXECUTION_HELD','status'=>200,'proposal'=>$current];
     }
 
-    public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = []): array
+    public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false): array
     {
         $actor = \get_current_user_id();
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
         if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
-            || ($edit !== [] && !$preview)
+            || ($edit !== [] && !$preview && !$correlatedCreate)
+            || ($correlatedCreate && ($preview || $edit === [] || !in_array($operation, self::CORRELATED_CREATE_OPERATIONS, true)))
             || ($preview && !in_array($operation, self::PREVIEW_OPERATIONS, true))
             || ($readFault !== null && !($operation === 'FIXTURE_READ_SYNC' && in_array($readFault, ['timeout','rate_limit'], true))
-                && !($preview && $readFault === 'lost_ack'))
+                && !(($preview || $correlatedCreate) && $readFault === 'lost_ack'))
             || !in_array($operation, [...SyntheticPrintifyClient::operations(), 'FIXTURE_READ_SYNC', 'FIXTURE_PROPOSAL_REVIEW', 'FIXTURE_PRODUCTION_CONFIRM',
                 'FIXTURE_FULFILL', 'FIXTURE_WEBHOOK_EVENT','FIXTURE_PREVIEW_COMPLETE','FIXTURE_WEBHOOK_HTTP'], true)) {
             return ['state'=>'DENIED','reason'=>'INVALID_OPERATION']+$flags;
@@ -282,15 +316,20 @@ final class SyntheticWorkspace
             $sync = $operation === 'FIXTURE_READ_SYNC';
             $profile = $sync ? AccountProfile::current() : null;
             $review = $operation === 'FIXTURE_PROPOSAL_REVIEW';
-            $proposalScope = ($preview || $review) ? $this->proposalScope() : null;
+            $proposalScope = ($preview || $review || $correlatedCreate) ? $this->proposalScope() : null;
             $edited = null;
             if ($edit !== []) {
                 $editId = $edit['id'] ?? null;
                 $edited = is_string($editId) ? (self::proposals($row['audit'], $proposalScope)[$editId] ?? null) : null;
                 if ($edited === null || ($edit['revision'] ?? null) !== $edited['revision']
-                    || $edited['operation'] !== $operation || !in_array($edited['state'], ['PENDING_APPROVAL','BLOCKED'], true)) {
+                    || $edited['operation'] !== $operation
+                    || !in_array($edited['state'], $correlatedCreate ? ['APPROVED_HELD'] : ['PENDING_APPROVAL','BLOCKED'], true)) {
                     return ['state'=>'DENIED','reason'=>'PROPOSAL_SCOPE_OR_STALE_REVISION']+$flags;
                 }
+            }
+            if ($correlatedCreate && !hash_equals($edited['intent_sha256'],
+                hash_hmac('sha256', json_encode($input, JSON_THROW_ON_ERROR), \wp_salt('auth')))) {
+                return ['state'=>'DENIED','reason'=>'FIXTURE_CREATE_INTENT_MISMATCH']+$flags;
             }
             if ($readFault !== null) {
                 $transport->faultNext($readFault);
@@ -298,16 +337,35 @@ final class SyntheticWorkspace
             $result = $sync ? $this->synchronization($transport, $expected, $input)
                 : ($review ? self::reviewProposal($row['audit'], $input, $proposalScope, $expected)
                     : $this->simulate($transport, $client, $operation, $input, $events));
-            if ($preview || $sync) {
-                $profileForReceipt = $preview ? AccountProfile::current() : $profile;
+            if ($correlatedCreate) {
+                $resource = $this->creationEvidence($transport, $row['transport'], $result, $operation, $expected);
+                $approvedRevision = $edited['revision'];
+                $edited['revision']++;
+                $edited['workspace_revision'] = $expected + 1;
+                if ($resource !== null) {
+                    $edited['state'] = 'FIXTURE_CREATE_RECORDED';
+                    $edited['resource_id'] = $resource['resource_id'];
+                    $edited['creation_receipt'] = $resource + [
+                        'scope'=>$proposalScope,'proposal_id'=>$edited['id'],'approved_revision'=>$approvedRevision,
+                        'source'=>'SYNTHETIC_PRINTIFY','intent_sha256'=>$edited['intent_sha256'],
+                        'correlation_id'=>$operationId,'outcome'=>'VERIFIED_FIXTURE_CREATION',
+                    ];
+                } else {
+                    $edited['state'] = in_array($result['state'], ['SYNTHETIC_OBSERVED','UNKNOWN'], true) ? 'UNKNOWN' : 'BLOCKED';
+                }
+                $result = ['state'=>$edited['state'],'reason'=>$resource === null ? 'FIXTURE_CREATE_NOT_VERIFIED' : 'EXECUTION_HELD',
+                    'status'=>$result['status'],'proposal'=>$edited,'fixture_effect_committed'=>$resource !== null];
+            }
+            if ($preview || $sync || $correlatedCreate) {
+                $profileForReceipt = ($preview || $correlatedCreate) ? AccountProfile::current() : $profile;
                 $result['transport_receipt'] = [
-                    'mode'=>'SYNTHETIC_ONLY', 'scope'=>$preview ? $proposalScope : ($result['sync_receipt']['scope'] ?? null),
+                    'mode'=>'SYNTHETIC_ONLY', 'scope'=>($preview || $correlatedCreate) ? $proposalScope : ($result['sync_receipt']['scope'] ?? null),
                     'requests'=>$transport->admittedRequests(), 'provider_execution_authorized'=>false,
                     'custody'=>($profileForReceipt['custody'] ?? '') === '' ? 'NO_REFERENCE' : 'REFERENCE_UNRESOLVED',
                     'state'=>$result['state'], 'status'=>$result['status'],
                 ];
             }
-            if (!$preview && !$sync && !$review) {
+            if (!$preview && !$sync && !$review && (!$correlatedCreate || $result['fixture_effect_committed'])) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
@@ -346,7 +404,7 @@ final class SyntheticWorkspace
             if (strlen($bytes) > 1048576 || \get_current_user_id() !== $actor
                 || !Runtime::permitsWorkspaceAccount($this->shop, $this->account)
                 || ($sync && AccountProfile::current() !== $profile)
-                || (($preview || $review) && $this->proposalScope() !== $proposalScope) || !$this->idle()) {
+                || (($preview || $review || $correlatedCreate) && $this->proposalScope() !== $proposalScope) || !$this->idle()) {
                 return ['state'=>'DENIED','reason'=>'WORKSPACE_LIMIT_OR_SCOPE_CHANGED']+$flags;
             }
             $next = $expected + 1;

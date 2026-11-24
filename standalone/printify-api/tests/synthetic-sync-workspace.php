@@ -70,7 +70,7 @@ if ($phase === 'write') {
     $profile = ['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>''];
     requireFixture(\DigiForgePrintifyApi\AccountProfile::save($profile,
         wp_create_nonce('digiforge_printify_account_profile_save')) === 'SAVED_LOCAL_METADATA', 'Fixture profile setup failed');
-    $send = static function (string $operation, array $fields, bool $preview = false) use ($workspace): string {
+    $send = static function (string $operation, array $fields, bool $preview = false, array $approvedCreate = []) use ($workspace): string {
         $revision = $workspace->inspect()['revision'];
         $prior = $_POST;
         $method = $_SERVER['REQUEST_METHOD'] ?? null;
@@ -86,6 +86,11 @@ if ($phase === 'write') {
             $_POST['df_workspace_fields'] = wp_slash($fields);
             if ($preview) {
                 $_POST['df_workspace_preview'] = '1';
+            }
+            if ($approvedCreate !== []) {
+                $_POST['df_workspace_correlated_create'] = '1';
+                $_POST['df_edit_proposal_id'] = $approvedCreate['id'];
+                $_POST['df_edit_proposal_revision'] = (string)$approvedCreate['revision'];
             }
         }
         ob_start();
@@ -280,6 +285,101 @@ if ($phase === 'write') {
     requireFixture(($changes['shipments_count'] ?? null)===['before'=>0,'after'=>1]
         && ($changes['status'] ?? null)===['before'=>'on-hold','after'=>'fulfilled'] && !$shipment['provider_outcome_confirmed'],
         'Shipment receipt difference incorrect');
+    $create = static function (string $op, array $input, array $proposal, ?string $fault = null) use ($workspace): array {
+        $rev = $workspace->inspect()['revision'];
+        return $workspace->execute($rev, hash('sha256','held-create:'.$rev), $op, $input, false, $fault,
+            ['id'=>$proposal['id'],'revision'=>$proposal['revision']], true);
+    };
+    foreach (['PRODUCT_CREATE'=>['title'=>'Correlated fixture product']+$product,
+        'ORDER_CREATE'=>['external_id'=>'correlated-cp5-order']+$order] as $op=>$payload) {
+        $pending = $submit($op,$payload,true)['proposal'];
+        requireFixture($pending['resource_id'] === null && $create($op,$payload,$pending)['reason']
+            === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Held approval was bypassed');
+        $approved = $review($pending,'approve')['proposal'];
+        $changed = $op === 'PRODUCT_CREATE' ? ['title'=>'Wrong revised product']+$payload : ['external_id'=>'wrong-order']+$payload;
+        requireFixture($create($op,$changed,$approved)['reason']==='FIXTURE_CREATE_INTENT_MISMATCH', 'Substituted creation intent admitted');
+        requireFixture($review($approved,'reconcile_create')['reason']==='PROPOSAL_TRANSITION_DENIED', 'Creation reconciled without a receipt');
+        $made = $create($op,$payload,$approved);
+        $creation = $made['proposal']['creation_receipt'] ?? [];
+        requireFixture($made['state']==='FIXTURE_CREATE_RECORDED' && $made['fixture_effect_committed']
+            && !$made['provider_execution_authorized'] && !$made['provider_outcome_confirmed']
+            && $creation['approved_revision']===$approved['revision'] && $creation['proposal_id']===$approved['id']
+            && $creation['scope']===$approved['scope'] && isset($creation['correlation_id'],$creation['projection_sha256']),
+            'Exact fixture creation receipt not recorded: '.$op.' '.$made['reason']);
+        requireFixture($create($op,$payload,$approved)['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION', 'Duplicate creation admitted');
+        $linked = $review($made['proposal'],'reconcile_create');
+        requireFixture($linked['state']==='RECONCILED_FIXTURE_CREATION' && !$linked['provider_outcome_confirmed']
+            && $linked['proposal']['resource_id']===$creation['resource_id'], 'Verified fixture creation did not reconcile');
+        requireFixture($review($made['proposal'],'reconcile_create')['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION',
+            'Duplicate creation reconciliation admitted');
+    }
+    $fields = ['external_id'=>'operator-correlated-order'] + $formOrder;
+    $operatorDraft = $operationResult($send('ORDER_CREATE',$fields,true))['proposal'];
+    $operatorApproved = $review($operatorDraft,'approve')['proposal'];
+    $originalCap = wp_get_current_user();
+    $revokedRevision = $workspace->inspect()['revision'];
+    $originalCap->remove_cap('digiforge_printify_review_shop_107');
+    $revoked = $workspace->execute($revokedRevision, hash('sha256','revoked-correlated-create'), 'ORDER_CREATE',
+        ['external_id'=>'other-scope']+$order, false, null,
+        ['id'=>$operatorApproved['id'],'revision'=>$operatorApproved['revision']], true);
+    $originalCap->add_cap('digiforge_printify_review_shop_107');
+    requireFixture($revoked['state'] !== 'FIXTURE_CREATE_RECORDED' && $workspace->inspect()['revision']===$revokedRevision,
+        'Unassigned shop created a correlated fixture');
+    $operatorCreated = $operationResult($send('ORDER_CREATE',$fields,false,$operatorApproved));
+    requireFixture($operatorCreated['state']==='FIXTURE_CREATE_RECORDED' &&
+        $review($operatorCreated['proposal'],'reconcile_create')['state']==='RECONCILED_FIXTURE_CREATION',
+        'Protected operator form did not materialize its approved draft');
+    $transport = new \DigiForgePrintifyApi\SyntheticPrintifyTransport('107');
+    $client = new \DigiForgePrintifyApi\SyntheticPrintifyClient('107',$transport);
+    $client->run('IMAGE_UPLOAD',['file_name'=>'ambiguous.png','contents'=>base64_encode($png)]);
+    $beforeTwo = $transport->exportFixtureState();
+    $first = $client->run('PRODUCT_CREATE',['title'=>'Ambiguous fixture A']+$product);
+    $second = $client->run('PRODUCT_CREATE',['title'=>'Ambiguous fixture B']+$product);
+    $verifyCreation = new ReflectionMethod($workspace,'creationEvidence');
+    requireFixture($first['state']==='SYNTHETIC_OBSERVED' && $second['state']==='SYNTHETIC_OBSERVED'
+        && $verifyCreation->invoke($workspace,$transport,$beforeTwo,$first,'PRODUCT_CREATE',0)===null,
+        'Ambiguous resource set accepted');
+    $lostIntent=['external_id'=>'checkpoint-five-lost-create']+$order;
+    $unknownDraft = $review($submit('ORDER_CREATE',$lostIntent,true)['proposal'],'approve')['proposal'];
+    $recordsBeforeLoss = $workspace->readRecords('orders', null, 1, 10)['data'];
+    $lost = $create('ORDER_CREATE',$lostIntent,$unknownDraft,'lost_ack');
+    requireFixture($lost['state']==='UNKNOWN' && !$lost['fixture_effect_committed'] && !$lost['retry_permitted']
+        && !isset($lost['proposal']['creation_receipt'])
+        && $recordsBeforeLoss===$workspace->readRecords('orders',null,1,10)['data'], 'Ambiguous create committed state or could retry');
+    requireFixture($create('ORDER_CREATE',$lostIntent,$lost['proposal'])['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION',
+        'UNKNOWN create was retried');
+    requireFixture($review($lost['proposal'],'refer_unknown')['state']==='UNKNOWN', 'UNKNOWN create referral failed');
+
+    $custodyProfile=['custody'=>'custody-ref:fixture-cp5']+$profile;
+    $nonce=wp_create_nonce('digiforge_printify_account_profile_save');
+    requireFixture(\DigiForgePrintifyApi\AccountProfile::save($custodyProfile,$nonce)==='SAVED_LOCAL_METADATA', 'Custody profile save failed');
+    $key=sodium_crypto_sign_keypair();
+    $scope=['shop'=>'107','account_reference'=>'fixture-account','source_sha'=>str_repeat('a',40),
+        'source_revision'=>1,'authorization_revision'=>1,'signer_key'=>base64_encode(sodium_crypto_sign_publickey($key))];
+    $calls=0;
+    $exchange=static function(array $request, int $deadline, int $maximum) use ($key,&$calls): array {
+        ++$calls;
+        requireFixture($deadline===2000 && $maximum===262144 && $request['method']==='GET'
+            && $request['endpoint']==='/v1/shops/107/orders/order-1.json' && $request['credential_reference']==='fixture-cp5'
+            && $request['integration_reference']==='fixture-read', 'Custody route or alias mismatch');
+        $body='{"id":"order-1","shop_id":107,"status":"fulfilled","line_items":[]}';
+        $record=json_encode(['schema'=>'DF_PRINTIFY_CUSTODY_READ_RECEIPT_1','evidence_class'=>'SIGNED_CUSTODY_FIXTURE',
+            'request_sha256'=>hash('sha256',json_encode($request, JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)),
+            'content_sha256'=>hash('sha256',$body),'observed_at'=>time(),'expires_at'=>time()+30,'status'=>200,'retry_after'=>0],
+            JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+        return ['record'=>$record,'signature'=>base64_encode(sodium_crypto_sign_detached(
+            "DF_PRINTIFY_CUSTODY_READ_RECEIPT_1\n".$record,sodium_crypto_sign_secretkey($key))),'body'=>$body];
+    };
+    $read=Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope,'ORDER_READ',['order_id'=>'order-1'],$exchange);
+    requireFixture($read['state']==='AUTHENTICATED_CUSTODY_FIXTURE' && !$read['provider_execution_authorized'] && $calls===1,
+        'Configured signed custody fixture was not verified');
+    requireFixture(Runtime::readFromConfiguredCustodyFixture('different-integration',$scope,'ORDER_READ',
+        ['order_id'=>'order-1'],$exchange)['state']==='DENIED' && $calls===1, 'Wrong integration reached custody');
+    requireFixture(Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope+['credential_reference'=>'override'],
+        'ORDER_READ',['order_id'=>'order-1'],$exchange)['state']==='DENIED' && $calls===1, 'Credential override reached custody');
+    requireFixture(Runtime::readFromConfiguredCustodyFixture('fixture-read',$scope,'PRODUCT_PUBLISH',[],$exchange)['state']==='DENIED'
+        && $calls===1, 'Mutation reached fixture custody');
+    echo "Checkpoint 5 correlated product/order creation, UNKNOWN and signed profile custody PASS\n";
     echo "Checkpoint 4 quote variants, request receipts, UNKNOWN referral and field differences PASS\n";
     echo "Checkpoint 3 fixture proposal workflow PASS\n";
     echo "Checkpoint 2 synchronization and product/order previews PASS\n";
@@ -295,9 +395,15 @@ if ($phase === 'write') {
     }
     $history = $workspace->inspect()['proposals'];
     requireFixture(count(array_filter($history, static fn(array $p): bool => ($p['referral'] ?? null)
-        === 'MANUAL_RECONCILIATION_REQUIRED' && $p['state'] === 'UNKNOWN')) === 1, 'UNKNOWN referral lost on reopen');
+        === 'MANUAL_RECONCILIATION_REQUIRED' && $p['state'] === 'UNKNOWN')) === 2, 'UNKNOWN referral lost on reopen');
     requireFixture(count(array_filter($history, static fn(array $p): bool => isset($p['observation_comparison']['changes']['shipments_count']))) === 1,
         'Shipment difference lost on reopen');
+    requireFixture(count(array_filter($history, static fn(array $p): bool =>
+        $p['state']==='RECONCILED_FIXTURE_CREATION' && isset($p['creation_receipt']['projection_sha256'])))===3,
+        'Correlated creation receipts lost on reopen');
+    requireFixture(count(array_filter($history, static fn(array $p): bool =>
+        $p['operation']==='ORDER_CREATE' && $p['state']==='UNKNOWN' && isset($p['referral'])))===1, 'Create UNKNOWN lost on reopen');
+    echo "Checkpoint 5 correlated receipts and UNKNOWN reopen PASS\n";
     echo "Checkpoint 4 durable reconciliation and UNKNOWN reopen PASS\n";
     echo "Checkpoint 3 proposals reopen PASS\n";
     echo "Checkpoint 2 durable receipts and previews reopen PASS\n";

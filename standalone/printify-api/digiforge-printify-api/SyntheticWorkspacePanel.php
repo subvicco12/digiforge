@@ -151,6 +151,12 @@ final class SyntheticWorkspacePanel
             $state = $proposal['state'];
             echo '<details><summary>'.\esc_html($proposal['operation'].' · '.$state.' · revision '.$proposal['revision']).'</summary>';
             echo '<p>Proposal <code>'.\esc_html($proposal['id']).'</code></p>';
+            if (isset($proposal['creation_receipt'])) {
+                $creation = $proposal['creation_receipt'];
+                echo '<p>'.\esc_html('Local fixture creation: '.$creation['resource_id'].' · correlation '.$creation['correlation_id']).'</p>';
+            } elseif ($state === 'APPROVED_HELD' && in_array($proposal['operation'], SyntheticWorkspace::CORRELATED_CREATE_OPERATIONS, true)) {
+                echo '<p>Re-enter the exact draft fields in the create form. Use the proposal ID and revision above, then choose Create correlated fixture record.</p>';
+            }
             if (isset($proposal['receipt_id'])) {
                 echo '<p>Fixture receipt <code>'.\esc_html($proposal['receipt_id']).'</code></p>';
             }
@@ -167,7 +173,8 @@ final class SyntheticWorkspacePanel
             $decisions = match ($state) {
                 'PENDING_APPROVAL'=>['approve'=>'Approve and hold','reject'=>'Reject','cancel'=>'Cancel'],
                 'BLOCKED'=>['reject'=>'Reject','cancel'=>'Cancel'],
-                'APPROVED_HELD'=>['cancel'=>'Cancel','reconcile'=>'Link fixture receipt'],
+                'APPROVED_HELD'=>$proposal['resource_id'] === null ? ['cancel'=>'Cancel'] : ['cancel'=>'Cancel','reconcile'=>'Link fixture receipt'],
+                'FIXTURE_CREATE_RECORDED'=>['reconcile_create'=>'Reconcile verified fixture creation'],
                 'UNKNOWN'=>isset($proposal['referral']) ? [] : ['refer_unknown'=>'Refer for manual reconciliation'],
                 default=>[],
             };
@@ -346,6 +353,9 @@ final class SyntheticWorkspacePanel
                     echo '<p><label>Existing proposal ID (optional) <input name="df_edit_proposal_id" maxlength="64"></label> ';
                     echo '<label>Proposal revision <input name="df_edit_proposal_revision" inputmode="numeric" maxlength="3"></label></p>';
                     echo '<button type="submit" name="df_workspace_preview" value="1">Preview without changing fixture records</button> ';
+                    if (in_array($op, SyntheticWorkspace::CORRELATED_CREATE_OPERATIONS, true)) {
+                        echo '<button type="submit" name="df_workspace_correlated_create" value="1">Create correlated fixture record</button> ';
+                    }
                 }
                 if (!in_array($op, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
                     echo '<p><button type="submit" class="button">'.\esc_html($label).'</button></p>';
@@ -745,11 +755,16 @@ final class SyntheticWorkspacePanel
             $review['proposal_revision'] = (int)$review['proposal_revision'];
             return $workspace->execute((int)$revision, $id, $op, $review);
         }
+        $create = $_POST['df_workspace_correlated_create'] ?? null;
+        if ($create !== null && ($create !== '1' || $preview !== null
+            || !in_array($op, SyntheticWorkspace::CORRELATED_CREATE_OPERATIONS, true))) {
+            return ['state'=>'DENIED','reason'=>'INVALID_CORRELATED_FIXTURE_CREATE'];
+        }
         $edit = [];
         $editId = $_POST['df_edit_proposal_id'] ?? '';
         $editRevision = $_POST['df_edit_proposal_revision'] ?? '';
-        if ($editId !== '' || $editRevision !== '') {
-            if ($preview !== '1' || !is_string($editId) || preg_match('/^[a-f0-9]{64}$/D', $editId) !== 1
+        if ($editId !== '' || $editRevision !== '' || $create === '1') {
+            if (($preview !== '1' && $create !== '1') || !is_string($editId) || preg_match('/^[a-f0-9]{64}$/D', $editId) !== 1
                 || !is_string($editRevision) || preg_match('/^[1-9][0-9]{0,2}$/D', $editRevision) !== 1) {
                 return ['state'=>'DENIED','reason'=>'INVALID_PROPOSAL_EDIT'];
             }
@@ -770,7 +785,7 @@ final class SyntheticWorkspacePanel
             } catch (\InvalidArgumentException $e) {
                 return ['state'=>'DENIED','reason'=>'INVALID_OPERATION_FIELD','field'=>$e->getMessage()];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit);
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit, $create === '1');
         }
         $raw=$_POST['df_workspace_input']??null;
         if (array_key_exists('df_workspace_fields',$_POST) || !is_string($raw) || strlen($raw)>3000000) {
@@ -782,7 +797,7 @@ final class SyntheticWorkspacePanel
             if (!str_starts_with($json,'{')||!is_array($input)) {
                 return ['state'=>'DENIED','reason'=>'INPUT_MUST_BE_JSON_OBJECT'];
             }
-            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit);
+            return $workspace->execute((int)$revision,$id,$op,$input,$preview === '1', null, $edit, $create === '1');
         } catch (\JsonException) {
             return ['state'=>'DENIED','reason'=>'MALFORMED_OPERATION_JSON'];
         }
