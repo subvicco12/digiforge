@@ -287,6 +287,15 @@ final class SyntheticWorkspace
         return ['state'=>$state,'reason'=>'EXECUTION_HELD','status'=>200,'proposal'=>$current];
     }
 
+    private static function canEditProposal(array $proposal, bool $correlatedCreate): bool
+    {
+        if ($correlatedCreate) {
+            return $proposal['state'] === 'APPROVED_HELD';
+        }
+        return in_array($proposal['state'], ['PENDING_APPROVAL','BLOCKED'], true)
+            || ($proposal['operation'] === 'ORDER_CREATE' && $proposal['state'] === 'APPROVED_HELD');
+    }
+
     public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false, ?\Closure $custodyExchange = null): array
     {
         $actor = \get_current_user_id();
@@ -325,7 +334,7 @@ final class SyntheticWorkspace
                 $edited = is_string($editId) ? (self::proposals($row['audit'], $proposalScope)[$editId] ?? null) : null;
                 if ($edited === null || ($edit['revision'] ?? null) !== $edited['revision']
                     || $edited['operation'] !== $operation
-                    || !in_array($edited['state'], $correlatedCreate ? ['APPROVED_HELD'] : ['PENDING_APPROVAL','BLOCKED'], true)) {
+                    || !self::canEditProposal($edited, $correlatedCreate)) {
                     return ['state'=>'DENIED','reason'=>'PROPOSAL_SCOPE_OR_STALE_REVISION']+$flags;
                 }
             }
@@ -373,6 +382,10 @@ final class SyntheticWorkspace
             if (!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed'])) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
+            }
+            if ($preview && $edited !== null && $operation === 'ORDER_CREATE'
+                && $result['state'] !== 'SYNTHETIC_OBSERVED' && $result['state'] !== 'UNKNOWN') {
+                return $result + $flags;
             }
             if ($preview) {
                 $result['preview_only'] = true;

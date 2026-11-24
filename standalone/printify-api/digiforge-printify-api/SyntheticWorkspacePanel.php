@@ -174,6 +174,9 @@ final class SyntheticWorkspacePanel
             if (isset($proposal['quote_projection'])) {
                 echo '<p>Synthetic quotation</p><pre>'.\esc_html(json_encode($proposal['quote_projection'], JSON_PRETTY_PRINT) ?: '').'</pre>';
             }
+            if ($proposal['operation'] === 'ORDER_CREATE' && in_array($state, ['PENDING_APPROVAL','APPROVED_HELD','BLOCKED'], true)) {
+                self::renderOrderRevision($shop, $revision, $proposal);
+            }
             $decisions = match ($state) {
                 'PENDING_APPROVAL'=>['approve'=>'Approve and hold','reject'=>'Reject','cancel'=>'Cancel'],
                 'BLOCKED'=>['reject'=>'Reject','cancel'=>'Cancel'],
@@ -381,14 +384,39 @@ final class SyntheticWorkspacePanel
         }
     }
 
-    private static function renderField(string $op, string $field, ?string $group=null, int $row=0): void
+    private static function renderOrderRevision(string $shop, int $revision, array $proposal): void
+    {
+        $configuration = $proposal['configuration'];
+        $lines = $configuration['line_items'] ?? [];
+        $first = $lines[0] ?? [];
+        $prefix = 'revision-'.$proposal['id'];
+        echo '<details><summary>Edit fixture order lines</summary>';
+        echo '<p>Re-enter the fixture order reference and choose the destination. Saving a revision requires fresh approval.</p>';
+        self::startForm($shop, $revision);
+        foreach ([
+            'df_workspace_operation'=>'ORDER_CREATE', 'df_workspace_fields_present'=>'1', 'df_workspace_preview'=>'1',
+            'df_edit_proposal_id'=>$proposal['id'], 'df_edit_proposal_revision'=>(string)$proposal['revision'],
+        ] as $name=>$value) {
+            echo '<input type="hidden" name="'.\esc_attr($name).'" value="'.\esc_attr($value).'">';
+        }
+        self::renderField('ORDER_CREATE', 'external_id', prefix: $prefix, preset: '');
+        foreach (['product_id','variant_id','quantity'] as $field) {
+            self::renderField('ORDER_CREATE', $field, prefix: $prefix, preset: (string)($first[$field] ?? ''));
+        }
+        self::renderField('ORDER_CREATE', 'shipping_method', prefix: $prefix, preset: (string)($configuration['shipping_method'] ?? ''));
+        self::renderField('ORDER_CREATE', 'destination', prefix: $prefix, preset: '');
+        self::renderRows('ORDER_CREATE', $prefix, ['line_items'=>array_slice($lines, 1)]);
+        echo '<button type="submit">Save fixture order revision</button></form></details>';
+    }
+
+    private static function renderField(string $op, string $field, ?string $group=null, int $row=0, string $prefix='', ?string $preset=null): void
     {
         $label = self::FIELD_LABELS[$field];
-        $id = 'df-synthetic-'.strtolower($op).($group===null?'':"-$group-$row").'-'.$field;
+        $id = 'df-synthetic-'.($prefix === '' ? '' : $prefix.'-').strtolower($op).($group===null?'':"-$group-$row").'-'.$field;
         $key = $group===null ? "[$field]" : "[$group][$row][$field]";
         $attrs = ' id="'.\esc_attr($id).'" name="df_workspace_fields'.\esc_attr($key).'"';
         $required = $group!==null || self::optional($op,$field) || $field==='contents' ? '' : ' required';
-        $value = $group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '';
+        $value = $preset ?? ($group===null ? (self::FIELD_DEFAULTS[$field] ?? '') : '');
         if ($field === 'publication_fields') {
             echo '<fieldset><legend>'.\esc_html($label).'</legend>';
             foreach (self::PUBLICATION_FIELDS as $key=>$title) {
@@ -402,6 +430,9 @@ final class SyntheticWorkspacePanel
         echo '<p><label for="'.\esc_attr($id).'">'.\esc_html($label).'</label><br>';
         if ($options !== null) {
             echo '<select'.$attrs.$required.'>';
+            if ($field === 'destination' && $preset === '') {
+                echo '<option value="">Choose a fixture destination</option>';
+            }
             if ($field === 'variant_enabled') {
                 echo '<option value="">Use enabled default</option>';
             }
@@ -493,13 +524,13 @@ final class SyntheticWorkspacePanel
         };
     }
 
-    private static function renderRows(string $op): void
+    private static function renderRows(string $op, string $prefix = '', array $values = []): void
     {
         foreach (self::groups($op) as $group=>$fields) {
             for ($row=0; $row<self::EXTRA_ROWS; ++$row) {
                 echo '<details><summary>'.\esc_html(self::FIELD_LABELS[$group].' '.($row+1)).'</summary>';
                 foreach ($fields as $field) {
-                    self::renderField($op,$field,$group,$row);
+                    self::renderField($op,$field,$group,$row,$prefix,isset($values[$group][$row][$field]) ? (string)$values[$group][$row][$field] : null);
                 }
                 echo '</details>';
             }

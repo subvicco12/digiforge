@@ -88,6 +88,10 @@ if ($phase === 'write') {
             if ($preview) {
                 $_POST['df_workspace_preview'] = '1';
             }
+            if ($edit !== []) {
+                $_POST['df_edit_proposal_id'] = $edit['id'];
+                $_POST['df_edit_proposal_revision'] = (string)$edit['revision'];
+            }
             if ($approvedCreate !== []) {
                 $_POST['df_workspace_correlated_create'] = '1';
                 $_POST['df_edit_proposal_id'] = $approvedCreate['id'];
