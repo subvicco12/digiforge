@@ -1,0 +1,16 @@
+# Issue #1273 · T4 isolated ingress handoff
+
+Blueprint v1.0 and Work's recorded v1.1 T4 amendment govern. The canonical v1.0 document stays unchanged. T4 permits separately approved Internet-addressable Access Service Auth and same-account synthetic roles for hosted inert evidence. The older proposed §17 live-read clarification stays pending separate explicit approval. T4 does not authorize that change or waive §§8–9.
+
+Reviewed Work checkpoint 5d3f681c is historical. Re-pin source/tree, Standalone ZIP, gateway source ZIP, held config files and exact build module hashes from the successor manifest. The earlier deployment preparation remains the admission procedure. No account-side reads, provisioning, resource-name reservation or actual Access application identity were performed by this assignment.
+
+Proposed zone converentis.com and origin https://digiforge-t4.converentis.com. Proposed Access application DigiForge T4 Synthetic Gateway and expiring test identity digiforge-t4-hostinger-fixture. Proposed Worker digiforge-t4-gateway and private services digiforge-t4-contracts, digiforge-t4-operator, digiforge-t4-reply, digiforge-t4-custody, and dedicated policy and witness objects. Confirm names and hostname availability independently before authorizing any change. No workers.dev, preview or alternate-origin route. The held render contains no public route or secret and requires explicit T4 mode to exercise synthetic reads.
+
+The dedicated entrypoint pins exact origin, POST /read, Access issuer, single audience, approved service claim, RS256 and time window. It reads only pinned public JWKS with an explicit validity end and rejects unknown kids. Overlap current keys during a reviewed rotation; retire old keys and test expiry. No live discovery or refresh. A separate operator issuer signs short-lived assertions only after a current state check. Verification rechecks site, actor, session, workspace and profile revisions, account/shop/integration, operation and signed grant digest. The same one-use grant ID binds the assertion to durable policy. Access token and operator assertion are stripped before object handoff.
+
+Private synthetic services limit all projections to the ten PHP-validated fixture vectors. They use no upstream calls or real provider credentials. Role templates fail held by default. A separately approved deployment review must resolve the actual Cloudflare service binding IDs, validated Access JWKS/issuer/AUD/service identity, fixture issuer keys, scope-pinned private routing to policy/witness, explicit initial scoped object heads, approved test caller and USD 0 spend/usage receipts. A production credential, production Hostinger egress, recovery independence, and live reads are outside this bundle.
+
+The existing Engineering & Safety Audit workflow 354597567 requires a separate exact-head dispatch approval. Recheck GitHub ref, workflow registration and hash, current run list, permissions and runner budget immediately before any separately approved no-input run. No workflow was dispatched.
+
+[Recorded v1.1 T4 amendment](https://drive.google.com/file/d/18AsxqI0aMJQ1GKH5lOV4us_QkQU-GabD/view)
+[Work deployment preparation](https://drive.google.com/file/d/1rH8WSgxn5prCMrvDIhSSIgC13g61wPjj/view)

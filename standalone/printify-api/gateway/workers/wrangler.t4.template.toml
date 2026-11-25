@@ -1,0 +1,31 @@
+# Review render. Remains held, unrouted and unusable until separately authorized.
+name = "digiforge-t4-gateway"
+main = "t4-entry.mjs"
+compatibility_date = "2026-11-25"
+workers_dev = false
+preview_urls = false
+
+[vars]
+T4_MODE = "held"
+EXECUTION_MODE = "held"
+T4_ORIGIN = "https://digiforge-t4.converentis.com"
+T4_ACCESS_ISSUER = ""
+T4_ACCESS_AUDIENCE = ""
+T4_ACCESS_IDENTITY_CLAIM = ""
+T4_ACCESS_IDENTITY = ""
+T4_ACCESS_PUBLIC_JWKS = ""
+T4_OPERATOR_ISSUER = ""
+T4_OPERATOR_AUDIENCE = ""
+T4_OPERATOR_PUBLIC_JWKS = ""
+T4_KEYS_EXPIRES_AT = "0"
+
+[[durable_objects.bindings]]
+name = "ADMISSION"
+class_name = "ProtectedReadAdmission"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ProtectedReadAdmission"]
+
+# Exact private bindings remain unset until reviewed provisioning readback.
+# CONTRACTS, OPERATOR_STATE, POLICY, FIXTURE_CUSTODY, REPLY_SIGNER

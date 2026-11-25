@@ -42,6 +42,8 @@ final class Runtime
         }
         echo '</nav>';
         AccountProfile::render($_POST);
+        require_once __DIR__.'/ProtectedGetPanel.php';
+        ProtectedGetPanel::render($_POST);
         if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
             require_once __DIR__ . '/SyntheticOperatorPanel.php';
             SyntheticOperatorPanel::render();

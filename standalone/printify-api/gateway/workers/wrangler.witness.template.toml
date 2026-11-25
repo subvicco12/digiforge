@@ -1,0 +1,19 @@
+# Held review template. Requires separate administration and restore control.
+name = "digiforge-t4-floor"
+main = "policy-service.mjs"
+compatibility_date = "2026-11-24"
+workers_dev = false
+preview_urls = false
+
+[vars]
+MODE = "held"
+T4_PRIVATE_ROLE = "witness"
+T4_SCOPE_DIGEST = ""
+
+[[durable_objects.bindings]]
+name = "WITNESS"
+class_name = "RecoveryFloor"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RecoveryFloor"]

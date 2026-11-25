@@ -29,7 +29,28 @@ def build(source: str) -> bytes:
     commit = git("rev-parse", "--verify", "--end-of-options", f"{source}^{{commit}}").decode().strip()
     if not re.fullmatch(r"[a-f0-9]{40}", commit):
         raise ValueError("Expected an exact SHA-1 Git commit")
-    blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in MEMBERS}
+    members = MEMBERS
+    protected_get = f"{commit}:{SOURCE}/ProtectedGet.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", protected_get),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("ProtectedGet.php", "ProtectedGetPanel.php")
+    workspace = f"{commit}:{SOURCE}/ProtectedGetWorkspace.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", workspace),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("ProtectedGetWorkspace.php",)
+    http = f"{commit}:{SOURCE}/ProtectedGetHttp.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", http),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("ProtectedGetHttp.php",)
+    direct = f"{commit}:{SOURCE}/DirectGet.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", direct),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("DirectGet.php",)
+    secret = f"{commit}:{SOURCE}/DirectReadSecret.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", secret),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("DirectReadSecret.php",)
+    blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in members}
     contracts = (
         ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),
         ("POD/PrintifyProductRequest.php", "Engine/POD/PrintifyProductRequest.php"),
