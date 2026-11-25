@@ -153,7 +153,12 @@ final class ProtectedGetPanel
 
         $correlation = bin2hex(random_bytes(16));
         try {
-            $reply = \apply_filters('digiforge_printify_protected_get_fixture_reply', null, $request, $correlation);
+            if (defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') && DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE === true) {
+                require_once __DIR__.'/ProtectedGetHttp.php';
+                $reply = ProtectedGetHttp::exchange($request, $correlation);
+            } else {
+                $reply = \apply_filters('digiforge_printify_protected_get_fixture_reply', null, $request, $correlation);
+            }
             $result = is_array($reply)
                 ? ProtectedGet::verifyReply($request, $correlation, $reply, hex2bin($key), time()) : $blocked;
         } catch (\Throwable) {

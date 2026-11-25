@@ -14,6 +14,7 @@ if (!is_string($root) || !str_starts_with($root,'/tmp/df-printify-')
     throw new RuntimeException('Isolated fixture required');
 }
 define('DIGIFORGE_PRINTIFY_PROTECTED_GET_FIXTURE',true);
+define('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE',true);
 define('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY',bin2hex(sodium_crypto_sign_publickey(
     sodium_crypto_sign_seed_keypair(str_repeat('b',32)))));
 require $root.'/wp-load.php';
@@ -61,7 +62,10 @@ if ($phase === 'write') {
         'df_printify_get_operation'=>'SHOPS_READ','df_printify_get'=>[]];
     $response = ProtectedGetPanel::prepare($form);
     verify($response['state']==='BLOCKED','Missing gateway did not fail closed');
-    add_filter('digiforge_printify_protected_get_fixture_reply',$worker,10,3);
+    add_filter('digiforge_printify_protected_get_http_fixture', static function ($previous,array $wire) use ($worker): array {
+        return ['response'=>['code'=>200],'headers'=>['content-type'=>'application/json'],
+            'body'=>json_encode($worker(null,$wire['request'],$wire['correlation']),JSON_THROW_ON_ERROR)];
+    },10,2);
     verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Stale workspace was reused');
     $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];
     $response = ProtectedGetPanel::prepare($form);
