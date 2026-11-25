@@ -74,7 +74,7 @@ export async function admit(storage, grant, policy, now, scopeDigest) {
     });
 }
 
-async function readBounded(response, limit) {
+export async function readBounded(response, limit) {
     const declared = response.headers.get('content-length');
     if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > limit)) {
         throw new Error('Body exceeds bounds');
@@ -263,7 +263,7 @@ export class ProtectedReadAdmission {
             // The offline binding receives fixed-origin typed transport arguments and
             // returns a mock response. This module never takes custody of a provider token.
             const response = await call(this.env.FIXTURE_CUSTODY,'get',{
-                ...identity,...checkpoint,method:'GET',url:url.href,redirect:'deny',
+                ...identity,...checkpoint,method:'GET',url:url.href,redirect:'deny',intent:request,grant,signature,
                 scope:{account:request.scope.account,shop:request.scope.shop,integration:request.scope.integration,
                     custody:request.scope.custody},
                 max_body_bytes:MAX_BODY,timeout_ms:5000,

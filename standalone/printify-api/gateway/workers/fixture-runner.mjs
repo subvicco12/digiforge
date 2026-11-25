@@ -2,6 +2,8 @@
 import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { HostingerReadIngress, ProtectedReadAdmission } from './worker.mjs';
+import { PolicyAdmission, RecoveryFloor, seal } from './policy-service.mjs';
+import { ReadCustodyService } from './custody-service.mjs';
 
 const [php,script,plugin,journal] = process.argv.slice(2);
 const input = JSON.parse(readFileSync(0,'utf8'));
@@ -21,16 +23,13 @@ const invoke = (port,data) => new Promise((resolve,reject) => {
 const proof = await invoke('verify',input);
 const scope = proof.scope_digest;
 const consumed = JSON.parse(readFileSync(journal,'utf8'));
-const anchors = journal+'.anchor';
-const sequence = existsSync(anchors) ? JSON.parse(readFileSync(anchors,'utf8')) : 0;
-let floor = sequence;
-const state = {epoch:'fixture',sequence:consumed.length,revision:1,scope_digest:scope,count:consumed.length,consumed};
 const write = (path,value) => {
     writeFileSync(path+'.next',JSON.stringify(value),{mode:0o600});
     renameSync(path+'.next',path);
 };
 const storage = {transaction: async fn => fn({
-    get: async () => state,
+    get: async () => ({epoch:'fixture',sequence:consumed.length,revision:1,scope_digest:scope,
+        count:consumed.length,consumed}),
     put: async (_key,value) => write(journal,value.consumed),
 })};
 const service = fn => ({fetch:async request => {
@@ -38,36 +37,36 @@ const service = fn => ({fetch:async request => {
     const data = await request.json();
     return path === '/ready' ? Response.json({ready:true,protocol:data.protocol}) : fn(path,data);
 }});
-const POLICY = service((path,request) => {
-    if (request.scope_digest !== scope) {
-        return Response.json({accepted:false});
-    }
-    if (path === '/snapshot') {
-        return Response.json({epoch:'fixture',sequence:floor,revision:1,stop_all:false,
-            external_lock:false,release_hold:false,revoked:[]});
-    }
-    if (path === '/admit') {
-        if (request.prior_sequence !== floor || request.sequence !== floor+1) {
-            return Response.json({accepted:false});
-        }
-        floor = request.sequence;
-        write(anchors,floor);
-    }
-    return Response.json({...request,accepted:request.sequence===floor});
-});
+const policyFile=journal+'.policy';
+const floorFile=journal+'.anchor';
+const genesis={scope_digest:scope,epoch:'fixture',sequence:0,revision:1,stop_all:false,external_lock:false,
+    release_hold:false,revoked:[],admissions:[]};
+if (!existsSync(policyFile) && !existsSync(floorFile) && consumed.length===0) {
+    write(policyFile,{state:genesis});
+    write(floorFile,{scope_digest:scope,epoch:'fixture',sequence:0,digest:await seal(genesis)});
+}
+const durable=path=>{
+    const get=async()=>JSON.parse(readFileSync(path,'utf8'));
+    return {get,transaction:fn=>fn({get,put:async(_key,value)=>write(path,value)})};
+};
+const POLICY=new PolicyAdmission({storage:durable(policyFile)},{MODE:'offline-fixture',
+    WITNESS:new RecoveryFloor({storage:durable(floorFile)},{MODE:'offline-fixture'})});
 const CONTRACTS = service(async (path,data) => Response.json(await invoke(path.slice(1),data)));
 const REPLY_SIGNER = service(async (_path,data) => Response.json(await invoke('sign',data)));
-const FIXTURE_CUSTODY = service(async (_path,data) => {
-    if (data.method !== 'GET' || data.redirect !== 'deny'
-        || data.url !== 'https://api.printify.com'+input.request.path
-        || data.scope.account !== 'fixture-account' || data.scope.shop !== '107'
-        || data.scope.integration !== 'fixture-read' || data.scope.custody !== 'custody-ref:fixture') {
-        return Response.json({}, {status:403});
-    }
-    const fixture = await invoke('get',{request:input.request});
-    return Response.json(fixture.body,{status:fixture.status});
+const FIXTURE_CUSTODY=new ReadCustodyService({MODE:'offline-fixture',POLICY,CONTRACTS,
+    CREDENTIAL_PROVIDER:{resolve:async scope=>scope.account==='fixture-account' && scope.shop==='107'
+        && scope.integration==='fixture-read' && scope.custody==='custody-ref:fixture'
+        ? {synthetic:true,value:'fixture-access'} : null},
+    FIXTURE_UPSTREAM:{fetch:async request=>{
+        if (request.method!=='GET' || request.redirect!=='manual'
+            || request.url!=='https://api.printify.com'+input.request.path
+            || request.headers.get('authorization')!=='Bearer fixture-access') {
+            return Response.json({}, {status:403});
+        }
+        const fixture=await invoke('get',{request:input.request});
+        return Response.json(fixture.body,{status:fixture.status});
+    }},
 });
-
 const gateway = new ProtectedReadAdmission({storage},{
     EXECUTION_MODE:'offline-fixture', POLICY, CONTRACTS, REPLY_SIGNER, FIXTURE_CUSTODY,
 });

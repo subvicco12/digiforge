@@ -1,0 +1,17 @@
+# Held review template. Private witness binding and bootstrap are intentionally absent.
+name = "digiforge-get-policy-review"
+main = "policy-service.mjs"
+compatibility_date = "2026-11-24"
+workers_dev = false
+preview_urls = false
+
+[vars]
+MODE = "held"
+
+[[durable_objects.bindings]]
+name = "POLICY"
+class_name = "PolicyAdmission"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PolicyAdmission"]
