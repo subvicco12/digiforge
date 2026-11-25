@@ -23,7 +23,7 @@ jobs:
           set -euo pipefail
           [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_RUN_ATTEMPT" == 1 ]]
           [[ "$GITHUB_ACTOR" == subvicco12 && "$GITHUB_TRIGGERING_ACTOR" == subvicco12 ]]
-          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-runtime-build-sqlite && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-runtime-build-oci && "$GITHUB_REF_PROTECTED" == true ]]
           [[ "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ && "$EXPECTED_HEAD" == "$GITHUB_SHA" ]]
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -31,8 +31,24 @@ jobs:
           persist-credentials: false
           sparse-checkout: qualification/digiforge-runtime
       - name: Build one pinned runtime and record receipts
-        run: bash qualification/digiforge-runtime/build.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/digiforge-runtime-output"
+          mkdir -p "$output"
+          bash qualification/digiforge-runtime/build.sh 2>&1 | tee "$output/build.log"
+      - name: Checksum retained build receipts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/digiforge-runtime-output"
+          [[ -d "$output" ]] || exit 0
+          cd "$output"
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
+            LC_ALL=C sort -z | xargs -0 -r sha256sum > SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: digiforge-runtime-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/digiforge-runtime-output/
