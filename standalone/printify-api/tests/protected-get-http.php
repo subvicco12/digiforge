@@ -25,19 +25,19 @@ require $argv[1].'/ProtectedGetHttp.php';
 use DigiForgePrintifyApi\ProtectedGetHttp;
 $GLOBALS['calls']=0;
 $GLOBALS['environment']='production';
-if (ProtectedGetHttp::exchange([],str_repeat('a',32)) !== null || $GLOBALS['calls'] !== 0) {
+if (ProtectedGetHttp::exchange([],str_repeat('a',32),str_repeat('b',64)) !== null || $GLOBALS['calls'] !== 0) {
     throw new RuntimeException('Production attempted HTTP');
 }
 $GLOBALS['environment']='local';
 $GLOBALS['mock']=['response'=>['code'=>200],'headers'=>['content-type'=>'application/json'],'body'=>'{"receipt":{},"signature":"synthetic"}'];
-$result=ProtectedGetHttp::exchange(['scope'=>['site'=>'fixture']],str_repeat('a',32));
+$result=ProtectedGetHttp::exchange(['scope'=>['site'=>'fixture']],str_repeat('a',32),str_repeat('b',64));
 if (($result['signature'] ?? null)!=='synthetic' || $GLOBALS['wire']['request']['scope']['site']!=='fixture'
-    || $GLOBALS['wire']['correlation']!==str_repeat('a',32) || isset($GLOBALS['intercept'])) {
+    || $GLOBALS['wire']['workspace']!==str_repeat('b',64) || $GLOBALS['wire']['correlation']!==str_repeat('a',32) || isset($GLOBALS['intercept'])) {
     throw new RuntimeException('Synthetic HTTP exchange failed');
 }
 foreach ([['code'=>302,'type'=>'application/json','body'=>'{}'],['code'=>200,'type'=>'text/html','body'=>'{}'],
     ['code'=>200,'type'=>'application/json','body'=>str_repeat('x',524289)]] as $bad) {
     $GLOBALS['mock']=['response'=>['code'=>$bad['code']],'headers'=>['content-type'=>$bad['type']],'body'=>$bad['body']];
-    if (ProtectedGetHttp::exchange([],str_repeat('a',32))!==null) { throw new RuntimeException('Unsafe reply accepted'); }
+    if (ProtectedGetHttp::exchange([],str_repeat('a',32),str_repeat('b',64))!==null) { throw new RuntimeException('Unsafe reply accepted'); }
 }
 echo "Protected GET WordPress HTTP framing, production hold, redirect, response type and size passed.\n";

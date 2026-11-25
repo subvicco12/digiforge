@@ -197,6 +197,14 @@ export class PolicyAdmission {
             if (path==='/drain') {
                 return json({stop_all:state.stop_all,in_flight:state.admissions.filter(row=>row.phase==='in-flight').length});
             }
+            if (path==='/approve-reply') {
+                const row=state.admissions.find(entry=>entry.id===input.grant_id
+                    && entry.digest===input.request_digest && entry.phase==='finished');
+                return json({authorized:input.state==='OBSERVED' && !!row
+                    && !state.stop_all && !state.external_lock && !state.release_hold
+                    && !state.revoked.includes(input.grant_id),
+                request_digest:input.request_digest,grant_id:input.grant_id});
+            }
             if (path==='/release') {
                 const entry=state.admissions.find(row=>row.id===input.grant_id && row.digest===input.request_digest
                     && row.sequence===input.sequence && row.phase==='finished');

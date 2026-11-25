@@ -49,11 +49,11 @@ $journal = dirname($root).'/gateway.json';
 if ($phase === 'write') {
     verify(AccountProfile::save($profile,wp_create_nonce('digiforge_printify_account_profile_save'))==='SAVED_LOCAL_METADATA','Profile save failed');
     file_put_contents($journal,'[]');
-    $worker = static function (mixed $previous,array $request,string $correlation) use ($plugin,$journal): array {
+    $worker = static function (mixed $previous,array $request,string $correlation,string $workspace) use ($plugin,$journal): array {
         $process = proc_open([PHP_BINARY,__DIR__.'/protected-get-worker.php',$plugin,$journal],
             [['pipe','r'],['pipe','w'],['pipe','w']],$pipes);
         if (!is_resource($process)) { throw new RuntimeException('Worker unavailable'); }
-        fwrite($pipes[0],json_encode(['request'=>$request,'correlation'=>$correlation],JSON_THROW_ON_ERROR));
+        fwrite($pipes[0],json_encode(['request'=>$request,'correlation'=>$correlation,'workspace'=>$workspace],JSON_THROW_ON_ERROR));
         fclose($pipes[0]);
         $output=stream_get_contents($pipes[1]);
         $stderr=stream_get_contents($pipes[2]);
@@ -69,7 +69,7 @@ if ($phase === 'write') {
     verify($response['state']==='BLOCKED','Missing gateway did not fail closed');
     add_filter('digiforge_printify_protected_get_http_fixture', static function ($previous,array $wire) use ($worker): array {
         return ['response'=>['code'=>200],'headers'=>['content-type'=>'application/json'],
-            'body'=>json_encode($worker(null,$wire['request'],$wire['correlation']),JSON_THROW_ON_ERROR)];
+            'body'=>json_encode($worker(null,$wire['request'],$wire['correlation'],$wire['workspace']),JSON_THROW_ON_ERROR)];
     },10,2);
     verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Stale workspace was reused');
     $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot()['revision'];

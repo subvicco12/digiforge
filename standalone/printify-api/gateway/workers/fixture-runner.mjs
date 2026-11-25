@@ -1,10 +1,13 @@
 // Disposable single-process test adapter. Never included in Worker deployment.
 import { execFile } from 'node:child_process';
+import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
-import { HostingerReadIngress, ProtectedReadAdmission } from './worker.mjs';
+import { ProtectedReadAdmission } from './worker.mjs';
 import { PolicyAdmission, RecoveryFloor, seal } from './policy-service.mjs';
-import { ReadCustodyService } from './custody-service.mjs';
-import { DetachedSigningService } from './signing-service.mjs';
+import services from './t4-fixture-services.mjs';
+
+import { T4Ingress } from './t4-entry.mjs';
+import { OperatorAssertions, signJwt } from './ingress-auth.mjs';
 
 const [php,script,plugin,journal] = process.argv.slice(2);
 const input = JSON.parse(readFileSync(0,'utf8'));
@@ -33,11 +36,6 @@ const storage = {transaction: async fn => fn({
         count:consumed.length,consumed}),
     put: async (_key,value) => write(journal,value.consumed),
 })};
-const service = fn => ({fetch:async request => {
-    const path = new URL(request.url).pathname;
-    const data = await request.json();
-    return path === '/ready' ? Response.json({ready:true,protocol:data.protocol}) : fn(path,data);
-}});
 const policyFile=journal+'.policy';
 const floorFile=journal+'.anchor';
 const genesis={scope_digest:scope,epoch:'fixture',sequence:0,revision:1,stop_all:false,external_lock:false,
@@ -52,46 +50,50 @@ const durable=path=>{
 };
 const POLICY=new PolicyAdmission({storage:durable(policyFile)},{MODE:'offline-fixture',
     WITNESS:new RecoveryFloor({storage:durable(floorFile)},{MODE:'offline-fixture'})});
-const CONTRACTS = service(async (path,data) => Response.json(await invoke(path.slice(1),data)));
-// RFC 8410 PKCS#8 envelope over the existing deterministic fixture seed.
-const key=await crypto.subtle.importKey('pkcs8',Buffer.from('302e020100300506032b657004220420'+'62'.repeat(32),'hex'),
-    'Ed25519',false,['sign']);
-const REPLY_SIGNER=new DetachedSigningService({role:'reply',mode:'offline-fixture',keyProvider:async()=>key,
-    verifyIntent:async (_role,receipt)=>receipt.request_digest===input.grant.request_digest
-        && receipt.grant_id===input.grant.id ? {authorized:true,...await invoke('digest',receipt)} : null,
-});
-const FIXTURE_CUSTODY=new ReadCustodyService({MODE:'offline-fixture',POLICY,CONTRACTS,
-    CREDENTIAL_PROVIDER:{resolve:async scope=>scope.account==='fixture-account' && scope.shop==='107'
-        && scope.integration==='fixture-read' && scope.custody==='custody-ref:fixture'
-        ? {synthetic:true,value:'fixture-access'} : null},
-    FIXTURE_UPSTREAM:{fetch:async request=>{
-        if (request.method!=='GET' || request.redirect!=='manual'
-            || request.url!=='https://api.printify.com'+input.request.path
-            || request.headers.get('authorization')!=='Bearer fixture-access') {
-            return Response.json({}, {status:403});
-        }
-        const fixture=await invoke('get',{request:input.request});
-        return Response.json(fixture.body,{status:fixture.status});
-    }},
-});
+const pkcs8=seed=>'302e020100300506032b657004220420'+seed.repeat(32);
+const grantPrivate=createPrivateKey({key:Buffer.from(pkcs8('61'),'hex'),format:'der',type:'pkcs8'});
+const grantPublic=createPublicKey(grantPrivate).export({format:'der',type:'spki'}).subarray(-32).toString('hex');
+const config={MODE:'t4-inert',T4_FIXTURE_SCOPE:JSON.stringify(input.request.scope),
+    T4_SCOPE_DIGEST:scope,T4_GRANT_PUBLIC_KEY:grantPublic,T4_REPLY_PRIVATE_PKCS8:pkcs8('62'),POLICY};
+const role=(name,extra={})=>({fetch:request=>services.fetch(request,{...config,ROLE:name,...extra})});
+const CONTRACTS=role('contracts');
+const REPLY_SIGNER=role('reply');
+const FIXTURE_CUSTODY=role('custody');
 const gateway = new ProtectedReadAdmission({storage},{
     EXECUTION_MODE:'offline-fixture', POLICY, CONTRACTS, REPLY_SIGNER, FIXTURE_CUSTODY,
 });
-const ingress = new HostingerReadIngress({
-    EXECUTION_MODE:'offline-fixture',
-    INGRESS_AUTH:service(async (_path,{credential,envelope}) => {
-        if (credential !== 'Bearer synthetic-hostinger-instance') {
-            return Response.json({authenticated:false});
-        }
-        const binding = await invoke('verify',envelope);
-        return Response.json({...envelope.request.scope,operation:envelope.request.operation,
-            authenticated:binding.verified,scope_digest:binding.scope_digest,
-            request_digest:binding.request_digest,grant_id:envelope.grant.id});
-    }),
-    ADMISSION:{idFromName:name=>name,get:name=>name === scope ? gateway : null},
-});
-const result = await ingress.fetch(new Request('https://gateway.invalid/read',{
-    method:'POST',headers:{authorization:'Bearer synthetic-hostinger-instance'},body:JSON.stringify(input),
+const pair=()=>crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,
+    publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},false,['sign','verify']);
+const [accessKey,operatorKey]=await Promise.all([pair(),pair()]);
+const now=Math.floor(Date.now()/1000);
+const origin='https://digiforge-t4.example.invalid';
+const access={issuer:'https://access.example.invalid',audience:'t4-fixture',identityClaim:'common_name',
+    identity:'fixture-hostinger',maxAge:60};
+const assertion=await signJwt(accessKey.privateKey,'access-fixture',{iss:access.issuer,aud:[access.audience],
+    common_name:access.identity,iat:now,nbf:now,exp:now+30});
+const operatorIssuer='urn:fixture:operator';
+const operatorAudience='t4-read';
+const operatorRecord={...input.request.scope,workspace:input.workspace,revoked:false,
+    expires_at:now+60,operations:[input.request.operation]};
+const operatorEnv={T4_OPERATOR_ISSUER:operatorIssuer,T4_OPERATOR_AUDIENCE:operatorAudience,
+    T4_OPERATOR_KID:'operator-fixture',T4_OPERATOR_RECORD:JSON.stringify(operatorRecord)};
+const operatorService=role('operator',operatorEnv);
+// The fixture-only issuer enters through the authenticated disposable WP test seam.
+const issuer=new OperatorAssertions({issuer:operatorIssuer,audience:operatorAudience,kid:'operator-fixture',
+    signingKey:operatorKey.privateKey,current:async expected=>{
+        const reply=await operatorService.fetch(new Request('https://operator.invalid/attest',{
+            method:'POST',body:JSON.stringify(expected)}));
+        return reply.ok ? reply.json() : null;
+    }});
+const operator=new OperatorAssertions({issuer:operatorIssuer,audience:operatorAudience,
+    keySet:{expiresAt:now+60,keys:{'operator-fixture':operatorKey.publicKey}},current:issuer.config.current});
+const token=await issuer.issue(input,input.workspace,now);
+const ingress=new T4Ingress({mode:'t4-inert',origin,access,
+    accessKeys:{expiresAt:now+60,keys:{'access-fixture':accessKey.publicKey}},operator,contracts:CONTRACTS,
+    admission:{idFromName:name=>name,get:name=>name===scope ? gateway : null}});
+const result=await ingress.fetch(new Request(origin+'/read',{
+    method:'POST',headers:{'cf-access-jwt-assertion':assertion},
+    body:JSON.stringify({...input,operator_assertion:token}),
 }));
 if (!result.ok) {
     process.stderr.write('Workers fixture returned '+result.status+' '+await result.text()+'\n');

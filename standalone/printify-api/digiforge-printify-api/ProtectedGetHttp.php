@@ -13,16 +13,16 @@ final class ProtectedGetHttp
     private const URL = 'https://protected-get.example.invalid/read';
     private const LIMIT = 524288;
 
-    public static function exchange(array $request, string $correlation): ?array
+    public static function exchange(array $request, string $correlation, string $workspace): ?array
     {
         if (!defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') || DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE !== true
             || wp_get_environment_type() !== 'local' || !defined('WP_HTTP_BLOCK_EXTERNAL')
             || WP_HTTP_BLOCK_EXTERNAL !== true || defined('WP_ACCESSIBLE_HOSTS')
-            || !preg_match('/^[a-f0-9]{32}$/D',$correlation)) {
+            || !preg_match('/^[a-f0-9]{32}$/D',$correlation) || !preg_match('/^[a-f0-9]{64}$/D',$workspace)) {
             return null;
         }
 
-        $wire = ['request'=>$request,'correlation'=>$correlation];
+        $wire = ['request'=>$request,'correlation'=>$correlation,'workspace'=>$workspace];
         try {
             $body = json_encode($wire, JSON_THROW_ON_ERROR);
             if (strlen($body) > 32768) {

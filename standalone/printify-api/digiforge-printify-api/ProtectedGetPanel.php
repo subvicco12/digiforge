@@ -155,7 +155,7 @@ final class ProtectedGetPanel
         try {
             if (defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') && DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE === true) {
                 require_once __DIR__.'/ProtectedGetHttp.php';
-                $reply = ProtectedGetHttp::exchange($request, $correlation);
+                $reply = ProtectedGetHttp::exchange($request, $correlation, $revision);
             } else {
                 $reply = \apply_filters('digiforge_printify_protected_get_fixture_reply', null, $request, $correlation);
             }

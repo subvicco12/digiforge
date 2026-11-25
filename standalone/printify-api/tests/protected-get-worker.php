@@ -49,7 +49,7 @@ if ($port === null && getenv('DF_PROTECTED_GET_WORKERS_FIXTURE') === '1') {
     $process = proc_open(['node',$worker,PHP_BINARY,__FILE__,$argv[1],$argv[2]],
         [['pipe','r'],STDOUT,STDERR],$pipes);
     if (!is_resource($process)) { throw new RuntimeException('Workers fixture unavailable'); }
-    fwrite($pipes[0],json_encode(['request'=>$request,'grant'=>$grant,'signature'=>$sign],JSON_THROW_ON_ERROR));
+    fwrite($pipes[0],json_encode(['request'=>$request,'grant'=>$grant,'signature'=>$sign,'workspace'=>$input['workspace'] ?? null],JSON_THROW_ON_ERROR));
     fclose($pipes[0]);
     exit(proc_close($process));
 }

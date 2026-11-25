@@ -1,0 +1,35 @@
+# Review render. Deploy private role instances separately after explicit authorization.
+# No secrets, public routes, Workers.dev or preview URLs.
+name = "digiforge-t4-contracts"
+main = "t4-fixture-services.mjs"
+compatibility_date = "2026-11-25"
+workers_dev = false
+preview_urls = false
+
+[vars]
+MODE = "held"
+ROLE = "contracts"
+
+[env.operator]
+name = "digiforge-t4-operator"
+workers_dev = false
+preview_urls = false
+[env.operator.vars]
+MODE = "held"
+ROLE = "operator"
+
+[env.reply]
+name = "digiforge-t4-reply"
+workers_dev = false
+preview_urls = false
+[env.reply.vars]
+MODE = "held"
+ROLE = "reply"
+
+[env.custody]
+name = "digiforge-t4-custody"
+workers_dev = false
+preview_urls = false
+[env.custody.vars]
+MODE = "held"
+ROLE = "custody"
