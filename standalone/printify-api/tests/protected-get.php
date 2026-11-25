@@ -203,3 +203,28 @@ unlink($journal);
 check((new FixtureReadGateway($publicKey,$policy,$fixtureShop,$journal))->read($request,$grant,$sign($grant),$now)['reason']
     === 'ADMISSION_STORE_UNAVAILABLE','Missing admission state reopened');
 echo "Separate workers admitted once, and lost journal state denied.\n";
+
+$variantSelection = ['blueprint_id'=>42,'provider_id'=>7];
+$variant = ['id'=>9,'title'=>'Documented fixture',
+    'options'=>['color'=>'Heather Grey','size'=>'XS','finish'=>'Matte'],
+    'placeholders'=>[['position'=>'front','width'=>1200,'height'=>900]]];
+$variantList = ProtectedGet::request($scope,'VARIANTS_READ',$variantSelection);
+$variantDetail = ProtectedGet::request($scope,'VARIANT_READ',$variantSelection+['variant_id'=>9]);
+$wire = static fn(array $row): string => json_encode(['id'=>42,'variants'=>[$row]],JSON_THROW_ON_ERROR);
+check(ProtectedGet::project($variantList,$wire($variant))['variants'][0]['options']===$variant['options'],
+    'Variant list dropped supplied options');
+$detail = ProtectedGet::project($variantDetail,$wire($variant));
+check($detail['options']===$variant['options'] && $detail['print_areas'][0]['width']===1200
+    && $detail['print_areas'][0]['bleed']===null,'Detail lost options or invented dimensions');
+$missing = $variant;
+unset($missing['options']);
+check(ProtectedGet::project($variantDetail,$wire($missing))['options']===null,'Missing options were inferred');
+foreach ([['red'], ['size'=>9], ['size'=>'<bad>'], ['size'=>''], ['a'=>'1','b'=>'2','c'=>'3','d'=>'4']] as $options) {
+    foreach ([$variantList,$variantDetail] as $intent) {
+        try {
+            ProtectedGet::project($intent,$wire(['options'=>$options]+$variant));
+            throw new RuntimeException('Malformed options accepted');
+        } catch (InvalidArgumentException) {}
+    }
+}
+echo "Variant list/detail source options: positive, unknown and malformed cases passed.\n";

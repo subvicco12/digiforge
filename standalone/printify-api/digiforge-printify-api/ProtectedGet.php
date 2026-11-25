@@ -94,8 +94,8 @@ final class ProtectedGet
                 'BLUEPRINTS_READ','BLUEPRINT_PROVIDERS_READ' => array_map($summary, $catalog),
                 'BLUEPRINT_READ','BLUEPRINT_PROVIDER_READ' => $summary($catalog),
                 'VARIANTS_READ' => ['blueprint_id'=>$selection['blueprint_id'],
-                    'variants'=>array_map($summary, $catalog['variants'])],
-                'VARIANT_READ' => $summary($catalog) + ['print_areas'=>PrintifyCatalogReadContract::variantAreas($catalog)],
+                    'variants'=>array_map(self::variant(...), $catalog['variants'])],
+                'VARIANT_READ' => self::variant($catalog) + ['print_areas'=>PrintifyCatalogReadContract::variantAreas($catalog)],
                 'CATALOG_SHIPPING_READ' => ['methods'=>array_map(
                     static fn(array $row): string => $row['attributes']['name'], $catalog['data']), 'address_quote'=>false],
                 'CATALOG_SHIPPING_METHOD_READ' => ['rates'=>array_map(
@@ -127,6 +127,24 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    private static function variant(array $row): array
+    {
+        $options = $row['options'] ?? null;
+        if ($options !== null) {
+            if (!is_array($options) || count($options) > 3) {
+                throw new \InvalidArgumentException('Invalid catalog variant options.');
+            }
+            foreach ($options as $name => $value) {
+                if (!is_string($name) || !preg_match('/^[a-zA-Z][a-zA-Z0-9 _-]{0,59}$/D', $name)
+                    || !is_string($value) || trim($value) === '' || strlen($value) > 160
+                    || preg_match('/[\x00-\x1f\x7f<>]/', $value)) {
+                    throw new \InvalidArgumentException('Invalid catalog variant option.');
+                }
+            }
+        }
+        return ['id'=>$row['id'],'title'=>$row['title'] ?? null,'options'=>$options === [] ? null : $options];
     }
 
     public static function verifyReply(array $request, string $grantId, array $reply, string $key, int $now): array
