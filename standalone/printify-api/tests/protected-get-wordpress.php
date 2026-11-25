@@ -21,7 +21,12 @@ require $root.'/wp-load.php';
 if (DB_HOST !== 'localhost:'.$socket || DB_NAME !== 'printify_fixture' || wp_get_environment_type() !== 'local') {
     throw new RuntimeException('Local fixture database required');
 }
-add_filter('pre_http_request',static function (): never { throw new RuntimeException('Unexpected HTTP'); },PHP_INT_MAX);
+add_filter('pre_http_request',static function (mixed $prior,array $args,string $url): WP_Error {
+    if ($url !== 'https://protected-get.example.invalid/read') {
+        throw new RuntimeException('Unexpected HTTP');
+    }
+    return new WP_Error('fixture_requires_scoped_interception');
+},PHP_INT_MAX,3);
 wp_set_current_user(1);
 $plugin = WP_PLUGIN_DIR.'/digiforge-printify-api';
 require $plugin.'/ProtectedGetPanel.php';
