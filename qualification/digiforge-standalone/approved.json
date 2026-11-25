@@ -1,7 +1,7 @@
 {
   "schema": "DF_COEX_ADMISSION_1",
   "actor": "subvicco12",
-  "ref": "refs/heads/qualification/digiforge-standalone-coexistence",
+  "ref": "refs/heads/qualification/digiforge-standalone-coexistence-mysql-tmpfs",
   "readme_approval": "OWNER_AUTHORIZED_ONE_RUN",
   "profile": "production-no-woocommerce",
   "versions": {
@@ -20,7 +20,7 @@
     "wordpress.zip": "cd44160a3fcce179fe170331132fcfc05e84e2f9284e2aad38df2aea6edaeab1"
   },
   "control_sha256": {
-    ".github/workflows/digiforge-sealed-coexistence.yml": "b353519c00b326cdd4a1e11a281a466b58c61022a8a3cd010e65dc1c9507a9d5",
+    ".github/workflows/digiforge-sealed-coexistence.yml": "c931410457c8cbdf0da4cc361f051aee437929673fc87756450df7343ecdcfc2",
     "qualification/digiforge-standalone/acquire.sh": "abfed4cee2756d516b21ebef1a262f76c2a1bd2e3190dfa75ce60aabf0f842de",
     "qualification/digiforge-standalone/browser-adapter.php": "dcdd5946558c5071a190d0ef0839b3cac762cb626b6a24620fad650971413d99",
     "qualification/digiforge-standalone/browser.cjs": "5aa6e15e76a1d8f704a2330abbb7343bef2b62d1707ba947f48e59e867d2f909",
@@ -28,7 +28,7 @@
     "qualification/digiforge-standalone/lifecycle.php": "3783b4ee035ece038c8c9b8d872a31ab09ad3c02ee073c31829313ebd5bb7d8f",
     "qualification/digiforge-standalone/oci-convert.py": "209b24eb8a3823fa74be2e1d06ccb2c5f154958879ca0e5a2bec0099d28e58db",
     "qualification/digiforge-standalone/qualify-inside.sh": "a69d20e73f8a01c4baff26986ad52ec6f13f8b1f7fddad8016227845b223623b",
-    "qualification/digiforge-standalone/supervisor.sh": "24791511a63172575734c15310b0942619bb8883ceb0ac6225a9e3315dcf0318",
+    "qualification/digiforge-standalone/supervisor.sh": "894aeacf6c03b87240529f9df070ce61b7cd71abb6d282656afdb74900483913",
     "qualification/digiforge-standalone/tests/direct-secret.php": "d376c1dab8b0f44656adf6cde61a4699eafb50ee1307c18395d3626d6986a253",
     "qualification/digiforge-standalone/tests/protected-get-wordpress.php": "d93ae2f3ac71bf6fff9c06996e7bb2b2da44dd76d390ac4a5618d91b8274ffc7",
     "qualification/digiforge-standalone/tests/protected-get-worker.php": "0c63ee4a1b04704badfbac8ffe061f7ac5f42dabaaf42ddeac3e6eb98f94d793",
