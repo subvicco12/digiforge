@@ -58,13 +58,24 @@ docker load -i "$RUNNER_TEMP/coex-docker.tar" > "$out/docker-load.txt"
 chmod 755 "$control" "$fixture"
 # The isolated UID owns only the empty output; it cannot write or see the Git checkout.
 sudo setfacl -m u:65532:rwx "$out"
+# Give the runner inherited read access to evidence created under container umask 077.
+sudo setfacl -m "d:u:$(id -u):r-x" "$out"
 cid=$(docker create --pull never --network none --read-only --no-healthcheck --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges \
   --pids-limit 384 --memory 6g --tmpfs /tmp:rw,nosuid,nodev,size=1536m,uid=65532,gid=65532 \
   --tmpfs /work:rw,nosuid,nodev,size=2048m,uid=65532,gid=65532 \
+  --mount type=tmpfs,dst=/var/lib/mysql,tmpfs-size=1048576,tmpfs-mode=0555,readonly \
   --mount "type=bind,src=$fixture,dst=/fixture,readonly" --mount "type=bind,src=$control,dst=/admission,readonly" \
   --mount "type=bind,src=$out,dst=/evidence" --entrypoint /bin/bash "$image_id" /admission/qualify-inside.sh)
-docker inspect "$cid" | jq '.[0] | {Id,Image,User:.Config.User,NetworkMode:.HostConfig.NetworkMode,CapDrop:.HostConfig.CapDrop,SecurityOpt:.HostConfig.SecurityOpt,Mounts}' > "$out/container-inspect.json"
-jq -e --arg id "$image_id" '.Image==$id and .User=="65532:65532" and .NetworkMode=="none" and .CapDrop==["ALL"] and (.Mounts|length==3)' "$out/container-inspect.json" >/dev/null
+docker inspect "$cid" | jq '.[0] | {Id,Image,User:.Config.User,NetworkMode:.HostConfig.NetworkMode,CapDrop:.HostConfig.CapDrop,SecurityOpt:.HostConfig.SecurityOpt,ReadonlyRootfs:.HostConfig.ReadonlyRootfs,Mounts}' > "$out/container-inspect.json"
+jq -e --arg id "$image_id" --arg fixture "$fixture" --arg control "$control" --arg out "$out" '
+  .Image == $id and .User == "65532:65532" and .NetworkMode == "none"
+  and .CapDrop == ["ALL"] and .SecurityOpt == ["no-new-privileges"] and .ReadonlyRootfs
+  and ([.Mounts[] | {Type, Source, Destination, RW}] | sort_by(.Destination)) == [
+    {Type:"bind", Source:$control, Destination:"/admission", RW:false},
+    {Type:"bind", Source:$out, Destination:"/evidence", RW:true},
+    {Type:"bind", Source:$fixture, Destination:"/fixture", RW:false},
+    {Type:"tmpfs", Source:"", Destination:"/var/lib/mysql", RW:false}
+  ]' "$out/container-inspect.json" >/dev/null
 docker start -a "$cid" > "$out/console.log" 2>&1
 [[ "$(docker inspect --format '{{.State.ExitCode}}' "$cid")" == 0 ]]
 jq -e '.status=="PASS" and .fixture_only==true and .mariadb_socket_only==true and .isolated==true' "$out/qualification.json" >/dev/null
