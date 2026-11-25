@@ -1,0 +1,38 @@
+{
+  "schema": "DF_COEX_ADMISSION_1",
+  "actor": "subvicco12",
+  "ref": "refs/heads/qualification/digiforge-standalone-coexistence",
+  "readme_approval": "OWNER_AUTHORIZED_ONE_RUN",
+  "profile": "production-no-woocommerce",
+  "versions": {
+    "wordpress": "7.1.5",
+    "php": "8.3.37",
+    "mariadb": "11.8.9",
+    "chromium": "136.0.7103.25"
+  },
+  "image_id": "sha256:a1ef48a0485e35ab8dd1fe378895d36869e9a76a54456423b048689fb9b803d5",
+  "oci_manifest_digest": "sha256:fa1b4291fb4bf321d8bc6f41b7d6205d484b24599f39c1c694882253703f1bc8",
+  "inputs": {
+    "runtime.oci.tar": "verified-member-of-sha256:b1ded43bd6da4fd94a7ed400e0add96f3f012469b45899ca54bd3ee20a8d109c",
+    "standalone.zip": "f36db9e5da8b74f2b427f9ca5a2982ed2f54cc97490c361ddec3d611e40d2223",
+    "digiforge.zip": "e12c923d6e8342570506a4f20ff3b4ba4b6f67e39bbee7e313c9e87aad1e8aa0",
+    "shipping.zip": "c36cfd01f5de69ce36e0024c97c4109bee972a6be3a27e89bc762383aad02157",
+    "wordpress.zip": "cd44160a3fcce179fe170331132fcfc05e84e2f9284e2aad38df2aea6edaeab1"
+  },
+  "control_sha256": {
+    ".github/workflows/digiforge-sealed-coexistence.yml": "b353519c00b326cdd4a1e11a281a466b58c61022a8a3cd010e65dc1c9507a9d5",
+    "qualification/digiforge-standalone/acquire.sh": "abfed4cee2756d516b21ebef1a262f76c2a1bd2e3190dfa75ce60aabf0f842de",
+    "qualification/digiforge-standalone/browser-adapter.php": "dcdd5946558c5071a190d0ef0839b3cac762cb626b6a24620fad650971413d99",
+    "qualification/digiforge-standalone/browser.cjs": "5aa6e15e76a1d8f704a2330abbb7343bef2b62d1707ba947f48e59e867d2f909",
+    "qualification/digiforge-standalone/gateway/FixtureReadGateway.php": "d68b917a339178250dba4a99937f354b885943169494d983ec7397fa5d29e147",
+    "qualification/digiforge-standalone/lifecycle.php": "3783b4ee035ece038c8c9b8d872a31ab09ad3c02ee073c31829313ebd5bb7d8f",
+    "qualification/digiforge-standalone/oci-convert.py": "209b24eb8a3823fa74be2e1d06ccb2c5f154958879ca0e5a2bec0099d28e58db",
+    "qualification/digiforge-standalone/qualify-inside.sh": "a69d20e73f8a01c4baff26986ad52ec6f13f8b1f7fddad8016227845b223623b",
+    "qualification/digiforge-standalone/supervisor.sh": "24791511a63172575734c15310b0942619bb8883ceb0ac6225a9e3315dcf0318",
+    "qualification/digiforge-standalone/tests/direct-secret.php": "d376c1dab8b0f44656adf6cde61a4699eafb50ee1307c18395d3626d6986a253",
+    "qualification/digiforge-standalone/tests/protected-get-wordpress.php": "d93ae2f3ac71bf6fff9c06996e7bb2b2da44dd76d390ac4a5618d91b8274ffc7",
+    "qualification/digiforge-standalone/tests/protected-get-worker.php": "0c63ee4a1b04704badfbac8ffe061f7ac5f42dabaaf42ddeac3e6eb98f94d793",
+    "qualification/digiforge-standalone/workload.sh": "6f16a17ac06fd09982b75e658691b120f76183e3f55797dfcd6dfb32cc5a7a83"
+  },
+  "standalone_source_sha": "172f5b7339a3d48c6513bc1aaa80bd377a539bd0"
+}
