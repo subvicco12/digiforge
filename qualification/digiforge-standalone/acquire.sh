@@ -17,7 +17,7 @@ if ! printf 'url = "%s"\n' "$COEX_INPUTS_URL" |
   exit 1
 fi
 unset COEX_INPUTS_URL
-echo "928643e25f69d9e927f623e8e662130186f2308810fa818847f999a9de75c344  $incoming/inputs.zip" | sha256sum -c -
+echo "f8dd943a787fe1d9d5f285651686d0a96486815ca7bc999ebd374e1c07eb38c2  $incoming/inputs.zip" | sha256sum -c -
 id=15041584844
 gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$incoming/current.json"
 workflow=$(jq -er .workflow_id "$incoming/current.json")

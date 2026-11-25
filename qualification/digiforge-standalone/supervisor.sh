@@ -26,7 +26,7 @@ assert m['versions']['mariadb']=='11.8.9'
 assert all(re.fullmatch(r'[0-9]+(?:[.][0-9]+){1,4}',m['versions'][x]) for x in ('chromium',))
 assert re.fullmatch(r'sha256:[a-f0-9]{64}',m['image_id'])
 assert re.fullmatch(r'sha256:[a-f0-9]{64}',m['oci_manifest_digest'])
-assert m['inputs']['standalone.zip']=='f36db9e5da8b74f2b427f9ca5a2982ed2f54cc97490c361ddec3d611e40d2223'
+assert m['inputs']['standalone.zip']=='5c40d53bc06e09147757191d22e88304c8bbb8c94fd536dbc9b4c4de9ddec22c'
 assert m['inputs']['digiforge.zip']=='e12c923d6e8342570506a4f20ff3b4ba4b6f67e39bbee7e313c9e87aad1e8aa0'
 assert m['inputs']['wordpress.zip']=='cd44160a3fcce179fe170331132fcfc05e84e2f9284e2aad38df2aea6edaeab1'
 assert m['inputs']['shipping.zip']=='c36cfd01f5de69ce36e0024c97c4109bee972a6be3a27e89bc762383aad02157'
