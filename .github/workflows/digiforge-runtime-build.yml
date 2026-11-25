@@ -1,0 +1,41 @@
+name: DigiForge runtime build
+on:
+  workflow_dispatch:
+    inputs:
+      expected_head:
+        description: Locked runtime execution commit
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: digiforge-runtime-build
+  cancel-in-progress: false
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Enforce first attempt and protected source
+        env:
+          EXPECTED_HEAD: ${{ inputs.expected_head }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_RUN_ATTEMPT" == 1 ]]
+          [[ "$GITHUB_ACTOR" == subvicco12 && "$GITHUB_TRIGGERING_ACTOR" == subvicco12 ]]
+          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-runtime-build && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$EXPECTED_HEAD" =~ ^[a-f0-9]{40}$ && "$EXPECTED_HEAD" == "$GITHUB_SHA" ]]
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: qualification/digiforge-runtime
+      - name: Build one pinned runtime and record receipts
+        run: bash qualification/digiforge-runtime/build.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: digiforge-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/digiforge-runtime-output/
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
