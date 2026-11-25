@@ -1,19 +1,48 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+daemon=$(type -P mariadbd) || { echo 'MariaDB daemon missing from image system PATH' >&2; exit 127; }
+[[ -x "$daemon" ]] || { echo 'MariaDB daemon is not executable by fixture UID' >&2; exit 126; }
+"$daemon" --version > /evidence/mariadb-daemon-version.txt
+grep -Fq '11.8.9' /evidence/mariadb-daemon-version.txt
+printf '%s\n' "$daemon" > /evidence/mariadb-daemon-path.txt
 d=$(mktemp -d /tmp/df-printify-coex-XXXXXXXX)
 export DF_PRINTIFY_WP_FIXTURE_ROOT=$d/wordpress DF_PRINTIFY_WP_FIXTURE_SOCKET=$d/mysql.sock
 mkdir "$d/db"
 mariadb-install-db --no-defaults --datadir="$d/db" --auth-root-authentication-method=normal --skip-test-db > /evidence/mariadb-init.txt
-mariadbd --no-defaults --datadir="$d/db" --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" --pid-file="$d/mariadb.pid" --skip-networking --log-error="$d/mariadb.log" &
-db=$!
+db=
 web=
-trap 'if [[ -n "$web" ]]; then kill "$web" 2>/dev/null || true; fi; kill "$db" 2>/dev/null || true; wait || true' EXIT
+save_startup_log() {
+  if [[ -f "$d/mariadb.log" ]]; then
+    tail -n 100 "$d/mariadb.log" | sed -E "s|$d|[fixture-runtime]|g; s/[[:cntrl:]]//g" > /evidence/mariadb-startup.log
+  fi
+}
+cleanup() {
+  if [[ -n "$web" ]]; then kill "$web" 2>/dev/null || true; fi
+  if [[ -n "$db" ]]; then kill "$db" 2>/dev/null || true; fi
+  wait || true
+  if [[ ! -e /evidence/mariadb-startup.log ]]; then save_startup_log; fi
+}
+trap cleanup EXIT
+"$daemon" --no-defaults --datadir="$d/db" --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" --pid-file="$d/mariadb.pid" --skip-networking --log-error="$d/mariadb.log" &
+db=$!
+ready=0
 for n in {1..30}; do
-  if mariadb --no-defaults --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" -uroot -e 'CREATE DATABASE printify_fixture'; then break; fi
+  if ! kill -0 "$db" 2>/dev/null; then
+    echo 'MariaDB exited before its fixture socket became ready' >&2
+    exit 1
+  fi
+  if [[ -S "$DF_PRINTIFY_WP_FIXTURE_SOCKET" ]] &&
+     mariadb --no-defaults --protocol=SOCKET --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" -uroot -e 'CREATE DATABASE printify_fixture'; then
+    ready=1
+    break
+  fi
   sleep 1
 done
-mariadb --no-defaults --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" -uroot printify_fixture -N -e 'SELECT @@skip_networking' | grep -qx 1
+[[ "$ready" == 1 ]] || { echo 'MariaDB fixture socket readiness timed out' >&2; exit 1; }
+mariadb --no-defaults --protocol=SOCKET --socket="$DF_PRINTIFY_WP_FIXTURE_SOCKET" -uroot printify_fixture -N -e 'SELECT @@skip_networking' | grep -qx 1
+save_startup_log
 ss -ltn > /evidence/socket-listeners.txt
 if grep -Eq '[:.]3306[[:space:]]' /evidence/socket-listeners.txt; then exit 1; fi
 unzip -q /fixture/wordpress.zip -d "$d"
