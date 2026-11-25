@@ -5,7 +5,7 @@ context=$(mktemp -d "$RUNNER_TEMP/runtime-context.XXXXXXXX")
 out="$RUNNER_TEMP/digiforge-runtime-output"
 mkdir "$out"
 cp qualification/digiforge-runtime/Dockerfile "$context/"
-echo "cbd3f778f6182f7cbf9e33ab5d7799fca888613509a3eb35fdcb6d34bdd3916b  $context/Dockerfile" | sha256sum -c -
+echo "a3c66e6638bbdb8ead6278fdb508612c226884879d93cea40032fd5f2e0e549f  $context/Dockerfile" | sha256sum -c -
 curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --max-time 180 https://codeload.github.com/php/php-src/tar.gz/refs/tags/php-8.3.37 -o "$context/php-src.tar.gz"
 echo "2d08c1e67defb2f5f2db6c9c2c07642002dbdb6c3b0e24cf0552940f32cb3cf7  $context/php-src.tar.gz" | sha256sum -c -
 docker version > "$out/docker.txt"
