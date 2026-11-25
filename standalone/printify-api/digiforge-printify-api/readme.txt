@@ -20,8 +20,8 @@ open Printify API and select Run synthetic journey.
 
 Each run creates a fresh in-memory shop, product and order. Fixture status,
 quotes and tracking demonstrate the flow and carry no provider confirmation.
-The tool holds no credentials and has no provider transport, job scheduler
-or operational authority.
+This synthetic journey holds no credentials and uses no provider transport.
+It creates no scheduler or operational authority.
 
 == Disposable workspace ==
 The local operator workspace also requires DIGIFORGE_PRINTIFY_DISPOSABLE_STORE
@@ -40,11 +40,11 @@ webhook actions. Use Advanced JSON for compound requests. Artwork accepts
 a bounded fixture PNG. The in-process fixture webhook adapter covers
 order:created, order:updated, product:created and product:updated.
 
-= Direct manual read profile (offline qualification) =
+= Direct manual read profile =
 
 The Standalone ZIP does not require Cloudflare, a replacement Core, the
 Companion, or DigiForge AI. The approved Blueprint v1.2 direct profile is
-being qualified with disposable WordPress and intercepted synthetic GETs.
+held by default. Offline qualification uses intercepted synthetic GETs.
 
 On a separately approved disposable installation, use Tools → Printify API
 and configure local account, shop, integration and opaque custody reference
@@ -53,8 +53,8 @@ digiforge_printify_review_shop_<id> capability. The disposable harness
 supplies the exact approved scope, synthetic credential and isolated fixture
 Production credential enrollment and outbound traffic require separate authorization.
 
-A separately authorized production read pilot must first qualify the exact
-server-side secret source, a least-privilege read-only Printify token, and
+A separately authorized production read pilot must first qualify the
+server-side secret source on the target host, a least-privilege read-only Printify token, and
 shop/operation scope. Keep the token out of WordPress options, UI, exports
 and ZIPs. A WordPress or host compromise can expose a runtime-readable PAT.
 Do not copy the synthetic harness or its hooks to a production site.

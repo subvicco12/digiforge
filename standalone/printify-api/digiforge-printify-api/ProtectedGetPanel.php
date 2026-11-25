@@ -12,7 +12,7 @@ require_once __DIR__.'/ProtectedGetWorkspace.php';
 require_once __DIR__.'/DirectGet.php';
 require_once __DIR__.'/DirectReadSecret.php';
 
-/** Manual scoped request preparation. There is no WordPress-to-gateway exchange. */
+/** Manual scoped GET preparation and refresh. */
 final class ProtectedGetPanel
 {
     private const ACTION = 'df_printify_protected_get_v1';
@@ -91,7 +91,9 @@ final class ProtectedGetPanel
             $workspace = ProtectedGetWorkspace::snapshot($direct);
         }
         echo '<form method="post"><input type="hidden" name="'.self::ACTION.'" value="1">';
-        \wp_nonce_field(self::ACTION, 'df_printify_get_nonce');
+        foreach (array_keys(self::FIELDS) as $operation) {
+            \wp_nonce_field(self::ACTION.':'.$operation, 'df_printify_get_nonce['.$operation.']', false);
+        }
         echo '<input type="hidden" name="df_printify_get_revision" value="'.\esc_attr($revision).'">';
         if ($workspace !== null) {
             echo '<input type="hidden" name="df_printify_get_workspace" value="'.\esc_attr($workspace['revision']).'">';
@@ -110,8 +112,12 @@ final class ProtectedGetPanel
     public static function prepare(array $post): array
     {
         $denied = ProtectedGet::denied();
-        $nonce = $post['df_printify_get_nonce'] ?? null;
-        if (!\current_user_can('manage_options') || !is_string($nonce) || !\wp_verify_nonce($nonce, self::ACTION)) {
+        $operation = $post['df_printify_get_operation'] ?? null;
+        $nonces = $post['df_printify_get_nonce'] ?? null;
+        if (!\current_user_can('manage_options') || !is_string($operation) || !isset(self::FIELDS[$operation])
+            || !is_array($nonces) || count($nonces) > count(self::FIELDS)
+            || !is_string($nonces[$operation] ?? null)
+            || !\wp_verify_nonce($nonces[$operation], self::ACTION.':'.$operation)) {
             return ['reason'=>'OPERATOR_DENIED'] + $denied;
         }
         $profile = AccountProfile::current();
@@ -121,9 +127,8 @@ final class ProtectedGetPanel
             || $revision !== ($post['df_printify_get_revision'] ?? null)) {
             return ['reason'=>'SCOPE_OR_REVISION_UNAVAILABLE'] + $denied;
         }
-        $operation = $post['df_printify_get_operation'] ?? null;
         $fields = $post['df_printify_get'] ?? null;
-        if (!is_string($operation) || !isset(self::FIELDS[$operation]) || !is_array($fields) || count($fields) > 8) {
+        if (!is_array($fields) || count($fields) > 8) {
             return ['reason'=>'INVALID_SELECTION'] + $denied;
         }
         $selection = [];

@@ -76,7 +76,7 @@ if ($phase === 'write') {
         if (proc_close($process)!==0) { throw new RuntimeException('Worker failed: '.$stderr); }
         return json_decode($output,true,24,JSON_THROW_ON_ERROR);
     };
-    $form = ['df_printify_get_nonce'=>wp_create_nonce('df_printify_protected_get_v1'),
+    $form = ['df_printify_get_nonce'=>['SHOPS_READ'=>wp_create_nonce('df_printify_protected_get_v1:SHOPS_READ')],
         'df_printify_get_revision'=>AccountProfile::revisionToken(),'df_printify_get_workspace'=>ProtectedGetWorkspace::snapshot($direct)['revision'],
         'df_printify_get_operation'=>'SHOPS_READ','df_printify_get'=>[]];
     $response = ProtectedGetPanel::prepare($form);
@@ -126,9 +126,19 @@ if ($phase === 'write') {
         $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot($direct)['revision'];
         $form['df_printify_get_operation'] = $operation;
         $form['df_printify_get'] = $selection;
+        $denied = $form;
+        $denied['df_printify_get_nonce'] = [$operation=>wp_create_nonce('df_printify_protected_get_v1:SHOPS_READ')];
+        verify(ProtectedGetPanel::prepare($denied)['reason']==='OPERATOR_DENIED',$operation.': accepted another operation nonce');
+        verify(ProtectedGetWorkspace::snapshot($direct)['revision']===$form['df_printify_get_workspace'],
+            $operation.': denied nonce changed workspace');
+        $form['df_printify_get_nonce'] = [$operation=>wp_create_nonce('df_printify_protected_get_v1:'.$operation)];
         $response = ProtectedGetPanel::prepare($form);
         verify($response['state']==='OBSERVED',$operation.': '.$response['reason']);
     }
+    $legacy = $form;
+    $legacy['df_printify_get_nonce'] = ['ORDER_READ'=>wp_create_nonce('df_printify_protected_get_v1')];
+    verify(ProtectedGetPanel::prepare($legacy)['reason']==='OPERATOR_DENIED','Legacy shared nonce was accepted');
+    echo "Nine cross-operation nonce substitutions and the legacy shared nonce denied.\n";
     if ($direct) {
         verify($calls===10,'Unexpected direct call count');
         $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot(true)['revision'];
@@ -147,7 +157,7 @@ if ($phase === 'write') {
     $oldToken = wp_get_session_token();
     $session = $manager->get($oldToken);
     $manager->destroy($oldToken);
-    $form['df_printify_get_nonce'] = wp_create_nonce('df_printify_protected_get_v1');
+    $form['df_printify_get_nonce'] = ['ORDER_READ'=>wp_create_nonce('df_printify_protected_get_v1:ORDER_READ')];
     verify(ProtectedGetPanel::prepare($form)['state']==='BLOCKED','Destroyed session was admitted');
     $manager->update($oldToken,$session);
     echo $direct
