@@ -23,7 +23,6 @@ jobs:
     env:
       SEALED_APPROVAL: ${{ inputs.approval_sha256 }}
       SEALED_HEAD: ${{ inputs.expected_head }}
-      SEALED_INPUT_DIR: ${{ runner.temp }}/digiforge-coex-staged
     steps:
       - name: Enforce protected exact-head first attempt
         shell: bash
@@ -37,6 +36,12 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Initialize sealed input directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${RUNNER_TEMP:?}" "${GITHUB_ENV:?}"
+          printf 'SEALED_INPUT_DIR=%s/digiforge-coex-staged\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Acquire exact retained inputs
         env:
           GH_TOKEN: ${{ github.token }}
