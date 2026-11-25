@@ -93,12 +93,14 @@ final class ProtectedGet
             return match ($operation) {
                 'BLUEPRINTS_READ','BLUEPRINT_PROVIDERS_READ' => array_map($summary, $catalog),
                 'BLUEPRINT_READ','BLUEPRINT_PROVIDER_READ' => $summary($catalog),
-                'VARIANTS_READ' => ['blueprint_id'=>$selection['blueprint_id'],
+                'VARIANTS_READ' => ['blueprint_id'=>$selection['blueprint_id'],'provider_id'=>$selection['provider_id'],
                     'variants'=>array_map(self::variant(...), $catalog['variants'])],
-                'VARIANT_READ' => self::variant($catalog) + ['print_areas'=>PrintifyCatalogReadContract::variantAreas($catalog)],
+                'VARIANT_READ' => self::variant($catalog) + ['blueprint_id'=>$selection['blueprint_id'],
+                    'provider_id'=>$selection['provider_id'],'print_areas'=>PrintifyCatalogReadContract::variantAreas($catalog)],
                 'CATALOG_SHIPPING_READ' => ['methods'=>array_map(
                     static fn(array $row): string => $row['attributes']['name'], $catalog['data']), 'address_quote'=>false],
-                'CATALOG_SHIPPING_METHOD_READ' => ['rates'=>array_map(
+                'CATALOG_SHIPPING_METHOD_READ' => ['blueprint_id'=>$selection['blueprint_id'],
+                    'provider_id'=>$selection['provider_id'],'rates'=>array_map(
                     static fn(array $row): array => [
                         'variant_id'=>$row['attributes']['variantId'],
                         'method'=>$row['attributes']['shippingType'],
@@ -122,11 +124,43 @@ final class ProtectedGet
             }
         }
         $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
+        if ($operation === 'PRODUCT_READ') {
+            self::attachArtworkMetadata($projection, $data);
+        }
         if (($projection['next_page']['page'] ?? 0) > self::MAX_PAGE) {
             $projection['next_page'] = null;
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    /**
+     * Match the source placements by the same indexes preserved by the validated product projection.
+     * Artwork references are the existing image IDs. Source URLs can carry private download grants.
+     */
+    private static function attachArtworkMetadata(array &$product, array $source): void
+    {
+        foreach ($product['print_areas'] as $areaIndex => &$area) {
+            foreach ($area['placeholders'] as $positionIndex => &$position) {
+                foreach ($position['images'] as $imageIndex => &$image) {
+                    $raw = $source['print_areas'][$areaIndex]['placeholders'][$positionIndex]['images'][$imageIndex];
+                    $name = $raw['name'] ?? null;
+                    $type = $raw['type'] ?? null;
+                    $image['metadata'] = [
+                        'name'=>is_string($name) && trim($name) !== '' && strlen($name) <= 240
+                            && !preg_match('~[<>/\x00-\x1f\x7f]|[\\\\:]~', $name) ? $name : null,
+                        'type'=>is_string($type) && preg_match('~^image/[a-zA-Z0-9][a-zA-Z0-9.+-]{0,59}$~D', $type) ? $type : null,
+                    ];
+                    foreach (['width', 'height'] as $dimension) {
+                        $value = $raw[$dimension] ?? null;
+                        $image['metadata'][$dimension] = is_int($value) && $value > 0 && $value <= 2147483647
+                            ? $value : null;
+                    }
+                }
+                unset($image);
+            }
+            unset($position);
+        }
     }
 
     private static function variant(array $row): array

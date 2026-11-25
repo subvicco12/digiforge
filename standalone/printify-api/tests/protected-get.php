@@ -228,3 +228,29 @@ foreach ([['red'], ['size'=>9], ['size'=>'<bad>'], ['size'=>''], ['a'=>'1','b'=>
     }
 }
 echo "Variant list/detail source options: positive, unknown and malformed cases passed.\n";
+
+$productIntent = ProtectedGet::request($scope,'PRODUCT_READ',
+    ['product_id'=>'product-1','blueprint_id'=>42,'provider_id'=>7,'variant_ids'=>[9]]);
+$product['print_areas'] = [['variant_ids'=>[9],'placeholders'=>[['position'=>'front','images'=>[
+    ['id'=>'asset-1','name'=>'Fixture front.png','type'=>'image/png','width'=>1200,'height'=>900,
+        'x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0,'src'=>'https://private.example.invalid/secret'],
+    ['id'=>'asset-2','name'=>'https://private.example.invalid/secret','type'=>'text/html','width'=>'1200','height'=>-1,
+        'x'=>0.25,'y'=>0.25,'scale'=>0.5,'angle'=>15],
+]]]]];
+$product['images'] = [['src'=>'https://images.printify.com/mockup/fixture.jpg','variant_ids'=>[9],'position'=>'front']];
+$art = ProtectedGet::project($productIntent,json_encode($product,JSON_THROW_ON_ERROR));
+$place = $art['print_areas'][0]['placeholders'][0];
+check($art['blueprint_id']===42 && $art['print_provider_id']===7
+    && $art['print_areas'][0]['variant_ids']===[9] && $place['position']==='front', 'Lost product placement binding');
+check($place['images'][0]['id']==='asset-1' && $place['images'][0]['x']===0.5
+    && $place['images'][0]['metadata']===['name'=>'Fixture front.png','type'=>'image/png','width'=>1200,'height'=>900],
+    'Lost metadata or assigned it to the wrong placement');
+check($place['images'][1]['metadata']===['name'=>null,'type'=>null,'width'=>null,'height'=>null]
+    && $art['images'][0]['variant_ids']===[9] && !str_contains(json_encode($art),'private.example.invalid'),
+    'Unsafe metadata or artwork URL leaked');
+$product['print_provider_id'] = 8;
+try {
+    ProtectedGet::project($productIntent,json_encode($product,JSON_THROW_ON_ERROR));
+    throw new RuntimeException('Product provider mismatch was accepted');
+} catch (InvalidArgumentException) {}
+echo "Scoped artwork metadata, placement, absent/invalid values, private URL omission and provider binding passed.\n";
