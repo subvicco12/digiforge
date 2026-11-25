@@ -254,3 +254,50 @@ try {
     throw new RuntimeException('Product provider mismatch was accepted');
 } catch (InvalidArgumentException) {}
 echo "Scoped artwork metadata, placement, absent/invalid values, private URL omission and provider binding passed.\n";
+
+$sku = '19779789605456636343';
+$skuIntent = ProtectedGet::request($scope,'PRODUCT_SKU_READ',
+    ['product_id'=>'product-1','blueprint_id'=>42,'provider_id'=>7,'sku'=>$sku]);
+check($skuIntent['method']==='GET' && $skuIntent['path']==='/v1/shops/107/products/product-1.json','SKU route widened');
+$product['print_provider_id']=7;
+$product['variants'][0]['sku']=$sku;
+$product['variants'][]=['id'=>10,'sku'=>'other-sku','price'=>900,'is_enabled'=>true];
+$skuResult=ProtectedGet::project($skuIntent,json_encode($product,JSON_THROW_ON_ERROR));
+check($skuResult['sku']===$sku && $skuResult['variant_id']===9
+    && $skuResult['print_areas'][0]['variant_ids']===[9]
+    && !str_contains(json_encode($skuResult),'other-sku'),'Exact SKU resolution or projection failed');
+foreach ([
+    ['variants'=>[['id'=>9,'sku'=>$sku,'price'=>1000,'is_enabled'=>false]]],
+    ['variants'=>[['id'=>9,'sku'=>19,'price'=>1000,'is_enabled'=>true]]],
+    ['variants'=>[$product['variants'][0],['id'=>10,'sku'=>$sku,'price'=>900,'is_enabled'=>true]]],
+    ['shop_id'=>108], ['print_provider_id'=>8], ['id'=>'another-product'],
+] as $bad) {
+    try {
+        ProtectedGet::project($skuIntent,json_encode($bad+$product,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Unsafe SKU evidence accepted');
+    } catch (InvalidArgumentException) {}
+}
+$guide = ProtectedGet::request($scope,'BLUEPRINT_SIZE_GUIDE_READ',['blueprint_id'=>42]);
+check($guide['path']==='/v1/catalog/blueprints/42/size_guide.json','Wrong size guide route');
+$guideBody=['sizes'=>['XS'],'types'=>[['name'=>'Width','units'=>'cm','ranges'=>[['from'=>'40','to'=>'41']]]]];
+check(ProtectedGet::project($guide,json_encode($guideBody,JSON_THROW_ON_ERROR))===['blueprint_id'=>42]+$guideBody,
+    'Source size guide units were changed');
+try {
+    ProtectedGet::project($guide,'{"sizes":["XS"],"types":[{"name":"Width","units":"cm","ranges":[]}]}');
+    throw new RuntimeException('Misaligned size guide passed');
+} catch (InvalidArgumentException) {}
+$variant['placeholders'][0]['decoration_method']='dtf';
+$decoration=ProtectedGet::project($variantDetail,$wire($variant))['print_areas'][0];
+check($decoration['decoration_method']==='dtf' && $decoration['width']===1200
+    && $decoration['bleed']===null && $decoration['safe_zone']===null,'Decoration or UNKNOWN geometry drifted');
+unset($variant['placeholders'][0]['decoration_method']);
+check(ProtectedGet::project($variantDetail,$wire($variant))['print_areas'][0]['decoration_method']===null,
+    'Absent decoration became known');
+
+$provider = ProtectedGet::request($scope,'BLUEPRINT_PROVIDER_READ',['blueprint_id'=>42,'provider_id'=>7]);
+$providerBody=['id'=>7,'title'=>'Fixture provider','decoration_methods'=>['dtf'],'production_time'=>null];
+$providerResult=ProtectedGet::project($provider,json_encode($providerBody,JSON_THROW_ON_ERROR));
+check($providerResult['id']===7 && $providerResult['blueprint_id']===42
+    && $providerResult['decoration_methods']===['dtf'] && $providerResult['production_time']===null,
+    'Provider and blueprint binding missing');
+echo "Exact SKU, ambiguity and scope denial, decoration, size guide and provider detail passed.\n";

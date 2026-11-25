@@ -17,12 +17,13 @@ final class ProtectedGetPanel
 {
     private const ACTION = 'df_printify_protected_get_v1';
     private const FIELDS = [
-        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'],
-        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
+        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
+        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
         'VARIANTS_READ'=>['blueprint_id','provider_id'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id'],
         'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
         'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
     ];
 
@@ -102,8 +103,8 @@ final class ProtectedGetPanel
         foreach (self::FIELDS as $operation => $fields) {
             echo '<option value="'.\esc_attr($operation).'">'.\esc_html($operation).'</option>';
         }
-        echo '</select></label><p>Fill only the fields needed by the operation. Product detail needs the catalog selection and comma-separated variant IDs.</p>';
-        foreach (['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','order_id'] as $field) {
+        echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU.</p>';
+        foreach (['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','order_id'] as $field) {
             echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
         }
         echo '<button class="button button-primary" style="min-height:44px" type="submit">'.($workspace === null ? 'Prepare GET' : ($synthetic ? 'Refresh synthetic observation' : 'Refresh Printify read')).'</button></form></section>';
@@ -128,7 +129,7 @@ final class ProtectedGetPanel
             return ['reason'=>'SCOPE_OR_REVISION_UNAVAILABLE'] + $denied;
         }
         $fields = $post['df_printify_get'] ?? null;
-        if (!is_array($fields) || count($fields) > 8) {
+        if (!is_array($fields) || count($fields) > 9) {
             return ['reason'=>'INVALID_SELECTION'] + $denied;
         }
         $selection = [];

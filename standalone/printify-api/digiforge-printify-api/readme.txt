@@ -43,14 +43,14 @@ order:created, order:updated, product:created and product:updated.
 = Direct manual read profile =
 
 The Standalone ZIP does not require Cloudflare, a replacement Core, the
-Companion, or DigiForge AI. The approved Blueprint v1.2 direct profile is
+Companion, or DigiForge AI. The Blueprint v1.3 direct read profile is
 held by default. Offline qualification uses intercepted synthetic GETs.
 
 On a separately approved disposable installation, use Tools → Printify API
 and configure local account, shop, integration and opaque custody reference
 metadata. The assigned operator needs manage_options and the corresponding
 digiforge_printify_review_shop_<id> capability. The disposable harness
-supplies the exact approved scope, synthetic credential and isolated fixture
+supplies the exact approved scope, synthetic credential and isolated fixture responses.
 Production credential enrollment and outbound traffic require separate authorization.
 
 A separately authorized production read pilot must first qualify the
@@ -63,11 +63,11 @@ For an authorized install, verify the ZIP hash and take approved matching
 files/database recovery points. Upload only this ZIP as a new plugin and
 stop on any replacement prompt. Activate after independent coexistence
 qualification. With production held, the panel may show offline metadata
-and diagnostics only. Verify unchanged incumbent plugins and checkout.
+and diagnostics only. Verify unchanged incumbent plugin states and files.
 For rollback, deactivate Standalone and preserve existing scoped audit
 evidence. Do not overwrite DigiForge or the Shipping Method plugin.
 
-= Server-side configuration (Blueprint v1.2) =
+= Server-side configuration (Blueprint v1.3) =
 
 For separately authorized direct reads, the hosting account operator creates
 a private, regular JSON file outside both the web document root and WordPress
@@ -94,3 +94,19 @@ new private file and atomically renaming it over the approved path. To revoke,
 reassert the holds or remove the file and revoke the PAT at the provider under
 a separately authorized procedure. The plugin re-reads configuration before
 dispatch and after the response. An already-issued GET cannot be recalled.
+
+= Catalog and product review =
+
+Use Blueprint Size Guide Read for documented measurements and units. Size
+guides describe the product, while print placeholders describe artwork areas.
+Neither establishes bleed, safe zones, DPI or physical production tolerances.
+Use Blueprint Provider Read for decoration methods and any stated production
+time. Variant detail shows the decoration method only when the source
+placeholder supplies it.
+
+Product SKU Read resolves an exact literal SKU within the selected shop,
+product, blueprint and provider. It returns one enabled variant and its
+product-linked print placements. Absent, disabled, ambiguous and mismatched
+evidence denies. SKU values are strings, including numeric-looking ones.
+Catalog rates describe a method, variant, currency and reported destination.
+They do not establish address-specific shipping or fulfillment commitments.

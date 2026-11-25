@@ -26,7 +26,7 @@ final class ProtectedGet
 
     private const CATALOG = [
         'BLUEPRINTS_READ'=>'blueprints','BLUEPRINT_READ'=>'blueprint','BLUEPRINT_PROVIDERS_READ'=>'providers',
-        'BLUEPRINT_PROVIDER_READ'=>'provider','VARIANTS_READ'=>'variants','VARIANT_READ'=>'variant',
+        'BLUEPRINT_SIZE_GUIDE_READ'=>'size_guide','BLUEPRINT_PROVIDER_READ'=>'provider','VARIANTS_READ'=>'variants','VARIANT_READ'=>'variant',
         'CATALOG_SHIPPING_READ'=>'shipping','CATALOG_SHIPPING_METHOD_READ'=>'shipping_method',
     ];
     private const RECORDS = [
@@ -54,6 +54,18 @@ final class ProtectedGet
                 throw new \InvalidArgumentException('Catalog kind is selected by operation.');
             }
             $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + $selection);
+        } elseif ($operation === 'PRODUCT_SKU_READ') {
+            if (count($selection) !== 4 || array_diff(['product_id','blueprint_id','provider_id','sku'], array_keys($selection))) {
+                throw new \InvalidArgumentException('Exact product and SKU selection required.');
+            }
+            self::requirePattern($selection['product_id'], '/^[A-Za-z0-9_-]{1,160}$/D');
+            self::requirePattern($selection['sku'], '/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/D');
+            foreach (['blueprint_id','provider_id'] as $key) {
+                if (!is_int($selection[$key]) || $selection[$key]<1 || $selection[$key]>2147483647) {
+                    throw new \InvalidArgumentException('Invalid catalog selection.');
+                }
+            }
+            $path = '/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'.json';
         } elseif (in_array($operation, self::RECORDS, true)) {
             if (in_array($operation, ['PRODUCTS_READ','ORDERS_READ'], true)) {
                 $selection += ['page'=>1,'limit'=>10];
@@ -92,12 +104,16 @@ final class ProtectedGet
             $summary = static fn(array $row): array => ['id'=>$row['id'],'title'=>$row['title'] ?? null];
             return match ($operation) {
                 'BLUEPRINTS_READ','BLUEPRINT_PROVIDERS_READ' => array_map($summary, $catalog),
-                'BLUEPRINT_READ','BLUEPRINT_PROVIDER_READ' => $summary($catalog),
+                'BLUEPRINT_READ' => $summary($catalog),
+                'BLUEPRINT_PROVIDER_READ' => $summary($catalog) + ['blueprint_id'=>$selection['blueprint_id'],
+                    'decoration_methods'=>$catalog['decoration_methods'],'production_time'=>$catalog['production_time']],
+                'BLUEPRINT_SIZE_GUIDE_READ' => ['blueprint_id'=>$selection['blueprint_id']] + $catalog,
                 'VARIANTS_READ' => ['blueprint_id'=>$selection['blueprint_id'],'provider_id'=>$selection['provider_id'],
                     'variants'=>array_map(self::variant(...), $catalog['variants'])],
                 'VARIANT_READ' => self::variant($catalog) + ['blueprint_id'=>$selection['blueprint_id'],
-                    'provider_id'=>$selection['provider_id'],'print_areas'=>PrintifyCatalogReadContract::variantAreas($catalog)],
-                'CATALOG_SHIPPING_READ' => ['methods'=>array_map(
+                    'provider_id'=>$selection['provider_id'],'print_areas'=>self::variantAreas($catalog)],
+                'CATALOG_SHIPPING_READ' => ['blueprint_id'=>$selection['blueprint_id'],
+                    'provider_id'=>$selection['provider_id'],'methods'=>array_map(
                     static fn(array $row): string => $row['attributes']['name'], $catalog['data']), 'address_quote'=>false],
                 'CATALOG_SHIPPING_METHOD_READ' => ['blueprint_id'=>$selection['blueprint_id'],
                     'provider_id'=>$selection['provider_id'],'rates'=>array_map(
@@ -123,6 +139,9 @@ final class ProtectedGet
                 }
             }
         }
+        if ($operation === 'PRODUCT_SKU_READ') {
+            return self::productSku($data,$shop,$selection);
+        }
         $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
         if ($operation === 'PRODUCT_READ') {
             self::attachArtworkMetadata($projection, $data);
@@ -132,6 +151,47 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    /** Resolve one enabled SKU within an already bound product, never across a shop. */
+    private static function productSku(array $data,string $shop,array $selection): array
+    {
+        $variants = $data['variants'] ?? null;
+        if (!is_array($variants) || !array_is_list($variants) || count($variants)>1000) {
+            throw new \InvalidArgumentException('Missing or unbounded product variants.');
+        }
+        $ids = array_column($variants,'id');
+        $product = PrintifyApiReadEvidence::project('PRODUCT_READ',$data,$shop,[
+            'product_id'=>$selection['product_id'],'blueprint_id'=>$selection['blueprint_id'],
+            'provider_id'=>$selection['provider_id'],'variant_ids'=>$ids,
+        ]);
+        $matches = array_values(array_filter($variants, static fn(array $variant): bool =>
+            ($variant['sku'] ?? null) === $selection['sku']));
+        if (count($matches)!==1 || $matches[0]['is_enabled']!==true) {
+            throw new \InvalidArgumentException('Exact enabled SKU absent or ambiguous.');
+        }
+        $id = $matches[0]['id'];
+        self::attachArtworkMetadata($product,$data);
+        $areas = array_values(array_filter($product['print_areas'],
+            static fn(array $area): bool => in_array($id,$area['variant_ids'],true)));
+        foreach ($areas as &$area) {
+            $area['variant_ids'] = [$id];
+        }
+        return ['id'=>$product['id'],'blueprint_id'=>$product['blueprint_id'],'print_provider_id'=>$product['print_provider_id'],
+            'sku'=>$selection['sku'],'variant_id'=>$id,'print_areas'=>$areas,
+            'supplier_certified'=>false];
+    }
+
+    private static function variantAreas(array $variant): ?array
+    {
+        $areas = PrintifyCatalogReadContract::variantAreas($variant);
+        if ($areas === null) return null;
+        foreach ($areas as $index=>&$area) {
+            $method = $variant['placeholders'][$index]['decoration_method'] ?? null;
+            $area['decoration_method'] = is_string($method) && preg_match('/^[a-z][a-z0-9_]{0,63}$/D',$method)
+                ? $method : null;
+        }
+        return $areas;
     }
 
     /**
