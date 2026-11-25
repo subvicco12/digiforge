@@ -1,0 +1,43 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+(async () => {
+    const origin = 'http://127.0.0.1:18276';
+    const admin = origin + '/wp-admin/tools.php?page=digiforge-printify-api';
+    const browser = await chromium.launch({ executablePath:'/usr/bin/chromium', args:['--no-sandbox'] });
+    try {
+        const page = await browser.newPage({ viewport:{width:390,height:844}, isMobile:true, hasTouch:true, userAgent:'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36' });
+        await page.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+        await page.goto(admin);
+        await page.locator('#user_login').fill('admin');
+        await page.locator('#user_pass').fill('local-fixture-only-123');
+        await page.locator('#wp-submit').click();
+        await page.goto(admin);
+        assert(await page.locator("[name=df_printify_get_operation]").evaluate(el => el.getBoundingClientRect().right <= 390));
+        await page.locator('[name=df_printify_get_operation]').selectOption('ORDER_READ');
+        await page.locator('[name="df_printify_get[order_id]"]').fill('order-1');
+        await page.getByRole('button', {name:'Refresh Printify read'}).click();
+        await page.getByText('DIRECT_READ_OBSERVED', {exact:true}).waitFor();
+        await page.locator('pre').filter({hasText:'tracking_hash'}).waitFor();
+        await page.goto(admin);
+        await page.locator('pre').filter({hasText:'partially-fulfilled'}).waitFor();
+        assert((await page.locator('body').innerText()).includes('fixture-tracking-1'));
+        assert(!(await page.locator('body').innerText()).includes('synthetic-operational-not-a-pat'));
+        const credentialFile = process.env.DF_COEX_CREDENTIAL_FILE;
+        assert(credentialFile && credentialFile.startsWith('/tmp/df-printify-coex-'));
+        const rotated = JSON.parse(fs.readFileSync(credentialFile,'utf8'));
+        rotated.token = 'synthetic-rotated-not-a-pat';
+        fs.writeFileSync(credentialFile+'.next',JSON.stringify(rotated),{mode:0o600,flag:'wx'});
+        fs.renameSync(credentialFile+'.next',credentialFile);
+        await page.locator('[name=df_printify_get_operation]').selectOption('ORDER_READ');
+        await page.locator('[name="df_printify_get[order_id]"]').fill('order-1');
+        await page.getByRole('button',{name:'Refresh Printify read'}).click();
+        await page.getByText('DIRECT_READ_OBSERVED',{exact:true}).waitFor();
+        assert(!(await page.locator('body').innerText()).includes(rotated.token));
+        fs.unlinkSync(credentialFile);
+        await page.goto(admin);
+        await page.getByText(/Connection: DIRECT_CONFIGURATION_UNAVAILABLE/).waitFor();
+        assert(!(await page.locator('body').innerText()).includes('fixture-tracking-1'));
+        console.log('Mobile protected order refresh, reopening, credential rotation and removal passed.');
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode=1; });

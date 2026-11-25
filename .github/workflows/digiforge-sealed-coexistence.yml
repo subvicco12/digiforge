@@ -1,0 +1,55 @@
+name: DigiForge sealed coexistence qualification
+on:
+  workflow_dispatch:
+    inputs:
+      expected_head:
+        description: Verified protected execution commit
+        required: true
+        type: string
+      approval_sha256:
+        description: Exact owner-approved qualification manifest SHA-256
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: digiforge-sealed-coexistence
+  cancel-in-progress: false
+jobs:
+  coexistence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SEALED_APPROVAL: ${{ inputs.approval_sha256 }}
+      SEALED_HEAD: ${{ inputs.expected_head }}
+      SEALED_INPUT_DIR: ${{ runner.temp }}/digiforge-coex-staged
+    steps:
+      - name: Enforce protected exact-head first attempt
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == subvicco12/digiforge && "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
+          [[ "$GITHUB_RUN_ATTEMPT" == 1 && "$GITHUB_ACTOR" == subvicco12 && "$GITHUB_TRIGGERING_ACTOR" == subvicco12 ]]
+          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-standalone-coexistence && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_SHA" == "$SEALED_HEAD" && "$SEALED_HEAD" =~ ^[0-9a-f]{40}$ && "$SEALED_APPROVAL" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Acquire exact retained inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COEX_INPUTS_URL: ${{ secrets.DIGIFORGE_COEX_INPUTS_URL }}
+        shell: bash
+        run: bash qualification/digiforge-standalone/acquire.sh
+      - name: Run sealed no-egress fixture
+        shell: bash
+        run: bash qualification/digiforge-standalone/supervisor.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: digiforge-coexistence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/digiforge-coex-evidence/
+          if-no-files-found: ignore
+          retention-days: 1
