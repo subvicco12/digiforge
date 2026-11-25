@@ -15,6 +15,7 @@ require_once __DIR__.'/DirectReadSecret.php';
 /** Manual scoped GET preparation and refresh. */
 final class ProtectedGetPanel
 {
+    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id'];
     private const ACTION = 'df_printify_protected_get_v1';
     private const FIELDS = [
         'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
@@ -23,6 +24,7 @@ final class ProtectedGetPanel
         'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
         'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
     ];
@@ -51,6 +53,16 @@ final class ProtectedGetPanel
         if (isset($post[self::ACTION])) {
             $result = self::prepare($post);
             echo '<p role="status">'.\esc_html($result['reason']).'</p>';
+            $advice = match ($result['reason']) {
+                'OPERATOR_DENIED','SCOPE_OR_REVISION_UNAVAILABLE' => 'Reopen the panel and verify the operator session and assigned shop.',
+                'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel to load the current observation before a new manual read.',
+                'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED' => 'Ask the approved custodian to verify the credential and its read scope.',
+                'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
+                'DIRECT_READ_UNAVAILABLE' => 'Check the selected IDs and connection status. Use Shops Read for a scoped manual diagnostic.',
+                'INVALID_SELECTION' => 'Check the fields required by the selected operation.',
+                default => null,
+            };
+            if ($advice !== null) echo '<p>'.\esc_html($advice).'</p>';
             if (isset($result['path'])) {
                 echo '<code>GET '.\esc_html($result['path']).'</code>';
             }
@@ -86,7 +98,16 @@ final class ProtectedGetPanel
                     $data = $record['last_success']['data'];
                 }
                 if ($data !== null) {
+                    self::renderOrder($receipt['operation'],$data);
                     echo '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
+                }
+                if (!empty($record['history'])) {
+                    echo '<details><summary>Recent read outcomes</summary><ol>';
+                    foreach (array_reverse($record['history']) as $event) {
+                        echo '<li>'.\esc_html(gmdate('c',$event['at']).' · '.$event['operation']
+                            .' · '.$event['state'].' · '.$event['reason']).'</li>';
+                    }
+                    echo '</ol></details>';
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
@@ -103,11 +124,27 @@ final class ProtectedGetPanel
         foreach (self::FIELDS as $operation => $fields) {
             echo '<option value="'.\esc_attr($operation).'">'.\esc_html($operation).'</option>';
         }
-        echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU.</p>';
-        foreach (['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','order_id'] as $field) {
+        echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU. Artwork lookup uses the product detail fields plus the linked image ID.</p>';
+        foreach (self::INPUT_FIELDS as $field) {
             echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
         }
         echo '<button class="button button-primary" style="min-height:44px" type="submit">'.($workspace === null ? 'Prepare GET' : ($synthetic ? 'Refresh synthetic observation' : 'Refresh Printify read')).'</button></form></section>';
+    }
+
+    private static function renderOrder(string $operation,array $data): void
+    {
+        if ($operation !== 'ORDER_READ' || !isset($data['id'],$data['status'],$data['shipments'])) return;
+        echo '<h3>Order and tracking</h3><p>'.\esc_html($data['id'].' · '.$data['status']).'</p>';
+        if ($data['shipments'] === []) {
+            echo '<p>Shipment evidence is unavailable in this observation.</p>';
+            return;
+        }
+        echo '<ul>';
+        foreach ($data['shipments'] as $shipment) {
+            echo '<li>'.\esc_html($shipment['carrier'].' · Tracking: '.($shipment['tracking_reference'] ?? 'UNKNOWN')
+                .' · Delivered: '.($shipment['delivered_at'] ?? 'UNKNOWN')).'</li>';
+        }
+        echo '</ul>';
     }
 
     public static function prepare(array $post): array
@@ -129,7 +166,7 @@ final class ProtectedGetPanel
             return ['reason'=>'SCOPE_OR_REVISION_UNAVAILABLE'] + $denied;
         }
         $fields = $post['df_printify_get'] ?? null;
-        if (!is_array($fields) || count($fields) > 9) {
+        if (!is_array($fields) || count($fields) > count(self::INPUT_FIELDS)) {
             return ['reason'=>'INVALID_SELECTION'] + $denied;
         }
         $selection = [];

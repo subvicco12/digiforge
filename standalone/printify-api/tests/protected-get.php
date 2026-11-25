@@ -301,3 +301,19 @@ check($providerResult['id']===7 && $providerResult['blueprint_id']===42
     && $providerResult['decoration_methods']===['dtf'] && $providerResult['production_time']===null,
     'Provider and blueprint binding missing');
 echo "Exact SKU, ambiguity and scope denial, decoration, size guide and provider detail passed.\n";
+
+$artIntent = ProtectedGet::request($scope,'PRODUCT_ARTWORK_READ',
+    ['product_id'=>'product-1','blueprint_id'=>42,'provider_id'=>7,'variant_ids'=>[9,10],'image_id'=>'asset-1']);
+check($artIntent['path']==='/v1/shops/107/products/product-1.json','Artwork unexpectedly used an account lookup');
+$linked=ProtectedGet::project($artIntent,json_encode($product,JSON_THROW_ON_ERROR));
+check($linked['product_id']==='product-1' && $linked['placements'][0]['variant_ids']===[9]
+    && $linked['placements'][0]['artwork']['metadata']['width']===1200
+    && !str_contains(json_encode($linked),'asset-2') && !str_contains(json_encode($linked),'private.example.invalid'),
+    'Unrelated or private artwork data escaped the projection');
+foreach ([['print_areas'=>[]], ['shop_id'=>108], ['id'=>'foreign-product'], ['print_provider_id'=>8]] as $bad) {
+    try {
+        ProtectedGet::project($artIntent,json_encode($bad+$product,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Missing or substituted artwork ownership accepted');
+    } catch (InvalidArgumentException) {}
+}
+echo "Product-linked artwork ownership, fixed route, scope denial and projection passed.\n";

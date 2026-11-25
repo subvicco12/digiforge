@@ -54,6 +54,10 @@ final class ProtectedGet
                 throw new \InvalidArgumentException('Catalog kind is selected by operation.');
             }
             $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + $selection);
+        } elseif ($operation === 'PRODUCT_ARTWORK_READ') {
+            self::requirePattern($selection['image_id'] ?? null, '/^[A-Za-z0-9_-]{1,160}$/D');
+            $path = PrintifyApiRequest::prepare('PRODUCT_READ', $scope['shop'],
+                array_diff_key($selection, ['image_id'=>true]))['endpoint'];
         } elseif ($operation === 'PRODUCT_SKU_READ') {
             if (count($selection) !== 4 || array_diff(['product_id','blueprint_id','provider_id','sku'], array_keys($selection))) {
                 throw new \InvalidArgumentException('Exact product and SKU selection required.');
@@ -124,6 +128,8 @@ final class ProtectedGet
                         'first_item'=>$row['attributes']['shippingCost']['firstItem']['amount'],
                         'additional_item'=>$row['attributes']['shippingCost']['additionalItems']['amount'],
                         'currency'=>$row['attributes']['shippingCost']['firstItem']['currency'],
+                        'shipping_plan_id'=>$row['attributes']['shippingPlanId'],
+                        'handling_time'=>array_intersect_key($row['attributes']['handlingTime'], ['from'=>true,'to'=>true]),
                     ], $catalog['data']), 'address_quote'=>false],
             };
         }
@@ -142,6 +148,12 @@ final class ProtectedGet
         if ($operation === 'PRODUCT_SKU_READ') {
             return self::productSku($data,$shop,$selection);
         }
+        if ($operation === 'PRODUCT_ARTWORK_READ') {
+            $product = PrintifyApiReadEvidence::project('PRODUCT_READ', $data, $shop,
+                array_diff_key($selection, ['image_id'=>true]));
+            self::attachArtworkMetadata($product, $data);
+            return self::linkedArtwork($product,$selection['image_id']);
+        }
         $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
         if ($operation === 'PRODUCT_READ') {
             self::attachArtworkMetadata($projection, $data);
@@ -151,6 +163,27 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    /** An account media-library ID is not ownership evidence. Require current product placement. */
+    private static function linkedArtwork(array $product,string $id): array
+    {
+        $placements = [];
+        foreach ($product['print_areas'] as $area) {
+            foreach ($area['placeholders'] as $position) {
+                foreach ($position['images'] as $image) {
+                    if ($image['id'] === $id) {
+                        $placements[] = ['variant_ids'=>$area['variant_ids'],'position'=>$position['position'],
+                            'artwork'=>$image];
+                    }
+                }
+            }
+        }
+        if (!$placements) {
+            throw new \InvalidArgumentException('Artwork is not linked to the selected product.');
+        }
+        return ['product_id'=>$product['id'],'blueprint_id'=>$product['blueprint_id'],
+            'provider_id'=>$product['print_provider_id'],'image_id'=>$id,'placements'=>$placements];
     }
 
     /** Resolve one enabled SKU within an already bound product, never across a shop. */

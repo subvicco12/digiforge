@@ -110,3 +110,19 @@ product-linked print placements. Absent, disabled, ambiguous and mismatched
 evidence denies. SKU values are strings, including numeric-looking ones.
 Catalog rates describe a method, variant, currency and reported destination.
 They do not establish address-specific shipping or fulfillment commitments.
+
+Product Artwork Read takes the exact product, blueprint, provider, complete
+variant ID set and a linked image ID. It returns only the confirmed product
+placements and safe source metadata for that image. Missing association or
+mismatched scope denies the read. It never reads the account media library
+or fetches an image from a provider URL.
+
+Catalog shipping rates include the source plan ID and handling-time range.
+The panel leaves delivery estimates and any undocumented unit unknown.
+Order detail shows the scoped carrier, available tracking reference and
+delivery timestamp as text. Missing shipment evidence stays unknown.
+
+The panel retains up to eight redacted read outcomes for the same profile
+and session, visible for up to one hour. The latest observation remains
+separate from these summaries. A failed refresh can show explicitly stale
+data only for the same request. No retry is automatic.
