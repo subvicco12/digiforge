@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { HostingerReadIngress, ProtectedReadAdmission } from './worker.mjs';
 import { PolicyAdmission, RecoveryFloor, seal } from './policy-service.mjs';
 import { ReadCustodyService } from './custody-service.mjs';
+import { DetachedSigningService } from './signing-service.mjs';
 
 const [php,script,plugin,journal] = process.argv.slice(2);
 const input = JSON.parse(readFileSync(0,'utf8'));
@@ -52,7 +53,13 @@ const durable=path=>{
 const POLICY=new PolicyAdmission({storage:durable(policyFile)},{MODE:'offline-fixture',
     WITNESS:new RecoveryFloor({storage:durable(floorFile)},{MODE:'offline-fixture'})});
 const CONTRACTS = service(async (path,data) => Response.json(await invoke(path.slice(1),data)));
-const REPLY_SIGNER = service(async (_path,data) => Response.json(await invoke('sign',data)));
+// RFC 8410 PKCS#8 envelope over the existing deterministic fixture seed.
+const key=await crypto.subtle.importKey('pkcs8',Buffer.from('302e020100300506032b657004220420'+'62'.repeat(32),'hex'),
+    'Ed25519',false,['sign']);
+const REPLY_SIGNER=new DetachedSigningService({role:'reply',mode:'offline-fixture',keyProvider:async()=>key,
+    verifyIntent:async (_role,receipt)=>receipt.request_digest===input.grant.request_digest
+        && receipt.grant_id===input.grant.id ? {authorized:true,...await invoke('digest',receipt)} : null,
+});
 const FIXTURE_CUSTODY=new ReadCustodyService({MODE:'offline-fixture',POLICY,CONTRACTS,
     CREDENTIAL_PROVIDER:{resolve:async scope=>scope.account==='fixture-account' && scope.shop==='107'
         && scope.integration==='fixture-read' && scope.custody==='custody-ref:fixture'

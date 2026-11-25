@@ -11,10 +11,8 @@ require $argv[1].'/SyntheticPrintifyTransport.php';
 require __DIR__.'/../gateway/FixtureReadGateway.php';
 $input = json_decode(stream_get_contents(STDIN, 1048576),true,32,JSON_THROW_ON_ERROR);
 $port = $argv[3] ?? null;
-if ($port === 'sign') {
-    $keys = sodium_crypto_sign_seed_keypair(str_repeat('b',32));
-    echo json_encode(['receipt'=>$input,'signature'=>bin2hex(sodium_crypto_sign_detached(
-        ProtectedGet::digest($input),sodium_crypto_sign_secretkey($keys)))],JSON_THROW_ON_ERROR);
+if ($port === 'digest') {
+    echo json_encode(['digest'=>ProtectedGet::digest($input)],JSON_THROW_ON_ERROR);
     return;
 }
 $request = $input['request'];
