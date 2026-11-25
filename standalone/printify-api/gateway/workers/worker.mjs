@@ -108,18 +108,59 @@ async function call(service, path, data, decode = true) {
     if (!service || typeof service.fetch !== 'function') {
         throw new Error('Missing private service');
     }
-    const signal = AbortSignal.timeout(5000);
-    const response = await service.fetch(new Request('https://gateway-service.invalid/' + path,{
-        method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data),
-        redirect:'manual',signal,
-    }));
-    if (!decode) {
-        return response;
+    const controller = new AbortController();
+    let timeout;
+    const expired = new Promise((_, reject) => {
+        timeout = setTimeout(() => {
+            controller.abort();
+            reject(new Error('Private service timed out'));
+        }, 5000);
+    });
+    const exchange = async () => {
+        const response = await service.fetch(new Request('https://gateway-service.invalid/' + path,{
+            method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data),
+            redirect:'manual',signal:controller.signal,
+        }));
+        const json = /^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '');
+        if (!decode) {
+            if (response.status === 200 && json) {
+                return {status:200,body:await readBounded(response,MAX_BODY)};
+            }
+            void response.body?.cancel().catch(()=>{});
+            return {status:response.status,body:null};
+        }
+        if (response.status !== 200 || !json) {
+            void response.body?.cancel().catch(()=>{});
+            throw new Error('Private service unavailable');
+        }
+        return JSON.parse(await readBounded(response,MAX_BODY));
+    };
+    try {
+        return await Promise.race([exchange(), expired]);
+    } finally {
+        clearTimeout(timeout);
+        controller.abort();
     }
-    if (response.status !== 200 || !response.headers.get('content-type')?.startsWith('application/json')) {
-        throw new Error('Private service unavailable');
+}
+
+function sameCheckpoint(value, identity, checkpoint) {
+    return value?.accepted === true && value.epoch === checkpoint.epoch && value.sequence === checkpoint.sequence
+        && value.request_digest === identity.request_digest && value.grant_id === identity.grant_id
+        && value.scope_digest === identity.scope_digest && value.policy_revision === identity.policy_revision;
+}
+
+const BINDINGS = ['CONTRACTS','POLICY','FIXTURE_CUSTODY','REPLY_SIGNER'];
+
+async function bindingsReady(env) {
+    if (!BINDINGS.every(name => typeof env[name]?.fetch === 'function')) {
+        return false;
     }
-    return JSON.parse(await readBounded(response,MAX_BODY));
+    try {
+        const checks = await Promise.all(BINDINGS.map(name => call(env[name],'ready',{protocol:VERSION})));
+        return checks.every(check => check?.ready === true && check.protocol === VERSION);
+    } catch {
+        return false;
+    }
 }
 
 export default {
@@ -128,6 +169,46 @@ export default {
         return new Response(null,{status:404});
     },
 };
+
+/** Private service ingress model. The public default Worker has no route to it. */
+export class HostingerReadIngress {
+    constructor(env) {
+        this.env = env;
+    }
+
+    async fetch(inbound) {
+        const denied = () => Response.json({state:'DENIED',reason:'INGRESS_UNAVAILABLE'},{status:403});
+        if (this.env.EXECUTION_MODE !== 'offline-fixture'
+            || inbound.method !== 'POST' || new URL(inbound.url).protocol !== 'https:'
+            || new URL(inbound.url).pathname !== '/read') {
+            return denied();
+        }
+        const credential = inbound.headers.get('authorization');
+        if (typeof credential !== 'string' || credential.length > 2048 || !credential.startsWith('Bearer ')) {
+            return denied();
+        }
+        try {
+            const raw = await readBounded(inbound,32768);
+            const envelope = JSON.parse(raw);
+            const proof = await call(this.env.INGRESS_AUTH,'authorize',{credential,envelope});
+            const {request,grant} = envelope;
+            if (proof?.authenticated !== true || proof.request_digest !== grant.request_digest
+                || proof.grant_id !== grant.id || !hex(proof.scope_digest,64)
+                || proof.site !== request.scope.site || proof.actor !== request.scope.actor
+                || proof.session !== request.scope.session || proof.revision !== request.scope.revision
+                || proof.account !== request.scope.account || proof.shop !== request.scope.shop
+                || proof.integration !== request.scope.integration || proof.operation !== request.operation) {
+                return denied();
+            }
+            const id = this.env.ADMISSION.idFromName(proof.scope_digest);
+            return await this.env.ADMISSION.get(id).fetch(new Request('https://admission.invalid/read',{
+                method:'POST',headers:{'content-type':'application/json','x-df-ingress-scope':proof.scope_digest},body:raw,
+            }));
+        } catch {
+            return denied();
+        }
+    }
+}
 
 export class ProtectedReadAdmission {
     constructor(state, env) {
@@ -139,6 +220,10 @@ export class ProtectedReadAdmission {
         if (this.env.EXECUTION_MODE !== 'offline-fixture'
             || inbound.method !== 'POST' || new URL(inbound.url).pathname !== '/read') {
             return Response.json({state:'BLOCKED',reason:'GATEWAY_HELD'},{status:403});
+        }
+
+        if (!await bindingsReady(this.env)) {
+            return Response.json({state:'UNAVAILABLE',reason:'BINDINGS_UNAVAILABLE'},{status:503});
         }
 
         try {
@@ -153,7 +238,9 @@ export class ProtectedReadAdmission {
             // using the shared typed contract. It runs outside the WordPress trust domain.
             const proof = await call(this.env.CONTRACTS,'verify',{request,grant,signature});
             if (proof?.verified !== true || proof.request_digest !== grant.request_digest || proof.path !== url.pathname+url.search
-                || !hex(proof.scope_digest,64)) {
+                || !hex(proof.scope_digest,64)
+                || (inbound.headers.has('x-df-ingress-scope')
+                    && inbound.headers.get('x-df-ingress-scope') !== proof.scope_digest)) {
                 return Response.json({state:'DENIED',reason:'GRANT_DENIED'},{status:403});
             }
             const now = Math.floor(Date.now()/1000);
@@ -162,18 +249,16 @@ export class ProtectedReadAdmission {
             const policy = await call(this.env.POLICY,'snapshot',identity);
             const admission = await admit(this.storage,grant,policy,now,proof.scope_digest);
             if (admission !== 'ADMITTED') {
-                return this.reply(identity, now, admission === 'GRANT_DENIED' ? 'DENIED' : 'UNAVAILABLE', admission);
+                return await this.reply(identity, now, admission === 'GRANT_DENIED' ? 'DENIED' : 'UNAVAILABLE', admission);
             }
             // An independently sequenced compare-and-advance is required even when the
             // Durable Object commits. An uncertain acknowledgement never permits a retry.
             const nextSequence = policy.sequence+1;
             const checkpoint = {epoch:policy.epoch,prior_sequence:policy.sequence,sequence:nextSequence};
             const ordered = await call(this.env.POLICY,'admit',{...identity,...checkpoint});
-            if (ordered?.accepted !== true || ordered.epoch !== policy.epoch || ordered.sequence !== nextSequence
-                || ordered.request_digest !== grant.request_digest || ordered.grant_id !== grant.id
-                || ordered.scope_digest !== identity.scope_digest || ordered.policy_revision !== grant.policy_revision
+            if (!sameCheckpoint(ordered, identity, checkpoint)
                 || grant.expires_at <= Math.floor(Date.now()/1000)) {
-                return this.reply(identity,now,'DENIED','AUTHORITY_UNAVAILABLE');
+                return await this.reply(identity,now,'DENIED','AUTHORITY_UNAVAILABLE');
             }
             // The offline binding receives fixed-origin typed transport arguments and
             // returns a mock response. This module never takes custody of a provider token.
@@ -183,31 +268,30 @@ export class ProtectedReadAdmission {
                     custody:request.scope.custody},
                 max_body_bytes:MAX_BODY,timeout_ms:5000,
             },false);
-            if (response.status !== 200) {
-                await response.body?.cancel();
-                return this.reply(identity,now,'UNAVAILABLE',response.status === 429 ? 'RATE_LIMITED' : 'RESPONSE_UNAVAILABLE');
+            if (response.body === null) {
+                return await this.reply(identity,now,'UNAVAILABLE',response.status === 429 ? 'RATE_LIMITED' : 'RESPONSE_UNAVAILABLE');
             }
-            if (!response.headers.get('content-type')?.startsWith('application/json')) {
-                await response.body?.cancel();
-                return this.reply(identity,now,'UNAVAILABLE','RESPONSE_UNAVAILABLE');
-            }
-            const body = await readBounded(response,MAX_BODY);
+            const body = response.body;
             const projection = await call(this.env.CONTRACTS,'project',{request,body});
             const current = await call(this.env.POLICY,'release',{...identity,...checkpoint});
-            if (current?.accepted !== true || current.epoch !== policy.epoch || current.sequence !== nextSequence
-                || current.request_digest !== grant.request_digest || current.grant_id !== grant.id
-                || current.scope_digest !== identity.scope_digest || current.policy_revision !== grant.policy_revision
+            if (!sameCheckpoint(current, identity, checkpoint)
                 || grant.expires_at <= Math.floor(Date.now()/1000)) {
-                return this.reply(identity,now,'DENIED','AUTHORITY_UNAVAILABLE');
+                return await this.reply(identity,now,'DENIED','AUTHORITY_UNAVAILABLE');
             }
             if (projection?.validated !== true || !projection.data || typeof projection.data !== 'object') {
-                return this.reply(identity,now,'UNAVAILABLE','RESPONSE_UNVERIFIED');
+                return await this.reply(identity,now,'UNAVAILABLE','RESPONSE_UNVERIFIED');
             }
             const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(body));
-            return this.reply(identity,now,'OBSERVED',null,{
+            const signed = await this.reply(identity,now,'OBSERVED',null,{
                 source:'SYNTHETIC_PRINTIFY',observed_at:now,response_sha256:Array.from(new Uint8Array(digest),
                     byte=>byte.toString(16).padStart(2,'0')).join(''),data:projection.data,
             });
+            const delivery = await call(this.env.POLICY,'release',{...identity,...checkpoint});
+            if (!sameCheckpoint(delivery, identity, checkpoint) || grant.expires_at <= Math.floor(Date.now()/1000)) {
+                await signed.body?.cancel();
+                return Response.json({state:'UNAVAILABLE',reason:'AUTHORITY_UNAVAILABLE'},{status:503});
+            }
+            return signed;
         } catch {
             return Response.json({state:'UNAVAILABLE',reason:'GATEWAY_UNAVAILABLE'},{status:503});
         }

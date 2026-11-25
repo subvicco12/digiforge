@@ -1,7 +1,7 @@
 // Disposable single-process test adapter. Never included in Worker deployment.
 import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
-import { ProtectedReadAdmission } from './worker.mjs';
+import { HostingerReadIngress, ProtectedReadAdmission } from './worker.mjs';
 
 const [php,script,plugin,journal] = process.argv.slice(2);
 const input = JSON.parse(readFileSync(0,'utf8'));
@@ -33,7 +33,11 @@ const storage = {transaction: async fn => fn({
     get: async () => state,
     put: async (_key,value) => write(journal,value.consumed),
 })};
-const service = fn => ({fetch:async request => fn(new URL(request.url).pathname,await request.json())});
+const service = fn => ({fetch:async request => {
+    const path = new URL(request.url).pathname;
+    const data = await request.json();
+    return path === '/ready' ? Response.json({ready:true,protocol:data.protocol}) : fn(path,data);
+}});
 const POLICY = service((path,request) => {
     if (request.scope_digest !== scope) {
         return Response.json({accepted:false});
@@ -67,8 +71,21 @@ const FIXTURE_CUSTODY = service(async (_path,data) => {
 const gateway = new ProtectedReadAdmission({storage},{
     EXECUTION_MODE:'offline-fixture', POLICY, CONTRACTS, REPLY_SIGNER, FIXTURE_CUSTODY,
 });
-const result = await gateway.fetch(new Request('https://gateway.invalid/read',{
-    method:'POST',body:JSON.stringify(input),
+const ingress = new HostingerReadIngress({
+    EXECUTION_MODE:'offline-fixture',
+    INGRESS_AUTH:service(async (_path,{credential,envelope}) => {
+        if (credential !== 'Bearer synthetic-hostinger-instance') {
+            return Response.json({authenticated:false});
+        }
+        const binding = await invoke('verify',envelope);
+        return Response.json({...envelope.request.scope,operation:envelope.request.operation,
+            authenticated:binding.verified,scope_digest:binding.scope_digest,
+            request_digest:binding.request_digest,grant_id:envelope.grant.id});
+    }),
+    ADMISSION:{idFromName:name=>name,get:name=>name === scope ? gateway : null},
+});
+const result = await ingress.fetch(new Request('https://gateway.invalid/read',{
+    method:'POST',headers:{authorization:'Bearer synthetic-hostinger-instance'},body:JSON.stringify(input),
 }));
 if (!result.ok) {
     process.stderr.write('Workers fixture returned '+result.status+' '+await result.text()+'\n');

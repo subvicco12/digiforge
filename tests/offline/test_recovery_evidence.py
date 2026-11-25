@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Unit tests for read-only recovery evidence predicates."""
+from contextlib import redirect_stdout
 import importlib.util
+import io
 import pathlib
 import json
 import os
@@ -63,10 +65,16 @@ class RecoveryEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             evidence = pathlib.Path(directory) / "owned.json"
             evidence.write_text("{}", encoding="utf-8")
+            output = io.StringIO()
             with patch.object(module.os, "geteuid", return_value=os.stat(evidence).st_uid + 1), \
-                 patch.object(sys, "argv", ["check-recovery-evidence.py", str(evidence)]):
+                 patch.object(sys, "argv", ["check-recovery-evidence.py", str(evidence)]), \
+                 redirect_stdout(output):
                 result = module.main()
             self.assertEqual(result, 1)
+            self.assertEqual({
+                "status": "REVIEW_REQUIRED", "errors": ["invalid evidence file"],
+                "read_only": True, "checker_performed_external_actions": False,
+            }, json.loads(output.getvalue()))
 
     def test_group_writable_evidence_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

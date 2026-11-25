@@ -80,10 +80,15 @@ test('unacknowledged floor prevents egress and revocation suppresses an in-fligh
     const inbound = () => new Request('https://private.invalid/read',{
         method:'POST',body:JSON.stringify({request,grant,signature:'a'.repeat(128)}),
     });
-    for (const acknowledge of [false,true]) {
+    for (const phase of ['unacknowledged','revoked','signer-outage','revoked-after-signing']) {
+        const acknowledge = phase !== 'unacknowledged';
+        let releases = 0;
         let head = {scope_digest:scope,epoch:'test',sequence:1,revision:1,count:0,consumed:[]};
         let reads = 0;
-        const service = fn => ({fetch:async req=>Response.json(fn(new URL(req.url).pathname,await req.json()))});
+        const service = fn => ({fetch:async req=>{
+            const path = new URL(req.url).pathname;
+            return Response.json(path === '/ready' ? {ready:true,protocol:'DF_STANDALONE_GET_1'} : fn(path,await req.json()));
+        }});
         const env = {
             EXECUTION_MODE:'offline-fixture',
             CONTRACTS:service(path=>path === '/verify'
@@ -91,17 +96,84 @@ test('unacknowledged floor prevents egress and revocation suppresses an in-fligh
                 : {validated:true,data:{shops:[]}}),
             POLICY:service((path,identity)=>path === '/snapshot'
                 ? {epoch:'test',sequence:1,revision:1,stop_all:false,external_lock:false,release_hold:false,revoked:[]}
-                : {...identity,accepted:path === '/admit' && acknowledge}),
+                : {...identity,accepted:(path === '/admit' && acknowledge)
+                    || (path === '/release' && (phase === 'signer-outage'
+                        || (phase === 'revoked-after-signing' && ++releases === 1)))}),
             FIXTURE_CUSTODY:service(()=>{++reads; return [];}),
-            REPLY_SIGNER:service((_path,receipt)=>({receipt})),
+            REPLY_SIGNER:service((_path,receipt)=>{
+                if (phase === 'signer-outage') throw new Error('fixture signer unavailable');
+                return {receipt};
+            }),
         };
         const storage = {transaction:fn=>fn({get:()=>head,put:(_k,v)=>{head=v;}})};
         const result = await new ProtectedReadAdmission({storage},env).fetch(inbound());
-        const {receipt} = await result.json();
-        assert.equal(receipt.state,'DENIED');
-        assert.equal(receipt.reason,'AUTHORITY_UNAVAILABLE');
-        assert.equal(receipt.data,undefined);
+        const payload = await result.json();
+        if (phase === 'signer-outage' || phase === 'revoked-after-signing') {
+            assert.equal(result.status,503);
+            assert.equal(payload.state,'UNAVAILABLE');
+            assert.equal(payload.receipt,undefined);
+        } else {
+            assert.equal(payload.receipt.state,'DENIED');
+            assert.equal(payload.receipt.reason,'AUTHORITY_UNAVAILABLE');
+            assert.equal(payload.receipt.data,undefined);
+        }
         assert.equal(reads,Number(acknowledge));
         assert.equal(head.count,1);
     }
+});
+
+test('all four private dependencies are ready before any transaction', async () => {
+    const { ProtectedReadAdmission } = await import('./worker.mjs');
+    for (const name of ['CONTRACTS','POLICY','FIXTURE_CUSTODY','REPLY_SIGNER']) {
+        let transactions = 0;
+        let custody = 0;
+        const ready = {fetch:async req => {
+            const path = new URL(req.url).pathname;
+            if (path === '/get') ++custody;
+            return Response.json({ready:true,protocol:'DF_STANDALONE_GET_1'});
+        }};
+        for (const bad of [undefined,{}, {fetch:async()=>Response.json({ready:false})},
+            {fetch:async()=>{throw new Error('binding unavailable');}},
+            {fetch:async()=>Response.json({ready:true,protocol:'wrong'})}]) {
+            const env = {EXECUTION_MODE:'offline-fixture',CONTRACTS:ready,POLICY:ready,FIXTURE_CUSTODY:ready,REPLY_SIGNER:ready,[name]:bad};
+            const result = await new ProtectedReadAdmission({storage:{transaction(){++transactions;}}},env)
+                .fetch(new Request('https://fixture.invalid/read',{method:'POST',body:'{}'}));
+            assert.equal(result.status,503);
+            assert.deepEqual(await result.json(),{state:'UNAVAILABLE',reason:'BINDINGS_UNAVAILABLE'});
+        }
+        assert.equal(transactions,0);
+        assert.equal(custody,0);
+    }
+});
+
+test('private ingress authenticates operator and binds handoff to the approved scope', async () => {
+    const { HostingerReadIngress } = await import('./worker.mjs');
+    const scope = {site:'fixture',actor:1,session:'s',revision:'r',account:'a',shop:'107',integration:'i'};
+    const digest = 'd'.repeat(64);
+    const grantId = 'a'.repeat(32);
+    const input = {request:{scope,operation:'SHOPS_READ'},grant:{request_digest:digest,id:grantId}};
+    let handoffs = 0;
+    let proof = {...scope,authenticated:true,scope_digest:digest,request_digest:digest,grant_id:grantId,operation:'SHOPS_READ'};
+    const ingress = new HostingerReadIngress({
+        EXECUTION_MODE:'offline-fixture',
+        INGRESS_AUTH:{fetch:async()=>Response.json(proof)},
+        ADMISSION:{idFromName:name=>name,get:name=>({fetch:async req=>{
+            assert.equal(name,digest);
+            assert.equal(req.headers.get('x-df-ingress-scope'),digest);
+            assert.equal(req.headers.get('authorization'),null);
+            ++handoffs;
+            return Response.json({});
+        }})},
+    });
+    const read = (credential, origin = 'https://fixture.invalid') => ingress.fetch(new Request(origin+'/read',{
+        method:'POST',headers:credential ? {authorization:credential} : {},body:JSON.stringify(input),
+    }));
+    assert.equal((await read()).status,403);
+    assert.equal((await read('Bearer fixture','http://fixture.invalid')).status,403);
+    proof = {...proof,session:'wrong'};
+    assert.equal((await read('Bearer fixture')).status,403);
+    assert.equal(handoffs,0);
+    proof = {...proof,session:'s'};
+    assert.equal((await read('Bearer fixture')).status,200);
+    assert.equal(handoffs,1);
 });
