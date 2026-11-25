@@ -81,3 +81,19 @@ test('revocation after reservation denies the start of custody',async()=>{
     assert.equal((await policy.fetch(req('begin',identity))).status,403);
     assert.equal((await (await policy.fetch(req('drain',{scope_digest}))).json()).in_flight,0);
 });
+
+test('private policy router holds by default and pins namespace scope',async()=>{
+    const {default: router}=await import('./policy-service.mjs');
+    let forwarded=0;
+    const env={MODE:'offline-fixture',T4_PRIVATE_ROLE:'policy',T4_SCOPE_DIGEST:scope_digest,
+        POLICY:{idFromName:name=>name,get:name=>({fetch:async()=>{
+            assert.equal(name,scope_digest);
+            ++forwarded;
+            return Response.json({});
+        }})}};
+    assert.equal((await router.fetch(req('snapshot',{scope_digest}),{...env,MODE:'held'})).status,404);
+    assert.equal((await router.fetch(req('snapshot',{scope_digest:'b'.repeat(64)}),env)).status,403);
+    assert.equal((await router.fetch(req('advance',{scope_digest}),env)).status,403);
+    assert.equal((await router.fetch(req('snapshot',{scope_digest}),env)).status,200);
+    assert.equal(forwarded,1);
+});

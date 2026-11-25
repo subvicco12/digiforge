@@ -247,4 +247,26 @@ export class PolicyAdmission {
     }
 }
 
-export default { async fetch() { return new Response(null,{status:404}); } };
+export default {
+    async fetch(request,env) {
+        if (env.MODE!=='offline-fixture' || request.method!=='POST' || !hex(env.T4_SCOPE_DIGEST,64)) {
+            return new Response(null,{status:404});
+        }
+        const path=new URL(request.url).pathname;
+        const role=env.T4_PRIVATE_ROLE;
+        const paths=role==='policy'
+            ? ['/ready','/snapshot','/admit','/begin','/finish','/approve-reply','/release','/drain','/stop','/revoke']
+            : role==='witness' ? ['/read','/advance'] : [];
+        if (!paths.includes(path)) return denied();
+        try {
+            const input=await message(request);
+            const digest=role==='witness' && path==='/advance' ? input.before?.scope_digest : input.scope_digest;
+            if (path!=='/ready' && digest!==env.T4_SCOPE_DIGEST) return denied();
+            const target=role==='policy' ? env.POLICY : env.WITNESS;
+            return await target.get(target.idFromName(env.T4_SCOPE_DIGEST)).fetch(new Request('https://private.invalid'+path,
+                {method:'POST',body:JSON.stringify(input)}));
+        } catch {
+            return unavailable();
+        }
+    },
+};

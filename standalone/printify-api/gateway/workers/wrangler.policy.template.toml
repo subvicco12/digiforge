@@ -1,5 +1,5 @@
 # Held review template. Private witness binding and bootstrap are intentionally absent.
-name = "digiforge-get-policy-review"
+name = "digiforge-t4-policy"
 main = "policy-service.mjs"
 compatibility_date = "2026-11-24"
 workers_dev = false
@@ -7,6 +7,8 @@ preview_urls = false
 
 [vars]
 MODE = "held"
+T4_PRIVATE_ROLE = "policy"
+T4_SCOPE_DIGEST = ""
 
 [[durable_objects.bindings]]
 name = "POLICY"
