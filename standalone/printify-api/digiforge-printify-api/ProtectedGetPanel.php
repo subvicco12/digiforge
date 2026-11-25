@@ -9,6 +9,7 @@ if (!defined('ABSPATH')) {
 
 require_once __DIR__.'/ProtectedGet.php';
 require_once __DIR__.'/ProtectedGetWorkspace.php';
+require_once __DIR__.'/DirectGet.php';
 
 /** Manual scoped request preparation. There is no WordPress-to-gateway exchange. */
 final class ProtectedGetPanel
@@ -29,11 +30,13 @@ final class ProtectedGetPanel
         if (!\current_user_can('manage_options')) {
             return;
         }
-        $workspace = ProtectedGetWorkspace::snapshot();
+        $direct = DirectGet::selected();
+        $workspace = ProtectedGetWorkspace::snapshot($direct);
         echo '<section><h2>Protected Printify reads</h2>';
         echo $workspace === null
-            ? '<p>Gateway unavailable. Requests can be prepared locally. No data is synchronized.</p>'
-            : '<p>Local gateway fixture only. Live provider reads are disabled.</p>';
+            ? '<p>Live direct reads are held. You can prepare a scoped request without sending it.</p>'
+            : ($direct ? '<p>Local direct GET fixture. Live reads are held.</p>'
+                : '<p>Local gateway fixture only. Live provider reads are disabled.</p>');
         $profile = AccountProfile::current();
         $revision = AccountProfile::revisionToken();
         if ($profile === null || $profile['custody'] === '' || $revision === null) {
@@ -48,9 +51,11 @@ final class ProtectedGetPanel
                 echo '<code>GET '.\esc_html($result['path']).'</code>';
             }
         }
+        if ($direct) echo '<p>Connection: '.\esc_html(DirectGet::status($profile)).' · Limit: 10 reads per minute per account/shop.</p>';
         if ($workspace !== null) {
             $scope = self::scope($profile, $revision, \wp_get_session_token());
-            $record = ProtectedGetWorkspace::visible($scope);
+            $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || DirectGet::gatesOpen()))
+                ? ProtectedGetWorkspace::visible($scope,$direct) : null;
             if ($record !== null) {
                 $receipt = $record['receipt'];
                 $freshness = time() - $record['stored_at'] <= 60 ? 'Recent fixture' : 'Stale fixture';
@@ -59,11 +64,24 @@ final class ProtectedGetPanel
                 if (($receipt['source'] ?? null) === 'SYNTHETIC_PRINTIFY') {
                     echo '<p>'.\esc_html('Synthetic Printify evidence · observed '.gmdate('c', $receipt['observed_at'])).'</p>';
                 }
-                if (isset($receipt['data'])) {
-                    echo '<pre>'.\esc_html(json_encode($receipt['data'], JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
+                if (isset($receipt['retry_after_seconds'])) {
+                    echo '<p>'.\esc_html('Provider requested a wait of '.$receipt['retry_after_seconds'].' seconds.').'</p>';
+                }
+                if (($receipt['source'] ?? null) === 'SYNTHETIC_DIRECT_PRINTIFY') {
+                    echo '<p>'.\esc_html('Synthetic direct Printify evidence · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
+                }
+                $data = $receipt['data'] ?? null;
+                if ($data === null && isset($record['last_success']['data'])
+                    && time()-$record['last_success']['observed_at'] <= 3600) {
+                    echo '<p>'.\esc_html('Stale prior synthetic '.$record['last_success']['operation'].' observation · '
+                        .gmdate('c',$record['last_success']['observed_at'])).'</p>';
+                    $data = $record['last_success']['data'];
+                }
+                if ($data !== null) {
+                    echo '<pre>'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
                 }
             }
-            $workspace = ProtectedGetWorkspace::snapshot();
+            $workspace = ProtectedGetWorkspace::snapshot($direct);
         }
         echo '<form method="post"><input type="hidden" name="'.self::ACTION.'" value="1">';
         \wp_nonce_field(self::ACTION, 'df_printify_get_nonce');
@@ -142,29 +160,35 @@ final class ProtectedGetPanel
     {
         $blocked = ProtectedGet::denied();
         $scope = $request['scope'];
-        $snapshot = ProtectedGetWorkspace::snapshot();
+        $direct = DirectGet::selected();
+        $snapshot = ProtectedGetWorkspace::snapshot($direct);
         if ($snapshot === null || $snapshot['revision'] !== $revision) {
             return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
         }
+        if (!self::currentSession($scope['actor'], $session)) return $blocked;
         $key = defined('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY') ? DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY : null;
-        if (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/D', $key) || !self::currentSession($scope['actor'], $session)) {
+        if (!$direct && (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/D', $key))) {
             return $blocked;
         }
 
         $correlation = bin2hex(random_bytes(16));
         try {
-            if (defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') && DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE === true) {
+            if ($direct) {
+                $result = DirectGet::execute($request, static fn(): bool => ProtectedGetWorkspace::reserveDirect($scope,$revision));
+            } elseif (defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') && DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE === true) {
                 require_once __DIR__.'/ProtectedGetHttp.php';
                 $reply = ProtectedGetHttp::exchange($request, $correlation, $revision);
             } else {
                 $reply = \apply_filters('digiforge_printify_protected_get_fixture_reply', null, $request, $correlation);
             }
-            $result = is_array($reply)
-                ? ProtectedGet::verifyReply($request, $correlation, $reply, hex2bin($key), time()) : $blocked;
+            if (!$direct) {
+                $result = is_array($reply)
+                    ? ProtectedGet::verifyReply($request, $correlation, $reply, hex2bin($key), time()) : $blocked;
+            }
         } catch (\Throwable) {
             $result = ['state'=>'UNAVAILABLE','reason'=>'GATEWAY_UNAVAILABLE'] + $blocked;
         }
-        if (AccountProfile::revisionToken() !== $scope['revision']
+        if (($direct && !DirectGet::gatesOpen()) || AccountProfile::revisionToken() !== $scope['revision']
             || !\current_user_can('digiforge_printify_review_shop_'.$scope['shop'])
             || !self::currentSession($scope['actor'], $session)) {
             return ['reason'=>'SCOPE_OR_REVISION_UNAVAILABLE'] + $blocked;
@@ -179,7 +203,8 @@ final class ProtectedGetPanel
         if ($result['state'] === 'OBSERVED') {
             $receipt += array_intersect_key($result, array_flip(['source','observed_at','response_sha256','data']));
         }
-        if (!ProtectedGetWorkspace::persist($scope, $revision, $receipt)) {
+        if (isset($result['retry_after_seconds'])) $receipt['retry_after_seconds'] = $result['retry_after_seconds'];
+        if (!ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {
             return ['reason'=>'OBSERVATION_NOT_COMMITTED'] + $blocked;
         }
         return ['state'=>$receipt['state'],'reason'=>$reason] + $blocked;

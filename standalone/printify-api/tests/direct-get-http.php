@@ -1,0 +1,58 @@
+<?php
+declare(strict_types=1);
+define('ABSPATH','/disposable/');
+define('DIGIFORGE_PRINTIFY_DIRECT_GET_FIXTURE',true);
+define('WP_HTTP_BLOCK_EXTERNAL',true);
+define('DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE',['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>'custody-ref:fixture']);
+define('DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT','fixture-test-only');
+function has_filter(string $name): bool { return true; }
+function wp_get_environment_type(): string { return $GLOBALS['environment']; }
+function wp_json_encode(mixed $value,int $flags=0): string|false { return json_encode($value,$flags); }
+function add_filter(string $tag,callable $callback,int $priority,int $args): void { $GLOBALS['intercept']=$callback; }
+function remove_filter(string $tag,callable $callback,int $priority): void { unset($GLOBALS['intercept']); }
+function wp_safe_remote_get(string $url,array $args): mixed { ++$GLOBALS['calls']; return ($GLOBALS['intercept'])(false,$args,$url); }
+function wp_remote_retrieve_response_code(array $reply): int { return $reply['response']['code']; }
+function wp_remote_retrieve_header(array $reply,string $header): string { return $reply['headers'][$header]??''; }
+function wp_remote_retrieve_body(array $reply): string { return $reply['body']; }
+function apply_filters(string $tag,mixed $value,mixed ...$args): mixed {
+    return match ($tag) {
+        'digiforge_printify_direct_fixture_gates'=>$GLOBALS['gates'],
+        'digiforge_printify_direct_fixture_response'=>$GLOBALS['response'],
+        default=>$value,
+    };
+}
+class WP_Error { public function __construct(string $code) {} }
+require $argv[1].'/ProtectedGet.php';
+require $argv[1].'/DirectGet.php';
+use DigiForgePrintifyApi\ProtectedGet;
+use DigiForgePrintifyApi\DirectGet;
+function check(bool $ok,string $why): void { if (!$ok) throw new RuntimeException($why); }
+$GLOBALS['calls']=0;
+$GLOBALS['environment']='production';
+$GLOBALS['gates']=['stop_all'=>false,'external_lock'=>false];
+$scope=DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE+['site'=>'wp-fixture','actor'=>1,'session'=>str_repeat('a',64),'revision'=>str_repeat('b',64)];
+$request=ProtectedGet::request($scope,'SHOPS_READ',[]);
+$charge=static fn()=>true;
+check(DirectGet::execute($request,$charge)['state']==='BLOCKED' && $GLOBALS['calls']===0,'Production reached HTTP');
+$GLOBALS['environment']='local';
+$GLOBALS['gates']['stop_all']=true;
+check(DirectGet::execute($request,$charge)['state']==='BLOCKED' && $GLOBALS['calls']===0,'STOP bypass');
+$GLOBALS['gates']['stop_all']=false;
+check(DirectGet::execute($request,static fn()=>false)['reason']==='LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE','Quota bypass');
+$wrong=$request;$wrong['path']='/v1/shops/108/orders.json';
+check(DirectGet::execute($wrong,$charge)['state']==='BLOCKED' && $GLOBALS['calls']===0,'Route substitution');
+$GLOBALS['response']=['response'=>['code'=>200],'headers'=>['content-type'=>'application/json'],
+    'body'=>'[{"id":107,"title":"Fixture","sales_channel":"fixture"},{"id":108,"title":"Hidden","sales_channel":"fixture"}]'];
+$result=DirectGet::execute($request,$charge);
+check($result['state']==='OBSERVED' && count($result['data']['shops'])===1 && !isset($GLOBALS['intercept']),'No scoped observation');
+$GLOBALS['response']['response']['code']=429;
+$GLOBALS['response']['headers']['retry-after']='75';
+$limited=DirectGet::execute($request,$charge);
+check($limited['reason']==='PROVIDER_RATE_LIMITED' && $limited['retry_after_seconds']===75 && !$limited['retry_permitted'],
+    'Missing bounded 429 state');
+$GLOBALS['response']['response']['code']=302;
+check(DirectGet::execute($request,$charge)['state']==='UNAVAILABLE' && $GLOBALS['calls']===3,'Redirect or retry accepted');
+$GLOBALS['response']['response']['code']=200;
+$GLOBALS['response']['body']='[{"id":107,"title":"fixture-test-only","sales_channel":"fixture"}]';
+check(DirectGet::execute($request,$charge)['state']==='UNAVAILABLE','Credential echo exposed');
+echo "Direct GET method, held production, STOP, scope, budget, 429 and redirect checks passed.\n";

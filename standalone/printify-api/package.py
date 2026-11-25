@@ -42,6 +42,10 @@ def build(source: str) -> bytes:
     if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", http),
                       capture_output=True, check=False).returncode == 0:
         members += ("ProtectedGetHttp.php",)
+    direct = f"{commit}:{SOURCE}/DirectGet.php"
+    if subprocess.run(("git", "-C", str(REPO), "cat-file", "-e", direct),
+                      capture_output=True, check=False).returncode == 0:
+        members += ("DirectGet.php",)
     blobs = {name: git("show", f"{commit}:{SOURCE}/{name}") for name in members}
     contracts = (
         ("POD/PrintifyCatalogReadContract.php", "Engine/PrintifyCatalogReadContract.php"),

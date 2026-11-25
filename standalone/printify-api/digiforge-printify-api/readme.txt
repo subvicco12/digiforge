@@ -39,3 +39,31 @@ Field-specific forms cover common catalog, artwork, product, order and
 webhook actions. Use Advanced JSON for compound requests. Artwork accepts
 a bounded fixture PNG. The in-process fixture webhook adapter covers
 order:created, order:updated, product:created and product:updated.
+
+= Direct manual read profile (offline qualification) =
+
+The Standalone ZIP does not require Cloudflare, a replacement Core, the
+Companion, or DigiForge AI. The approved Blueprint v1.2 direct profile is
+being qualified with disposable WordPress and intercepted synthetic GETs.
+
+On a separately approved disposable installation, use Tools → Printify API
+and configure local account, shop, integration and opaque custody reference
+metadata. The assigned operator needs manage_options and the corresponding
+digiforge_printify_review_shop_<id> capability. The disposable harness
+supplies the exact approved scope, synthetic credential and isolated fixture
+responses. No token is entered through an admin form. The release candidate
+does not support real credential enrollment or outbound provider traffic.
+
+A separately authorized production read pilot must first qualify the exact
+server-side secret source, a least-privilege read-only Printify token, and
+shop/operation scope. Keep the token out of WordPress options, UI, exports
+and ZIPs. A WordPress or host compromise can expose a runtime-readable PAT.
+Do not copy the synthetic harness or its hooks to a production site.
+
+For an authorized install, verify the ZIP hash and take approved matching
+files/database recovery points. Upload only this ZIP as a new plugin and
+stop on any replacement prompt. Activate after independent coexistence
+qualification. With production held, the panel may show offline metadata
+and diagnostics only. Verify unchanged incumbent plugins and checkout.
+For rollback, deactivate Standalone and preserve existing scoped audit
+evidence. Do not overwrite DigiForge or the Shipping Method plugin.
