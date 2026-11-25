@@ -12,6 +12,13 @@ final class ProtectedGetWorkspace
 {
     private const OPTION = 'digiforge_printify_get_observation_v1';
     private const DIRECT_OPTION = 'digiforge_printify_direct_observation_v1';
+    private const LIVE_OPTION = 'digiforge_printify_direct_provider_observation_v1';
+
+    private static function observationOption(bool $direct): string
+    {
+        if (!$direct) return self::OPTION;
+        return DirectGet::synthetic() ? self::DIRECT_OPTION : self::LIVE_OPTION;
+    }
     private const TTL = 3600;
     private const MAX_BYTES = 524288;
 
@@ -20,8 +27,9 @@ final class ProtectedGetWorkspace
         global $wpdb;
         $selected = $direct ? DirectGet::selected() : (defined('DIGIFORGE_PRINTIFY_PROTECTED_GET_FIXTURE')
             && DIGIFORGE_PRINTIFY_PROTECTED_GET_FIXTURE === true);
-        return $selected && wp_get_environment_type() === 'local' && $wpdb instanceof \wpdb
-            && $wpdb->get_var('SELECT DATABASE()') === 'printify_fixture'
+        return $selected && $wpdb instanceof \wpdb
+            && (($direct && !DirectGet::synthetic()) || (wp_get_environment_type() === 'local'
+                && $wpdb->get_var('SELECT DATABASE()') === 'printify_fixture'))
             && strtoupper((string)$wpdb->get_var($wpdb->prepare('SELECT ENGINE FROM information_schema.TABLES
                 WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=%s', $wpdb->options))) === 'INNODB';
     }
@@ -32,7 +40,7 @@ final class ProtectedGetWorkspace
         if (!self::available($direct)) {
             return null;
         }
-        $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", ($direct ? self::DIRECT_OPTION : self::OPTION)));
+        $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", self::observationOption($direct)));
         if ($wpdb->last_error !== '' || ($raw !== null && (!is_string($raw) || strlen($raw) > self::MAX_BYTES))) {
             return null;
         }
@@ -91,7 +99,7 @@ final class ProtectedGetWorkspace
                 (option_name, option_value, autoload)
                 SELECT %s, %s, 'no' FROM DUAL WHERE CONNECTION_ID()=%d AND @@session.in_transaction=1
                 ON DUPLICATE KEY UPDATE option_value=VALUES(option_value), autoload='no'",
-                ($direct ? self::DIRECT_OPTION : self::OPTION), $payload, $connection));
+                self::observationOption($direct), $payload, $connection));
             $committed = is_int($changed) && $changed > 0 && $wpdb->query('COMMIT') !== false;
             return $committed;
         } catch (\Throwable) {

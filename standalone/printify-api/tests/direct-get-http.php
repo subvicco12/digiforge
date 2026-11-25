@@ -23,6 +23,7 @@ function apply_filters(string $tag,mixed $value,mixed ...$args): mixed {
 }
 class WP_Error { public function __construct(string $code) {} }
 require $argv[1].'/ProtectedGet.php';
+require $argv[1].'/DirectReadSecret.php';
 require $argv[1].'/DirectGet.php';
 use DigiForgePrintifyApi\ProtectedGet;
 use DigiForgePrintifyApi\DirectGet;

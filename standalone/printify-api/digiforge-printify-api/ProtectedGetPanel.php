@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 require_once __DIR__.'/ProtectedGet.php';
 require_once __DIR__.'/ProtectedGetWorkspace.php';
 require_once __DIR__.'/DirectGet.php';
+require_once __DIR__.'/DirectReadSecret.php';
 
 /** Manual scoped request preparation. There is no WordPress-to-gateway exchange. */
 final class ProtectedGetPanel
@@ -31,11 +32,13 @@ final class ProtectedGetPanel
             return;
         }
         $direct = DirectGet::selected();
+        $synthetic = !$direct || DirectGet::synthetic();
         $workspace = ProtectedGetWorkspace::snapshot($direct);
         echo '<section><h2>Protected Printify reads</h2>';
         echo $workspace === null
             ? '<p>Live direct reads are held. You can prepare a scoped request without sending it.</p>'
-            : ($direct ? '<p>Local direct GET fixture. Live reads are held.</p>'
+            : ($direct ? ($synthetic ? '<p>Local direct GET fixture. Live reads are held.</p>'
+                : '<p>Manual direct Printify GET. Server-side holds apply.</p>')
                 : '<p>Local gateway fixture only. Live provider reads are disabled.</p>');
         $profile = AccountProfile::current();
         $revision = AccountProfile::revisionToken();
@@ -51,14 +54,15 @@ final class ProtectedGetPanel
                 echo '<code>GET '.\esc_html($result['path']).'</code>';
             }
         }
-        if ($direct) echo '<p>Connection: '.\esc_html(DirectGet::status($profile)).' · Limit: 10 reads per minute per account/shop.</p>';
+        if ($direct) echo '<p>Connection: '.\esc_html(DirectGet::status($profile)).' · Limit: 10 reads per minute per account/shop. Use Shops Read to check the assigned shop manually.</p>';
         if ($workspace !== null) {
             $scope = self::scope($profile, $revision, \wp_get_session_token());
-            $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || DirectGet::gatesOpen()))
+            $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || (DirectGet::synthetic() ? DirectGet::gatesOpen()
+                : DirectGet::status($scope) === 'DIRECT_PROFILE_CONFIGURED')))
                 ? ProtectedGetWorkspace::visible($scope,$direct) : null;
             if ($record !== null) {
                 $receipt = $record['receipt'];
-                $freshness = time() - $record['stored_at'] <= 60 ? 'Recent fixture' : 'Stale fixture';
+                $freshness = (time() - $record['stored_at'] <= 60 ? 'Recent' : 'Stale').($synthetic ? ' fixture' : ' observation');
                 echo '<p>'.\esc_html($freshness.' · '.gmdate('c', $record['stored_at'])
                     .' · '.$receipt['operation'].' · '.$receipt['state'].' · '.$receipt['reason']).'</p>';
                 if (($receipt['source'] ?? null) === 'SYNTHETIC_PRINTIFY') {
@@ -67,18 +71,21 @@ final class ProtectedGetPanel
                 if (isset($receipt['retry_after_seconds'])) {
                     echo '<p>'.\esc_html('Provider requested a wait of '.$receipt['retry_after_seconds'].' seconds.').'</p>';
                 }
+                if (($receipt['source'] ?? null) === 'PRINTIFY_HTTPS_GET') {
+                    echo '<p>'.\esc_html('Printify HTTPS GET · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
+                }
                 if (($receipt['source'] ?? null) === 'SYNTHETIC_DIRECT_PRINTIFY') {
                     echo '<p>'.\esc_html('Synthetic direct Printify evidence · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
                 }
                 $data = $receipt['data'] ?? null;
                 if ($data === null && isset($record['last_success']['data'])
                     && time()-$record['last_success']['observed_at'] <= 3600) {
-                    echo '<p>'.\esc_html('Stale prior synthetic '.$record['last_success']['operation'].' observation · '
+                    echo '<p>'.\esc_html(($synthetic ? 'Stale prior synthetic ' : 'Stale prior provider ').$record['last_success']['operation'].' observation · '
                         .gmdate('c',$record['last_success']['observed_at'])).'</p>';
                     $data = $record['last_success']['data'];
                 }
                 if ($data !== null) {
-                    echo '<pre>'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
+                    echo '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
@@ -89,15 +96,15 @@ final class ProtectedGetPanel
         if ($workspace !== null) {
             echo '<input type="hidden" name="df_printify_get_workspace" value="'.\esc_attr($workspace['revision']).'">';
         }
-        echo '<label>Read operation <select name="df_printify_get_operation">';
+        echo '<label>Read operation <select style="max-width:100%" name="df_printify_get_operation">';
         foreach (self::FIELDS as $operation => $fields) {
             echo '<option value="'.\esc_attr($operation).'">'.\esc_html($operation).'</option>';
         }
         echo '</select></label><p>Fill only the fields needed by the operation. Product detail needs the catalog selection and comma-separated variant IDs.</p>';
         foreach (['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','order_id'] as $field) {
-            echo '<p><label>'.\esc_html($field).' <input name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
+            echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
         }
-        echo '<button type="submit">'.($workspace === null ? 'Prepare GET' : 'Refresh synthetic observation').'</button></form></section>';
+        echo '<button class="button button-primary" style="min-height:44px" type="submit">'.($workspace === null ? 'Prepare GET' : ($synthetic ? 'Refresh synthetic observation' : 'Refresh Printify read')).'</button></form></section>';
     }
 
     public static function prepare(array $post): array
@@ -174,7 +181,11 @@ final class ProtectedGetPanel
         $correlation = bin2hex(random_bytes(16));
         try {
             if ($direct) {
-                $result = DirectGet::execute($request, static fn(): bool => ProtectedGetWorkspace::reserveDirect($scope,$revision));
+                $result = DirectGet::execute($request, static fn(): bool =>
+                    ProtectedGetWorkspace::reserveDirect($scope,$revision)
+                    && AccountProfile::revisionToken() === $scope['revision']
+                    && \current_user_can('digiforge_printify_review_shop_'.$scope['shop'])
+                    && self::currentSession($scope['actor'],$session));
             } elseif (defined('DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE') && DIGIFORGE_PRINTIFY_GET_HTTP_FIXTURE === true) {
                 require_once __DIR__.'/ProtectedGetHttp.php';
                 $reply = ProtectedGetHttp::exchange($request, $correlation, $revision);

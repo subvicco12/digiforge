@@ -51,8 +51,7 @@ and configure local account, shop, integration and opaque custody reference
 metadata. The assigned operator needs manage_options and the corresponding
 digiforge_printify_review_shop_<id> capability. The disposable harness
 supplies the exact approved scope, synthetic credential and isolated fixture
-responses. No token is entered through an admin form. The release candidate
-does not support real credential enrollment or outbound provider traffic.
+Production credential enrollment and outbound traffic require separate authorization.
 
 A separately authorized production read pilot must first qualify the exact
 server-side secret source, a least-privilege read-only Printify token, and
@@ -67,3 +66,31 @@ qualification. With production held, the panel may show offline metadata
 and diagnostics only. Verify unchanged incumbent plugins and checkout.
 For rollback, deactivate Standalone and preserve existing scoped audit
 evidence. Do not overwrite DigiForge or the Shipping Method plugin.
+
+= Server-side configuration (Blueprint v1.2) =
+
+For separately authorized direct reads, the hosting account operator creates
+a private, regular JSON file outside both the web document root and WordPress
+directory, at a canonical absolute path with mode 0600. On hosting with POSIX
+available, the file must be owned by the site's PHP user. Define only the file
+path in wp-config.php:
+
+  define('DIGIFORGE_PRINTIFY_DIRECT_CONFIG_FILE', '/home/SITE/private/printify-read.json');
+
+Use an exact JSON object with schema (integer 1), scope (an object containing
+exact string fields account, shop, integration and custody), state (string
+approved-read-only), expires_at (integer Unix seconds), token (the approved
+read-only PAT), and three booleans stop_all, external_lock and release_hold.
+Keep all three true while held. Use the same scope in Tools → Printify API.
+The shop field is a numeric string and custody is an opaque custody-ref:
+identifier. The operator independently verifies least-privilege provider
+scopes before attesting approved-read-only; the plugin cannot inspect a PAT's
+granted permissions. Never submit the token to WordPress admin forms.
+
+Activation performs no connection check. Once separately authorized to lift
+all three read holds, use the protected Shops Read operation for a manual
+diagnostic. A scope or credential denial is not retried. Rotate by writing a
+new private file and atomically renaming it over the approved path. To revoke,
+reassert the holds or remove the file and revoke the PAT at the provider under
+a separately authorized procedure. The plugin re-reads configuration before
+dispatch and after the response. An already-issued GET cannot be recalled.

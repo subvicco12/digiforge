@@ -7,14 +7,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Manual Printify GET. The offline candidate permits only explicitly intercepted fixture I/O. */
+/** Manual Printify GET with a separately configured, held-by-default server-side profile. */
 final class DirectGet
 {
     private const ORIGIN = 'https://api.printify.com';
     private const LIMIT = 262144;
     private const FIXTURE = 'DIGIFORGE_PRINTIFY_DIRECT_GET_FIXTURE';
 
-    public static function selected(): bool
+    private static function fixture(): bool
     {
         return defined(self::FIXTURE) && constant(self::FIXTURE) === true
             && wp_get_environment_type() === 'local'
@@ -22,45 +22,60 @@ final class DirectGet
             && !defined('WP_ACCESSIBLE_HOSTS');
     }
 
-    private static function configuredScope(array $scope): bool
+    public static function selected(): bool
     {
-        if (!defined('DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE') || !is_array(DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE)) {
-            return false;
-        }
-        $configured = DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE;
+        return self::fixture() || DirectReadSecret::configured();
+    }
+
+    public static function synthetic(): bool
+    {
+        return self::fixture();
+    }
+
+    private static function configuration(): ?array
+    {
+        if (!self::fixture()) return DirectReadSecret::read();
+        $scope = defined('DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE') ? DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE : null;
+        $token = defined('DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT') ? DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT : null;
+        $gates = apply_filters('digiforge_printify_direct_fixture_gates', null);
+        if (!is_array($scope) || count($scope)!==4 || !is_string($token)
+            || !preg_match('/^fixture-[a-zA-Z0-9_-]{8,80}$/D',$token) || !has_filter('digiforge_printify_direct_fixture_response')
+            || !is_array($gates)) return null;
+        return ['scope'=>$scope,'token'=>$token,'stop_all'=>$gates['stop_all'] ?? true,
+            'external_lock'=>$gates['external_lock'] ?? true,'release_hold'=>false];
+    }
+
+    private static function open(?array $configuration): bool
+    {
+        return $configuration!==null && $configuration['stop_all']===false
+            && $configuration['external_lock']===false && $configuration['release_hold']===false;
+    }
+
+    private static function configuredScope(array $configured,array $scope): bool
+    {
         foreach (['account','shop','integration','custody'] as $field) {
-            if (!is_string($configured[$field] ?? null) || $configured[$field] !== ($scope[$field] ?? null)) {
-                return false;
-            }
+            if (!is_string($configured[$field] ?? null) || $configured[$field]!==($scope[$field] ?? null)) return false;
         }
-        return count($configured) === 4;
+        return true;
     }
 
     public static function status(array $scope = []): string
     {
-        if (!self::selected()) {
-            return 'LIVE_READ_HELD';
-        }
-        if (!self::configuredScope($scope) || self::credential() === null || !has_filter('digiforge_printify_direct_fixture_response')) {
-            return 'FIXTURE_CONFIGURATION_UNAVAILABLE';
-        }
-        return self::gatesOpen() ? 'SYNTHETIC_DIRECT_READY' : 'SYNTHETIC_DIRECT_HELD';
+        if (!self::selected()) return 'LIVE_READ_HELD';
+        $config=self::configuration();
+        if ($config===null || !self::configuredScope($config['scope'],$scope)) return 'DIRECT_CONFIGURATION_UNAVAILABLE';
+        if (!self::open($config)) return 'DIRECT_READ_HELD';
+        return self::fixture() ? 'SYNTHETIC_DIRECT_READY' : 'DIRECT_PROFILE_CONFIGURED';
     }
 
     public static function gatesOpen(): bool
     {
-        if (!self::selected()) {
-            return false;
+        if (self::fixture()) {
+            $gates = apply_filters('digiforge_printify_direct_fixture_gates', null);
+            return is_array($gates) && ($gates['stop_all'] ?? null) === false
+                && ($gates['external_lock'] ?? null) === false;
         }
-        $gates = apply_filters('digiforge_printify_direct_fixture_gates', null);
-        return is_array($gates) && ($gates['stop_all'] ?? null) === false && ($gates['external_lock'] ?? null) === false;
-    }
-
-    private static function credential(): ?string
-    {
-        // A separately approved production release must supply and qualify its server-side secret resolver.
-        $token = defined('DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT') ? DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT : null;
-        return is_string($token) && preg_match('/^fixture-[a-zA-Z0-9_-]{8,80}$/D',$token) ? $token : null;
+        return self::open(self::configuration());
     }
 
     public static function execute(array $request, \Closure $reserve): array
@@ -68,17 +83,18 @@ final class DirectGet
         $base = ['state'=>'BLOCKED','reason'=>'DIRECT_READ_HELD','source'=>null,'retry_permitted'=>false,
             'provider_execution_authorized'=>false];
         try {
-            if (!self::selected() || !self::gatesOpen() || !has_filter('digiforge_printify_direct_fixture_response')
+            $fixture = self::fixture();
+            $config = self::configuration();
+            if (!self::open($config)
                 || $request !== ProtectedGet::request($request['scope'],$request['operation'],$request['selection'])
-                || !self::configuredScope($request['scope']) || ($pat=self::credential()) === null) {
+                || !self::configuredScope($config['scope'],$request['scope'])) {
                 return $base;
             }
             if (!$reserve()) {
                 return ['reason'=>'LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE'] + $base;
             }
-            if (!self::gatesOpen()) {
-                return $base;
-            }
+            if ($config !== self::configuration()) return $base;
+            $pat = $config['token'];
 
             $url = self::ORIGIN.$request['path'];
             $intercepted = false;
@@ -94,18 +110,18 @@ final class DirectGet
                 $mock = apply_filters('digiforge_printify_direct_fixture_response', null, $request);
                 return is_array($mock) ? $mock : new \WP_Error('direct_read_fixture_unavailable');
             };
-            add_filter('pre_http_request',$intercept,PHP_INT_MAX,3);
+            if ($fixture) add_filter('pre_http_request',$intercept,PHP_INT_MAX,3);
             try {
                 $reply = wp_safe_remote_get($url,['method'=>'GET','sslverify'=>true,'reject_unsafe_urls'=>true,
                     'redirection'=>0,'timeout'=>5,'limit_response_size'=>self::LIMIT,
                     'headers'=>['Authorization'=>'Bearer '.$pat,'Accept'=>'application/json']]);
             } finally {
-                remove_filter('pre_http_request',$intercept,PHP_INT_MAX);
+                if ($fixture) remove_filter('pre_http_request',$intercept,PHP_INT_MAX);
             }
 
-            if (!self::gatesOpen()) return $base;
+            if ($config !== self::configuration()) return $base;
             $unavailable = ['state'=>'UNAVAILABLE','reason'=>'DIRECT_READ_UNAVAILABLE'] + $base;
-            if (!$intercepted || !is_array($reply)) return $unavailable;
+            if (($fixture && !$intercepted) || !is_array($reply)) return $unavailable;
             $status = wp_remote_retrieve_response_code($reply);
             if ($status === 429) {
                 $seconds = wp_remote_retrieve_header($reply,'retry-after');
@@ -133,8 +149,8 @@ final class DirectGet
                 unset($shipment);
             }
             if (str_contains(json_encode($data,JSON_THROW_ON_ERROR),$pat)) return $unavailable;
-            return ['state'=>'OBSERVED','reason'=>'SYNTHETIC_DIRECT_OBSERVED','observed_at'=>time(),
-                'source'=>'SYNTHETIC_DIRECT_PRINTIFY','response_sha256'=>hash('sha256',$body),'data'=>$data] + $base;
+            return ['state'=>'OBSERVED','reason'=>$fixture ? 'SYNTHETIC_DIRECT_OBSERVED' : 'DIRECT_READ_OBSERVED',
+                'observed_at'=>time(),'source'=>$fixture ? 'SYNTHETIC_DIRECT_PRINTIFY' : 'PRINTIFY_HTTPS_GET','response_sha256'=>hash('sha256',$body),'data'=>$data] + $base;
         } catch (\Throwable) {
             return ['state'=>'UNAVAILABLE','reason'=>'DIRECT_READ_UNAVAILABLE'] + $base;
         }
