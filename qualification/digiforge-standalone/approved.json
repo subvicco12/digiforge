@@ -1,7 +1,7 @@
 {
   "schema": "DF_COEX_ADMISSION_1",
   "actor": "subvicco12",
-  "ref": "refs/heads/qualification/digiforge-standalone-coexistence-daemon-recovery",
+  "ref": "refs/heads/qualification/digiforge-standalone-coexistence-daemon-recovery-2",
   "readme_approval": "OWNER_AUTHORIZED_ONE_RUN",
   "profile": "production-no-woocommerce",
   "versions": {
@@ -20,7 +20,7 @@
     "wordpress.zip": "cd44160a3fcce179fe170331132fcfc05e84e2f9284e2aad38df2aea6edaeab1"
   },
   "control_sha256": {
-    ".github/workflows/digiforge-sealed-coexistence.yml": "1c2a293e33161809c4229abbe43534261f60c2142801a63706e3c9d53a574111",
+    ".github/workflows/digiforge-sealed-coexistence.yml": "b573be5b0346ffd73a0110b1f5653219faecd0a64472e48f878a716f345cb168",
     "qualification/digiforge-standalone/acquire.sh": "2238e95271aac99c09c2c48fa192a233ea43b43d8cc9bda873fa829348be01e7",
     "qualification/digiforge-standalone/browser-adapter.php": "f771f94cfb1d4f21b90227ff3a9f97d40eeb1f7b155d239eda29ccf6a2916242",
     "qualification/digiforge-standalone/browser.cjs": "3c24040610b7b5d084da0c9cd8ece080439471f1f39ff4af6d6eec34a05f143d",
