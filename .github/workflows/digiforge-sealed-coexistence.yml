@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
           [[ "$GITHUB_REPOSITORY" == subvicco12/digiforge && "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
           [[ "$GITHUB_RUN_ATTEMPT" == 1 && "$GITHUB_ACTOR" == subvicco12 && "$GITHUB_TRIGGERING_ACTOR" == subvicco12 ]]
-          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-standalone-coexistence-daemon-recovery && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_REF" == refs/heads/qualification/digiforge-standalone-coexistence-daemon-recovery-2 && "$GITHUB_REF_PROTECTED" == true ]]
           [[ "$GITHUB_SHA" == "$SEALED_HEAD" && "$SEALED_HEAD" =~ ^[0-9a-f]{40}$ && "$SEALED_APPROVAL" =~ ^[0-9a-f]{64}$ ]]
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
