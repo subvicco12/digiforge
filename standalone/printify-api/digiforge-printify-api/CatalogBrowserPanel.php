@@ -84,7 +84,7 @@ final class CatalogBrowserPanel
 
     private static function selector(string $label, string $field, array $rows, array $prior, string $selected): void
     {
-        echo '<form method="get"><input type="hidden" name="page" value="digiforge-printify-api">';
+        echo '<form method="get"><input type="hidden" name="page" value="'.\esc_attr(Runtime::ADMIN_PAGE).'">';
         foreach ($prior as $key=>$value) {
             echo '<input type="hidden" name="'.\esc_attr($key).'" value="'.\esc_attr($value).'">';
         }

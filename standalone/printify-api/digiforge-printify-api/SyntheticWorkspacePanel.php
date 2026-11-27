@@ -59,7 +59,7 @@ final class SyntheticWorkspacePanel
         }
 
         if (count($shops)>1) {
-            echo '<form method="get"><input type="hidden" name="page" value="digiforge-printify-api">';
+            echo '<form method="get"><input type="hidden" name="page" value="'.\esc_attr(Runtime::ADMIN_PAGE).'">';
             echo '<label for="df-fixture-shop">Fixture shop</label> <select id="df-fixture-shop" name="df_workspace_shop">';
             foreach ($shops as $id) {
                 $id=(string)$id;

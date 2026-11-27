@@ -10,6 +10,9 @@ if (!\defined('ABSPATH')) {
 /** Standalone local operations. This class owns no provider transport. */
 final class Runtime
 {
+    // Keep this page outside the incumbent DigiForge admin slug namespace.
+    public const ADMIN_PAGE = 'printify-api-standalone';
+
     public static function register(): void
     {
         \add_action('admin_menu', [self::class, 'menu']);
@@ -17,7 +20,7 @@ final class Runtime
 
     public static function menu(): void
     {
-        \add_management_page('DigiForge Printify API', 'Printify API', 'manage_options', 'digiforge-printify-api', [self::class, 'panel']);
+        \add_management_page('DigiForge Printify API', 'Printify API', 'manage_options', self::ADMIN_PAGE, [self::class, 'panel']);
     }
 
     public static function panel(): void

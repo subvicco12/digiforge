@@ -15,7 +15,7 @@ final class RecordBrowserPanel
         echo '<p>Local synthetic records. Provider freshness is unavailable.</p>';
         $shop = $query['df_records_shop'] ?? null;
         $kind = $query['df_records_kind'] ?? '';
-        echo '<form method="get"><input type="hidden" name="page" value="digiforge-printify-api">';
+        echo '<form method="get"><input type="hidden" name="page" value="'.\esc_attr(Runtime::ADMIN_PAGE).'">';
         echo '<label>Shop <select name="df_records_shop">';
         foreach ($scopes as $key=>$account) {
             $key = (string)$key;
@@ -51,7 +51,7 @@ final class RecordBrowserPanel
             return;
         }
         echo '<p>Observed locally '.\esc_html(gmdate('Y-m-d H:i:s', $result['observed_at'])).' UTC</p>';
-        $params = ['page'=>'digiforge-printify-api', 'df_records_shop'=>$shop, 'df_records_kind'=>$kind];
+        $params = ['page'=>Runtime::ADMIN_PAGE, 'df_records_shop'=>$shop, 'df_records_kind'=>$kind];
         $data = $result['data'];
         if ($id !== null) {
             self::link($params + ['df_records_page'=>$rawPage], 'Back to records');
