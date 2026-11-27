@@ -1,0 +1,30 @@
+<?php
+declare(strict_types=1);
+namespace DigiForgePrintifyConnector\Preparation;
+use DigiForge\Connector\Printify\ShopBinding;
+/** Structural tracking evidence only. Never carrier certification, cancellation or delivery authority. */
+final readonly class ShipmentReadModel implements \JsonSerializable {
+ private function __construct(private array $data){}
+ public static function trackingKey(string $carrier,string $number):string{return MutationIntent::hash([strtolower(trim($carrier)),trim($number)]);}
+ private static function label(mixed $s,int $max):string{if(!is_string($s)||strlen($s)>$max||!preg_match('/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/D',$s))self::bad();return trim($s);}
+ private static function time(mixed $s,int $observed):?int{if($s===null)return null;if(!is_string($s))self::bad();$d=\DateTimeImmutable::createFromFormat('!Y-m-d H:i:sP',$s);if(!$d||$d->format('Y-m-d H:i:sP')!==$s||$d->getTimestamp()>$observed+60)self::bad();return $d->getTimestamp();}
+ public static function fromProvider(ShopBinding $s,OrderReadModel $order,array $shipments,array $allocations,array $c):self {
+  $o=$order->jsonSerialize();$keys=['order_version','expected_order_version','product_versions','read_receipt','observed_at'];if($o['scope_fingerprint']!==$s->fingerprint()||array_diff(array_keys($c),$keys)||array_diff($keys,array_keys($c))||!is_int($c['order_version'])||$c['order_version']<1||$c['order_version']!==$c['expected_order_version']||!is_array($c['product_versions'])||!is_string($c['read_receipt'])||!preg_match('/^[a-f0-9]{64}$/D',$c['read_receipt'])||!is_int($c['observed_at'])||$c['observed_at']<1||$c['observed_at']>time()+30||!array_is_list($shipments)||count($shipments)>50||!array_is_list($allocations)||count($allocations)>50)self::bad();
+  $quantities=[];$blockers=[];foreach($o['items']as $item){$id=$item['line_item_id'];if(($c['product_versions'][$id]??null)!==$item['product_version'])self::bad();$quantities[$id]=$item['quantity'];if($item['product_version']===null)$blockers[]='PRODUCT_LINEAGE_UNVERIFIED';}
+  if(array_diff(array_keys($c['product_versions']),array_keys($quantities)))self::bad();$map=[];
+  foreach($allocations as $a){if(!is_array($a)||array_diff(array_keys($a),['carrier','number','items'])||!is_array($a['items']??null)||!array_is_list($a['items'])||count($a['items'])>100)self::bad();$key=self::trackingKey(self::label($a['carrier']??null,60),self::label($a['number']??null,100));if(isset($map[$key]))self::bad();$map[$key]=[];foreach($a['items']as $q){$id=$q['line_item_id']??null;if(!is_string($id)||!isset($quantities[$id])||!is_int($q['quantity']??null)||$q['quantity']<1||isset($map[$key][$id]))self::bad();$map[$key][$id]=$q['quantity'];}}
+  $seen=[];$totals=[];$delivered=[];
+  foreach($shipments as $p){if(!is_array($p)||array_diff(array_keys($p),['carrier','number','url','delivered_at','line_item_ids']))self::bad();$carrier=strtolower(self::label($p['carrier']??null,60));$number=self::label($p['number']??null,100);$key=self::trackingKey($carrier,$number);$ids=$p['line_item_ids']??null;if(!is_array($ids)||!array_is_list($ids)||count($ids)>100||count(array_unique($ids,SORT_REGULAR))!==count($ids))self::bad();foreach($ids as $id)if(!is_string($id)||!isset($quantities[$id]))self::bad();sort($ids);
+   if(isset($p['url'])){if(!is_string($p['url'])||strlen($p['url'])>2048)self::bad();$url=parse_url($p['url']);if(!is_array($url)||!in_array($url['scheme']??null,['http','https'],true)||empty($url['host'])||isset($url['user'])||isset($url['pass']))self::bad();}
+   $at=self::time($p['delivered_at']??null,$c['observed_at']);$line=$map[$key]??[];if(array_diff(array_keys($line),$ids))self::bad();if($line===[])$blockers[]='SHIPMENT_QUANTITIES_UNVERIFIED';
+   $row=['tracking_key'=>$key,'carrier'=>$carrier,'tracking_reference_hash'=>hash('sha256',$number),'line_item_ids'=>$ids,'allocations'=>$line,'delivered_at'=>$at,'state'=>$at===null?'TRACKING_OBSERVED':'DELIVERY_OBSERVED'];
+   if(isset($seen[$key])){if(MutationIntent::hash($seen[$key])!==MutationIntent::hash($row))$blockers[]='CONFLICTING_TRACKING';continue;}$seen[$key]=$row;foreach($line as $id=>$qty){$totals[$id]=($totals[$id]??0)+$qty;if($at!==null)$delivered[$id]=($delivered[$id]??0)+$qty;}
+  }
+  if(array_diff(array_keys($map),array_keys($seen)))self::bad();$complete=$quantities!==[];$allDelivered=$complete;$has=false;foreach($quantities as $id=>$qty){if(($totals[$id]??0)>$qty)self::bad();$has=$has||($totals[$id]??0)>0;$complete=$complete&&($totals[$id]??0)===$qty;$allDelivered=$allDelivered&&($delivered[$id]??0)===$qty;}
+  $state=$allDelivered?'DELIVERY_OBSERVED':($complete?'COMPLETE_TRACKING_OBSERVED':($has?'PARTIAL_TRACKING_OBSERVED':'UNKNOWN'));
+  if($o['status']==='CANCELED'){$state='CANCELLED_ORDER_OBSERVED';if($seen!==[])$blockers[]='TRACKING_ON_CANCELLED_ORDER';}elseif(in_array($o['status'],['ON_HOLD','HAS_ISSUES','PAYMENT_NOT_RECEIVED','UNFULFILLABLE','SOURCE_CHECK_FAILED'],true))$state='EXCEPTION_REVIEW_REQUIRED';if(in_array('CONFLICTING_TRACKING',$blockers,true))$state='UNKNOWN';
+  ksort($seen);$data=['schema'=>'DF_FULFILLMENT_OBSERVATION_1','scope_fingerprint'=>$s->fingerprint(),'order_id'=>$o['order_id'],'order_identity'=>$o['provider_identity'],'provider_order_status'=>$o['status'],'order_version'=>$c['order_version'],'product_versions'=>$c['product_versions'],'state'=>$state,'shipments'=>array_values($seen),'blockers'=>array_values(array_unique($blockers)),'observed_at'=>$c['observed_at'],'read_receipt'=>$c['read_receipt'],'manual_review_required'=>true,'core_lineage_verification_required'=>true,'retry_permitted'=>false,'external_execution_authorized'=>false];$content=$data;unset($content['observed_at'],$content['read_receipt'],$content['scope_fingerprint']);return new self($data+['content_hash'=>MutationIntent::hash($content)]);
+ }
+ public function jsonSerialize():array{return $this->data;}
+ private static function bad():never{throw new \InvalidArgumentException('Exact versioned order-to-shipment lineage and bounded tracking observations required.');}
+}

@@ -58,6 +58,55 @@ final class PrintifyCatalogClient
         return $this->get($token, $base . '/' . $method . '.json');
     }
 
+    /** One admitted attempt; the caller owns all execution and budget policy. */
+    public function connectorRead(string $token, array $request, callable $attemptAdmission): array|WP_Error
+    {
+        $error = static fn(string $kind, int $status = 502, array $extra = []): WP_Error => new WP_Error('digiforge_printify_' . $kind, 'Printify connector read could not be completed.', ['status'=>$status] + $extra);
+        if ($token === '' || strlen($token)>8192 || trim($token) !== $token || preg_match('/[\x00-\x20\x7f]/', $token)) return $error('credentials', 409);
+        try { $request = PrintifyConnectorReadContract::validate($request); }
+        catch (\Throwable) { return $error('endpoint', 400); }
+        try {
+            if ($attemptAdmission('before', $request) !== true) return $error('admission', 409);
+        } catch (\Throwable) { return $error('admission', 409); }
+        $response = null;
+        $failed = false;
+        try {
+            $response = ($this->transport)('https://api.printify.com' . $request['endpoint'], [
+                'method'=>'GET', 'timeout'=>20, 'redirection'=>0, 'reject_unsafe_urls'=>true,
+                'sslverify'=>true, 'limit_response_size'=>1048577,
+                'headers'=>['Authorization'=>'Bearer '.$token, 'Accept'=>'application/json', 'User-Agent'=>'DigiForge/PrintifyConnectorRead'],
+            ]);
+        } catch (\Throwable) { $failed = true; }
+        try {
+            if ($attemptAdmission('after', $request) !== true) return $error('admission', 409);
+        } catch (\Throwable) { return $error('admission', 409); }
+        if ($failed || $response instanceof WP_Error || !is_array($response)) return $error('transport');
+        // Inspect the raw response before extracting any provider-controlled content.
+        $raw = json_encode($response, JSON_PARTIAL_OUTPUT_ON_ERROR);
+        if (!is_string($raw) || str_contains($raw, $token)) return $error('response');
+        $body = $response['body'] ?? null;
+        if (!is_string($body) || strlen($body)>1048576 || str_contains($body,$token)) return $error('response');
+        $status = (int)($response['response']['code'] ?? 0);
+        if ($status !== 200) {
+            $kind=match(true) { $status===401=>'unauthorized', $status===403=>'forbidden', $status===404=>'not_found', $status===429=>'rate_limit', $status>=500=>'upstream', default=>'http' };
+            $extra=[];
+            if ($status===429 || $status>=500) {
+                $headers=$response['headers']??[];
+                $retry=is_array($headers) || $headers instanceof \ArrayAccess ? ($headers['retry-after']??'') : '';
+                if (is_string($retry)||is_int($retry)) { $seconds=$this->retryAfterSeconds((string)$retry); if ($seconds!==null) $extra['retry_after_seconds']=$seconds; }
+            }
+            return $error($kind, $status >= 400 && $status <= 599 ? $status : 502, $extra);
+        }
+        try { $decoded=json_decode($body,true,64,JSON_THROW_ON_ERROR); }
+        catch (\Throwable) { return $error('json'); }
+        if (!is_array($decoded)) return $error('shape');
+        if (PrintifyConnectorReadContract::containsProtectedMaterial($decoded,$token)) return $error('response');
+        $arrayField=match($request['operation']) { 'PRODUCTS_READ','ORDERS_READ','UPLOADS_READ'=>'data', 'VARIANTS_READ'=>'variants', default=>null };
+        if ($arrayField!==null && (!isset($decoded[$arrayField]) || !is_array($decoded[$arrayField]))) return $error('shape');
+        if (in_array($request['operation'], ['SHOPS_READ','BLUEPRINTS_READ','PROVIDERS_READ'],true) && !array_is_list($decoded)) return $error('shape');
+        return $decoded;
+    }
+
     private function id(int $id): int
     {
         if ($id < 1) throw new \InvalidArgumentException('Printify catalog identifiers must be positive integers.');

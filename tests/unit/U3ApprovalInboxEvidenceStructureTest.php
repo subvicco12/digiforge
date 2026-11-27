@@ -42,6 +42,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         require_once __DIR__ . '/../../includes/Database/Tables.php';
         $previous = $GLOBALS['wpdb'] ?? null;
         $GLOBALS['wpdb'] = new class {
+ public string $last_error='';
             public string $prefix = 'wp_';
             public string $query = '';
             public function get_var(string $query): int { $this->query = $query; return 217; }
@@ -102,6 +103,7 @@ final class U3ApprovalInboxEvidenceStructureTest extends TestCase
         require_once __DIR__ . '/../../includes/Database/Tables.php';
         $previous = $GLOBALS['wpdb'] ?? null;
         $GLOBALS['wpdb'] = new class {
+ public string $last_error='';
             public string $prefix = 'wp_';
             public string $countQuery = '';
             public string $rowsQuery = '';

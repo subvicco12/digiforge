@@ -24,7 +24,7 @@ $must=[
  [$engine,"GovernedGeneration())->research",'research generation is governed'],
  [$engine,"GovernedGeneration())->develop",'synchronous development generation is governed'],
  [$automation,"GovernedGeneration())->startBackgroundDevelop",'background generation is governed'],
- [$automation,"'qa',$brief",'QA repair is charged to QA stage'],
+ [$automation,"'qa',\$brief",'QA repair is charged to QA stage'],
  [$automation,'retrieveBackground($responseId)','polling remains retrieval-only'],
  [$orchestrator,"GovernedGeneration())->develop",'fallback manifest generation is governed'],
  [$qa,"GovernedGeneration())->develop",'semantic QA generation is governed'],

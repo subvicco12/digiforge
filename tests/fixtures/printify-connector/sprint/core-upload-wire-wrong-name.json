@@ -1,0 +1,15 @@
+{
+  "schema": "DF_NATIVE_IMAGE_UPLOAD_WIRE_1",
+  "version": "1.0.0",
+  "scope_fingerprint": "95db57376506e47ed2ffabb67d7da52d666ad68028cecdb2989c897df3fb5780",
+  "actor_id": 1,
+  "source_evidence_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "plan_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "package_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "asset_sha256": "6e890ddc7db31f8c75496cc316d7d7bb6e9dcd6b1f53436bc12cd8cd2534481a",
+  "file_name": "renamed.png",
+  "method": "POST",
+  "endpoint": "/v1/uploads/images.json",
+  "payload_fingerprint": "266737807bbfa639e912250802cd8be0a3e25adf01451a5a2b23776415a35aba",
+  "descriptor_hash": "7158b2597791675087f130f3a67e89e657ec7f8c27e418e07e9b805e8c144717"
+}
