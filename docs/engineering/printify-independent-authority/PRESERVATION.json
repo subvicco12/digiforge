@@ -1,0 +1,11 @@
+{
+  "schema": "digiforge-reference-preservation-v1",
+  "baseline_source": "4116c56e4f239e5c280e0470cbff7231f3e789aa",
+  "runtime_files_compared": 489,
+  "runtime_files_changed": [],
+  "runtime_equivalence": "BYTE_IDENTICAL_TO_STARTING_SOURCE",
+  "production_equivalence": "NOT_ASSERTED",
+  "database_migrations_added": false,
+  "bridge_enabled": false,
+  "contract_hash": "d04cea4a3c9133b507a369577da6e82e529e2d1ad87b4cc03eea3389aaea542e"
+}

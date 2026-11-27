@@ -1,0 +1,22 @@
+{
+  "files": {
+    "NativeHeldJournalState.php": {
+      "git_blob": "f368f23ad525e0aca333bddf9b10eb07823d3c7c",
+      "sha256": "288b32a5192557c5eea624018e464ca6f0a8bbbd473120b52ae223c1dd2d3753",
+      "source_path": "includes/Connector/Printify/NativeHeldJournalState.php"
+    },
+    "NativePortContract.php": {
+      "git_blob": "99f77fbcd985ce4938f7e17c06dd7b3a292830ba",
+      "sha256": "2ff7af095ce12144f81556cd9394d9e2078f66a26defbedbdfa3ca3c1196b0fa",
+      "source_path": "includes/Connector/Printify/NativePortContract.php"
+    },
+    "native-core-port.v1.json": {
+      "git_blob": "a769f9a338b429fc864ca48d6c7c30eb7b33bfca",
+      "sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+      "source_path": "includes/Connector/Printify/native-core-port.v1.json"
+    }
+  },
+  "native_schema_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "source_sha": "78e7f973455a3c89319be06f0907caf2103658a7",
+  "type": "FROZEN_REAL_CORE_TEST_REFERENCE_NOT_RUNTIME_OR_AUTHORITY"
+}

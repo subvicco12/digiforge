@@ -1,0 +1,35 @@
+{
+  "schema": "digiforge-isolated-execution-branch-proposal-v1",
+  "source_sha": "c44bafcd19ea046a4f302b7489d3d78c9ba90d21",
+  "target_branch": "cloudflare-inventory-execution",
+  "remote_branch_created": false,
+  "workflow_enabled": false,
+  "environment": "cloudflare-inventory-readonly",
+  "secret_reference": "CLOUDFLARE_READONLY_API_TOKEN",
+  "secret_value_accessed": false,
+  "client_sha256": "7427adfcce90601c325ab7a75d6e7faede694a9863c89e3cd85e45fe12274de2",
+  "files": {
+    ".github/workflows/cloudflare-account-inventory.yml": {
+      "sha256": "dd857b95085a7318352404b7996eba704430caece39f3aa2c88e35173b67e2f4",
+      "size": 5623
+    },
+    "bin/cloudflare-inventory/client.py": {
+      "sha256": "7427adfcce90601c325ab7a75d6e7faede694a9863c89e3cd85e45fe12274de2",
+      "size": 11083
+    }
+  },
+  "proposed_root_tree": "0802d4c32a94040432f939c39ccc22db8f7c74c7",
+  "proposed_local_root_commit": "e806534487e9d653d912ea5758a8e6b6987c7b42",
+  "remote_commit_published": false,
+  "protection_write_attempt": "HTTP403 Resource not accessible by integration",
+  "protection_established": false,
+  "initial_creation_control": {
+    "required": true,
+    "installed": false,
+    "current_collaborator_snapshot": [
+      "subvicco12:admin:push"
+    ],
+    "bootstrap_bypass": "Exact User subvicco12 id320672644; initial creation only; separate update/delete ruleset has NO bypass",
+    "post_bootstrap": "remove creation bypass after exact ref and protections verified"
+  }
+}
