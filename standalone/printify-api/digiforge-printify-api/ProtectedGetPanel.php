@@ -15,6 +15,8 @@ require_once __DIR__.'/DirectReadSecret.php';
 /** Manual scoped GET preparation and refresh. */
 final class ProtectedGetPanel
 {
+    private const MAX_VARIANT_IDS = 1000;
+    private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
     private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id'];
     private const ACTION = 'df_printify_protected_get_v1';
     private const FIELDS = [
@@ -145,7 +147,8 @@ final class ProtectedGetPanel
         }
         echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU. Artwork lookup uses the product detail fields plus the linked image ID.</p>';
         foreach (self::INPUT_FIELDS as $field) {
-            echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
+            $maxLength = $field === 'variant_ids' ? self::MAX_VARIANT_SELECTOR_BYTES : 200;
+            echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="'.$maxLength.'"></label></p>';
         }
         echo '<button class="button button-primary" style="min-height:44px" type="submit">'.($workspace === null ? 'Prepare GET' : ($synthetic ? 'Refresh synthetic observation' : 'Refresh Printify read')).'</button></form></section>';
     }
@@ -209,7 +212,7 @@ final class ProtectedGetPanel
     private static function productSelection(array $product): ?array
     {
         $variants = implode(',',array_column($product['variants'],'id'));
-        if ($variants === '' || strlen($variants)>200) return null;
+        if ($variants === '' || strlen($variants) > self::MAX_VARIANT_SELECTOR_BYTES) return null;
         return ['product_id'=>$product['id'],'blueprint_id'=>$product['blueprint_id'],
             'provider_id'=>$product['print_provider_id'],'variant_ids'=>$variants];
     }
@@ -288,11 +291,16 @@ final class ProtectedGetPanel
                 if ($value === '') {
                     continue;
                 }
-                if (!in_array($name, self::FIELDS[$operation], true) || !is_string($value) || strlen($value) > 200) {
+                $maxLength = $name === 'variant_ids' ? self::MAX_VARIANT_SELECTOR_BYTES : 200;
+                if (!in_array($name, self::FIELDS[$operation], true) || !is_string($value) || strlen($value) > $maxLength) {
                     throw new \InvalidArgumentException('Unexpected selection.');
                 }
                 if ($name === 'variant_ids') {
-                    $selection[$name] = array_map(self::positiveInteger(...), explode(',', $value));
+                    $ids = explode(',', $value, self::MAX_VARIANT_IDS + 1);
+                    if (count($ids) > self::MAX_VARIANT_IDS) {
+                        throw new \InvalidArgumentException('Too many variant IDs.');
+                    }
+                    $selection[$name] = array_map(self::positiveInteger(...), $ids);
                 } elseif (in_array($name, ['blueprint_id','provider_id','variant_id','page'], true)) {
                     $selection[$name] = self::positiveInteger($value);
                 } else {
