@@ -91,6 +91,14 @@ final class ProtectedGetPanel
                     echo '<p>'.\esc_html('Synthetic direct Printify evidence · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
                 }
                 $data = $receipt['data'] ?? null;
+                $currentData = $receipt['state'] === 'OBSERVED' && $data !== null;
+                if ($currentData && ($data['data'] ?? null) === []) {
+                    echo '<p>No records were returned for this page.</p>';
+                }
+                if ($currentData && time()-$record['stored_at'] <= 60) {
+                    self::renderContinuation($receipt['operation'],$data,$revision,$record['workspace_revision']);
+                    self::renderCatalogNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
+                }
                 if ($data === null && isset($record['last_success']['data'])
                     && time()-$record['last_success']['observed_at'] <= 3600) {
                     echo '<p>'.\esc_html(($synthetic ? 'Stale prior synthetic ' : 'Stale prior provider ').$record['last_success']['operation'].' observation · '
@@ -108,6 +116,7 @@ final class ProtectedGetPanel
                             .' · '.$event['state'].' · '.$event['reason']).'</li>';
                     }
                     echo '</ol></details>';
+                    self::renderEvidence($record['history']);
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
@@ -129,6 +138,60 @@ final class ProtectedGetPanel
             echo '<p><label>'.\esc_html($field).' <input style="display:block;width:100%;max-width:24rem;min-height:44px" name="df_printify_get['.\esc_attr($field).']" maxlength="200"></label></p>';
         }
         echo '<button class="button button-primary" style="min-height:44px" type="submit">'.($workspace === null ? 'Prepare GET' : ($synthetic ? 'Refresh synthetic observation' : 'Refresh Printify read')).'</button></form></section>';
+    }
+
+    private static function renderContinuation(string $operation,array $data,string $profile,string $workspace): void
+    {
+        if (!in_array($operation,['PRODUCTS_READ','ORDERS_READ'],true)) return;
+        $current = $data['current_page'] ?? null;
+        $page = $data['next_page']['page'] ?? null;
+        if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE) return;
+        self::renderReadAction($operation,['page'=>$page],$profile,$workspace,'Read next page');
+    }
+
+    private static function renderCatalogNavigation(string $operation,array $data,string $profile,string $workspace): void
+    {
+        $action = match ($operation) {
+            'BLUEPRINTS_READ' => ['BLUEPRINT_PROVIDERS_READ',[],'blueprint_id',$data,'Read selected blueprint providers'],
+            'BLUEPRINT_PROVIDERS_READ' => ['VARIANTS_READ',['blueprint_id'=>$data[0]['blueprint_id'] ?? null],
+                'provider_id',$data,'Read selected provider variants'],
+            'VARIANTS_READ' => ['VARIANT_READ',['blueprint_id'=>$data['blueprint_id'],'provider_id'=>$data['provider_id']],
+                'variant_id',$data['variants'],'Read selected variant'],
+            default => null,
+        };
+        if ($action === null || $action[3] === [] || in_array(null,$action[1],true)) return;
+        [$next,$fixed,$field,$options,$label] = $action;
+        self::renderReadAction($next,$fixed,$profile,$workspace,$label,[$field,$options]);
+    }
+
+    private static function renderReadAction(string $operation,array $fields,string $profile,string $workspace,
+        string $label,?array $selection=null): void
+    {
+        echo '<form method="post">';
+        $hidden = [self::ACTION=>'1','df_printify_get_revision'=>$profile,'df_printify_get_workspace'=>$workspace,
+            'df_printify_get_operation'=>$operation,'df_printify_get_nonce['.$operation.']'=>\wp_create_nonce(self::ACTION.':'.$operation)];
+        foreach ($fields as $key=>$value) $hidden['df_printify_get['.$key.']']=(string)$value;
+        foreach ($hidden as $name=>$value) {
+            echo '<input type="hidden" name="'.\esc_attr($name).'" value="'.\esc_attr($value).'">';
+        }
+        if ($selection !== null) {
+            [$field,$rows] = $selection;
+            echo '<label>'.\esc_html(ucfirst(str_replace('_id','',$field))).' <select style="max-width:100%" name="df_printify_get['.\esc_attr($field).']">';
+            foreach ($rows as $row) {
+                $id = (string)$row['id'];
+                echo '<option value="'.\esc_attr($id).'">'.\esc_html(($row['title'] ?? $id).' · '.$id).'</option>';
+            }
+            echo '</select></label> ';
+        }
+        echo '<button type="submit" class="button" style="min-height:44px">'.\esc_html($label).'</button></form>';
+    }
+
+    private static function renderEvidence(array $events): void
+    {
+        $evidence = json_encode(['schema'=>'DF_READ_OUTCOMES_1','outcomes'=>$events],JSON_PRETTY_PRINT);
+        if ($evidence === false) return;
+        echo '<details><summary>Copy redacted evidence</summary><label>Current session outcomes (JSON)'
+            .'<textarea readonly rows="6" style="width:100%">'.\esc_textarea($evidence).'</textarea></label></details>';
     }
 
     private static function renderOrder(string $operation,array $data): void

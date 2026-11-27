@@ -107,7 +107,9 @@ final class ProtectedGet
             $catalog = PrintifyCatalogReadContract::select($data, ['kind'=>self::CATALOG[$operation]] + $selection);
             $summary = static fn(array $row): array => ['id'=>$row['id'],'title'=>$row['title'] ?? null];
             return match ($operation) {
-                'BLUEPRINTS_READ','BLUEPRINT_PROVIDERS_READ' => array_map($summary, $catalog),
+                'BLUEPRINTS_READ' => array_map($summary, $catalog),
+                'BLUEPRINT_PROVIDERS_READ' => array_map(static fn(array $row): array =>
+                    $summary($row) + ['blueprint_id'=>$selection['blueprint_id']], $catalog),
                 'BLUEPRINT_READ' => $summary($catalog),
                 'BLUEPRINT_PROVIDER_READ' => $summary($catalog) + ['blueprint_id'=>$selection['blueprint_id'],
                     'decoration_methods'=>$catalog['decoration_methods'],'production_time'=>$catalog['production_time']],

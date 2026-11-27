@@ -59,11 +59,13 @@ final class ProtectedGetWorkspace
 
     public static function visible(array $scope, bool $direct = false): ?array
     {
-        $row = self::snapshot($direct)['data'] ?? null;
+        $snapshot = self::snapshot($direct);
+        $row = $snapshot['data'] ?? null;
         if (($row['scope_digest'] ?? null) !== ProtectedGet::digest($scope)
             || $row['stored_at'] > time() || time() - $row['stored_at'] > self::TTL) {
             return null;
         }
+        $row['workspace_revision'] = $snapshot['revision'];
         $row['history'] = self::recentReceipts($row['history'] ?? [],time());
         return $row;
     }

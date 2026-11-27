@@ -57,3 +57,21 @@ $GLOBALS['response']['response']['code']=200;
 $GLOBALS['response']['body']='[{"id":107,"title":"fixture-test-only","sales_channel":"fixture"}]';
 check(DirectGet::execute($request,$charge)['state']==='UNAVAILABLE','Credential echo exposed');
 echo "Direct GET method, held production, STOP, scope, budget, 429 and redirect checks passed.\n";
+
+$GLOBALS['response']['response']['code']=429;
+foreach ([
+    [gmdate('D, d M Y H:i:s',time()+120).' GMT', 118, 120],
+    [gmdate('D, d M Y H:i:s',time()+7200).' GMT', 3600, 3600],
+    [gmdate('D, d M Y H:i:s',time()-120).' GMT', 0, 0],
+    ['Fri, 31 Feb 2027 12:00:00 GMT',null,null],
+] as [$header,$minimum,$maximum]) {
+    $GLOBALS['response']['headers']['retry-after']=$header;
+    $beforeCount=$GLOBALS['calls'];
+    $result=DirectGet::execute($request,$charge);
+    $seconds=$result['retry_after_seconds'] ?? null;
+    check($result['reason']==='PROVIDER_RATE_LIMITED' && !$result['retry_permitted']
+        && $GLOBALS['calls']===$beforeCount+1,'Date-based 429 triggered retry or changed outcome');
+    check($minimum===null ? $seconds===null : is_int($seconds) && $seconds>=$minimum && $seconds<=$maximum,
+        'Unexpected date-based wait hint');
+}
+echo "HTTP-date Retry-After, expired, capped and invalid delays passed.\n";

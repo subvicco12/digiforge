@@ -78,6 +78,17 @@ final class DirectGet
         return self::open(self::configuration());
     }
 
+    private static function retryAfter(mixed $value, int $now): ?int
+    {
+        if (!is_string($value)) return null;
+        if (preg_match('/^[0-9]{1,6}$/D',$value)) return min(3600,(int)$value);
+        if (strlen($value) !== 29 || str_contains($value, "\0")) return null;
+        $format = 'D, d M Y H:i:s \G\M\T';
+        $date = \DateTimeImmutable::createFromFormat('!'.$format,$value,new \DateTimeZone('UTC'));
+        if ($date === false || $date->format($format) !== $value) return null;
+        return min(3600,max(0,$date->getTimestamp()-$now));
+    }
+
     public static function execute(array $request, \Closure $reserve): array
     {
         $base = ['state'=>'BLOCKED','reason'=>'DIRECT_READ_HELD','source'=>null,'retry_permitted'=>false,
@@ -125,7 +136,7 @@ final class DirectGet
             $status = wp_remote_retrieve_response_code($reply);
             if ($status === 429) {
                 $seconds = wp_remote_retrieve_header($reply,'retry-after');
-                $seconds = is_string($seconds) && preg_match('/^[0-9]{1,6}$/D',$seconds) ? min(3600,(int)$seconds) : null;
+                $seconds = self::retryAfter($seconds, time());
                 return ['reason'=>'PROVIDER_RATE_LIMITED','retry_after_seconds'=>$seconds] + $unavailable;
             }
             if ($status === 401 || $status === 403) {

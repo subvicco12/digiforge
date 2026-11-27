@@ -126,3 +126,13 @@ The panel retains up to eight redacted read outcomes for the same profile
 and session, visible for up to one hour. The latest observation remains
 separate from these summaries. A failed refresh can show explicitly stale
 data only for the same request. No retry is automatic.
+
+Product and order lists expose a manual Read next page button when a current
+scoped observation has an admitted next page. End-of-list and empty pages
+are visible in the panel. Provider continuation URLs are never followed.
+Use Copy redacted evidence to copy the bounded current-session outcome
+summaries. The JSON excludes receipt payloads, identifiers, and secrets.
+Provider Retry-After delays, when valid, appear as bounded wait guidance.
+Current catalog observations offer an operator-initiated path from blueprint
+to provider to variant. Each button performs one newly authorized scoped
+read, using the same profile, operation nonce and quota as the manual form.
