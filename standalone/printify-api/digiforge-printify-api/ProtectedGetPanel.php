@@ -67,7 +67,17 @@ final class ProtectedGetPanel
                 echo '<code>GET '.\esc_html($result['path']).'</code>';
             }
         }
-        if ($direct) echo '<p>Connection: '.\esc_html(DirectGet::status($profile)).' · Limit: 10 reads per minute per account/shop. Use Shops Read to check the assigned shop manually.</p>';
+        if ($direct) {
+            $connection = DirectGet::status($profile);
+            $help = match ($connection) {
+                'DIRECT_CONFIGURATION_UNAVAILABLE' => 'Ask the custodian to check the credential file, expiry and approved profile binding.',
+                'DIRECT_READ_HELD' => 'The configured safety holds currently prevent a read.',
+                'SYNTHETIC_DIRECT_READY' => 'Synthetic scope ready.',
+                default => 'Server configuration matches the profile. Provider connectivity is unverified.',
+            };
+            echo '<p>Connection: '.\esc_html($connection.' · '.$help)
+                .' Limit: 10 reads per minute per account/shop. Use Shops Read for a manual diagnostic.</p>';
+        }
         if ($workspace !== null) {
             $scope = self::scope($profile, $revision, \wp_get_session_token());
             $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || (DirectGet::synthetic() ? DirectGet::gatesOpen()
@@ -97,7 +107,7 @@ final class ProtectedGetPanel
                 }
                 if ($currentData && time()-$record['stored_at'] <= 60) {
                     self::renderContinuation($receipt['operation'],$data,$revision,$record['workspace_revision']);
-                    self::renderCatalogNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
+                    self::renderNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                 }
                 if ($data === null && isset($record['last_success']['data'])
                     && time()-$record['last_success']['observed_at'] <= 3600) {
@@ -149,12 +159,44 @@ final class ProtectedGetPanel
         self::renderReadAction($operation,['page'=>$page],$profile,$workspace,'Read next page');
     }
 
-    private static function renderCatalogNavigation(string $operation,array $data,string $profile,string $workspace): void
+    private static function renderNavigation(string $operation,array $data,string $profile,string $workspace): void
     {
+        if ($operation === 'PRODUCTS_READ') {
+            foreach ($data['data'] as $product) {
+                $fields = self::productSelection($product);
+                if ($fields !== null) self::renderReadAction('PRODUCT_READ',$fields,$profile,$workspace,'Read product '.$product['id']);
+            }
+            return;
+        }
+        if ($operation === 'PRODUCT_READ') {
+            $fields = self::productSelection($data);
+            if ($fields === null) return;
+            $images = [];
+            foreach ($data['print_areas'] as $area) {
+                foreach ($area['placeholders'] as $position) {
+                    foreach ($position['images'] as $image) {
+                        $images[$image['id']] = ['id'=>$image['id'],'title'=>$image['metadata']['name'] ?? null];
+                    }
+                }
+            }
+            if ($images !== []) self::renderReadAction('PRODUCT_ARTWORK_READ',$fields,$profile,$workspace,
+                'Read selected linked artwork',['image_id',array_values($images)]);
+            return;
+        }
+        if ($operation === 'VARIANT_READ' && isset($data['blueprint_id'],$data['provider_id'])) {
+            self::renderReadAction('CATALOG_SHIPPING_READ',array_intersect_key($data,['blueprint_id'=>true,'provider_id'=>true]),
+                $profile,$workspace,'Read provider shipping methods');
+            return;
+        }
         $action = match ($operation) {
             'BLUEPRINTS_READ' => ['BLUEPRINT_PROVIDERS_READ',[],'blueprint_id',$data,'Read selected blueprint providers'],
             'BLUEPRINT_PROVIDERS_READ' => ['VARIANTS_READ',['blueprint_id'=>$data[0]['blueprint_id'] ?? null],
                 'provider_id',$data,'Read selected provider variants'],
+            'ORDERS_READ' => ['ORDER_READ',[],'order_id',$data['data'],'Read selected order'],
+            'CATALOG_SHIPPING_READ' => ['CATALOG_SHIPPING_METHOD_READ',
+                ['blueprint_id'=>$data['blueprint_id'] ?? null,'provider_id'=>$data['provider_id'] ?? null],
+                'method',array_map(static fn(string $method): array => ['id'=>$method],$data['methods']),
+                'Read selected shipping rates'],
             'VARIANTS_READ' => ['VARIANT_READ',['blueprint_id'=>$data['blueprint_id'],'provider_id'=>$data['provider_id']],
                 'variant_id',$data['variants'],'Read selected variant'],
             default => null,
@@ -162,6 +204,14 @@ final class ProtectedGetPanel
         if ($action === null || $action[3] === [] || in_array(null,$action[1],true)) return;
         [$next,$fixed,$field,$options,$label] = $action;
         self::renderReadAction($next,$fixed,$profile,$workspace,$label,[$field,$options]);
+    }
+
+    private static function productSelection(array $product): ?array
+    {
+        $variants = implode(',',array_column($product['variants'],'id'));
+        if ($variants === '' || strlen($variants)>200) return null;
+        return ['product_id'=>$product['id'],'blueprint_id'=>$product['blueprint_id'],
+            'provider_id'=>$product['print_provider_id'],'variant_ids'=>$variants];
     }
 
     private static function renderReadAction(string $operation,array $fields,string $profile,string $workspace,
