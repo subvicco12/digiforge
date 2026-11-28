@@ -19,17 +19,7 @@ final class ProtectedGetPanel
     private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
     private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id'];
     private const ACTION = 'df_printify_protected_get_v1';
-    private const FIELDS = [
-        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
-        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
-        'VARIANTS_READ'=>['blueprint_id','provider_id'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id'],
-        'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
-        'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
-        'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
-        'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
-        'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
-        'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
-    ];
+
 
     public static function render(array $post): void
     {
@@ -134,7 +124,7 @@ final class ProtectedGetPanel
             $workspace = ProtectedGetWorkspace::snapshot($direct);
         }
         echo '<form method="post"><input type="hidden" name="'.self::ACTION.'" value="1">';
-        foreach (array_keys(self::FIELDS) as $operation) {
+        foreach (array_keys(ProtectedGet::OPERATOR_FIELDS) as $operation) {
             \wp_nonce_field(self::ACTION.':'.$operation, 'df_printify_get_nonce['.$operation.']', false);
         }
         echo '<input type="hidden" name="df_printify_get_revision" value="'.\esc_attr($revision).'">';
@@ -142,7 +132,7 @@ final class ProtectedGetPanel
             echo '<input type="hidden" name="df_printify_get_workspace" value="'.\esc_attr($workspace['revision']).'">';
         }
         echo '<label>Read operation <select style="max-width:100%" name="df_printify_get_operation">';
-        foreach (self::FIELDS as $operation => $fields) {
+        foreach (ProtectedGet::OPERATOR_FIELDS as $operation => $fields) {
             echo '<option value="'.\esc_attr($operation).'">'.\esc_html($operation).'</option>';
         }
         echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU. Artwork lookup uses the product detail fields plus the linked image ID.</p>';
@@ -268,8 +258,8 @@ final class ProtectedGetPanel
         $denied = ProtectedGet::denied();
         $operation = $post['df_printify_get_operation'] ?? null;
         $nonces = $post['df_printify_get_nonce'] ?? null;
-        if (!\current_user_can('manage_options') || !is_string($operation) || !isset(self::FIELDS[$operation])
-            || !is_array($nonces) || count($nonces) > count(self::FIELDS)
+        if (!\current_user_can('manage_options') || !is_string($operation) || !isset(ProtectedGet::OPERATOR_FIELDS[$operation])
+            || !is_array($nonces) || count($nonces) > count(ProtectedGet::OPERATOR_FIELDS)
             || !is_string($nonces[$operation] ?? null)
             || !\wp_verify_nonce($nonces[$operation], self::ACTION.':'.$operation)) {
             return ['reason'=>'OPERATOR_DENIED'] + $denied;
@@ -292,7 +282,7 @@ final class ProtectedGetPanel
                     continue;
                 }
                 $maxLength = $name === 'variant_ids' ? self::MAX_VARIANT_SELECTOR_BYTES : 200;
-                if (!in_array($name, self::FIELDS[$operation], true) || !is_string($value) || strlen($value) > $maxLength) {
+                if (!in_array($name, ProtectedGet::OPERATOR_FIELDS[$operation], true) || !is_string($value) || strlen($value) > $maxLength) {
                     throw new \InvalidArgumentException('Unexpected selection.');
                 }
                 if ($name === 'variant_ids') {

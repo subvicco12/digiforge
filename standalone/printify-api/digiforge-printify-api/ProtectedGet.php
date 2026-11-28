@@ -24,15 +24,23 @@ final class ProtectedGet
     public const REPLY_VERSION = 'DF_STANDALONE_GET_REPLY_1';
     public const MAX_PAGE = 40;
 
+    public const OPERATOR_FIELDS = [
+        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
+        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
+        'VARIANTS_READ'=>['blueprint_id','provider_id'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id'],
+        'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
+        'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
+        'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
+        'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
+        'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
+    ];
+
     private const CATALOG = [
         'BLUEPRINTS_READ'=>'blueprints','BLUEPRINT_READ'=>'blueprint','BLUEPRINT_PROVIDERS_READ'=>'providers',
         'BLUEPRINT_SIZE_GUIDE_READ'=>'size_guide','BLUEPRINT_PROVIDER_READ'=>'provider','VARIANTS_READ'=>'variants','VARIANT_READ'=>'variant',
         'CATALOG_SHIPPING_READ'=>'shipping','CATALOG_SHIPPING_METHOD_READ'=>'shipping_method',
     ];
-    private const RECORDS = [
-        'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','PRODUCTS_READ','PRODUCT_READ','ORDERS_READ','ORDER_READ',
-    ];
-
     public static function request(array $scope, string $operation, array $selection): array
     {
         $fields = ['site','actor','session','revision','account','shop','integration','custody'];
@@ -49,10 +57,18 @@ final class ProtectedGet
             self::requirePattern($scope[$key], '/^[a-f0-9]{64}$/D');
         }
 
+        $fields = self::OPERATOR_FIELDS[$operation] ?? null;
+        if ($fields === null) {
+            throw new \InvalidArgumentException('Unsupported read operation.');
+        }
+        if (in_array($operation, ['PRODUCTS_READ', 'ORDERS_READ'], true)) {
+            $fields[] = 'limit';
+        }
+        if (array_diff(array_keys($selection), $fields) !== []) {
+            throw new \InvalidArgumentException('Unexpected read selection field.');
+        }
+
         if (isset(self::CATALOG[$operation])) {
-            if (array_key_exists('kind', $selection)) {
-                throw new \InvalidArgumentException('Catalog kind is selected by operation.');
-            }
             $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + $selection);
         } elseif ($operation === 'PRODUCT_ARTWORK_READ') {
             self::requirePattern($selection['image_id'] ?? null, '/^[A-Za-z0-9_-]{1,160}$/D');
@@ -70,7 +86,7 @@ final class ProtectedGet
                 }
             }
             $path = '/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'.json';
-        } elseif (in_array($operation, self::RECORDS, true)) {
+        } else {
             if (in_array($operation, ['PRODUCTS_READ','ORDERS_READ'], true)) {
                 $selection += ['page'=>1,'limit'=>10];
                 if (!is_int($selection['page']) || $selection['page'] < 1 || $selection['page'] > self::MAX_PAGE
@@ -79,8 +95,6 @@ final class ProtectedGet
                 }
             }
             $path = PrintifyApiRequest::prepare($operation, $scope['shop'], $selection)['endpoint'];
-        } else {
-            throw new \InvalidArgumentException('Unsupported read operation.');
         }
         return ['version'=>self::VERSION,'method'=>'GET','scope'=>$scope,'operation'=>$operation,
             'selection'=>$selection,'path'=>$path];
