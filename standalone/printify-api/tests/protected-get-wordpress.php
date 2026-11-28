@@ -206,6 +206,23 @@ if ($phase==='write') {
     verify(!ProtectedGetWorkspace::canArchive($direct) && ProtectedGetWorkspace::archivedProvenance($scope,$direct)===[],
         'Archive accepted changed projection');
     update_option($archiveOption,$bytes);
+    $filled=json_decode($bytes,true,32,JSON_THROW_ON_ERROR);
+    $previous=end($filled['records']);
+    while (count($filled['records'])<64) {
+        $record=array_diff_key($previous,['record_sha256'=>true]);
+        $record['previous_sha256']=$previous['record_sha256'];
+        $previous=$record+['record_sha256'=>DigiForgePrintifyApi\ProtectedGet::digest($record)];
+        $filled['records'][]=$previous;
+    }
+    $full=json_encode($filled,JSON_THROW_ON_ERROR);
+    update_option($archiveOption,$full);
+    $attempts=$direct?$calls:count(json_decode(file_get_contents($journal),true));
+    $form['df_printify_get_workspace']=ProtectedGetWorkspace::snapshot($direct)['revision'];
+    verify(ProtectedGetPanel::prepare($form)['reason']==='OBSERVATION_NOT_COMMITTED'
+        && ($direct?$calls:count(json_decode(file_get_contents($journal),true)))===$attempts
+        && get_option($archiveOption)===$full,'Archive capacity triggered a read or silent pruning');
+    update_option($archiveOption,$bytes);
+    echo "Full archive denied dispatch without pruning protected records.\n";
 }
 echo "Ten append-only records, scope isolation and tamper denial PASS\n";
 verify(get_option('active_plugins')===['digiforge-printify-api/digiforge-printify-api.php'],'Unexpected active plugin');
