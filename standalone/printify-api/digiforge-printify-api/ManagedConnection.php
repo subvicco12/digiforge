@@ -212,9 +212,9 @@ final class ManagedConnection
             && AccountProfile::current()===$profile && AccountProfile::revisionToken()===$revision;
     }
 
-    private static function pilot(array $profile,string $revision,int $actor,string $session,string $id): string
+    private static function pilot(array $profile,string $revision,int $actor,string $session,string $id,?int &$status): string
     {
-        return self::locked(static function(string $dir) use ($profile,$revision,$actor,$session,$id): string {
+        return self::locked(static function(string $dir) use ($profile,$revision,$actor,$session,$id,&$status): string {
             $approval=self::approval($profile,$actor);
             if (($approval['id']??null)!==$id) return 'PILOT_EXPIRED_OR_UNAPPROVED';
             if (self::pending($dir)) return self::UNCERTAIN;
@@ -232,33 +232,48 @@ final class ManagedConnection
             if (!self::claim($dir,$id) || !$valid()) return 'PILOT_NOT_ADMITTED';
             $snapshot=ProtectedGetWorkspace::snapshot(true);
             if ($snapshot===null || !ProtectedGetWorkspace::reserveDirect($scope,$snapshot['revision'],$valid)) return 'PILOT_BUDGET_OR_STORAGE_UNAVAILABLE';
-            $result=self::sendShops($request,$token,$valid);
-            return match ($result) {
-                'OK'=>'PILOT_SHOP_CONFIRMED', 'DENIED'=>'PILOT_PROVIDER_DENIED',
-                'RATE'=>'PILOT_RATE_LIMITED', 'SCOPE'=>'PILOT_SHOP_NOT_CONFIRMED', default=>'PILOT_UNAVAILABLE',
-            };
+            return self::sendShops($request,$token,$valid,$status);
         },'PRIVATE_STORAGE_OR_PILOT_UNAVAILABLE');
     }
 
-    private static function sendShops(array $request,string $token,\Closure $valid): string
+    private static function sendShops(array $request,string $token,\Closure $valid,?int &$status): string
     {
-        if ($request['path']!=='/v1/shops.json' || !$valid()) return 'UNAVAILABLE';
-        $response=wp_safe_remote_get('https://api.printify.com/v1/shops.json',[
-            'method'=>'GET','sslverify'=>true,'reject_unsafe_urls'=>true,'redirection'=>0,'timeout'=>5,
-            'limit_response_size'=>262144,'headers'=>['Authorization'=>'Bearer '.$token,'Accept'=>'application/json'],
-        ]);
-        if (!$valid() || !is_array($response)) return 'UNAVAILABLE';
-        $code=wp_remote_retrieve_response_code($response);
-        if ($code===401 || $code===403) return 'DENIED';
-        if ($code===429) return 'RATE';
-        if ($code!==200 || !preg_match('/^application\/json(?:\s*;|$)/i',(string)wp_remote_retrieve_header($response,'content-type'))) return 'UNAVAILABLE';
-        $raw=wp_remote_retrieve_body($response);
-        if (strlen($raw)>262144 || str_contains($raw,$token)) return 'UNAVAILABLE';
+        if ($request['path']!=='/v1/shops.json' || !$valid()) return 'OPERATOR_OR_SCOPE_CHANGED';
         try {
-            $data=ProtectedGet::project($request,$raw);
-            return count($data['shops']??[])===1 ? 'OK':'SCOPE';
+            $response=wp_safe_remote_get('https://api.printify.com/v1/shops.json',[
+                'method'=>'GET','sslverify'=>true,'reject_unsafe_urls'=>true,'redirection'=>0,'timeout'=>5,
+                'limit_response_size'=>262144,'user-agent'=>'DigiForge Printify API',
+                'headers'=>['Authorization'=>'Bearer '.$token,'Accept'=>'application/json'],
+            ]);
         } catch (\Throwable) {
-            return 'SCOPE';
+            return $valid()?'PILOT_TRANSPORT_ERROR':'OPERATOR_OR_SCOPE_CHANGED';
+        }
+        if (!$valid()) return 'OPERATOR_OR_SCOPE_CHANGED';
+        if (is_wp_error($response)) return 'PILOT_TRANSPORT_ERROR';
+        if (!is_array($response)) return 'PILOT_UNEXPECTED_RESPONSE';
+        $code=wp_remote_retrieve_response_code($response);
+        if (is_string($code) && preg_match('/^[1-5][0-9]{2}$/D',$code)) $code=(int)$code;
+        if (!is_int($code) || $code<100 || $code>599) return 'PILOT_UNEXPECTED_RESPONSE';
+        $status=$code;
+        if ($code===401) return 'PILOT_UNAUTHORIZED';
+        if ($code===403) return 'PILOT_FORBIDDEN';
+        if ($code===429) return 'PILOT_RATE_LIMITED';
+        if ($code>=500) return 'PILOT_PROVIDER_ERROR';
+        if ($code!==200) return 'PILOT_UNEXPECTED_RESPONSE';
+        if (!preg_match('/^application\/json(?:\s*;|$)/i',(string)wp_remote_retrieve_header($response,'content-type'))) {
+            return 'PILOT_MALFORMED_RESPONSE';
+        }
+        $raw=wp_remote_retrieve_body($response);
+        if (!is_string($raw) || strlen($raw)>262144 || str_contains($raw,$token)) return 'PILOT_MALFORMED_RESPONSE';
+        try {
+            ProtectedGet::project($request,$raw);
+            return 'PILOT_SHOP_CONFIRMED';
+        } catch (\InvalidArgumentException $error) {
+            // This is a fixed message from the local Shops response validator.
+            return $error->getMessage()==='Configured shop absent from account.'
+                ? 'PILOT_SHOP_NOT_CONFIRMED' : 'PILOT_MALFORMED_RESPONSE';
+        } catch (\Throwable) {
+            return 'PILOT_MALFORMED_RESPONSE';
         }
     }
 
@@ -281,6 +296,7 @@ final class ManagedConnection
             $formRevision=$post[self::ACTION.'_revision']??null;
             $id=$action==='pilot' ? ($post[self::ACTION.'_approval']??null) : '';
             $result='OPERATOR_OR_SCOPE_CHANGED';
+            $httpStatus=null;
             if ($formRevision===$revision && is_string($id) && is_string($nonce)
                 && wp_verify_nonce($nonce,self::ACTION.':'.$action.':'.$revision.':'.$id)) {
                 $valid=static fn(): bool=>self::authorized($profile,$revision,$actor,$session);
@@ -291,10 +307,15 @@ final class ManagedConnection
                 } elseif ($action==='disconnect') {
                     $result=self::remove($valid)?'CREDENTIAL_REMOVED':'CREDENTIAL_REMOVE_FAILED';
                 } else {
-                    $result=self::pilot($profile,$revision,$actor,$session,$id);
+                    $result=self::pilot($profile,$revision,$actor,$session,$id,$httpStatus);
                 }
             }
             echo '<p role="status">'.esc_html(self::message($result)).'</p>';
+            if ($action==='pilot') {
+                $receipt=['schema'=>1,'operation'=>'SHOPS_READ','outcome'=>$result,'http_status'=>$httpStatus];
+                echo '<details><summary>Diagnostic receipt</summary><pre>'
+                    .esc_html(json_encode($receipt,JSON_THROW_ON_ERROR)).'</pre></details>';
+            }
         }
         $state=self::state($profile);
         echo '<p>'.esc_html(self::message($state)).'</p>';
@@ -329,7 +350,14 @@ final class ManagedConnection
             self::UNCERTAIN=>'Token persistence is uncertain. Tests and replacement are blocked. Disconnect, remove the server approval, and revoke this token in Printify before setting up again.',
             'CREDENTIAL_REMOVE_FAILED'=>'Token cleanup could not be confirmed. Revoke it in Printify and check private storage.',
             'PILOT_SHOP_CONFIRMED'=>'Printify returned the assigned shop. The connection is held again.',
-            'PILOT_PROVIDER_DENIED'=>'Printify denied the token or its scope. Revoke or replace the token. The connection is held.',
+            'PILOT_UNAUTHORIZED'=>'Printify returned HTTP 401. Verify the token was issued for the intended merchant account and is still valid. The connection is held.',
+            'PILOT_FORBIDDEN'=>'Printify returned HTTP 403. Verify shops.read and merchant account access before requesting another approval. The connection is held.',
+            'PILOT_TRANSPORT_ERROR'=>'WordPress could not complete the HTTPS request. Ask the hosting operator to check outbound HTTPS and TLS without capturing secrets. The connection is held.',
+            'PILOT_PROVIDER_ERROR'=>'Printify returned a server error. Check provider availability before requesting another approval. The connection is held.',
+            'PILOT_UNEXPECTED_RESPONSE'=>'Printify returned an unexpected HTTP response. Share only the diagnostic receipt. The connection is held.',
+            'PILOT_MALFORMED_RESPONSE'=>'Printify returned an unexpected response format. Share only the diagnostic receipt. The connection is held.',
+            'PILOT_NOT_ADMITTED'=>'The local approval could not be consumed safely. Check private storage before requesting another approval. The connection is held.',
+            'PILOT_BUDGET_OR_STORAGE_UNAVAILABLE'=>'The local request budget or observation storage prevented dispatch. The connection is held.',
             'PILOT_RATE_LIMITED'=>'Printify rate-limited the test. The connection is held.',
             'PILOT_SHOP_NOT_CONFIRMED'=>'Printify did not confirm the assigned shop. Check the account and shop. The connection is held.',
             'PILOT_ALREADY_USED'=>'This approval has already been used. The connection is held.',

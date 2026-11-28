@@ -1,7 +1,7 @@
 === DigiForge Printify API ===
 Requires at least: 7.1
 Requires PHP: 8.3
-Stable tag: 0.15.2
+Stable tag: 0.15.3
 
 The Tools menu displays local diagnostics to WordPress administrators.
 Offline catalog validation additionally requires an exact configured shop
@@ -197,3 +197,13 @@ quarantine marker by hand. Disconnect to clean up, remove the server approval
 and revoke the submitted PAT at Printify. If cleanup cannot be confirmed,
 keep managed reads held and ask the hosting operator to inspect the private
 directory. Use a new token and fresh grant only after cleanup and revocation.
+
+= 0.15.3 Shops pilot diagnostics =
+
+Expand Diagnostic receipt immediately after a submitted test to copy its
+outcome and numeric HTTP status, if available. It is scoped to the submission
+and is not stored in WordPress options. HTTP 401 and 403 are distinct
+observations, not proof of a specific token, scope, account or host fault.
+The pilot uses the explicit DigiForge Printify API application User-Agent.
+Receipts omit provider bodies, headers, request identifiers and WordPress
+error details. Every admitted attempt still consumes the one-use grant.
