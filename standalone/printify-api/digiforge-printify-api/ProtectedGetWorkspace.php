@@ -134,10 +134,11 @@ final class ProtectedGetWorkspace
             }
         }
     }
-    public static function reserveDirect(array $scope, string $workspace): bool
+    public static function reserveDirect(array $scope, string $workspace, ?\Closure $permission = null): bool
     {
         global $wpdb;
-        if (!self::available(true) || !DirectGet::gatesOpen()
+        $permission ??= DirectGet::gatesOpen(...);
+        if (!self::available(true) || !$permission()
             || (string)$wpdb->get_var('SELECT @@session.in_transaction') !== '0'
             || $wpdb->query('START TRANSACTION') === false) {
             return false;
@@ -146,7 +147,7 @@ final class ProtectedGetWorkspace
         try {
             $connection = (int)$wpdb->get_var('SELECT CONNECTION_ID()');
             if ($connection < 1 || !AccountProfile::lockRevision($wpdb, $scope['revision'])) return false;
-            if ((self::snapshot(true)['revision'] ?? null) !== $workspace || !DirectGet::gatesOpen()) return false;
+            if ((self::snapshot(true)['revision'] ?? null) !== $workspace || !$permission()) return false;
             $name = 'digiforge_printify_direct_quota_'.ProtectedGet::digest(['account'=>$scope['account'],'shop'=>$scope['shop']]);
             $raw = $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s FOR UPDATE",$name));
             if ($wpdb->last_error !== '' || ($raw !== null && (!is_string($raw) || strlen($raw)>300))) return false;

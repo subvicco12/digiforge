@@ -16,7 +16,7 @@ final class DirectGet
 
     private static function fixture(): bool
     {
-        return defined(self::FIXTURE) && constant(self::FIXTURE) === true
+        return !defined('DIGIFORGE_PRINTIFY_MANAGED_DIR') && defined(self::FIXTURE) && constant(self::FIXTURE) === true
             && wp_get_environment_type() === 'local'
             && defined('WP_HTTP_BLOCK_EXTERNAL') && WP_HTTP_BLOCK_EXTERNAL === true
             && !defined('WP_ACCESSIBLE_HOSTS');
@@ -24,7 +24,7 @@ final class DirectGet
 
     public static function selected(): bool
     {
-        return self::fixture() || DirectReadSecret::configured();
+        return defined('DIGIFORGE_PRINTIFY_MANAGED_DIR') || self::fixture() || DirectReadSecret::configured();
     }
 
     public static function synthetic(): bool
@@ -34,6 +34,7 @@ final class DirectGet
 
     private static function configuration(): ?array
     {
+        if (defined('DIGIFORGE_PRINTIFY_MANAGED_DIR')) return null;
         if (!self::fixture()) return DirectReadSecret::read();
         $scope = defined('DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE') ? DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE : null;
         $token = defined('DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT') ? DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT : null;
@@ -61,6 +62,7 @@ final class DirectGet
 
     public static function status(array $scope = []): string
     {
+        if (defined('DIGIFORGE_PRINTIFY_MANAGED_DIR')) return 'DIRECT_READ_HELD';
         if (!self::selected()) return 'LIVE_READ_HELD';
         $config=self::configuration();
         if ($config===null || !self::configuredScope($config['scope'],$scope)) return 'DIRECT_CONFIGURATION_UNAVAILABLE';

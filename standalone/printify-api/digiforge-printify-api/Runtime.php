@@ -44,8 +44,15 @@ final class Runtime
             echo ' · <a href="#df-catalog">Catalog browser</a> · <a href="#df-records">Product and order records</a>';
         }
         echo '</nav>';
-        AccountProfile::render($_POST);
         require_once __DIR__.'/ProtectedGetPanel.php';
+        if (defined('DIGIFORGE_PRINTIFY_MANAGED_DIR')) {
+            require_once __DIR__.'/ManagedConnection.php';
+            $connectionPost=$_POST;
+            unset($_POST['df_printify_managed_connection_token'],$_REQUEST['df_printify_managed_connection_token']);
+            ManagedConnection::render($connectionPost);
+            unset($connectionPost);
+        }
+        AccountProfile::render($_POST);
         ProtectedGetPanel::render($_POST);
         if (in_array('OFFLINE_SYNTHETIC_JOURNEY', $status['capabilities'], true)) {
             require_once __DIR__ . '/SyntheticOperatorPanel.php';

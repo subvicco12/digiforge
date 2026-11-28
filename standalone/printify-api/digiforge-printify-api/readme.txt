@@ -1,7 +1,7 @@
 === DigiForge Printify API ===
 Requires at least: 7.1
 Requires PHP: 8.3
-Stable tag: 0.15.0
+Stable tag: 0.15.1
 
 The Tools menu displays local diagnostics to WordPress administrators.
 Offline catalog validation additionally requires an exact configured shop
@@ -136,3 +136,57 @@ Provider Retry-After delays, when valid, appear as bounded wait guidance.
 Current catalog observations offer an operator-initiated path from blueprint
 to provider to variant. Each button performs one newly authorized scoped
 read, using the same profile, operation nonce and quota as the manual form.
+
+= Guided Printify connection and one-request pilot =
+
+Managed mode is opt-in. After a separately approved installation, configure
+DIGIFORGE_PRINTIFY_MANAGED_DIR in server-side WordPress configuration with the
+absolute canonical path of a dedicated existing directory outside WordPress
+and the web document root. Use mode 0700, owned by the site's PHP worker. An
+inaccessible directory, symlink or unsafe file fails closed. No directory is
+created on activation. Remove obsolete legacy direct configuration after
+revoking any old PAT. While the managed directory constant is defined, the
+legacy direct and fixture paths are held.
+
+Sign in over HTTPS as a WordPress administrator assigned to the active
+Standalone shop and use Tools > Printify API > Printify connection. Set the
+account/shop profile first, then enter a least-privilege read token through
+the masked field. Saving it does not connect to Printify. Never put a token
+in the database, wp-config.php, a ticket, or a copied diagnostic.
+
+A separately authorized operator may arrange one server-side approval using
+DIGIFORGE_PRINTIFY_SHOPS_PILOT, an array with:
+* id: fresh 32-character lowercase hexadecimal random ID.
+* actor: exact WordPress user ID integer.
+* site: exact home_url('/') including trailing slash.
+* scope: associative array with the exact shop, account, integration and custody strings.
+* profile_revision: exact current revision shown under Approval details.
+* issued and expires: integer Unix seconds, issued after the token file's
+  modification second, expiry at most 300 seconds later.
+
+Install this short-lived grant only after the owner separately authorizes the
+specific live read. Do not enable it merely because a token is present. The
+assigned operator clicks Test one Shops request. The grant is consumed before
+the quota check and before dispatch. A failure or interrupted attempt uses the
+grant and cannot be retried. Only the fixed HTTPS Shops GET is eligible, with
+existing scoped quota and current session checks. The panel shows a redacted
+result and remains held. Remove the server grant after the window; never reuse
+its ID. Normal catalog, order and mutation dispatch stay held in managed mode.
+
+Disconnect removes the active local token and any orphan replacement files
+owned by the worker; it retains the nonsecret used-grant records. Then open
+Printify account API settings, revoke that personal access token, and verify
+it is revoked there. A local disconnect does not revoke it at Printify. Revoke
+old tokens after rotation as well.
+
+Custody on shared hosting: confirm with the hosting administrator whether
+Hostinger backups, restore points, support access, request tracing and export
+jobs cover this directory or request bodies/headers. A directory outside the
+web root does not establish backup exclusion. Disable request body and
+Authorization header capture for this route. Keep the token lifetime minimal,
+disconnect and revoke promptly, and handle snapshot access as secret access.
+If a backup may contain the token, revoke before restore and remove restored
+credential and approval configuration before serving traffic. Treat any restored
+used-grant state as untrusted; require a fresh approval ID and do not restore or
+replay a prior grant. If that custody policy cannot be accepted, keep managed
+configuration absent and the connection held.
