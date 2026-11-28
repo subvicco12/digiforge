@@ -134,6 +134,45 @@ if ($phase === 'write') {
             $operation.': denied nonce changed workspace');
         $form['df_printify_get_nonce'] = [$operation=>wp_create_nonce('df_printify_protected_get_v1:'.$operation)];
         if ($operation==='LINKED_IMAGE_METADATA_READ') {
+            $option = $direct ? 'digiforge_printify_direct_observation_v1' : 'digiforge_printify_get_observation_v1';
+            $original = get_option($option);
+            $originalArchive = get_option($option.'_archive');
+            $originalRevision = $form['df_printify_get_workspace'];
+            foreach (['projection', 'correlation', 'stale', 'mode', 'scope'] as $fault) {
+                $changed = json_decode($original,true,32,JSON_THROW_ON_ERROR);
+                $archive = json_decode($originalArchive,true,32,JSON_THROW_ON_ERROR);
+                $last = array_key_last($archive['records']);
+                $row = &$archive['records'][$last];
+                if ($fault === 'projection') {
+                    $changed['receipt']['data']['placements'][0]['position'] = 'tampered';
+                } elseif ($fault === 'correlation') {
+                    $changed['receipt']['correlation_id'] = str_repeat('e',32);
+                } elseif ($fault === 'scope') {
+                    $foreignScope = $profile + ['site'=>'wp-'.hash('sha256',home_url('/')), 'actor'=>1,
+                        'session'=>hash_hmac('sha256',wp_get_session_token(),wp_salt('auth')), 'revision'=>str_repeat('a',64)];
+                    $row['scope_sha256'] = DigiForgePrintifyApi\ProtectedGet::digest($foreignScope);
+                } else {
+                    if ($fault === 'stale') {
+                        $changed['receipt']['observed_at'] = $row['provenance']['observed_at'] = time()-61;
+                    } else {
+                        $changed['receipt']['source'] = $row['provenance']['source'] =
+                            $direct ? 'SYNTHETIC_PRINTIFY' : 'SYNTHETIC_DIRECT_PRINTIFY';
+                    }
+                    $row['provenance']['observation_sha256'] = DigiForgePrintifyApi\ProtectedGet::digest(
+                        array_diff_key($row['provenance'],['observation_sha256'=>true]));
+                }
+                $row['record_sha256'] = DigiForgePrintifyApi\ProtectedGet::digest(array_diff_key($row,['record_sha256'=>true]));
+                unset($row);
+                update_option($option,json_encode($changed,JSON_THROW_ON_ERROR));
+                update_option($option.'_archive',json_encode($archive,JSON_THROW_ON_ERROR));
+                $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot($direct)['revision'];
+                verify(ProtectedGetPanel::prepare($form)['reason']==='LINKED_ARTWORK_REQUIRED',
+                    'Linked artwork admitted with '.$fault.' mismatch');
+            }
+            update_option($option,$original);
+            update_option($option.'_archive',$originalArchive);
+            $form['df_printify_get_workspace'] = $originalRevision;
+            echo "Five linked-artwork evidence mismatches denied.\n";
             $foreign=$form;
             $foreign['df_printify_get']['product_id']='product-foreign';
             verify(ProtectedGetPanel::prepare($foreign)['reason']==='LINKED_ARTWORK_REQUIRED','Foreign linked artwork joined');
@@ -200,13 +239,79 @@ verify(ProtectedGetWorkspace::archivedProvenance(array_replace($scope,['session'
     'Another session accessed archive');
 if ($phase==='write') {
     $archiveOption=$direct?'digiforge_printify_direct_observation_v1_archive':'digiforge_printify_get_observation_v1_archive';
-    $bytes=get_option($archiveOption);
+    $rawArchive = static function () use ($archiveOption): ?string {
+        global $wpdb;
+        return $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", $archiveOption));
+    };
+    $bytes=$rawArchive();
     $corrupt=json_decode($bytes,true,32,JSON_THROW_ON_ERROR);
     $corrupt['records'][0]['projection']['tampered']=true;
     update_option($archiveOption,json_encode($corrupt,JSON_THROW_ON_ERROR));
     verify(!ProtectedGetWorkspace::canArchive($direct) && ProtectedGetWorkspace::archivedProvenance($scope,$direct)===[],
         'Archive accepted changed projection');
     update_option($archiveOption,$bytes);
+    $currentOption = substr($archiveOption, 0, -8);
+    $receipt = $observation['last_success'] ?? $observation['receipt'];
+    $receipt['correlation_id'] = str_repeat('b', 32);
+    $before = ProtectedGetWorkspace::snapshot($direct)['revision'];
+
+    $firstConnection = $GLOBALS['wpdb'];
+    $secondConnection = new wpdb(DB_USER,DB_PASSWORD,DB_NAME,DB_HOST);
+    $secondConnection->options = $firstConnection->options;
+    $form['df_printify_get_workspace'] = $before;
+    verify(ProtectedGetWorkspace::withArchiveAdmission($direct, static function () use (
+        $firstConnection,$secondConnection,$direct,$form,$scope,$before,$receipt
+    ): bool {
+        $GLOBALS['wpdb'] = $secondConnection;
+        try {
+            return ProtectedGetPanel::prepare($form)['reason']==='ARCHIVE_BUSY'
+                && !ProtectedGetWorkspace::persist($scope,$before,$receipt,$direct);
+        } finally {
+            $GLOBALS['wpdb'] = $firstConnection;
+        }
+    },false), 'Competing database connection entered the archive admission window');
+    $secondConnection->close();
+    echo "Competing database connection denied archive dispatch and append.\n";
+
+    // A one-shot write fault after the transactional archive append.
+    $archiveWriteSeen = false;
+    $fault = static function(string $sql) use ($archiveOption, $currentOption, &$archiveWriteSeen): string {
+        if (str_starts_with($sql, 'INSERT INTO') && str_contains($sql, "'".$archiveOption."'")) {
+            $archiveWriteSeen = true;
+        }
+        if ($archiveWriteSeen && str_starts_with($sql, 'INSERT INTO') && str_contains($sql, "'".$currentOption."'")) {
+            return 'SELECT 1 WHERE 0';
+        }
+        return $sql;
+    };
+    add_filter('query', $fault);
+    $persisted = ProtectedGetWorkspace::persist($scope, $before, $receipt, $direct);
+    remove_filter('query', $fault);
+    verify($archiveWriteSeen, 'Forced failure did not reach the archive append');
+    verify(!$persisted, 'Injected current write returned success');
+    verify(ProtectedGetWorkspace::snapshot($direct)['revision']===$before, 'Current row changed on forced failure');
+    verify($rawArchive()===$bytes, 'Failed current write did not roll back archive append byte for byte');
+    echo "Archive append and current-row write rolled back together.\n";
+
+    $large = json_decode($bytes,true,32,JSON_THROW_ON_ERROR);
+    $record = array_diff_key(end($large['records']), ['record_sha256'=>true]);
+    $record['previous_sha256'] = end($large['records'])['record_sha256'];
+    $record['projection'] = ['synthetic_padding'=>str_repeat('x', 3900000)];
+    $record['provenance']['projection_sha256'] = DigiForgePrintifyApi\ProtectedGet::digest($record['projection']);
+    $record['provenance']['observation_sha256'] = DigiForgePrintifyApi\ProtectedGet::digest(
+        array_diff_key($record['provenance'], ['observation_sha256'=>true]));
+    $large['records'][] = $record+['record_sha256'=>DigiForgePrintifyApi\ProtectedGet::digest($record)];
+    $largeBytes = json_encode($large,JSON_THROW_ON_ERROR);
+    verify(strlen($largeBytes)<4194304,'Fixture exceeds archive ceiling');
+    update_option($archiveOption,$largeBytes);
+    verify(!ProtectedGetWorkspace::canArchive($direct),'Byte capacity ignored below row limit');
+    $attempts=$direct?$calls:count(json_decode(file_get_contents($journal),true));
+    $form['df_printify_get_workspace']=$before;
+    verify(ProtectedGetPanel::prepare($form)['reason']==='ARCHIVE_CAPACITY_EXHAUSTED'
+        && ($direct?$calls:count(json_decode(file_get_contents($journal),true)))===$attempts,
+        'Byte capacity triggered provider dispatch');
+    update_option($archiveOption,$bytes);
+    echo "Byte headroom enforced before transport.\n";
     $filled=json_decode($bytes,true,32,JSON_THROW_ON_ERROR);
     $previous=end($filled['records']);
     while (count($filled['records'])<64) {
@@ -219,9 +324,9 @@ if ($phase==='write') {
     update_option($archiveOption,$full);
     $attempts=$direct?$calls:count(json_decode(file_get_contents($journal),true));
     $form['df_printify_get_workspace']=ProtectedGetWorkspace::snapshot($direct)['revision'];
-    verify(ProtectedGetPanel::prepare($form)['reason']==='OBSERVATION_NOT_COMMITTED'
+    verify(ProtectedGetPanel::prepare($form)['reason']==='ARCHIVE_CAPACITY_EXHAUSTED'
         && ($direct?$calls:count(json_decode(file_get_contents($journal),true)))===$attempts
-        && get_option($archiveOption)===$full,'Archive capacity triggered a read or silent pruning');
+        && $rawArchive()===$full,'Archive capacity triggered a read or silent pruning');
     ob_start();
     ProtectedGetPanel::render([]);
     verify(str_contains(ob_get_clean(),'Read archive held'),'Full archive status not shown.');

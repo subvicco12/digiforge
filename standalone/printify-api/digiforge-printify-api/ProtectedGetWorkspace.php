@@ -24,6 +24,8 @@ final class ProtectedGetWorkspace
     private const HISTORY_LIMIT = 8;
     private const ARCHIVE_LIMIT = 64;
     private const ARCHIVE_BYTES = 4194304;
+    // An encodable current row bounds the projection; reserve additional archive metadata.
+    private const ARCHIVE_ENTRY_BYTES = self::MAX_BYTES + 2048;
 
     public static function available(bool $direct = false): bool
     {
@@ -135,7 +137,13 @@ final class ProtectedGetWorkspace
             $previous=null;
             foreach ($archive['records'] as $record) {
                 $evidence=self::readProvenance($record['provenance']??null);
-                if (array_keys($record)!==['scope_sha256','stored_at','previous_sha256','provenance','projection','record_sha256']
+                $fields = ['scope_sha256','stored_at','previous_sha256','provenance','projection'];
+                if (array_key_exists('correlation_id', $record)) {
+                    $fields[] = 'correlation_id';
+                    if (!self::validCorrelation($record['correlation_id'])) return null;
+                }
+                $fields[] = 'record_sha256';
+                if (array_keys($record) !== $fields
                     || !is_string($record['scope_sha256']) || !preg_match('/^[a-f0-9]{64}$/D',$record['scope_sha256'])
                     || !is_int($record['stored_at']) || $record['stored_at']<1 || $record['previous_sha256']!==$previous
                     || $evidence===null || $evidence['observed_at']>$record['stored_at']
@@ -151,18 +159,75 @@ final class ProtectedGetWorkspace
 
     public static function linkedArtwork(array $scope,array $selection,bool $direct): bool
     {
-        $observation=self::visible($scope,$direct);
-        $receipt=$observation['receipt']??null;
-        $data=$receipt['data']??null;
-        return ($receipt['state']??null)==='OBSERVED' && ($receipt['operation']??null)==='PRODUCT_ARTWORK_READ'
-            && $observation['stored_at']>=time()-60 && ($data['product_id']??null)===($selection['product_id']??null)
-            && ($data['image_id']??null)===($selection['image_id']??null) && !empty($data['placements']);
+        if (!self::available($direct)) return false;
+        $observation = self::visible($scope, $direct);
+        $receipt = $observation['receipt'] ?? null;
+        if (($receipt['state'] ?? null) !== 'OBSERVED' || ($receipt['operation'] ?? null) !== 'PRODUCT_ARTWORK_READ'
+            || !self::validCorrelation($receipt['correlation_id'] ?? null)) return false;
+        $proof = self::observationProvenance($receipt, $observation['stored_at']);
+        $now = time();
+        $source = !$direct ? 'SYNTHETIC_PRINTIFY'
+            : (DirectGet::synthetic() ? 'SYNTHETIC_DIRECT_PRINTIFY' : 'PRINTIFY_HTTPS_GET');
+        if ($proof === null || $proof['source'] !== $source
+            || $proof['observed_at'] < $now - 60 || $proof['observed_at'] > $now) return false;
+        $records = self::archived($direct);
+        $record = $records[array_key_last($records ?? [])] ?? null;
+        if ($record === null || $record['scope_sha256'] !== ProtectedGet::digest($scope)
+            || $record['stored_at'] !== $observation['stored_at']
+            || ($record['correlation_id'] ?? null) !== $receipt['correlation_id']
+            || $record['provenance'] !== $proof) return false;
+        $data = $record['projection'];
+        return ($data['product_id'] ?? null) === ($selection['product_id'] ?? null)
+            && ($data['image_id'] ?? null) === ($selection['image_id'] ?? null) && !empty($data['placements']);
+    }
+
+    private static function validCorrelation(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/^[a-f0-9]{32}$/D', $value) === 1;
+    }
+
+    public static function archiveStatus(bool $direct): string
+    {
+        $records = self::archived($direct);
+        if ($records === null) return 'ARCHIVE_UNAVAILABLE';
+        $bytes = json_encode(['version'=>1,'records'=>$records], JSON_THROW_ON_ERROR);
+        return count($records) < self::ARCHIVE_LIMIT && strlen($bytes) <= self::ARCHIVE_BYTES - self::ARCHIVE_ENTRY_BYTES
+            ? 'ARCHIVE_READY' : 'ARCHIVE_CAPACITY_EXHAUSTED';
     }
 
     public static function canArchive(bool $direct): bool
     {
-        $records=self::archived($direct);
-        return $records!==null && count($records)<self::ARCHIVE_LIMIT;
+        return self::archiveStatus($direct) === 'ARCHIVE_READY';
+    }
+
+    private static function lockName(bool $direct): string
+    {
+        global $wpdb;
+        return hash('sha256', DB_NAME . ':' . $wpdb->options . ':' . self::observationOption($direct));
+    }
+
+    public static function ownsArchiveAdmission(bool $direct): bool
+    {
+        global $wpdb;
+        return (string)$wpdb->get_var($wpdb->prepare('SELECT COALESCE(IS_USED_LOCK(%s)=CONNECTION_ID(),0)',
+            self::lockName($direct))) === '1';
+    }
+
+    /**
+     * One dispatch per archive at a time. This connection lock holds no transaction or row locks
+     * across transport and disappears on connection termination.
+     */
+    public static function withArchiveAdmission(bool $direct, \Closure $run, mixed $busy): mixed
+    {
+        global $wpdb;
+        if (!self::available($direct) || self::ownsArchiveAdmission($direct)) return $busy;
+        $name = self::lockName($direct);
+        if ((string)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,0)', $name)) !== '1') return $busy;
+        try {
+            return $run();
+        } finally {
+            $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $name));
+        }
     }
 
     public static function archivedProvenance(array $scope,bool $direct=false): array
@@ -185,6 +250,9 @@ final class ProtectedGetWorkspace
         $record=['scope_sha256'=>ProtectedGet::digest($scope),'stored_at'=>$storedAt,
             'previous_sha256'=>$records[array_key_last($records)]['record_sha256']??null,
             'provenance'=>$provenance,'projection'=>$receipt['data']];
+        if (!self::validCorrelation($receipt['correlation_id'] ?? null)) return false;
+        $record['correlation_id'] = $receipt['correlation_id'];
+        if (strlen(json_encode($record, JSON_THROW_ON_ERROR)) > self::ARCHIVE_ENTRY_BYTES - 100) return false;
         $records[]=$record+['record_sha256'=>ProtectedGet::digest($record)];
         $payload=json_encode(['version'=>1,'records'=>$records],JSON_THROW_ON_ERROR);
         if (strlen($payload)>self::ARCHIVE_BYTES) return false;
@@ -197,6 +265,14 @@ final class ProtectedGetWorkspace
 
     public static function persist(array $scope, string $revision, array $receipt, bool $direct = false): bool
     {
+        if (!self::available($direct)) return false;
+        if (self::ownsArchiveAdmission($direct)) return self::persistUnderAdmission($scope, $revision, $receipt, $direct);
+        return self::withArchiveAdmission($direct,
+            static fn(): bool => self::persistUnderAdmission($scope, $revision, $receipt, $direct), false);
+    }
+
+    private static function persistUnderAdmission(array $scope, string $revision, array $receipt, bool $direct): bool
+    {
         global $wpdb;
         if (!self::available($direct)
             || (string)$wpdb->get_var('SELECT @@session.in_transaction') !== '0'
@@ -206,7 +282,8 @@ final class ProtectedGetWorkspace
         $committed = false;
         try {
             $connection = (int)$wpdb->get_var('SELECT CONNECTION_ID()');
-            if ($connection < 1 || !AccountProfile::lockRevision($wpdb, $scope['revision'])) {
+            if ($connection < 1 || !self::ownsArchiveAdmission($direct)
+                || !AccountProfile::lockRevision($wpdb, $scope['revision'])) {
                 return false;
             }
             $snapshot = self::snapshot($direct);

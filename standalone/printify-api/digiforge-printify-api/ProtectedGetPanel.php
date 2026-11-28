@@ -47,6 +47,9 @@ final class ProtectedGetPanel
             echo '<p role="status">'.\esc_html($result['reason']).'</p>';
             $advice = match ($result['reason']) {
                 'OPERATOR_DENIED','SCOPE_OR_REVISION_UNAVAILABLE' => 'Reopen the panel and verify the operator session and assigned shop.',
+                'ARCHIVE_CAPACITY_EXHAUSTED' => 'The archive cannot retain another bounded observation. Review retention before refreshing.',
+                'ARCHIVE_UNAVAILABLE' => 'The archive is unavailable or failed its integrity check. Review storage before refreshing.',
+                'ARCHIVE_BUSY' => 'A read is already using this archive. Reopen the panel before trying again.',
                 'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel. If storage is full or unavailable, preserve the archive and ask the operator to review it before another read.',
                 'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED' => 'Ask the approved custodian to verify the credential and its read scope.',
                 'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
@@ -72,9 +75,10 @@ final class ProtectedGetPanel
                 .' Limit: 10 reads per minute per account/shop. Use Shops Read for a manual diagnostic.</p>';
         }
         if ($workspace !== null) {
-            echo ProtectedGetWorkspace::canArchive($direct)
+            $archiveStatus = ProtectedGetWorkspace::archiveStatus($direct);
+            echo $archiveStatus === 'ARCHIVE_READY'
                 ? '<p>Read archive ready. Mutation execution denied.</p>'
-                : '<p role="status">Read archive held. Review retention or storage integrity before refreshing. Protected history is retained.</p>';
+                : '<p role="status">Read archive held. '.\esc_html($archiveStatus).'. Protected history is retained.</p>';
             $scope = self::scope($profile, $revision, \wp_get_session_token());
             $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || (DirectGet::synthetic() ? DirectGet::gatesOpen()
                 : DirectGet::status($scope) === 'DIRECT_PROFILE_CONFIGURED')))
@@ -351,14 +355,24 @@ final class ProtectedGetPanel
     private static function refresh(array $request, mixed $revision, string $session): array
     {
         $blocked = ProtectedGet::denied();
-        $scope = $request['scope'];
         $direct = DirectGet::selected();
+        if (ProtectedGetWorkspace::snapshot($direct) === null) return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
+        return ProtectedGetWorkspace::withArchiveAdmission($direct,
+            static fn(): array => self::refreshUnderAdmission($request, $revision, $session, $direct),
+            ['reason'=>'ARCHIVE_BUSY'] + $blocked);
+    }
+
+    private static function refreshUnderAdmission(array $request, mixed $revision, string $session, bool $direct): array
+    {
+        $blocked = ProtectedGet::denied();
+        $scope = $request['scope'];
         $snapshot = ProtectedGetWorkspace::snapshot($direct);
         if ($snapshot === null || $snapshot['revision'] !== $revision) {
             return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
         }
         if (!self::currentSession($scope['actor'], $session)) return $blocked;
-        if (!ProtectedGetWorkspace::canArchive($direct)) return ['reason'=>'OBSERVATION_NOT_COMMITTED']+$blocked;
+        $archiveStatus = ProtectedGetWorkspace::archiveStatus($direct);
+        if ($archiveStatus !== 'ARCHIVE_READY') return ['reason'=>$archiveStatus] + $blocked;
         if ($request['operation']==='LINKED_IMAGE_METADATA_READ'
             && !ProtectedGetWorkspace::linkedArtwork($scope,$request['selection'],$direct)) {
             return ['reason'=>'LINKED_ARTWORK_REQUIRED']+$blocked;
@@ -373,6 +387,7 @@ final class ProtectedGetPanel
             if ($direct) {
                 $result = DirectGet::execute($request, static fn(): bool =>
                     ProtectedGetWorkspace::reserveDirect($scope,$revision)
+                    && ProtectedGetWorkspace::ownsArchiveAdmission(true)
                     && AccountProfile::revisionToken() === $scope['revision']
                     && \current_user_can('digiforge_printify_review_shop_'.$scope['shop'])
                     && self::currentSession($scope['actor'],$session));
@@ -405,7 +420,8 @@ final class ProtectedGetPanel
             $receipt += array_intersect_key($result, array_flip(['source','observed_at','response_sha256','data']));
         }
         if (isset($result['retry_after_seconds'])) $receipt['retry_after_seconds'] = $result['retry_after_seconds'];
-        if (!ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {
+        if (!ProtectedGetWorkspace::ownsArchiveAdmission($direct)
+            || !ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {
             return ['reason'=>'OBSERVATION_NOT_COMMITTED'] + $blocked;
         }
         return ['state'=>$receipt['state'],'reason'=>$reason] + $blocked;

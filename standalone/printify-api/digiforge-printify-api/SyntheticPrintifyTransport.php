@@ -612,6 +612,15 @@ final class SyntheticPrintifyTransport
         if (!$this->validProduct($row)) {
             return self::error(422, 'product_invalid');
         }
+        $productionFields = ['blueprint_id'=>true,'print_provider_id'=>true,'print_areas'=>true];
+        $variantShape = static fn(array $product): array => array_map(
+            static fn(array $variant): array => array_intersect_key($variant,['id'=>true,'is_enabled'=>true]),
+            $product['variants']);
+        $previous = $this->products[$id];
+        if (array_intersect_key($row,$productionFields) !== array_intersect_key($previous,$productionFields)
+            || $variantShape($row) !== $variantShape($previous)) {
+            unset($row['mockup_selection']);
+        }
         ++$row['synthetic_version'];
         $this->products[$id] = $row;
         unset($row['preview_tasks'],$row['personalization_configs']);
@@ -950,7 +959,9 @@ final class SyntheticPrintifyTransport
             || $lines === null || !in_array($body['address_to']['country'] ?? null, ['US','CA'], true)) {
             return self::error(422, 'order_invalid');
         }
-        if ($body['address_to']['country'] === 'CA' && ($express || !in_array($body['shipping_method'] ?? null, [1,4], true))) {
+        $method = array_key_exists('shipping_method', $body) ? $body['shipping_method'] : 1;
+        $available = $body['address_to']['country'] === 'CA' ? [1,4] : [1,2,3,4];
+        if (!in_array($method, $available, true) || ($express && $body['address_to']['country'] !== 'US')) {
             return self::error(422, 'shipping_unavailable');
         }
         $key = 'order:'.$external;
@@ -981,6 +992,7 @@ final class SyntheticPrintifyTransport
             $this->duplicates[$key]=array_column($created,'id');
             return self::response(201,$created);
         }
+        if (count($this->orders) >= 100) return self::error(429,'fixture_order_limit');
         $id = 'order-'.(count($this->orders)+1);
         foreach ($lines as $index => &$line) {
             $line['id'] = 'line-'.($index+1);
