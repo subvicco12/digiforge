@@ -194,7 +194,8 @@ verify(str_contains($html,'DF_READ_PROVENANCE_1') && !str_contains(json_encode($
     'Operator provenance missing or leaked payload');
 echo "Bounded scope-fenced read provenance rendered; original metadata survived replay-safe reopening.\n";
 $archive=ProtectedGetWorkspace::archivedProvenance($scope,$direct);
-verify(count($archive)===10 && str_contains($html,'Archived read digests'), 'Append-only archive lost rolled-off history or operator view');
+verify(count($archive)===10 && str_contains($html,'Archived read digests')
+    && str_contains($html,'Read archive ready') && str_contains($html,'Mutation execution denied'), 'Append-only archive lost rolled-off history or operator view');
 verify(ProtectedGetWorkspace::archivedProvenance(array_replace($scope,['session'=>str_repeat('f',64)]),$direct)===[],
     'Another session accessed archive');
 if ($phase==='write') {
@@ -221,6 +222,9 @@ if ($phase==='write') {
     verify(ProtectedGetPanel::prepare($form)['reason']==='OBSERVATION_NOT_COMMITTED'
         && ($direct?$calls:count(json_decode(file_get_contents($journal),true)))===$attempts
         && get_option($archiveOption)===$full,'Archive capacity triggered a read or silent pruning');
+    ob_start();
+    ProtectedGetPanel::render([]);
+    verify(str_contains(ob_get_clean(),'Read archive held'),'Full archive status not shown.');
     update_option($archiveOption,$bytes);
     echo "Full archive denied dispatch without pruning protected records.\n";
 }

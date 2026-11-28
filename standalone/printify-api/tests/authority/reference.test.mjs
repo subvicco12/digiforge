@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { createPrivateKey, createPublicKey } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { canonical, sign } from '../../../../contracts/cloudflare-dispatcher/protocol.mjs';
-import { FixtureSequencer, RecoveryAnchor, sendSynthetic, verifyEnvelope } from './reference.mjs';
+import { FixtureSequencer, RecoveryAnchor, sendSynthetic as sendBoundSynthetic, verifyEnvelope } from './reference.mjs';
 
 const now = 1700000000;
 const key = createPrivateKey({format:'der',type:'pkcs8',
@@ -14,11 +14,31 @@ const signer = await crypto.subtle.importKey('pkcs8', key.export({type:'pkcs8',f
 const pinnedKey = await crypto.subtle.importKey('spki', createPublicKey(key).export({type:'spki',format:'der'}),
   'Ed25519', false, ['verify']);
 const pin = {keyId:'fixture-v1',key:pinnedKey,issuer:'fixture-witness',audience:'fixture-sender'};
+const payload = '{"fixture":"approved"}';
 const id = {
   operation_id:'a'.repeat(64),correlation_id:'b'.repeat(64),idempotency_id:'c'.repeat(64),
   shop:'12',account:'fixture-account',integration:'3',actor:1,session_generation:2,authorization_revision:3,
-  policy_revision:1,payload_digest:'d'.repeat(64),journal_revision:3,event_hash:'e'.repeat(64),
+  policy_revision:1,payload_digest:createHash('sha256').update(payload).digest('hex'),journal_revision:3,event_hash:'e'.repeat(64),
 };
+
+const sendSynthetic = (wire, pin, clock, sequencer, sink) =>
+  sendBoundSynthetic(wire, pin, clock, sequencer, sink, payload);
+
+test('the sender checks exact approved bytes before admission and passes those bytes to the sink', async t => {
+  const f = fixture(t);
+  const wire = await f.envelope();
+  let calls = 0;
+  const sink = bytes => { ++calls; assert.equal(bytes, payload); };
+  for (const altered of [undefined, payload + ' ', '{"fixture":"changed"}']) {
+    await assert.rejects(sendBoundSynthetic(wire,pin,()=>now,f.seq,sink,altered), /PAYLOAD_BINDING/);
+    assert.equal(calls, 0);
+    assert.equal(f.seq.state().outcome, null);
+  }
+  assert.equal((await sendSynthetic(wire,pin,()=>now,f.seq,sink)).outcome, 'UNKNOWN');
+  assert.equal(calls, 1);
+  await assert.rejects(sendSynthetic(wire,pin,()=>now,f.seq,sink), /ADMISSION_DENIED/);
+  assert.equal(calls, 1);
+});
 
 function fixture(t, identity = id) {
   const dir = mkdtempSync(join(tmpdir(),'df-authority-'));

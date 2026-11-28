@@ -135,12 +135,16 @@ final class ProtectedGet
         if (!is_array($data)) {
             throw new \InvalidArgumentException('Expected structured evidence.');
         }
-        $operation = $request['operation'];
-        $selection = $request['selection'];
-        $shop = $request['scope']['shop'];
+        $operation = $request['operation'] ?? null;
+        $selection = $request['selection'] ?? null;
+        $scope = $request['scope'] ?? null;
+        if (!is_string($operation) || !is_array($selection) || !is_array($scope)
+            || self::digest($request) !== self::digest(self::request($scope, $operation, $selection))) {
+            throw new \InvalidArgumentException('Read request binding mismatch.');
+        }
+        $shop = $scope['shop'];
         if ($operation==='LINKED_IMAGE_METADATA_READ') {
-            if ($request!==self::request($request['scope'],$operation,$selection)
-                || ($data['id']??null)!==$selection['image_id']
+            if (($data['id']??null)!==$selection['image_id']
                 || (isset($data['shop_id']) && (!is_int($data['shop_id']) || (string)$data['shop_id']!==$shop))) {
                 throw new \InvalidArgumentException('Linked asset identity mismatch.');
             }
@@ -198,9 +202,12 @@ final class ProtectedGet
             if (!is_array($rows)) {
                 throw new \InvalidArgumentException('Missing records.');
             }
+            if (array_key_exists('shop_id', $data) && !self::matchesShop($data['shop_id'], $shop)) {
+                throw new \InvalidArgumentException('Response envelope scope mismatch.');
+            }
             foreach ($rows as $row) {
                 if (!is_array($row) || (array_key_exists('shop_id', $row)
-                    && ((!is_int($row['shop_id']) && !is_string($row['shop_id'])) || (string)$row['shop_id'] !== $shop))) {
+                    && !self::matchesShop($row['shop_id'], $shop))) {
                     throw new \InvalidArgumentException('Response scope mismatch.');
                 }
                 if ($operation==='ORDERS_READ') {
@@ -237,6 +244,11 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    private static function matchesShop(mixed $value, string $shop): bool
+    {
+        return (is_int($value) || is_string($value)) && (string)$value === $shop;
     }
 
     /** An account media-library ID is not ownership evidence. Require current product placement. */

@@ -72,6 +72,9 @@ final class ProtectedGetPanel
                 .' Limit: 10 reads per minute per account/shop. Use Shops Read for a manual diagnostic.</p>';
         }
         if ($workspace !== null) {
+            echo ProtectedGetWorkspace::canArchive($direct)
+                ? '<p>Read archive ready. Mutation execution denied.</p>'
+                : '<p role="status">Read archive held. Review retention or storage integrity before refreshing. Protected history is retained.</p>';
             $scope = self::scope($profile, $revision, \wp_get_session_token());
             $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || (DirectGet::synthetic() ? DirectGet::gatesOpen()
                 : DirectGet::status($scope) === 'DIRECT_PROFILE_CONFIGURED')))
@@ -93,6 +96,7 @@ final class ProtectedGetPanel
                 if (($receipt['source'] ?? null) === 'SYNTHETIC_DIRECT_PRINTIFY') {
                     echo '<p>'.\esc_html('Synthetic direct Printify evidence · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
                 }
+                $displayOperation = $receipt['operation'];
                 $data = $receipt['data'] ?? null;
                 $currentData = $receipt['state'] === 'OBSERVED' && $data !== null;
                 if ($currentData && ($data['data'] ?? null) === []) {
@@ -114,10 +118,11 @@ final class ProtectedGetPanel
                     && time()-$record['last_success']['observed_at'] <= 3600) {
                     echo '<p>'.\esc_html(($synthetic ? 'Stale prior synthetic ' : 'Stale prior provider ').$record['last_success']['operation'].' observation · '
                         .gmdate('c',$record['last_success']['observed_at'])).'</p>';
+                    $displayOperation = $record['last_success']['operation'];
                     $data = $record['last_success']['data'];
                 }
                 if ($data !== null) {
-                    self::renderOrder($receipt['operation'],$data);
+                    self::renderOrder($displayOperation,$data);
                     echo '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
                 }
                 if (!empty($record['history'])) {

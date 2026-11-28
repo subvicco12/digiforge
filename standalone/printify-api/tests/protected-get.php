@@ -32,6 +32,24 @@ $scope = ['site'=>'fixture-site','actor'=>1,'session'=>str_repeat('e', 64),'revi
     'account'=>'acct','shop'=>'107','integration'=>'fixture','custody'=>'custody-ref:fixture'];
 $now = 2000;
 $request = ProtectedGet::request($scope, 'SHOPS_READ', []);
+$catalogPlan = ProtectedGet::request($scope, 'BLUEPRINTS_READ', []);
+foreach ([
+    array_replace($catalogPlan, ['method'=>'POST']),
+    array_replace($catalogPlan, ['path'=>'/v1/shops.json']),
+    array_replace($catalogPlan, ['selection'=>['unexpected'=>true]]),
+] as $invalidPlan) {
+    try {
+        ProtectedGet::project($invalidPlan, '[{"id":1,"title":"Fixture"}]');
+        throw new RuntimeException('Noncanonical read request reached response projection.');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+$orderPlan = ProtectedGet::request($scope, 'ORDERS_READ', []);
+try {
+    ProtectedGet::project($orderPlan, '{"shop_id":108,"data":[],"current_page":1,"last_page":1}');
+    throw new RuntimeException('Foreign scoped empty page reached response projection.');
+} catch (InvalidArgumentException $expected) {
+}
 foreach ([
     ['SHOPS_READ',['shop'=>'108']],
     ['ORDER_READ',['order_id'=>'order-1','page'=>1]],

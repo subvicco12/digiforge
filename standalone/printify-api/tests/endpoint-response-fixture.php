@@ -44,6 +44,12 @@ $cases = [
     ['PRODUCT_READ', $catalog+$productId+['variant_ids'=>[9]], ['print_areas'=>[
         ['variant_ids'=>[10],'placeholders'=>[]],
     ]]+$product],
+    ['MOCKUP_SELECTION_READ', $productId, [[
+        'mockup_id'=>'mockup-1','src'=>'http://images.example.invalid/fixture.png',
+        'type'=>'GENERATED','selected'=>true,'variant_ids'=>[9],
+    ]]],
+    ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], ['unexpected'=>true], [], 204],
+    ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], [], [], 200],
     ['PRODUCT_CREATE', [], ['id'=>'product-1'], ['body'=>[]], 201],
     ['PRODUCT_CREATE', [], $product, ['body'=>['blueprint_id'=>43]], 201],
     ['PRODUCT_UPDATE', $productId, $product, ['expected_version'=>1,'body'=>[]]],
