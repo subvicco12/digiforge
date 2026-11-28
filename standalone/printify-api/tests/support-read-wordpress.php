@@ -52,7 +52,7 @@ $check($read('SUPPORT_LIST',$list)['state']==='OBSERVED','Scoped support list fa
 ob_start();
 ProtectedGetPanel::render([]);
 $html=ob_get_clean();
-$check(str_contains($html,'Read support request support-1') && !str_contains($html,'fixture-private-description'),
+$check(str_contains($html,'Read selected support request') && !str_contains($html,'fixture-private-description'),
     'Support navigation missing or description exposed');
 $check($read('SUPPORT_DETAIL',$detail)['state']==='OBSERVED','Scoped support detail failed');
 $foreign=true;

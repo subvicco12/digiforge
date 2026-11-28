@@ -193,11 +193,9 @@ final class ProtectedGetPanel
         if ($operation==='ORDER_READ' && is_string($data['id']??null)) {
             self::renderReadAction('SUPPORT_LIST',['order_id'=>$data['id']],$profile,$workspace,'Read order support requests');
         }
-        if ($operation==='SUPPORT_LIST' && is_string($data['order_id']??null)) {
-            foreach (array_slice($data['support_requests']??[],0,10) as $item) {
-                self::renderReadAction('SUPPORT_DETAIL',['order_id'=>$data['order_id'],'support_request_id'=>$item['id']],
-                    $profile,$workspace,'Read support request '.$item['id']);
-            }
+        if ($operation === 'SUPPORT_LIST' && $data['support_requests'] !== []) {
+            self::renderReadAction('SUPPORT_DETAIL',['order_id'=>$data['order_id']],$profile,$workspace,
+                'Read selected support request',['support_request_id',$data['support_requests']]);
         }
 
         if ($operation === 'PRODUCTS_READ') {
@@ -266,7 +264,9 @@ final class ProtectedGetPanel
         }
         if ($selection !== null) {
             [$field,$rows] = $selection;
-            echo '<label>'.\esc_html(ucfirst(str_replace('_id','',$field))).' <select style="max-width:100%" name="df_printify_get['.\esc_attr($field).']">';
+            $fieldLabel = ucfirst(str_replace('_',' ',str_replace('_id','',$field)));
+            echo '<label>'.\esc_html($fieldLabel).' <select aria-label="'.\esc_attr($fieldLabel)
+                .'" style="max-width:100%" name="df_printify_get['.\esc_attr($field).']">';
             foreach ($rows as $row) {
                 $id = (string)$row['id'];
                 echo '<option value="'.\esc_attr($id).'">'.\esc_html(($row['title'] ?? $id).' · '.$id).'</option>';

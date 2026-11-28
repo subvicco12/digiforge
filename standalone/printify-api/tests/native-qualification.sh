@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)"
 git_dir=$(git rev-parse --absolute-git-dir)
 work_tree=$PWD
 case "$1" in
-    0|1|lifecycle|approval|workspace|structured|upgrade|support|native-receipt) ;;
+    0|1|lifecycle|approval|workspace|structured|upgrade|support|native-receipt|browser) ;;
     *) exit 64 ;;
 esac
 if [[ "$(git rev-parse HEAD)" != "$3" || "$(git rev-parse HEAD^{tree})" != "$4"
@@ -18,7 +18,8 @@ fi
 [[ "$5" =~ ^[0-9a-f]{64}$ ]] || exit 65
 tmp=$(mktemp -d /tmp/df-printify-closure-XXXXXXXX)
 db=
-trap 'status=$?; printf "END %s exit=%s\n" "$(date -u +%FT%TZ)" "$status"; if [[ -n "$db" ]]; then kill "$db" 2>/dev/null || true; wait "$db" || true; fi; rm -rf "$tmp"' EXIT
+web=
+trap 'status=$?; printf "END %s exit=%s\n" "$(date -u +%FT%TZ)" "$status"; if [[ -n "$web" ]]; then kill "$web" 2>/dev/null || true; wait "$web" || true; fi; if [[ -n "$db" ]]; then kill "$db" 2>/dev/null || true; wait "$db" || true; fi; rm -rf "$tmp"' EXIT
 d="$tmp/inputs"
 mkdir "$d" "$tmp/source"
 for name in standalone.zip wordpress.zip workspace-config.php control.php wordpress-install.php native-egress-guard.c egress-probe.py; do
@@ -75,7 +76,8 @@ GIT_DIR="$git_dir" GIT_WORK_TREE="$work_tree" /usr/bin/python3     "$tmp/source/
 tests="$tmp/source/standalone/printify-api/tests"
 [[ -s "$tests/protected-get-worker.php" && -s "$tests/batch2-approval-wordpress.php" ]] || exit 65
 find "$tests" -type f -print0 | sort -z | xargs -0 sha256sum
-echo 'SKIP browser, live provider transport, and production qualification'
+echo 'SKIP live provider transport and production qualification'
+if [[ "$1" != browser ]]; then echo 'SKIP browser'; fi
 if [[ "$1" != upgrade ]]; then echo 'SKIP incumbent coexistence'; fi
 echo "START $(date -u +%FT%TZ) uname=$(uname -r)"
 echo 'COMMAND gcc -shared native-egress-guard.c'
@@ -96,6 +98,9 @@ unzip -q "$d/wordpress.zip" -d "$tmp"
 wp="$tmp/wordpress"
 mkdir -p "$wp/wp-content/mu-plugins" "$tmp/db"
 cp "$d/control.php" "$wp/wp-content/mu-plugins/z-control.php"
+if [[ "$1" == browser ]]; then
+    cp "$tests/browser-operator-fixture.php" "$wp/wp-content/mu-plugins/"
+fi
 install_pkg() {
     rm -rf -- "$wp/wp-content/plugins/digiforge-printify-api"
     unzip -q "$d/$1" -d "$wp/wp-content/plugins"
@@ -163,6 +168,22 @@ elif [[ "$1" == native-receipt ]]; then
     unzip -q "$d/core-native.zip" -d "$wp/wp-content/plugins/digiforge"
     unzip -q "$d/companion.zip" -d "$wp/wp-content/plugins"
     guarded php "$tests/native-receipt-wordpress.php"
+elif [[ "$1" == browser ]]; then
+    /usr/bin/chromium --version
+    /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --version
+    echo 'COMMAND guarded PHP loopback listener and browser-operator.cjs'
+    DF_NETWORK_GUARD=listener LD_PRELOAD="$d/native-egress-guard.so" php -S 127.0.0.1:18276 -t "$wp" > "$output/browser-http.log" 2>&1 &
+    web=$!
+    for i in {1..20}; do
+        if curl -fsS http://127.0.0.1:18276/wp-login.php >/dev/null 2>&1; then break; fi
+        kill -0 "$web"
+        sleep 1
+    done
+    status=0
+    NODE_PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/node_modules \
+        timeout 120 /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node "$tests/browser-operator.cjs" "$output" || status=$?
+    echo "COMMAND_EXIT $status"
+    test "$status" = 0
 elif [[ "$1" == support ]]; then
     guarded php "$tests/support-read-wordpress.php"
 elif [[ "$1" == lifecycle ]]; then
