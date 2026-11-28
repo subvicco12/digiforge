@@ -113,6 +113,26 @@ requireSynthetic($shipmentRead['status']==='fulfilled'
     && count(array_unique(array_column($shipmentRead['shipments'],'number')))===2,
     'Distinct shipments failed exact order readback.');
 
+$fourth = $call('PRODUCT_CREATE','POST',$root.'/products.json',['title'=>'Fixture release candidate']+$productBody);
+requireSynthetic($fourth['status']===201,'Independent publication fixture was not created.');
+$release = $root.'/products/product-2';
+requireSynthetic($call('PRODUCT_PUBLISH','POST',$release.'/publish.json',['title'=>true],['expected_version'=>1])['status']===200
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>2])['status']===409,
+    'A pending publication did not hold deletion.');
+requireSynthetic($call('PRODUCT_PUBLISH_SUCCEEDED','POST',$release.'/publishing_succeeded.json',
+    ['external'=>['id'=>'fixture-published','handle'=>'https://products.example.invalid/fixture-published']],['expected_version'=>2])['status']===200,
+    'Fixture publication acknowledgment was rejected.');
+$published = $call('PRODUCT_READ','GET',$release.'.json')['body'];
+requireSynthetic($published['synthetic_version']===3 && $published['synthetic_publication_state']==='PUBLISHED'
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>3])['status']===409
+    && $call('PRODUCT_UNPUBLISH_NOTIFY','POST',$release.'/unpublish.json',[],['expected_version'=>3])['status']===200,
+    'Published fixture state or deletion gate was incorrect.');
+requireSynthetic($call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>3])['status']===409
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>4])['status']===200
+    && $call('PRODUCT_READ','GET',$release.'.json')['status']===404,
+    'Eligible deletion, stale revision denial or deletion readback failed.');
+echo "Product publication, unpublication and eligible deletion readback PASS\n";
+
 $webhook = ['topic'=>'order:created','url'=>SyntheticPrintifyTransport::WEBHOOK_URLS[0]];
 requireSynthetic($call('WEBHOOK_CREATE','POST',$root.'/webhooks.json',array_replace($webhook,
     ['url'=>'https://outside.example.com']))['status']===422, 'An external webhook destination escaped the fixture.');

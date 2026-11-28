@@ -160,6 +160,9 @@ final class SyntheticWorkspacePanel
     private static function renderProposals(string $shop, int $revision, array $proposals, array $receipts): void
     {
         echo '<h3 id="df-proposals">Approval queue</h3><p>Local review decisions never authorize execution. UNKNOWN stays quarantined.</p>';
+        $counts = array_count_values(array_column($proposals,'state'));
+        echo '<p>'.\esc_html(sprintf('%d pending approval · %d approved and held · %d UNKNOWN',
+            $counts['PENDING_APPROVAL'] ?? 0,$counts['APPROVED_HELD'] ?? 0,$counts['UNKNOWN'] ?? 0)).'</p>';
         if ($proposals === []) {
             echo '<p>Preview a supported operation in the configured shop to save a proposal.</p>';
         }
@@ -167,6 +170,11 @@ final class SyntheticWorkspacePanel
             $state = $proposal['state'];
             echo '<details><summary>'.\esc_html($proposal['operation'].' · '.$state.' · revision '.$proposal['revision']).'</summary>';
             echo '<p>Proposal <code>'.\esc_html($proposal['id']).'</code></p>';
+            $quote = $proposal['quote_binding'] ?? null;
+            if (is_array($quote) && is_int($quote['amount_minor'] ?? null) && is_string($quote['method'] ?? null)) {
+                echo '<p>'.\esc_html(sprintf('Synthetic quote · %s · %d minor units · currency unavailable',
+                    $quote['method'],$quote['amount_minor'])).'</p>';
+            }
             if (isset($proposal['creation_receipt'])) {
                 $creation = $proposal['creation_receipt'];
                 echo '<p>'.\esc_html('Local fixture creation: '.$creation['resource_id'].' · correlation '.$creation['correlation_id']).'</p>';

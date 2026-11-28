@@ -246,10 +246,27 @@ final class SyntheticWorkspace
         return hash_hmac('sha256',json_encode($intent,JSON_THROW_ON_ERROR),\wp_salt('auth'));
     }
 
+    private static function quoteBinding(string $id,string $intent,array $quote,int $method,int $now): ?array
+    {
+        $label = [1=>'standard',2=>'priority',3=>'printify_express',4=>'economy'][$method] ?? null;
+        $amount = $label !== null ? ($quote['rates_minor'][$label] ?? null) : null;
+        if (!is_int($amount) || $amount < 0) return null;
+        $binding = ['quote_id'=>$id,'intent_sha256'=>$intent,'quoted_at'=>$now,'method'=>$label,
+            'amount_minor'=>$amount,'projection_sha256'=>ProtectedGet::digest($quote)];
+        return $binding + ['binding_mac'=>self::quoteMac($binding)];
+    }
+
+    private static function quoteMac(array $binding): string
+    {
+        return hash_hmac('sha256', ProtectedGet::digest($binding), \wp_salt('auth'));
+    }
+
     private static function quoteMatches(mixed $quote,?string $intent,int $now): bool
     {
         return is_array($quote) && $intent!==null && ($quote['intent_sha256']??null)===$intent
-            && is_int($quote['quoted_at']??null) && $quote['quoted_at']<=$now && $now-$quote['quoted_at']<300;
+            && is_int($quote['quoted_at']??null) && $quote['quoted_at']<=$now && $now-$quote['quoted_at']<300
+            && is_string($quote['binding_mac']??null)
+            && hash_equals(self::quoteMac(array_diff_key($quote,['binding_mac'=>true])), $quote['binding_mac']);
     }
 
     private static function reviewProposal(array $audit, array $input, ?array $scope, int $revision): array
@@ -508,7 +525,14 @@ final class SyntheticWorkspace
                         'source'=>'SYNTHETIC_PRINTIFY','intent_sha256'=>$edited['intent_sha256'],
                         'correlation_id'=>$operationId,'outcome'=>'VERIFIED_FIXTURE_CREATION',
                     ];
-                    if ($operation==='ORDER_CREATE') $edited['creation_receipt']['quote_id']=$edited['quote_binding']['quote_id'];
+                    if ($operation==='ORDER_CREATE') {
+                        $quote = $edited['quote_binding'];
+                        $edited['creation_receipt'] += [
+                            'quote_id'=>$quote['quote_id'], 'quote_method'=>$quote['method'],
+                            'quote_amount_minor'=>$quote['amount_minor'],
+                            'quote_projection_sha256'=>$quote['projection_sha256'],
+                        ];
+                    }
                 } else {
                     $edited['state'] = in_array($result['state'], ['SYNTHETIC_OBSERVED','UNKNOWN'], true) ? 'UNKNOWN' : 'BLOCKED';
                 }
@@ -567,9 +591,9 @@ final class SyntheticWorkspace
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $result['proposal']['quote_projection'] = $result['data'];
                         $intent=self::quoteIntent($transport,$input['order'],(string)$profileRevision);
-                        if ($intent!==null) $result['proposal']['quote_binding']=[
-                            'quote_id'=>$operationId,'intent_sha256'=>$intent,'quoted_at'=>time(),
-                        ];
+                        $binding = $intent === null ? null : self::quoteBinding(
+                            $operationId,$intent,$result['data'],$input['order']['shipping_method'],time());
+                        if ($binding !== null) $result['proposal']['quote_binding']=$binding;
                     }
                     if ($ready && $operation==='ORDER_CREATE') {
                         $intent=self::quoteIntent($transport,$input,(string)$profileRevision);

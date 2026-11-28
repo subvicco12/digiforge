@@ -368,9 +368,13 @@ final class SyntheticPrintifyClient
         if (!is_array($rows)) {
             throw new \InvalidArgumentException('Malformed scoped response.');
         }
+        if (in_array($operation,['ORDERS_READ','PRODUCTS_READ'],true)
+            && array_key_exists('shop_id',$body) && !self::matchesShop($body['shop_id'],$this->shop)) {
+            throw new \InvalidArgumentException('Mismatched response envelope shop.');
+        }
         foreach ($rows as $row) {
             if (!is_array($row)||array_key_exists('shop_id',$row)
-                && $row['shop_id']!==$this->shop && (!is_int($row['shop_id'])||(string)$row['shop_id']!==$this->shop)) {
+                && !self::matchesShop($row['shop_id'],$this->shop)) {
                 throw new \InvalidArgumentException('Mismatched response shop.');
             }
         }
@@ -389,6 +393,14 @@ final class SyntheticPrintifyClient
                     throw new \InvalidArgumentException('Inconsistent synthetic publication state.');
                 }
                 $projection += ['synthetic_version'=>$version,'publication_pending'=>$pending,'publication_state'=>$state];
+            }
+            if ($operation === 'ORDER_READ') {
+                self::bindFixtureShipmentLines($projection, $body);
+            } elseif ($operation === 'ORDERS_READ') {
+                foreach ($projection['data'] as $index=>&$order) {
+                    self::bindFixtureShipmentLines($order, $rows[$index]);
+                }
+                unset($order);
             }
             return $projection;
         }
@@ -450,6 +462,11 @@ final class SyntheticPrintifyClient
                 || $version < 1 || (isset($plan['expected_version']) || $operation === 'PRODUCT_CREATE') && $version !== $expectedVersion) {
                 throw new \InvalidArgumentException('Mismatched synthetic product revision.');
             }
+            foreach (array_intersect_key($plan['body'], ['title'=>true,'description'=>true]) as $field=>$value) {
+                if (($body[$field] ?? null) !== $value) {
+                    throw new \InvalidArgumentException('Mismatched synthetic product text.');
+                }
+            }
             $product = PrintifyApiReadEvidence::project('PRODUCTS_READ', [
                 'data'=>[$body],'current_page'=>1,'per_page'=>10,'last_page'=>1,
             ], $this->shop, [])['data'][0];
@@ -477,6 +494,37 @@ final class SyntheticPrintifyClient
             $projection['synthetic_version']=$body['synthetic_version'];
         }
         return $projection;
+    }
+
+    private static function matchesShop(mixed $value,string $shop): bool
+    {
+        return (is_int($value) || is_string($value)) && (string)$value === $shop;
+    }
+
+    /** Fixture-specific linkage. Keep provider shipment semantics with the shared normalizer. */
+    private static function bindFixtureShipmentLines(array &$projection,array $order): void
+    {
+        $eligible = [];
+        foreach ($order['line_items'] as $line) {
+            if (is_string($line['id'] ?? null) && ($line['status'] ?? null) !== 'canceled') {
+                $eligible[$line['id']] = true;
+            }
+        }
+        foreach ($order['shipments'] ?? [] as $index=>$shipment) {
+            if (!array_key_exists('line_item_ids',$shipment)) continue;
+            $ids = $shipment['line_item_ids'];
+            if (!is_array($ids) || !array_is_list($ids) || $ids === [] || count($ids) > count($eligible)) {
+                throw new \InvalidArgumentException('Malformed fixture shipment lineage.');
+            }
+            $seen = [];
+            foreach ($ids as $id) {
+                if (!is_string($id) || !isset($eligible[$id]) || isset($seen[$id])) {
+                    throw new \InvalidArgumentException('Mismatched fixture shipment line.');
+                }
+                $seen[$id] = true;
+            }
+            $projection['shipments'][$index]['line_item_ids'] = $ids;
+        }
     }
 
     private static function assertOptionalEcho(array $response, array $request, array $fields): void

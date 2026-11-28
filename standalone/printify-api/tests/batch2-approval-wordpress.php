@@ -81,8 +81,13 @@ $check($send('ORDER_CREATE',$orderInput,false,null,['id'=>$approved['id'],'revis
 $expiry=new ReflectionMethod($workspace,'quoteMatches');
 $binding=$approved['quote_binding'];
 $check(!$expiry->invoke(null,$binding,$binding['intent_sha256'],$binding['quoted_at']+300),'Expired quote accepted');
+$check(!$expiry->invoke(null,['amount_minor'=>$binding['amount_minor']+1]+$binding,$binding['intent_sha256'],$binding['quoted_at']),
+    'A transplanted quote amount retained authorization');
 $created=$send('ORDER_CREATE',$orderInput,false,null,$edit,true);
-$check(($created['proposal']['creation_receipt']['quote_id']??null)===$quote['proposal']['id'],'Order receipt lost quote link');
+$creation = $created['proposal']['creation_receipt'];
+$check(($creation['quote_id']??null)===$quote['proposal']['id'] && $creation['quote_amount_minor'] === $binding['amount_minor']
+    && $creation['quote_method']==='standard' && $creation['quote_projection_sha256']===$binding['projection_sha256'],
+    'Order receipt lost authenticated quote identity, method or amount');
 $check($send('ORDER_CREATE',$orderInput,false,null,$edit,true)['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION','Repeated order claim accepted');
 echo "PASS bound quote, stale approval, changed artwork, variants, destination and shipping, and duplicate order claim\n";
 $selection=['groups'=>[['variant_ids'=>[9],'mockup_ids'=>['product-1_back']]]];

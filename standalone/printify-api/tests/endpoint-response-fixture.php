@@ -50,6 +50,16 @@ $cases = [
     ]]],
     ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], ['unexpected'=>true], [], 204],
     ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], [], [], 200],
+    ['PRODUCT_CREATE', [], ['title'=>'Changed in response']+$product, ['body'=>['title'=>'Approved title']], 201],
+    ['PRODUCT_UPDATE', $productId, ['description'=>'Different artwork description','synthetic_version'=>2]+$product,
+        ['expected_version'=>1,'body'=>['description'=>'Approved description']]],
+    ['ORDERS_READ', [], ['shop_id'=>108,'data'=>[],'current_page'=>1]],
+    ['ORDER_READ', $orderId, ['shipments'=>[[
+        'carrier'=>'Fixture','number'=>'fixture-tracking','url'=>'https://tracking.example.invalid/one','line_item_ids'=>['foreign-line'],
+    ]], 'line_items'=>[['id'=>'line-1','product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]]+$order],
+    ['ORDER_READ', $orderId, ['shipments'=>[[
+        'carrier'=>'Fixture','number'=>'fixture-tracking','url'=>'https://tracking.example.invalid/one','line_item_ids'=>['line-1','line-1'],
+    ]], 'line_items'=>[['id'=>'line-1','product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]]+$order],
     ['PRODUCT_CREATE', [], ['id'=>'product-1'], ['body'=>[]], 201],
     ['PRODUCT_CREATE', [], $product, ['body'=>['blueprint_id'=>43]], 201],
     ['PRODUCT_UPDATE', $productId, $product, ['expected_version'=>1,'body'=>[]]],
