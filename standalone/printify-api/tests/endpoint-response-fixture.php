@@ -67,6 +67,8 @@ $cases = [
     ['PRODUCT_PUBLISH', $productId, ['unexpected'=>true]],
     ['PRODUCT_PUBLISH_SUCCEEDED', $productId, [], [], 202],
     ['PRODUCT_PUBLISH_FAILED', $productId, ['id'=>'product-1']],
+    ['PRODUCT_PUBLISH_SUCCEEDED', $productId, ['product_id'=>'product-foreign']],
+    ['PRODUCT_PUBLISH_FAILED', $productId, []],
     ['PRODUCT_UNPUBLISH_NOTIFY', $productId, [], [], 201],
     ['ORDER_SHIPPING_QUOTE', [], ['express'=>100,'priority'=>200]],
     ['ORDER_SHIPPING_QUOTE', [], ['standard'=>-1]],

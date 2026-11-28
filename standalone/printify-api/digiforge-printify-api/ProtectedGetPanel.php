@@ -17,7 +17,7 @@ final class ProtectedGetPanel
 {
     private const MAX_VARIANT_IDS = 1000;
     private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
-    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','limit','product_id','variant_ids','sku','image_id','order_id','show-out-of-stock','status'];
+    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','limit','product_id','variant_ids','sku','image_id','order_id','support_request_id','show-out-of-stock','status'];
     private const ACTION = 'df_printify_protected_get_v1';
 
 
@@ -190,6 +190,16 @@ final class ProtectedGetPanel
 
     private static function renderNavigation(string $operation,array $data,string $profile,string $workspace): void
     {
+        if ($operation==='ORDER_READ' && is_string($data['id']??null)) {
+            self::renderReadAction('SUPPORT_LIST',['order_id'=>$data['id']],$profile,$workspace,'Read order support requests');
+        }
+        if ($operation==='SUPPORT_LIST' && is_string($data['order_id']??null)) {
+            foreach (array_slice($data['support_requests']??[],0,10) as $item) {
+                self::renderReadAction('SUPPORT_DETAIL',['order_id'=>$data['order_id'],'support_request_id'=>$item['id']],
+                    $profile,$workspace,'Read support request '.$item['id']);
+            }
+        }
+
         if ($operation === 'PRODUCTS_READ') {
             foreach ($data['data'] as $product) {
                 $fields = self::productSelection($product);

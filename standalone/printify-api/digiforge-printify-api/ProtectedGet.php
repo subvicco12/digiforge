@@ -5,7 +5,7 @@ namespace DigiForgePrintifyApi;
 
 use DigiForgePrintifyApi\Engine\Listings\Validator;
 use DigiForgePrintifyApi\Engine\PrintifyCatalogReadContract;
-use DigiForgePrintifyApi\Engine\POD\{PrintifyApiReadEvidence, PrintifyApiRequest};
+use DigiForgePrintifyApi\Engine\POD\{PrintifyApiReadEvidence, PrintifyApiRequest, PrintifySupportContract};
 
 if (!defined('ABSPATH')) {
     exit;
@@ -16,6 +16,7 @@ require_once __DIR__.'/Engine/PrintifyCatalogReadContract.php';
 require_once __DIR__.'/Engine/POD/PrintifyApiRequest.php';
 require_once __DIR__.'/Engine/POD/PrintifyApiReadEvidence.php';
 require_once __DIR__.'/Engine/POD/PrintifyOrderEvidence.php';
+require_once __DIR__.'/Engine/POD/PrintifySupportContract.php';
 
 /** Shared GET intent and response contract. The WordPress package has no gateway transport. */
 final class ProtectedGet
@@ -35,6 +36,7 @@ final class ProtectedGet
         'MOCKUP_SELECTION_READ'=>['product_id'], 'LINKED_IMAGE_METADATA_READ'=>['product_id','image_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
         'ORDERS_READ'=>['page','limit','status','sku'],'ORDER_READ'=>['order_id'],
+        'SUPPORT_LIST'=>['order_id'], 'SUPPORT_DETAIL'=>['order_id','support_request_id'],
     ];
 
     private const CATALOG = [
@@ -72,6 +74,8 @@ final class ProtectedGet
                 if (!in_array($selection['show-out-of-stock'],['0','1'],true)) throw new \InvalidArgumentException('Invalid availability selection.');
                 $path.='?show-out-of-stock='.$selection['show-out-of-stock'];
             }
+        } elseif (in_array($operation,['SUPPORT_LIST','SUPPORT_DETAIL'],true)) {
+            $path = PrintifySupportContract::prepare($operation,$scope['shop'],$selection)['endpoint'];
         } elseif ($operation==='LINKED_IMAGE_METADATA_READ') {
             self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
             self::requirePattern($selection['image_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
@@ -140,6 +144,21 @@ final class ProtectedGet
             throw new \InvalidArgumentException('Read request binding mismatch.');
         }
         $shop = $scope['shop'];
+        if (in_array($operation,['SUPPORT_LIST','SUPPORT_DETAIL'],true)) {
+            if (array_key_exists('shop_id',$data) && !self::matchesShop($data['shop_id'],$shop)) {
+                throw new \InvalidArgumentException('Support response scope mismatch.');
+            }
+            $items = $operation === 'SUPPORT_DETAIL' ? [$data['data'] ?? null] : ($data['data'] ?? []);
+            if (is_array($items)) {
+                foreach ($items as $item) {
+                    if (is_array($item) && array_key_exists('shop_id',$item) && !self::matchesShop($item['shop_id'],$shop)) {
+                        throw new \InvalidArgumentException('Support item scope mismatch.');
+                    }
+                }
+            }
+            $contract = PrintifySupportContract::prepare($operation,$shop,$selection);
+            return PrintifySupportContract::project($contract,$data,200);
+        }
         if ($operation==='LINKED_IMAGE_METADATA_READ') {
             if (($data['id']??null)!==$selection['image_id']
                 || (isset($data['shop_id']) && (!is_int($data['shop_id']) || (string)$data['shop_id']!==$shop))) {

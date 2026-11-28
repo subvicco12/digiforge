@@ -4,7 +4,7 @@ set -euo pipefail
 output=$(realpath "$2")
 cd "$(git rev-parse --show-toplevel)"
 case "$1" in
-    0|1|lifecycle|approval|workspace|structured) ;;
+    0|1|lifecycle|approval|workspace|structured|upgrade|support) ;;
     *) exit 64 ;;
 esac
 if [[ "$(git rev-parse HEAD)" != "$3" || "$(git rev-parse HEAD^{tree})" != "$4"
@@ -36,6 +36,20 @@ f0d5ac59d7146d1dec362a9567ea3d91d68cfa6c1561a49919195cab4da541e9  native-egress-
 477cbed99c9fc8c72448a37c3ee691e1768ed4724b468930c9dab9c988cd2581  egress-probe.py
 DIGESTS
 )
+if [[ "$1" == upgrade ]]; then
+    for name in accepted-0153.zip digiforge.zip shipping.zip; do
+        [[ -f "$output/$name" && ! -L "$output/$name" ]] || exit 65
+        cp -- "$output/$name" "$d/$name"
+    done
+    (
+      cd "$d"
+      sha256sum --strict -c - <<'DIGESTS'
+efd02e50aafc73e7e22fe9094a964bbbd928bacd21d879b4d52a337b9fb9275c  accepted-0153.zip
+e12c923d6e8342570506a4f20ff3b4ba4b6f67e39bbee7e313c9e87aad1e8aa0  digiforge.zip
+c36cfd01f5de69ce36e0024c97c4109bee972a6be3a27e89bc762383aad02157  shipping.zip
+DIGESTS
+    )
+fi
 git ls-tree -r -z "$3" standalone/printify-api > "$tmp/git-inputs"
 while IFS= read -r -d '' record; do
     IFS=' ' read -r mode kind blob <<< "$(cut -f1 <<< "$record")"
@@ -49,7 +63,8 @@ done < "$tmp/git-inputs"
 tests="$tmp/source/standalone/printify-api/tests"
 [[ -s "$tests/protected-get-worker.php" && -s "$tests/batch2-approval-wordpress.php" ]] || exit 65
 find "$tests" -type f -print0 | sort -z | xargs -0 sha256sum
-echo 'SKIP browser, incumbent coexistence, live provider transport, and production qualification'
+echo 'SKIP browser, live provider transport, and production qualification'
+if [[ "$1" != upgrade ]]; then echo 'SKIP incumbent coexistence'; fi
 echo "START $(date -u +%FT%TZ) uname=$(uname -r)"
 echo 'COMMAND gcc -shared native-egress-guard.c'
 gcc -shared -fPIC -Wall -Wextra -Werror -O2 "$d/native-egress-guard.c" -o "$d/native-egress-guard.so"
@@ -69,7 +84,18 @@ unzip -q "$d/wordpress.zip" -d "$tmp"
 wp="$tmp/wordpress"
 mkdir -p "$wp/wp-content/mu-plugins" "$tmp/db"
 cp "$d/control.php" "$wp/wp-content/mu-plugins/z-control.php"
-unzip -q "$d/standalone.zip" -d "$wp/wp-content/plugins"
+install_pkg() {
+    rm -rf -- "$wp/wp-content/plugins/digiforge-printify-api"
+    unzip -q "$d/$1" -d "$wp/wp-content/plugins"
+}
+if [[ "$1" == upgrade ]]; then
+    install_pkg accepted-0153.zip
+    mkdir "$wp/wp-content/plugins/printify-for-woocommerce"
+    unzip -q "$d/digiforge.zip" -d "$wp/wp-content/plugins"
+    unzip -q "$d/shipping.zip" -d "$wp/wp-content/plugins/printify-for-woocommerce"
+else
+    install_pkg standalone.zip
+fi
 socket="$tmp/mysql.sock"
 cat > "$wp/wp-config.php" <<PHP
 <?php
@@ -104,7 +130,25 @@ export DF_PRINTIFY_WP_FIXTURE_SOCKET="$socket"
 export DF_PRINTIFY_DIRECT_FIXTURE="$1"
 guarded php "$d/wordpress-install.php" "$wp"
 sha256sum "$tests/protected-get-worker.php"
-if [[ "$1" == lifecycle ]]; then
+if [[ "$1" == upgrade ]]; then
+    inventory() {
+        (cd "$wp/wp-content/plugins" && find digiforge printify-for-woocommerce -type f -print0 | sort -z | xargs -0 sha256sum)
+    }
+    inventory > "$output/incumbents-before.sha256"
+    fixture="$tests/upgrade-coexistence-wordpress.php"
+    guarded php "$fixture" seed
+    install_pkg standalone.zip
+    guarded php "$fixture" upgrade
+    install_pkg accepted-0153.zip
+    guarded php "$fixture" rollback
+    install_pkg standalone.zip
+    guarded php "$fixture" reinstall
+    inventory > "$output/incumbents-after.sha256"
+    cmp "$output/incumbents-before.sha256" "$output/incumbents-after.sha256"
+    echo 'Incumbent files remain byte-identical.'
+elif [[ "$1" == support ]]; then
+    guarded php "$tests/support-read-wordpress.php"
+elif [[ "$1" == lifecycle ]]; then
     guarded php -d auto_prepend_file="$d/workspace-config.php" "$tests/disposable-storage.php" write
     guarded php -d auto_prepend_file="$d/workspace-config.php" "$tests/disposable-storage.php" reopen
 elif [[ "$1" == approval ]]; then

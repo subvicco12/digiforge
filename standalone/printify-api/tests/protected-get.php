@@ -33,6 +33,30 @@ $scope = ['site'=>'fixture-site','actor'=>1,'session'=>str_repeat('e', 64),'revi
 $now = 2000;
 $request = ProtectedGet::request($scope, 'SHOPS_READ', []);
 $catalogPlan = ProtectedGet::request($scope, 'BLUEPRINTS_READ', []);
+$support = ['id'=>'support-1','order_id'=>'order-1','type'=>'order_refund','status'=>'resolved','outcome'=>'positive',
+    'line_item_ids'=>['line-1'],'created_at'=>'2026-11-19T00:00:00Z','updated_at'=>'2026-11-20T00:00:00Z',
+    'description'=>'fixture-private-customer-description'];
+$supportList = ProtectedGet::request($scope,'SUPPORT_LIST',['order_id'=>'order-1']);
+$supportDetail = ProtectedGet::request($scope,'SUPPORT_DETAIL',['order_id'=>'order-1','support_request_id'=>'support-1']);
+check($supportList['path']==='/v1/shops/107/orders/order-1/support-requests'
+    && $supportDetail['path']===$supportList['path'].'/support-1', 'Support request escaped the scoped path');
+$lists = ProtectedGet::project($supportList,json_encode(['data'=>[$support]],JSON_THROW_ON_ERROR));
+$detail = ProtectedGet::project($supportDetail,json_encode(['data'=>$support],JSON_THROW_ON_ERROR));
+check($lists['support_requests'][0]===$detail['support_request']
+    && !str_contains(json_encode($detail,JSON_THROW_ON_ERROR),'fixture-private'), 'Unredacted or inconsistent support result');
+foreach ([
+    [$supportList,['data'=>[$support,$support]]],
+    [$supportDetail,['data'=>['id'=>'support-other']+$support]],
+    [$supportDetail,['data'=>['order_id'=>'order-other']+$support]],
+    [$supportDetail,['data'=>['shop_id'=>108]+$support]],
+] as [$plan,$body]) {
+    try {
+        ProtectedGet::project($plan,json_encode($body,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Foreign or duplicate support evidence was accepted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+echo "Scoped support list and detail, redaction, and four denial cases passed.\n";
 foreach ([
     array_replace($catalogPlan, ['method'=>'POST']),
     array_replace($catalogPlan, ['path'=>'/v1/shops.json']),

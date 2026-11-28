@@ -837,7 +837,7 @@ final class SyntheticPrintifyTransport
         $product['synthetic_publication_state']=$state;
         ++$product['synthetic_version'];
         $this->products[$id]=$product;
-        return self::response(200,[]);
+        return self::response(200,$operation==='PRODUCT_UNPUBLISH_NOTIFY'?[]:['product_id'=>$id]);
     }
 
     private function validProduct(array $row): bool

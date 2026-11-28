@@ -440,8 +440,9 @@ final class SyntheticPrintifyClient
             return ['id'=>$input['product_id'],'publication_pending'=>true];
         }
         if (in_array($operation,['PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'],true)) {
-            if ($status!==200 || $body!==[]) {
-                throw new \InvalidArgumentException('Malformed synthetic publication callback acknowledgement.');
+            $expected = $operation==='PRODUCT_UNPUBLISH_NOTIFY' ? [] : ['product_id'=>$input['product_id']];
+            if ($status!==200 || $body!==$expected) {
+                throw new \InvalidArgumentException('Malformed or mismatched synthetic publication callback acknowledgement.');
             }
             return ['id'=>$input['product_id'],'publication_state'=>match($operation){
                 'PRODUCT_PUBLISH_SUCCEEDED'=>'PUBLISHED',
