@@ -92,11 +92,11 @@ final class SyntheticWorkspace
 
     public const PREVIEW_OPERATIONS = [
         'IMAGE_UPLOAD','PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY',
-        'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+        'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
     ];
 
     public const APPROVED_TRANSITIONS = [
-        'PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+        'PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
     ];
 
     private function synchronization(SyntheticPrintifyTransport $transport, int $revision, array $input): array
@@ -329,6 +329,11 @@ final class SyntheticWorkspace
     private static function transitionObservation(
         SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $operation, string $resource
     ): ?array {
+        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+            $read=$client->run('MOCKUP_SELECTION_READ',['product_id'=>$resource]);
+            if (($read['state']??null)!=='SYNTHETIC_OBSERVED') return null;
+            return $read['data']+['product_revision'=>$transport->fixtureProductRevision($resource)];
+        }
         if (in_array($operation, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
             $selectors = $transport->fixtureProductSelectors($resource);
             $read = $selectors === null ? null : $client->run('PRODUCT_READ', $selectors);
@@ -359,6 +364,7 @@ final class SyntheticWorkspace
         $after = $attempt['state'] === 'SYNTHETIC_OBSERVED'
             ? self::transitionObservation($transport, $client, $operation, $resource) : null;
         $recorded = $after !== null && match ($operation) {
+            'MOCKUP_SELECTION_UPDATE' => hash_equals($current['mockup_expected_sha256']??'',ProtectedGet::digest($after)),
             'PRODUCT_PUBLISH' => $after['publication_state'] === 'PENDING',
             'PRODUCT_UNPUBLISH_NOTIFY' => $after['publication_state'] === 'UNPUBLISHED',
             'FIXTURE_PRODUCTION_CONFIRM' => $after['status'] === 'in-production',
@@ -378,7 +384,27 @@ final class SyntheticWorkspace
         ++$current['revision'];
         $current['workspace_revision'] = $revision+1;
         return ['state'=>$current['state'],'reason'=>$recorded ? 'EXECUTION_HELD' : 'FIXTURE_TRANSITION_NOT_VERIFIED',
-            'status'=>$attempt['status'],'proposal'=>$current,'fixture_effect_committed'=>$recorded];
+            'status'=>$attempt['status'],'proposal'=>$current,'fixture_effect_committed'=>$recorded,
+            'mockup_fixture_attempt'=>$operation==='MOCKUP_SELECTION_UPDATE'];
+    }
+
+    private static function reconcileMockup(array $audit,array $input,?array $scope,int $revision,
+        SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client): array
+    {
+        $id=$input['proposal_id']??null;
+        $proposal=is_string($id)?(self::proposals($audit,$scope)[$id]??null):null;
+        if ($proposal===null || count($input)!==3 || $proposal['operation']!=='MOCKUP_SELECTION_UPDATE'
+            || $proposal['state']!=='UNKNOWN' || ($input['proposal_revision']??null)!==$proposal['revision']
+            || !is_string($proposal['resource_id']??null)) return self::fixtureResult(409,'FIXTURE_MOCKUP_RECONCILIATION_DENIED');
+        $after=self::transitionObservation($transport,$client,$proposal['operation'],$proposal['resource_id']);
+        if ($after===null || !hash_equals($proposal['mockup_expected_sha256']??'',ProtectedGet::digest($after))) {
+            return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH');
+        }
+        $proposal['state']='RECONCILED_FIXTURE_TRANSITION';
+        $proposal['receipt_sha256']=ProtectedGet::digest($after);
+        $proposal['revision']++;
+        $proposal['workspace_revision']=$revision+1;
+        return ['state'=>$proposal['state'],'reason'=>'EXACT_FIXTURE_READBACK','status'=>200,'proposal'=>$proposal];
     }
 
     public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false, ?\Closure $custodyExchange = null): array
@@ -386,7 +412,7 @@ final class SyntheticWorkspace
         $actor = \get_current_user_id();
         $transition = $operation === 'FIXTURE_PROPOSAL_REVIEW' && ($input['decision'] ?? null) === 'simulate_held';
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
-        if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
+        if (($operation==='MOCKUP_SELECTION_UPDATE' && !$preview) || $actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || (($operation === 'FIXTURE_CUSTODY_READ') !== ($custodyExchange !== null))
             || ($edit !== [] && !$preview && !$correlatedCreate)
             || ($correlatedCreate && ($preview || $edit === [] || !in_array($operation, self::CORRELATED_CREATE_OPERATIONS, true)))
@@ -460,6 +486,8 @@ final class SyntheticWorkspace
             $result = match (true) {
                 $sync => $this->synchronization($transport, $expected, $input),
                 $transition => $this->applyApprovedTransition($approved, $transport, $client, $events, $expected, $operationId, $readFault),
+                $review && ($input['decision']??null)==='reconcile_mockup' =>
+                    self::reconcileMockup($row['audit'],$input,$proposalScope,$expected,$transport,$client),
                 $review => self::reviewProposal($row['audit'], $input, $proposalScope, $expected),
                 $custody => $this->custodyObservation($proposalScope, $input, $custodyExchange),
                 default => $this->simulate($transport, $client, $operation, $input, $events, $expected),
@@ -494,7 +522,7 @@ final class SyntheticWorkspace
                 ];
             }
             if ((!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed']))
-                || ($transition && ($result['fixture_effect_committed'] ?? false))) {
+                || ($transition && (($result['fixture_effect_committed'] ?? false) || ($result['mockup_fixture_attempt']??false)))) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
@@ -525,6 +553,12 @@ final class SyntheticWorkspace
                     ];
                     if ($ready && $baseline !== null) {
                         $result['proposal']['baseline_sha256'] = hash('sha256', json_encode($baseline, JSON_THROW_ON_ERROR));
+                        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+                            $after=self::transitionObservation($transport,$client,$operation,$resource);
+                            if ($after===null) return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH')+$flags;
+                            $result['proposal']['configuration']=$input;
+                            $result['proposal']['mockup_expected_sha256']=ProtectedGet::digest($after);
+                        }
                     }
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $result['proposal']['quote_projection'] = $result['data'];

@@ -149,6 +149,16 @@ final class ProtectedGetWorkspace
         }
     }
 
+    public static function linkedArtwork(array $scope,array $selection,bool $direct): bool
+    {
+        $observation=self::visible($scope,$direct);
+        $receipt=$observation['receipt']??null;
+        $data=$receipt['data']??null;
+        return ($receipt['state']??null)==='OBSERVED' && ($receipt['operation']??null)==='PRODUCT_ARTWORK_READ'
+            && $observation['stored_at']>=time()-60 && ($data['product_id']??null)===($selection['product_id']??null)
+            && ($data['image_id']??null)===($selection['image_id']??null) && !empty($data['placements']);
+    }
+
     public static function canArchive(bool $direct): bool
     {
         $records=self::archived($direct);

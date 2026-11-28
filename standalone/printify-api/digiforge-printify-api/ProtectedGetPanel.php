@@ -52,6 +52,7 @@ final class ProtectedGetPanel
                 'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
                 'DIRECT_READ_UNAVAILABLE' => 'Check the selected IDs and connection status. Use Shops Read for a scoped manual diagnostic.',
                 'INVALID_SELECTION' => 'Check the fields required by the selected operation.',
+                'LINKED_ARTWORK_REQUIRED' => 'Read the exact product-linked artwork first, then request its image metadata.',
                 default => null,
             };
             if ($advice !== null) echo '<p>'.\esc_html($advice).'</p>';
@@ -102,6 +103,10 @@ final class ProtectedGetPanel
                     self::renderReadAction('MOCKUP_SELECTION_READ',['product_id'=>$data['id']],$revision,$record['workspace_revision'],'Read selected product mockups');
                 }
                 if ($currentData && time()-$record['stored_at'] <= 60) {
+                    if ($receipt['operation']==='PRODUCT_ARTWORK_READ' && isset($data['product_id'],$data['image_id'])) {
+                        self::renderReadAction('LINKED_IMAGE_METADATA_READ',array_intersect_key($data,['product_id'=>true,'image_id'=>true]),
+                            $revision,$record['workspace_revision'],'Read linked image metadata');
+                    }
                     self::renderContinuation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                     self::renderNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                 }
@@ -349,6 +354,10 @@ final class ProtectedGetPanel
         }
         if (!self::currentSession($scope['actor'], $session)) return $blocked;
         if (!ProtectedGetWorkspace::canArchive($direct)) return ['reason'=>'OBSERVATION_NOT_COMMITTED']+$blocked;
+        if ($request['operation']==='LINKED_IMAGE_METADATA_READ'
+            && !ProtectedGetWorkspace::linkedArtwork($scope,$request['selection'],$direct)) {
+            return ['reason'=>'LINKED_ARTWORK_REQUIRED']+$blocked;
+        }
         $key = defined('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY') ? DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY : null;
         if (!$direct && (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/D', $key))) {
             return $blocked;

@@ -114,13 +114,14 @@ if ($phase === 'write') {
     verify($response['state']==='OBSERVED','Signed exchange: '.$response['reason']);
     verify(ProtectedGetPanel::prepare($form)['reason']==='WORKSPACE_UNAVAILABLE_OR_STALE','Duplicate workspace was reused');
     $cases = [
-        ['BLUEPRINTS_READ',[]], ['BLUEPRINT_PROVIDERS_READ',['blueprint_id'=>'42']],
-        ['VARIANTS_READ',['blueprint_id'=>'42','provider_id'=>'7']],
-        ['VARIANT_READ',['blueprint_id'=>'42','provider_id'=>'7','variant_id'=>'9']],
+        ['VARIANTS_READ',['blueprint_id'=>'42','provider_id'=>'7','show-out-of-stock'=>'1']],
         ['CATALOG_SHIPPING_METHOD_READ',['blueprint_id'=>'42','provider_id'=>'7','method'=>'standard']],
-        ['PRODUCTS_READ',['page'=>'1']],
         ['PRODUCT_READ',['product_id'=>'product-1','blueprint_id'=>'42','provider_id'=>'7','variant_ids'=>'9']],
-        ['ORDERS_READ',['page'=>'1']], ['ORDER_READ',['order_id'=>'order-1']],
+        ['MOCKUP_SELECTION_READ',['product_id'=>'product-1']],
+        ['PRODUCT_ARTWORK_READ',['product_id'=>'product-1','blueprint_id'=>'42','provider_id'=>'7','variant_ids'=>'9','image_id'=>'image-1']],
+        ['LINKED_IMAGE_METADATA_READ',['product_id'=>'product-1','image_id'=>'image-1']],
+        ['PRODUCTS_READ',['page'=>'1']],
+        ['ORDERS_READ',['page'=>'1','status'=>'partially-fulfilled']], ['ORDER_READ',['order_id'=>'order-1']],
     ];
     foreach ($cases as [$operation,$selection]) {
         $form['df_printify_get_workspace'] = ProtectedGetWorkspace::snapshot($direct)['revision'];
@@ -132,6 +133,13 @@ if ($phase === 'write') {
         verify(ProtectedGetWorkspace::snapshot($direct)['revision']===$form['df_printify_get_workspace'],
             $operation.': denied nonce changed workspace');
         $form['df_printify_get_nonce'] = [$operation=>wp_create_nonce('df_printify_protected_get_v1:'.$operation)];
+        if ($operation==='LINKED_IMAGE_METADATA_READ') {
+            $foreign=$form;
+            $foreign['df_printify_get']['product_id']='product-foreign';
+            verify(ProtectedGetPanel::prepare($foreign)['reason']==='LINKED_ARTWORK_REQUIRED','Foreign linked artwork joined');
+            $foreign['df_printify_get']=['product_id'=>'product-1','image_id'=>'image-foreign'];
+            verify(ProtectedGetPanel::prepare($foreign)['reason']==='LINKED_ARTWORK_REQUIRED','Foreign image accessed');
+        }
         $response = ProtectedGetPanel::prepare($form);
         verify($response['state']==='OBSERVED',$operation.': '.$response['reason']);
     }

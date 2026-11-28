@@ -32,7 +32,7 @@ final class ProtectedGet
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
         'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
-        'MOCKUP_SELECTION_READ'=>['product_id'],
+        'MOCKUP_SELECTION_READ'=>['product_id'], 'LINKED_IMAGE_METADATA_READ'=>['product_id','image_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
         'ORDERS_READ'=>['page','status','sku'],'ORDER_READ'=>['order_id'],
     ];
@@ -75,6 +75,10 @@ final class ProtectedGet
                 if (!in_array($selection['show-out-of-stock'],['0','1'],true)) throw new \InvalidArgumentException('Invalid availability selection.');
                 $path.='?show-out-of-stock='.$selection['show-out-of-stock'];
             }
+        } elseif ($operation==='LINKED_IMAGE_METADATA_READ') {
+            self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            self::requirePattern($selection['image_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            $path='/v1/uploads/'.$selection['image_id'].'.json';
         } elseif ($operation === 'MOCKUP_SELECTION_READ') {
             self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
             $path='/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'/mockup-selection.json';
@@ -134,6 +138,23 @@ final class ProtectedGet
         $operation = $request['operation'];
         $selection = $request['selection'];
         $shop = $request['scope']['shop'];
+        if ($operation==='LINKED_IMAGE_METADATA_READ') {
+            if ($request!==self::request($request['scope'],$operation,$selection)
+                || ($data['id']??null)!==$selection['image_id']
+                || (isset($data['shop_id']) && (!is_int($data['shop_id']) || (string)$data['shop_id']!==$shop))) {
+                throw new \InvalidArgumentException('Linked asset identity mismatch.');
+            }
+            $metadata=['product_id'=>$selection['product_id'],'image_id'=>$selection['image_id']];
+            foreach (['width'=>100000,'height'=>100000,'size'=>1000000000] as $field=>$maximum) {
+                $value=$data[$field]??null;
+                if ($value!==null && (!is_int($value) || $value<1 || $value>$maximum)) throw new \InvalidArgumentException('Invalid linked asset measurement.');
+                $metadata[$field]=$value;
+            }
+            $mime=$data['mime_type']??null;
+            if ($mime!==null) self::requirePattern($mime,'~^image/[a-z0-9.+-]{1,40}$~D');
+            $metadata['mime_type']=$mime;
+            return $metadata;
+        }
         if ($operation==='MOCKUP_SELECTION_READ') {
             if ($request!==self::request($request['scope'],$operation,$selection)) {
                 throw new \InvalidArgumentException('Mockup request binding mismatch.');
@@ -202,7 +223,8 @@ final class ProtectedGet
             self::attachArtworkMetadata($product, $data);
             return self::linkedArtwork($product,$selection['image_id']);
         }
-        $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
+        $providerSelection=$operation==='ORDERS_READ'?array_diff_key($selection,['status'=>true,'sku'=>true]):$selection;
+        $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $providerSelection);
         if ($operation==='ORDERS_READ') {
             $filters=array_intersect_key($selection,['status'=>true,'sku'=>true]);
             if ($filters!==[]) $projection['filters']=$filters;

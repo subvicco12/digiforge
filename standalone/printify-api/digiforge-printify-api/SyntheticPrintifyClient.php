@@ -29,7 +29,7 @@ final class SyntheticPrintifyClient
 
     private const OTHER = [
         'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','IMAGE_UPLOAD','IMAGE_READ','UPLOADS_READ','IMAGE_ARCHIVE',
-        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
+        'PRODUCT_CREATE','PRODUCT_READ','MOCKUP_SELECTION_READ','MOCKUP_SELECTION_UPDATE','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
         'ORDER_CREATE','ORDER_READ','ORDERS_READ','ORDER_CANCEL','LINE_ITEM_CANCEL','ORDER_SEND_TO_PRODUCTION','WEBHOOKS_READ',
         'WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE',
         'PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY','CATALOG_SHIPPING_V1_READ',
@@ -111,6 +111,22 @@ final class SyntheticPrintifyClient
     private function prepare(string $operation,array $input): array
     {
         $root='/v1/shops/'.$this->shop.'/orders';
+        if (in_array($operation,['MOCKUP_SELECTION_READ','MOCKUP_SELECTION_UPDATE'],true)) {
+            $id=$input['product_id']??null;
+            if (!self::identity($id)) throw new \InvalidArgumentException('Exact mockup product required.');
+            $endpoint='/v1/shops/'.$this->shop.'/products/'.$id.'/mockup-selection.json';
+            if ($operation==='MOCKUP_SELECTION_READ' && count($input)===1) {
+                return ['method'=>'GET','endpoint'=>$endpoint,'body'=>[],'provider_shop_id'=>$this->shop,'operation'=>$operation];
+            }
+            require_once __DIR__.'/ProtectedGet.php';
+            $body=$input['selection']??null;
+            if ($operation!=='MOCKUP_SELECTION_UPDATE' || count($input)!==4 || !is_int($input['expected_version']??null)
+                || !is_array($body) || ($input['selection_sha256']??null)!==ProtectedGet::digest($body)) {
+                throw new \InvalidArgumentException('Exact mockup replacement digest and revision required.');
+            }
+            return ['method'=>'PATCH','endpoint'=>$endpoint,'body'=>$body,'expected_version'=>$input['expected_version'],
+                'provider_shop_id'=>$this->shop,'operation'=>$operation];
+        }
         if (isset(self::CATALOG[$operation])) {
             if (array_key_exists('kind',$input)) {
                 throw new \InvalidArgumentException('Catalog selector must use its typed route.');
@@ -275,6 +291,15 @@ final class SyntheticPrintifyClient
 
     private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
+        if ($operation==='MOCKUP_SELECTION_READ') {
+            if ($status!==200) throw new \InvalidArgumentException('Expected mockup selection.');
+            require_once __DIR__.'/ProtectedGet.php';
+            return ['product_id'=>$input['product_id'],'shop_id'=>$this->shop,'mockups'=>ProtectedGet::mockupRows($body)];
+        }
+        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+            if ($status!==204 || $body!==[]) throw new \InvalidArgumentException('Expected empty mockup acknowledgment.');
+            return ['product_id'=>$input['product_id'],'selection_sha256'=>$input['selection_sha256']];
+        }
         if ($operation==='ORDER_EXPRESS_CREATE' && $status===200) {
             return $this->projectExpress($input,$body);
         }

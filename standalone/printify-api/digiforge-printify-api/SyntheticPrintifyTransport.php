@@ -247,7 +247,7 @@ final class SyntheticPrintifyTransport
         }
         $version = $plan['expected_version'] ?? null;
         if (array_key_exists('expected_version', $plan)
-            && (!in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'],true) || !is_int($version) || $version < 1 || $version > 1000)) {
+            && (!in_array($operation,['PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY','MOCKUP_SELECTION_UPDATE'],true) || !is_int($version) || $version < 1 || $version > 1000)) {
             return self::error(422, 'fixture_version_invalid');
         }
         $route = $this->route($operation, $method, $endpoint);
@@ -297,6 +297,7 @@ final class SyntheticPrintifyTransport
             'CATALOG_SHIPPING_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping\.json'],
             'CATALOG_SHIPPING_METHOD_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping/(standard|priority|express|economy)\.json'],
             'IMAGE_UPLOAD' => ['POST', '/v1/uploads/images\.json'],
+            'LINKED_IMAGE_METADATA_READ' => ['GET', '/v1/uploads/'.$id.'\.json'],
             'IMAGE_READ' => ['GET', '/v1/uploads/'.$id.'\.json'],
             'IMAGE_ARCHIVE' => ['POST', '/v1/uploads/'.$id.'/archive\.json'],
             'UPLOADS_READ' => ['GET', '/v1/uploads\.json'.$paging],
@@ -306,6 +307,7 @@ final class SyntheticPrintifyTransport
             'PREVIEW_CREATE' => ['POST', $shopRoot.'/products/'.$id.'/personalization_previews\.json'],
             'PREVIEW_READ' => ['GET', $shopRoot.'/products/'.$id.'/personalization_previews/tasks/'.$id.'\.json'],
             'PRODUCT_GPSR_READ' => ['GET', $shopRoot.'/products/'.$id.'/gpsr\.json'],
+            'MOCKUP_SELECTION_UPDATE' => ['PATCH', $shopRoot.'/products/'.$id.'/mockup-selection\.json'],
             'MOCKUP_SELECTION_READ' => ['GET', $shopRoot.'/products/'.$id.'/mockup-selection\.json'],
             'PRODUCT_READ' => ['GET', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_UPDATE' => ['PUT', $shopRoot.'/products/'.$id.'\.json'],
@@ -369,7 +371,7 @@ final class SyntheticPrintifyTransport
             ]]),
             'CATALOG_SHIPPING_METHOD_READ' => self::catalogShipping($route[0]),
             'IMAGE_UPLOAD' => $this->upload($body),
-            'IMAGE_READ' => self::lookup($this->availableImages(true), $route[0]),
+            'IMAGE_READ', 'LINKED_IMAGE_METADATA_READ' => self::lookup($this->availableImages(true), $route[0]),
             'UPLOADS_READ' => self::page($this->availableImages(true), $route),
             'IMAGE_ARCHIVE' => $this->archiveImage($route[0], $body),
             'PRODUCT_CREATE' => $this->createProduct($body),
@@ -377,6 +379,7 @@ final class SyntheticPrintifyTransport
                 => $this->personalization($operation,$route,$body),
             'PRODUCT_GPSR_READ' => isset($this->availableProducts()[$route[0]])
                 ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
+            'MOCKUP_SELECTION_UPDATE' => $this->replaceMockups($route[0],$body,$version),
             'MOCKUP_SELECTION_READ' => $this->mockupSelection($route[0]),
             'PRODUCT_READ' => self::lookup($this->availableProducts(true), $route[0]),
             'PRODUCT_UPDATE' => $this->updateProduct($route[0], $body, $version),
@@ -634,11 +637,80 @@ final class SyntheticPrintifyTransport
         ]);
     }
 
+    /** The fixture admits complete replacements of the known mockups only. */
+    private function replaceMockups(string $id,array $body,?int $version): array
+    {
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) return self::error(404,'fixture_resource_not_found');
+        if ($version===null || $version!==($product['synthetic_version']??null)) return self::error(409,'fixture_stale_product');
+        if (!is_array($body['groups']??null) || !array_is_list($body['groups']) || $body['groups']===[]
+            || count($body['groups'])>200 || array_diff_key($body,['groups'=>true,'selected_mockups'=>true])!==[]) {
+            return self::error(422,'fixture_mockup_groups');
+        }
+        $current=array_column($this->mockupSelection($id)['body'],null,'mockup_id');
+        $variants=array_fill_keys(array_column($product['variants'],'id'),true);
+        $seenVariants=[];
+        $ordered=[];
+        $groupOrder=[];
+        foreach ($body['groups'] as $group) {
+            if (!is_array($group) || count($group)!==2 || !is_array($group['variant_ids']??null)
+                || !array_is_list($group['variant_ids']) || $group['variant_ids']===[]
+                || !is_array($group['mockup_ids']??null) || !array_is_list($group['mockup_ids'])
+                || count($group['mockup_ids'])>200) return self::error(422,'fixture_mockup_group');
+            foreach ($group['variant_ids'] as $variant) {
+                if (!is_int($variant) || !isset($variants[$variant]) || isset($seenVariants[$variant])) return self::error(422,'fixture_mockup_variant');
+                $seenVariants[$variant]=true;
+            }
+            $groupIds=[];
+            foreach ($group['mockup_ids'] as $mockup) {
+                if (!is_string($mockup) || !isset($current[$mockup]) || isset($groupIds[$mockup])) return self::error(422,'fixture_mockup_reference');
+                if ($current[$mockup]['type']==='GENERATED' && array_diff($group['variant_ids'],$current[$mockup]['variant_ids'])!==[]) {
+                    return self::error(422,'fixture_mockup_variant_mismatch');
+                }
+                $groupIds[$mockup]=true;
+                $ordered[$mockup]=array_merge($ordered[$mockup]??[],$group['variant_ids']);
+            }
+            $groupOrder[]=array_keys($groupIds);
+        }
+        if (count($variants)!==count($seenVariants)) return self::error(422,'fixture_mockup_incomplete');
+        foreach ($groupOrder as $groupIds) {
+            if (array_values(array_intersect(array_keys($ordered),$groupIds))!==$groupIds) return self::error(422,'fixture_mockup_order_conflict');
+        }
+        if (!array_key_exists('selected_mockups',$body)) {
+            foreach (array_keys($ordered) as $idSelected) {
+                if ($current[$idSelected]['type']!=='GENERATED') return self::error(422,'fixture_mockup_metadata_required');
+            }
+        } else {
+            $metadata=$body['selected_mockups'];
+            if (!is_array($metadata) || !array_is_list($metadata) || count($metadata)!==count($ordered)) {
+                return self::error(422,'fixture_mockup_metadata');
+            }
+            $seen=[];
+            foreach ($metadata as $meta) {
+                $key=$meta['id']??null;
+                if (!is_string($key) || !isset($ordered[$key]) || isset($seen[$key])
+                    || ($meta['type']??null)!==$current[$key]['type']) return self::error(422,'fixture_mockup_metadata');
+                if ($meta['type']==='GENERATED' ? count($meta)!==3 || ($meta['src']??null)!==$current[$key]['src'] : count($meta)!==2) {
+                    return self::error(422,'fixture_mockup_metadata');
+                }
+                $seen[$key]=true;
+            }
+        }
+        $next=[];
+        foreach ($ordered as $mockup=>$selectedVariants) {
+            $next[]=array_replace($current[$mockup],['variant_ids'=>$selectedVariants,'selected'=>true]);
+        }
+        foreach (array_diff_key($current,$ordered) as $row) $next[]=array_replace($row,['selected'=>false]);
+        $this->products[$id]['mockup_selection']=$next;
+        ++$this->products[$id]['synthetic_version'];
+        return self::response(204,[]);
+    }
+
     private function availableProducts(bool $project=false): array
     {
         $rows=array_filter($this->products,static fn(array $product):bool=>($product['is_deleted']??false)!==true);
         return $project?array_map(static fn(array $row):array=>array_diff_key($row,
-            ['preview_tasks'=>true,'personalization_configs'=>true]),$rows):$rows;
+            ['preview_tasks'=>true,'personalization_configs'=>true,'mockup_selection'=>true]),$rows):$rows;
     }
 
     private function archiveImage(string $id,array $body): array

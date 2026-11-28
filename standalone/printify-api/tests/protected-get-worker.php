@@ -54,9 +54,9 @@ if ($port === null && getenv('DF_PROTECTED_GET_WORKERS_FIXTURE') === '1') {
     exit(proc_close($process));
 }
 $fixture = new DigiForgePrintifyApi\SyntheticPrintifyTransport('107');
-$fixture->restoreFixtureState([[],['product-1'=>['id'=>'product-1','shop_id'=>107,
+$fixture->restoreFixtureState([['image-1'=>['id'=>'image-1','width'=>1200,'height'=>600,'mime_type'=>'image/png']],['product-1'=>['id'=>'product-1','shop_id'=>107,
     'title'=>'Synthetic mug','blueprint_id'=>42,'print_provider_id'=>7,'variants'=>[['id'=>9,'price'=>1000,'is_enabled'=>true]],
-    'print_areas'=>[]]],['order-1'=>['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture-order',
+    'print_areas'=>[['variant_ids'=>[9],'placeholders'=>[['position'=>'front','images'=>[['id'=>'image-1','x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0]]]]]]]],['order-1'=>['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture-order',
     'status'=>'partially-fulfilled','line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>1]],
     'shipments'=>[['carrier'=>'FixtureCarrier','number'=>'fixture-tracking-1','url'=>'https://example.invalid/receipt']]]],
     [],[],1,true]);

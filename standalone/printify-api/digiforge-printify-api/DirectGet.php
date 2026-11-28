@@ -103,10 +103,13 @@ final class DirectGet
                 || !self::configuredScope($config['scope'],$request['scope'])) {
                 return $base;
             }
+            $linked=$request['operation']==='LINKED_IMAGE_METADATA_READ';
+            if ($linked && !ProtectedGetWorkspace::linkedArtwork($request['scope'],$request['selection'],true)) return $base;
             if (!$reserve()) {
                 return ['reason'=>'LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE'] + $base;
             }
-            if ($config !== self::configuration()) return $base;
+            if ($config !== self::configuration()
+                || ($linked && !ProtectedGetWorkspace::linkedArtwork($request['scope'],$request['selection'],true))) return $base;
             $pat = $config['token'];
 
             $url = self::ORIGIN.$request['path'];
@@ -132,7 +135,8 @@ final class DirectGet
                 if ($fixture) remove_filter('pre_http_request',$intercept,PHP_INT_MAX);
             }
 
-            if ($config !== self::configuration()) return $base;
+            if ($config !== self::configuration()
+                || ($linked && !ProtectedGetWorkspace::linkedArtwork($request['scope'],$request['selection'],true))) return $base;
             $unavailable = ['state'=>'UNAVAILABLE','reason'=>'DIRECT_READ_UNAVAILABLE'] + $base;
             if (($fixture && !$intercepted) || !is_array($reply)) return $unavailable;
             $status = wp_remote_retrieve_response_code($reply);
