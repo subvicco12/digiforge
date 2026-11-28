@@ -1,0 +1,1 @@
+<phpunit bootstrap="rate/bootstrap.php" failOnWarning="true" failOnRisky="true"><testsuites><testsuite name="Isolated actual rate ledger with synthetic context"><directory suffix="Test.php">rate</directory></testsuite></testsuites></phpunit>

@@ -1,0 +1,64 @@
+{
+  "governing_file_identities": [
+    {
+      "name": "01-DigiForge_Ultimate_Master_Blueprint_v6.0_2026-09-27-1-.docx",
+      "bytes": 60185,
+      "sha256": "fe88023f6067151b562ecf1d867dda41b0555bceac1685566a206adba6b76125",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    },
+    {
+      "name": "02-DigiForge_DigiCraftifyGoods_Master_500_v2_Research_Migration_Plan-1-.xlsx",
+      "bytes": 62805,
+      "sha256": "56639c9122985ac17b46685bb8b91e5d29f387f16fff715b3488e9b4c2380f6d",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    },
+    {
+      "name": "03-DigiForge_Development_Operating_Manual-1-.docx",
+      "bytes": 39748,
+      "sha256": "1b654d34dfe21e66a73e3ac2b892cc5c04aaf4e2ee18ee187ce617bd9bdc8194",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    },
+    {
+      "name": "04-DigiForge_First_Launch_Master_Plan_v1.1-1-.docx",
+      "bytes": 45461,
+      "sha256": "33fd9576718e9a211ac673a9c8e6c48d9067192618851fed27cbcb2d39faf2a6",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    },
+    {
+      "name": "05-DigiForge_First_Launch_Master_Plan_v1.1-1-.md",
+      "bytes": 15209,
+      "sha256": "84ca3a40515891416a6f23e3e3b63d24d996bb4438b87fdc558a8dd70f14912e",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    },
+    {
+      "name": "06-DigiForge_Personalized_POD_Four_Day_MVP_Blueprint.docx",
+      "bytes": 41488,
+      "sha256": "b9e0d886c5567e04294b97f253803db14defe011d91806920b918fa804d4341c",
+      "role": "GOVERNING_SOURCE_NOT_EXECUTION_AUTHORITY"
+    }
+  ],
+  "document_source_identity": [
+    {
+      "file": "01-DigiForge_Ultimate_Master_Blueprint_v6.0_2026-09-27-1-.docx",
+      "sha256": "fe88023f6067151b562ecf1d867dda41b0555bceac1685566a206adba6b76125",
+      "paragraphs": 734
+    },
+    {
+      "file": "03-DigiForge_Development_Operating_Manual-1-.docx",
+      "sha256": "1b654d34dfe21e66a73e3ac2b892cc5c04aaf4e2ee18ee187ce617bd9bdc8194",
+      "paragraphs": 55
+    },
+    {
+      "file": "04-DigiForge_First_Launch_Master_Plan_v1.1-1-.docx",
+      "sha256": "33fd9576718e9a211ac673a9c8e6c48d9067192618851fed27cbcb2d39faf2a6",
+      "paragraphs": 157
+    },
+    {
+      "file": "06-DigiForge_Personalized_POD_Four_Day_MVP_Blueprint.docx",
+      "sha256": "b9e0d886c5567e04294b97f253803db14defe011d91806920b918fa804d4341c",
+      "paragraphs": 97
+    }
+  ],
+  "original_151_ledger_sha256": "4c683c3894ba1aee6ab920f617003af1d7194db070fbf57a605ca8a02e94d3bc",
+  "counts_promoted": false
+}

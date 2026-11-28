@@ -1,0 +1,13 @@
+2026-11-15T11:30:14.3851975Z There was 1 error:
+2026-11-15T11:30:14.3852089Z
+2026-11-15T11:30:14.3852422Z 1) FocusedEtsyOrderReadinessAvailabilityTest::testEveryRequiredReadinessCountFailsClosedOnDatabaseFailure
+2026-11-15T11:30:14.3877161Z Error: Call to undefined method class@anonymous::get_results()
+2026-11-15T11:30:14.3877440Z
+2026-11-15T11:30:14.3877703Z /home/runner/work/digiforge/digiforge/includes/Orders/PersonalizationCurrentness.php:57
+2026-11-15T11:30:14.3878291Z /home/runner/work/digiforge/digiforge/includes/Orders/PersonalizationCurrentness.php:17
+2026-11-15T11:30:14.3878756Z /home/runner/work/digiforge/digiforge/includes/Orders/Repository.php:148
+2026-11-15T11:30:14.3879107Z /home/runner/work/digiforge/digiforge/includes/Orders/Repository.php:129
+2026-11-15T11:30:14.3879537Z /home/runner/work/digiforge/digiforge/tests/wordpress/FocusedEtsyOrderReadinessAvailabilityTest.php:62
+2026-11-15T11:30:14.3879831Z
+2026-11-15T11:30:14.3879898Z ERRORS!
+2026-11-15T11:30:14.3880082Z Tests: 2064, Assertions: 77755, Errors: 1, Skipped: 5.

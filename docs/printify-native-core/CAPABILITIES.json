@@ -1,0 +1,99 @@
+{
+  "contract": "DF_NATIVE_CORE_PORT_1",
+  "spec_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "companion_reviewed_sha": "e31c20bd38dec08846ad99f5b474c4f78b6e8b18",
+  "accepted_pod_frozen_sha": "8517778a47dfe9aaae26bd7dd48e9ef1c1f15ba8",
+  "advertised_native_capabilities": [
+    "PANEL",
+    "GET_READ"
+  ],
+  "external_execution_authorized": false,
+  "capabilities": [
+    {
+      "name": "Versioned discovery and session/shop/nonce admission",
+      "status": "COMPLETE",
+      "scope": "Existing protected read authentication; not an operational grant"
+    },
+    {
+      "name": "PANEL",
+      "status": "COMPLETE",
+      "scope": "Authentication receipt only; no protected data route mounted"
+    },
+    {
+      "name": "Held candidate state machine",
+      "status": "COMPLETE",
+      "scope": "Nonexecuting local state, one-shot local fence/cancel/UNKNOWN; no independent recovery qualification"
+    },
+    {
+      "name": "Held SQL journal primitive",
+      "status": "PARTIAL",
+      "scope": "Real SQL insert/exact idempotent candidate reconciliation and revision/head/fence-pinned transitions, audit/readback, two-worker tests; passive schema only. Not native REGISTER/CLAIM, installed lifecycle or independent generation; exchange remains disabled."
+    },
+    {
+      "name": "Current protected plan and approval evidence join",
+      "status": "PARTIAL",
+      "scope": "Read-only existing server-owned records and reviewed policy; native product/order version and operational grant joins remain unqualified"
+    },
+    {
+      "name": "Core receipt reference join",
+      "status": "PARTIAL",
+      "scope": "Protected product source inspection joins original sealed authorization, consumed claim/nonce and ordered producer audit anchors to current connection/policy and immutable workflow/package/artwork/design/source references. Original product approval revision is UNKNOWN because historical authorization omits it; adopted read receipts require a separate chain and are denied here. Order sources retain their governed-read producer chain. Neither path issues canonical business counters, allocation proof, native dispatch fences or independent epochs."
+    },
+    {
+      "name": "Protected order observation source registry",
+      "status": "PARTIAL",
+      "scope": "Actual protected producer/source-version joins and immutable SQL observation revisions, exact idempotent replay, generation CAS, exclusive SQL reservation, transactional audit and readback implemented. Passive offline schema; no installer/host durability or canonical business-order/product version, dispatch fence or independent epoch authority."
+    },
+    {
+      "name": "GET_READ operational grant",
+      "status": "COMPLETE",
+      "scope": "All13 canonical GET operations use sealed current plan/session/approval authority, existing catalog grants or owned-upload receipts, one-use claims, existing vault/transport and minimized ReadProjection. Ordinary STOP and external-lock denial preserved; no acceptance exception or operational activation. Offline implementation only; current composed matrix/reviewed-source pin acceptance remains a separate gate. No independently qualified mutation operational grant.",
+      "verification_status": "PARTIAL"
+    },
+    {
+      "name": "MUTATION_ADMISSION and native JOURNAL",
+      "status": "PARTIAL",
+      "scope": "Typed denial boundary plus held candidate primitives only; native authoritative registration/reservation/fence is not enabled"
+    },
+    {
+      "name": "PUBLICATION_ADMISSION",
+      "status": "BLOCKED",
+      "scope": "Global owner/safety checks preserved; no operational publication grant"
+    },
+    {
+      "name": "WORKFLOW and OPERATIONS snapshots/review CAS",
+      "status": "PARTIAL",
+      "scope": "inspectWorkflows provides a scoped consistent view of explicitly registered protected ORDER_READ observations, with dual inventory roots and postcommit approval revalidation. Passive schema; missing storage denies. recordWorkflow, review decisions/queues and operational snapshots remain denied; aggregate WORKFLOW is not advertised."
+    },
+    {
+      "name": "ORDER_ALLOCATION",
+      "status": "NOT_IMPLEMENTED",
+      "scope": "No inferred quantities, membership, proof or order identities"
+    },
+    {
+      "name": "RECOVERY independent revocation/checkpoint/drain",
+      "status": "BLOCKED",
+      "scope": "Coordinated all-root rollback counterexample remains; no synthetic checkpoint used as independent witness"
+    },
+    {
+      "name": "Exclusive credential custody",
+      "status": "BLOCKED",
+      "scope": "No callback receives secrets; no credential/dispatch lease or independent custody service qualification"
+    },
+    {
+      "name": "Core-owned business mutation source and held registration",
+      "status": "PARTIAL",
+      "scope": "NativeBusinessMutationEvidence joins current approved business/artwork/package and protected plan/policy identities, then derives transactional HELD candidates through existing journal. Canonical counters/companion wire equivalence/business-package approval/independent checkpoint/dispatch remain unverified and false. No capability advertised; canonical exchange unchanged."
+    },
+    {
+      "name": "Independently reviewed local business/package/plan association",
+      "status": "PARTIAL",
+      "scope": "NativeBusinessMutationAssociation reuses existing ReviewedLocalEvidence author/reviewer policy streams, local proposal version and transition revision. Business rows and ownership/approval ranges are locked inside the existing review transaction with exact producer-audit provenance; generic policy approval cannot substitute. Exact artwork SQL rows/approval ranges and captured protected business-data option bytes/absence now join the existing review transaction, with full unique-name index and caller-transaction continuity checks. Source-specific approval acknowledgement revalidates the actual producer after persistence. Provider/session/owner/delegation and conditional source roots are not collectively locked; full source CAS, canonical counters and native dispatch remain unverified. Approved read-only upload wire descriptor contains hashes/fixed metadata only, never asset contents or credentials. No canonical capability advertised."
+    },
+    {
+      "name": "Protected existing-product PRICE_UPDATE source evidence",
+      "status": "PARTIAL",
+      "scope": "NativeExistingProductMutationEvidence joins governed PRODUCT_READ, actual adoption producer audit and reviewed price-only update plan to the exact current physical product/blueprint/provider/variant and immutable PUT payload. No provider currentness/CAS, canonical product counter, full draft geometry or mutation authority; no native capability advertised."
+    }
+  ]
+}

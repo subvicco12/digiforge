@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/fixtures/ShopAccessFixture.php';
 use DigiForge\POD\ApprovedDesignListingPackage;
 use DigiForge\POD\ProductPackageRepository;
 use DigiForge\Research\OpportunityDesignRepository;
@@ -15,7 +16,7 @@ final class ProductPackageWorkflowTest extends WP_UnitTestCase
     private function approved(string $id='FL-04',bool $large=false): array
     {
         $actor=self::factory()->user->create();$u=new WP_User($actor);
-        $u->add_cap('manage_digiforge_pod');$u->add_cap('manage_digiforge_research');wp_set_current_user($actor);
+        $u->add_cap('manage_digiforge_pod');$u->add_cap('manage_digiforge_research');wp_set_current_user($actor);DigiForge\Core\Activator::activate();ShopAccessFixture::reset();ShopAccessFixture::authorizeActor(get_current_user_id(),['personalized_pod'],['manage_digiforge_pod','manage_digiforge_research']);
         $f=new ApprovedDesignListingPackageTest('testTechnicalFixturesProduceHonestCompleteReviewArtifacts');
         $in=$f->design()['record']['input'];
         foreach($in['briefs'] as $i=>&$brief)$brief['visual_direction']='Synthetic direction '.$i;
@@ -67,7 +68,7 @@ final class ProductPackageWorkflowTest extends WP_UnitTestCase
     public function testSourceTamperAndRevokedCapabilitiesBlockPackageRead(): void
     {
         $a=$this->approved();$repo=new ProductPackageRepository();$p=$repo->prepare('personalized_pod',$a['version_hash'],$this->evidence());self::assertIsArray($p);
-        wp_get_current_user()->remove_cap('manage_digiforge_pod');self::assertWPError($repo->read('personalized_pod',$p['hash']));
+        wp_get_current_user()->add_cap('manage_digiforge_pod',false);self::assertWPError($repo->read('personalized_pod',$p['hash']));
         wp_get_current_user()->add_cap('manage_digiforge_pod');
         update_option('digiforge_opportunity_personalized_pod_'.$a['version_hash'],'{}');
         self::assertWPError($repo->read('personalized_pod',$p['hash']));

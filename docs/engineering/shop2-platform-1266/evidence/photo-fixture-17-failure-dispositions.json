@@ -1,0 +1,144 @@
+{
+  "schema": "shop2-composed-failure-disposition-v1",
+  "application_source_changed": false,
+  "prior_failure_count": 17,
+  "resolved_count": 17,
+  "cases": [
+    {
+      "class": "FinalConvergenceScenarioTest",
+      "case": "testPersonalizedPodReviewChainStopsBeforeExternalExecution",
+      "root_cause": "Synthetic fixture called the strict render boundary inside its PHPUnit-owned transaction; incoming canonical business rows also required isolation",
+      "owner_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+      "current_result": "PASS",
+      "assertions": 57
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testPublicReviewProofBindsIndependentReviewerAfterIdenticalPayloadReuse",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 182
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testReplacementCannotReturnOldSelectionFromActualRepeatableReadSnapshot",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 169
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testFirstManagedApprovalCannotRetainOldLegacyNull",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 161
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testProducerFenceBlocksActualSecondConnectionEditorAndSelectionMutations",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 173
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #0",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 161
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #1",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 160
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCommittedSourceChangesAreDeniedDespiteOldSnapshot with data set #2",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 160
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testCallerOwnedWritesAreNeverCommittedByProducerMutations",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 155
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testMissingOrCorruptSourceBytesNeverBecomeLegacyFallback",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 156
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testDirectRenderWriterRetainsProducerFenceThroughActualWrite with data set #0",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 154
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testDirectRenderWriterRetainsProducerFenceThroughActualWrite with data set #1",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 158
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testProducerMutationReleaseAcknowledgementFailureDeniesCommittedResult",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 155
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #0",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 169
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #1",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 163
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #2",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 169
+    },
+    {
+      "class": "CustomerPhotoCurrentReadTest",
+      "case": "testRetainedReadLeaseCanWitnessCallerTransactionWithoutReadingOrCommitting with data set #3",
+      "root_cause": "Reflection fixture inherited an immutable fixed template from preceding fixtures",
+      "owner_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+      "current_result": "PASS",
+      "assertions": 163
+    }
+  ]
+}

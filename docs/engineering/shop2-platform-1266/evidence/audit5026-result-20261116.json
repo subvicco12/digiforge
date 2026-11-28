@@ -1,0 +1,26 @@
+{
+  "schema": "digiforge-audit-terminal-receipt-v1",
+  "number": 5026,
+  "run_id": 43721088974,
+  "job_id": 132833016447,
+  "head_sha": "bc5da4e34ded615c0c47906a18e2ed99b7490829",
+  "status": "completed",
+  "conclusion": "failure",
+  "completed_at": "2026-11-15T15:52:10Z",
+  "url": "https://github.com/subvicco12/digiforge/actions/runs/43721088974",
+  "failed_step": "WordPress database integration tests",
+  "tests": 2123,
+  "assertions": 79482,
+  "failures": 1,
+  "skipped": 5,
+  "failure": "ShopAccessCanonicalReadTest::testFreshBatchRejectsTamperingInEveryRetainedSide missing_audit: expected WP_Error, observed array",
+  "diagnosis": "WordPress object_id default field type is integer. Fixture omitted explicit string where formats for hexadecimal audit identity, so it could leave intended audit intact. Production read remains exact string and denial is unchanged.",
+  "repair": "Explicit string where formats and exact one-row mutation assertions for missing/changed audit; existing fixture explicitly loaded for standalone reproduction.",
+  "focused_reproduction": "Actual SQL mismatch reproduced: textual hash incorrectly coerced to numeric prefix.",
+  "focused_green": {
+    "tests": 12,
+    "assertions": 53,
+    "passed": true
+  },
+  "later_gates": "Browser, official Action Scheduler, credential history, package build/verification/upload skipped. No successful candidate/package qualification inferred."
+}

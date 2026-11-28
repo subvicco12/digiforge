@@ -1,0 +1,598 @@
+{
+  "schema": "DF_PRINTIFY_INTEGRATION_RECOVERY_1",
+  "api_preserved_sha": "09de933114f98a66b52647b41e0903dc8d5aaa4f",
+  "preserved_patch_sha256": "42d04faa164ce8e1fe3f1711e7495c24e737546edc1b2140906d82e722176ab1",
+  "core_parent_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+  "failed_core_source_sha": "9a9f316256429a9d997172f97ab9ddeb1032c000",
+  "failed_core_run": 43853306761,
+  "original_wordpress_result": {
+    "tests": 2215,
+    "assertions": 87025,
+    "errors": 1,
+    "failures": 19,
+    "skipped": 5
+  },
+  "root_cause_matrix": [
+    {
+      "class": "NativeBusinessVersionRepositoryTest",
+      "case": "testThrowingRollbackStillAttemptsBothLockReleasesAndReturnsUnknown",
+      "original_result": "ERROR",
+      "category": "FIXTURE_FAULT_PHASE",
+      "explanation": "Fault injection threw on an earlier photo read lease release, before reaching its intended business audit and rollback. Phase-scoped fixture now verifies both actual owned business-version lock releases.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "OrderHeldJobWorkflowTest",
+      "case": "testActualRegisteredTwoStepEnqueueCreatesOnlyBlockedMetadataAndScopedInspection",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testActualEnqueueIsStableBlockedMetadataAndFreshKeyCannotRecreateIt",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExpiredActualLeaseQuarantinesOnceAndCannotBeReenqueued",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testLiveLeaseWrongTupleAndDifferentSignedActorCannotMutateJob",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testChangedSnapshotAndMalformedUnknownJobBlockFreshEnqueue",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExplicitNullDependenciesCannotMasqueradeAsReadyEvidence",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testQuarantineDoesNotRequireOrCertifyCurrentPlanApproval",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testOuterTransactionAndFailedAuditPreserveExpiredJob",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #0",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #1",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #2",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #3",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #4",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testConcurrentLineChangeCannotCommitAnApparentlyCurrentStaleEnqueue",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #0",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #1",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerStartsActualHeldJobAndCrashesBeforeCompletion",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerLostCommitAcknowledgementLeavesQuarantineConsumed",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testDurableCommitWithFalseDriverResultIsExplicitlyUnknownAndCannotReplay",
+      "original_result": "FAILURE",
+      "category": "CORE_CURRENT_READ_TRANSACTION_COMPOSITION",
+      "explanation": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+      "existing_fix_sha": "4ecbaf1945aa3fe4de8afe355e52153ae2d33110",
+      "focused_result": "PASS_INCLUDED_IN_73_CASE_COMPOSITION"
+    }
+  ],
+  "infra_failure": false,
+  "contract_mismatch_caused_old_twenty": false,
+  "failing_assertions_removed": false,
+  "canonical_contract_sha256": "6d19ac1c9971d5dd730fa910d08b34ad868e7d0f351b5996029dd60322ed3434",
+  "native_source_files_unchanged_since_qualified_companion_pin": 35,
+  "companion_sha_preserved": "4da802a1568b13bcf1bbca28eba009b8b6148ef1",
+  "newly_reproduced_core_defects": [
+    {
+      "test": "PrintifyAtomicOptionClaimTest::testIdenticalCancellationIntentsAcrossPlansCannotBothSend",
+      "red": "2 synthetic cancellation sends; expected 1",
+      "correction": "Existing-store insert-only intent reservation; consumed or uncertain claim never rearmed"
+    },
+    {
+      "test": "PrintifyWorkflowLeaseTest::testCredentialAdmissionDenialPrecedesSecretReadAndConsumer",
+      "red": "Array returned instead of WP_Error; old retriever ignored fourth callback",
+      "correction": "Negative prerequisite before secret read and before/after consumer and final binding query"
+    },
+    {
+      "test": "PrintifyWorkflowLeaseTest::testExpiryInsideFinalApprovalQueryCannotReachSender",
+      "red": "1 synthetic send; expected 0",
+      "correction": "Lease recheck after session/source/approval reads and before final send"
+    }
+  ],
+  "manual_workflow_reconciliation": {
+    "read": "Preserved native_sources, module caps, signed actor/session, approval revision/hash, claimIndex, catalog reservation and producer-audit lineage; added final expiry checks and vault admission callback",
+    "product": "Preserved native protected dependencies, package/readback/receiptSource lineage; added current lease callbacks and insert-only claim/rate fences"
+  },
+  "dependency_matrix": [
+    {
+      "component": "API #1260",
+      "status": "PRESERVED_AND_PUBLISHED",
+      "owner": "API",
+      "requirement": "Insert-only cancellation/product/read claims plus existing generation/lease checks"
+    },
+    {
+      "component": "Core #1264",
+      "status": "FOCUSED_OFFLINE_VERIFIED_FULL_CI_PENDING",
+      "owner": "Core",
+      "requirement": "Consume API safety corrections while preserving stronger native joins"
+    },
+    {
+      "component": "Companion #1263",
+      "status": "UNCHANGED_QUALIFIED_BASELINE",
+      "owner": "Companion",
+      "requirement": "Trusted pin stays 78e7f973455a3c89319be06f0907caf2103658a7; no new pin promotion claimed"
+    },
+    {
+      "component": "Independent checkpoint/issuer",
+      "status": "BLOCKED_EXTERNAL_AUTHORITY",
+      "requirement": "Qualified epoch/revocation witness outside supported rollback and administrator domain"
+    },
+    {
+      "component": "Final sender / exclusive credential custody",
+      "status": "BLOCKED_EXTERNAL_CUSTODY",
+      "requirement": "Independently controlled physical sender; old usable credential copies invalidated under separate approval"
+    },
+    {
+      "component": "Native REGISTER/CLAIM/publication/allocation/recovery",
+      "status": "MANDATORY_DENIAL",
+      "requirement": "No synthetic epoch, fallback authority, replay or automatic rearm"
+    }
+  ],
+  "safety": {
+    "stop_all": "ON",
+    "external_lock": "ON",
+    "automation": "OFF",
+    "release_hold": "ACTIVE",
+    "production_changes": false,
+    "provider_requests": false,
+    "credential_access": false,
+    "merge": false
+  },
+  "post_port_compatibility_reconciliation": [
+    {
+      "test": "PrintifyCatalogReadTest::testSeparateExceptionPermitsOnlyCatalogGetWithoutChangingGlobalSafety",
+      "category": "INCOMPLETE_FIXTURE_AFTER_EARLIER_LEASE_GUARD",
+      "resolution": "Supply current synthetic lease to reach existing global-lock guard; exact locked errors for both mutations retained"
+    },
+    {
+      "test": "PrintifyCrossTransportOwnershipTest::testExpiredConsumedAuthorizationCannotDispatch",
+      "category": "STALE_ERROR_PRECEDENCE",
+      "resolution": "Require new pre-credential interlock_expired and zero sends"
+    },
+    {
+      "test": "PrintifyCrossTransportOwnershipTest::testPostDispatchRevocationIsUnknownAndCannotRetry",
+      "category": "API_CORE_RESULT_REPRESENTATION_EXPECTATION",
+      "resolution": "Canonical transaction requires structured UNKNOWN after possible send; assert exact pinned identity, real normalizer, reconciliation required, retry false, redaction and one-use denial"
+    }
+  ],
+  "verification": {
+    "api_preservation_focused": {
+      "tests": 24,
+      "assertions": 85,
+      "result": "PASS"
+    },
+    "api_exact_head_ci": {
+      "sha": "09de933114f98a66b52647b41e0903dc8d5aaa4f",
+      "run": 43886097562,
+      "conclusion": "SUCCESS",
+      "node_tests": 332,
+      "php_unit_tests": 1578,
+      "unit_assertions": 8791,
+      "wordpress_tests": 558,
+      "wordpress_assertions": 5197,
+      "wordpress_skips": 2,
+      "offline_tests": 143,
+      "owner_attested_exact_zip_job": "SKIPPED_NOT_PACKAGE_CERTIFICATION"
+    },
+    "core_failure_and_port_composition": {
+      "tests": 73,
+      "assertions": 648,
+      "result": "PASS"
+    },
+    "core_native_compatibility": {
+      "tests": 60,
+      "assertions": 1126,
+      "skips": 1,
+      "result": "PASS"
+    },
+    "core_catalog_profile": {
+      "tests": 58,
+      "assertions": 61293,
+      "result": "PASS"
+    },
+    "core_php_unit": {
+      "tests": 2278,
+      "assertions": 12131,
+      "skips": 1,
+      "result": "PASS"
+    },
+    "native_pinned_companion_boundary": {
+      "tests": 17,
+      "assertions": 95,
+      "result": "PASS"
+    },
+    "phpstan": "PASS",
+    "phpcs": "PASS",
+    "printify_php_lint": {
+      "files": 61,
+      "result": "PASS"
+    },
+    "http_and_secret_gate": "PASS",
+    "core_exact_head_ci": "PENDING_SOURCE_PUBLICATION",
+    "core_offline": {
+      "tests": 199,
+      "result": "PASS",
+      "runtime": "Cached pinned Python3.12/cv2-4.12.0/numpy-2.2.6/Pillow-13.0.0, local offline PHP8.4 helper; exact-head hosted PHP8.3 audit remains required."
+    }
+  },
+  "harness_observations": [
+    "Initial local unit run lacked configured offline cutout interpreter; unchanged suite passes with cached pinned runtime.",
+    "Initial host-only offline run lacked PHP and used Pillow12.3 rather than pinned13.0; rerun uses isolated PHP/Python runtime.",
+    "Unit skip: owner-supplied pinned matting weights/runtime absent. Native source test skip: build-owned native-build.json absent in checkout; mandatory source CI/extracted artifact tests own build identity.",
+    "Inherited PHP8.3 dynamic-property deprecation in EtsyReconciliationOperatorReadModel; unrelated to this port.",
+    "Negative fixtures intentionally produce missing-table/audit error messages. No test group excluded.",
+    "Local native-boundary PHPUnit result-cache warning from read-only vendor mount; CI has writable cache.",
+    "Local container lacked node/git/pdftotext; host pinned runtime plus cached PHP wrapper resolved dependency errors. Root-owned bytecode caches caused four read-permission errors; only generated caches removed, full199-test rerun passes. Original logs retained; no assertion or source change for harness defects."
+  ],
+  "changed_file_inventory": [
+    {
+      "path": "includes/POD/PrintifyApiReadWorkflow.php",
+      "owner_pr": 1264,
+      "sha256": "f80dc5ebd8f35049a4d3dfa13e8fb39d29d841cea0b1a72d20a3cedbd8419416",
+      "bytes": 28717
+    },
+    {
+      "path": "includes/POD/PrintifyAuthorizationLease.php",
+      "owner_pr": 1264,
+      "sha256": "e5de4d6a5a9cdb6e0b396f4889f4adc8421d729f74d32ddcc3c73bfba9db9b8a",
+      "bytes": 809
+    },
+    {
+      "path": "includes/POD/PrintifyControlledTransport.php",
+      "owner_pr": 1264,
+      "sha256": "f257643a7ed290fd61e9613bb748be7bb009ab4e96faf547019879b1c9953d5d",
+      "bytes": 8255
+    },
+    {
+      "path": "includes/POD/PrintifyLifecycleWorkflow.php",
+      "owner_pr": 1264,
+      "sha256": "1e2923b9bfdc99fcb4060ffac08d43fd3c5725a89720cb6090996a6464ac0541",
+      "bytes": 20980
+    },
+    {
+      "path": "includes/POD/PrintifyLiveTransportInterlock.php",
+      "owner_pr": 1264,
+      "sha256": "55db76992d1a003d1b4b5140848cb4906cff3ae6f68aba842a114594ed678145",
+      "bytes": 2666
+    },
+    {
+      "path": "includes/POD/PrintifyOperationClaim.php",
+      "owner_pr": 1264,
+      "sha256": "646831b6cf3d083a049de4751040310793975280fc117d96effe4bbea596016a",
+      "bytes": 4266
+    },
+    {
+      "path": "includes/POD/PrintifyProductPipeline.php",
+      "owner_pr": 1264,
+      "sha256": "87c9531e062256e4509c2aa2d14482b9f6de13b3aa3ee38182a72033d3887ddc",
+      "bytes": 33283
+    },
+    {
+      "path": "includes/POD/PrintifyScopedCredentialRetriever.php",
+      "owner_pr": 1264,
+      "sha256": "2f1c03c6c9bc4d4822fb47f7617c31bcfbb4ab30724f04f8e8f59039f7de15fb",
+      "bytes": 4162
+    },
+    {
+      "path": "tests/unit/PrintifyAuthorizationLeaseTest.php",
+      "owner_pr": 1264,
+      "sha256": "b3d2ac7fe9a9f522e92cdf2fa05d5190ce6fa695e89cc0a59d7a6fa41bb5ef50",
+      "bytes": 1548
+    },
+    {
+      "path": "tests/wordpress/PrintifyAtomicOptionClaimTest.php",
+      "owner_pr": 1264,
+      "sha256": "5b59652eab70651d104832c275c09e27c0f5a80ad615c0f27aac24ba3ed09a03",
+      "bytes": 8076
+    },
+    {
+      "path": "tests/wordpress/PrintifyCatalogReadTest.php",
+      "owner_pr": 1264,
+      "sha256": "a74ccb0fccb8d2a88b648545b6b29a9e1b37d764c2f242b50e6201b403780f17",
+      "bytes": 21389
+    },
+    {
+      "path": "tests/wordpress/PrintifyCrossTransportOwnershipTest.php",
+      "owner_pr": 1264,
+      "sha256": "bd17d335b4af32ca3e2c8fe04f3b6072853fc1310823e5117caedebbf8c7ec84",
+      "bytes": 22854
+    },
+    {
+      "path": "tests/wordpress/PrintifyWorkflowLeaseTest.php",
+      "owner_pr": 1264,
+      "sha256": "b05bdcb1477015d9eced8e63d4f8ce0032cb9da6c060a23fb2f0a52003d2991e",
+      "bytes": 11336
+    },
+    {
+      "path": "tests/wordpress/fixtures/PrintifySyntheticLeaseClock.php",
+      "owner_pr": 1264,
+      "sha256": "21eb4488c97cfc46231bcdaee0aeeff73d6b209a5d111f8e499f550929d21a00",
+      "bytes": 322
+    }
+  ],
+  "source_separation": {
+    "api_node_dispatcher": "Remains API-owned only; core has no Cloudflare authority-service.mjs and imports none.",
+    "native_core_port_files": "All35 byte-identical to qualified78e7f97 baseline; mutation denial/capability advertisement unchanged.",
+    "schema_changes": false,
+    "yaml_workflow_changes": false,
+    "companion_changes": false,
+    "api_correction_commit_rebuilt_or_amended": false
+  },
+  "technical_review": {
+    "reviewer": "Fresh technical review agent, not independent human operational approval",
+    "conclusion": "No remaining Critical/Important findings; all three compatibility assertions reviewed and retained or strengthened."
+  },
+  "evidence_hashes": [
+    {
+      "file": "core-focused-green.log",
+      "sha256": "8675f09a716de1a5df32ae415aa42fb98bf9e8d7f64e2daf70db9fbe4113a25e",
+      "bytes": 2795
+    },
+    {
+      "file": "core-port-red.log",
+      "sha256": "0a7642d8dd9946954dce9bff6121f9a131c175727ec76d13605eadc38a411d3b",
+      "bytes": 1097
+    },
+    {
+      "file": "core-cancellation-red.log",
+      "sha256": "3353fa31afda6da0d6f40fd427b21741f8b36f1c20c16f003e55cf60ff63ba6b",
+      "bytes": 853
+    },
+    {
+      "file": "core-error-precedence-cross-red.log",
+      "sha256": "2f26ba19c28e2dfb16a2e95a72d35445b2d79f0dcda5294cc49370aa22684c64",
+      "bytes": 895
+    },
+    {
+      "file": "core-error-precedence-catalog-red.log",
+      "sha256": "903927098ef08352e0fad3ef354312cf142681b031f9a6e2f115e003527a82e1",
+      "bytes": 902
+    },
+    {
+      "file": "core-native-compat-green.log",
+      "sha256": "4e5de63f217f449ad9f64646f059b7056b213289ae94ef612c04a80247cb4b0b",
+      "bytes": 951
+    },
+    {
+      "file": "core-native-compat-final.log",
+      "sha256": "ff5d1f61f295e2f1c7b3dcd5040df70b0084257e31f6c64524fff59a4d473290",
+      "bytes": 613
+    },
+    {
+      "file": "core-catalog-green.log",
+      "sha256": "74e2e47676663a9e5a771ac722f36b541b8f66d8666cb3ed35244fafb2a5994c",
+      "bytes": 615
+    },
+    {
+      "file": "core-unit-configured.log",
+      "sha256": "3c389cf75e65c2c8a0b0b4c32533b9638252d99fb41710c671442f59de116a74",
+      "bytes": 4391
+    },
+    {
+      "file": "core-static.log",
+      "sha256": "9dd3eeb023e498eff4ab6e14af3d76d6e6c7672da330c9e3edf35753590df0d7",
+      "bytes": 83
+    },
+    {
+      "file": "core-security.log",
+      "sha256": "6eab97fa6ce023b2db63be6e8fe0c3255bbe6f526758649e312e563183632cac",
+      "bytes": 630
+    },
+    {
+      "file": "api-preservation-focused.log",
+      "sha256": "fa78517f8b9d73d41201160034e0847d62f9e4c73c534f3ed22a35caed9489d4",
+      "bytes": 501
+    },
+    {
+      "file": "core-offline.log",
+      "sha256": "a94c851dd5ca86ed71a207c536992dc2cb5519e1c8667241b0b6849c4314847c",
+      "bytes": 123764
+    },
+    {
+      "file": "core-offline-configured.log",
+      "sha256": "3f1cee919144d3554ceeeb23c5d5473e8e15f2e882a205e6191c9556cb06022b",
+      "bytes": 54267
+    },
+    {
+      "file": "core-offline-final.log",
+      "sha256": "196fb5ceafe077e2ebd78d7e59c69be363c992d3f471807a2dbfef9bc88690a8",
+      "bytes": 42131
+    },
+    {
+      "file": "core-offline-accepted.log",
+      "sha256": "72e2cd0a042a144fab6432b270b43507bb4bc6ce89b95198e64b713b90086ed3",
+      "bytes": 34128
+    },
+    {
+      "file": "core-native-boundary.log",
+      "sha256": "bc9c6afd021dc700b757a5d0365cb554f8388548e21b9f64707ebf58cdbcbb90",
+      "bytes": 427
+    },
+    {
+      "file": "core-printify-lint.log",
+      "sha256": "83d1e6b139a38c45af810a8ed3f0883de97478ea9fcfbaaa7127d09346bd3c3e",
+      "bytes": 30
+    },
+    {
+      "file": "core-d039-ci-failures.txt",
+      "sha256": "43e78ec6baa8249bd487395948a25fa07d599e467437b2b5c7c84e9e35646ad3",
+      "bytes": 1001
+    },
+    {
+      "file": "core-lock-fixtures-red.log",
+      "sha256": "9a9aba59e1db65ad76306ff5a926f99cc00a23511baaca06a98038c5b64b84ce",
+      "bytes": 1321
+    },
+    {
+      "file": "core-lock-fixtures-green.log",
+      "sha256": "9395b4d526496e2da2e4f4f2b1b8083b5f7ec78250bb70627062aabce9007ebb",
+      "bytes": 559
+    }
+  ],
+  "ci_reconciliation": {
+    "api_workflow": "Retains API-only332Node tests and artifact-admission controls; exact09de CI passed.",
+    "core_workflow": "Retains180-minute audit, pinned MariaDB, core native/unit/WP/catalog and extracted-package checks; no YAML replacement or gate suppression.",
+    "source_workflows": "Read and product PHP workflows manually reconciled; retained all native additions."
+  },
+  "followup_exact_head_ci": {
+    "source_sha": "d03954dd647927b4d2d6330d14d7d1b12059bcd9",
+    "run": 43889567141,
+    "conclusion": "FAILURE",
+    "stage": "WordPress database integration tests",
+    "tests": 2255,
+    "assertions": 81690,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 5,
+    "original_twenty_failures_recurred": false,
+    "root_cause": "Two additional negative lock-boundary fixtures omitted the now-mandatory lease prerequisite; runtime correctly rejected earlier as expired.",
+    "cases": [
+      "ComposedPersonalizedOrderAcceptanceTest::testReviewedPackageCannotBypassProductionActionScopeExpiryReplayOrGlobalLocks",
+      "PrintifyEnabledStopAllIsolationTest::testEnabledConfiguredConnectorDoesNotUnlockOrdinaryPrintifyPaths"
+    ],
+    "correction": "Fixture-only: supply the exact issued lease in the composed negative test and a bounded synthetic current lease in enabled/STOP isolation. Keep exact locked errors, scope/expiry/replay and zero-HTTP assertions.",
+    "runtime_or_gate_changes": false
+  },
+  "future_core_owned_requirement": {
+    "component": "ExecutionOrchestrator::prepare -> provider permit composition",
+    "observation": "The generic future orchestrator currently returns the consumed gate permit without forwarding its issued authorization record. Negative direct-interlock fixtures do not demonstrate a working positive orchestrated provider path.",
+    "disposition": "Remains denied. Any future forwarding/permit composition must be core-owned and jointly qualified with independent checkpoint, journal, identity and custody joins; no raw approval or synthetic epoch may create execution authority.",
+    "implemented_here": false
+  },
+  "followup_focused_verification": {
+    "red_log": "core-lock-fixtures-red.log",
+    "green_log": "core-lock-fixtures-green.log",
+    "runtime_files_changed_after_d039": 0,
+    "status": "PASS",
+    "tests": 58,
+    "assertions": 1146
+  }
+}

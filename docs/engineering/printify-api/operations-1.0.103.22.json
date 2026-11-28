@@ -1,0 +1,1414 @@
+{
+  "version": "1.0.103.22",
+  "starting_source_sha": "f02db3ab61eab24fb9d6e2e1d76645142a423a91",
+  "documentation_observed_at_utc": "2026-11-09",
+  "governing_blueprint": "https://docs.google.com/document/d/1isN_2m7eu5DTjykY7X67woiPx7wluhPc/edit",
+  "manual": "https://docs.google.com/document/d/1YBvHZktB__bf3iV8qM00hCAobayM-VM1/edit",
+  "official_machine_schema_validation": "PROVIDER_BLOCKED: OpenAPI download unavailable; documented examples/fixtures only",
+  "overall": "SOFTWARE_COMPLETE_OFFLINE",
+  "software_complete_offline": true,
+  "full_public_api_coverage": false,
+  "status_semantics": {
+    "SOFTWARE_COMPLETE_OFFLINE": "All scoped software and required behavioral acceptance completed; not live provider certification",
+    "OFFLINE_VERIFIED": "Specified contract and tests passed offline; see qualification coverage/limits",
+    "LIVE_READ_VERIFIED": "Requires actual authorized provider GET evidence; none in this mission",
+    "LIVE_WRITE_UNTESTED": "Consequential implementation present, no live write verification",
+    "PROVIDER_BLOCKED": "No supported API behavior or missing external evidence/activation",
+    "NOT_IMPLEMENTED": "No admitted software implementation; never substitute a provider-unsupported claim"
+  },
+  "reliability": {
+    "limits": "Official600/min account,100/min catalog,200/30min publish; conservative shared300/50/100 fixed-window admission",
+    "quota": "Every physical attempt, verified account identity, durable InnoDB/advisory lock",
+    "retry": "Safe GET<=3 reviewed attempts, bounded Retry-After/circuit; never automatic mutation retry",
+    "secrets": "Existing vault/credential custody unchanged; no raw provider/customer payload audit logging",
+    "historical_reservation_22": "UNCHANGED_PENDING_UNKNOWN"
+  },
+  "operations": [
+    {
+      "operation": "SHOPS_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "shops.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyApiReadWorkflow.php"
+      ],
+      "request_contract": "Exact configured provider shop",
+      "response_contract": "Own shop only plus account-list digest",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "BLUEPRINTS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Empty exact scope",
+      "response_contract": "Bounded blueprint list",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "BLUEPRINT",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints/{blueprint}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Positive exact blueprint",
+      "response_contract": "Exact blueprint object",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "BLUEPRINT_PROVIDERS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints/{blueprint}/print_providers.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact blueprint",
+      "response_contract": "Provider identity list",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "BLUEPRINT_PROVIDER",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints/{blueprint}/print_providers/{provider}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact blueprint/provider",
+      "response_contract": "Exact provider, decoration methods and nullable production time",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "VARIANTS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints/{blueprint}/print_providers/{provider}/variants.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact blueprint/provider/optional selected variant",
+      "response_contract": "Bounded variants/options/placeholders; no guessed geometry",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "SIZE_GUIDE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/blueprints/{blueprint}/size_guide.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyCatalogReadRepository.php",
+        "includes/POD/PrintifyCatalogClient.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact blueprint",
+      "response_contract": "Ordered types/sizes measurements",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php",
+        "tests/unit/PrintifyAuthoritativeGeometryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PROVIDERS_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/print_providers.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "print_providers.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyApiReadWorkflow.php"
+      ],
+      "request_contract": "Exact provider or configured account",
+      "response_contract": "Bounded source provider metadata",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyApiBoundaryTest.php",
+        "tests/wordpress/PrintifyApiReadBoundaryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PROVIDER_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/catalog/print_providers/{provider}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "print_providers.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyApiReadWorkflow.php"
+      ],
+      "request_contract": "Exact provider or configured account",
+      "response_contract": "Bounded source provider metadata",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyApiBoundaryTest.php",
+        "tests/wordpress/PrintifyApiReadBoundaryTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "SHIPPING_METHODS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v2",
+      "http_method": "GET",
+      "endpoint": "/v2/catalog/blueprints/{blueprint}/print_providers/{provider}/shipping.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact provider/blueprint/method",
+      "response_contract": "JSON:API shipping availability/cost/time, explicit currency if supplied; missing evidence not fabricated",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyResearchMappingTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "REGIONAL_SHIPPING",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v2",
+      "http_method": "GET",
+      "endpoint": "/v2/catalog/blueprints/{blueprint}/print_providers/{provider}/shipping/{method}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "catalog.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact catalog grant <=10 requests, separate safety exception if required, request reservation and current owner/connection/endpoint scope; shared account/catalog quota.",
+      "source_implementation": [
+        "includes/POD/PrintifyCatalogReadContract.php",
+        "includes/POD/PrintifyResearchMapper.php"
+      ],
+      "request_contract": "Exact provider/blueprint/method",
+      "response_contract": "JSON:API shipping availability/cost/time, explicit currency if supplied; missing evidence not fabricated",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyResearchMappingTest.php",
+        "tests/wordpress/PrintifySharedCoreIntegrationTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCTS_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/products.json?page={page}&limit={limit}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyApiReadWorkflow.php"
+      ],
+      "request_contract": "Page-based only; bounded limit1..10",
+      "response_contract": "Validated list and next-page descriptor; never follow provider URL",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProductReadApiTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/products/{product}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Exact approved product/blueprint/provider/variant selection",
+      "response_contract": "Strict variants/areas/images; audit-bound package adoption",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProductReadApiTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_GPSR_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/products/{product}/gpsr.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyApiReadWorkflow.php"
+      ],
+      "request_contract": "Same product selection as PRODUCT_READ",
+      "response_contract": "Bounded title/text list; identity bound to request; certification remains unknown",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyProviderDetailGpsrReadTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "IMAGE_UPLOAD",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/uploads/images.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "uploads.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Approved package-bound bounded validated PNG bytes",
+      "response_contract": "Provider image ID/dimensions/hash-safe projection",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "IMAGE_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/uploads/{image}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "uploads.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Owned package image receipt",
+      "response_contract": "Exact owned image identity/dimensions",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_CREATE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Approved blueprint/provider/variants/price/areas/uploaded image",
+      "response_contract": "Strict mapped product receipt; permanent intent claim",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_UPDATE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "PUT",
+      "endpoint": "/v1/shops/{shop}/products/{product}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Current package-owned product receipt and full known variant set",
+      "response_contract": "Validated changed product response",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_PUBLISH",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/publish.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Explicit selected boolean fields",
+      "response_contract": "Acknowledgement only; publication needs later external evidence",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_DELETE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "DELETE",
+      "endpoint": "/v1/shops/{shop}/products/{product}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Explicit package-owned product",
+      "response_contract": "Empty acknowledgement; later exact404 proves absence",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_UNPUBLISH_NOTIFY",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/unpublish.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Already-unpublished notification only",
+      "response_contract": "Empty acknowledgement, no external unpublication proof",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_PUBLISH_SUCCEEDED",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/publishing_succeeded.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Exact external id/HTTPS handle",
+      "response_contract": "Empty acknowledgement",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PRODUCT_PUBLISH_FAILED",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/publishing_failed.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Bounded non-secret reason category",
+      "response_contract": "Empty acknowledgement",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PERSONALIZATION_OPTIONS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/products/{product}/personalization_options.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Owned product",
+      "response_contract": "Exact native field/type/limit evidence",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PERSONALIZATION_CONFIGURE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/personalization.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Exact mapped native fields and verified image references",
+      "response_contract": "Opaque provider strategy/instructions; not order authority",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PREVIEW_CREATE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/products/{product}/personalization_previews.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Exact approved native field inputs",
+      "response_contract": "Task reference, no guaranteed completed mockup",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PREVIEW_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/products/{product}/personalization_previews/{task}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "products.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Approved immutable Shop2 package, product/listings scope as appropriate, exact independently reviewed product policy, separate one-use authorization, current global locks; no live write authority inferred.",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php",
+        "includes/POD/PrintifyProductResponse.php",
+        "includes/POD/PrintifyProductPipeline.php"
+      ],
+      "request_contract": "Exact product-bound preview task",
+      "response_contract": "Task state and bounded provider mockup references",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyProductPipelineTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "ORDERS_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/orders.json?page={page}&limit={limit}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyOrderEvidence.php"
+      ],
+      "request_contract": "Exact order or page; max10 rows",
+      "response_contract": "Line IDs/status/cost unknowns/tracking evidence; no address payload logging",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php",
+        "tests/unit/PrintifyReconciliationCoverageTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "ORDER_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/orders/{order}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Native connections + operation module; exact ShopAccess, fresh owner, verified scoped connection, independently reviewed policy printify-api-read:<hash>, nonce, global safety gates, max3 physical GETs.",
+      "source_implementation": [
+        "includes/POD/PrintifyApiRequest.php",
+        "includes/POD/PrintifyApiReadEvidence.php",
+        "includes/POD/PrintifyOrderEvidence.php"
+      ],
+      "request_contract": "Exact order or page; max10 rows",
+      "response_contract": "Line IDs/status/cost unknowns/tracking evidence; no address payload logging",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php",
+        "tests/unit/PrintifyReconciliationCoverageTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "SHIPPING_QUOTE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/shipping.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyLifecycleRequest.php",
+        "includes/POD/PrintifyLifecycleEvidence.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php"
+      ],
+      "request_contract": "Existing mapped line_items,address_to only; encrypted plan",
+      "response_contract": "Known method minor-unit rates; absent currency/rates null; no guarantee",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "PROVIDER_ORDER_SUBMIT",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact order/production permit, separate production authority, native/current shop scope, durable one-use dispatch/intent, global safety controls.",
+      "source_implementation": [
+        "includes/POD/PrintifyMutationRequest.php",
+        "includes/POD/PrintifyOrderEvidence.php",
+        "includes/POD/PrintifyNativeOrderEvidence.php",
+        "includes/POD/PrintifyControlledTransport.php"
+      ],
+      "request_contract": "Existing product/variant/order/address; native values need exact audited configuration references",
+      "response_contract": "Documented id-only acknowledgement; unknown stays consumed",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyNativeOrderEvidenceTest.php",
+        "tests/wordpress/PrintifyNativeOrderBoundaryTest.php",
+        "tests/unit/PrintifyOrderAckLineCancellationTest.php",
+        "tests/wordpress/PrintifyNativeOrderResolutionTest.php",
+        "tests/unit/PrintifyNativeTransportTimingTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "Native product/package dependencies re-resolve before/after HTTP; before revocation denies, in-flight invalidation becomes UNKNOWN. Actual sealed/audited configuration roundtrip verified offline."
+    },
+    {
+      "operation": "PROVIDER_PRODUCTION_AUTHORIZE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/send_to_production.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing exact order/production permit, separate production authority, native/current shop scope, durable one-use dispatch/intent, global safety controls.",
+      "source_implementation": [
+        "includes/POD/PrintifyMutationRequest.php",
+        "includes/POD/PrintifyControlledTransport.php"
+      ],
+      "request_contract": "Separate explicit permit for known provider order",
+      "response_contract": "Bounded JSON id must equal requested order; malformed/mismatch=>UNKNOWN",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyOrderAckLineCancellationTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "ORDER_CANCEL",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/cancel.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyLifecycleRequest.php",
+        "includes/POD/PrintifyLifecycleEvidence.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php"
+      ],
+      "request_contract": "Fresh audited exact order on-hold/payment-not-received",
+      "response_contract": "Exact canceled order evidence or UNKNOWN; no guarantee/retry",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "LINE_ITEM_CANCEL",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/line_items/{line}/cancel.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyLifecycleRequest.php",
+        "includes/POD/PrintifyLifecycleEvidence.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php"
+      ],
+      "request_contract": "Fresh audited eligible exact order+line; eligible states per official docs",
+      "response_contract": "Strict empty204 ACK only; later exact canceled line readback confirms",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyOrderAckLineCancellationTest.php",
+        "tests/wordpress/PrintifyLineCancellationExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "WEBHOOK_READ",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/webhooks.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "webhooks.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyWebhookRequest.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleEvidence.php"
+      ],
+      "request_contract": "Verified shop",
+      "response_contract": "Bounded exact subscription list",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyWebhookLifecycleTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "WEBHOOK_CREATE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/webhooks.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "webhooks.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyWebhookRequest.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleEvidence.php"
+      ],
+      "request_contract": "Exact topic/derivedHTTPSurl; private unique secret injected transiently",
+      "response_contract": "Exact subscription id/shop/topic/url, no secret",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyWebhookLifecycleTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "WEBHOOK_UPDATE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "PUT",
+      "endpoint": "/v1/shops/{shop}/webhooks/{hook}.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "webhooks.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyWebhookRequest.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleEvidence.php"
+      ],
+      "request_contract": "URL only documented; exact binding/id",
+      "response_contract": "Exact returned subscription",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyWebhookLifecycleTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "WEBHOOK_DELETE",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "DELETE",
+      "endpoint": "/v1/shops/{shop}/webhooks/{hook}.json?host={expected_host}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "webhooks.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Fresh exact owner/order+connections scope; independently reviewed lifecycle policy, max1, single-use nonce/claim, current global locks.",
+      "source_implementation": [
+        "includes/POD/PrintifyWebhookRequest.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleEvidence.php"
+      ],
+      "request_contract": "Exact id and private-derived host guard",
+      "response_contract": "Exact deletion acknowledgement",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyWebhookLifecycleTest.php",
+        "tests/wordpress/PrintifyLifecycleExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "WEBHOOK_INGRESS",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": null,
+      "http_method": "POST",
+      "endpoint": "DigiForge:/digiforge/v1/printify/webhooks/ingress/{binding}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "Unique private webhook HMAC secret",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Exact raw-body HMAC, private site/shop binding; passive receipt only, not external dispatch",
+      "source_implementation": [
+        "includes/POD/PrintifyWebhookEvidence.php",
+        "includes/POD/PrintifyWebhookInbox.php"
+      ],
+      "request_contract": "Bounded signed event/time/topic/resource",
+      "response_contract": "Durable minimized sealed receipt, replay/conflict/dead-letter; no business execution",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/wordpress/PrintifyWebhookInboxTest.php",
+        "tests/wordpress/PrintifyLifecycleAdmissionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": ""
+    },
+    {
+      "operation": "UPLOADS_READ",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/uploads.json?page={page}&limit={limit}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "uploads.read",
+      "shop_isolation": "Account-wide provider endpoint constrained to server-resolved current approved-package image receipts and exact account/shop/integration. Other assets never disclosed. Existing Shop3 DEFERRED_SHOP remains blocked.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifyUploadContract.php",
+        "includes/POD/PrintifyUploadOwnership.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Explicit audited owned IMAGE_UPLOAD/IMAGE_READ receipts, strict page/limit1..10",
+      "response_contract": "Only owned image rows; no preview URLs/other-shop data; provider links never followed",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyUploadContractTest.php",
+        "tests/wordpress/PrintifyOwnedUploadsExecutionTest.php",
+        "tests/wordpress/PrintifyUploadOwnershipTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "UPLOADS_LIST"
+    },
+    {
+      "operation": "IMAGE_ARCHIVE",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/uploads/{image}/archive.json",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "uploads.write",
+      "shop_isolation": "Account-wide provider endpoint constrained to server-resolved current approved-package image receipts and exact account/shop/integration. Other assets never disclosed. Existing Shop3 DEFERRED_SHOP remains blocked.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifyUploadContract.php",
+        "includes/POD/PrintifyUploadOwnership.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Exact owned image id and audited source receipts",
+      "response_contract": "Documented empty object acknowledgement; archive is not deletion or order cancellation",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyUploadContractTest.php",
+        "tests/wordpress/PrintifyOwnedUploadsExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "UPLOAD_ARCHIVE"
+    },
+    {
+      "operation": "SUPPORT_LIST",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/support-requests",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifySupportContract.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Exact provider shop/order; no fabricated pagination",
+      "response_contract": "Bounded data list, exact order and unique ids; provider narratives omitted",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifySupportContractTest.php",
+        "tests/wordpress/PrintifySupportExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "SUPPORT_LIST"
+    },
+    {
+      "operation": "SUPPORT_DETAIL",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "GET",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/support-requests/{request}",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.read",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifySupportContract.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Exact provider shop/order/support-request id",
+      "response_contract": "Exact bound data object; status/outcome retained without refund guarantee",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifySupportContractTest.php",
+        "tests/wordpress/PrintifySupportExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": null,
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "SUPPORT_DETAIL"
+    },
+    {
+      "operation": "SUPPORT_REPRINT",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/support-requests/reprint",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifySupportContract.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Fresh exact audited ORDER_READ; matching line ids and bounded quantities; documented reason/description/image URLs",
+      "response_contract": "201 support request acknowledgement; no automatic new production",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifySupportContractTest.php",
+        "tests/wordpress/PrintifySupportExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "SUPPORT_REPRINT"
+    },
+    {
+      "operation": "SUPPORT_REFUND",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/support-requests/refund",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifySupportContract.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Fresh exact audited ORDER_READ; matching line ids/quantities and exact reviewed reason",
+      "response_contract": "201 support request acknowledgement; refund amount/outcome never invented or posted to Finance",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifySupportContractTest.php",
+        "tests/wordpress/PrintifySupportExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "SUPPORT_REFUND"
+    },
+    {
+      "operation": "SUPPORT_ADDRESS_CHANGE",
+      "blueprint_requirement": "v6.0 provider asset custody and controlled supplier exception/support workflow",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": "v1",
+      "http_method": "POST",
+      "endpoint": "/v1/shops/{shop}/orders/{order}/support-requests/address-change",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "orders.write",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "Existing lifecycle capability + native connections and orders/products as appropriate; exact shop, fresh owner, independently reviewed printify-lifecycle:<planhash>, max1, nonce/audit, global safety gates, current source ownership before/after HTTP.",
+      "source_implementation": [
+        "includes/POD/PrintifySupportContract.php",
+        "includes/POD/PrintifyLifecycleSources.php",
+        "includes/POD/PrintifyLifecycleWorkflow.php",
+        "includes/POD/PrintifyLifecycleRequest.php"
+      ],
+      "request_contract": "Fresh exact audited ORDER_READ and privately encrypted bounded destination",
+      "response_contract": "200 updated_directly with requested fields matched, or201 support_request_created; address never copied into audit",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifySupportContractTest.php",
+        "tests/wordpress/PrintifySupportExecutionTest.php"
+      ],
+      "status": "OFFLINE_VERIFIED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "No live supplier call. Unknown creations remain consumed and cannot be inferred from matching timestamps/type/lines. New approvals do not bypass permanent identical-mutation claims. Read plans are single-attempt; new governed read approval needed to repeat.",
+      "previous_operation_name": "SUPPORT_ADDRESS_CHANGE"
+    },
+    {
+      "operation": "MARKETPLACE_UNPUBLISH",
+      "blueprint_requirement": "v6.0 sections14/15/18/19/23: provider-authoritative preparation, shop isolation and controlled execution",
+      "official_documentation": "https://developers.printify.com/",
+      "api_version": null,
+      "http_method": "POST",
+      "endpoint": "UNSUPPORTED_BY_PRINTIFY_NOTIFICATION_ENDPOINT",
+      "credentials": "Existing privately vaulted Printify credential; actual token/account scopes remain unverified",
+      "required_scope": "Separate marketplace authority",
+      "shop_isolation": "Exact verified integration/account/provider-shop scope; separate Shop2/3 mappings. Shop3 operationally DEFERRED_SHOP. No caller-supplied arbitrary endpoint.",
+      "authorization_gate": "No Printify API can be assumed to perform marketplace unpublish",
+      "source_implementation": [
+        "includes/POD/PrintifyProductRequest.php"
+      ],
+      "request_contract": "Manual/separate marketplace workflow",
+      "response_contract": "No unpublication certification",
+      "idempotency_and_uncertainty": "Single-use durable request/intent claims and audit before mutation; UNKNOWN stays consumed, no automatic mutation retry. GET retry only within reviewed max3 and account quotas.",
+      "audit_and_reconciliation": "Server-derived plan/approval fingerprint, operation-bound vault access and audit-anchored minimized receipts; readback evidence does not grant retry authority",
+      "offline_tests": [
+        "tests/unit/PrintifyLifecycleContractTest.php"
+      ],
+      "status": "PROVIDER_BLOCKED",
+      "live_write_status": "LIVE_WRITE_UNTESTED",
+      "live_provider_evidence": "None collected. Governed account/scopes and exact provider response acceptance remain required.",
+      "qualification_note": "Printify unpublish.json is notification only; no Etsy action in this mission."
+    }
+  ],
+  "qualification_scope": "The governed blueprint-required 47-operation boundary; no claim of every future/public Printify endpoint, live acceptance, inactive-shop activation or commercial certification.",
+  "readback_semantics": "Known support request ids may be confirmed by later exact receipts. Unknown support creation remains UNKNOWN_REQUIRES_PROVIDER_CORRELATION; absence from one upload page never proves archival. Original receipts/claims unchanged; no retry restored."
+}

@@ -1,0 +1,42 @@
+{
+    "DigiForge\\REST\\EtsyWebhookController": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/REST\/EtsyWebhookController.php",
+        "sha256": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45"
+    },
+    "DigiForge\\Listings\\EtsyWebhookVerifier": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Listings\/EtsyWebhookVerifier.php",
+        "sha256": "46a3abf5a4e7958b73dde3a0c680f3210e3bc7ca6fc2411a7dc3c1af5d84a74b"
+    },
+    "DigiForge\\Listings\\EtsyWebhookIntake": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Listings\/EtsyWebhookIntake.php",
+        "sha256": "70c38e7afc84722595a371475ff1795b3920cc3e5bfd65755132b3043b171be0"
+    },
+    "DigiForge\\Listings\\EtsyOrderWebhookLifecycle": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Listings\/EtsyOrderWebhookLifecycle.php",
+        "sha256": "13ed5eac1281d72343ece2893d94168935c2672d51cae61aff868afd3f6e3604"
+    },
+    "DigiForge\\Listings\\EtsyOrderListingResolver": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Listings\/EtsyOrderListingResolver.php",
+        "sha256": "db70d9b402976259edc0a1c4739efbda7b61432d42528ca4fc24463c6faf51db"
+    },
+    "DigiForge\\Orders\\Repository": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Orders\/Repository.php",
+        "sha256": "943523e307aa7b4039e49051beb998045e2f521a8a6aa0498ed7eb53deadc4cf"
+    },
+    "DigiForge\\Listings\\Repository": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Listings\/Repository.php",
+        "sha256": "ee48848ae03045b1f879745045eedfcb1f213b5532c41f83eb595094026b22f5"
+    },
+    "DigiForge\\Orders\\ApprovedPodMappingResolver": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/Orders\/ApprovedPodMappingResolver.php",
+        "sha256": "959b164bb1539b569ded0e744a7fe5bcf526a955d5a12b94cf1e10df17218d5e"
+    },
+    "DigiForge\\POD\\BusinessScopeRepository": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/includes\/POD\/BusinessScopeRepository.php",
+        "sha256": "b55be9a531a832f8fe8d9d9e18ef63df400ca92283d01b56dd557ce3cfe541b9"
+    },
+    "plugin": {
+        "path": "\/workspace\/digiforge-platform-sprint\/ord03-exact4ef\/digiforge.php",
+        "sha256": "05b6410012845df6cde802d7252a172a6690a9db5231cfe115fd3561628adf75"
+    }
+}

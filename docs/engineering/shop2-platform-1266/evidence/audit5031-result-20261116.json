@@ -1,0 +1,32 @@
+{
+  "schema": "digiforge-terminal-exact-head-audit-receipt-v1",
+  "run_id": 43802656852,
+  "audit_number": 5031,
+  "url": "https://github.com/subvicco12/digiforge/actions/runs/43802656852",
+  "head_sha": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+  "status": "completed",
+  "conclusion": "success",
+  "terminal_updated_at": "2026-11-16T05:49:12Z",
+  "job_id": 133086264498,
+  "all_reported_steps": "SUCCESS",
+  "unit": {
+    "tests": 2268,
+    "assertions": 12058,
+    "skipped": 1
+  },
+  "wordpress": {
+    "tests": 2159,
+    "assertions": 80699,
+    "skipped": 5
+  },
+  "artifact": {
+    "id": 14200673981,
+    "name": "digiforge-plugin-4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+    "size_in_bytes": 3312949,
+    "outer_metadata_digest": "sha256:699451c49000b0beeda7603689bcc69493d665dda80dc056daeb51206791eb69",
+    "CI_inner_byte_readback": "NOT_OBSERVED",
+    "source_equivalence": "../ARTIFACT_SOURCE_EQUIVALENCE_20261116.md"
+  },
+  "other_refs_certified": false,
+  "production_authority_granted": false
+}

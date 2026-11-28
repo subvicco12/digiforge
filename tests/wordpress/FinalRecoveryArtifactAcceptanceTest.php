@@ -1,0 +1,13 @@
+<?php
+declare(strict_types=1);
+/** Synthetic committed receipt only: no staging, restore, provider or owner certification. */
+final class FinalRecoveryArtifactAcceptanceTest extends WP_UnitTestCase {
+ public function testChangedPackageUnderSameIdentifierCannotAcceptVerifiedReceipt():void {
+  DigiForge\Core\Activator::activate();DigiForge\Core\Settings::protectProduction();global $wpdb;$wpdb->query('SET autocommit=1');$key=wp_generate_uuid4();
+  self::assertTrue(DigiForge\Operations\RecoveryEvidence::storeDatabaseBackup(['identifier'=>'offline-backup-'.$key,'captured_at'=>gmdate('c'),'location'=>'offline.sql','verification_method'=>'checksum','verified_at'=>gmdate('c'),'verified_by'=>'offline-fixture','retrievable'=>true]));
+  $package=['identifier'=>'offline-package-'.$key,'version'=>'1.0.103','source_commit'=>str_repeat('a',40),'sha256'=>str_repeat('b',64),'location'=>'offline.zip','retrievable'=>true,'checksum_verified'=>true];self::assertTrue(DigiForge\Operations\RecoveryEvidence::storePluginPackage($package));
+  $checks=array_fill_keys(['health_ok','stop_all_active','externally_locked','schema_current','plugin_version_exact','automation_disabled','activation_not_authorized','automation_unarmed','no_effective_feature_switches','database_identity_verified'],true);
+  $receipt=['operation_key'=>$key,'target_site_url'=>'https://offline-recovery.invalid','database_backup_identifier'=>'offline-backup-'.$key,'plugin_package_identifier'=>$package['identifier'],'artifact_evidence_hash'=>DigiForge\Operations\RecoveryOrchestrator::artifactEvidenceHash(DigiForge\Operations\RecoveryEvidence::snapshot()),'provider'=>'hostinger','provider_operation_reference'=>'synthetic-not-dispatched','checks'=>$checks,'verified_at'=>gmdate('c'),'external_actions_performed'=>false,'commerce_execution_authorized'=>false,'drill_evidence_recorded'=>false];$receipt['evidence_hash']=hash('sha256',wp_json_encode($receipt,JSON_UNESCAPED_SLASHES));$name='digiforge_recovery_verification_'.hash('sha256',$key);
+  self::assertTrue(DigiForge\Operations\RecoveryDispatchLedger::insert($name,$receipt));self::assertIsArray(DigiForge\Operations\RecoveryDrillReviewCandidate::build($key));$before=get_option('digiforge_recovery_drill_evidence',[]);$package['sha256']=str_repeat('c',64);self::assertTrue(DigiForge\Operations\RecoveryEvidence::storePluginPackage($package));$result=DigiForge\Operations\RecoveryDrillAcceptance::accept($key,$receipt['evidence_hash'],'offline-reviewer');self::assertWPError($result);self::assertSame('digiforge_recovery_drill_accept_artifacts_changed',$result->get_error_code());self::assertSame($before,get_option('digiforge_recovery_drill_evidence',[]));self::assertTrue(DigiForge\Core\Settings::safety_locked());
+ }
+}

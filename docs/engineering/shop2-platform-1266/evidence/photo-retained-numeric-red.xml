@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" tests="5" assertions="43" errors="0" warnings="0" failures="3" skipped="0" time="6.530440">
+    <testcase name="testRetainedNullCaptureCannotMixApprovedProjectionWithDraftSchemaMaterialAcrossABA" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="85" assertions="6" time="1.153000"/>
+    <testcase name="testRetainedNullNumericShopCanCreateDraftFromCurrentStoredIdentityMetadata" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="88" assertions="8" time="2.262215"/>
+    <testsuite name="CustomerPhotoHeldIntegrationTest::testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot" tests="3" assertions="29" errors="0" warnings="0" failures="3" skipped="0" time="3.115224">
+      <testcase name="testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #0" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="93" assertions="9" time="1.021633">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoHeldIntegrationTest::testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #0 ('config')
+Changed numeric-shop scope/credential metadata/conflict cannot authorize the retained NULL context.
+Failed asserting that false is true.
+
+/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php:95</failure>
+      </testcase>
+      <testcase name="testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #1" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="93" assertions="9" time="1.017611">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoHeldIntegrationTest::testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #1 ('fingerprint')
+Changed numeric-shop scope/credential metadata/conflict cannot authorize the retained NULL context.
+Failed asserting that false is true.
+
+/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php:95</failure>
+      </testcase>
+      <testcase name="testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #2" class="CustomerPhotoHeldIntegrationTest" classname="CustomerPhotoHeldIntegrationTest" file="/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php" line="93" assertions="11" time="1.075980">
+        <failure type="PHPUnit\Framework\ExpectationFailedException">CustomerPhotoHeldIntegrationTest::testRetainedNullNumericScopeDeniesCommittedRegistryDriftHiddenBySnapshot with data set #2 ('conflict')
+Changed numeric-shop scope/credential metadata/conflict cannot authorize the retained NULL context.
+Failed asserting that false is true.
+
+/workspace/digiforge-platform-sprint/photo-retained-lease-integration/tests/wordpress/CustomerPhotoHeldIntegrationTest.php:95</failure>
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,49 @@
+{
+  "schema": "fc01-text-only-concept-v1",
+  "family_id": "FC01",
+  "version": 2,
+  "design_variant": "text-only-noto-serif-v1",
+  "shop_key": "personalized_pod",
+  "state": "OFFLINE_CONCEPT_REVIEW_REQUIRED",
+  "canvas": {
+    "width": 900,
+    "height": 700
+  },
+  "proposed_review_locale": "en-US",
+  "regions": {
+    "header": {
+      "x": 30,
+      "y": 100,
+      "width": 840,
+      "height": 75
+    },
+    "family_name": {
+      "x": 30,
+      "y": 260,
+      "width": 840,
+      "height": 120
+    },
+    "established": {
+      "x": 30,
+      "y": 430,
+      "width": 840,
+      "height": 75
+    }
+  },
+  "font_sha256": "c8f669ceb2c9c60ccf55198b305e08a997ffca79a38cc7eeb551e643cbe66505",
+  "license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+  "font_provenance_sha256": "0a4eea2a44ec6738f332478c0f12e84061dd455a3db6615eb22e2cfbeac494e5",
+  "glyphs_sha256": "40db3af24bfca02ef9abc32fffbf69fe7fb1816c775443939854346c4ff83e75",
+  "retained_parent_sha256": {
+    "font.synthetic.json": "04fa859f350adcab39b44f182d061a940b4050adc402ca6aa84a3e8c02749b6e",
+    "ornament.png": "c8419eb7199f59fca98994e18eec82064d64628f2122a6fe489bae350b4dbba6",
+    "ornament.svg": "4953c8f0a08eb4ea8b40c7e43272045a81efde9d371a7e6153adda13a6042a1d",
+    "provenance.json": "885154e481e260fe4203f405f2c30a353ada5e7457e08a299676144ec1d68ff4",
+    "review.html": "be29905d100a649b9cd1547214e7184c17a5b404fb55c9bb1ffa4e1644b82748",
+    "sample-final.png": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f",
+    "sample-final.svg": "1e04b53a1f01c7dbb05446379391d6eb4bd99592bd284eff8cfdd1ca921aca92",
+    "sample-preview.png": "43bcdf07b33d94d45905346e9fb1d8f1a711922198b75790b4766cc59c7c867f",
+    "sample-preview.svg": "1e04b53a1f01c7dbb05446379391d6eb4bd99592bd284eff8cfdd1ca921aca92",
+    "spec.json": "8d067fecfd8dee0ecc30ffb7ba7f0d27743092bf4ebc3eb517b13d484c0c39c2"
+  }
+}

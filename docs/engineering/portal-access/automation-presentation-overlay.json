@@ -1,0 +1,11 @@
+{
+  "path": "includes/Portal/Portal.php",
+  "authorization": "OWNER_APPROVED_TARGETED_10314_ACTUAL_AUTOMATION_RENDERER",
+  "baseline_sha256": "0f2b72343b0aa34df5e8c5c5f708c748702f0ae467bba69fae56dcc12e7c1d8b",
+  "candidate_sha256": "0f30e2aea8bb21e8e5018ba483f7a9df0bbce26257700c0ca7591fcb438578ca",
+  "anchor": "$scheduled=(new \\DigiForge\\Queue\\ScheduledTaskReadModel())->snapshot();",
+  "addition": "\n        echo (new \\DigiForge\\Portal\\SchedulerDependencyPanel())->render($scheduled);",
+  "authentication_or_execution_change": false,
+  "wording_baseline": "Action Scheduler is unavailable or not installed; an empty scheduler is not inferred.",
+  "wording_candidate": "Action Scheduler task-query evidence is unavailable; consult dependency inspection and query reason codes above. Installation absence is not inferred."
+}

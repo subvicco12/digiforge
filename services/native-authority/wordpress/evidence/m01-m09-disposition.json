@@ -1,0 +1,128 @@
+{
+  "schema": "db-gpo-native-managed-case-disposition-v1",
+  "original_inventory_path": "/workspace/digiforge-platform-sprint/postcert-handoff-20261117/authority-integration-test-readiness.json",
+  "purpose": "Actual supported-backend offline evidence and explicit external/producer gates; no whole-platform or 151-capability promotion.",
+  "cases": [
+    {
+      "id": "M01",
+      "expected": "Actual producer reviewer provenance, fresh data+authority handles and exact locked consumer graph prepare an immutable held plan in a real owned WordPress transaction.",
+      "disposition": "ACTUAL_OFFLINE_COMPOSITION_OBSERVED",
+      "actual_named_tests": [
+        "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch"
+      ],
+      "observed": "Actual canonical business precedes reviewed connection; foreign-selected review author differs from canonical-input author; actual A selection/layout/render/package, retained owned-TX plan/review/intent, held bundle and BLOCKED queue job.",
+      "remaining_gate": "Deployment/backend qualification remains pending; independent final-source directory verification passed 51 tests/843 assertions."
+    },
+    {
+      "id": "M02",
+      "expected": "Independent connection revokes native role/capability, scoped grant, profile, grantor or global-owner dependency; final response cannot claim private success.",
+      "disposition": "ACTUAL_MANAGED_REVOCATION_MATRIX_DEMONSTRATED",
+      "actual_named_tests": [
+        "RetainedReviewerAuthorityTest::testActualSecondConnectionAuthorityWritesInvalidateCapture",
+        "RetainedReviewerAuthorityTest::testPinnedGenerationBlocksRealWriterButBusinessAuditDoesNotTouchGeneration",
+        "ManagedReviewerHeldCompositionTest::testFinalSignedReadReviewerRevocationDeniesPrivateCommittedSuccess",
+        "ManagedReviewerHeldCompositionTest::testManagedCapturedPermissionMutationCannotPrepareAPlan"
+      ],
+      "observed": "Seven actual second-connection writers mutate native capability, role option, profile, ACL, GPO, grantor or authority audit after retained capture and before the owned frame. Each denies the original decision and replay with zero plans. Final signed-read reviewer withdrawal also denies private committed success.",
+      "remaining_gate": "Supported DB/GPO/native writer inventory only; independent hosted/deployment qualification remains pending."
+    },
+    {
+      "id": "M03",
+      "expected": "Authority expires without a SQL write; chosen owner linearization/commit rule is enforced.",
+      "disposition": "ACTUAL_MANAGED_NATURAL_EXPIRY_DEMONSTRATED",
+      "actual_named_tests": [
+        "RetainedReviewerAuthorityTest::testExpiryWithoutSqlAndPostcommitExpiryDenyPrivateAcknowledgement",
+        "ManagedReviewerHeldCompositionTest::testManagedNaturalExpiryAtPrepinPrecommitAndPostcommitAcknowledgement"
+      ],
+      "observed": "Real stock native session expires without authority DML or generation change. Managed prepin/precommit and postcommit acknowledgement deny; caller frame and known committed DRAFT truth remain correct.",
+      "remaining_gate": "Explicit precommit/acknowledgement linearization rule; no clock freeze, clock rollback or unsupported provider qualification."
+    },
+    {
+      "id": "M04",
+      "expected": "Changed delegation file/custom capability/cache backend is fenced by an expressly supported owner backend or denied.",
+      "disposition": "SUPPORTED_BACKEND_COMPONENT_DENIAL_OBSERVED",
+      "actual_named_tests": [
+        "RetainedReviewerAuthorityTest::testActualFileDelegatedGrantIsUnsupportedEvenWhenPublicAccessSucceeds",
+        "RetainedReviewerAuthorityTest::testCustomCapabilityAndExternalCacheBackendAreDenied",
+        "RetainedReviewerAuthorityTest::testCustomNativeReadBackendsAreExplicitlyDenied",
+        "RetainedReviewerAuthorityTest::testCustomInProcessCacheCannotHideBehindExternalCacheFalse",
+        "RetainedReviewerAuthorityTest::testCustomNativeRolesObjectIsNotAQualifiedDatabaseBackend"
+      ],
+      "observed": "Actual file-authorized target is denied retention; supported native callback/cache/roles/session boundary rejects unknown backends. Unrelated subjects cannot supply retained authorization.",
+      "remaining_gate": "Only explicitly enumerated stock single-site native backend is qualified offline; production extension/configuration/writer inventory and owner approval remain pending."
+    },
+    {
+      "id": "M05",
+      "expected": "Stale selection/render/schema/version, replaced photo or revoked approval denies without substituting canonical reviewer or old asset.",
+      "disposition": "PARTIAL_ACTUAL_COMPOSED_STALE_EPOCH_DENIAL",
+      "actual_named_tests": [
+        "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch",
+        "ManagedReviewerHeldCompositionTest::testActualMappingAbaCannotMixProducerSnapshotAndDifferentLockedMapping"
+      ],
+      "observed": "After real revision3 with identical pixel/payload identity, old actual render/package/held plan deny, old package remains immutable, and queue remains BLOCKED. Canonical submission reviewer is never substituted. Actual two-connection mapping ABA also denies: the public producer full mapping SHA must match the exact captured/current raw mapping.",
+      "remaining_gate": "Other schema/version/mapping/revoked-approval drift variants have not all been recomposed under the new managed positive; baseline data guards remain unchanged. Canonical review-metadata raw corruption is outside ordinary supported writers and needs the additive public producer fields described in canonical-review-provenance-handoff.json; no A source was changed."
+    },
+    {
+      "id": "M06",
+      "expected": "Foreign actor/shop/order/line and misleading caller claims deny before private lookup or export.",
+      "disposition": "ACTUAL_MANAGED_SCOPE_AND_CALLER_DENIAL_DEMONSTRATED",
+      "actual_named_tests": [
+        "RetainedReviewerAuthorityTest::testLeaseCannotBeClonedSerializedOrUsedByDifferentActor",
+        "ManagedReviewerHeldCompositionTest::testManagedForeignActorShopOrderLineAndSignedCallerClaimsDenyBeforePrivateExport"
+      ],
+      "observed": "Foreign shop/order/line, retargeted opaque context, real different session and forged signed caller claims deny without exporting the foreign sentinel. Wrong shop/context/actor deny before private queries; genuine original confirmation still produces one DRAFT.",
+      "remaining_gate": "Supported source and native session backend only; hosted/deployment qualification remains pending."
+    },
+    {
+      "id": "M07",
+      "expected": "Caller transaction/pending writes survive denied preparation; no implicit commit/rollback or connection replacement.",
+      "disposition": "ACTUAL_MANAGED_CALLER_FRAME_PRESERVATION_DEMONSTRATED",
+      "actual_named_tests": [
+        "RetainedReviewerAuthorityTest::testCaptureDenialPreservesActualCallerPendingWrite",
+        "ManagedReviewerHeldCompositionTest::testFailedManagedQueuePinRollsBackOnlyItsStartedFrame",
+        "ManagedReviewerHeldCompositionTest::testManagedConsumerDenialPreservesExistingCallerFrameAndPendingBusinessWrite",
+        "ManagedReviewerHeldCompositionTest::testManagedContextPhysicalReconnectDenialNeverResetsTheNewCallerFrame"
+      ],
+      "observed": "Actual operator and queue denial preserves the same physical caller frame and pending write (original-visible/auxiliary-invisible), without hidden frame controls. Explicit rollback permits the genuine fresh autocommit path. Physical reconnect invalidates the old context while preserving the new pending frame.",
+      "remaining_gate": "No claim for privileged database restore or unsupported connection/cache providers.",
+      "retained_baseline_tests": [
+        "OrderLocalWorkflowTest::testExistingTransactionIsDeniedWithoutCommittingCallerWrites"
+      ]
+    },
+    {
+      "id": "M08",
+      "expected": "Crash, lost COMMIT acknowledgement, lease release failure and replay preserve one-use UNKNOWN/denial; no automatic retry.",
+      "disposition": "ACTUAL_MANAGED_SIGKILL_COMMIT_AND_REPLAY_DEMONSTRATED",
+      "actual_named_tests": [
+        "ManagedReviewerHeldCompositionTest::testActualRollbackCannotBeLabeledCommittedWhenPrivateWitnessContradicts",
+        "RetainedReviewerAuthorityTest::testRollbackAndNewTransactionCannotReusePinnedProofOrAcknowledgeCommit",
+        "RetainedReviewerAuthorityTest::testUnconfirmedReleaseCannotBeRetriedOrReturnPrivateAdmission",
+        "RetainedReviewerAuthorityTest::testDroppedAuxiliaryConnectionPermanentlyDeniesWithoutResettingCallerFrame",
+        "ManagedReviewerHeldCompositionTest::testActualManagedProcessKilledBeforeCommitKeepsNonceAndRollsBackOnlyPlan",
+        "ManagedReviewerHeldCompositionTest::testActualManagedProcessKilledAfterCommitKeepsOnePlanAndRejectsReplay"
+      ],
+      "observed": "Actual SIGKILL9 before COMMIT leaves zero plans and PINNED/null-marker journal; after actual COMMIT before ACK leaves exactly one DRAFT and PINNED/committed marker. Both retain exactly one accepted nonce, deny replay, preserve witness/settings/jobs and perform zero HTTP. Existing rollback contradiction/release-loss denials remain covered.",
+      "remaining_gate": "Supported isolated native DB transactions only; privileged restore, hostile PHP/runtime and hosted authority qualification remain outside this evidence."
+    },
+    {
+      "id": "M09",
+      "expected": "Historical reviewer need not have a fabricated login/session; current decisionactor session and nativeOrders plus signedOrders/POD remain required.",
+      "disposition": "ACTUAL_SUPPORTED_FOREIGN_REVIEWER_OBSERVED",
+      "actual_named_tests": [
+        "ManagedReviewerHeldCompositionTest::testActualForeignReviewedPhotoFlowsThroughRetainedPlanHeldJobAndRejectsOldEpoch",
+        "RetainedReviewerAuthorityTest::testGenuineForeignReviewerCanBePinnedWithoutReviewerLogin",
+        "RetainedReviewerAuthorityTest::testLastFinalAdmissionReadCannotMaskDecisionActorLogout"
+      ],
+      "observed": "Foreign reviewer has zero sessions during B consumption; retained actor comes from actual public selection review provenance; genuine current actor session/native Orders/signed Orders+POD remain required.",
+      "remaining_gate": "Deployment/backend qualification and all alternate unsupported authorization providers remain excluded."
+    }
+  ],
+  "N01_N12": "Outside this PHP disposition; independent native authority owned by root",
+  "newly_accepted_capabilities": [],
+  "independent_final_source_run": {
+    "path": "services/native-authority/evidence/wordpress-acceptance.json",
+    "tests": 51,
+    "assertions": 843,
+    "failures": 0
+  }
+}

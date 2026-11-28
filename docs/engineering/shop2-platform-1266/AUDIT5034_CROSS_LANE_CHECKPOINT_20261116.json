@@ -1,0 +1,121 @@
+{
+  "schema": "digiforge-audit5034-cross-lane-checkpoint-v1",
+  "recorded_at_utc": "2026-11-16T08:20:35.160084+00:00",
+  "primary_base": "75ee5c9d4117d6a627930fed5d0f00bf89ef7395",
+  "prior_commits_preserved": true,
+  "audit5034": {
+    "run_id": 43818187610,
+    "head": "75ee5c9d4117d6a627930fed5d0f00bf89ef7395",
+    "conclusion": "failure",
+    "failed_step": "WordPress database integration tests",
+    "tests": 2179,
+    "assertions": 83889,
+    "failures": 2,
+    "skipped": 5,
+    "findings": [
+      "FinanceNativeEvidenceStoreTest::testAuditCreatorMustMatchEncryptedOriginalProvenance",
+      "FocusedEtsyOrderReadinessAvailabilityTest::testEveryRequiredReadinessCountFailsClosedOnDatabaseFailure"
+    ]
+  },
+  "repairs": {
+    "readiness": "Exact photo history/head query outage codes now map to existing readiness-unavailable error; five readiness-count tests use semantic SQL targets and include photo evidence outages. No approval/denial guard relaxed.",
+    "finance_fixture": "Explicit textual hash formats and exact pre/post row assertions for three synthetic audit mutations. Production finance encryption/provenance code unchanged."
+  },
+  "primary_verification": {
+    "wordpress": {
+      "tests": 104,
+      "assertions": 3254,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    "unit": {
+      "tests": 2275,
+      "assertions": 12087,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1
+    },
+    "source_hashes": "evidence/audit5034-primary-source-hashes-20261116.json",
+    "junit": "evidence/audit5034-primary-composition-20261116.xml",
+    "command": "evidence/audit5034-primary-command-20261116.sh",
+    "finance_runtime_unchanged": true
+  },
+  "producer_handoff": {
+    "source": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+    "files": 8,
+    "candidate_base": "75ee5c9d4117d6a627930fed5d0f00bf89ef7395",
+    "isolated_candidate_commit": "6ff209732a184eafeca5f98cf2594ba131ca69a6",
+    "primary_runtime_adopted": false,
+    "reason": "Exact handoff denies all caller transactions and regresses eight unchanged legacy operator tests. Do not silently replace working B confirmations or borrow producer mutation authority.",
+    "assessment": "evidence/photo-c2f-consumer-assessment.md",
+    "manifest": "evidence/photo-c2f-candidate-import.json",
+    "test_adaptations": "evidence/photo-c2f-candidate-test-adaptations.patch",
+    "recovery_bundle_workspace": "/workspace/digiforge-platform-sprint/photo-c2f-candidate-6ff20973.bundle"
+  },
+  "transaction_failure_dispositions": {
+    "primary_currentness": {
+      "status": "BOTH_UNRESOLVED_NOT_INTEGRATED",
+      "tests": 2,
+      "assertions": 22,
+      "failures": 2,
+      "junit": "evidence/audit5034-primary-currentness-open-20261116.xml"
+    },
+    "isolated_handoff": {
+      "old_epoch_and_hidden_legacy_NULL": {
+        "tests": 2,
+        "assertions": 44,
+        "failures": 0,
+        "disposition": "Explicit photo_current_read_caller_transaction denial; real second-connection commits; caller frame and pending writes preserved."
+      },
+      "stable_managed_caller_TX": {
+        "tests": 1,
+        "assertions": 14,
+        "failures": 0,
+        "disposition": "Explicit denial, not supported transaction acceptance."
+      },
+      "unchanged_legacy_operator_suite": {
+        "tests": 14,
+        "assertions": 50,
+        "failures": 8
+      },
+      "autocommit_photo_to_held_workflow": {
+        "tests": 1,
+        "assertions": 35,
+        "failures": 0
+      }
+    }
+  },
+  "supported_primary_workflow": "Selection \u2192 deterministic render \u2192 human render review \u2192 APPROVED_PACKAGE (no execution grant) \u2192 approved plan \u2192 BLOCKED intent \u2192 held metadata. Final artifact recheck remains required; no native production payload qualification inferred.",
+  "coordination": {
+    "A_compatibility_request": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6910795305",
+    "retained_lease_proposal_not_authority": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6911055734",
+    "native_owner_request": "https://github.com/subvicco12/digiforge/issues/1266#issuecomment-6910979881",
+    "separate_API_source_verified": "200e6101bf8635453b2186be2f45ec87a5946465",
+    "shared_HTTP_gate_ownership": "A owns only explicitly transferred shared scanner blocks on A branch; no image/AI/scanner patch imported in B photo candidate."
+  },
+  "capabilities": {
+    "total": 151,
+    "independently_accepted": 32,
+    "accepted_preserved": [
+      "S2-ORD-04"
+    ],
+    "new_promotions": [],
+    "photo_acceptance": "NOT_ESTABLISHED",
+    "ORD03_full_native_consumer_acceptance": "NOT_ESTABLISHED"
+  },
+  "remaining_blockers": [
+    "A compatible current-read or retained-lease validation contract for B-owned atomic transactions",
+    "Typed catalog/artwork to saved-product identity bridge with observed product/provider evidence",
+    "Real independent native authority/allocation/journal/UNKNOWN/sender/receipt/revocation/custody integration",
+    "New exact-head primary audit and installed/hosted acceptance"
+  ],
+  "safety": {
+    "stop_all": true,
+    "external_lock": true,
+    "automation": false,
+    "manual_production_approval_required": true,
+    "release_hold": true,
+    "external_execution_authorized": false
+  }
+}

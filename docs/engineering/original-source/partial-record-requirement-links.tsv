@@ -1,0 +1,425 @@
+source_locator	source_role	derived_requirement_ids	original_section	verbatim_original_text
+word/document.xml/p37	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	3. Governed Companion Data Sources
+word/document.xml/p38	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	This blueprint is the master prose/architecture reference. Large structured catalogs remain governed data assets because they are safer and more maintainable in spreadsheets than embedded as hundreds of prose rows.
+word/document.xml/table10/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	Data source
+word/document.xml/table10/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	Role
+word/document.xml/table10/r1/c3/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	Governance
+word/document.xml/table10/r2/c1/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	DigiForge_DigiCraftifyGoods_Product_Template_Master_500.xlsx
+word/document.xml/table10/r2/c2/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	Original Personalized POD Master 500 v1 catalog: 500 listing concepts, physical-product candidates, personalization engines, provider/template rules.
+word/document.xml/table10/r2/c3/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	Preserve unchanged as historical/source baseline. Do not silently overwrite.
+word/document.xml/table10/r3/c1/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	DigiForge_DigiCraftifyGoods_Master_500_v2_Research_Migration_Plan.xlsx
+word/document.xml/table10/r3/c2/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	Research-backed v2 migration proposal: 500-row v2 catalog, migration matrix, family rebalance, AI launch model.
+word/document.xml/table10/r3/c3/p1	REQUIREMENT_COMPONENT	NF-catalog	3. Governed Companion Data Sources	Planning source until explicitly approved/promoted into DigiForge governed catalog.
+word/document.xml/table10/r4/c1/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	DigiForge_Product_Feature_Master_Tracker_v1.0.xlsx
+word/document.xml/table10/r4/c2/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	Historical feature/status tracker used to consolidate architecture.
+word/document.xml/table10/r4/c3/p1	SOURCE_CONTEXT_OR_PLANNING		3. Governed Companion Data Sources	Superseded for operational status by this blueprint + runtime/repo evidence; may be archived after verification.
+word/document.xml/p41	SOURCE_CONTEXT_OR_PLANNING		4. Product Vision and Operating Model	4. Product Vision and Operating Model
+word/document.xml/p42	SOURCE_CONTEXT_OR_PLANNING		4. Product Vision and Operating Model	DigiForge is the internal operating system for product discovery, product development, Etsy commerce, personalized POD production preparation, order operations, profitability, AI governance and audit. It remains WordPress/PHP/MySQL-native on Hostinger, with Action Scheduler as the asynchronous boundary and a dedicated DigiForge live-site operator portal as the normal administrative interface.
+word/document.xml/p43	REQUIREMENT_PROSE	NF-isolation	4. Product Vision and Operating Model	The platform must support multiple businesses, brands, shops and provider identities without cross-shop leakage. One DigiForge installation controls multiple shop profiles. Each product, listing, order, provider mapping, AI cost, approval and external operation must remain traceable to the correct business/shop/environment.
+word/document.xml/p44	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	5. Four-Shop Target Business Architecture
+word/document.xml/table11/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	Shop
+word/document.xml/table11/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	Business purpose
+word/document.xml/table11/r1/c3/p1	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	Provider model
+word/document.xml/table11/r1/c4/p1	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	AI / research behavior
+word/document.xml/table11/r1/c5/p1	SOURCE_CONTEXT_OR_PLANNING		5. Four-Shop Target Business Architecture	Phase
+word/document.xml/table11/r2/c1/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Shop 1 — Digital Products
+word/document.xml/table11/r2/c2/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Downloadable digital products, templates, guides and related digital assets.
+word/document.xml/table11/r2/c3/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	No POD provider for fulfillment; Etsy digital delivery.
+word/document.xml/table11/r2/c4/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Continuous/high research and product-development AI, quantity/budget controlled.
+word/document.xml/table11/r2/c5/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	ACTIVE / Phase 1
+word/document.xml/table11/r3/c1/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Shop 2 — Personalized POD
+word/document.xml/table11/r3/c2/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Personalized apparel, gifts, pet/photo products and related made-to-order POD.
+word/document.xml/table11/r3/c3/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Printify first. Gelato/other providers later after separate certification.
+word/document.xml/table11/r3/c4/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	High AI during catalog/template build; later lower ongoing R&D plus per-order personalization where needed.
+word/document.xml/table11/r3/c5/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	ACTIVE TARGET / Phase 1
+word/document.xml/table11/r4/c1/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Shop 3 — Non-Personalized POD
+word/document.xml/table11/r4/c2/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Future original-design / non-personalized POD catalog.
+word/document.xml/table11/r4/c3/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Printify first; Gelato/others later. Separate shop/provider mappings.
+word/document.xml/table11/r4/c4/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Higher research/design AI during catalog growth; lower after catalog maturity.
+word/document.xml/table11/r4/c5/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	FUTURE
+word/document.xml/table11/r5/c1/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Shop 4 — Personalized Jewelry
+word/document.xml/table11/r5/c2/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Future personalized jewelry store.
+word/document.xml/table11/r5/c3/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Dedicated supplier/manufacturer architecture to be selected; reuse provider abstraction only where appropriate.
+word/document.xml/table11/r5/c4/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	Specialized personalization/design AI; separate production rules and approval.
+word/document.xml/table11/r5/c5/p1	REQUIREMENT_COMPONENT	NF-shops	5. Four-Shop Target Business Architecture	FUTURE
+word/document.xml/p47	REQUIREMENT_PROSE	NF-isolation	5. Four-Shop Target Business Architecture	The four shops are independent operating scopes, not four separate DigiForge installations. Cross-shop dashboards may aggregate metrics, but shop-level permissions, controls, costs, listings, provider routes and execution evidence must remain isolated.
+word/document.xml/p48	SOURCE_CONTEXT_OR_PLANNING		6. Hierarchical Controls — Global → Shop → Workflow → Operation	6. Hierarchical Controls — Global → Shop → Workflow → Operation
+word/document.xml/p49	REQUIREMENT_PROSE	NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	The previous global capability-switch model remains valuable as a safety ceiling, but normal operations must become shop-scoped. A narrower scope can restrict a capability further; it can never override a disabled parent safety control.
+word/document.xml/table12/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		6. Hierarchical Controls — Global → Shop → Workflow → Operation	Scope
+word/document.xml/table12/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		6. Hierarchical Controls — Global → Shop → Workflow → Operation	Examples
+word/document.xml/table12/r1/c3/p1	SOURCE_CONTEXT_OR_PLANNING		6. Hierarchical Controls — Global → Shop → Workflow → Operation	Rule
+word/document.xml/table12/r2/c1/p1	REQUIREMENT_COMPONENT	NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Global safety
+word/document.xml/table12/r2/c2/p1	REQUIREMENT_COMPONENT	NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	STOP ALL, external execution ceiling, emergency provider disable, platform maintenance
+word/document.xml/table12/r2/c3/p1	REQUIREMENT_COMPONENT	NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Global disable always wins.
+word/document.xml/table12/r3/c1/p1	REQUIREMENT_COMPONENT	NF-shops; NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Business / Shop
+word/document.xml/table12/r3/c2/p1	REQUIREMENT_COMPONENT	NF-shops; NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	research, AI, product development, Etsy draft, Etsy publish, Printify, Gelato, order intake, production
+word/document.xml/table12/r3/c3/p1	REQUIREMENT_COMPONENT	NF-shops; NF-hierarchy	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Independent per shop.
+word/document.xml/table12/r4/c1/p1	REQUIREMENT_COMPONENT	NF-hierarchy; NF-quantities	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Workflow
+word/document.xml/table12/r4/c2/p1	REQUIREMENT_COMPONENT	NF-hierarchy; NF-quantities	6. Hierarchical Controls — Global → Shop → Workflow → Operation	trend research, deep research, asset generation, listing preparation, personalization, QA
+word/document.xml/table12/r4/c3/p1	REQUIREMENT_COMPONENT	NF-hierarchy; NF-quantities	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Enable/disable and budget independently.
+word/document.xml/table12/r5/c1/p1	REQUIREMENT_COMPONENT	NF-operation-state	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Operation
+word/document.xml/table12/r5/c2/p1	REQUIREMENT_COMPONENT	NF-operation-state	6. Hierarchical Controls — Global → Shop → Workflow → Operation	specific Etsy draft, file upload, provider order, production authorization
+word/document.xml/table12/r5/c3/p1	REQUIREMENT_COMPONENT	NF-operation-state	6. Hierarchical Controls — Global → Shop → Workflow → Operation	Requires exact evidence, authorization and idempotency.
+word/document.xml/table13/r1/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate	6. Hierarchical Controls — Global → Shop → Workflow → Operation	HARD SAFETY RULE — AI, research or product-development capability NEVER implies marketplace publish authority, provider production authority, refund authority, tax filing authority or money movement.
+word/document.xml/p54	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	7. Shop-Scoped AI Utilization and Budget Governance
+word/document.xml/p55	REQUIREMENT_PROSE	NF-quantities; NF-money	7. Shop-Scoped AI Utilization and Budget Governance	AI usage is controlled by quantity, stage and budget — not only an ON/OFF switch. Each shop can define how many opportunities to research, how many to deep-research, how many to fully develop, how many listing packages to prepare, and the maximum AI spend for the run/month.
+word/document.xml/table14/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Control
+word/document.xml/table14/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Examples
+word/document.xml/table14/r2/c1/p1	REQUIREMENT_COMPONENT	NF-catalog	7. Shop-Scoped AI Utilization and Budget Governance	Catalog / eligible pool
+word/document.xml/table14/r2/c2/p1	REQUIREMENT_COMPONENT	NF-catalog	7. Shop-Scoped AI Utilization and Budget Governance	Master 500 v2; Digital opportunity pool; jewelry research pool.
+word/document.xml/table14/r3/c1/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Trend scan quantity
+word/document.xml/table14/r3/c2/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Research/re-score up to N opportunities.
+word/document.xml/table14/r4/c1/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Deep research quantity
+word/document.xml/table14/r4/c2/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Perform demand/competition/provider analysis on up to N.
+word/document.xml/table14/r5/c1/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Full product development quantity
+word/document.xml/table14/r5/c2/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Generate full assets/specification only for strongest N.
+word/document.xml/table14/r6/c1/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Listing preparation quantity
+word/document.xml/table14/r6/c2/p1	REQUIREMENT_COMPONENT	NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Prepare up to N listing packages; does not imply publish.
+word/document.xml/table14/r8/c1/p1	REQUIREMENT_COMPONENT	NF-money	7. Shop-Scoped AI Utilization and Budget Governance	Per-run budget
+word/document.xml/table14/r8/c2/p1	REQUIREMENT_COMPONENT	NF-money	7. Shop-Scoped AI Utilization and Budget Governance	Maximum INR/USD AI spend for one run.
+word/document.xml/table14/r9/c1/p1	REQUIREMENT_COMPONENT	NF-money	7. Shop-Scoped AI Utilization and Budget Governance	Monthly shop budget
+word/document.xml/table14/r9/c2/p1	REQUIREMENT_COMPONENT	NF-money	7. Shop-Scoped AI Utilization and Budget Governance	Hard monthly AI ceiling by shop.
+word/document.xml/table14/r10/c1/p1	REQUIREMENT_COMPONENT	NF-routing	7. Shop-Scoped AI Utilization and Budget Governance	Task/model policy
+word/document.xml/table14/r10/c2/p1	REQUIREMENT_COMPONENT	NF-routing	7. Shop-Scoped AI Utilization and Budget Governance	Low-cost model for triage; higher-quality model for approved high-value work; human escalation on ambiguity.
+word/document.xml/table14/r11/c1/p1	REQUIREMENT_COMPONENT	NF-money; NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Stop condition
+word/document.xml/table14/r11/c2/p1	REQUIREMENT_COMPONENT	NF-money; NF-quantities	7. Shop-Scoped AI Utilization and Budget Governance	Stop/request approval when quantity or budget ceiling is reached.
+word/document.xml/p58	REQUIREMENT_PROSE	NF-attribution; NF-money; NF-finance	7. Shop-Scoped AI Utilization and Budget Governance	DigiForge must estimate cost before a run and record actual usage afterward by provider/model/task/shop/product/order. Required commercial metrics include AI cost per opportunity researched, per qualified opportunity, per developed product, per approved listing, per sale, and AI cost as a percentage of revenue and gross/contribution profit.
+word/document.xml/p59	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	7.1 Recommended initial AI funnel — Personalized POD
+word/document.xml/table15/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Stage
+word/document.xml/table15/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Initial W1 planning limit
+word/document.xml/table15/r2/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Catalog trend scan
+word/document.xml/table15/r2/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	500
+word/document.xml/table15/r3/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Deep market research
+word/document.xml/table15/r3/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	100
+word/document.xml/table15/r4/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Full product development
+word/document.xml/table15/r4/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	25
+word/document.xml/table15/r5/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	Listing package preparation
+word/document.xml/table15/r5/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	15
+word/document.xml/table15/r6/c1/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	New production-template candidates
+word/document.xml/table15/r6/c2/p1	SOURCE_CONTEXT_OR_PLANNING		7. Shop-Scoped AI Utilization and Budget Governance	8
+word/document.xml/table15/r7/c1/p1	REQUIREMENT_COMPONENT	NF-listing-approval	7. Shop-Scoped AI Utilization and Budget Governance	Human product/listing approval
+word/document.xml/table15/r7/c2/p1	REQUIREMENT_COMPONENT	NF-listing-approval	7. Shop-Scoped AI Utilization and Budget Governance	Required
+word/document.xml/table15/r8/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate	7. Shop-Scoped AI Utilization and Budget Governance	Human POD production approval
+word/document.xml/table15/r8/c2/p1	REQUIREMENT_COMPONENT	NF-production-gate	7. Shop-Scoped AI Utilization and Budget Governance	Required
+word/document.xml/p62	REQUIREMENT_PROSE	NF-quantities; NF-money	7. Shop-Scoped AI Utilization and Budget Governance	These are editable operating defaults, not permanent quotas. W2/W3 scale only from evidence. The platform should make cost and output quantities visible before execution.
+word/document.xml/p63	SOURCE_CONTEXT_OR_PLANNING		8. AI Governance and Orchestration	8. AI Governance and Orchestration
+word/document.xml/p64	REQUIREMENT_PROSE	NF-routing	8. AI Governance and Orchestration	Task/model policy with deterministic routing and escalation.
+word/document.xml/p65	REQUIREMENT_PROSE	NF-prompts	8. AI Governance and Orchestration	Prompt/version governance and structured outputs.
+word/document.xml/p66	REQUIREMENT_PROSE	NF-research; NF-audit	8. AI Governance and Orchestration	Provenance and evidence retained for consequential product decisions.
+word/document.xml/p67	REQUIREMENT_PROSE	NF-attribution	8. AI Governance and Orchestration	Usage/cost telemetry tied to shop, product, order and workflow.
+word/document.xml/p68	REQUIREMENT_PROSE	NF-reviewed-ai; NF-production-gate	8. AI Governance and Orchestration	AI never creates execution authority.
+word/document.xml/p69	REQUIREMENT_PROSE	NF-render	8. AI Governance and Orchestration	Use AI only where transformation adds value; prefer deterministic rendering for repeatable production geometry.
+word/document.xml/p70	REQUIREMENT_PROSE	NF-reviewed-ai; NF-production-gate	8. AI Governance and Orchestration	Ambiguous, risky or failed outputs escalate to better model and/or human review rather than silently passing.
+word/document.xml/p71	SOURCE_CONTEXT_OR_PLANNING		9. Product Core and Immutable Versioning	9. Product Core and Immutable Versioning
+word/document.xml/p72	REQUIREMENT_PROSE	NF-lineage; NF-template	9. Product Core and Immutable Versioning	Shared lineage: Product Family → Canonical Product → Immutable Product Version → Assets/Specifications → QA/Commercial Evidence → Listing Package → External Listing/Order lineage. Released versions and production-authorized templates never silently mutate. Material changes create a new version with traceable lineage.
+word/document.xml/p73	SOURCE_CONTEXT_OR_PLANNING		10. Research and Opportunity Intelligence	10. Research and Opportunity Intelligence
+word/document.xml/p74	REQUIREMENT_PROSE	NF-research	10. Research and Opportunity Intelligence	Research is manually triggerable and shop-scoped. It produces evidence, provenance, scoring, deduplication, shortlist and human opportunity approval. An approved opportunity becomes factory input. Research should be cheap at broad scale and expensive only after commercial filtering.
+word/document.xml/p75	REQUIREMENT_PROSE	NF-research-dimensions	10. Research and Opportunity Intelligence	Research outputs should include demand evidence, competition/saturation, seasonality, recipient/occasion, trend overlay, provider feasibility, expected margin, policy/IP risk, differentiation, and confidence/uncertainty.
+word/document.xml/p76	SOURCE_CONTEXT_OR_PLANNING		11. Digital Product Factory	11. Digital Product Factory
+word/document.xml/p77	REQUIREMENT_PROSE	NF-digital-flow; NF-finance	11. Digital Product Factory	Target flow: Approved opportunity → product/version → customer assets + marketing assets → deterministic technical QA → semantic/commercial/IP/policy QA → profitability → Product Review → listing package → Listing Approval → Etsy controlled draft → digital file attachment → draft QA → explicit publish authorization.
+word/document.xml/p78	REQUIREMENT_PROSE	NF-delivery	11. Digital Product Factory	Product #25 proves the controlled draft + governed customer-file upload path in production. DigiForge must upload only the explicit governed customer delivery package, not blindly upload every release-bundle asset.
+word/document.xml/p79	SOURCE_CONTEXT_OR_PLANNING		12. Personalized POD Factory	12. Personalized POD Factory
+word/document.xml/p80	REQUIREMENT_PROSE	NF-pod-flow; NF-finance	12. Personalized POD Factory	Target flow: Approved opportunity → product/design specification → supplier/product/provider evaluation → exact production template → personalization schema → artwork/print-area geometry → preview/mockup → cost/shipping/margin → Product Approval → Etsy listing → paid order → personalization capture/normalization → review → production artwork + preview from the same approved payload → provider order preparation → explicit human production authorization → provider production → shipment/tracking → finance/support/quality feedback.
+word/document.xml/table16/r1/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate	12. Personalized POD Factory	PRODUCTION GATE — Paid order is not production authorization. A prepared provider order is not production authorization. Final personalized artwork/preview must remain subject to the configured human approval gate before Printify production.
+word/document.xml/p83	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	13. Master 500 Personalized POD Catalog Governance
+word/document.xml/p84	REQUIREMENT_PROSE	NF-catalog	13. Master 500 Personalized POD Catalog Governance	The original Master 500 contains exactly 500 personalized listing concepts across 20 families (25 each). It is a source catalog, not a command to build 500 unique production templates. The catalog uses reusable personalization engines and physical-product families.
+word/document.xml/p85	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	13.1 Original 20 product families
+word/document.xml/table17/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Range
+word/document.xml/table17/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Family
+word/document.xml/table17/r1/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Concept count
+word/document.xml/table17/r2/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	001–025
+word/document.xml/table17/r2/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Face & Photo Socks
+word/document.xml/table17/r2/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r3/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	026–050
+word/document.xml/table17/r3/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Mugs
+word/document.xml/table17/r3/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r4/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	051–075
+word/document.xml/table17/r4/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized T-Shirts
+word/document.xml/table17/r4/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r5/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	076–100
+word/document.xml/table17/r5/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Sweatshirts
+word/document.xml/table17/r5/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r6/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	101–125
+word/document.xml/table17/r6/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Hoodies
+word/document.xml/table17/r6/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r7/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	126–150
+word/document.xml/table17/r7/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Photo & Pet Blankets
+word/document.xml/table17/r7/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r8/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	151–175
+word/document.xml/table17/r8/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Pillows
+word/document.xml/table17/r8/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r9/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	176–200
+word/document.xml/table17/r9/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Phone Cases
+word/document.xml/table17/r9/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r10/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	201–225
+word/document.xml/table17/r10/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Tote Bags
+word/document.xml/table17/r10/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r11/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	226–250
+word/document.xml/table17/r11/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Ornaments
+word/document.xml/table17/r11/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r12/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	251–275
+word/document.xml/table17/r12/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Posters
+word/document.xml/table17/r12/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r13/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	276–300
+word/document.xml/table17/r13/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Canvas
+word/document.xml/table17/r13/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r14/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	301–325
+word/document.xml/table17/r14/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Journals
+word/document.xml/table17/r14/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r15/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	326–350
+word/document.xml/table17/r15/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Candles
+word/document.xml/table17/r15/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r16/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	351–375
+word/document.xml/table17/r16/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Drinkware
+word/document.xml/table17/r16/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r17/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	376–400
+word/document.xml/table17/r17/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Baby & Kids
+word/document.xml/table17/r17/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r18/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	401–425
+word/document.xml/table17/r18/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	AOP Leggings
+word/document.xml/table17/r18/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r19/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	426–450
+word/document.xml/table17/r19/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Personalized Pajamas
+word/document.xml/table17/r19/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r20/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	451–475
+word/document.xml/table17/r20/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Family/Couple/Memorial Gifts
+word/document.xml/table17/r20/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/table17/r21/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	476–500
+word/document.xml/table17/r21/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Advanced Transformations
+word/document.xml/table17/r21/c3/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	25
+word/document.xml/p88	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	13.2 Reusable personalization engines
+word/document.xml/p90	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	13.3 Master 500 v2 research direction
+word/document.xml/p91	REQUIREMENT_PROSE	NF-catalog	13. Master 500 Personalized POD Catalog Governance	The research-backed v2 plan preserves 500 total opportunities while consolidating duplicate recipient/occasion variants and adding missing product families. It retains 428 original concepts as dedicated v2 concepts, merges/downgrades 72 original dedicated slots into overlays/tests, and adds 72 new concepts. Of the v2 total, 458 slots remain in existing families and 42 are allocated to four new families.
+word/document.xml/table18/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	New family
+word/document.xml/table18/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	v2 slots
+word/document.xml/table18/r2/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Kitchen/Home Keepsakes
+word/document.xml/table18/r2/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	12
+word/document.xml/table18/r3/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Desk/Tech Accessories
+word/document.xml/table18/r3/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	10
+word/document.xml/table18/r4/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Travel Accessories
+word/document.xml/table18/r4/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	10
+word/document.xml/table18/r5/c1/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	Hats/Caps/Beanies
+word/document.xml/table18/r5/c2/p1	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	10
+word/document.xml/p94	REQUIREMENT_PROSE	NF-catalog	13. Master 500 Personalized POD Catalog Governance	Original v1 DG IDs remain historical identities. Removed/downgraded concepts are not erased; they remain traceable as superseded, merged, recipient/occasion overlays or future test candidates. v2 should be promoted into DigiForge only after explicit approval.
+word/document.xml/p95	SOURCE_CONTEXT_OR_PLANNING		13. Master 500 Personalized POD Catalog Governance	13.4 Template rules that must survive any catalog migration
+word/document.xml/p96	REQUIREMENT_PROSE	NF-template; NF-geometry	13. Master 500 Personalized POD Catalog Governance	Do not lock production geometry until supplier + product + provider route are selected.
+word/document.xml/p97	REQUIREMENT_PROSE	NF-template; NF-geometry	13. Master 500 Personalized POD Catalog Governance	Provider API blueprint/variant print geometry is the production source of truth; downloadable templates are secondary.
+word/document.xml/p98	REQUIREMENT_PROSE	NF-region-device	13. Master 500 Personalized POD Catalog Governance	US and EU may use different physical templates while sharing a personalization engine.
+word/document.xml/p99	REQUIREMENT_PROSE	NF-template; NF-geometry	13. Master 500 Personalized POD Catalog Governance	Supplier/product/provider switch triggers geometry, bleed, safe-zone, variant and mockup revalidation.
+word/document.xml/p100	REQUIREMENT_PROSE	NF-geometry	13. Master 500 Personalized POD Catalog Governance	Socks, leggings and pajamas require seam/panel-aware rendering and samples.
+word/document.xml/p101	REQUIREMENT_PROSE	NF-region-device	13. Master 500 Personalized POD Catalog Governance	Phone-case template key includes device model/variant.
+word/document.xml/p102	REQUIREMENT_PROSE	NF-render	13. Master 500 Personalized POD Catalog Governance	Use provider-native placement for simple cases; DigiForge deterministic rendering for complex layouts; AI only where transformation adds value.
+word/document.xml/p103	REQUIREMENT_PROSE	NF-rejected-blueprint; NF-catalog	13. Master 500 Personalized POD Catalog Governance	Do not template the currently rejected Printify 40oz blueprint 1509 for the US route; retain the opportunity and research alternatives.
+word/document.xml/p104	REQUIREMENT_PROSE	NF-research	13. Master 500 Personalized POD Catalog Governance	Do not reject a strong opportunity solely because the first supplier is poor; research alternatives.
+word/document.xml/p105	REQUIREMENT_PROSE	NF-lineage; NF-template	13. Master 500 Personalized POD Catalog Governance	Production-authorized order freezes template version and render inputs.
+word/document.xml/p106	SOURCE_CONTEXT_OR_PLANNING		14. Personalized POD Template Architecture	14. Personalized POD Template Architecture
+word/document.xml/p107	REQUIREMENT_PROSE	NF-template; NF-geometry	14. Personalized POD Template Architecture	A production template is keyed primarily by physical product + provider + blueprint/product + variant set + decoration method + region + print-area geometry, not by every marketing concept. A single certified template can support many listing concepts and personalization engines.
+word/document.xml/table19/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		14. Personalized POD Template Architecture	Template component
+word/document.xml/table19/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		14. Personalized POD Template Architecture	Required evidence
+word/document.xml/table19/r2/c1/p1	REQUIREMENT_COMPONENT	NF-future-providers	14. Personalized POD Template Architecture	Provider identity
+word/document.xml/table19/r2/c2/p1	REQUIREMENT_COMPONENT	NF-future-providers	14. Personalized POD Template Architecture	Printify first; later provider adapters separately certified.
+word/document.xml/table19/r3/c1/p1	REQUIREMENT_COMPONENT	NF-template	14. Personalized POD Template Architecture	Blueprint/product
+word/document.xml/table19/r3/c2/p1	REQUIREMENT_COMPONENT	NF-template	14. Personalized POD Template Architecture	Exact provider product/blueprint ID.
+word/document.xml/table19/r4/c1/p1	REQUIREMENT_COMPONENT	NF-template; NF-region-device	14. Personalized POD Template Architecture	Print provider
+word/document.xml/table19/r4/c2/p1	REQUIREMENT_COMPONENT	NF-template; NF-region-device	14. Personalized POD Template Architecture	Exact provider/route and region.
+word/document.xml/table19/r5/c1/p1	REQUIREMENT_COMPONENT	NF-region-device	14. Personalized POD Template Architecture	Variants
+word/document.xml/table19/r5/c2/p1	REQUIREMENT_COMPONENT	NF-region-device	14. Personalized POD Template Architecture	Approved variant IDs, sizes/colors/options.
+word/document.xml/table19/r6/c1/p1	REQUIREMENT_COMPONENT	NF-geometry	14. Personalized POD Template Architecture	Decoration method
+word/document.xml/table19/r6/c2/p1	REQUIREMENT_COMPONENT	NF-geometry	14. Personalized POD Template Architecture	DTG, sublimation, AOP, embroidery, UV, etc.
+word/document.xml/table19/r7/c1/p1	REQUIREMENT_COMPONENT	NF-geometry	14. Personalized POD Template Architecture	Print areas
+word/document.xml/table19/r7/c2/p1	REQUIREMENT_COMPONENT	NF-geometry	14. Personalized POD Template Architecture	Provider-authoritative dimensions/positions/safe zones/bleed.
+word/document.xml/table19/r8/c1/p1	REQUIREMENT_COMPONENT	NF-schema	14. Personalized POD Template Architecture	Personalization schema
+word/document.xml/table19/r8/c2/p1	REQUIREMENT_COMPONENT	NF-schema	14. Personalized POD Template Architecture	Typed customer inputs, required/optional rules, length/format constraints.
+word/document.xml/table19/r9/c1/p1	REQUIREMENT_COMPONENT	NF-render	14. Personalized POD Template Architecture	Renderer
+word/document.xml/table19/r9/c2/p1	REQUIREMENT_COMPONENT	NF-render	14. Personalized POD Template Architecture	Deterministic rendering where possible; versioned.
+word/document.xml/table19/r10/c1/p1	REQUIREMENT_COMPONENT	NF-parity	14. Personalized POD Template Architecture	Preview/mockup
+word/document.xml/table19/r10/c2/p1	REQUIREMENT_COMPONENT	NF-parity	14. Personalized POD Template Architecture	Generated from the same approved personalization/render payload used for production.
+word/document.xml/table19/r11/c1/p1	REQUIREMENT_COMPONENT	NF-geometry; NF-font	14. Personalized POD Template Architecture	QA
+word/document.xml/table19/r11/c2/p1	REQUIREMENT_COMPONENT	NF-geometry; NF-font	14. Personalized POD Template Architecture	Geometry, clipping, safe zone, seam/panel, resolution, text, spelling and asset integrity.
+word/document.xml/table19/r12/c1/p1	REQUIREMENT_COMPONENT	NF-finance	14. Personalized POD Template Architecture	Commercial evidence
+word/document.xml/table19/r12/c2/p1	REQUIREMENT_COMPONENT	NF-finance	14. Personalized POD Template Architecture	Cost, shipping, margin, provider suitability.
+word/document.xml/table19/r13/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate; NF-template	14. Personalized POD Template Architecture	Approval state
+word/document.xml/table19/r13/c2/p1	REQUIREMENT_COMPONENT	NF-production-gate; NF-template	14. Personalized POD Template Architecture	Human-approved template/version before use in production.
+word/document.xml/p110	SOURCE_CONTEXT_OR_PLANNING		15. Printify Strategy	15. Printify Strategy
+word/document.xml/p111	REQUIREMENT_PROSE	NF-shops; NF-future-providers	15. Printify Strategy	Printify is the Phase-1 POD provider. Provider integration must remain shop-scoped and product/template-scoped. Shops 2 and 3 should use distinct provider shop identities/mappings even if credentials are shared where supported. Gelato and additional providers remain adapters behind the provider abstraction and must not be activated until separately implemented, tested and certified.
+word/document.xml/p112	REQUIREMENT_PROSE	NF-production-gate	15. Printify Strategy	For personalized POD, Printify production approval should remain manual/controlled. DigiForge may prepare provider payloads and previews, but final production submission requires explicit authorization. Automatic provider production must not be enabled merely because order intake succeeds.
+word/document.xml/p113	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	16. Etsy Architecture
+word/document.xml/p114	REQUIREMENT_PROSE	NF-operation-state; NF-credentials; NF-shops	16. Etsy Architecture	Etsy integration uses official Open API v3 semantics, OAuth 2.0 Authorization Code + PKCE, shop-scoped identity, controlled draft/media/file operations, operation ledger, idempotency and reconciliation. Draft and publish are separate authorities.
+word/document.xml/p115	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	16.1 Current production Etsy shops
+word/document.xml/table20/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	Connection
+word/document.xml/table20/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	Integration
+word/document.xml/table20/r1/c3/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	Shop ID
+word/document.xml/table20/r1/c4/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	Shop
+word/document.xml/table20/r2/c1/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	etsy_digital
+word/document.xml/table20/r2/c2/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	1
+word/document.xml/table20/r2/c3/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	67757764
+word/document.xml/table20/r2/c4/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	KinetiqMatrixDesigns
+word/document.xml/table20/r3/c1/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	etsy_goods
+word/document.xml/table20/r3/c2/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	2
+word/document.xml/table20/r3/c3/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	68031896
+word/document.xml/table20/r3/c4/p1	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	DigicraftifyShop
+word/document.xml/p118	REQUIREMENT_PROSE	NF-shops; NF-future-providers	16. Etsy Architecture	Future Shop 3 and Shop 4 Etsy identities must be added as separate shop profiles/connections with independent controls and evidence. Before onboarding additional shops, current Etsy developer/app/OAuth rules must be re-verified.
+word/document.xml/p119	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	16.2 Controlled external operation lifecycle
+word/document.xml/p120	REQUIREMENT_PROSE	NF-operation-state; NF-credentials; NF-shops	16. Etsy Architecture	Approved local intent → scoped execution authorization / one-time permit → operation-scoped credential access → controlled adapter request → external-attempt evidence → SENT → normalized CONFIRMED_SUCCESS / CONFIRMED_FAILURE / UNKNOWN → reconciliation before any retry of UNKNOWN.
+word/document.xml/p121	REQUIREMENT_PROSE	NF-operation-state	16. Etsy Architecture	CONFIRMED_SUCCESS is terminal and requires external evidence/reference.
+word/document.xml/p122	REQUIREMENT_PROSE	NF-operation-state	16. Etsy Architecture	CONFIRMED_FAILURE may be retried only as a new operation with fresh authorization/idempotency identity.
+word/document.xml/p123	REQUIREMENT_PROSE	NF-operation-state	16. Etsy Architecture	UNKNOWN requires reconciliation before retry.
+word/document.xml/p124	REQUIREMENT_PROSE	NF-operation-state	16. Etsy Architecture	Consumed authorization without an external attempt requires replacement authorization; never reuse the consumed nonce.
+word/document.xml/p125	REQUIREMENT_PROSE	NF-credentials	16. Etsy Architecture	Credentials are deferred until transport is ready and never exposed to frontend/logs.
+word/document.xml/p126	REQUIREMENT_PROSE	NF-production-gate	16. Etsy Architecture	Publish remains a separate explicit human gate.
+word/document.xml/p127	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	16.3 Digital file upload safety
+word/document.xml/p128	REQUIREMENT_PROSE	NF-delivery	16. Etsy Architecture	The v1.0.65 multipart runtime fix was proven in production by successful Product #25 file upload. The governed upload selects only the approved customer-package ZIP and binds listing identity, filename, rank, size and SHA evidence. Historical failed attempts remain immutable.
+word/document.xml/p129	SOURCE_CONTEXT_OR_PLANNING		16. Etsy Architecture	16.4 Webhooks
+word/document.xml/p130	REQUIREMENT_PROSE	NF-webhook	16. Etsy Architecture	Webhook ingress is public by necessity but signature-first. The signing secret is server-side only, expected in DIGIFORGE_ETSY_WEBHOOK_SECRET, never accepted from a request parameter, never displayed, and never stored in logs/chat. Replay window is 300 seconds and raw body is bounded. Supported lifecycle events currently include order.paid, order.canceled, order.shipped and order.delivered.
+word/document.xml/p131	REQUIREMENT_PROSE	NF-webhook-config	16. Etsy Architecture	Production webhook readiness is currently CONFIGURATION_REQUIRED because the signing secret is not configured. Webhook configuration and Etsy subscription setup must use a safe server-side mechanism and current official Etsy documentation. Do not paste the secret into chat or commit it to the repository.
+word/document.xml/p132	SOURCE_CONTEXT_OR_PLANNING		17. Orders and Fulfillment	17. Orders and Fulfillment
+word/document.xml/p133	REQUIREMENT_PROSE	NF-orders	17. Orders and Fulfillment	Order intake preserves shop/listing/product version/provider mapping/currency/personalization identity. External webhook payloads are not trusted for internal IDs or provider mappings. Resolvers must bind external Etsy identities to exactly one approved internal listing/product and derive provider mapping from approved internal evidence.
+word/document.xml/p134	REQUIREMENT_PROSE	NF-hybrid	17. Orders and Fulfillment	Digital-only lines do not require POD provider mapping. POD lines require unique approved mapping/binding. Hybrid cases must be handled explicitly and fail closed when product/listing/provider intent is ambiguous.
+word/document.xml/p135	REQUIREMENT_PROSE	NF-webhook	17. Orders and Fulfillment	Order states requiring review must be persisted in the local order record, not merely returned in an API response. No automatic APPROVED transition is permitted. Shipment/delivery webhook evidence is informational and must not be treated as authoritative provider fulfillment authorization.
+word/document.xml/p136	SOURCE_CONTEXT_OR_PLANNING		18. Digital Order Delivery Evidence	18. Digital Order Delivery Evidence
+word/document.xml/p137	REQUIREMENT_PROSE	NF-delivery	18. Digital Order Delivery Evidence	For Etsy digital orders, DigiForge should prove delivery configuration from persisted evidence: approved internal listing → confirmed Etsy CREATE_DRAFT identity → confirmed UPLOAD_FILE operation → positive external listing_file_id bound to the same listing. This proves that the listing was configured with a delivery file; it does not prove that a buyer downloaded the file. Buyer-download claims require separate provider evidence if ever supported.
+word/document.xml/p138	SOURCE_CONTEXT_OR_PLANNING		19. Human Approval Model	19. Human Approval Model
+word/document.xml/table21/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		19. Human Approval Model	Gate
+word/document.xml/table21/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		19. Human Approval Model	Decision
+word/document.xml/table21/r2/c1/p1	REQUIREMENT_COMPONENT	NF-research	19. Human Approval Model	Gate 1 — Opportunity Approval
+word/document.xml/table21/r2/c2/p1	REQUIREMENT_COMPONENT	NF-research	19. Human Approval Model	Should DigiForge make/develop this opportunity?
+word/document.xml/table21/r3/c1/p1	REQUIREMENT_COMPONENT	NF-lineage; NF-listing-approval	19. Human Approval Model	Gate 2 — Product Approval
+word/document.xml/table21/r3/c2/p1	REQUIREMENT_COMPONENT	NF-lineage; NF-listing-approval	19. Human Approval Model	Is the finished product/template commercially and technically good enough to sell?
+word/document.xml/table21/r4/c1/p1	REQUIREMENT_COMPONENT	NF-listing-approval	19. Human Approval Model	Gate 3 — Listing/Publish Approval
+word/document.xml/table21/r4/c2/p1	REQUIREMENT_COMPONENT	NF-listing-approval	19. Human Approval Model	Is this exact listing ready to go live?
+word/document.xml/table21/r5/c1/p1	REQUIREMENT_COMPONENT	NF-personalization-approval	19. Human Approval Model	Personalized order preview approval
+word/document.xml/table21/r5/c2/p1	REQUIREMENT_COMPONENT	NF-personalization-approval	19. Human Approval Model	Is this exact buyer-specific design correct and acceptable?
+word/document.xml/table21/r6/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate	19. Human Approval Model	Production Authorization
+word/document.xml/table21/r6/c2/p1	REQUIREMENT_COMPONENT	NF-production-gate	19. Human Approval Model	May this exact approved personalized payload be submitted to the provider for production?
+word/document.xml/p141	REQUIREMENT_PROSE	NF-listing-approval; NF-personalization-approval; NF-production-gate	19. Human Approval Model	These gates are evidence boundaries, not UI decorations. The exact version/payload approved must be the version/payload executed.
+word/document.xml/p142	SOURCE_CONTEXT_OR_PLANNING		20. Admin Experience — DigiForge Website, Not WordPress Admin	20. Admin Experience — DigiForge Website, Not WordPress Admin
+word/document.xml/p143	REQUIREMENT_PROSE	NF-portal-lifecycle; NF-portal-access	20. Admin Experience — DigiForge Website, Not WordPress Admin	Normal day-to-day business operation must occur in the DigiForge live-site portal. WordPress admin is infrastructure/maintenance only. The operator should not need wp-admin for normal research, approvals, listings, orders, provider operations, finance, AI budgets or reconciliation.
+word/document.xml/table22/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		20. Admin Experience — DigiForge Website, Not WordPress Admin	Portal area
+word/document.xml/table22/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		20. Admin Experience — DigiForge Website, Not WordPress Admin	Required capability
+word/document.xml/table22/r2/c1/p1	REQUIREMENT_COMPONENT	NF-portal-views; NF-attention; NF-queue-visibility	20. Admin Experience — DigiForge Website, Not WordPress Admin	Global Dashboard
+word/document.xml/table22/r2/c2/p1	REQUIREMENT_COMPONENT	NF-portal-views; NF-attention; NF-queue-visibility	20. Admin Experience — DigiForge Website, Not WordPress Admin	Readiness, STOP ALL, blockers, approvals, queue health, shop KPIs, spend and alerts.
+word/document.xml/table22/r3/c1/p1	REQUIREMENT_COMPONENT	NF-isolation	20. Admin Experience — DigiForge Website, Not WordPress Admin	Shop Switcher
+word/document.xml/table22/r3/c2/p1	REQUIREMENT_COMPONENT	NF-isolation	20. Admin Experience — DigiForge Website, Not WordPress Admin	All Shops / Digital / Personalized POD / Standard POD / Jewelry; selected shop scopes every view.
+word/document.xml/table22/r4/c1/p1	REQUIREMENT_COMPONENT	NF-shops	20. Admin Experience — DigiForge Website, Not WordPress Admin	Businesses / Brands / Shops
+word/document.xml/table22/r4/c2/p1	REQUIREMENT_COMPONENT	NF-shops	20. Admin Experience — DigiForge Website, Not WordPress Admin	Ownership, shop identities, environments, provider connections and shop-level policy.
+word/document.xml/table22/r5/c1/p1	REQUIREMENT_COMPONENT	NF-research; NF-portal-lifecycle	20. Admin Experience — DigiForge Website, Not WordPress Admin	Research / Opportunities
+word/document.xml/table22/r5/c2/p1	REQUIREMENT_COMPONENT	NF-research; NF-portal-lifecycle	20. Admin Experience — DigiForge Website, Not WordPress Admin	Manual runs, evidence, scores, shortlist, quantity/budget limits and approval.
+word/document.xml/table22/r6/c1/p1	REQUIREMENT_COMPONENT	NF-digital-flow; NF-finance	20. Admin Experience — DigiForge Website, Not WordPress Admin	Digital Factory
+word/document.xml/table22/r6/c2/p1	REQUIREMENT_COMPONENT	NF-digital-flow; NF-finance	20. Admin Experience — DigiForge Website, Not WordPress Admin	Products, versions, assets, QA, profitability, listing readiness.
+word/document.xml/table22/r7/c1/p1	REQUIREMENT_COMPONENT	NF-catalog; NF-render; NF-template	20. Admin Experience — DigiForge Website, Not WordPress Admin	Personalized POD
+word/document.xml/table22/r7/c2/p1	REQUIREMENT_COMPONENT	NF-catalog; NF-render; NF-template	20. Admin Experience — DigiForge Website, Not WordPress Admin	Master catalogs, product families, personalization engines, templates, mappings, print areas, mockups, supplier readiness.
+word/document.xml/table22/r8/c1/p1	REQUIREMENT_COMPONENT	NF-lineage	20. Admin Experience — DigiForge Website, Not WordPress Admin	Products / Versions
+word/document.xml/table22/r8/c2/p1	REQUIREMENT_COMPONENT	NF-lineage	20. Admin Experience — DigiForge Website, Not WordPress Admin	Canonical products and immutable released versions.
+word/document.xml/table22/r9/c1/p1	REQUIREMENT_COMPONENT	NF-delivery; NF-operation-state; NF-listing-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Listings / Etsy
+word/document.xml/table22/r9/c2/p1	REQUIREMENT_COMPONENT	NF-delivery; NF-operation-state; NF-listing-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Draft packages, intents, operations, digital files/media, reconciliation, publish gates.
+word/document.xml/table22/r10/c1/p1	REQUIREMENT_COMPONENT	NF-orders; NF-personalization-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Orders / Personalization
+word/document.xml/table22/r10/c2/p1	REQUIREMENT_COMPONENT	NF-orders; NF-personalization-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Orders, buyer inputs, normalized personalization, previews, review queues.
+word/document.xml/table22/r11/c1/p1	REQUIREMENT_COMPONENT	NF-production-gate; NF-template	20. Admin Experience — DigiForge Website, Not WordPress Admin	Fulfillment / Providers
+word/document.xml/table22/r11/c2/p1	REQUIREMENT_COMPONENT	NF-production-gate; NF-template	20. Admin Experience — DigiForge Website, Not WordPress Admin	Provider plans, mappings, prepared orders, production authorization, tracking/errors.
+word/document.xml/table22/r12/c1/p1	REQUIREMENT_COMPONENT	NF-portal-lifecycle; NF-listing-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Approvals
+word/document.xml/table22/r12/c2/p1	REQUIREMENT_COMPONENT	NF-portal-lifecycle; NF-listing-approval	20. Admin Experience — DigiForge Website, Not WordPress Admin	Human-in-the-loop inbox with exact evidence and action boundaries.
+word/document.xml/table22/r13/c1/p1	REQUIREMENT_COMPONENT	NF-queue-visibility; NF-async-execution	20. Admin Experience — DigiForge Website, Not WordPress Admin	Automation / Queues
+word/document.xml/table22/r13/c2/p1	REQUIREMENT_COMPONENT	NF-queue-visibility; NF-async-execution	20. Admin Experience — DigiForge Website, Not WordPress Admin	Action Scheduler jobs, retries, blocked jobs, dead-letter/recovery.
+word/document.xml/table22/r14/c1/p1	REQUIREMENT_COMPONENT	NF-credentials; NF-future-providers	20. Admin Experience — DigiForge Website, Not WordPress Admin	Integrations
+word/document.xml/table22/r14/c2/p1	REQUIREMENT_COMPONENT	NF-credentials; NF-future-providers	20. Admin Experience — DigiForge Website, Not WordPress Admin	Etsy, Printify, future Gelato/providers, AI connection state; never display secrets.
+word/document.xml/table22/r15/c1/p1	REQUIREMENT_COMPONENT	NF-money; NF-attribution; NF-quantities	20. Admin Experience — DigiForge Website, Not WordPress Admin	AI & Budget
+word/document.xml/table22/r15/c2/p1	REQUIREMENT_COMPONENT	NF-money; NF-attribution; NF-quantities	20. Admin Experience — DigiForge Website, Not WordPress Admin	Per-shop/run quantities, model/task policies, estimated/actual spend and outcome economics.
+word/document.xml/table22/r16/c1/p1	REQUIREMENT_COMPONENT	NF-finance	20. Admin Experience — DigiForge Website, Not WordPress Admin	Finance / GST
+word/document.xml/table22/r16/c2/p1	REQUIREMENT_COMPONENT	NF-finance	20. Admin Experience — DigiForge Website, Not WordPress Admin	Ledger, profitability, tax-readiness, unresolved reconciliation; no automatic filing without authorization.
+word/document.xml/table22/r17/c1/p1	REQUIREMENT_COMPONENT	NF-finance; NF-attribution	20. Admin Experience — DigiForge Website, Not WordPress Admin	Analytics
+word/document.xml/table22/r17/c2/p1	REQUIREMENT_COMPONENT	NF-finance; NF-attribution	20. Admin Experience — DigiForge Website, Not WordPress Admin	Revenue, margin, conversion, defect/quality, supplier/product/shop performance.
+word/document.xml/table22/r18/c1/p1	REQUIREMENT_COMPONENT	NF-audit; NF-operation-state	20. Admin Experience — DigiForge Website, Not WordPress Admin	Audit / Reconciliation
+word/document.xml/table22/r18/c2/p1	REQUIREMENT_COMPONENT	NF-audit; NF-operation-state	20. Admin Experience — DigiForge Website, Not WordPress Admin	Immutable operation evidence, unresolved UNKNOWN outcomes, historical failures.
+word/document.xml/table22/r19/c1/p1	REQUIREMENT_COMPONENT	NF-hierarchy	20. Admin Experience — DigiForge Website, Not WordPress Admin	System Controls
+word/document.xml/table22/r19/c2/p1	REQUIREMENT_COMPONENT	NF-hierarchy	20. Admin Experience — DigiForge Website, Not WordPress Admin	Global safety ceilings plus shop/workflow capability policies and activation ladder.
+word/document.xml/table22/r20/c1/p1	REQUIREMENT_COMPONENT	NF-portal-views	20. Admin Experience — DigiForge Website, Not WordPress Admin	Settings
+word/document.xml/table22/r20/c2/p1	REQUIREMENT_COMPONENT	NF-portal-views	20. Admin Experience — DigiForge Website, Not WordPress Admin	Non-secret configuration, thresholds, policies, notification preferences.
+word/document.xml/p146	REQUIREMENT_PROSE	NF-mobile	20. Admin Experience — DigiForge Website, Not WordPress Admin	Tablet/mobile operation is a first-class requirement. High-risk actions require clear confirmation, exact target context and evidence summary.
+word/document.xml/p150	SOURCE_CONTEXT_OR_PLANNING		22. Async, Scheduling and Reliability	22. Async, Scheduling and Reliability
+word/document.xml/p151	REQUIREMENT_PROSE	NF-async-execution; NF-queue-visibility	22. Async, Scheduling and Reliability	Action Scheduler is the primary asynchronous queue. Jobs must be bounded, idempotent, dependency-aware and recoverable. Hostinger cron should invoke scheduling independently of visitor traffic. STOP ALL and capability policies are rechecked at execution time, not only when jobs are queued.
+word/document.xml/p152	REQUIREMENT_PROSE	NF-async-execution; NF-queue-visibility	22. Async, Scheduling and Reliability	Required reliability behavior includes retry policy by failure class, dead-letter/recovery visibility, orphan detection, replay/dedup tests, rate-limit awareness, and durable external-attempt evidence.
+word/document.xml/p153	SOURCE_CONTEXT_OR_PLANNING		23. Security, Credentials and Audit	23. Security, Credentials and Audit
+word/document.xml/p154	REQUIREMENT_PROSE	NF-credentials	23. Security, Credentials and Audit	Credentials remain server-side, encrypted/scoped and unavailable to frontend code/logs.
+word/document.xml/p155	REQUIREMENT_PROSE	NF-credentials	23. Security, Credentials and Audit	Operation-bound credential access only after request validation and safety interlocks.
+word/document.xml/p156	REQUIREMENT_PROSE	NF-credentials	23. Security, Credentials and Audit	Never store secrets in repository, chat, query parameters or operator-visible responses.
+word/document.xml/p157	REQUIREMENT_PROSE	NF-operation-state; NF-credentials; NF-shops	23. Security, Credentials and Audit	External mutations require authorization, idempotency, durable operation evidence and reconciliation semantics.
+word/document.xml/p158	REQUIREMENT_PROSE	NF-listing-approval; NF-personalization-approval; NF-production-gate	23. Security, Credentials and Audit	Canonical fingerprints bind approved local intent to external payload.
+word/document.xml/p159	REQUIREMENT_PROSE	NF-template; NF-render; NF-operation-state	23. Security, Credentials and Audit	No QA PASS without evidence. UNKNOWN never converts to PASS/CLEAR.
+word/document.xml/p160	REQUIREMENT_PROSE	NF-audit	23. Security, Credentials and Audit	Audit history is append-only/immutable for consequential operations; historical failures are evidence, not clutter to delete.
+word/document.xml/p161	REQUIREMENT_PROSE	NF-attention	23. Security, Credentials and Audit	Current attention dashboards should distinguish unresolved/current-action conditions from resolved historical failures.
+word/document.xml/p162	SOURCE_CONTEXT_OR_PLANNING		24. End-to-End Process Maps	24. End-to-End Process Maps
+word/document.xml/p163	SOURCE_CONTEXT_OR_PLANNING		24. End-to-End Process Maps	24.1 Digital product
+word/document.xml/p164	REQUIREMENT_PROSE	NF-digital-flow; NF-finance	24. End-to-End Process Maps	Research → evidence/scoring → Opportunity Approval → product family/product/version → customer assets → marketing assets → technical QA → content/visual/commercial/IP/policy QA → profitability → Product Approval → listing package → Listing Approval → Etsy draft → digital file/media → draft QA → Publish Approval → published → analytics/optimization.
+word/document.xml/p165	SOURCE_CONTEXT_OR_PLANNING		24. End-to-End Process Maps	24.2 Personalized POD
+word/document.xml/p166	REQUIREMENT_PROSE	NF-pod-flow; NF-finance	24. End-to-End Process Maps	Research → Opportunity Approval → product/design specification → supplier/blueprint/variant evaluation → production template → personalization schema → deterministic/AI-assisted artwork → print-area geometry → mockup → cost/shipping/margin → Product Approval → Etsy listing → paid order → personalization capture/normalization → review → production asset + preview from same payload → provider order preparation → Production Authorization → production → shipment/tracking → finance/support/quality analytics.
+word/document.xml/p167	SOURCE_CONTEXT_OR_PLANNING		24. End-to-End Process Maps	24.3 Order/fulfillment
+word/document.xml/p168	REQUIREMENT_PROSE	NF-orders; NF-hybrid; NF-webhook; NF-production-gate	24. End-to-End Process Maps	Order event → signature/dedupe/reconcile → paid-state validation → external listing resolution → internal product/listing binding → digital/POD/hybrid mode → personalization evidence → review/validation state → fulfillment plan if required → provider preparation → human production gate → shipment/tracking → exception/replacement/refund support → finance/supplier-quality feedback.
+word/document.xml/p169	SOURCE_CONTEXT_OR_PLANNING		24. End-to-End Process Maps	24.4 Finance
+word/document.xml/p170	REQUIREMENT_PROSE	NF-finance	24. End-to-End Process Maps	Operational evidence → normalized ledger entries → FX evidence → revenue/refund/fee/COGS/shipping/ads/AI/tax classification → contribution/operating profit → profitability gates → period review → analytics/reporting/GST evidence.
+word/document.xml/p174	SOURCE_CONTEXT_OR_PLANNING		26. Current Known Gaps and Priority Defects	26. Current Known Gaps and Priority Defects
+word/document.xml/table24/r1/c1/p1	SOURCE_CONTEXT_OR_PLANNING		26. Current Known Gaps and Priority Defects	Priority
+word/document.xml/table24/r1/c2/p1	SOURCE_CONTEXT_OR_PLANNING		26. Current Known Gaps and Priority Defects	Gap / requirement
+word/document.xml/table24/r2/c1/p1	REQUIREMENT_COMPONENT	NF-readiness	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r2/c2/p1	REQUIREMENT_COMPONENT	NF-readiness	26. Current Known Gaps and Priority Defects	Fix order readiness semantic bug: external_fulfillment_authorized=false must not be a readiness check.
+word/document.xml/table24/r3/c1/p1	REQUIREMENT_COMPONENT	NF-webhook	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r3/c2/p1	REQUIREMENT_COMPONENT	NF-webhook	26. Current Known Gaps and Priority Defects	Persist Etsy paid-webhook review-required / validated state in local order lifecycle; no automatic approval.
+word/document.xml/table24/r4/c1/p1	REQUIREMENT_COMPONENT	NF-hybrid	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r4/c2/p1	REQUIREMENT_COMPONENT	NF-hybrid	26. Current Known Gaps and Priority Defects	Correct hybrid product/listing provider mapping using listing-specific approved binding evidence; fail closed on ambiguity.
+word/document.xml/table24/r5/c1/p1	REQUIREMENT_COMPONENT	NF-delivery	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r5/c2/p1	REQUIREMENT_COMPONENT	NF-delivery	26. Current Known Gaps and Priority Defects	Implement digital-order delivery-configuration evidence from confirmed listing/file operations.
+word/document.xml/table24/r6/c1/p1	REQUIREMENT_COMPONENT	NF-render; NF-parity; NF-template; NF-production-gate	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r6/c2/p1	REQUIREMENT_COMPONENT	NF-render; NF-parity; NF-template; NF-production-gate	26. Current Known Gaps and Priority Defects	Complete Personalized POD deterministic renderer, preview-production parity, template certification and controlled Printify order-preparation path.
+word/document.xml/table24/r7/c1/p1	REQUIREMENT_COMPONENT	NF-portal-lifecycle	26. Current Known Gaps and Priority Defects	P0
+word/document.xml/table24/r7/c2/p1	REQUIREMENT_COMPONENT	NF-portal-lifecycle	26. Current Known Gaps and Priority Defects	Complete DigiForge live-site admin portal so normal operations do not require wp-admin.
+word/document.xml/table24/r8/c1/p1	REQUIREMENT_COMPONENT	NF-attention	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r8/c2/p1	REQUIREMENT_COMPONENT	NF-attention	26. Current Known Gaps and Priority Defects	Improve operations attention semantics so resolved historical failures do not create permanent current-action alerts.
+word/document.xml/table24/r9/c1/p1	REQUIREMENT_COMPONENT	NF-readiness; NF-listing-approval	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r9/c2/p1	REQUIREMENT_COMPONENT	NF-readiness; NF-listing-approval	26. Current Known Gaps and Priority Defects	Strengthen approved fulfillment-plan readiness evidence beyond empty-hash detection; detect stale evidence safely.
+word/document.xml/table24/r10/c1/p1	REQUIREMENT_COMPONENT	NF-delivery	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r10/c2/p1	REQUIREMENT_COMPONENT	NF-delivery	26. Current Known Gaps and Priority Defects	Add operator-facing read-only verification for confirmed Etsy digital file attachment bound to immutable operation evidence.
+word/document.xml/table24/r11/c1/p1	REQUIREMENT_COMPONENT	NF-webhook-config	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r11/c2/p1	REQUIREMENT_COMPONENT	NF-webhook-config	26. Current Known Gaps and Priority Defects	Configure Etsy webhook signing secret safely and verify current official subscription/payload semantics before activation.
+word/document.xml/table24/r12/c1/p1	REQUIREMENT_COMPONENT	NF-hierarchy; NF-quantities; NF-money	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r12/c2/p1	REQUIREMENT_COMPONENT	NF-hierarchy; NF-quantities; NF-money	26. Current Known Gaps and Priority Defects	Implement hierarchical shop-scoped controls and AI quantity/budget policies.
+word/document.xml/table24/r13/c1/p1	REQUIREMENT_COMPONENT	NF-catalog	26. Current Known Gaps and Priority Defects	P1
+word/document.xml/table24/r13/c2/p1	REQUIREMENT_COMPONENT	NF-catalog	26. Current Known Gaps and Priority Defects	Promote/import approved Master 500 v2 as versioned catalog while preserving v1 lineage.
+word/document.xml/table24/r14/c1/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	P2
+word/document.xml/table24/r14/c2/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	Add Shop 3 non-personalized POD after Phase-1 stability.
+word/document.xml/table24/r15/c1/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	P2
+word/document.xml/table24/r15/c2/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	Add Shop 4 personalized jewelry after supplier/manufacturing architecture decision.
+word/document.xml/table24/r16/c1/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	P2
+word/document.xml/table24/r16/c2/p1	REQUIREMENT_COMPONENT	NF-future-providers	26. Current Known Gaps and Priority Defects	Gelato/additional providers only after Printify Phase-1 stability and separate certification.
+word/document.xml/p210	SOURCE_CONTEXT_OR_PLANNING		31. Non-Negotiable Safety Rules	31. Non-Negotiable Safety Rules
+word/document.xml/p211	REQUIREMENT_PROSE	NF-hierarchy	31. Non-Negotiable Safety Rules	STOP ALL outranks everything.
+word/document.xml/p212	REQUIREMENT_PROSE	NF-hierarchy	31. Non-Negotiable Safety Rules	Configured ON is not the same as authorized/effective.
+word/document.xml/p213	REQUIREMENT_PROSE	NF-reviewed-ai; NF-production-gate	31. Non-Negotiable Safety Rules	AI never creates execution authority.
+word/document.xml/p214	REQUIREMENT_PROSE	NF-template; NF-render; NF-operation-state	31. Non-Negotiable Safety Rules	No QA PASS without evidence.
+word/document.xml/p215	REQUIREMENT_PROSE	NF-operation-state	31. Non-Negotiable Safety Rules	UNKNOWN external result requires reconciliation before retry.
+word/document.xml/p216	REQUIREMENT_PROSE	NF-credentials	31. Non-Negotiable Safety Rules	Never expose or log credentials/secrets.
+word/document.xml/p217	REQUIREMENT_PROSE	NF-operation-state	31. Non-Negotiable Safety Rules	Never reuse consumed authorization/idempotency identity for a new external attempt.
+word/document.xml/p218	REQUIREMENT_PROSE	NF-production-gate	31. Non-Negotiable Safety Rules	Paid order does not equal production authorization.
+word/document.xml/p219	REQUIREMENT_PROSE	NF-production-gate	31. Non-Negotiable Safety Rules	Etsy draft does not equal publish authorization.
+word/document.xml/p220	REQUIREMENT_PROSE	NF-production-gate	31. Non-Negotiable Safety Rules	Prepared provider payload does not equal production authorization.
+word/document.xml/p221	REQUIREMENT_PROSE	NF-production-gate	31. Non-Negotiable Safety Rules	No automatic Etsy publish, POD production, GST filing or other irreversible external action without explicit policy/human gate.
+word/document.xml/p222	REQUIREMENT_PROSE	NF-audit	31. Non-Negotiable Safety Rules	Preserve immutable historical operation evidence, including failures.
+word/document.xml/p223	REQUIREMENT_PROSE	NF-lineage; NF-template	31. Non-Negotiable Safety Rules	Production-authorized template/version/render inputs are frozen.
+word/document.xml/p224	REQUIREMENT_PROSE	NF-isolation	31. Non-Negotiable Safety Rules	Shop isolation is mandatory: no accidental cross-shop controls, mappings, costs or external identities.
+word/document.xml/p225	SOURCE_CONTEXT_OR_PLANNING		32. Acceptance Criteria for the Complete DigiForge Website	32. Acceptance Criteria for the Complete DigiForge Website
+word/document.xml/p226	REQUIREMENT_PROSE	NF-shops; NF-future-providers	32. Acceptance Criteria for the Complete DigiForge Website	All four shop profiles can exist independently; inactive/future shops remain disabled without affecting active shops.
+word/document.xml/p227	REQUIREMENT_PROSE	NF-hierarchy	32. Acceptance Criteria for the Complete DigiForge Website	Global safety + shop/workflow controls are evaluated hierarchically and visibly.
+word/document.xml/p228	REQUIREMENT_PROSE	NF-quantities; NF-money	32. Acceptance Criteria for the Complete DigiForge Website	Per-shop AI quantity/budget planner estimates and records actual spend.
+word/document.xml/p230	REQUIREMENT_PROSE	NF-pod-flow; NF-production-gate	32. Acceptance Criteria for the Complete DigiForge Website	Personalized POD opportunity can reach certified template/listing and paid order can reach buyer-specific preview + explicit production authorization boundary.
+word/document.xml/p231	REQUIREMENT_PROSE	NF-template; NF-geometry	32. Acceptance Criteria for the Complete DigiForge Website	Printify mappings/templates are exact, versioned and provider-authoritative; provider switching revalidates geometry/economics.
+word/document.xml/p232	REQUIREMENT_PROSE	NF-portal-lifecycle; NF-portal-access	32. Acceptance Criteria for the Complete DigiForge Website	Normal operations are possible from DigiForge portal without wp-admin.
+word/document.xml/p237	REQUIREMENT_PROSE	NF-audit	32. Acceptance Criteria for the Complete DigiForge Website	Credentials remain secret; audit and external-operation evidence are durable.
+word/document.xml/p238	REQUIREMENT_PROSE	NF-mobile	32. Acceptance Criteria for the Complete DigiForge Website	Mobile/tablet portal is usable for approvals and operations.
+word/document.xml/p241	REQUIREMENT_PROSE	NF-safe-deployment	32. Acceptance Criteria for the Complete DigiForge Website	No consequential external capability is silently activated by deployment.
+word/document.xml/p242	SOURCE_CONTEXT_OR_PLANNING		33. Recommended Immediate Next Development Batch	33. Recommended Immediate Next Development Batch
+word/document.xml/p243	SOURCE_CONTEXT_OR_PLANNING		33. Recommended Immediate Next Development Batch	Development is currently paused for architecture consolidation. When the user explicitly resumes development, start from current main on a new branch and address the following coherent batch before cutting the next release:
+word/document.xml/p244	REQUIREMENT_PROSE	NF-readiness	33. Recommended Immediate Next Development Batch	Fix P0 order readiness semantic bug with behavioral regression test.
+word/document.xml/p245	REQUIREMENT_PROSE	NF-webhook	33. Recommended Immediate Next Development Batch	Persist webhook review-required / validated order states safely.
+word/document.xml/p246	REQUIREMENT_PROSE	NF-hybrid	33. Recommended Immediate Next Development Batch	Harden hybrid listing/provider mapping using listing-specific approved bindings.
+word/document.xml/p247	REQUIREMENT_PROSE	NF-delivery	33. Recommended Immediate Next Development Batch	Add digital-order delivery-configuration evidence from confirmed Etsy file operations.
+word/document.xml/p248	REQUIREMENT_PROSE	NF-attention	33. Recommended Immediate Next Development Batch	Improve current-action operations diagnostics and stale readiness evidence.
+word/document.xml/p249	REQUIREMENT_PROSE	NF-quantities; NF-money	33. Recommended Immediate Next Development Batch	Begin shop-scoped policy/control primitives and AI quantity/budget data model only after the architecture in this document is accepted.
+word/document.xml/p250	SOURCE_CONTEXT_OR_PLANNING		33. Recommended Immediate Next Development Batch	Continue substantial batching; do not cut a ZIP for each small fix.

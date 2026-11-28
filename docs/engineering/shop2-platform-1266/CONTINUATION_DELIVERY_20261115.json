@@ -1,0 +1,127 @@
+{
+  "baseline_core_sha": "32ef56439408932c4b4b72cf0a767f7c5374a856",
+  "predecessor_audit": {
+    "conclusion": "success",
+    "headSha": "32ef56439408932c4b4b72cf0a767f7c5374a856",
+    "number": 5023,
+    "status": "completed",
+    "updatedAt": "2026-11-15T10:14:58Z",
+    "url": "https://github.com/subvicco12/digiforge/actions/runs/43698112702",
+    "evidence_reuse": "SUCCESS at exact predecessor32; not certification of containing new commit."
+  },
+  "new_slices": [
+    {
+      "name": "production buyer-input currentness",
+      "source": [
+        "includes/Orders/PersonalizationCurrentness.php",
+        "includes/Orders/Repository.php",
+        "includes/POD/ProductionAuthorizationRepository.php"
+      ],
+      "capability_ids": [
+        "S2-ORD-03",
+        "S2-ORD-06",
+        "S2-ORD-08"
+      ],
+      "implemented": "Read all current submissions before hash/approval filtering; typed unique latest approved schema/payload, exact order/mapping, orphan/newer-unresolved/duplicate denials; production package creation/review/replay/race/readback guards and readiness-dependent existing-package preflight.",
+      "remaining": "Explicit correction selection is not implemented. LaneA artifact/preview consumers remain separately owned; original stale-artifact reproduction was supplied for their interface work. No approval record silently superseded."
+    },
+    {
+      "name": "default-OFF held local dispatcher",
+      "source": [
+        "includes/Queue/Shop2HeldPreparationDispatcher.php"
+      ],
+      "capability_ids": [
+        "S2-OPS-06",
+        "S2-OPS-07"
+      ],
+      "implemented": "One explicit current-actor job; exact persisted approved references; real dependency/lease/start; mandatory global settings and deny-only shop/held workflow restrictions; real held-only service; final actor/payload/live-lease CAS; conservative human review with no automatic retries.",
+      "remaining": "No Scheduler hook, cron registration, actor impersonation, generic factory handler, provider sender, credentials or native-positive admission. Scope restriction records only narrow existing gates; saving them is not execution authority."
+    },
+    {
+      "name": "connected local order review and draft preparation",
+      "source": [
+        "includes/Portal/OrderLocalWorkflow.php",
+        "includes/Portal/ReviewConfirmation.php",
+        "includes/Portal/OrderHeldPreparationPanel.php",
+        "includes/Portal/Portal.php"
+      ],
+      "capability_ids": [
+        "S2-OPS-03",
+        "S2-ORD-04",
+        "S2-ORD-07",
+        "S2-ORD-08"
+      ],
+      "implemented": "Actual registered purpose-bound POST preview/confirm: VALIDATED\u2192BEGIN_REVIEW(REVIEW_REQUIRED with no approval)\u2192separate APPROVE\u2192DRAFT plan\u2192fresh second DRAFT version. Exact actor/shop/nonce/source/assumptions, real core repository writes, verified transactional storage/connection, postwrite authorization/dependency recheck, one-use acknowledgement survives rollback.",
+      "remaining": "Plan approval, BLOCKED-intent creation and actual production authorization remain separate steps; no raw JSON/provider action exposed. Assumed costs are not provider quotes/debits, actual margin or approved prices."
+    }
+  ],
+  "native_interface_status": {
+    "api_pr": 1260,
+    "verified_api_sha": "200e6101bf8635453b2186be2f45ec87a5946465",
+    "real_checkpoint_sender_receipt_interface_supplied": false,
+    "native_positive_admission_implemented": false,
+    "typed_native_denials_preserved": true,
+    "missing": [
+      "Independent checkpoint/revocation root",
+      "Mandatory final sender and exclusive usable credential custody",
+      "Authenticated producer/lease/receipt/allocation joins",
+      "Drain/recovery/durability hosted qualification"
+    ]
+  },
+  "source_ownership": {
+    "lane_a_renderer_verifier_edited": false,
+    "api_branch_or_plugin_edited": false,
+    "companion_branch_or_pin_edited": false,
+    "shared_local_review_additions": "Additive purpose cases only; existing action meanings preserved."
+  },
+  "capability_promotions": [],
+  "baseline_counts_unchanged": {
+    "total": 151,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "independently_accepted": 31
+  },
+  "acceptance_limits": [
+    "Actual core services and disposable real WordPress/MariaDB fixture records; offline provider responses only.",
+    "Enabled dispatcher positive config exists only inside disposable test fixtures; production controls untouched.",
+    "No mock issuer/witness/native authority is used to claim positive native integration.",
+    "Current installed final candidate qualification remains unestablished."
+  ],
+  "local_verification": {
+    "released_wordpress_integration": {
+      "version": "7.1.4",
+      "tests": 186,
+      "assertions": 3238,
+      "failures": 0,
+      "errors": 0,
+      "skips": 2,
+      "skip_reason": "Existing optional owner-supplied SAM matting runtime/weights absent."
+    },
+    "final_dispatcher_auth_order": {
+      "tests": 23,
+      "assertions": 324,
+      "status": "PASS",
+      "negative_proof": "Temporarily remove earlyguard:1failure/13assertions confirms3unauthorized policy/job reads; restore exact guard and all23pass."
+    },
+    "final_registered_operator_flow": {
+      "tests": 9,
+      "assertions": 68,
+      "status": "PASS"
+    },
+    "production_currentness": {
+      "tests": 6,
+      "assertions": 80,
+      "status": "PASS"
+    },
+    "original_buyer_revision_regression": {
+      "tests": 2,
+      "assertions": 22,
+      "status": "PASS"
+    },
+    "initial_failures_disclosed": [
+      "First177case combined run had2artifact failures because DIGIFORGE_CUTOUT_PYTHON was omitted. Both isolated configured tests2/72passed; full configured186runpasses. No validation weakened to accommodate an unproven hypothesis.",
+      "New features and late actor/lease/policy/transaction guards had real red reproductions before successful focused acceptance."
+    ]
+  }
+}

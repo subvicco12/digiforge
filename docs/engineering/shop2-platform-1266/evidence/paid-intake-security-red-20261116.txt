@@ -1,0 +1,55 @@
+Old caller snapshot despite real committed second connection
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.38 by Sebastian Bergmann and contributors.
+
+F                                                                   1 / 1 (100%)
+
+Time: 00:01.636, Memory: 82.50 MB
+
+There was 1 failure:
+
+1) PaidIntakeEvidenceTest::testRealCommittedSecondConnectionChangeCannotBePresentedAsCurrentInsideOldSnapshot
+An old caller transaction cannot supply current order or intake evidence.
+Failed asserting that Array (...) is an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:879
+/workspace/digiforge-lane-b-sprint/tests/wordpress/PaidIntakeEvidenceTest.php:46
+
+FAILURES!
+Tests: 1, Assertions: 19, Failures: 1.
+
+
+Final boundary query logout and capability revocation
+Installing...
+Running as single site... To run multisite, use -c tests/phpunit/multisite.xml
+Not running ajax tests. To execute these, use --group ajax.
+Not running ms-files tests. To execute these, use --group ms-files.
+Not running external-http tests. To execute these, use --group external-http.
+PHPUnit 9.6.38 by Sebastian Bergmann and contributors.
+
+FF                                                                  2 / 2 (100%)
+
+Time: 00:02.871, Memory: 82.50 MB
+
+There were 2 failures:
+
+1) PaidIntakeEvidenceTest::testFinalBoundaryQueryCannotReleasePrivateDtoAfterActorOrCapabilityLoss with data set #0 ('logout')
+The final transaction-boundary query cannot bypass current actor and native-capability admission.
+Failed asserting that Array (...) is an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:879
+/workspace/digiforge-lane-b-sprint/tests/wordpress/PaidIntakeEvidenceTest.php:52
+
+2) PaidIntakeEvidenceTest::testFinalBoundaryQueryCannotReleasePrivateDtoAfterActorOrCapabilityLoss with data set #1 ('capability')
+The final transaction-boundary query cannot bypass current actor and native-capability admission.
+Failed asserting that Array (...) is an instance of class "WP_Error".
+
+/workspace/digiforge-platform-sprint/wp-develop-released/tests/phpunit/includes/abstract-testcase.php:879
+/workspace/digiforge-lane-b-sprint/tests/wordpress/PaidIntakeEvidenceTest.php:52
+
+FAILURES!
+Tests: 2, Assertions: 10, Failures: 2.

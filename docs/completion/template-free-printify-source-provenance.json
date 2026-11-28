@@ -1,0 +1,33 @@
+[
+  {
+    "url": "https://developers.printify.com/",
+    "retrieved_date": "2026-10-21",
+    "http_status": 200,
+    "scrape_id": "01a15e24-8dee-7374-9fc4-31ac7cce7383",
+    "scope": "PUBLIC_DOCUMENTATION_NOT_AUTHENTICATED_PRODUCT_EVIDENCE",
+    "processed_markdown_sha256": "3ffa46ed8a6292b2657f754d6eacdcdd49e2d8120b6b51225d298ed5b3d72515"
+  },
+  {
+    "url": "https://help.printify.com/hc/en-us/articles/33200256364945-Will-my-design-be-resized-with-Printify-Choice",
+    "retrieved_date": "2026-10-21",
+    "http_status": 200,
+    "scrape_id": "01a15e27-7711-732c-be2d-e49f15b8d3c1",
+    "scope": "PUBLIC_DOCUMENTATION_NOT_AUTHENTICATED_PRODUCT_EVIDENCE",
+    "processed_markdown_sha256": "eb5587559dff4c7792bf9a9d0005d117574caef113f1bbb72e6fea86bfa880af"
+  },
+  {
+    "url": "https://help.printify.com/hc/en-us/articles/4483635618961-Will-my-design-be-scaled-up-or-down-based-on-the-garment-size",
+    "retrieved_date": "2026-10-21",
+    "http_status": 200,
+    "scope": "PUBLIC_DOCUMENTATION_NOT_AUTHENTICATED_PRODUCT_EVIDENCE",
+    "processed_markdown_sha256": "70738d2ee39b04432569b00568fe19ea6899b3961bfc0bb6dcce4e78c6e1fe37"
+  },
+  {
+    "url": "https://help.printify.com/hc/en-us/articles/11240165642641-How-do-I-use-the-design-templates",
+    "retrieved_date": "2026-10-21",
+    "http_status": 200,
+    "scrape_id": "01a15da7-dc92-722f-aaa6-de27d8cc6181",
+    "scope": "PUBLIC_DOCUMENTATION_REUSED_BATCH23_NOT_PRODUCT_CERTIFICATION",
+    "processed_markdown_sha256": "cfd6f65152cf50fd8f608d669e5d33f104dcca466e9656d0f87028d1ff1ff6a2"
+  }
+]

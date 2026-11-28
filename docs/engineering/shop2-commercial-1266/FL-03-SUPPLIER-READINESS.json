@@ -1,0 +1,70 @@
+{
+  "fixture_id": "FL-03",
+  "as_of": "2026-11-14T15:33:33Z",
+  "assessment": "REVISE_PROVIDER_COMMERCIAL_EVIDENCE_REQUIRED",
+  "saved_product_id_historical": "6ae98d61eb5d7e24b80ca0a6",
+  "saved_current_product_identity": null,
+  "catalog_blueprint_id_historical": 478,
+  "catalog_provider_id_historical": 28,
+  "provider_name_historical": "District Photo",
+  "catalog_ids_are_not_saved_binding": true,
+  "historical_observed_sku": "19779789605456636343",
+  "current_sku": null,
+  "selected_variant_ids": null,
+  "saved_provider_id_current": null,
+  "saved_blueprint_id_current": null,
+  "availability_current": null,
+  "routing_current": null,
+  "routing_enabled_historical": false,
+  "choice_upgrade_enabled_historical": false,
+  "us_eligibility_exact_variant_current": null,
+  "supplier_print_areas_px": null,
+  "supplier_safe_bleed_trim_seam_curvature": null,
+  "candidate_output_px": [
+    2475,
+    1155
+  ],
+  "candidate_effective_dpi": 300,
+  "candidate_geometry_is_supplier_certification": false,
+  "approved_core_mapping_id": null,
+  "approved_artwork_spec_id": null,
+  "historical_catalog_base_usd": "5.09",
+  "supplier_base_cost_current_minor": null,
+  "public_family_us_shipping_first_usd": "7.29",
+  "public_family_us_shipping_additional_usd": "3.09",
+  "public_family_shipping_rechecked_date": "2026-11-13",
+  "supplier_shipping_current_minor": null,
+  "historical_peak_surcharge_usd": "0.4",
+  "surcharge_current_minor": null,
+  "historical_average_production_days": "2.0",
+  "processing_min_days_current": null,
+  "processing_max_days_current": null,
+  "public_transit_business_days": [
+    2,
+    5
+  ],
+  "historical_editor_transit_business_days": [
+    4,
+    7
+  ],
+  "transit_is_total_arrival_promise": false,
+  "native_caps_historical": [
+    13,
+    13,
+    18
+  ],
+  "native_field_ids_font_version_weight_parity": null,
+  "buyer_preview_supplier_generated_media_qualification": null,
+  "source": {
+    "reference": "https://drive.google.com/file/d/16fh_tHcM146fnDtQgpHuVuE9P7ox2OX1/view#evidence/digiforge-final-consolidation-20261104/inputs/supplier/supplier-evidence-final.csv",
+    "member_sha256": "a635b20c23da780093f27a2d83ec6f6c785dad3392120568737a6697d61bc2f8",
+    "classification": "HISTORICAL_REPORTED_AUTHENTICATED_NOT_CURRENT_SAVED_IDENTITY"
+  },
+  "required_next_read_evidence": [
+    "Exact saved PRODUCT_READ and trusted producer receipt",
+    "Selected variant/SKU/provider/routing match against current VARIANTS_READ",
+    "US exact-variant standard SHIPPING_READ with currency/handling/observation/expiry",
+    "Supplier-native revised-art preview/geometry/fonts/media and rights",
+    "Current approved mapping/spec/product-version/plan binding"
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "schema": "isolated-photo-retained-lease-candidate-v1",
+  "candidate_base": "1be4dc9565d31683fdb5610bd8b71592c6df5a1d",
+  "initial_producer_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+  "producer_parent": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+  "method": "Exact eight published producer blobs only; no adapted owner probes, branch merge, AI/scanner source, primary/old-candidate mutation or source pin change.",
+  "retained_lease_api_status": "EXACT_PUBLISHED_SOURCE_IMPORTED",
+  "current_contract": "Retained witness validates read-lease ownership inside caller transaction; public photo admission still denies caller transactions. B owns provenance, identity locks, CAS and final authorization.",
+  "files": [
+    {
+      "path": "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "a8c1235ae6c6dce280b0466596d2b9b05e79ddc0",
+      "sha256": "61fe31b67a0c3a0fe1af0b661a95fa8b692dd05c15dba11d45855850cd79bb6f",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "4aa0b402123b78fcba77060d72db0fd2b4fb5e2c",
+          "sha256": "bbf9456f8dda8ca5406bf22d4c054fdb42bde758c8f16f773ac0ecb0a5e58084"
+        },
+        {
+          "source_commit": "8c1f4f98f7df4806504477ff5d91b9efb891cbc8",
+          "source_blob": "74c2aab3d28e333dc4f619813468d44237b0cfd2",
+          "sha256": "fb8ace148bfdaa338a0851229673449817fb533baf419670b6cd83665a0d82e4"
+        },
+        {
+          "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
+          "source_blob": "77b12b45b77001083bdb4a0f6d7d6bfa3a9b9ef6",
+          "sha256": "76c662f38cb3222f3534abf2daf4141d24c50d2ac0e986b8a6f351e36ce5e8ab"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/CustomerEditorRepository.php",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "e5d2906e2c0a908e987da69c6d3d54b294335baf",
+      "sha256": "99654aa2e06d6a27378b0874663fbfa6b0df00e9f77389efbae260153e116bc4",
+      "prior_b_sha256": "7383a810ad6b6f728157143e147a54fae073257240fafd3d0689fe4bf0c3e635",
+      "base_comparison": "EXACT_61D2",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "cdadf87ba890c7c26e380d25ef1a569009c50179",
+          "sha256": "7de22484a1373fc880d1b1b6142b90ac761275fbda8c322337b009ab38f185db"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/CustomerPhotoProducerFence.php",
+      "source_commit": "8c1f4f98f7df4806504477ff5d91b9efb891cbc8",
+      "source_blob": "153eb7bc524ab5d2dc1095eba6b8edc922e6b0ea",
+      "sha256": "ba417f69f6bc6b2d8e312c673bb5925629ba92e1b3f37bc264f30654529551d6",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "7bdb391727041a61dce7535da1d99ee2c16c3003",
+          "sha256": "a9356e33bb0bb10c5ac2411e01d2ec0d11923cca44e13dd4c054b21ba29af44a"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
+      "source_blob": "0a3ca526458a2e0d5972a7606c789276aa6b6e22",
+      "sha256": "8ea4dafac107195dbd705fcbbf39c63afed06c9ab5fecbe1f9f2e517e88f7006",
+      "prior_b_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+      "base_comparison": "EXACT_61D2",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "2ab072cf45008b0578c8d036cedf701a28345ff5",
+          "sha256": "02bfcd5bb50dac06946706f083c5f5351594dac318f0f030ab3a80aaa17e9fbe"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/RenderEvidenceRepository.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "9b2ac4156d38c9d69df71a201ed429ff5dfe52fe",
+      "sha256": "965406e16c0d4c77f024f87f8f13d0614f15ba2f17b26e81afb37f7027f9ea81",
+      "prior_b_sha256": "011c41674a896882d944aae69dd0910da986050c266b3f36f82202f48250547f",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "bb800d92a131b0c2265d48aa7b13a157383eda6b",
+      "sha256": "37aef912c0bda88ae803a143a55c6b6efa697760431a36c2797def89e4010eff",
+      "prior_b_sha256": "ae17532ac9a781f4fe6f7080fc43af484420504bf3f3b4af31111282a59246dc",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+      "source_blob": "aba1a1b7109fcdb8f8c65877e93e5242734838c5",
+      "sha256": "12cecac19f6f2f1cc98aa955e54c1c7b888a174e1645a52b0baec1785914b671",
+      "prior_b_sha256": null,
+      "base_comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+          "source_blob": "130f7058b95c19a502d5764405cc120aed44397b",
+          "sha256": "13d55a122dbc9f207ae121bf29cb0560ff6b41e414721db73983d76230d76164"
+        },
+        {
+          "source_commit": "8c1f4f98f7df4806504477ff5d91b9efb891cbc8",
+          "source_blob": "ce9422a527b38656b8f4e932b73bda614b7bbdb0",
+          "sha256": "e520cd5aad5c0718d06d4f62afadcb3354f05830265c22772b9ede35a88839af"
+        },
+        {
+          "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
+          "source_blob": "3fff269c89490352aba9e66312c1c59f41f12c8d",
+          "sha256": "3e325469fc823a38eb6d3428643a307e3383e94d696212c47444cd8ca39b2899"
+        },
+        {
+          "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+          "source_blob": "1d51d4bd2bf8981906713e92d6f3d09d508fbf30",
+          "sha256": "8ccc4d7315ebfdee4dbf19565bb53aa257df75a3771600c18315257b0405ba16"
+        }
+      ],
+      "last_owner_change_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6"
+    },
+    {
+      "path": "tests/wordpress/RenderArtifactCertificationTest.php",
+      "source_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+      "source_blob": "17df90fc47dd2929127f4305312a6b1d9dedfca2",
+      "sha256": "cf60594e927e0a6ccc53d3d7f532de8045539af2d87d3516aa00d684f8b8c93a",
+      "prior_b_sha256": "873d660fc5bd663f2a10a681bec5d7932ce66f5d0aa2dedfd513e022bdabc1fe",
+      "base_comparison": "EXACT_61D2"
+    },
+    {
+      "path": "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "prior_b_sha256": "3440004ea70d1ffc9e578d28835cac2ce881e1d0f9272a8aaaa892f381528d59",
+      "prior_b_blob": "570f1935d9f27faf9c36e6e0513ce611c3776c64",
+      "base_comparison": "EXACT_OWNER_PRE_FIX_PRIMARY_066721D6",
+      "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+      "source_blob": "f0339e93dcfa1071baf5f5691e3e89b3f452cb95",
+      "sha256": "bd87a8dbf2a158627ac9c432d0c6064b48f5c10f553ae25ba9f53a2b805b2c4f",
+      "last_owner_change_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6"
+    },
+    {
+      "path": "tests/wordpress/FinalConvergenceScenarioTest.php",
+      "prior_b_sha256": "f1a98e9d3e74a5a536a9baa941f77db06e2b9f91e4e0c9be328b47fddc699023",
+      "prior_b_blob": "055125043b45f42fb1eed07a166032d5ecba9be4",
+      "base_comparison": "EXACT_OWNER_PRE_FIX_PRIMARY_066721D6",
+      "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+      "source_blob": "e3040496549d21914932330e7f47d34e3f5f7a39",
+      "sha256": "ff71f3e57e5f275a15b100c24e910b678a0ccdd5d444f67398c0ecda8fcdd79b",
+      "last_owner_change_commit": "919b488a29260dfa4151049e18afba48649fa6ac"
+    },
+    {
+      "path": "tests/wordpress/RenderSourceArtifactIntegrityTest.php",
+      "prior_b_sha256": "2549179a537e4a5e5e7a1918e808761b5856930037ec5a7566e2ff3475610ab9",
+      "prior_b_blob": "3b1fe460b4d2aae4647ba54cd69ad1f2a60e5ebb",
+      "base_comparison": "EXACT_OWNER_PRE_FIX_PRIMARY_066721D6",
+      "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+      "source_blob": "ce20362e9de0f63dcf32b1f3e3ced5f38e288662",
+      "sha256": "6bd5a9333a5186702c1302d0e8b4b0ee9bef6d4aab1b7aee101b46ce46046e0b",
+      "last_owner_change_commit": "919b488a29260dfa4151049e18afba48649fa6ac"
+    },
+    {
+      "path": "tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
+      "source_commit": "52e363fda6c484ca9854ff831a574683e8a2479b",
+      "source_blob": "986e965d70c32cbdc4bd986797057d5796793bc3",
+      "sha256": "cde119046f43f158a3cd69ccd9d25d6d2945ab6b6db8cf1f867a426245252905",
+      "prior_b_sha256": "c31c5872ce7d132b19237bed4a2cfb2fad449b462af4e9c4f55b1febefa57c42",
+      "prior_b_blob": "bab707a6e9696a5ee6b95de5738d5d2c46d2a394",
+      "base_comparison": "EXACT_APPROVED_OWNER_PRE_FIX_PRIMARY_066721D6"
+    }
+  ],
+  "retained_lease_update": {
+    "source_commit": "8c1f4f98f7df4806504477ff5d91b9efb891cbc8",
+    "contract": "shop2-photo-retained-read-lease-v1",
+    "api": "validateRetainedReadLease",
+    "files": [
+      "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "includes/POD/CustomerPhotoProducerFence.php",
+      "tests/wordpress/CustomerPhotoCurrentReadTest.php"
+    ],
+    "excluded": "Unrelated AI/scanner source and52e363fd ShopAccessWorkflowAcceptanceTest delta; not dependencies of imported owner photo tests.",
+    "qualification": "PENDING_B_OWNER_ACTUAL_COMBINED_TESTS"
+  },
+  "independent_review_provenance_update": {
+    "source_commit": "a1004617980540ec668cea84d34a595024147ad8",
+    "contract": "shop2-photo-review-proof-v1",
+    "files": [
+      "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md",
+      "includes/POD/CustomerPhotoSelection.php",
+      "tests/wordpress/CustomerPhotoCurrentReadTest.php"
+    ],
+    "excluded": "Other interveningAI/scanner/Finance test/52eShopAccessfixture changes.",
+    "qualification": "PENDING_B_OWNER_ACTUAL_COMBINED_TESTS"
+  },
+  "fixture_isolation_919b_update": {
+    "source_commit": "919b488a29260dfa4151049e18afba48649fa6ac",
+    "prerequisite_commit": "f5deeba6b2b397dda292cd38cfc1a7ba3e301fe6",
+    "primary_base": "066721d66944b4fa9a42f4f89db1e4df2b8c8814",
+    "issue_receipts": [
+      "6913679118",
+      "6913516564"
+    ],
+    "files": [
+      "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "tests/wordpress/FinalConvergenceScenarioTest.php",
+      "tests/wordpress/RenderSourceArtifactIntegrityTest.php"
+    ],
+    "scope": "Four TEST-only source blobs; no runtime/guard/currentness changes. Existing assertions retained; captured incoming fixture IDs and every field restored.",
+    "qualification": "PENDING_FRESH_EMPTY_DB_INDEPENDENT_COMPOSITION_CURRENTREAD_LAST"
+  },
+  "owned_grant_fixture_52e_update": {
+    "source_commit": "52e363fda6c484ca9854ff831a574683e8a2479b",
+    "exact_blob_also_at": "919b488a29260dfa4151049e18afba48649fa6ac",
+    "file": "tests/wordpress/ShopAccessWorkflowAcceptanceTest.php",
+    "scope": "Approved three-line TEST-only owned fixture COMMIT/autocommit setup; all actual security assertions retained.",
+    "qualification": "PENDING_COMBINED_WEBSITE_SECURITY_FIRST_CURRENTREAD_LAST"
+  },
+  "operator_session_scope_950_update": {
+    "source_commit": "9509384c3b7248126142a860837195ec9443d8d8",
+    "producer_parent": "551a7aa9c0a552c08e00588f338ce8924ce39820",
+    "primary_base": "9a9f316256429a9d997172f97ab9ddeb1032c000",
+    "issue_receipt": "6915044917",
+    "contract": "shop2-editor-session-scope-v1",
+    "api": "CustomerEditorRepository::targetShopForSession(string): string|WP_Error",
+    "files": [
+      "includes/POD/CustomerEditorRepository.php",
+      "tests/wordpress/CustomerPhotoCurrentReadTest.php",
+      "docs/engineering/shop2-platform-1266/customer-photo-current-read-contract.md"
+    ],
+    "base_comparison": "Repository/doc exact551parent; CurrentRead exact919ownerbase plus2additive dd04ca9a reviewer-revocation cases carried in950 exactblob; no B-owned test edits displaced.",
+    "scope": "Fresh plain POD target observation through existing operator/session/proof authority only; storage VERSION/callback/approval bodies unchanged.",
+    "qualification": "PENDING_B_STORED_SESSION_TARGET_RESOLVER_AND_FOCUSED_TESTS"
+  }
+}

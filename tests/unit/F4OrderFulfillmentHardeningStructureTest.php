@@ -22,8 +22,12 @@ final class F4OrderFulfillmentHardeningStructureTest extends TestCase
         $repo=$this->repo();$controller=$this->controller();
         self::assertStringContainsString("'review_status'=>'UNREVIEWED'",$repo);
         self::assertStringContainsString("['APPROVED','REJECTED']",$repo);
-        self::assertStringContainsString("ps.review_status='APPROVED'",$repo);
-        self::assertStringContainsString('reviewed_by>0',$repo);
+        self::assertStringContainsString('(new PersonalizationCurrentness($this->personalizationContext))->forPlan(', $repo);
+        self::assertStringContainsString('if(is_wp_error($personalization))return $personalization;', $repo);
+        $current=(string)file_get_contents(__DIR__.'/../../includes/Orders/PersonalizationCurrentness.php');
+        self::assertStringContainsString("\$matches[0]['review_status']!=='APPROVED'", $current);
+        self::assertStringContainsString("(int)\$row['reviewed_by']<1", $current);
+        self::assertStringContainsString("empty(\$row['reviewed_at'])", $current);
         self::assertStringContainsString('/orders/personalizations/(?P<id>\\d+)/review',$controller);
     }
 

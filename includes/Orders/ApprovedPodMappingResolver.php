@@ -13,10 +13,12 @@ final class ApprovedPodMappingResolver {
   if(!is_array($rows)||!empty($wpdb->last_error))return new WP_Error('pod_mapping_evidence_unavailable','Approved listing-bound POD mapping evidence is unavailable; fulfillment mapping is blocked.',['status'=>503,'external_execution_authorized'=>false]);
   return count($rows)===1?(int)$rows[0]:0;
  }
- public static function isDigital(int $productVersionId):bool|WP_Error {
+ public static function isDigital(int $productVersionId, ?int $listingId=null):bool|WP_Error {
   if($productVersionId<1)return false;global $wpdb;$wpdb->last_error='';
   $raw=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::digital_products().' WHERE product_version_id=%d',$productVersionId));
   if(!empty($wpdb->last_error)||!is_numeric($raw))return new WP_Error('product_type_evidence_unavailable','Product type evidence is unavailable; fulfillment classification is blocked.',['status'=>503,'external_execution_authorized'=>false]);
-  return (int)$raw>0;
+  if((int)$raw===0)return false;
+  if($listingId!==null){$wpdb->last_error='';$bindings=$wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM '.Tables::listing_pod_bindings().' WHERE listing_id=%d',$listingId));if($wpdb->last_error!==''||!is_numeric($bindings))return new WP_Error('product_type_evidence_unavailable','Listing fulfillment mode evidence is unavailable; classification is blocked.');if((int)$bindings>0)return false;}
+  return true;
  }
 }

@@ -25,7 +25,10 @@ final class V6AiPreflightWebhookReconciliationStructureTest extends TestCase
     public function testBusinessKpisDoNotInventMissingDenominators():void
     {
         $model=file_get_contents(__DIR__.'/../../includes/AI/CostKpiReadModel.php');
-        foreach(['cost_per_opportunity','cost_per_qualified_opportunity','cost_per_developed_product','cost_per_approved_listing','cost_per_sale','cost_per_gross_profit'] as $kpi)self::assertStringContainsString("'".$kpi."'=>null",$model);
+        self::assertStringContainsString('CommercialCostKpiReadModel',$model);
+        $commercial=file_get_contents(__DIR__.'/../../includes/AI/CommercialCostKpiReadModel.php');
+        self::assertStringContainsString('FINANCE_DEFERRED',$commercial);
+        self::assertStringContainsString('NO_ATTRIBUTABLE_OUTCOMES',$commercial);
         self::assertStringContainsString('UNAVAILABLE_WITHOUT_ATTRIBUTABLE_DENOMINATORS',$model);
     }
 

@@ -1,0 +1,99 @@
+{
+  "schema": "audit5043-failure-identities-v1",
+  "head": "9a9f316256429a9d997172f97ab9ddeb1032c000",
+  "run": 43853306761,
+  "error_count": 1,
+  "failure_count": 19,
+  "cases": [
+    {
+      "class": "NativeBusinessVersionRepositoryTest",
+      "case": "testThrowingRollbackStillAttemptsBothLockReleasesAndReturnsUnknown"
+    },
+    {
+      "class": "OrderHeldJobWorkflowTest",
+      "case": "testActualRegisteredTwoStepEnqueueCreatesOnlyBlockedMetadataAndScopedInspection"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testActualEnqueueIsStableBlockedMetadataAndFreshKeyCannotRecreateIt"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExpiredActualLeaseQuarantinesOnceAndCannotBeReenqueued"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testLiveLeaseWrongTupleAndDifferentSignedActorCannotMutateJob"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testChangedSnapshotAndMalformedUnknownJobBlockFreshEnqueue"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testExplicitNullDependenciesCannotMasqueradeAsReadyEvidence"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testQuarantineDoesNotRequireOrCertifyCurrentPlanApproval"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testOuterTransactionAndFailedAuditPreserveExpiredJob"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #0"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #1"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #2"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #3"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testUnexpectedNewJobDefaultsCannotBeAccepted with data set #4"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testConcurrentLineChangeCannotCommitAnApparentlyCurrentStaleEnqueue"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #0"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testModuleRevocationDuringCommitCannotReturnMutationSuccess with data set #1"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerStartsActualHeldJobAndCrashesBeforeCompletion"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testSeparatePhpWorkerLostCommitAcknowledgementLeavesQuarantineConsumed"
+    },
+    {
+      "class": "Shop2HeldJobRecoveryTest",
+      "case": "testDurableCommitWithFalseDriverResultIsExplicitlyUnknownAndCannotReplay"
+    }
+  ],
+  "conclusion": "FAILURE",
+  "stage": "WordPress database integration tests",
+  "wordpress_tests": 2215,
+  "assertions": 87025,
+  "skipped": 5,
+  "root_causes": {
+    "held_queue_cases": "Recovery and dispatcher enqueue used the default photo reader inside an owned transaction; the strict public reader correctly denied. Reused the existing private-issued retained NULL context with current locked B data.",
+    "native_version_case": "Fault injection threw on an earlier photo read lease release, before reaching its intended business audit and rollback. Phase-scoped fixture now verifies both actual owned business-version lock releases."
+  },
+  "resolved_in_affected_composition": 20
+}

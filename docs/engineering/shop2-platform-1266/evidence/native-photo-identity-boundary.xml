@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoNativeAssociationIdentityBoundaryTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoNativeAssociationIdentityBoundaryTest.php" tests="1" assertions="7" errors="0" warnings="0" failures="0" skipped="0" time="5.967961">
+    <testcase name="testCatalogPhotoMappingCannotBeAssumedSavedProviderProductIdentity" class="CustomerPhotoNativeAssociationIdentityBoundaryTest" classname="CustomerPhotoNativeAssociationIdentityBoundaryTest" file="/workspace/digiforge-lane-b-sprint/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoNativeAssociationIdentityBoundaryTest.php" line="8" assertions="7" time="5.967961"/>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,12 @@
+{
+  "purpose": "Exact owner-requested product preparation scope; no grant or activation",
+  "baseline_sha256": "5ead3406039ed8d1113141987499cd03339b599c066d978b44689215279c2811",
+  "overlay_sha256": "e48d64e7d1bf2f08c50cb0228ab76b082ae3d7c7dc085ec58fb5fac8d494b5cf",
+  "hunks": [
+    {
+      "baseline_text": "[self::CAPABILITY,'printify.connection.read'",
+      "reviewed_text": "[self::CAPABILITY,'printify.product.prepare','printify.connection.read'"
+    }
+  ],
+  "external_authority_granted": false
+}

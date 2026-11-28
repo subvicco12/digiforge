@@ -1,0 +1,85 @@
+{
+  "schema": "lane-b-photo-tracking-checkpoint-v1",
+  "recorded_at_utc": "2026-11-16T05:21:08.595440+00:00",
+  "remote_source": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+  "local_source_base": "5879b150afafc717dbe202cff283d5d705a15e5d",
+  "qualification": "PARTIAL_NOT_ACCEPTED",
+  "implemented": [
+    "Exact authoritative nullable photo resolver consumption; no arbitrary error-to-legacy fallback",
+    "Selected submission/schema/product/mapping and selection SHA/revision joins in readiness, DRAFT plans and held bundles",
+    "Actual stored-render verifier composition denies same-pixel old recipe epochs",
+    "Final actor/shop admission after held preparation and private tracking receipt reads",
+    "Exact Lane A photo fixture cleanup; synthetic-only legacy fixture reset"
+  ],
+  "clean_composition": {
+    "tests": 50,
+    "assertions": 2345,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junit": "evidence/photo-b-composed-20261116.xml",
+    "source_hashes": "evidence/photo-b-composed-source-hashes-20261116.json",
+    "command": "evidence/photo-b-composed-command-20261116.txt",
+    "scope": "Actual source modules and disposable fixtures; all six B photo tests; separate native-business held and artwork-owner verifier fixtures, not a single certified native end-to-end workflow."
+  },
+  "known_security_failures": {
+    "tests": 2,
+    "assertions": 22,
+    "failures": 2,
+    "errors": 0,
+    "evidence": "evidence/known-owner-current-read-failure.md",
+    "default_suite": "Reproduction is explicitly outside default acceptance suite; green default CI does not resolve these failures.",
+    "risks": [
+      "A public current-selection reader returns old epoch from existing RR snapshot after independent committed replacement",
+      "B legacy NULL fallback returns stale input after first managed selection commits; positive-managed transaction guard does not close this case"
+    ]
+  },
+  "other_focused_evidence": {
+    "tracking_recent": {
+      "tests": 22,
+      "assertions": 309,
+      "note": "Includes existing tracking plus new selected/all-shop admission cases; overlaps five cases in clean50."
+    },
+    "managed_photo": {
+      "tests": 6,
+      "assertions": 77,
+      "note": "Included in clean50; not additive."
+    }
+  },
+  "ci": {
+    "audit_number": 5031,
+    "run_id": 43802656852,
+    "source": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+    "observed_status": "in_progress",
+    "conclusion": null,
+    "new_source_pushed": false,
+    "new_source_CI": "NOT_DISPATCHED_TO_AVOID_CANCELING_5031"
+  },
+  "artifact_evidence": "ARTIFACT_SOURCE_EQUIVALENCE_20261116.md; independently rebuilt exact4ef Git export verified, no unavailable CI-byte match claimed",
+  "capabilities": {
+    "accepted_preserved": [
+      "S2-ORD-04"
+    ],
+    "newly_promoted": [],
+    "total": 151,
+    "independently_accepted": 32,
+    "implemented": 100,
+    "partial": 43,
+    "missing": 8,
+    "note": "Original151 baseline preserved; these engineering slices do not establish complete additional capability acceptance."
+  },
+  "remaining_dependencies": [
+    "Lane A authoritative current/fenced reads including legacy NULL within caller transactions",
+    "Independent native transactional allocation/CAS, durable journal/UNKNOWN recovery, authenticated sender/receipts, revocation and credential custody",
+    "Terminal5031 then existing-PR push and new exact-head CI",
+    "Complete final source pairing and installed/hosted acceptance"
+  ],
+  "safety": {
+    "stop_all": true,
+    "external_lock": true,
+    "automation": false,
+    "manual_production_approval_required": true,
+    "release_hold": true,
+    "external_execution_authorized": false
+  }
+}

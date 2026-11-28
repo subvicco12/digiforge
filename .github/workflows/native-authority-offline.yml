@@ -1,0 +1,146 @@
+name: Native authority focused offline integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/native-authority/**'
+      - 'includes/Orders/PersonalizationCurrentness.php'
+      - 'includes/Orders/PersonalizationReadContext.php'
+      - 'includes/Portal/OrderLocalWorkflow.php'
+      - 'includes/Queue/Shop2HeldJobRecovery.php'
+      - 'includes/Connector/Printify/NativeBusinessOrderEvidence.php'
+      - 'includes/Connector/Printify/NativeBusinessVersionRepository.php'
+      - 'tests/wordpress/NativeManagedOrderAssociationCompositionTest.php'
+      - 'tests/browser/shop2-buyer-held.cjs'
+      - 'tests/browser/shop2-buyer-held/**'
+      - 'tests/wordpress/CustomerPhotoHeldIntegrationTest.php'
+      - 'phpunit.wordpress.xml.dist'
+      - 'phpunit.wordpress.authority.xml.dist'
+      - 'composer.json'
+      - 'tests/offline/test_wordpress_environment_profiles.py'
+      - 'tests/unit/Phase4ConvergenceStructureTest.php'
+      - '.gitattributes'
+      - '.github/workflows/native-authority-offline.yml'
+  push:
+    branches: ['native/authority-implementation-20261117']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-authority-offline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  actual-offline-composition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      mariadb:
+        image: docker.io/library/mariadb:10.11@sha256:7db29378d4fdab73f8123bbc2b48905c90d1a4b00cf848b028f1e81e623257f2
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: digiforge_tests
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Actual cryptography, durable storage, HTTP and separate role processes
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p evidence
+          node --test --test-isolation=none --test-reporter=junit services/native-authority/test/*.test.mjs > evidence/native-junit.xml
+          node --input-type=module -e 'import {serviceBuildDigest} from "./services/native-authority/config.mjs"; console.log(JSON.stringify({source_sha:process.env.SOURCE_SHA,build_digest:serviceBuildDigest(),mode:"OFFLINE_TEST",production_qualified:false}))' > evidence/source.json
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prepare existing pinned offline artwork processor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/digiforge-cutout-runtime"
+          "$RUNNER_TEMP/digiforge-cutout-runtime/bin/pip" install --disable-pip-version-check -r includes/POD/offline/requirements.txt
+          echo "DIGIFORGE_CUTOUT_PYTHON=$RUNNER_TEMP/digiforge-cutout-runtime/bin/python" >> "$GITHUB_ENV"
+          site_path=$("$RUNNER_TEMP/digiforge-cutout-runtime/bin/python" -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+          echo "PYTHONPATH=$site_path" >> "$GITHUB_ENV"
+
+      - name: Audit the existing offline processor dependencies
+        run: python3 bin/audit-cutout-dependencies.py
+
+      - name: Prepare existing disposable WordPress harness
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq subversion default-mysql-client
+          bash bin/install-wp-tests.sh digiforge_tests root root 127.0.0.1:3306 latest
+
+      - name: Shared personalization projection contract
+        run: vendor/bin/phpunit -c phpunit.xml.dist tests/unit/Phase4ConvergenceStructureTest.php --log-junit evidence/projection-junit.xml
+
+      - name: Actual WordPress reviewer and held-plan composition
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist services/native-authority/wordpress/tests --log-junit evidence/wordpress-junit.xml
+
+      - name: Existing Lane B consumers with optional bridge absent
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit -c phpunit.wordpress.xml.dist --filter 'CustomerPhotoHeldIntegrationTest|OrderLocalWorkflowTest|Shop2HeldJobRecoveryTest|NativeBusinessOrderEvidenceTest|NativeBusinessVersionRepositoryTest|PrintifyWebhookTransactionBoundaryTest' --log-junit evidence/consumer-regression-junit.xml
+
+      - name: Governed managed order-association producer with qualified review backend
+        env:
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+        run: vendor/bin/phpunit --configuration phpunit.wordpress.authority.xml.dist --log-junit evidence/managed-producer-junit.xml
+
+      - name: Real WordPress buyer editor and held-order browser composition
+        timeout-minutes: 25
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/shop2-browser-cache
+          DF_LOCAL_BROWSER_DISPOSABLE: '1'
+          DF_BROWSER_CORE: /tmp/wordpress
+          WP_TESTS_DIR: /tmp/wordpress-tests-lib
+          DF_BROWSER_TEST_CONFIG: /tmp/wordpress-tests-lib/wp-tests-config.php
+          DF_BROWSER_NO_SANDBOX: '1'
+          DF_SHOP2_BROWSER_EVIDENCE: evidence/shop2-browser.json
+        run: |
+          runtime="$RUNNER_TEMP/shop2-browser"
+          npm install --prefix "$runtime" --ignore-scripts --save-exact playwright@1.62.1
+          node "$runtime/node_modules/playwright/cli.js" install --with-deps chromium
+          export NODE_PATH="$runtime/node_modules"
+          export DF_BROWSER_EXECUTABLE="$(node -e 'process.stdout.write(require("playwright").chromium.executablePath())')"
+          node tests/browser/shop2-buyer-held.cjs
+
+      - name: Verify service remains outside WordPress export
+        run: |
+          git diff --check
+          git archive HEAD > "$RUNNER_TEMP/native-export.tar"
+          if tar -tf "$RUNNER_TEMP/native-export.tar" | grep -q '^services/'; then
+            echo 'Independent service leaked into plugin export'
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-offline-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/
+          if-no-files-found: error

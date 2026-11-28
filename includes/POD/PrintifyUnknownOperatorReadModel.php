@@ -7,9 +7,10 @@ use DigiForge\Database\Tables;
 /** Read-only operator queue for ambiguous Printify outcomes. No retry or provider mutation. */
 final class PrintifyUnknownOperatorReadModel
 {
- public function summary():array{
+ public function summary(?string $shop=null):array{
   global $wpdb;
-  $rows=$wpdb->get_results('SELECT id,authorization_hash,unknown_hash,request_fingerprint,recorded_at FROM '.Tables::pod_execution_unknowns().' ORDER BY id DESC',ARRAY_A);
+  $unknown=Tables::pod_execution_unknowns();$scope=$shop===null?'':' WHERE EXISTS (SELECT 1 FROM '.Tables::pod_authorization_bindings().' scope_binding INNER JOIN '.Tables::pod_authorization_packages().' scope_package ON scope_package.id=scope_binding.package_id AND scope_package.package_hash=scope_binding.package_hash INNER JOIN '.Tables::orders().' scope_order ON scope_order.id=scope_package.order_id WHERE scope_binding.authorization_hash='.$unknown.'.authorization_hash AND '.\DigiForge\Listings\EtsyStoredShopScope::orderPredicate($shop,'scope_order').')';
+  $wpdb->last_error='';$rows=$wpdb->get_results('SELECT id,authorization_hash,unknown_hash,request_fingerprint,recorded_at FROM '.$unknown.$scope.' ORDER BY id DESC',ARRAY_A);
   if(!is_array($rows)||!empty($wpdb->last_error))return ['query_state'=>'UNAVAILABLE','unknown_outcomes'=>null,'unresolved_reconciliations'=>null,'resolved_review_required'=>null,'retry_permitted'=>false,'external_execution_state'=>'UNKNOWN','external_execution_performed'=>null,'items'=>[]];
   $items=[];$unresolved=0;$review=0;
   foreach((array)$rows as $row){

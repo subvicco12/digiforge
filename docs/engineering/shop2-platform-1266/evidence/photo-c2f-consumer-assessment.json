@@ -1,0 +1,103 @@
+{
+  "schema": "photo-c2f-consumer-assessment-v1",
+  "candidate_base": "75ee5c9d4117d6a627930fed5d0f00bf89ef7395",
+  "producer_commit": "c2f8dcf4315b591ad415de53bbc77c7d8bcc5354",
+  "candidate_only": true,
+  "primary_runtime_modified": false,
+  "a_blobs_exact": true,
+  "assessment": "EXPLICIT_DENIAL_SAFETY_PASS; LEGACY_TRANSACTION_AVAILABILITY_REGRESSION; NOT_COMPATIBLE_INTEGRATION_ACCEPTANCE",
+  "repro_adaptation": "Public epoch/legacy-NULL primes moved to autocommit before START because the new public contract denies any caller transaction. Both old-snapshot final criteria still require exact denial; before/after independent commits pending writes remain visible and transaction remains active; only test rollback removes the marker. Markers use wp_comments to avoid A option-CAS scan lock interference.",
+  "runs": [
+    {
+      "name": "owner_rr",
+      "meaning": "explicit denial before and after independently committed photo revisions",
+      "tests": 2,
+      "assertions": 44,
+      "failures": 0,
+      "failed_methods": [],
+      "xml": "docs/engineering/shop2-platform-1266/evidence/photo-c2f-owner-rr.xml",
+      "workspace_log": "/tmp/photo-c2f-owner-rr.log"
+    },
+    {
+      "name": "stable_managed_tx",
+      "meaning": "stable managed selection inside caller transaction",
+      "tests": 1,
+      "assertions": 14,
+      "failures": 0,
+      "failed_methods": [],
+      "xml": "docs/engineering/shop2-platform-1266/evidence/photo-c2f-stable-managed.xml",
+      "workspace_log": "/tmp/photo-c2f-stable-managed.log"
+    },
+    {
+      "name": "legacy_local",
+      "meaning": "unmodified 14-case local order confirmation suite",
+      "tests": 14,
+      "assertions": 50,
+      "failures": 8,
+      "failed_methods": [
+        "testRegisteredPostPreviewAndConfirmationApproveOrderThenCreateDraftWithoutHttp",
+        "testActorRevocationAfterWriteRollsBackBeforeCommit",
+        "testFreshSecondPlanGetsAnImmutableDistinctVersion",
+        "testExistingDraftHasSeparateLocalPlanReviewApprovalAndBlockedHeldIntentActions",
+        "testPlanReviewDeniesStaleFrozenQuantityCorruptSnapshotsAndForeignPlan",
+        "testPlanSelectionCannotBeChangedToAnotherValidPlanAfterPreview",
+        "testFailedHeldIntentWriteConsumesConfirmationAndLeavesApprovedPlanHeld",
+        "testPlanTransitionsDenyUnexpectedApprovalMetadataFromActualWrite"
+      ],
+      "xml": "docs/engineering/shop2-platform-1266/evidence/photo-c2f-legacy-local.xml",
+      "workspace_log": "/tmp/photo-c2f-legacy-local.log"
+    },
+    {
+      "name": "autocommit_full_photo",
+      "meaning": "unmodified complete autocommit photo/render/package/held workflow",
+      "tests": 1,
+      "assertions": 35,
+      "failures": 0,
+      "failed_methods": [],
+      "xml": "docs/engineering/shop2-platform-1266/evidence/photo-c2f-autocommit-full.xml",
+      "workspace_log": "/tmp/photo-c2f-autocommit-full.log"
+    }
+  ],
+  "unchanged_b_files": [
+    {
+      "path": "tests/wordpress/OrderLocalWorkflowTest.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "ea48a3f83cbe9d94a73962e141cedf37e927474594355908b1bf11d4e671299a"
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoHeldIntegrationTest.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "3920b67d737a621606abc64f13aca48272ac48ce833eb8977eef90101297a462"
+    },
+    {
+      "path": "includes/Orders/PersonalizationCurrentness.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "f3dca6fa1517de4b17b98fb85b1acd818e0ccbfe17f8338b419d9ab0bdd26741"
+    },
+    {
+      "path": "includes/Orders/Repository.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "33053d1861eb94bac76d6ad9c1f8de9108f8838abf5d8b852993d34bf1bc0995"
+    },
+    {
+      "path": "includes/Orders/HeldFulfillmentPreparation.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "203b5f44f43d03d1dcd5377a8ece0c7775ecd9fcfb06bc5f72a49bd30d60146a"
+    },
+    {
+      "path": "includes/Portal/OrderLocalWorkflow.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "cfeb33460dc2f5e7542aa26823abdfed68295c25acbd4b5086020dc517b5b42c"
+    },
+    {
+      "path": "includes/Portal/OrderArtifactInspection.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "2106b7382ea5893b8cdc7f3876e57109b53585b20f6cf8573cfdeb266f185258"
+    },
+    {
+      "path": "includes/POD/ProductionAuthorizationRepository.php",
+      "unchanged_from_candidate_base": true,
+      "sha256": "6bd3fccb33afad88013bb34a8322d282af0be57cfa7a365fb99699378fdfbfa3"
+    }
+  ]
+}

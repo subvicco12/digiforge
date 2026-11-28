@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" tests="6" assertions="67" errors="0" warnings="0" failures="0" skipped="0" time="25.115426">
+    <testcase name="testEnqueueRetainsActualPhotoReadLeaseUntilItsOwnedCommit" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="48" assertions="10" time="5.480393"/>
+    <testcase name="testEnqueueCannotAdmitOrCommitCallerTransaction" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="72" assertions="9" time="2.332300"/>
+    <testcase name="testRevocationDuringFinalPhotoLeaseReleaseDeniesCommittedEnqueueResponse" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="84" assertions="10" time="3.706264"/>
+    <testsuite name="Shop2HeldJobRecoveryTest::testUnknownEnqueueCommitCleansOriginalFrameBeforeReleasingPhotoLease" tests="2" assertions="25" errors="0" warnings="0" failures="0" skipped="0" time="7.489485">
+      <testcase name="testUnknownEnqueueCommitCleansOriginalFrameBeforeReleasingPhotoLease with data set &quot;durable lost acknowledgement&quot;" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="99" assertions="13" time="3.786863"/>
+      <testcase name="testUnknownEnqueueCommitCleansOriginalFrameBeforeReleasingPhotoLease with data set &quot;pending frame without acknowledgement&quot;" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="99" assertions="12" time="3.702622"/>
+    </testsuite>
+    <testcase name="testActorChangedByLastNativeCapabilityCheckCannotReceiveCommittedJobMetadata" class="Shop2HeldJobRecoveryTest" classname="Shop2HeldJobRecoveryTest" file="/workspace/digiforge-lane-b-sprint/tests/wordpress/Shop2HeldJobRecoveryTest.php" line="118" assertions="13" time="6.106983"/>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,127 @@
+{
+  "schema": "digiforge-audit-terminal-receipt-v1",
+  "number": 5027,
+  "run_id": 43792492020,
+  "job_id": 133053882672,
+  "head_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+  "status": "completed",
+  "conclusion": "success",
+  "completed_at": "2026-11-16T04:04:43Z",
+  "url": "https://github.com/subvicco12/digiforge/actions/runs/43792492020",
+  "all_reported_job_steps_success": true,
+  "wordpress": {
+    "tests": 2126,
+    "assertions": 79678,
+    "skipped": 5,
+    "failures": 0,
+    "errors": 0
+  },
+  "unit": {
+    "tests": 2268,
+    "assertions": 12058,
+    "skipped": 1
+  },
+  "dedicated_ORD04": {
+    "independent_tests": 3,
+    "independent_assertions": 191,
+    "composition_tests": 96,
+    "composition_assertions": 1577,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "three_ingress_methods_present_in_CI_debug_log": true
+  },
+  "credential_gate": {
+    "status": "PASS",
+    "reachable_commits": 3131,
+    "raw_findings": 27,
+    "actionable_findings": 0
+  },
+  "required_gates": [
+    "WordPress database integration",
+    "browser acceptance",
+    "official Action Scheduler",
+    "credential history",
+    "HTTP policies",
+    "reproducible package build",
+    "package boundaries and expected commit manifest",
+    "artifact upload"
+  ],
+  "artifact": {
+    "id": 14197110578,
+    "name": "digiforge-plugin-aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+    "archive_sha256": "bbba2e8caee88841930b72a02ccdc53896ba72e5b28a00bf1501fdaf1a4676ee",
+    "archive_size": 3308311,
+    "created_at": "2026-11-16T04:04:36Z",
+    "expires_at": "2026-11-30T04:04:35Z",
+    "workflow_head_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+    "url": "https://api.github.com/repos/subvicco12/digiforge/actions/artifacts/14197110578"
+  },
+  "independent_package_build": {
+    "source_commit": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+    "archive_sha256": "fd2c0955575cd72fd29cb40c0996ceedbdbcfc6de3240944a2750a901242e2ee",
+    "archive_bytes": 3466442,
+    "manifest": {
+      "schema": "digiforge-release-manifest-v1",
+      "plugin_version": "1.0.103.25",
+      "database_schema_version": "23",
+      "commit_sha": "aa4e7f37551d0f0048d27a6b1ce407d1fc5327d8",
+      "artifact": "digiforge.zip",
+      "sha256": "fd2c0955575cd72fd29cb40c0996ceedbdbcfc6de3240944a2750a901242e2ee",
+      "file_count": 900,
+      "external_actions_performed": false,
+      "production_activation_authorized": false
+    },
+    "critical_runtime_files_match_source_and_witness": [
+      {
+        "path": "includes/REST/EtsyWebhookController.php",
+        "sha256": "2ea174b9091b30e848a127f3468355f33e39d97a73de6cd297ae468ff3960c45"
+      },
+      {
+        "path": "includes/Listings/EtsyWebhookVerifier.php",
+        "sha256": "46a3abf5a4e7958b73dde3a0c680f3210e3bc7ca6fc2411a7dc3c1af5d84a74b"
+      },
+      {
+        "path": "includes/Listings/EtsyWebhookIntake.php",
+        "sha256": "70c38e7afc84722595a371475ff1795b3920cc3e5bfd65755132b3043b171be0"
+      },
+      {
+        "path": "includes/Listings/EtsyWebhookDeduplicator.php",
+        "sha256": "0971009aedc23466f0bccc1dea187f9668ccf92deb2dae2b8b3bc98dc255994b"
+      },
+      {
+        "path": "includes/Listings/WebhookEvidenceRepository.php",
+        "sha256": "d9ea3c0f0c4640490e92b58d16ddcfb4d9e5d28d3fed8f2f4cfeaba18a5ce894"
+      },
+      {
+        "path": "includes/Listings/EtsyOrderWebhookLifecycle.php",
+        "sha256": "13ed5eac1281d72343ece2893d94168935c2672d51cae61aff868afd3f6e3604"
+      },
+      {
+        "path": "includes/Listings/EtsyOrderListingResolver.php",
+        "sha256": "db70d9b402976259edc0a1c4739efbda7b61432d42528ca4fc24463c6faf51db"
+      },
+      {
+        "path": "includes/Orders/ApprovedPodMappingResolver.php",
+        "sha256": "959b164bb1539b569ded0e744a7fe5bcf526a955d5a12b94cf1e10df17218d5e"
+      },
+      {
+        "path": "includes/Orders/Repository.php",
+        "sha256": "943523e307aa7b4039e49051beb998045e2f521a8a6aa0498ed7eb53deadc4cf"
+      },
+      {
+        "path": "includes/POD/BusinessScopeRepository.php",
+        "sha256": "b55be9a531a832f8fe8d9d9e18ef63df400ca92283d01b56dd557ce3cfe541b9"
+      }
+    ],
+    "zip_crc": "PASS",
+    "package_boundaries": "PASS",
+    "installed": false,
+    "deployed": false,
+    "ci_comparison": "PENDING_TERMINAL_AUDIT5027_ARTIFACT"
+  },
+  "artifact_comparison_limit": "Connected GitHub download returned a reusable file reference, but execution receiver and CLI redirect returned HTTP403, including one network escalation. No automatic approval rejection occurred. No independent CI inner-ZIP byte comparison is claimed. CI package verification passed; separate local exact-source build and10runtime/source/witness comparisons passed. Do not repeat a broad artifact investigation.",
+  "installed_status": "UNKNOWN_CURRENT_BYTES",
+  "production_activation_authorized": false,
+  "external_actions_performed": false
+}

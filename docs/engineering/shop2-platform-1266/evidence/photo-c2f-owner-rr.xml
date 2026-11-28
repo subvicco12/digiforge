@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" tests="2" assertions="44" errors="0" warnings="0" failures="0" skipped="0" time="2.987285">
+    <testcase name="testActualProducerSelectionCannotRemainOldAcrossCommittedSamePixelRevision" class="CustomerPhotoOwnerCurrentReadFailureReproTest" classname="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" line="8" assertions="25" time="1.715286"/>
+    <testcase name="testLegacyNullCannotRemainAfterFirstManagedSelectionCommitted" class="CustomerPhotoOwnerCurrentReadFailureReproTest" classname="CustomerPhotoOwnerCurrentReadFailureReproTest" file="/workspace/digiforge-platform-sprint/photo-c2f-integration/docs/engineering/shop2-platform-1266/evidence/CustomerPhotoOwnerCurrentReadFailureReproTest.php" line="15" assertions="19" time="1.271999"/>
+  </testsuite>
+</testsuites>

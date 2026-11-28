@@ -1,0 +1,290 @@
+{
+  "schema": "lane-a-photo-source-import-v1",
+  "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+  "prerequisite_commits": [
+    "e8960fb28f98cf04a543322a04f819ff89f0ad09",
+    "73d8d2a188797d93b1189379e9518898cfbf0c9f"
+  ],
+  "b_head_at_import": "4ef63d8bc2ef2ea60459e1d8c428e927637cfd22",
+  "method": "Exact final source blobs from bounded union of three photo commits; all existing files matched fc997474 baseline; no branch merge or unrelated source import.",
+  "file_count": 23,
+  "existing_baseline_count": 9,
+  "new_file_count": 14,
+  "consumer_integration": "PENDING_B_OWNER",
+  "capability_acceptance": "PENDING_INDEPENDENT_COMBINED_TESTS",
+  "source_pins_changed": false,
+  "files": [
+    {
+      "path": "assets/customer-editor.css",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "2c0b7e1c0335c817aeb27d5fbbd11feef29d19b7",
+      "source_sha256": "6889909a0c5b3ce22cdf8d2623cd35b2ba90a39cbc9586c47356dbcf242a9977",
+      "previous_b_sha256": "5a38abb0b648b64adeea21f21dc5fac2bfc9b3bb3c874e6c0860e09561c4a631",
+      "previous_b_blob": "ef1c5b431446bc95330a1442626ae509098186fe",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "assets/customer-editor.js",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "dd4f8069bf14de4c53b949b8985c0367b7a96e2f",
+      "source_sha256": "e43f7fb2fa87c1c44065a646e5833396e018b78349acbba43c1ed69c379d02ee",
+      "previous_b_sha256": "9fabde50d2d1892ddd817474da21181a81a0934e48bb52f56c513e8a0829e169",
+      "previous_b_blob": "c42ff2cf22d5dfcb6a9e7f1818f59bf1de280c2d",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "docs/engineering/shop2-factory-1266/CAPABILITY_DELTA_20261116.json",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "dda69087831c6c0d6242f5f3c38cddcc856d358a",
+      "source_sha256": "49562d48f6956f1490a189e4c3c87d78de81075b11dab7ca7c343df8bf5ecb66",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "docs/engineering/shop2-factory-1266/PHOTO_EDITOR_BATCH_20261116.md",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "5f9f9e7204df82104df6a1767bdb9e0fb3a4bbcb",
+      "source_sha256": "17e7b07fbb4fb755b3c241b4d1676778d5557804d8a04d6a6824ecca21786bb8",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "docs/engineering/shop2-factory-1266/PHOTO_RENDER_CAPABILITY_DELTA_20261116.json",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "ff30407de56b873e6c9f473e595b7182ab8743df",
+      "source_sha256": "59cab146e33f06c623ef8b0e2ae5a6a55e83f34e5a6beeb0ce3d00685c647b11",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "docs/engineering/shop2-factory-1266/PHOTO_RENDER_SELECTION_HANDOFF_20261116.md",
+      "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+      "source_blob": "e58195872c8ecc5e11a8f0c1c2efa591ea203b38",
+      "source_sha256": "92fb6e4c4fa25d8211f1073e1712234d890d5f756ecdc499e471bfcaa3739e20",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+          "source_blob": "6577e761c0262cab444b9b01a486a162c6abb3a7",
+          "source_sha256": "eb1ecde01373cc62f3fe381939faa20b8bf78b8c15520e61b25f374699cbefea"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/CustomerEditorRepository.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "c1871dc9d32265422268e1d281171a5587a64209",
+      "source_sha256": "7383a810ad6b6f728157143e147a54fae073257240fafd3d0689fe4bf0c3e635",
+      "previous_b_sha256": "18d40109973152306a0180347566bf2464435b0f27b1db28bb69f32bf503709d",
+      "previous_b_blob": "1653f9e49cc5056c55a7aa404e0811a26b1cf359",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "includes/POD/CustomerEditorWorkflow.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "ce919a06ed246d612051d6fadf1dec17f70cb7f1",
+      "source_sha256": "383e47e51b8ca6c48ee0e44d411ea60a9f985098e25b65b9ec9c58e7e9be71cd",
+      "previous_b_sha256": "10c4d1bbbe02ff00f14a6e10ea308a4447d037447a7830a165af29836f695a47",
+      "previous_b_blob": "9cce63d6e107bf464a7216341d8d00203b7edb8e",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "includes/POD/CustomerPhotoSelection.php",
+      "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+      "source_blob": "c3c52e155a086eec09590697cad8f3f79bdeb6c4",
+      "source_sha256": "aa4c941a87bac4c5f63af51221f3cee95210e5b88fb737ab18a3c981d3a2b5e5",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+          "source_blob": "533e1570cc9b9caae31e33dd8b6b330f3b7191ea",
+          "source_sha256": "847b831184d981f9983b075c7d5f4a0d9d867bda1491fa564aa9b17cdc90a1d8"
+        }
+      ]
+    },
+    {
+      "path": "includes/POD/DeterministicPersonalizationRenderer.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "1d0b5882e2e6c6424f1a915268e172efcbb39d9b",
+      "source_sha256": "cf7f0cc4c6865e2cf896cc9009c33324411bbacbd0617deb1b45bc6e489d0bc1",
+      "previous_b_sha256": "3e1d38afdcf07a83559ef680b21a12b4b1984c6f9b48815ae673c3ce06f20047",
+      "previous_b_blob": "01bfa66c42c99e0791d5bc50bccfdae85a2b2db1",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "includes/POD/PhotoCrop.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "008dbdfbb76a7b9595aee2365f594582b72eb0fe",
+      "source_sha256": "f931a7ce6be6b8b55b5c7fbe34b9149ea2ac66024212705c3ec02adaaf22de3e",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "includes/POD/RenderArtifactVerifier.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "d36dec74a1d913f8405091ba3eddeae10ceb45d0",
+      "source_sha256": "244db91c0cbdf9f7e87b6c621d09cf7e406e1a021c73127fac90f53c7b650662",
+      "previous_b_sha256": "1137da7bb119177ce45d86e65a5500302a20c777a3219ed3fe5bfd9f2974e384",
+      "previous_b_blob": "51895a72410cf26fec203571b853fa9866571dcc",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "includes/POD/RenderEvidenceRepository.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "93110ec15b9b8529ed83b97816778eb03c10c841",
+      "source_sha256": "011c41674a896882d944aae69dd0910da986050c266b3f36f82202f48250547f",
+      "previous_b_sha256": "36a13532530161105b33be851eeec6f6be08d61cf4cfc642e830b36230b37b1b",
+      "previous_b_blob": "fb862584e1279963b70077698d152e5985cbc454",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "tests/browser/customer-editor.cjs",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "43a9ab7d3823536e0250bbb0508a288afe94f70a",
+      "source_sha256": "5a434a8e89467681545f741826757bf5c1f49c57e5878f3b09d52b184707188c",
+      "previous_b_sha256": "3a1d8eed30605e749372d997019d2d726706a59efb72b3f2cfe5cc48be8f2287",
+      "previous_b_blob": "41077417bb9d2c1140961bfc3849eef27879517b",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "tests/browser/customer-photo-render.cjs",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "cf73cfb659c79d115a19accb300ac1537eb2ade9",
+      "source_sha256": "3aff3346e6c01903239359802e423444ba9760c323cefdd37216f208e80c773b",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "tests/fixtures/customer-editor/README.txt",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "2c3d61974484d3e75b88cf8ae68394df6adf924b",
+      "source_sha256": "22c3e13e71a5437acaa122d237eb5e4b0a357f933220c44f3bd992df93598d53",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "tests/fixtures/customer-editor/oriented-synthetic.jpg",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "20c6847fb072dbcc55bb6feb04cfeef7e54a3478",
+      "source_sha256": "fddff33cff661a7b808e58b0b8161610ddf7f159849458b403a410615f96b47d",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "tests/unit/DeterministicPersonalizationSourceIntegrityTest.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "c6abb3f25f6d490eb39829751b5b468431abbc73",
+      "source_sha256": "ae17532ac9a781f4fe6f7080fc43af484420504bf3f3b4af31111282a59246dc",
+      "previous_b_sha256": "b739b62839f58df69b7bddd6744321ade30ee3bedb0a310a659297d8b32694c6",
+      "previous_b_blob": "09026e88fec8256299fcac0489597498dd0daa25",
+      "comparison": "EXACT_FC997474_BASELINE"
+    },
+    {
+      "path": "tests/unit/PhotoCropTest.php",
+      "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+      "source_blob": "fe33c048e01ee77f74a00d96fc491507139f4b24",
+      "source_sha256": "dfc56d9c78736c42fcb4c1ad310d8cfeb528df8567a96a83cc4b89c4e9c03db3",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT"
+    },
+    {
+      "path": "tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "014a6d24c189e79194e4f40a2c867f711dcc5949",
+      "source_sha256": "d7cb2346075e1ce359a1ac6577c6bdeead5eb8a1652b4f8e916cf08bcfc7f6db",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+          "source_blob": "88be9c3bc67e08c8b7211de47abb4d9066c4f941",
+          "source_sha256": "be4e388185a07de43d1a3b37326bc65e352df89a6ab1aae9cdf49380e9a27974"
+        }
+      ]
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "05823b816bcb56d29b5285e777ee8b6f4e0c4dd4",
+      "source_sha256": "4a5151c366b7c8a93979c7e54adf50b13283a1bce5e2124a7b15fc5a6fa2c674",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "78ce3e86638ccbd56ba39a5fa8f42988382649e6",
+          "source_blob": "480ac577c1af47bac3f2775d97d0cfbff8644c67",
+          "source_sha256": "2d1a74ef4434b8446ade6c7050d22f88e0677bbf35367f62eee2dcbde343923e"
+        },
+        {
+          "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+          "source_blob": "f6c7d4286e8cc0314e96bfcc9117b26589e25747",
+          "source_sha256": "04e54c24d096fa9e49909f7c214c6d8026ab0458135d18bbe0c86cb0d3f87f92"
+        }
+      ]
+    },
+    {
+      "path": "tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_history": [
+        {
+          "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+          "source_blob": "098794039e1f7721684380e225bc2a33fafa6cb9",
+          "source_sha256": "b688cc66afed31fe57787bf711d13c1f161270ee60ade9551f4034f9431410b9"
+        }
+      ],
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "c140cc1acf642c6754bbc145ec9a58d0608bf71a",
+      "source_sha256": "08624c61f1415f3eca6c68c6a6408c92fd13ce5a711a308f59f1a66f5757f4ee"
+    },
+    {
+      "path": "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php",
+      "previous_b_sha256": null,
+      "previous_b_blob": null,
+      "comparison": "ABSENT",
+      "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+      "source_blob": "570f1935d9f27faf9c36e6e0513ce611c3776c64",
+      "source_sha256": "3440004ea70d1ffc9e578d28835cac2ce881e1d0f9272a8aaaa892f381528d59"
+    }
+  ],
+  "resolver_update": {
+    "source_commit": "784458955d8882e11429980355a94f338a67ae4d",
+    "authored_commit": "71f938595269da2e9675a04c6a848437226bd202",
+    "files": [
+      "includes/POD/CustomerPhotoSelection.php",
+      "docs/engineering/shop2-factory-1266/PHOTO_RENDER_SELECTION_HANDOFF_20261116.md",
+      "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "tests/wordpress/CustomerPhotoSelectionAdmissionTest.php"
+    ],
+    "excluded": "Unrelated transformation source/tests and standalone HTTP browser acceptance receipts.",
+    "remaining": "Repeatable-read frontier/currentness and render epoch binding remain unresolved; B consumer acceptance pending."
+  },
+  "source_commit_note": "Per-file source_commit is authoritative; original source_commit records initial full photo import.",
+  "fixture_isolation_update": {
+    "source_commit": "61d2b6bf84a6bd7f5daac6488df5189b10223f85",
+    "files": [
+      "tests/wordpress/CustomerEditorPhotoWorkflowTest.php",
+      "tests/wordpress/CustomerPhotoRenderWorkflowTest.php",
+      "tests/wordpress/CustomerPhotoSelectionAdmissionTest.php",
+      "tests/wordpress/fixtures/PhotoWorkflowFixtureIsolation.php"
+    ],
+    "purpose": "Restore committed photo fixture boundaries and prior AI policy rows after each isolated single-writer test.",
+    "excluded": "Unrelated standalone packaged-candidate.py acceptance runner.",
+    "verification": "PENDING serialized coupled photo and FinalConvergence regression."
+  }
+}
