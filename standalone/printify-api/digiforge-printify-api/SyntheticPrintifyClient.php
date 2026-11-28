@@ -418,6 +418,9 @@ final class SyntheticPrintifyClient
             }
             return $projection;
         }
+        if ($operation==='ORDER_SHIPPING_QUOTE' && $status!==200) {
+            throw new \InvalidArgumentException('Unexpected shipping quotation status.');
+        }
         if ($operation==='ORDER_CANCEL' && ($status!==200 || ($body['sent_to_production_at']??null)!==null
             || !empty($body['shipments']))) {
             throw new \InvalidArgumentException('Unexpected whole-order cancellation status.');

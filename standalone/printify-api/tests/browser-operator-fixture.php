@@ -4,6 +4,12 @@ if (PHP_SAPI !== 'cli-server' || wp_get_environment_type() !== 'local'
 define('DIGIFORGE_PRINTIFY_DIRECT_GET_FIXTURE',true);
 define('DIGIFORGE_PRINTIFY_OFFLINE_SHOP','107');
 define('DIGIFORGE_PRINTIFY_OFFLINE_ACCOUNT','fixture-account');
+define('DIGIFORGE_PRINTIFY_SYNTHETIC_JOURNEY',true);
+define('DIGIFORGE_PRINTIFY_DISPOSABLE_STORE',true);
+add_filter('user_has_cap', static function (array $caps, array $requested, array $args, WP_User $user): array {
+    if ($user->ID === 1) $caps['digiforge_printify_review_shop_108'] = true;
+    return $caps;
+},10,4);
 define('DIGIFORGE_PRINTIFY_DIRECT_READ_SCOPE',['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>'custody-ref:fixture']);
 define('DIGIFORGE_PRINTIFY_DIRECT_FIXTURE_PAT','fixture-test-only');
 add_filter('pre_http_request',static fn()=>new WP_Error('fixture_only'),PHP_INT_MAX);

@@ -138,14 +138,17 @@ export LD_LIBRARY_PATH=$base/lib/x86_64-linux-gnu
 PATH=$base/bin:$PATH "$base/bin/mariadb-install-db" --no-defaults --basedir="$base" --datadir="$tmp/db" --auth-root-authentication-method=normal --skip-test-db > "$tmp/init.log"
 "$base/sbin/mariadbd" --no-defaults --basedir="$base" --datadir="$tmp/db" --socket="$socket" --pid-file="$tmp/db.pid" --skip-networking --log-error="$tmp/db.log" &
 db=$!
+db_ready=0
 for i in {1..20}; do
-    if "$base/bin/mariadb" --no-defaults --socket="$socket" -uroot -e 'CREATE DATABASE printify_fixture; SELECT VERSION(), @@skip_networking;' 2>/dev/null; then break; fi
+    if "$base/bin/mariadb" --no-defaults --socket="$socket" -uroot -e 'CREATE DATABASE printify_fixture; SELECT VERSION(), @@skip_networking;' 2>/dev/null; then db_ready=1; break; fi
     sleep 1
 done
+[[ "$db_ready" == 1 ]] || { echo "Disposable MariaDB socket unavailable" >&2; exit 69; }
 export DF_PRINTIFY_WP_FIXTURE_ROOT="$wp"
 export DF_PRINTIFY_WP_FIXTURE_SOCKET="$socket"
 export DF_PRINTIFY_DIRECT_FIXTURE="$1"
-guarded php "$d/wordpress-install.php" "$wp"
+guarded php "$d/wordpress-install.php" "$wp" | tee "$tmp/wordpress-install.receipt"
+grep -q "^Exact ZIP activated as the only plugin\." "$tmp/wordpress-install.receipt"
 sha256sum "$tests/protected-get-worker.php"
 if [[ "$1" == upgrade ]]; then
     inventory() {
@@ -169,6 +172,10 @@ elif [[ "$1" == native-receipt ]]; then
     unzip -q "$d/companion.zip" -d "$wp/wp-content/plugins"
     guarded php "$tests/native-receipt-wordpress.php"
 elif [[ "$1" == browser ]]; then
+    fixture="$tests/batch2-approval-wordpress.php"
+    guarded php -d auto_prepend_file="$d/workspace-config.php" "$fixture" write
+    guarded php -d auto_prepend_file="$d/workspace-config.php" "$fixture" claim browser
+    guarded php -d auto_prepend_file="$d/workspace-config.php" "$fixture" browser
     /usr/bin/chromium --version
     /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --version
     echo 'COMMAND guarded PHP loopback listener and browser-operator.cjs'

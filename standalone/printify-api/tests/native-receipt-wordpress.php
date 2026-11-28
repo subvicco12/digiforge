@@ -166,7 +166,24 @@ $recoveryStatus=static fn(string $ref): array=>
 $rec=$recoveryStatus($account);
 $check($rec['reason']==='INDEPENDENT_RECOVERY_FLOOR_REQUIRED' && !$rec['provider_execution_authorized']
     && $recoveryStatus('foreign-account')['state']==='DENIED','Pinned INSPECT recovery failed to preserve floor or scope denial');
-WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());
+$sessions=WP_Session_Tokens::get_instance(1);
+$sessionToken=wp_get_session_token();
+$session=$sessions->get($sessionToken);
+$check(is_array($session) && $sessions->verify($sessionToken),'Expected valid session before expiry fixture');
+$sessions->update($sessionToken,['expiration'=>time()-1]+$session);
+$check(!$sessions->verify($sessionToken) && wp_get_session_token()===$sessionToken,
+    'Expiry fixture must retain the cookie token but expire its server-side session');
+$expired=$recoveryStatus($account);
+$coreExpired=$port->recovery($scope,1,['action'=>'INSPECT']);
+$check(is_wp_error($coreExpired) && $coreExpired->get_error_code()==='printify_native_session_required'
+    && $expired['state']==='DENIED' && !$expired['provider_execution_authorized'] && !$expired['retry_permitted'],
+    'Expired session acquired recovery or retry authority');
+$sessions->update($sessionToken,$session);
+$check($sessions->verify($sessionToken),'Failed to restore valid session for the distinct destroyed-session case');
+$check($checked($journal->read($binding['operation_id'],'personalized_pod',1))===$entry,
+    'Expired recovery request changed the journal');
+echo "Expired server-side session with unchanged cookie denied recovery INSPECT; journal unchanged, execution and retry denied\n";
+$sessions->destroy($sessionToken);
 $check($recoveryStatus($account)['state']==='DENIED','Destroyed session admitted recovery inspection');
 $check(!$review($payload,$identity,$pin,$scope->integrationId)['sender_evidence_verified'],
     'Destroyed native session admitted sender evidence');

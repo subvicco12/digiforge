@@ -5,7 +5,7 @@ $root=getenv('DF_PRINTIFY_WP_FIXTURE_ROOT');
 $socket=getenv('DF_PRINTIFY_WP_FIXTURE_SOCKET');
 $phase=$argv[1]??null;
 if (!is_string($root)||!str_starts_with($root,'/tmp/df-printify-')||!is_string($socket)
-    || !in_array($phase,['write','claim','reopen'],true)) throw new RuntimeException('Fixture required');
+    || !in_array($phase,['write','claim','reopen','browser'],true)) throw new RuntimeException('Fixture required');
 require $root.'/wp-load.php';
 if (DB_HOST!=='localhost:'.$socket||DB_NAME!=='printify_fixture'||wp_get_environment_type()!=='local') throw new RuntimeException('Socket fixture required');
 wp_set_current_user(1);
@@ -28,6 +28,13 @@ $send=static function(string $op,array $input,bool $preview=false,?string $fault
 $review=static fn(array $proposal,string $decision,?string $fault=null): array=>$send('FIXTURE_PROPOSAL_REVIEW',
     ['proposal_id'=>$proposal['id'],'proposal_revision'=>$proposal['revision'],'decision'=>$decision],false,$fault);
 $claimPath=dirname($root).'/mockup-claim.json';
+if ($phase==='browser') {
+    $pending=$send('PRODUCT_UPDATE',['product_id'=>'product-1','expected_version'=>3,'title'=>'Browser pending'],true);
+    $check(($pending['proposal']['state']??null)==='PENDING_APPROVAL','Browser pending proposal missing');
+    $draft=$send('PRODUCT_UPDATE',['product_id'=>'product-1','expected_version'=>3,'title'=>'Browser held'],true);
+    $check(($review($draft['proposal'],'approve')['proposal']['state']??null)==='APPROVED_HELD','Browser held proposal missing');
+    return;
+}
 if ($phase==='claim') {
     $claim=json_decode(file_get_contents($claimPath),true,8,JSON_THROW_ON_ERROR);
     $result=$workspace->execute($claim['revision'],hash('sha256','fixture-mockup-claim-'.$argv[2]),

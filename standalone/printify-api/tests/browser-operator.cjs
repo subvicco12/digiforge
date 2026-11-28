@@ -89,12 +89,83 @@ const path = require('node:path');
         await page.goto(admin);
         assert.deepEqual(JSON.parse(await panel.locator('pre').innerText()), support);
         await screenshot('mobile-support', panel.locator('pre'));
+        const post = async (form, overrides) => {
+            const fields = await form.evaluate(element => [...new FormData(element).entries()]);
+            await page.evaluate(({ fields, overrides }) => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                const values = new URLSearchParams(fields);
+                for (const [key, value] of Object.entries(overrides)) values.set(key, value);
+                for (const [name, value] of values) {
+                    const input = document.createElement('input');
+                    Object.assign(input, { type: 'hidden', name, value });
+                    form.append(input);
+                }
+                document.body.append(form);
+                form.submit();
+            }, { fields, overrides });
+            await page.waitForLoadState();
+        };
+        await page.goto(admin);
+        const account = page.locator('#df-account');
+        const shopFields = account.locator('form').filter({ has: page.getByRole('button', { name: 'Save local configuration' }) });
+        const staleProfile = await main.locator('[name=df_printify_get_revision]').inputValue();
+        for (const [field, value] of Object.entries({ shop:'108', account:'fixture-account-b', integration:'fixture-read-b' })) {
+            await shopFields.locator('[name="df_printify_profile[' + field + ']"]').fill(value);
+        }
+        await shopFields.getByRole('button', { name: 'Save local configuration' }).click();
+        await panel.getByText(/Shop 108 · account fixture-account-b/).waitFor();
+        assert.equal(await panel.locator('pre').count(), 0);
+        await panel.getByText(/DIRECT_CONFIGURATION_UNAVAILABLE/).waitFor();
+        await post(main, { df_printify_get_revision: staleProfile, df_printify_get_operation: 'SHOPS_READ' });
+        await panel.getByText('SCOPE_OR_REVISION_UNAVAILABLE', { exact:true }).waitFor();
+        const saved = account.locator('[name=df_printify_switch_profile]');
+        await saved.selectOption({ label:'107 · fixture-account · fixture-read' });
+        await account.getByRole('button', { name:'Switch local profile' }).click();
+        await panel.getByText(/Shop 107 · account fixture-account/).waitFor();
+        assert.equal(await panel.locator('pre').count(), 0, 'Previous revision leaked after switching back');
+
         await main.locator('select[name=df_printify_get_operation]').selectOption('ORDER_READ');
         await main.locator('[name="df_printify_get[order_id]"]').fill('foreign-order');
         await main.getByRole('button', { name: 'Refresh synthetic observation' }).click();
         await panel.getByText('DIRECT_READ_UNAVAILABLE', { exact: true }).waitFor();
         assert.equal(await panel.locator('pre').count(), 0);
+        await page.setViewportSize({ width:1280, height:900 });
+        await page.getByRole('heading', { name:'Approval queue' }).waitFor();
+        await page.getByText(/PRODUCT_UPDATE · PENDING_APPROVAL · revision/).first().waitFor();
+        await page.getByText(/PRODUCT_UPDATE · APPROVED_HELD · revision/).first().waitFor();
+        const unknown = page.getByText(/MOCKUP_SELECTION_UPDATE · UNKNOWN · revision/).locator('..');
+        const summary = unknown.locator('summary');
+        await summary.click();
+        const refer = unknown.getByRole('button', { name:'Refer for manual reconciliation' });
+        const review = refer.locator('..');
+        assert.equal(await unknown.getByRole('button', { name:/retry|resend|run approved/i }).count(),0);
+        await screenshot('desktop-unknown', summary);
+        const checkDenied = async (overrides, reason) => {
+            if (!(await refer.isVisible())) await summary.click();
+            await post(review, overrides);
+            const result = page.getByRole('region', { name:'Operation result' });
+            await result.getByText(new RegExp(reason)).waitFor();
+            const denial = JSON.parse(await result.innerText());
+            assert.equal(denial.state,'DENIED');
+            assert.equal(denial.provider_execution_authorized ?? false,false);
+            assert.equal(denial.retry_permitted ?? false,false);
+            console.log('Held action denied: ' + denial.reason);
+        };
+        await checkDenied({ df_workspace_nonce:'0000000000', 'df_proposal[decision]':'simulate_held' },
+            'INVALID_FORM_OR_SESSION');
+        await checkDenied({ df_workspace_revision:'0', 'df_proposal[decision]':'simulate_held' },
+            'STALE|CHANGED');
+        await checkDenied({ 'df_proposal[decision]':'simulate_held' }, 'FIXTURE_TRANSITION_APPROVAL_MISMATCH');
+        if (!(await refer.isVisible())) await summary.click();
+        await refer.click();
+        await page.goto(admin);
+        await summary.click();
+        await unknown.getByText('Manual reconciliation required. The outcome remains UNKNOWN.').waitFor();
+        await page.setViewportSize({ width:390,height:844 });
+        await screenshot('mobile-unknown-referred', summary);
         assert.deepEqual(externalResponses, []);
+        console.log('PASS: mobile profile save/switch, stale profile denial, desktop pending/held/UNKNOWN, forged nonce and stale revision denial, UNKNOWN retry denial and durable mobile referral');
         console.log('PASS: mobile product, GPSR, tracking and 11th support request, reopening, redaction and unavailable response. Nonlocal routes rejected: ' + outside);
     } finally {
         await browser.close();
