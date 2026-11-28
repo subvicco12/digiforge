@@ -62,14 +62,14 @@ $fixture->restoreFixtureState([['image-1'=>['id'=>'image-1','width'=>1200,'heigh
     [],[],1,true]);
 if ($port === 'get') {
     echo json_encode($fixture->request(['provider_shop_id'=>$scope['shop'],'method'=>'GET',
-        'endpoint'=>$request['path'],'operation'=>$request['operation'],'body'=>[]]),JSON_THROW_ON_ERROR);
+        'endpoint'=>$request['path'],'operation'=>($request['operation']==='PRODUCT_ARTWORK_READ'?'PRODUCT_READ':$request['operation']),'body'=>[]]),JSON_THROW_ON_ERROR);
     return;
 }
 $gateway = new FixtureReadGateway(sodium_crypto_sign_publickey($grantKeys),
     static fn (): array => ['revision'=>1,'stop_all'=>false,'external_lock'=>false,'release_hold'=>false,'revoked'=>[]],
     static function (array $scope,string $method,string $path) use ($fixture,$request): array {
         $response = $fixture->request(['provider_shop_id'=>$scope['shop'],'method'=>$method,'endpoint'=>$path,
-            'operation'=>$request['operation'],'body'=>[]]);
+            'operation'=>($request['operation']==='PRODUCT_ARTWORK_READ'?'PRODUCT_READ':$request['operation']),'body'=>[]]);
         return ['status'=>$response['status'],'body'=>json_encode($response['body'],JSON_THROW_ON_ERROR)];
     },$argv[2]);
 echo json_encode($gateway->exchange($request,$grant,$sign,$now,sodium_crypto_sign_secretkey($replyKeys)),JSON_THROW_ON_ERROR);

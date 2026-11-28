@@ -395,6 +395,7 @@ final class SyntheticWorkspace
         $proposal=is_string($id)?(self::proposals($audit,$scope)[$id]??null):null;
         if ($proposal===null || count($input)!==3 || $proposal['operation']!=='MOCKUP_SELECTION_UPDATE'
             || $proposal['state']!=='UNKNOWN' || ($input['proposal_revision']??null)!==$proposal['revision']
+            || ($proposal['mockup_profile_revision']??null)!==AccountProfile::revisionToken()
             || !is_string($proposal['resource_id']??null)) return self::fixtureResult(409,'FIXTURE_MOCKUP_RECONCILIATION_DENIED');
         $after=self::transitionObservation($transport,$client,$proposal['operation'],$proposal['resource_id']);
         if ($after===null || !hash_equals($proposal['mockup_expected_sha256']??'',ProtectedGet::digest($after))) {
@@ -473,6 +474,8 @@ final class SyntheticWorkspace
                 $id = $input['proposal_id'] ?? null;
                 $approved = is_string($id) ? (self::proposals($row['audit'], $proposalScope)[$id] ?? null) : null;
                 if ($approved === null || count($input) !== 3 || ($input['proposal_revision'] ?? null) !== $approved['revision']
+                    || (($approved['operation']??null)==='MOCKUP_SELECTION_UPDATE'
+                        && ($approved['mockup_profile_revision']??null)!==$profileRevision)
                     || $approved['state'] !== 'APPROVED_HELD' || !in_array($approved['operation'], self::APPROVED_TRANSITIONS, true)
                     || !is_string($approved['baseline_sha256'] ?? null) || !is_string($approved['resource_id'])
                     || !hash_equals($approved['intent_sha256'], hash_hmac('sha256', json_encode($approved['configuration'],
@@ -557,6 +560,7 @@ final class SyntheticWorkspace
                             $after=self::transitionObservation($transport,$client,$operation,$resource);
                             if ($after===null) return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH')+$flags;
                             $result['proposal']['configuration']=$input;
+                            $result['proposal']['mockup_profile_revision']=$profileRevision;
                             $result['proposal']['mockup_expected_sha256']=ProtectedGet::digest($after);
                         }
                     }
