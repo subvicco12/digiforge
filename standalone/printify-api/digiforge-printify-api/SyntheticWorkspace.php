@@ -96,7 +96,8 @@ final class SyntheticWorkspace
     ];
 
     public const APPROVED_TRANSITIONS = [
-        'PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
+        'PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL',
+        'FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
     ];
 
     private function synchronization(SyntheticPrintifyTransport $transport, int $revision, array $input): array
@@ -340,7 +341,7 @@ final class SyntheticWorkspace
         }
         return in_array($proposal['state'], ['PENDING_APPROVAL','BLOCKED'], true)
             || ($proposal['state'] === 'APPROVED_HELD'
-                && in_array($proposal['operation'], ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true));
+                && in_array($proposal['operation'], ['ORDER_CREATE',...self::APPROVED_TRANSITIONS], true));
     }
 
     private static function transitionObservation(
@@ -351,7 +352,7 @@ final class SyntheticWorkspace
             if (($read['state']??null)!=='SYNTHETIC_OBSERVED') return null;
             return $read['data']+['product_revision'=>$transport->fixtureProductRevision($resource)];
         }
-        if (in_array($operation, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
+        if (in_array($operation, ['PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
             $selectors = $transport->fixtureProductSelectors($resource);
             $read = $selectors === null ? null : $client->run('PRODUCT_READ', $selectors);
         } else {
@@ -382,6 +383,7 @@ final class SyntheticWorkspace
             ? self::transitionObservation($transport, $client, $operation, $resource) : null;
         $recorded = $after !== null && match ($operation) {
             'MOCKUP_SELECTION_UPDATE' => hash_equals($current['mockup_expected_sha256']??'',ProtectedGet::digest($after)),
+            'PRODUCT_UPDATE' => hash_equals($current['product_expected_sha256']??'',ProtectedGet::digest($after)),
             'PRODUCT_PUBLISH' => $after['publication_state'] === 'PENDING',
             'PRODUCT_UNPUBLISH_NOTIFY' => $after['publication_state'] === 'UNPUBLISHED',
             'FIXTURE_PRODUCTION_CONFIRM' => $after['status'] === 'in-production',
@@ -491,8 +493,8 @@ final class SyntheticWorkspace
                 $id = $input['proposal_id'] ?? null;
                 $approved = is_string($id) ? (self::proposals($row['audit'], $proposalScope)[$id] ?? null) : null;
                 if ($approved === null || count($input) !== 3 || ($input['proposal_revision'] ?? null) !== $approved['revision']
-                    || (($approved['operation']??null)==='MOCKUP_SELECTION_UPDATE'
-                        && ($approved['mockup_profile_revision']??null)!==$profileRevision)
+                    || !array_key_exists('transition_profile_revision',$approved)
+                    || $approved['transition_profile_revision'] !== $profileRevision
                     || $approved['state'] !== 'APPROVED_HELD' || !in_array($approved['operation'], self::APPROVED_TRANSITIONS, true)
                     || !is_string($approved['baseline_sha256'] ?? null) || !is_string($approved['resource_id'])
                     || !hash_equals($approved['intent_sha256'], hash_hmac('sha256', json_encode($approved['configuration'],
@@ -553,7 +555,7 @@ final class SyntheticWorkspace
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
-            if ($preview && $edited !== null && in_array($operation, ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true)
+            if ($preview && $edited !== null && in_array($operation, ['ORDER_CREATE',...self::APPROVED_TRANSITIONS], true)
                 && $result['state'] !== 'SYNTHETIC_OBSERVED' && $result['state'] !== 'UNKNOWN') {
                 return $result + $flags;
             }
@@ -580,6 +582,13 @@ final class SyntheticWorkspace
                     ];
                     if ($ready && $baseline !== null) {
                         $result['proposal']['baseline_sha256'] = hash('sha256', json_encode($baseline, JSON_THROW_ON_ERROR));
+                        $result['proposal']['transition_profile_revision']=$profileRevision;
+                        if ($operation==='PRODUCT_UPDATE') {
+                            $after=self::transitionObservation($transport,$client,$operation,$resource);
+                            if ($after===null) return self::fixtureResult(409,'FIXTURE_PRODUCT_READBACK_MISMATCH')+$flags;
+                            $result['proposal']['configuration']=$input;
+                            $result['proposal']['product_expected_sha256']=ProtectedGet::digest($after);
+                        }
                         if ($operation==='MOCKUP_SELECTION_UPDATE') {
                             $after=self::transitionObservation($transport,$client,$operation,$resource);
                             if ($after===null) return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH')+$flags;

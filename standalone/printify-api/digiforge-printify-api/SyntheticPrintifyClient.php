@@ -291,6 +291,9 @@ final class SyntheticPrintifyClient
 
     private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
+        if (($plan['method'] ?? null) === 'GET' && $status !== 200) {
+            throw new \InvalidArgumentException('Unexpected successful read status.');
+        }
         if ($operation==='MOCKUP_SELECTION_READ') {
             if ($status!==200) throw new \InvalidArgumentException('Expected mockup selection.');
             require_once __DIR__.'/ProtectedGet.php';
@@ -393,6 +396,13 @@ final class SyntheticPrintifyClient
                     throw new \InvalidArgumentException('Inconsistent synthetic publication state.');
                 }
                 $projection += ['synthetic_version'=>$version,'publication_pending'=>$pending,'publication_state'=>$state];
+                foreach (['title'=>200,'description'=>10000] as $field=>$limit) {
+                    if (!array_key_exists($field,$body)) continue;
+                    if (!is_string($body[$field]) || strlen($body[$field]) > $limit) {
+                        throw new \InvalidArgumentException('Malformed synthetic product text.');
+                    }
+                    $projection[$field]=$body[$field];
+                }
             }
             if ($operation === 'ORDER_READ') {
                 self::bindFixtureShipmentLines($projection, $body);

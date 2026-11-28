@@ -147,6 +147,11 @@ final class ProtectedGetPanel
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
         }
+        echo '<details><summary>Read availability and qualification</summary><p>'
+            .'Catalog, product, and order selectors below use a protected GET contract.'
+            .' Fixture results are synthetic. Hosted and live qualification require separate evidence.'
+            .' Production mutation, credential custody, and independent recovery remain held.'
+            .'</p></details>';
         echo '<form method="post"><input type="hidden" name="'.self::ACTION.'" value="1">';
         foreach (array_keys(ProtectedGet::OPERATOR_FIELDS) as $operation) {
             \wp_nonce_field(self::ACTION.':'.$operation, 'df_printify_get_nonce['.$operation.']', false);

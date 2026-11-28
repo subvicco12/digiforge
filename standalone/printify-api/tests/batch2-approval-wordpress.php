@@ -90,12 +90,25 @@ $check(($creation['quote_id']??null)===$quote['proposal']['id'] && $creation['qu
     'Order receipt lost authenticated quote identity, method or amount');
 $check($send('ORDER_CREATE',$orderInput,false,null,$edit,true)['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION','Repeated order claim accepted');
 echo "PASS bound quote, stale approval, changed artwork, variants, destination and shipping, and duplicate order claim\n";
+$amendment=['product_id'=>'product-1','expected_version'=>1,'title'=>'Fixture product revised'];
+$productDraft=$send('PRODUCT_UPDATE',$amendment,true)['proposal'];
+$check(isset($productDraft['product_expected_sha256']),'Product update preview did not bind exact readback');
+$productApproved=$review($productDraft,'approve')['proposal'];
+$productUpdated=$review($productApproved,'simulate_held');
+$updateReceipt=$productUpdated['proposal']['transition_receipt'] ?? [];
+$check($productUpdated['state']==='RECONCILED_FIXTURE_TRANSITION'
+    && ($updateReceipt['resource_id']??null)==='product-1'
+    && !hash_equals($updateReceipt['before_sha256'],$updateReceipt['after_sha256']),
+    'Approved product update did not produce exact versioned readback');
+$check($review($productApproved,'simulate_held')['reason']==='FIXTURE_TRANSITION_APPROVAL_MISMATCH','Product update was replayed');
+$check($send('PRODUCT_UPDATE',$amendment,true)['state']!=='SYNTHETIC_OBSERVED','Stale product revision admitted');
+echo "PASS held product update, exact readback, stale revision and duplicate denial\n";
 $selection=['groups'=>[['variant_ids'=>[9],'mockup_ids'=>['product-1_back']]]];
-$request=['product_id'=>'product-1','expected_version'=>1,'selection'=>$selection,'selection_sha256'=>ProtectedGet::digest($selection)];
+$request=['product_id'=>'product-1','expected_version'=>2,'selection'=>$selection,'selection_sha256'=>ProtectedGet::digest($selection)];
 $check($send('MOCKUP_SELECTION_UPDATE',$request)['state']==='DENIED','Unapproved PATCH admitted');
 $foreign=['groups'=>[['variant_ids'=>[9],'mockup_ids'=>['foreign_mockup']]]];
 foreach ([
-    ['expected_version'=>2]+$request,
+    ['expected_version'=>3]+$request,
     ['selection_sha256'=>str_repeat('f',64)]+$request,
     ['selection'=>$foreign,'selection_sha256'=>ProtectedGet::digest($foreign)]+$request,
 ] as $invalid) $check($send('MOCKUP_SELECTION_UPDATE',$invalid,true)['state']!=='SYNTHETIC_OBSERVED','Invalid replacement preflight succeeded');

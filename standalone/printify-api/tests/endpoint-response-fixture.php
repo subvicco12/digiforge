@@ -26,6 +26,7 @@ $order = ['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture','status'=>'on-
     'line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]];
 
 $cases = [
+    ['SHOPS_READ', [], [['id'=>107,'title'=>'Fixture','sales_channel'=>'api']], ['method'=>'GET'], 201],
     ['SHOPS_READ', [], [['id'=>108,'title'=>'Other','sales_channel'=>'api']]],
     ['BLUEPRINT_READ', ['blueprint_id'=>42], ['id'=>43,'title'=>'Wrong blueprint']],
     ['BLUEPRINTS_READ', [], [['id'=>null,'title'=>'No identity']]],
