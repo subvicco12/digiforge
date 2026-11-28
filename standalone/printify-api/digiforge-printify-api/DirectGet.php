@@ -140,14 +140,22 @@ final class DirectGet
             $unavailable = ['state'=>'UNAVAILABLE','reason'=>'DIRECT_READ_UNAVAILABLE'] + $base;
             if (($fixture && !$intercepted) || !is_array($reply)) return $unavailable;
             $status = wp_remote_retrieve_response_code($reply);
+            if (is_int($status) && $status >= 100 && $status <= 599) $unavailable['http_status'] = $status;
             if ($status === 429) {
                 $seconds = wp_remote_retrieve_header($reply,'retry-after');
                 $seconds = self::retryAfter($seconds, time());
                 return ['reason'=>'PROVIDER_RATE_LIMITED','retry_after_seconds'=>$seconds] + $unavailable;
             }
-            if ($status === 401 || $status === 403) {
-                return ['reason'=>'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED'] + $unavailable;
-            }
+            $reason = match ($status) {
+                400 => 'PROVIDER_BAD_REQUEST',
+                401 => 'PROVIDER_UNAUTHORIZED',
+                403 => 'PROVIDER_FORBIDDEN',
+                404 => 'PROVIDER_NOT_FOUND',
+                409 => 'PROVIDER_CONFLICT',
+                422 => 'PROVIDER_VALIDATION_DENIED',
+                default => is_int($status) && $status >= 500 && $status <= 599 ? 'PROVIDER_SERVER_ERROR' : null,
+            };
+            if ($reason !== null) return ['reason'=>$reason] + $unavailable;
             if ($status !== 200 || !preg_match('/^application\/json(?:\s*;|$)/i',(string)wp_remote_retrieve_header($reply,'content-type'))) {
                 return $unavailable;
             }

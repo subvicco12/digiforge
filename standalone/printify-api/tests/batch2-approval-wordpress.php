@@ -90,6 +90,20 @@ $check(($creation['quote_id']??null)===$quote['proposal']['id'] && $creation['qu
     'Order receipt lost authenticated quote identity, method or amount');
 $check($send('ORDER_CREATE',$orderInput,false,null,$edit,true)['reason']==='PROPOSAL_SCOPE_OR_STALE_REVISION','Repeated order claim accepted');
 echo "PASS bound quote, stale approval, changed artwork, variants, destination and shipping, and duplicate order claim\n";
+foreach (['LINE_ITEM_CANCEL'=>['order_id'=>'order-1','line_item_id'=>'line-1'],
+    'ORDER_CANCEL'=>['order_id'=>'order-1']] as $operation=>$input) {
+    $proposal=$send($operation,$input,true)['proposal'];
+    $check(isset($proposal['cancellation_expected_sha256']),'Cancellation did not bind exact readback');
+    $held=$review($proposal,'approve')['proposal'];
+    $lost=$review($held,'simulate_held','lost_ack');
+    $check($lost['state']==='UNKNOWN' && !$lost['retry_permitted'],'Lost cancellation acknowledgment was treated as success');
+    $check($review($lost['proposal'],'simulate_held')['reason']==='FIXTURE_TRANSITION_APPROVAL_MISMATCH','UNKNOWN cancellation replayed');
+    $check($send('ORDER_CANCEL',['order_id'=>'order-1'],true)['reason']==='FIXTURE_CANCELLATION_UNKNOWN'
+        && $send($operation,$input)['reason']==='FIXTURE_CANCELLATION_UNKNOWN','New cancellation bypassed UNKNOWN quarantine');
+    $check($review($lost['proposal'],'reconcile_cancellation')['state']==='RECONCILED_FIXTURE_TRANSITION','Exact cancellation could not reconcile');
+    $check($review($lost['proposal'],'reconcile_cancellation')['reason']==='FIXTURE_CANCELLATION_RECONCILIATION_DENIED','Duplicate cancellation reconciliation admitted');
+}
+echo "PASS lost line and whole-order cancellation acknowledgment, exact readback and replay denial\n";
 $amendment=['product_id'=>'product-1','expected_version'=>1,'title'=>'Fixture product revised'];
 $productDraft=$send('PRODUCT_UPDATE',$amendment,true)['proposal'];
 $check(isset($productDraft['product_expected_sha256']),'Product update preview did not bind exact readback');

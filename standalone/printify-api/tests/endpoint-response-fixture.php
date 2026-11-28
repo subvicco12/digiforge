@@ -73,6 +73,7 @@ $cases = [
     ['ORDER_CREATE', $orderInput, ['line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>1]]]+$order, [], 201],
     ['ORDER_CREATE', $orderInput, ['external_id'=>'different']+$order, [], 201],
     ['ORDER_SEND_TO_PRODUCTION', $orderId, $order],
+    ['ORDER_CANCEL', $orderId, ['status'=>'canceled']+$order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json'], 202],
     ['ORDER_CANCEL', $orderId, $order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json']],
     ['LINE_ITEM_CANCEL', [], ['bad'=>true], ['endpoint'=>'/v1/shops/107/orders/order-1/line_items/line-1/cancel.json'], 204],
 ];

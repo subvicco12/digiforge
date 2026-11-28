@@ -30,11 +30,11 @@ final class ProtectedGet
         'VARIANTS_READ'=>['blueprint_id','provider_id','show-out-of-stock'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id','show-out-of-stock'],
         'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
-        'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCTS_READ'=>['page','limit'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
         'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
         'MOCKUP_SELECTION_READ'=>['product_id'], 'LINKED_IMAGE_METADATA_READ'=>['product_id','image_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
-        'ORDERS_READ'=>['page','status','sku'],'ORDER_READ'=>['order_id'],
+        'ORDERS_READ'=>['page','limit','status','sku'],'ORDER_READ'=>['order_id'],
     ];
 
     private const CATALOG = [
@@ -61,9 +61,6 @@ final class ProtectedGet
         $fields = self::OPERATOR_FIELDS[$operation] ?? null;
         if ($fields === null) {
             throw new \InvalidArgumentException('Unsupported read operation.');
-        }
-        if (in_array($operation, ['PRODUCTS_READ', 'ORDERS_READ'], true)) {
-            $fields[] = 'limit';
         }
         if (array_diff(array_keys($selection), $fields) !== []) {
             throw new \InvalidArgumentException('Unexpected read selection field.');
@@ -233,6 +230,11 @@ final class ProtectedGet
         $providerSelection=$operation==='ORDERS_READ'?array_diff_key($selection,['status'=>true,'sku'=>true]):$selection;
         $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $providerSelection);
         if ($operation==='ORDERS_READ') {
+            $total = $data['total'] ?? null;
+            if (array_key_exists('total',$data) && (!is_int($total) || $total < count($projection['data'])
+                || $total > 2147483647)) {
+                throw new \InvalidArgumentException('Invalid order pagination total.');
+            }
             $filters=array_intersect_key($selection,['status'=>true,'sku'=>true]);
             if ($filters!==[]) $projection['filters']=$filters;
         }

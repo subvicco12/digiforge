@@ -17,7 +17,7 @@ final class ProtectedGetPanel
 {
     private const MAX_VARIANT_IDS = 1000;
     private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
-    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id','show-out-of-stock','status'];
+    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','limit','product_id','variant_ids','sku','image_id','order_id','show-out-of-stock','status'];
     private const ACTION = 'df_printify_protected_get_v1';
 
 
@@ -51,7 +51,11 @@ final class ProtectedGetPanel
                 'ARCHIVE_UNAVAILABLE' => 'The archive is unavailable or failed its integrity check. Review storage before refreshing.',
                 'ARCHIVE_BUSY' => 'A read is already using this archive. Reopen the panel before trying again.',
                 'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel. If storage is full or unavailable, preserve the archive and ask the operator to review it before another read.',
-                'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED' => 'Ask the approved custodian to verify the credential and its read scope.',
+                'PROVIDER_UNAUTHORIZED','PROVIDER_FORBIDDEN','PROVIDER_SCOPE_OR_CREDENTIAL_DENIED'
+                    => 'Ask the approved custodian to verify the credential and its read scope.',
+                'PROVIDER_BAD_REQUEST','PROVIDER_VALIDATION_DENIED' => 'Verify the selected values before preparing another manual read.',
+                'PROVIDER_NOT_FOUND' => 'Verify the resource identity and current shop assignment.',
+                'PROVIDER_CONFLICT','PROVIDER_SERVER_ERROR' => 'Review the provider status before a new manual read.',
                 'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
                 'DIRECT_READ_UNAVAILABLE' => 'Check the selected IDs and connection status. Use Shops Read for a scoped manual diagnostic.',
                 'INVALID_SELECTION' => 'Check the fields required by the selected operation.',
@@ -177,9 +181,11 @@ final class ProtectedGetPanel
         if (!in_array($operation,['PRODUCTS_READ','ORDERS_READ'],true)) return;
         $current = $data['current_page'] ?? null;
         $page = $data['next_page']['page'] ?? null;
-        if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE) return;
+        $limit = $data['next_page']['limit'] ?? null;
+        if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE
+            || !is_int($limit) || $limit < 1 || $limit > 10) return;
         $filters=is_array($data['filters']??null) ? array_intersect_key($data['filters'],['status'=>true,'sku'=>true]) : [];
-        self::renderReadAction($operation,['page'=>$page]+$filters,$profile,$workspace,'Read next page');
+        self::renderReadAction($operation,['page'=>$page,'limit'=>$limit]+$filters,$profile,$workspace,'Read next page');
     }
 
     private static function renderNavigation(string $operation,array $data,string $profile,string $workspace): void
@@ -331,7 +337,7 @@ final class ProtectedGetPanel
                         throw new \InvalidArgumentException('Too many variant IDs.');
                     }
                     $selection[$name] = array_map(self::positiveInteger(...), $ids);
-                } elseif (in_array($name, ['blueprint_id','provider_id','variant_id','page'], true)) {
+                } elseif (in_array($name, ['blueprint_id','provider_id','variant_id','page','limit'], true)) {
                     $selection[$name] = self::positiveInteger($value);
                 } else {
                     $selection[$name] = $value;
@@ -424,6 +430,7 @@ final class ProtectedGetPanel
         if ($result['state'] === 'OBSERVED') {
             $receipt += array_intersect_key($result, array_flip(['source','observed_at','response_sha256','data']));
         }
+        if (isset($result['http_status'])) $receipt['http_status'] = $result['http_status'];
         if (isset($result['retry_after_seconds'])) $receipt['retry_after_seconds'] = $result['retry_after_seconds'];
         if (!ProtectedGetWorkspace::ownsArchiveAdmission($direct)
             || !ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {

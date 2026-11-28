@@ -108,6 +108,20 @@ foreach ([array_replace($order,['status'=>'on-hold']),array_replace($order,['lin
     } catch (InvalidArgumentException $expected) {
     }
 }
+$paged = ProtectedGet::request($scope,'ORDERS_READ',['page'=>2,'limit'=>1,'status'=>'fulfilled','sku'=>'SKU-9']);
+$empty = ['data'=>[],'current_page'=>2,'last_page'=>3,'per_page'=>1,'total'=>2,
+    'next_page_url'=>'https://outside.example.invalid/untrusted'];
+$projection = ProtectedGet::project($paged,json_encode($empty,JSON_THROW_ON_ERROR));
+check($projection['next_page']===['page'=>3,'limit'=>1] && !str_contains(json_encode($projection),'outside.example.invalid'),
+    'Empty page lost bounded local continuation or leaked a provider URL');
+foreach ([['total'=>'2'],['total'=>-1],['per_page'=>2],['current_page'=>3],['last_page'=>1],['shop_id'=>108]] as $invalid) {
+    try {
+        ProtectedGet::project($paged,json_encode($invalid+$empty,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Malformed or foreign order page was admitted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+echo "Bounded empty order page, unsafe continuation URL omission and six malformed or foreign envelopes PASS\n";
 echo "Mockup scope, deduplication, unsafe URL, availability allowlist and order filters PASS\n";
 $grant = ['issuer'=>'fixture-custodian','audience'=>ProtectedGet::VERSION,'request_digest'=>ProtectedGet::digest($request),
     'issued_at'=>$now,'expires_at'=>$now+30,'policy_revision'=>1,'id'=>str_repeat('4', 32)];

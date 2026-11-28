@@ -1010,7 +1010,7 @@ final class SyntheticPrintifyTransport
         if (!isset($this->orders[$id])) {
             return self::error(404, 'order_not_found');
         }
-        if ($this->orders[$id]['status'] !== 'on-hold') {
+        if (!in_array($this->orders[$id]['status'], ['on-hold','payment-not-received'], true)) {
             return self::error(409, 'order_not_cancelable');
         }
         $this->orders[$id]['status'] = 'canceled';
@@ -1023,7 +1023,9 @@ final class SyntheticPrintifyTransport
     {
         $record = $this->orders[$order] ?? null;
         if ($record === null) return self::error(404, 'order_not_found');
-        if ($record['status'] !== 'on-hold') return self::error(409, 'order_not_cancelable');
+        if (!in_array($record['status'], ['pending','on-hold','payment-not-received','has-issues','source-check-failed'], true)) {
+            return self::error(409, 'order_not_cancelable');
+        }
         foreach ($record['line_items'] as $index=>$item) {
             if (($item['id'] ?? null) === $line && ($item['status'] ?? null) !== 'canceled') {
                 $this->orders[$order]['line_items'][$index]['status'] = 'canceled';

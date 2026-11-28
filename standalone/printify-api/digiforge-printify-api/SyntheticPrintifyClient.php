@@ -414,6 +414,10 @@ final class SyntheticPrintifyClient
             }
             return $projection;
         }
+        if ($operation==='ORDER_CANCEL' && ($status!==200 || ($body['sent_to_production_at']??null)!==null
+            || !empty($body['shipments']))) {
+            throw new \InvalidArgumentException('Unexpected whole-order cancellation status.');
+        }
         if (in_array($operation,['ORDER_SHIPPING_QUOTE','ORDER_CANCEL','WEBHOOKS_READ','WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
             $plan['operation']=match($operation){'ORDER_SHIPPING_QUOTE'=>'SHIPPING_QUOTE','WEBHOOKS_READ'=>'WEBHOOK_READ',default=>$operation};
             return PrintifyLifecycleEvidence::project($plan,$body);

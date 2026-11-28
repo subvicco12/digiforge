@@ -206,6 +206,9 @@ final class SyntheticWorkspacePanel
                 default=>[],
             };
             if ($proposal['operation']==='MOCKUP_SELECTION_UPDATE') unset($decisions['reconcile']);
+            if ($state==='UNKNOWN' && in_array($proposal['operation'],['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) {
+                $decisions['reconcile_cancellation']='Reconcile exact cancellation fixture readback';
+            }
             if ($state==='UNKNOWN' && $proposal['operation']==='MOCKUP_SELECTION_UPDATE') {
                 $decisions['reconcile_mockup']='Reconcile exact mockup fixture readback';
             }
