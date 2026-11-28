@@ -31,6 +31,23 @@ final class NativeHeldInspection
         }
     }
 
+    /** Resolve the reviewed versioned interface without accessing a provider. */
+    public static function companionStatus(): string
+    {
+        try {
+            $directory = self::reviewedDirectory();
+            if ($directory === null
+                || (new \ReflectionClass(NativeBridge::class))->getFileName() !== $directory.'/NativeBridge.php'
+                || (new \ReflectionClass(NativeCorePort::class))->getFileName() !== $directory.'/NativeCorePort.php') {
+                return 'NATIVE_CONTRACT_UNAVAILABLE';
+            }
+            return NativeBridge::connect('1.0.0') instanceof NativeCorePort
+                ? 'NATIVE_COMPANION_INTERFACE_COMPATIBLE' : 'NATIVE_COMPANION_UNAVAILABLE_OR_INCOMPATIBLE';
+        } catch (\Throwable) {
+            return 'NATIVE_CONTRACT_UNAVAILABLE';
+        }
+    }
+
     private static function reviewedDirectory(): ?string
     {
         if (!class_exists(NativePortContract::class)) {
@@ -111,12 +128,42 @@ final class NativeHeldInspection
         }
     }
 
+    /** Read recovery readiness through the reviewed local Core port. No caller receipt is accepted. */
+    public static function recoveryStatus(string $shop,string $account,mixed $scope): array
+    {
+        $held = self::result('BLOCKED','INDEPENDENT_RECOVERY_FLOOR_REQUIRED');
+        try {
+            if (!Runtime::permitsFixtureAccount($shop,$account) || !$scope instanceof ShopBinding
+                || $scope->providerShopId !== $shop || $scope->environment !== 'test') {
+                return self::result('DENIED','NATIVE_BINDING');
+            }
+            if (self::companionStatus() !== 'NATIVE_COMPANION_INTERFACE_COMPATIBLE') {
+                return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+            }
+            $actor = \get_current_user_id();
+            $current = NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge_pod']);
+            if (!is_array($current) || ($current['scope']['external_account_reference'] ?? null) !== $account) {
+                return self::result('DENIED','NATIVE_ACCOUNT_OR_SESSION');
+            }
+            $port = NativeBridge::connect('1.0.0');
+            if (!$port instanceof NativeCorePort) return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+            $result = $port->recovery($scope,$actor,['action'=>'INSPECT']);
+            if ($result instanceof \WP_Error
+                && $result->get_error_code()==='printify_native_independent_checkpoint_and_drain_required') {
+                return $held;
+            }
+            return self::result('BLOCKED','NATIVE_RECOVERY_UNVERIFIED');
+        } catch (\Throwable) {
+            return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+        }
+    }
+
     /** Check the canonical request for handoff only. No Core writer is invoked. */
     public static function prepareMutation(string $shop,string $account,array $request): array
     {
         $binding = $request['binding'] ?? null;
         if (!Runtime::permitsFixtureAccount($shop, $account)
-            || !in_array($request['action'] ?? null, ['AUTHORIZE', 'REGISTER', 'CLAIM', 'RECEIPT_READ'], true)
+            || !in_array($request['action'] ?? null, ['AUTHORIZE','REGISTER','CLAIM','RECOVER','CANCEL','RECEIPT_READ','RECONCILE','OUTCOME'], true)
             || !is_array($binding)
             || ($binding['provider_shop_id'] ?? null) !== $shop
             || ($binding['environment'] ?? null) !== 'test') {
@@ -149,7 +196,7 @@ final class NativeHeldInspection
             if (!is_array($current) || ($current['scope']['external_account_reference'] ?? null) !== $account) {
                 return self::result('DENIED', 'NATIVE_ACCOUNT_OR_SESSION');
             }
-            if ($request['action'] === 'AUTHORIZE') {
+            if (in_array($request['action'], ['AUTHORIZE','RECEIPT_READ'], true)) {
                 if ((new \ReflectionClass(NativeBridge::class))->getFileName() !== $directory . '/NativeBridge.php'
                     || (new \ReflectionClass(NativeCorePort::class))->getFileName() !== $directory . '/NativeCorePort.php') {
                     return self::result('BLOCKED', 'NATIVE_BUILD_INCOMPATIBLE');
@@ -158,10 +205,25 @@ final class NativeHeldInspection
                 if (!$core instanceof NativeCorePort) {
                     return self::result('BLOCKED', 'NATIVE_COMPANION_INCOMPATIBLE');
                 }
-                // AUTHORIZE inspects current local evidence. No writer, claim or provider call is delegated.
+                // Both actions inspect current local evidence. The writer is never delegated.
                 $decision = $core->exchange($request);
                 if (!$decision instanceof \WP_Error) {
                     return self::result('BLOCKED', 'UNEXPECTED_NATIVE_AUTHORITY_RESULT');
+                }
+                if ($request['action'] === 'RECEIPT_READ') {
+                    $evidence = $decision->get_error_data();
+                    if ($decision->get_error_code() !== 'printify_native_held_outcome_unknown' || !is_array($evidence)
+                        || ($evidence['outcome'] ?? null) !== 'UNKNOWN'
+                        || ($evidence['provider_receipt_verified'] ?? null) !== false
+                        || ($evidence['retry_permitted'] ?? null) !== false
+                        || ($evidence['external_execution_authorized'] ?? null) !== false
+                        || !is_int($evidence['journal_revision'] ?? null) || $evidence['journal_revision'] < 1) {
+                        return self::result('DENIED', 'NATIVE_RECEIPT_UNAVAILABLE');
+                    }
+                    return self::result('UNKNOWN', 'NATIVE_HELD_OUTCOME_UNKNOWN') + [
+                        'canonical_action'=>'RECEIPT_READ','canonical_request_shape_verified'=>true,
+                        'journal_revision'=>$evidence['journal_revision'],'provider_receipt_verified'=>false,
+                    ];
                 }
                 if (!in_array($decision->get_error_code(), [
                     'printify_native_journal_and_independent_checkpoint_required',

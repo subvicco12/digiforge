@@ -10,6 +10,7 @@ import { canonical, sign } from '../../../../contracts/cloudflare-dispatcher/pro
 import { FixtureSequencer, RecoveryAnchor } from './reference.mjs';
 import { fixtureKey, now } from './recovery-process.mjs';
 
+const childDeadline = { timeout: 8000, killSignal: 'SIGKILL' };
 const worker = fileURLToPath(new URL('./recovery-process.mjs', import.meta.url));
 const fixtureIdentity = {
   operation_id:'a'.repeat(64),correlation_id:'b'.repeat(64),idempotency_id:'c'.repeat(64),
@@ -30,18 +31,23 @@ async function setup(t) {
   sink.exec('CREATE TABLE effects(operation_id TEXT PRIMARY KEY, effect TEXT NOT NULL)');
   t.after(() => { sink.close(); seq.close(); anchor.close(); rmSync(dir,{recursive:true,force:true}); });
   const command = q => {
-    const r = spawnSync(process.execPath,[worker,'--worker'],{input:JSON.stringify({...paths,...q}),encoding:'utf8',timeout:8000});
-    assert.ifError(r.error);
+    const r = spawnSync(process.execPath,[worker,'--worker'],{input:JSON.stringify({...paths,...q}),encoding:'utf8',...childDeadline});
+    assert.ifError(r.error && new Error('Recovery worker '+q.command+': '+r.error.message));
     return { status:r.status, value:r.stdout ? JSON.parse(r.stdout) : undefined };
   };
   const parallel = q => new Promise((resolve,reject) => {
-    const c = spawn(process.execPath,[worker,'--worker'],{stdio:['pipe','pipe','inherit'],timeout:8000});
+    const c = spawn(process.execPath,[worker,'--worker'],{stdio:['pipe','pipe','inherit'],...childDeadline});
     let result = '';
     c.stdout.setEncoding('utf8').on('data',s=>result+=s);
     c.on('error',reject);
-    c.on('close',status=>{
+    c.on('close',(status,signal)=>{
+      if (signal || result === '') {
+        reject(new Error('Recovery worker '+q.command+' produced no receipt (exit '+status+', signal '+signal+')'));
+        return;
+      }
       try { resolve({status,value:JSON.parse(result)}); } catch (error) { reject(error); }
     });
+    c.stdin.on('error',reject);
     c.stdin.end(JSON.stringify({...paths,...q}));
   });
   seq.initialize(epoch);

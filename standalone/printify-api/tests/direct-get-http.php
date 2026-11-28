@@ -75,3 +75,13 @@ foreach ([
         'Unexpected date-based wait hint');
 }
 echo "HTTP-date Retry-After, expired, capped and invalid delays passed.\n";
+
+foreach ([400=>'PROVIDER_BAD_REQUEST',401=>'PROVIDER_UNAUTHORIZED',403=>'PROVIDER_FORBIDDEN',
+    404=>'PROVIDER_NOT_FOUND',409=>'PROVIDER_CONFLICT',422=>'PROVIDER_VALIDATION_DENIED',503=>'PROVIDER_SERVER_ERROR'] as $status=>$reason) {
+    $GLOBALS['response']['response']['code']=$status;
+    $GLOBALS['response']['body']='{"message":"fixture-test-only"}';
+    $result=DirectGet::execute($request,$charge);
+    check($result['reason']===$reason && $result['http_status']===$status && !$result['retry_permitted']
+        && !str_contains(json_encode($result,JSON_THROW_ON_ERROR),'fixture-test-only'),'Provider rejection leaked or was retried');
+}
+echo "Seven HTTP rejection classes preserve status and redact response body.\n";

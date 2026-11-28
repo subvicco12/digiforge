@@ -66,6 +66,18 @@ final class Runtime
             echo '<p>Native Core build: ' . \esc_html($readiness['native_mutation']['core_build']) . '</p>';
             echo '<p>Held authority interface: ' . \esc_html($readiness['native_mutation']['handoff_contract'])
                 . ' (execution disabled)</p>';
+            echo '<h2>Native readiness</h2><dl>';
+            foreach ([
+                'Companion interface'=>$readiness['native_mutation']['companion_contract'],
+                'Held receipt readback'=>'Requires reviewed Core and current operator scope',
+                'Trusted final sender'=>'Held · authenticated sender admission required',
+                'Production custody'=>'Held · independent custody and provider revocation evidence required',
+                'Recovery and consumed-operation floor'=>'Held · independent witness evidence required',
+                'Provider execution'=>'Held · no live qualification in this package',
+            ] as $label=>$value) {
+                echo '<dt>'.\esc_html($label).'</dt><dd>'.\esc_html($value).'</dd>';
+            }
+            echo '</dl>';
         }
         $catalogScopes = self::syntheticModulesAvailable() ? self::workspaceScopes() : [];
         if ($catalogScopes !== []) {
@@ -371,10 +383,12 @@ final class Runtime
         $blocked='BLOCKED_EXTERNAL';
         $disabled='DISABLED_BY_POLICY';
         $nativeBuild = 'STANDALONE_ADAPTER_UNAVAILABLE';
+        $companion = 'NATIVE_CONTRACT_UNAVAILABLE';
         $adapter = __DIR__ . '/NativeHeldInspection.php';
         if (is_readable($adapter)) {
             require_once $adapter;
             $nativeBuild = NativeHeldInspection::buildStatus();
+            $companion = NativeHeldInspection::companionStatus();
         }
         return [
             'provider_read'=>[
@@ -382,7 +396,7 @@ final class Runtime
                 'hosted'=>$blocked,'provider'=>$blocked,'dispatch'=>$disabled,
             ],
             'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled,
-                'core_build'=>$nativeBuild,'handoff_contract'=>self::heldAuthorityContract()],
+                'core_build'=>$nativeBuild,'companion_contract'=>$companion,'handoff_contract'=>self::heldAuthorityContract()],
         ];
     }
 

@@ -160,6 +160,9 @@ final class SyntheticWorkspacePanel
     private static function renderProposals(string $shop, int $revision, array $proposals, array $receipts): void
     {
         echo '<h3 id="df-proposals">Approval queue</h3><p>Local review decisions never authorize execution. UNKNOWN stays quarantined.</p>';
+        $counts = array_count_values(array_column($proposals,'state'));
+        echo '<p>'.\esc_html(sprintf('%d pending approval · %d approved and held · %d UNKNOWN',
+            $counts['PENDING_APPROVAL'] ?? 0,$counts['APPROVED_HELD'] ?? 0,$counts['UNKNOWN'] ?? 0)).'</p>';
         if ($proposals === []) {
             echo '<p>Preview a supported operation in the configured shop to save a proposal.</p>';
         }
@@ -167,11 +170,16 @@ final class SyntheticWorkspacePanel
             $state = $proposal['state'];
             echo '<details><summary>'.\esc_html($proposal['operation'].' · '.$state.' · revision '.$proposal['revision']).'</summary>';
             echo '<p>Proposal <code>'.\esc_html($proposal['id']).'</code></p>';
+            $quote = $proposal['quote_binding'] ?? null;
+            if (is_array($quote) && is_int($quote['amount_minor'] ?? null) && is_string($quote['method'] ?? null)) {
+                echo '<p>'.\esc_html(sprintf('Synthetic quote · %s · %d minor units · currency unavailable',
+                    $quote['method'],$quote['amount_minor'])).'</p>';
+            }
             if (isset($proposal['creation_receipt'])) {
                 $creation = $proposal['creation_receipt'];
                 echo '<p>'.\esc_html('Local fixture creation: '.$creation['resource_id'].' · correlation '.$creation['correlation_id']).'</p>';
             } elseif ($state === 'APPROVED_HELD' && in_array($proposal['operation'], SyntheticWorkspace::CORRELATED_CREATE_OPERATIONS, true)) {
-                echo '<p>Re-enter the exact draft fields in the create form. Use the proposal ID and revision above, then choose Create correlated fixture record.</p>';
+                echo '<p>Re-enter the exact draft fields with the proposal ID and revision. For orders, first obtain a matching synthetic quote, then preview and approve the order within five minutes.</p>';
             }
             if (isset($proposal['receipt_id'])) {
                 echo '<p>Fixture receipt <code>'.\esc_html($proposal['receipt_id']).'</code></p>';
@@ -197,6 +205,13 @@ final class SyntheticWorkspacePanel
                 'UNKNOWN'=>isset($proposal['referral']) ? [] : ['refer_unknown'=>'Refer for manual reconciliation'],
                 default=>[],
             };
+            if ($proposal['operation']==='MOCKUP_SELECTION_UPDATE') unset($decisions['reconcile']);
+            if ($state==='UNKNOWN' && in_array($proposal['operation'],['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) {
+                $decisions['reconcile_cancellation']='Reconcile exact cancellation fixture readback';
+            }
+            if ($state==='UNKNOWN' && $proposal['operation']==='MOCKUP_SELECTION_UPDATE') {
+                $decisions['reconcile_mockup']='Reconcile exact mockup fixture readback';
+            }
             if ($state === 'APPROVED_HELD' && isset($proposal['baseline_sha256'])
                 && in_array($proposal['operation'], SyntheticWorkspace::APPROVED_TRANSITIONS, true)) {
                 $decisions['simulate_held'] = 'Run approved fixture transition';

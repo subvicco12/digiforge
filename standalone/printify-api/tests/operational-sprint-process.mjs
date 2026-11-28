@@ -1,5 +1,9 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
-import { createServer } from 'node:http';
+import { createServer, get } from 'node:http';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { b64, canonical, hash } from '../../../contracts/cloudflare-dispatcher/protocol.mjs';
 import { ProviderReadTransport } from '../../../contracts/cloudflare-dispatcher/provider-read/transport.mjs';
 
@@ -27,8 +31,10 @@ const server=createServer((req,res)=>{
   }
   res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(known[req.url]));
 });
-await new Promise((resolve,reject)=>server.once('error',reject).listen(0,'127.0.0.1',resolve));
+const directory=mkdtempSync(join(tmpdir(),'df-provider-fixture-'));
+const socketPath=join(directory,'provider.sock');
 try {
+  await new Promise((resolve,reject)=>server.once('error',reject).listen(socketPath,resolve));
   let wire='';
   for await (const chunk of process.stdin) {
     wire+=chunk;
@@ -55,9 +61,12 @@ try {
   };
   const connector={get:async(binding,{signal})=>{
     if (!Object.hasOwn(known,binding.endpoint)) throw new Error('Loopback fixture route only');
-    const url='http://127.0.0.1:'+server.address().port+binding.endpoint;
-    const observed=await fetch(url,{redirect:'error',signal,headers:{authorization:'Bearer fixture-disposable'}});
-    return {status:observed.status,headers:{'content-type':observed.headers.get('content-type')},body:observed.body};
+    const observed=await new Promise((resolve,reject)=>{
+      get({socketPath,path:binding.endpoint,signal,headers:{authorization:'Bearer fixture-disposable'}},resolve)
+        .once('error',reject);
+    });
+    return {status:observed.statusCode,headers:{'content-type':observed.headers['content-type']},
+      body:Readable.toWeb(observed)};
   }};
   const transport=new ProviderReadTransport({scope,authority,connector,
     sign:bytes=>crypto.subtle.sign('Ed25519',key,bytes),clock:()=>Math.floor(Date.now()/1000)});
@@ -68,6 +77,10 @@ try {
   }
   process.stdout.write(JSON.stringify(response));
 } finally {
-  server.closeAllConnections();
-  await new Promise(resolve=>server.close(resolve));
+  try {
+    server.closeAllConnections();
+    if (server.listening) await new Promise(resolve=>server.close(resolve));
+  } finally {
+    rmSync(directory,{recursive:true,force:true});
+  }
 }

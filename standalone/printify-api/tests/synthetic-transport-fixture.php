@@ -51,6 +51,18 @@ requireSynthetic($updated['status']===200 && $updated['body']['synthetic_version
 requireSynthetic($call('PRODUCT_UPDATE','PUT',$root.'/products/product-1.json',['title'=>'Stale'],['expected_version'=>1])['status']===409,
     'Stale revision altered the fixture.');
 
+$mockupPath = $root.'/products/product-1/mockup-selection.json';
+$replacement = ['groups'=>[['variant_ids'=>[9],'mockup_ids'=>['product-1_back']]]];
+requireSynthetic($call('MOCKUP_SELECTION_UPDATE','PATCH',$mockupPath,$replacement,['expected_version'=>2])['status']===204
+    && $call('MOCKUP_SELECTION_READ','GET',$mockupPath)['body'][0]['mockup_id']==='product-1_back',
+    'Complete mockup replacement did not reopen.');
+$art = $productBody['print_areas'];
+$art[0]['placeholders'][0]['images'][0]['x']=0.4;
+requireSynthetic($call('PRODUCT_UPDATE','PUT',$root.'/products/product-1.json',['print_areas'=>$art],['expected_version'=>3])['status']===200
+    && $call('MOCKUP_SELECTION_READ','GET',$mockupPath)['body'][0]['mockup_id']==='product-1_front'
+    && $call('MOCKUP_SELECTION_UPDATE','PATCH',$mockupPath,$replacement,['expected_version'=>3])['status']===409,
+    'Artwork edit retained the previous mockup selection or admitted its stale revision.');
+
 $line = ['product_id'=>'product-1','variant_id'=>9,'quantity'=>1];
 $order = ['external_id'=>'fixture-order','line_items'=>[$line],'address_to'=>['country'=>'US']];
 requireSynthetic($call('ORDER_SHIPPING_QUOTE','POST',$root.'/orders/shipping.json',$order)['body']['standard']===500,
@@ -78,6 +90,48 @@ requireSynthetic($second['status']===201 && $call('ORDER_CANCEL','POST',$root.'/
     'An eligible order could not be canceled.');
 $page = $call('ORDERS_READ','GET',$root.'/orders.json?page=2&limit=1');
 requireSynthetic(array_column($page['body']['data'],'id')===['order-2'], 'Pagination did not respect bounded selectors.');
+
+$third = array_replace($order, ['external_id'=>'fixture-multiple', 'line_items'=>[$line,$line,$line]]);
+requireSynthetic($call('ORDER_CREATE','POST',$root.'/orders.json',$third+['shipping_method'=>99])['status']===422,
+    'Unknown shipping method created a fixture order.');
+requireSynthetic($call('ORDER_CREATE','POST',$root.'/orders.json',$third+['shipping_method'=>2])['status']===201,
+    'Valid selected shipping method did not create an order.');
+$linePath = $root.'/orders/order-3/line_items/line-2/cancel.json';
+requireSynthetic($call('LINE_ITEM_CANCEL','POST',$linePath)['status']===204
+    && $call('LINE_ITEM_CANCEL','POST',$linePath)['status']===404
+    && $transport->confirmProductionSimulation('order-3')
+    && $call('ORDER_SEND_TO_PRODUCTION','POST',$root.'/orders/order-3/send_to_production.json')['status']===200
+    && $transport->fulfill('order-3','line-3') && !$transport->fulfill('order-3','line-2'),
+    'Line cancellation or subsequent production crossed fixture state boundaries.');
+$orderPath = $root.'/orders/order-3.json';
+requireSynthetic($call('ORDER_READ','GET',$orderPath)['body']['status']==='partially-fulfilled'
+    && $transport->fulfill('order-3','line-1') && !$transport->fulfill('order-3','line-1'),
+    'Partial fulfillment or duplicate shipment handling failed.');
+$shipmentRead = $call('ORDER_READ','GET',$orderPath)['body'];
+requireSynthetic($shipmentRead['status']==='fulfilled'
+    && array_column($shipmentRead['shipments'],'line_item_ids')===[['line-3'],['line-1']]
+    && count(array_unique(array_column($shipmentRead['shipments'],'number')))===2,
+    'Distinct shipments failed exact order readback.');
+
+$fourth = $call('PRODUCT_CREATE','POST',$root.'/products.json',['title'=>'Fixture release candidate']+$productBody);
+requireSynthetic($fourth['status']===201,'Independent publication fixture was not created.');
+$release = $root.'/products/product-2';
+requireSynthetic($call('PRODUCT_PUBLISH','POST',$release.'/publish.json',['title'=>true],['expected_version'=>1])['status']===200
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>2])['status']===409,
+    'A pending publication did not hold deletion.');
+requireSynthetic($call('PRODUCT_PUBLISH_SUCCEEDED','POST',$release.'/publishing_succeeded.json',
+    ['external'=>['id'=>'fixture-published','handle'=>'https://products.example.invalid/fixture-published']],['expected_version'=>2])['status']===200,
+    'Fixture publication acknowledgment was rejected.');
+$published = $call('PRODUCT_READ','GET',$release.'.json')['body'];
+requireSynthetic($published['synthetic_version']===3 && $published['synthetic_publication_state']==='PUBLISHED'
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>3])['status']===409
+    && $call('PRODUCT_UNPUBLISH_NOTIFY','POST',$release.'/unpublish.json',[],['expected_version'=>3])['status']===200,
+    'Published fixture state or deletion gate was incorrect.');
+requireSynthetic($call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>3])['status']===409
+    && $call('PRODUCT_DELETE','DELETE',$release.'.json',[],['expected_version'=>4])['status']===200
+    && $call('PRODUCT_READ','GET',$release.'.json')['status']===404,
+    'Eligible deletion, stale revision denial or deletion readback failed.');
+echo "Product publication, unpublication and eligible deletion readback PASS\n";
 
 $webhook = ['topic'=>'order:created','url'=>SyntheticPrintifyTransport::WEBHOOK_URLS[0]];
 requireSynthetic($call('WEBHOOK_CREATE','POST',$root.'/webhooks.json',array_replace($webhook,

@@ -14,6 +14,16 @@ final class HeldSignedEvidence
     private const SCOPES = ['shop', 'account', 'integration'];
     private const REVISIONS = ['actor', 'session_generation', 'authorization_revision', 'policy_revision', 'journal_revision', 'sequence'];
 
+    /** Check the exact inert sender bytes against its pinned signed intent. No claim or dispatch is performed. */
+    public static function matchesPayload(
+        string $payload, string $wire, string $keyId, string $issuer, string $sender,
+        string $publicKey, bool $revoked, int $now, array $expected
+    ): bool {
+        $digest = $expected['payload_digest'] ?? null;
+        return strlen($payload) <= 262144 && is_string($digest) && hash_equals($digest,hash('sha256',$payload))
+            && self::matches($wire,$keyId,$issuer,$sender,$publicKey,$revoked,$now,$expected);
+    }
+
     /**
      * The consumer must supply a trusted pin and current expected identity.
      * True describes signature and identity only, without one-use admission or revocation ordering.

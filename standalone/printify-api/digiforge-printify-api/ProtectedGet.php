@@ -5,7 +5,7 @@ namespace DigiForgePrintifyApi;
 
 use DigiForgePrintifyApi\Engine\Listings\Validator;
 use DigiForgePrintifyApi\Engine\PrintifyCatalogReadContract;
-use DigiForgePrintifyApi\Engine\POD\{PrintifyApiReadEvidence, PrintifyApiRequest};
+use DigiForgePrintifyApi\Engine\POD\{PrintifyApiReadEvidence, PrintifyApiRequest, PrintifySupportContract};
 
 if (!defined('ABSPATH')) {
     exit;
@@ -16,6 +16,7 @@ require_once __DIR__.'/Engine/PrintifyCatalogReadContract.php';
 require_once __DIR__.'/Engine/POD/PrintifyApiRequest.php';
 require_once __DIR__.'/Engine/POD/PrintifyApiReadEvidence.php';
 require_once __DIR__.'/Engine/POD/PrintifyOrderEvidence.php';
+require_once __DIR__.'/Engine/POD/PrintifySupportContract.php';
 
 /** Shared GET intent and response contract. The WordPress package has no gateway transport. */
 final class ProtectedGet
@@ -24,15 +25,26 @@ final class ProtectedGet
     public const REPLY_VERSION = 'DF_STANDALONE_GET_REPLY_1';
     public const MAX_PAGE = 40;
 
+    public const OPERATOR_FIELDS = [
+        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
+        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
+        'VARIANTS_READ'=>['blueprint_id','provider_id','show-out-of-stock'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id','show-out-of-stock'],
+        'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
+        'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
+        'PRODUCTS_READ'=>['page','limit'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_GPSR_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
+        'MOCKUP_SELECTION_READ'=>['product_id'], 'LINKED_IMAGE_METADATA_READ'=>['product_id','image_id'],
+        'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
+        'ORDERS_READ'=>['page','limit','status','sku'],'ORDER_READ'=>['order_id'],
+        'SUPPORT_LIST'=>['order_id'], 'SUPPORT_DETAIL'=>['order_id','support_request_id'],
+    ];
+
     private const CATALOG = [
         'BLUEPRINTS_READ'=>'blueprints','BLUEPRINT_READ'=>'blueprint','BLUEPRINT_PROVIDERS_READ'=>'providers',
         'BLUEPRINT_SIZE_GUIDE_READ'=>'size_guide','BLUEPRINT_PROVIDER_READ'=>'provider','VARIANTS_READ'=>'variants','VARIANT_READ'=>'variant',
         'CATALOG_SHIPPING_READ'=>'shipping','CATALOG_SHIPPING_METHOD_READ'=>'shipping_method',
     ];
-    private const RECORDS = [
-        'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','PRODUCTS_READ','PRODUCT_READ','ORDERS_READ','ORDER_READ',
-    ];
-
     public static function request(array $scope, string $operation, array $selection): array
     {
         $fields = ['site','actor','session','revision','account','shop','integration','custody'];
@@ -49,11 +61,29 @@ final class ProtectedGet
             self::requirePattern($scope[$key], '/^[a-f0-9]{64}$/D');
         }
 
+        $fields = self::OPERATOR_FIELDS[$operation] ?? null;
+        if ($fields === null) {
+            throw new \InvalidArgumentException('Unsupported read operation.');
+        }
+        if (array_diff(array_keys($selection), $fields) !== []) {
+            throw new \InvalidArgumentException('Unexpected read selection field.');
+        }
+
         if (isset(self::CATALOG[$operation])) {
-            if (array_key_exists('kind', $selection)) {
-                throw new \InvalidArgumentException('Catalog kind is selected by operation.');
+            $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + array_diff_key($selection,['show-out-of-stock'=>true]));
+            if (array_key_exists('show-out-of-stock',$selection)) {
+                if (!in_array($selection['show-out-of-stock'],['0','1'],true)) throw new \InvalidArgumentException('Invalid availability selection.');
+                $path.='?show-out-of-stock='.$selection['show-out-of-stock'];
             }
-            $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + $selection);
+        } elseif (in_array($operation,['SUPPORT_LIST','SUPPORT_DETAIL'],true)) {
+            $path = PrintifySupportContract::prepare($operation,$scope['shop'],$selection)['endpoint'];
+        } elseif ($operation==='LINKED_IMAGE_METADATA_READ') {
+            self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            self::requirePattern($selection['image_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            $path='/v1/uploads/'.$selection['image_id'].'.json';
+        } elseif ($operation === 'MOCKUP_SELECTION_READ') {
+            self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            $path='/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'/mockup-selection.json';
         } elseif ($operation === 'PRODUCT_ARTWORK_READ') {
             self::requirePattern($selection['image_id'] ?? null, '/^[A-Za-z0-9_-]{1,160}$/D');
             $path = PrintifyApiRequest::prepare('PRODUCT_READ', $scope['shop'],
@@ -70,7 +100,7 @@ final class ProtectedGet
                 }
             }
             $path = '/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'.json';
-        } elseif (in_array($operation, self::RECORDS, true)) {
+        } else {
             if (in_array($operation, ['PRODUCTS_READ','ORDERS_READ'], true)) {
                 $selection += ['page'=>1,'limit'=>10];
                 if (!is_int($selection['page']) || $selection['page'] < 1 || $selection['page'] > self::MAX_PAGE
@@ -78,9 +108,16 @@ final class ProtectedGet
                     throw new \InvalidArgumentException('Page is outside the read window.');
                 }
             }
-            $path = PrintifyApiRequest::prepare($operation, $scope['shop'], $selection)['endpoint'];
-        } else {
-            throw new \InvalidArgumentException('Unsupported read operation.');
+            $filters=[];
+            if ($operation==='ORDERS_READ') {
+                foreach (['status'=>'/^[a-z][a-z0-9-]{0,59}$/D','sku'=>'/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/D'] as $key=>$rule) {
+                    if (!array_key_exists($key,$selection)) continue;
+                    self::requirePattern($selection[$key],$rule);
+                    $filters[$key]=$selection[$key];
+                }
+            }
+            $path = PrintifyApiRequest::prepare($operation, $scope['shop'], array_diff_key($selection,$filters))['endpoint'];
+            foreach ($filters as $key=>$value) $path.='&'.$key.'='.rawurlencode($value);
         }
         return ['version'=>self::VERSION,'method'=>'GET','scope'=>$scope,'operation'=>$operation,
             'selection'=>$selection,'path'=>$path];
@@ -100,11 +137,53 @@ final class ProtectedGet
         if (!is_array($data)) {
             throw new \InvalidArgumentException('Expected structured evidence.');
         }
-        $operation = $request['operation'];
-        $selection = $request['selection'];
-        $shop = $request['scope']['shop'];
+        $operation = $request['operation'] ?? null;
+        $selection = $request['selection'] ?? null;
+        $scope = $request['scope'] ?? null;
+        if (!is_string($operation) || !is_array($selection) || !is_array($scope)
+            || self::digest($request) !== self::digest(self::request($scope, $operation, $selection))) {
+            throw new \InvalidArgumentException('Read request binding mismatch.');
+        }
+        $shop = $scope['shop'];
+        if (in_array($operation,['SUPPORT_LIST','SUPPORT_DETAIL'],true)) {
+            if (array_key_exists('shop_id',$data) && !self::matchesShop($data['shop_id'],$shop)) {
+                throw new \InvalidArgumentException('Support response scope mismatch.');
+            }
+            $items = $operation === 'SUPPORT_DETAIL' ? [$data['data'] ?? null] : ($data['data'] ?? []);
+            if (is_array($items)) {
+                foreach ($items as $item) {
+                    if (is_array($item) && array_key_exists('shop_id',$item) && !self::matchesShop($item['shop_id'],$shop)) {
+                        throw new \InvalidArgumentException('Support item scope mismatch.');
+                    }
+                }
+            }
+            $contract = PrintifySupportContract::prepare($operation,$shop,$selection);
+            return self::checkedSupportProjection(PrintifySupportContract::project($contract,$data,200));
+        }
+        if ($operation==='LINKED_IMAGE_METADATA_READ') {
+            if (($data['id']??null)!==$selection['image_id']
+                || (isset($data['shop_id']) && (!is_int($data['shop_id']) || (string)$data['shop_id']!==$shop))) {
+                throw new \InvalidArgumentException('Linked asset identity mismatch.');
+            }
+            $metadata=['product_id'=>$selection['product_id'],'image_id'=>$selection['image_id']];
+            foreach (['width'=>100000,'height'=>100000,'size'=>1000000000] as $field=>$maximum) {
+                $value=$data[$field]??null;
+                if ($value!==null && (!is_int($value) || $value<1 || $value>$maximum)) throw new \InvalidArgumentException('Invalid linked asset measurement.');
+                $metadata[$field]=$value;
+            }
+            $mime=$data['mime_type']??null;
+            if ($mime!==null) self::requirePattern($mime,'~^image/[a-z0-9.+-]{1,40}$~D');
+            $metadata['mime_type']=$mime;
+            return $metadata;
+        }
+        if ($operation==='MOCKUP_SELECTION_READ') {
+            if ($request!==self::request($request['scope'],$operation,$selection)) {
+                throw new \InvalidArgumentException('Mockup request binding mismatch.');
+            }
+            return ['shop_id'=>$shop,'product_id'=>$selection['product_id'],'mockups'=>self::mockupRows($data)];
+        }
         if (isset(self::CATALOG[$operation])) {
-            $catalog = PrintifyCatalogReadContract::select($data, ['kind'=>self::CATALOG[$operation]] + $selection);
+            $catalog = PrintifyCatalogReadContract::select($data, ['kind'=>self::CATALOG[$operation]] + array_diff_key($selection,['show-out-of-stock'=>true]));
             $summary = static fn(array $row): array => ['id'=>$row['id'],'title'=>$row['title'] ?? null];
             return match ($operation) {
                 'BLUEPRINTS_READ' => array_map($summary, $catalog),
@@ -140,10 +219,22 @@ final class ProtectedGet
             if (!is_array($rows)) {
                 throw new \InvalidArgumentException('Missing records.');
             }
+            if (array_key_exists('shop_id', $data) && !self::matchesShop($data['shop_id'], $shop)) {
+                throw new \InvalidArgumentException('Response envelope scope mismatch.');
+            }
             foreach ($rows as $row) {
                 if (!is_array($row) || (array_key_exists('shop_id', $row)
-                    && ((!is_int($row['shop_id']) && !is_string($row['shop_id'])) || (string)$row['shop_id'] !== $shop))) {
+                    && !self::matchesShop($row['shop_id'], $shop))) {
                     throw new \InvalidArgumentException('Response scope mismatch.');
+                }
+                if ($operation==='ORDERS_READ') {
+                    if (isset($selection['status']) && ($row['status']??null)!==$selection['status']) {
+                        throw new \InvalidArgumentException('Order status filter mismatch.');
+                    }
+                    if (isset($selection['sku']) && (!is_array($row['line_items']??null)
+                        || !in_array($selection['sku'],array_column($row['line_items'],'sku'),true))) {
+                        throw new \InvalidArgumentException('Order SKU filter unavailable or mismatched.');
+                    }
                 }
             }
         }
@@ -156,7 +247,17 @@ final class ProtectedGet
             self::attachArtworkMetadata($product, $data);
             return self::linkedArtwork($product,$selection['image_id']);
         }
-        $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
+        $providerSelection=$operation==='ORDERS_READ'?array_diff_key($selection,['status'=>true,'sku'=>true]):$selection;
+        $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $providerSelection);
+        if ($operation==='ORDERS_READ') {
+            $total = $data['total'] ?? null;
+            if (array_key_exists('total',$data) && (!is_int($total) || $total < count($projection['data'])
+                || $total > 2147483647)) {
+                throw new \InvalidArgumentException('Invalid order pagination total.');
+            }
+            $filters=array_intersect_key($selection,['status'=>true,'sku'=>true]);
+            if ($filters!==[]) $projection['filters']=$filters;
+        }
         if ($operation === 'PRODUCT_READ') {
             self::attachArtworkMetadata($projection, $data);
         }
@@ -165,6 +266,29 @@ final class ProtectedGet
             $projection['page_window_exhausted'] = true;
         }
         return $projection;
+    }
+
+    /** The shared support parser supplies only typed, redacted data. Fence calendar rollover and time ordering. */
+    public static function checkedSupportProjection(array $projection): array
+    {
+        $items = $projection['support_requests'] ?? (isset($projection['support_request']) ? [$projection['support_request']] : []);
+        foreach ($items as $item) {
+            foreach (['created_at','updated_at'] as $field) {
+                $parsed = date_parse($item[$field]);
+                if ($parsed['warning_count'] !== 0 || $parsed['error_count'] !== 0) {
+                    throw new \InvalidArgumentException('Invalid support observation calendar date.');
+                }
+            }
+            if (new \DateTimeImmutable($item['updated_at']) < new \DateTimeImmutable($item['created_at'])) {
+                throw new \InvalidArgumentException('Support observation predates creation.');
+            }
+        }
+        return $projection;
+    }
+
+    private static function matchesShop(mixed $value, string $shop): bool
+    {
+        return (is_int($value) || is_string($value)) && (string)$value === $shop;
     }
 
     /** An account media-library ID is not ownership evidence. Require current product placement. */
@@ -258,6 +382,42 @@ final class ProtectedGet
         }
     }
 
+    /** Typed rows from the exact scoped GET. Source URLs are validated and discarded. */
+    public static function mockupRows(array $rows): array
+    {
+        if (!array_is_list($rows) || count($rows)>200) throw new \InvalidArgumentException('Invalid mockup response.');
+        $output=[];
+        $seen=[];
+        foreach ($rows as $row) {
+            if (!is_array($row) || count($row)!==5 || !is_bool($row['selected']??null)
+                || !in_array($row['type']??null,['GENERATED','UPLOADED'],true)
+                || !is_array($row['variant_ids']??null) || !array_is_list($row['variant_ids'])
+                || count($row['variant_ids'])>1000 || ($row['type']==='GENERATED' && $row['variant_ids']===[])) {
+                throw new \InvalidArgumentException('Invalid mockup row.');
+            }
+            $id=$row['mockup_id']??null;
+            self::requirePattern($id,'/^[A-Za-z0-9_-]{1,200}$/D');
+            if (isset($seen[$id])) throw new \InvalidArgumentException('Duplicate mockup identity.');
+            $seen[$id]=true;
+            $variants=[];
+            foreach ($row['variant_ids'] as $variant) {
+                if (!is_int($variant) || $variant<1 || $variant>2147483647 || isset($variants[$variant])) {
+                    throw new \InvalidArgumentException('Invalid mockup variant reference.');
+                }
+                $variants[$variant]=true;
+            }
+            $url=$row['src']??null;
+            $parts=is_string($url) && strlen($url)<=2048 && !preg_match('~[\x00-\x20\x7f<>\\\\]~',$url)?parse_url($url):false;
+            if (!is_array($parts) || ($parts['scheme']??null)!=='https'
+                || !preg_match('/^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/D',$parts['host']??'')
+                || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || !str_starts_with($parts['path']??'','/')) {
+                throw new \InvalidArgumentException('Unsafe mockup URL.');
+            }
+            $output[]=['mockup_id'=>$id,'type'=>$row['type'],'variant_ids'=>$row['variant_ids'],'selected'=>$row['selected']];
+        }
+        return $output;
+    }
+
     private static function variant(array $row): array
     {
         $options = $row['options'] ?? null;
@@ -273,7 +433,8 @@ final class ProtectedGet
                 }
             }
         }
-        return ['id'=>$row['id'],'title'=>$row['title'] ?? null,'options'=>$options === [] ? null : $options];
+        return ['id'=>$row['id'],'title'=>$row['title'] ?? null,'options'=>$options === [] ? null : $options]
+            + array_intersect_key($row,['is_available'=>true]);
     }
 
     public static function verifyReply(array $request, string $grantId, array $reply, string $key, int $now): array

@@ -37,7 +37,9 @@ if ($phase === 'write') {
     requireFixture($before === $after, 'Activation changed unrelated autoloaded options');
 }
 $status = DigiForgePrintifyApi\Runtime::discover();
-requireFixture($status['version'] === '0.15.0' && $status['stop_all'] && $status['external_lock']
+requireFixture(preg_match('/^ \* Version: ([0-9]+\.[0-9]+\.[0-9]+)$/m',(string)file_get_contents(WP_PLUGIN_DIR.'/'.$plugin),$version)===1,
+    'Plugin header is missing a semantic version');
+requireFixture($status['version'] === $version[1] && $status['stop_all'] && $status['external_lock']
     && !$status['automation'] && $status['release_hold'] && !$status['provider_execution_authorized'],
     'Execution holds did not survive activation or restart');
 requireFixture(in_array('OFFLINE_PROVIDER_READ_REVIEW', $status['capabilities'], true), 'Routed capability missing');

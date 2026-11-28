@@ -54,22 +54,22 @@ if ($port === null && getenv('DF_PROTECTED_GET_WORKERS_FIXTURE') === '1') {
     exit(proc_close($process));
 }
 $fixture = new DigiForgePrintifyApi\SyntheticPrintifyTransport('107');
-$fixture->restoreFixtureState([[],['product-1'=>['id'=>'product-1','shop_id'=>107,
+$fixture->restoreFixtureState([['image-1'=>['id'=>'image-1','width'=>1200,'height'=>600,'mime_type'=>'image/png']],['product-1'=>['id'=>'product-1','shop_id'=>107,
     'title'=>'Synthetic mug','blueprint_id'=>42,'print_provider_id'=>7,'variants'=>[['id'=>9,'price'=>1000,'is_enabled'=>true]],
-    'print_areas'=>[]]],['order-1'=>['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture-order',
+    'print_areas'=>[['variant_ids'=>[9],'placeholders'=>[['position'=>'front','images'=>[['id'=>'image-1','x'=>0.5,'y'=>0.5,'scale'=>1,'angle'=>0]]]]]]]],['order-1'=>['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture-order',
     'status'=>'partially-fulfilled','line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>1]],
     'shipments'=>[['carrier'=>'FixtureCarrier','number'=>'fixture-tracking-1','url'=>'https://example.invalid/receipt']]]],
     [],[],1,true]);
 if ($port === 'get') {
     echo json_encode($fixture->request(['provider_shop_id'=>$scope['shop'],'method'=>'GET',
-        'endpoint'=>$request['path'],'operation'=>$request['operation'],'body'=>[]]),JSON_THROW_ON_ERROR);
+        'endpoint'=>$request['path'],'operation'=>($request['operation']==='PRODUCT_ARTWORK_READ'?'PRODUCT_READ':$request['operation']),'body'=>[]]),JSON_THROW_ON_ERROR);
     return;
 }
 $gateway = new FixtureReadGateway(sodium_crypto_sign_publickey($grantKeys),
     static fn (): array => ['revision'=>1,'stop_all'=>false,'external_lock'=>false,'release_hold'=>false,'revoked'=>[]],
     static function (array $scope,string $method,string $path) use ($fixture,$request): array {
         $response = $fixture->request(['provider_shop_id'=>$scope['shop'],'method'=>$method,'endpoint'=>$path,
-            'operation'=>$request['operation'],'body'=>[]]);
+            'operation'=>($request['operation']==='PRODUCT_ARTWORK_READ'?'PRODUCT_READ':$request['operation']),'body'=>[]]);
         return ['status'=>$response['status'],'body'=>json_encode($response['body'],JSON_THROW_ON_ERROR)];
     },$argv[2]);
 echo json_encode($gateway->exchange($request,$grant,$sign,$now,sodium_crypto_sign_secretkey($replyKeys)),JSON_THROW_ON_ERROR);

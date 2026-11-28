@@ -29,7 +29,7 @@ final class SyntheticPrintifyClient
 
     private const OTHER = [
         'SHOPS_READ','PROVIDERS_READ','PROVIDER_READ','IMAGE_UPLOAD','IMAGE_READ','UPLOADS_READ','IMAGE_ARCHIVE',
-        'PRODUCT_CREATE','PRODUCT_READ','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
+        'PRODUCT_CREATE','PRODUCT_READ','MOCKUP_SELECTION_READ','MOCKUP_SELECTION_UPDATE','PRODUCTS_READ','PRODUCT_UPDATE','PRODUCT_DELETE','PRODUCT_PUBLISH','PRODUCT_GPSR_READ','ORDER_SHIPPING_QUOTE',
         'ORDER_CREATE','ORDER_READ','ORDERS_READ','ORDER_CANCEL','LINE_ITEM_CANCEL','ORDER_SEND_TO_PRODUCTION','WEBHOOKS_READ',
         'WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE',
         'PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY','CATALOG_SHIPPING_V1_READ',
@@ -111,6 +111,22 @@ final class SyntheticPrintifyClient
     private function prepare(string $operation,array $input): array
     {
         $root='/v1/shops/'.$this->shop.'/orders';
+        if (in_array($operation,['MOCKUP_SELECTION_READ','MOCKUP_SELECTION_UPDATE'],true)) {
+            $id=$input['product_id']??null;
+            if (!self::identity($id)) throw new \InvalidArgumentException('Exact mockup product required.');
+            $endpoint='/v1/shops/'.$this->shop.'/products/'.$id.'/mockup-selection.json';
+            if ($operation==='MOCKUP_SELECTION_READ' && count($input)===1) {
+                return ['method'=>'GET','endpoint'=>$endpoint,'body'=>[],'provider_shop_id'=>$this->shop,'operation'=>$operation];
+            }
+            require_once __DIR__.'/ProtectedGet.php';
+            $body=$input['selection']??null;
+            if ($operation!=='MOCKUP_SELECTION_UPDATE' || count($input)!==4 || !is_int($input['expected_version']??null)
+                || !is_array($body) || ($input['selection_sha256']??null)!==ProtectedGet::digest($body)) {
+                throw new \InvalidArgumentException('Exact mockup replacement digest and revision required.');
+            }
+            return ['method'=>'PATCH','endpoint'=>$endpoint,'body'=>$body,'expected_version'=>$input['expected_version'],
+                'provider_shop_id'=>$this->shop,'operation'=>$operation];
+        }
         if (isset(self::CATALOG[$operation])) {
             if (array_key_exists('kind',$input)) {
                 throw new \InvalidArgumentException('Catalog selector must use its typed route.');
@@ -212,6 +228,9 @@ final class SyntheticPrintifyClient
     private function projectExpress(array $input,array $body): array
     {
         $rows=$body['data']??null;
+        if (array_key_exists('shop_id',$body) && !self::matchesShop($body['shop_id'],$this->shop)) {
+            throw new \InvalidArgumentException('Mismatched Express response envelope shop.');
+        }
         if (!is_array($rows)||!array_is_list($rows)||$rows===[]||count($rows)>2) {
             throw new \InvalidArgumentException('Malformed Express order response.');
         }
@@ -275,6 +294,18 @@ final class SyntheticPrintifyClient
 
     private function project(string $operation,array $input,array $plan,array $body,int $status): array
     {
+        if (($plan['method'] ?? null) === 'GET' && $status !== 200) {
+            throw new \InvalidArgumentException('Unexpected successful read status.');
+        }
+        if ($operation==='MOCKUP_SELECTION_READ') {
+            if ($status!==200) throw new \InvalidArgumentException('Expected mockup selection.');
+            require_once __DIR__.'/ProtectedGet.php';
+            return ['product_id'=>$input['product_id'],'shop_id'=>$this->shop,'mockups'=>ProtectedGet::mockupRows($body)];
+        }
+        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+            if ($status!==204 || $body!==[]) throw new \InvalidArgumentException('Expected empty mockup acknowledgment.');
+            return ['product_id'=>$input['product_id'],'selection_sha256'=>$input['selection_sha256']];
+        }
         if ($operation==='ORDER_EXPRESS_CREATE' && $status===200) {
             return $this->projectExpress($input,$body);
         }
@@ -330,7 +361,8 @@ final class SyntheticPrintifyClient
         }
         if (str_starts_with($operation,'SUPPORT_')) {
             unset($plan['provider_shop_id']);
-            return PrintifySupportContract::project($plan,$body,$status);
+            require_once __DIR__.'/ProtectedGet.php';
+            return ProtectedGet::checkedSupportProjection(PrintifySupportContract::project($plan,$body,$status));
         }
         if ($operation==='CATALOG_SHIPPING_V1_READ') {
             return self::projectLegacyShipping($body);
@@ -343,9 +375,13 @@ final class SyntheticPrintifyClient
         if (!is_array($rows)) {
             throw new \InvalidArgumentException('Malformed scoped response.');
         }
+        if (in_array($operation,['ORDERS_READ','PRODUCTS_READ'],true)
+            && array_key_exists('shop_id',$body) && !self::matchesShop($body['shop_id'],$this->shop)) {
+            throw new \InvalidArgumentException('Mismatched response envelope shop.');
+        }
         foreach ($rows as $row) {
             if (!is_array($row)||array_key_exists('shop_id',$row)
-                && $row['shop_id']!==$this->shop && (!is_int($row['shop_id'])||(string)$row['shop_id']!==$this->shop)) {
+                && !self::matchesShop($row['shop_id'],$this->shop)) {
                 throw new \InvalidArgumentException('Mismatched response shop.');
             }
         }
@@ -364,8 +400,30 @@ final class SyntheticPrintifyClient
                     throw new \InvalidArgumentException('Inconsistent synthetic publication state.');
                 }
                 $projection += ['synthetic_version'=>$version,'publication_pending'=>$pending,'publication_state'=>$state];
+                foreach (['title'=>200,'description'=>10000] as $field=>$limit) {
+                    if (!array_key_exists($field,$body)) continue;
+                    if (!is_string($body[$field]) || strlen($body[$field]) > $limit) {
+                        throw new \InvalidArgumentException('Malformed synthetic product text.');
+                    }
+                    $projection[$field]=$body[$field];
+                }
+            }
+            if ($operation === 'ORDER_READ') {
+                self::bindFixtureShipmentLines($projection, $body);
+            } elseif ($operation === 'ORDERS_READ') {
+                foreach ($projection['data'] as $index=>&$order) {
+                    self::bindFixtureShipmentLines($order, $rows[$index]);
+                }
+                unset($order);
             }
             return $projection;
+        }
+        if ($operation==='ORDER_SHIPPING_QUOTE' && $status!==200) {
+            throw new \InvalidArgumentException('Unexpected shipping quotation status.');
+        }
+        if ($operation==='ORDER_CANCEL' && ($status!==200 || ($body['sent_to_production_at']??null)!==null
+            || !empty($body['shipments']))) {
+            throw new \InvalidArgumentException('Unexpected whole-order cancellation status.');
         }
         if (in_array($operation,['ORDER_SHIPPING_QUOTE','ORDER_CANCEL','WEBHOOKS_READ','WEBHOOK_CREATE','WEBHOOK_UPDATE','WEBHOOK_DELETE'],true)) {
             $plan['operation']=match($operation){'ORDER_SHIPPING_QUOTE'=>'SHIPPING_QUOTE','WEBHOOKS_READ'=>'WEBHOOK_READ',default=>$operation};
@@ -389,8 +447,9 @@ final class SyntheticPrintifyClient
             return ['id'=>$input['product_id'],'publication_pending'=>true];
         }
         if (in_array($operation,['PRODUCT_PUBLISH_SUCCEEDED','PRODUCT_PUBLISH_FAILED','PRODUCT_UNPUBLISH_NOTIFY'],true)) {
-            if ($status!==200 || $body!==[]) {
-                throw new \InvalidArgumentException('Malformed synthetic publication callback acknowledgement.');
+            $expected = $operation==='PRODUCT_UNPUBLISH_NOTIFY' ? [] : ['product_id'=>$input['product_id']];
+            if ($status!==200 || $body!==$expected) {
+                throw new \InvalidArgumentException('Malformed or mismatched synthetic publication callback acknowledgement.');
             }
             return ['id'=>$input['product_id'],'publication_state'=>match($operation){
                 'PRODUCT_PUBLISH_SUCCEEDED'=>'PUBLISHED',
@@ -425,6 +484,11 @@ final class SyntheticPrintifyClient
                 || $version < 1 || (isset($plan['expected_version']) || $operation === 'PRODUCT_CREATE') && $version !== $expectedVersion) {
                 throw new \InvalidArgumentException('Mismatched synthetic product revision.');
             }
+            foreach (array_intersect_key($plan['body'], ['title'=>true,'description'=>true]) as $field=>$value) {
+                if (($body[$field] ?? null) !== $value) {
+                    throw new \InvalidArgumentException('Mismatched synthetic product text.');
+                }
+            }
             $product = PrintifyApiReadEvidence::project('PRODUCTS_READ', [
                 'data'=>[$body],'current_page'=>1,'per_page'=>10,'last_page'=>1,
             ], $this->shop, [])['data'][0];
@@ -452,6 +516,37 @@ final class SyntheticPrintifyClient
             $projection['synthetic_version']=$body['synthetic_version'];
         }
         return $projection;
+    }
+
+    private static function matchesShop(mixed $value,string $shop): bool
+    {
+        return (is_int($value) || is_string($value)) && (string)$value === $shop;
+    }
+
+    /** Fixture-specific linkage. Keep provider shipment semantics with the shared normalizer. */
+    private static function bindFixtureShipmentLines(array &$projection,array $order): void
+    {
+        $eligible = [];
+        foreach ($order['line_items'] as $line) {
+            if (is_string($line['id'] ?? null) && ($line['status'] ?? null) !== 'canceled') {
+                $eligible[$line['id']] = true;
+            }
+        }
+        foreach ($order['shipments'] ?? [] as $index=>$shipment) {
+            if (!array_key_exists('line_item_ids',$shipment)) continue;
+            $ids = $shipment['line_item_ids'];
+            if (!is_array($ids) || !array_is_list($ids) || $ids === [] || count($ids) > count($eligible)) {
+                throw new \InvalidArgumentException('Malformed fixture shipment lineage.');
+            }
+            $seen = [];
+            foreach ($ids as $id) {
+                if (!is_string($id) || !isset($eligible[$id]) || isset($seen[$id])) {
+                    throw new \InvalidArgumentException('Mismatched fixture shipment line.');
+                }
+                $seen[$id] = true;
+            }
+            $projection['shipments'][$index]['line_item_ids'] = $ids;
+        }
     }
 
     private static function assertOptionalEcho(array $response, array $request, array $fields): void

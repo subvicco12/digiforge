@@ -55,6 +55,7 @@ $badResponses = [
     ['ORDER_CREATE',$order,['shipping_method'=>'1']+$created,201],
     ['ORDER_CREATE',$order,['send_shipping_notification'=>true]+$created,201],
     ['ORDER_EXPRESS_CREATE',$express,['data'=>[['shop_id'=>108]+$expressResult]],200],
+    ['ORDER_EXPRESS_CREATE',$express,['shop_id'=>108,'data'=>[$expressResult]],200],
     ['ORDER_EXPRESS_CREATE',$express,['data'=>[['attributes'=>['external_id'=>'other-order']+$expressResult['attributes']]+$expressResult]],200],
     ['ORDER_EXPRESS_CREATE',['line_items'=>[$line,$line]]+$express,
         ['data'=>[['attributes'=>['line_items'=>[$expressLine,$expressLine]]+$expressResult['attributes']]+$expressResult]],200],
@@ -86,4 +87,4 @@ if ($result['state'] !== 'UNKNOWN' || $result['retry_permitted'] || $result['pro
     || PrintifyApiOutcome::classify(0,[],1,'POST')['retry_permitted']) {
     throw new RuntimeException('Ambiguous acknowledgment granted retry or external authority');
 }
-echo "Lifecycle optional-field qualification PASS: nine pre-admission denials, seven response conflicts, three valid identities and one UNKNOWN\n";
+echo "Lifecycle optional-field qualification PASS: nine pre-admission denials, ".count($badResponses)." response conflicts, three valid identities and one UNKNOWN\n";

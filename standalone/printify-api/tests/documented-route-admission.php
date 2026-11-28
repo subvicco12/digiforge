@@ -4,11 +4,20 @@ declare(strict_types=1);
 /** Check the reviewed endpoint matrix against the extracted fixture transport's route gate. */
 use DigiForgePrintifyApi\SyntheticPrintifyTransport;
 
+$path = $argv[2] ?? null;
+$input = is_string($path) && is_file($path) && !is_link($path) ? file_get_contents($path,false,null,0,1048577) : false;
+if (!is_string($input) || strlen($input)>1048576
+    || !hash_equals('c96a1a14159e37ca1c8d88082fdf1ccd00287d944e2b93d44c62f1e8bc462062',hash('sha256',$input))) {
+    throw new RuntimeException('Unapproved documented-route registry digest');
+}
+$matrix = fopen('php://memory','w+b');
+fwrite($matrix,$input);
+rewind($matrix);
 define('ABSPATH', __DIR__.'/fixture-wordpress/');
 require $argv[1].'/SyntheticPrintifyTransport.php';
-$matrix = fopen($argv[2], 'rb');
-if ($matrix === false || !str_starts_with((string)fgets($matrix), "Selector\tMethod\tDocumented path\t")) {
-    throw new RuntimeException('Reviewed endpoint matrix required');
+$header = $matrix === false ? [] : fgetcsv($matrix, 0, "\t", '"', '');
+if (!is_array($header) || array_slice($header, 0, 4)!==['method','exact_path','capability_family','selector']) {
+    throw new RuntimeException('Reviewed 55-operation registry required');
 }
 $placeholders = ['shop_id'=>'107','blueprint_id'=>'42','print_provider_id'=>'7','image_id'=>'image-1',
     'product_id'=>'product-1','order_id'=>'order-1','line_item_id'=>'line-1','webhook_id'=>'webhook-1',
@@ -16,7 +25,7 @@ $placeholders = ['shop_id'=>'107','blueprint_id'=>'42','print_provider_id'=>'7',
 $inventory = [];
 $pairs = [];
 while (($row = fgetcsv($matrix, 0, "\t", '"', '')) !== false) {
-    [$operation,$method,$path] = $row;
+    [$method,$path,,$operation] = $row;
     $endpoint = preg_replace_callback('/\{(\w+)\}/', static fn(array $m): string => $placeholders[$m[1]]
         ?? throw new RuntimeException('Unrecognized path parameter '.$m[1]), $path);
     if ($operation === 'WEBHOOK_DELETE') {
@@ -26,7 +35,7 @@ while (($row = fgetcsv($matrix, 0, "\t", '"', '')) !== false) {
     $request = ['operation'=>$operation,'method'=>$method,'endpoint'=>$endpoint,'provider_shop_id'=>'107','body'=>[]];
     foreach ([
         [403,['provider_shop_id'=>'108']],
-        [404,['method'=>'PATCH']],
+        [404,['method'=>$method==='PATCH'?'POST':'PATCH']],
         [404,['endpoint'=>$endpoint.'/unexpected']],
         [404,['operation'=>'UNKNOWN_DOCUMENTED_SELECTOR']],
     ] as [$status,$invalid]) {
@@ -59,7 +68,7 @@ while (($row = fgetcsv($matrix, 0, "\t", '"', '')) !== false) {
     $pairs[$method.' '.$path]=true;
     echo "$operation\t$method\t$path\tPASS\n";
 }
-if (count($inventory) !== 51 || count($pairs) !== 53) {
+if (count($inventory) !== 52 || count($pairs) !== 55) {
     throw new RuntimeException('Incomplete reviewed route inventory');
 }
-echo "Route admission and boundary negatives PASS (51 selectors, 53 method/path pairs)\n";
+echo "Route admission and boundary negatives PASS (52 selectors, 55 method/path pairs)\n";

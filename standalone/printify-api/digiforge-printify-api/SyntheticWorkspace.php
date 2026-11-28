@@ -92,11 +92,12 @@ final class SyntheticWorkspace
 
     public const PREVIEW_OPERATIONS = [
         'IMAGE_UPLOAD','PRODUCT_CREATE','PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY',
-        'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+        'ORDER_CREATE','ORDER_SHIPPING_QUOTE','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
     ];
 
     public const APPROVED_TRANSITIONS = [
-        'PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL','FIXTURE_PRODUCTION_CONFIRM',
+        'PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY','ORDER_CANCEL','LINE_ITEM_CANCEL',
+        'FIXTURE_PRODUCTION_CONFIRM','MOCKUP_SELECTION_UPDATE',
     ];
 
     private function synchronization(SyntheticPrintifyTransport $transport, int $revision, array $input): array
@@ -227,6 +228,48 @@ final class SyntheticWorkspace
         return ['resource_id'=>$id,'projection_sha256'=>hash('sha256', json_encode($read['data'], JSON_THROW_ON_ERROR))];
     }
 
+    private static function quoteIntent(SyntheticPrintifyTransport $transport,array $order,string $profileRevision): ?string
+    {
+        if (!is_array($order['line_items']??null) || !is_array($order['address_to']??null)
+            || !in_array($order['shipping_method']??null,[1,2,3,4],true)) return null;
+        $items=[];
+        foreach ($order['line_items'] as $line) {
+            $id=$line['product_id']??null;
+            $version=is_string($id)?$transport->fixtureProductRevision($id):null;
+            if ($version===null) return null;
+            $items[]=['line'=>$line,'product_revision'=>$version];
+        }
+        $address=$order['address_to'];
+        ksort($address);
+        $intent=['items'=>$items,'address_sha256'=>hash_hmac('sha256',json_encode($address,JSON_THROW_ON_ERROR),\wp_salt('auth')),
+            'shipping_method'=>$order['shipping_method'],'express'=>$order['is_printify_express']??false,
+            'economy'=>$order['is_economy_shipping']??false,'profile_revision'=>$profileRevision];
+        return hash_hmac('sha256',json_encode($intent,JSON_THROW_ON_ERROR),\wp_salt('auth'));
+    }
+
+    private static function quoteBinding(string $id,string $intent,array $quote,int $method,int $now): ?array
+    {
+        $label = [1=>'standard',2=>'priority',3=>'printify_express',4=>'economy'][$method] ?? null;
+        $amount = $label !== null ? ($quote['rates_minor'][$label] ?? null) : null;
+        if (!is_int($amount) || $amount < 0) return null;
+        $binding = ['quote_id'=>$id,'intent_sha256'=>$intent,'quoted_at'=>$now,'method'=>$label,
+            'amount_minor'=>$amount,'projection_sha256'=>ProtectedGet::digest($quote)];
+        return $binding + ['binding_mac'=>self::quoteMac($binding)];
+    }
+
+    private static function quoteMac(array $binding): string
+    {
+        return hash_hmac('sha256', ProtectedGet::digest($binding), \wp_salt('auth'));
+    }
+
+    private static function quoteMatches(mixed $quote,?string $intent,int $now): bool
+    {
+        return is_array($quote) && $intent!==null && ($quote['intent_sha256']??null)===$intent
+            && is_int($quote['quoted_at']??null) && $quote['quoted_at']<=$now && $now-$quote['quoted_at']<300
+            && is_string($quote['binding_mac']??null)
+            && hash_equals(self::quoteMac(array_diff_key($quote,['binding_mac'=>true])), $quote['binding_mac']);
+    }
+
     private static function reviewProposal(array $audit, array $input, ?array $scope, int $revision): array
     {
         $id = $input['proposal_id'] ?? null;
@@ -242,7 +285,7 @@ final class SyntheticWorkspace
             'cancel' => in_array($current['state'], ['PENDING_APPROVAL','APPROVED_HELD','BLOCKED'], true) ? 'CANCELLED' : null,
             'refer_unknown' => $current['state'] === 'UNKNOWN' && !isset($current['referral']) ? 'UNKNOWN' : null,
             'reconcile_create' => $current['state'] === 'FIXTURE_CREATE_RECORDED' ? 'RECONCILED_FIXTURE_CREATION' : null,
-            'reconcile' => $current['state'] === 'APPROVED_HELD' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
+            'reconcile' => $current['state'] === 'APPROVED_HELD' && $current['operation']!=='MOCKUP_SELECTION_UPDATE' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
             default => null,
         };
         if ($state === null || ($decision !== 'reconcile' && isset($input['receipt_id']))) {
@@ -298,13 +341,18 @@ final class SyntheticWorkspace
         }
         return in_array($proposal['state'], ['PENDING_APPROVAL','BLOCKED'], true)
             || ($proposal['state'] === 'APPROVED_HELD'
-                && in_array($proposal['operation'], ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true));
+                && in_array($proposal['operation'], ['ORDER_CREATE',...self::APPROVED_TRANSITIONS], true));
     }
 
     private static function transitionObservation(
         SyntheticPrintifyTransport $transport, SyntheticPrintifyClient $client, string $operation, string $resource
     ): ?array {
-        if (in_array($operation, ['PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
+        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+            $read=$client->run('MOCKUP_SELECTION_READ',['product_id'=>$resource]);
+            if (($read['state']??null)!=='SYNTHETIC_OBSERVED') return null;
+            return $read['data']+['product_revision'=>$transport->fixtureProductRevision($resource)];
+        }
+        if (in_array($operation, ['PRODUCT_UPDATE','PRODUCT_PUBLISH','PRODUCT_UNPUBLISH_NOTIFY'], true)) {
             $selectors = $transport->fixtureProductSelectors($resource);
             $read = $selectors === null ? null : $client->run('PRODUCT_READ', $selectors);
         } else {
@@ -334,11 +382,12 @@ final class SyntheticWorkspace
         $after = $attempt['state'] === 'SYNTHETIC_OBSERVED'
             ? self::transitionObservation($transport, $client, $operation, $resource) : null;
         $recorded = $after !== null && match ($operation) {
+            'MOCKUP_SELECTION_UPDATE' => hash_equals($current['mockup_expected_sha256']??'',ProtectedGet::digest($after)),
+            'PRODUCT_UPDATE' => hash_equals($current['product_expected_sha256']??'',ProtectedGet::digest($after)),
             'PRODUCT_PUBLISH' => $after['publication_state'] === 'PENDING',
             'PRODUCT_UNPUBLISH_NOTIFY' => $after['publication_state'] === 'UNPUBLISHED',
             'FIXTURE_PRODUCTION_CONFIRM' => $after['status'] === 'in-production',
-            'ORDER_CANCEL' => $after['status'] === 'canceled',
-            'LINE_ITEM_CANCEL' => (array_column($after['line_items'], 'status', 'id')[$configuration['line_item_id']] ?? null) === 'canceled',
+            'ORDER_CANCEL','LINE_ITEM_CANCEL' => hash_equals($current['cancellation_expected_sha256']??'',ProtectedGet::digest($after)),
         };
         $current['state'] = $recorded ? 'RECONCILED_FIXTURE_TRANSITION' : 'UNKNOWN';
         if ($recorded) {
@@ -353,7 +402,68 @@ final class SyntheticWorkspace
         ++$current['revision'];
         $current['workspace_revision'] = $revision+1;
         return ['state'=>$current['state'],'reason'=>$recorded ? 'EXECUTION_HELD' : 'FIXTURE_TRANSITION_NOT_VERIFIED',
-            'status'=>$attempt['status'],'proposal'=>$current,'fixture_effect_committed'=>$recorded];
+            'status'=>$attempt['status'],'proposal'=>$current,'fixture_effect_committed'=>$recorded,
+            'retained_fixture_attempt'=>in_array($operation,['MOCKUP_SELECTION_UPDATE','ORDER_CANCEL','LINE_ITEM_CANCEL'],true)];
+    }
+
+    private static function cancellationQuarantined(array $audit,mixed $order): bool
+    {
+        if (!is_string($order)) return false;
+        $seen=[];
+        foreach (array_reverse($audit) as $entry) {
+            $proposal=$entry['proposal']??null;
+            $id=$proposal['id']??null;
+            if (!is_string($id) || isset($seen[$id])) continue;
+            $seen[$id]=true;
+            if (($proposal['resource_id']??null)===$order && ($proposal['state']??null)==='UNKNOWN'
+                && isset($proposal['cancellation_expected_sha256'])
+                && in_array($proposal['operation'],['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) return true;
+        }
+        return false;
+    }
+
+    private static function reconcileCancellation(array $audit,array $input,?array $scope,int $revision,
+        SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client,string $correlation): array
+    {
+        $id=$input['proposal_id']??null;
+        $proposal=is_string($id)?(self::proposals($audit,$scope)[$id]??null):null;
+        if ($proposal===null || count($input)!==3 || !in_array($proposal['operation'],['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)
+            || $proposal['state']!=='UNKNOWN' || ($input['proposal_revision']??null)!==$proposal['revision']
+            || !array_key_exists('transition_profile_revision',$proposal)
+            || $proposal['transition_profile_revision']!==AccountProfile::revisionToken()
+            || !is_string($proposal['resource_id']??null)) {
+            return self::fixtureResult(409,'FIXTURE_CANCELLATION_RECONCILIATION_DENIED');
+        }
+        $after=self::transitionObservation($transport,$client,$proposal['operation'],$proposal['resource_id']);
+        if ($after===null || !hash_equals($proposal['cancellation_expected_sha256']??'',ProtectedGet::digest($after))) {
+            return self::fixtureResult(409,'FIXTURE_CANCELLATION_READBACK_MISMATCH');
+        }
+        $proposal['state']='RECONCILED_FIXTURE_TRANSITION';
+        $proposal['receipt_id']=$correlation;
+        $proposal['receipt_sha256']=ProtectedGet::digest($after);
+        $proposal['revision']++;
+        $proposal['workspace_revision']=$revision+1;
+        return ['state'=>$proposal['state'],'reason'=>'EXACT_FIXTURE_READBACK','status'=>200,'proposal'=>$proposal];
+    }
+
+    private static function reconcileMockup(array $audit,array $input,?array $scope,int $revision,
+        SyntheticPrintifyTransport $transport,SyntheticPrintifyClient $client): array
+    {
+        $id=$input['proposal_id']??null;
+        $proposal=is_string($id)?(self::proposals($audit,$scope)[$id]??null):null;
+        if ($proposal===null || count($input)!==3 || $proposal['operation']!=='MOCKUP_SELECTION_UPDATE'
+            || $proposal['state']!=='UNKNOWN' || ($input['proposal_revision']??null)!==$proposal['revision']
+            || ($proposal['mockup_profile_revision']??null)!==AccountProfile::revisionToken()
+            || !is_string($proposal['resource_id']??null)) return self::fixtureResult(409,'FIXTURE_MOCKUP_RECONCILIATION_DENIED');
+        $after=self::transitionObservation($transport,$client,$proposal['operation'],$proposal['resource_id']);
+        if ($after===null || !hash_equals($proposal['mockup_expected_sha256']??'',ProtectedGet::digest($after))) {
+            return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH');
+        }
+        $proposal['state']='RECONCILED_FIXTURE_TRANSITION';
+        $proposal['receipt_sha256']=ProtectedGet::digest($after);
+        $proposal['revision']++;
+        $proposal['workspace_revision']=$revision+1;
+        return ['state'=>$proposal['state'],'reason'=>'EXACT_FIXTURE_READBACK','status'=>200,'proposal'=>$proposal];
     }
 
     public function execute(int $expected, string $operationId, string $operation, array $input, bool $preview = false, ?string $readFault = null, array $edit = [], bool $correlatedCreate = false, ?\Closure $custodyExchange = null): array
@@ -361,7 +471,7 @@ final class SyntheticWorkspace
         $actor = \get_current_user_id();
         $transition = $operation === 'FIXTURE_PROPOSAL_REVIEW' && ($input['decision'] ?? null) === 'simulate_held';
         $flags = ['provider_execution_authorized'=>false,'provider_outcome_confirmed'=>false,'retry_permitted'=>false];
-        if ($actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
+        if (($operation==='MOCKUP_SELECTION_UPDATE' && !$preview) || $actor < 1 || !preg_match('/^[a-f0-9]{64}$/D', $operationId)
             || (($operation === 'FIXTURE_CUSTODY_READ') !== ($custodyExchange !== null))
             || ($edit !== [] && !$preview && !$correlatedCreate)
             || ($correlatedCreate && ($preview || $edit === [] || !in_array($operation, self::CORRELATED_CREATE_OPERATIONS, true)))
@@ -406,6 +516,11 @@ final class SyntheticWorkspace
                 hash_hmac('sha256', json_encode($input, JSON_THROW_ON_ERROR), \wp_salt('auth')))) {
                 return ['state'=>'DENIED','reason'=>'FIXTURE_CREATE_INTENT_MISMATCH']+$flags;
             }
+            if ($correlatedCreate && $operation==='ORDER_CREATE'
+                && !self::quoteMatches($edited['quote_binding']??null,
+                    self::quoteIntent($transport,$input,(string)$profileRevision),time())) {
+                return ['state'=>'DENIED','reason'=>'FIXTURE_QUOTE_MISSING_STALE_OR_CHANGED']+$flags;
+            }
             $baseline = null;
             if ($preview && in_array($operation, self::APPROVED_TRANSITIONS, true)) {
                 $resource = $input['product_id'] ?? $input['order_id'] ?? null;
@@ -417,6 +532,8 @@ final class SyntheticWorkspace
                 $id = $input['proposal_id'] ?? null;
                 $approved = is_string($id) ? (self::proposals($row['audit'], $proposalScope)[$id] ?? null) : null;
                 if ($approved === null || count($input) !== 3 || ($input['proposal_revision'] ?? null) !== $approved['revision']
+                    || !array_key_exists('transition_profile_revision',$approved)
+                    || $approved['transition_profile_revision'] !== $profileRevision
                     || $approved['state'] !== 'APPROVED_HELD' || !in_array($approved['operation'], self::APPROVED_TRANSITIONS, true)
                     || !is_string($approved['baseline_sha256'] ?? null) || !is_string($approved['resource_id'])
                     || !hash_equals($approved['intent_sha256'], hash_hmac('sha256', json_encode($approved['configuration'],
@@ -424,12 +541,21 @@ final class SyntheticWorkspace
                     return ['state'=>'DENIED','reason'=>'FIXTURE_TRANSITION_APPROVAL_MISMATCH']+$flags;
                 }
             }
+            $attemptOperation=$transition ? $approved['operation'] : $operation;
+            if (in_array($attemptOperation,['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)
+                && self::cancellationQuarantined($row['audit'],$transition ? $approved['resource_id'] : ($input['order_id']??null))) {
+                return ['state'=>'DENIED','reason'=>'FIXTURE_CANCELLATION_UNKNOWN']+$flags;
+            }
             if ($readFault !== null && !$transition) {
                 $transport->faultNext($readFault);
             }
             $result = match (true) {
                 $sync => $this->synchronization($transport, $expected, $input),
                 $transition => $this->applyApprovedTransition($approved, $transport, $client, $events, $expected, $operationId, $readFault),
+                $review && ($input['decision']??null)==='reconcile_cancellation' =>
+                    self::reconcileCancellation($row['audit'],$input,$proposalScope,$expected,$transport,$client,$operationId),
+                $review && ($input['decision']??null)==='reconcile_mockup' =>
+                    self::reconcileMockup($row['audit'],$input,$proposalScope,$expected,$transport,$client),
                 $review => self::reviewProposal($row['audit'], $input, $proposalScope, $expected),
                 $custody => $this->custodyObservation($proposalScope, $input, $custodyExchange),
                 default => $this->simulate($transport, $client, $operation, $input, $events, $expected),
@@ -447,6 +573,14 @@ final class SyntheticWorkspace
                         'source'=>'SYNTHETIC_PRINTIFY','intent_sha256'=>$edited['intent_sha256'],
                         'correlation_id'=>$operationId,'outcome'=>'VERIFIED_FIXTURE_CREATION',
                     ];
+                    if ($operation==='ORDER_CREATE') {
+                        $quote = $edited['quote_binding'];
+                        $edited['creation_receipt'] += [
+                            'quote_id'=>$quote['quote_id'], 'quote_method'=>$quote['method'],
+                            'quote_amount_minor'=>$quote['amount_minor'],
+                            'quote_projection_sha256'=>$quote['projection_sha256'],
+                        ];
+                    }
                 } else {
                     $edited['state'] = in_array($result['state'], ['SYNTHETIC_OBSERVED','UNKNOWN'], true) ? 'UNKNOWN' : 'BLOCKED';
                 }
@@ -463,11 +597,11 @@ final class SyntheticWorkspace
                 ];
             }
             if ((!$preview && !$sync && !$review && !$custody && (!$correlatedCreate || $result['fixture_effect_committed']))
-                || ($transition && ($result['fixture_effect_committed'] ?? false))) {
+                || ($transition && (($result['fixture_effect_committed'] ?? false) || ($result['retained_fixture_attempt']??false)))) {
                 $row['transport'] = $transport->exportFixtureState();
                 $row['events'] = $events;
             }
-            if ($preview && $edited !== null && in_array($operation, ['ORDER_CREATE','PRODUCT_UPDATE',...self::APPROVED_TRANSITIONS], true)
+            if ($preview && $edited !== null && in_array($operation, ['ORDER_CREATE',...self::APPROVED_TRANSITIONS], true)
                 && $result['state'] !== 'SYNTHETIC_OBSERVED' && $result['state'] !== 'UNKNOWN') {
                 return $result + $flags;
             }
@@ -494,9 +628,42 @@ final class SyntheticWorkspace
                     ];
                     if ($ready && $baseline !== null) {
                         $result['proposal']['baseline_sha256'] = hash('sha256', json_encode($baseline, JSON_THROW_ON_ERROR));
+                        $result['proposal']['transition_profile_revision']=$profileRevision;
+                        if (in_array($operation,['ORDER_CANCEL','LINE_ITEM_CANCEL'],true)) {
+                            $after=self::transitionObservation($transport,$client,$operation,$resource);
+                            if ($after===null) return self::fixtureResult(409,'FIXTURE_CANCELLATION_READBACK_MISMATCH')+$flags;
+                            $result['proposal']['cancellation_expected_sha256']=ProtectedGet::digest($after);
+                        }
+                        if ($operation==='PRODUCT_UPDATE') {
+                            $after=self::transitionObservation($transport,$client,$operation,$resource);
+                            if ($after===null) return self::fixtureResult(409,'FIXTURE_PRODUCT_READBACK_MISMATCH')+$flags;
+                            $result['proposal']['configuration']=$input;
+                            $result['proposal']['product_expected_sha256']=ProtectedGet::digest($after);
+                        }
+                        if ($operation==='MOCKUP_SELECTION_UPDATE') {
+                            $after=self::transitionObservation($transport,$client,$operation,$resource);
+                            if ($after===null) return self::fixtureResult(409,'FIXTURE_MOCKUP_READBACK_MISMATCH')+$flags;
+                            $result['proposal']['configuration']=$input;
+                            $result['proposal']['mockup_profile_revision']=$profileRevision;
+                            $result['proposal']['mockup_expected_sha256']=ProtectedGet::digest($after);
+                        }
                     }
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $result['proposal']['quote_projection'] = $result['data'];
+                        $intent=self::quoteIntent($transport,$input['order'],(string)$profileRevision);
+                        $binding = $intent === null ? null : self::quoteBinding(
+                            $operationId,$intent,$result['data'],$input['order']['shipping_method'],time());
+                        if ($binding !== null) $result['proposal']['quote_binding']=$binding;
+                    }
+                    if ($ready && $operation==='ORDER_CREATE') {
+                        $intent=self::quoteIntent($transport,$input,(string)$profileRevision);
+                        foreach (array_reverse(self::proposals($row['audit'],$proposalScope)) as $previous) {
+                            if ($previous['operation']==='ORDER_SHIPPING_QUOTE' && $previous['state']==='PENDING_APPROVAL'
+                                && self::quoteMatches($previous['quote_binding']??null,$intent,time())) {
+                                $result['proposal']['quote_binding']=$previous['quote_binding'];
+                                break;
+                            }
+                        }
                     }
                 }
             }

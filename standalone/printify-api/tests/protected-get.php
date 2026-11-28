@@ -32,6 +32,123 @@ $scope = ['site'=>'fixture-site','actor'=>1,'session'=>str_repeat('e', 64),'revi
     'account'=>'acct','shop'=>'107','integration'=>'fixture','custody'=>'custody-ref:fixture'];
 $now = 2000;
 $request = ProtectedGet::request($scope, 'SHOPS_READ', []);
+$catalogPlan = ProtectedGet::request($scope, 'BLUEPRINTS_READ', []);
+$support = ['id'=>'support-1','order_id'=>'order-1','type'=>'order_refund','status'=>'resolved','outcome'=>'positive',
+    'line_item_ids'=>['line-1'],'created_at'=>'2026-11-19T00:00:00Z','updated_at'=>'2026-11-20T00:00:00Z',
+    'description'=>'fixture-private-customer-description'];
+$supportList = ProtectedGet::request($scope,'SUPPORT_LIST',['order_id'=>'order-1']);
+$supportDetail = ProtectedGet::request($scope,'SUPPORT_DETAIL',['order_id'=>'order-1','support_request_id'=>'support-1']);
+check($supportList['path']==='/v1/shops/107/orders/order-1/support-requests'
+    && $supportDetail['path']===$supportList['path'].'/support-1', 'Support request escaped the scoped path');
+$lists = ProtectedGet::project($supportList,json_encode(['data'=>[$support]],JSON_THROW_ON_ERROR));
+$detail = ProtectedGet::project($supportDetail,json_encode(['data'=>$support],JSON_THROW_ON_ERROR));
+check($lists['support_requests'][0]===$detail['support_request']
+    && !str_contains(json_encode($detail,JSON_THROW_ON_ERROR),'fixture-private'), 'Unredacted or inconsistent support result');
+foreach ([
+    [$supportList,['data'=>[$support,$support]]],
+    [$supportDetail,['data'=>['id'=>'support-other']+$support]],
+    [$supportDetail,['data'=>['order_id'=>'order-other']+$support]],
+    [$supportDetail,['data'=>['shop_id'=>108]+$support]],
+    [$supportDetail,['data'=>['created_at'=>'2026-11-31T00:00:00Z']+$support]],
+    [$supportDetail,['data'=>['updated_at'=>'2026-11-18T00:00:00Z']+$support]],
+] as [$plan,$body]) {
+    try {
+        ProtectedGet::project($plan,json_encode($body,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Foreign or duplicate support evidence was accepted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+echo "Scoped support list and detail, redaction, and six denial cases passed.\n";
+foreach ([
+    array_replace($catalogPlan, ['method'=>'POST']),
+    array_replace($catalogPlan, ['path'=>'/v1/shops.json']),
+    array_replace($catalogPlan, ['selection'=>['unexpected'=>true]]),
+] as $invalidPlan) {
+    try {
+        ProtectedGet::project($invalidPlan, '[{"id":1,"title":"Fixture"}]');
+        throw new RuntimeException('Noncanonical read request reached response projection.');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+$orderPlan = ProtectedGet::request($scope, 'ORDERS_READ', []);
+try {
+    ProtectedGet::project($orderPlan, '{"shop_id":108,"data":[],"current_page":1,"last_page":1}');
+    throw new RuntimeException('Foreign scoped empty page reached response projection.');
+} catch (InvalidArgumentException $expected) {
+}
+foreach ([
+    ['SHOPS_READ',['shop'=>'108']],
+    ['ORDER_READ',['order_id'=>'order-1','page'=>1]],
+    ['PRODUCTS_READ',['page'=>1,'unexpected'=>'value']],
+    ['BLUEPRINTS_READ',['kind'=>'provider']],
+] as [$operation,$selection]) {
+    try {
+        ProtectedGet::request($scope,$operation,$selection);
+        throw new RuntimeException('Unexpected selector was admitted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+check(ProtectedGet::request($scope,'PRODUCTS_READ',['page'=>2,'limit'=>3])['selection']['limit']===3,
+    'Explicit bounded API page size was lost');
+echo "Shared selector map rejects extraneous fields and preserves bounded API pagination.\n";
+$mockups=ProtectedGet::request($scope,'MOCKUP_SELECTION_READ',['product_id'=>'product-1']);
+check($mockups['path']==='/v1/shops/107/products/product-1/mockup-selection.json','Incorrect mockup scope');
+$mockup=['mockup_id'=>'product-1_front','type'=>'GENERATED','src'=>'https://images.printify.com/mockup/front.jpg?private=discard',
+    'variant_ids'=>[9],'selected'=>true];
+$projected=ProtectedGet::project($mockups,json_encode([$mockup],JSON_THROW_ON_ERROR));
+check($projected===['shop_id'=>'107','product_id'=>'product-1','mockups'=>[array_diff_key($mockup,['src'=>true])]],'Mockup response exposed URL');
+foreach ([
+    [$mockups,[$mockup,$mockup]],
+    [$mockups,[array_replace($mockup,['variant_ids'=>[9,9]])]],
+    [$mockups,[array_replace($mockup,['selected'=>'yes'])]],
+    [$mockups,[array_replace($mockup,['mockup_id'=>'<script>'])]],
+    [$mockups,[array_replace($mockup,['src'=>'https://user@example.invalid/image'])]],
+    [$mockups,[array_replace($mockup,['src'=>'file:///etc/passwd'])]],
+    [array_replace($mockups,['scope'=>array_replace($scope,['shop'=>'108'])]),[$mockup]],
+    [array_replace($mockups,['selection'=>['product_id'=>'foreign']]),[$mockup]],
+] as [$wire,$rows]) {
+    try {
+        ProtectedGet::project($wire,json_encode($rows,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Unsafe mockup projection accepted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+$variants=ProtectedGet::request($scope,'VARIANTS_READ',['blueprint_id'=>42,'provider_id'=>7,'show-out-of-stock'=>'1']);
+check(str_ends_with($variants['path'],'?show-out-of-stock=1'),'Typed availability query missing');
+foreach (['2',true,1,'1&shop=108'] as $value) {
+    try {
+        ProtectedGet::request($scope,'VARIANTS_READ',array_replace($variants['selection'],['show-out-of-stock'=>$value]));
+        throw new RuntimeException('Availability injection accepted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+$orders=ProtectedGet::request($scope,'ORDERS_READ',['page'=>2,'status'=>'fulfilled','sku'=>'SKU-9']);
+check(str_ends_with($orders['path'],'?page=2&limit=10&status=fulfilled&sku=SKU-9'),'Order filters missing');
+$order=['id'=>'order-1','shop_id'=>107,'status'=>'fulfilled','line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>1,'sku'=>'SKU-9']]];
+$page=['data'=>[$order],'current_page'=>2,'per_page'=>10,'last_page'=>3];
+check(ProtectedGet::project($orders,json_encode($page,JSON_THROW_ON_ERROR))['filters']===['status'=>'fulfilled','sku'=>'SKU-9'],'Pagination lost filters');
+foreach ([array_replace($order,['status'=>'on-hold']),array_replace($order,['line_items'=>[]])] as $foreign) {
+    try {
+        ProtectedGet::project($orders,json_encode(array_replace($page,['data'=>[$foreign]]),JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Mismatched order filter accepted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+$paged = ProtectedGet::request($scope,'ORDERS_READ',['page'=>2,'limit'=>1,'status'=>'fulfilled','sku'=>'SKU-9']);
+$empty = ['data'=>[],'current_page'=>2,'last_page'=>3,'per_page'=>1,'total'=>2,
+    'next_page_url'=>'https://outside.example.invalid/untrusted'];
+$projection = ProtectedGet::project($paged,json_encode($empty,JSON_THROW_ON_ERROR));
+check($projection['next_page']===['page'=>3,'limit'=>1] && !str_contains(json_encode($projection),'outside.example.invalid'),
+    'Empty page lost bounded local continuation or leaked a provider URL');
+foreach ([['total'=>'2'],['total'=>-1],['per_page'=>2],['current_page'=>3],['last_page'=>1],['shop_id'=>108]] as $invalid) {
+    try {
+        ProtectedGet::project($paged,json_encode($invalid+$empty,JSON_THROW_ON_ERROR));
+        throw new RuntimeException('Malformed or foreign order page was admitted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+echo "Bounded empty order page, unsafe continuation URL omission and six malformed or foreign envelopes PASS\n";
+echo "Mockup scope, deduplication, unsafe URL, availability allowlist and order filters PASS\n";
 $grant = ['issuer'=>'fixture-custodian','audience'=>ProtectedGet::VERSION,'request_digest'=>ProtectedGet::digest($request),
     'issued_at'=>$now,'expires_at'=>$now+30,'policy_revision'=>1,'id'=>str_repeat('4', 32)];
 $sign = static fn(array $data): string => bin2hex(sodium_crypto_sign_detached(ProtectedGet::digest($data), $key));

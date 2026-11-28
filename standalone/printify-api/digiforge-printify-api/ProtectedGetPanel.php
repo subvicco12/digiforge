@@ -17,19 +17,9 @@ final class ProtectedGetPanel
 {
     private const MAX_VARIANT_IDS = 1000;
     private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
-    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id'];
+    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','limit','product_id','variant_ids','sku','image_id','order_id','support_request_id','show-out-of-stock','status'];
     private const ACTION = 'df_printify_protected_get_v1';
-    private const FIELDS = [
-        'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
-        'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
-        'VARIANTS_READ'=>['blueprint_id','provider_id'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id'],
-        'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
-        'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
-        'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
-        'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
-        'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
-        'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
-    ];
+
 
     public static function render(array $post): void
     {
@@ -57,11 +47,19 @@ final class ProtectedGetPanel
             echo '<p role="status">'.\esc_html($result['reason']).'</p>';
             $advice = match ($result['reason']) {
                 'OPERATOR_DENIED','SCOPE_OR_REVISION_UNAVAILABLE' => 'Reopen the panel and verify the operator session and assigned shop.',
-                'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel to load the current observation before a new manual read.',
-                'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED' => 'Ask the approved custodian to verify the credential and its read scope.',
+                'ARCHIVE_CAPACITY_EXHAUSTED' => 'The archive cannot retain another bounded observation. Review retention before refreshing.',
+                'ARCHIVE_UNAVAILABLE' => 'The archive is unavailable or failed its integrity check. Review storage before refreshing.',
+                'ARCHIVE_BUSY' => 'A read is already using this archive. Reopen the panel before trying again.',
+                'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel. If storage is full or unavailable, preserve the archive and ask the operator to review it before another read.',
+                'PROVIDER_UNAUTHORIZED','PROVIDER_FORBIDDEN','PROVIDER_SCOPE_OR_CREDENTIAL_DENIED'
+                    => 'Ask the approved custodian to verify the credential and its read scope.',
+                'PROVIDER_BAD_REQUEST','PROVIDER_VALIDATION_DENIED' => 'Verify the selected values before preparing another manual read.',
+                'PROVIDER_NOT_FOUND' => 'Verify the resource identity and current shop assignment.',
+                'PROVIDER_CONFLICT','PROVIDER_SERVER_ERROR' => 'Review the provider status before a new manual read.',
                 'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
                 'DIRECT_READ_UNAVAILABLE' => 'Check the selected IDs and connection status. Use Shops Read for a scoped manual diagnostic.',
                 'INVALID_SELECTION' => 'Check the fields required by the selected operation.',
+                'LINKED_ARTWORK_REQUIRED' => 'Read the exact product-linked artwork first, then request its image metadata.',
                 default => null,
             };
             if ($advice !== null) echo '<p>'.\esc_html($advice).'</p>';
@@ -81,6 +79,10 @@ final class ProtectedGetPanel
                 .' Limit: 10 reads per minute per account/shop. Use Shops Read for a manual diagnostic.</p>';
         }
         if ($workspace !== null) {
+            $archiveStatus = ProtectedGetWorkspace::archiveStatus($direct);
+            echo $archiveStatus === 'ARCHIVE_READY'
+                ? '<p>Read archive ready. Mutation execution denied.</p>'
+                : '<p role="status">Read archive held. '.\esc_html($archiveStatus).'. Protected history is retained.</p>';
             $scope = self::scope($profile, $revision, \wp_get_session_token());
             $record = (self::currentSession($scope['actor'], \wp_get_session_token()) && (!$direct || (DirectGet::synthetic() ? DirectGet::gatesOpen()
                 : DirectGet::status($scope) === 'DIRECT_PROFILE_CONFIGURED')))
@@ -102,12 +104,21 @@ final class ProtectedGetPanel
                 if (($receipt['source'] ?? null) === 'SYNTHETIC_DIRECT_PRINTIFY') {
                     echo '<p>'.\esc_html('Synthetic direct Printify evidence · observed '.gmdate('c',$receipt['observed_at'])).'</p>';
                 }
+                $displayOperation = $receipt['operation'];
                 $data = $receipt['data'] ?? null;
                 $currentData = $receipt['state'] === 'OBSERVED' && $data !== null;
                 if ($currentData && ($data['data'] ?? null) === []) {
                     echo '<p>No records were returned for this page.</p>';
                 }
+                if ($currentData && $receipt['operation']==='PRODUCT_READ' && is_string($data['id']??null)
+                    && time()-$record['stored_at'] <= 60) {
+                    self::renderReadAction('MOCKUP_SELECTION_READ',['product_id'=>$data['id']],$revision,$record['workspace_revision'],'Read selected product mockups');
+                }
                 if ($currentData && time()-$record['stored_at'] <= 60) {
+                    if ($receipt['operation']==='PRODUCT_ARTWORK_READ' && isset($data['product_id'],$data['image_id'])) {
+                        self::renderReadAction('LINKED_IMAGE_METADATA_READ',array_intersect_key($data,['product_id'=>true,'image_id'=>true]),
+                            $revision,$record['workspace_revision'],'Read linked image metadata');
+                    }
                     self::renderContinuation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                     self::renderNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                 }
@@ -115,10 +126,11 @@ final class ProtectedGetPanel
                     && time()-$record['last_success']['observed_at'] <= 3600) {
                     echo '<p>'.\esc_html(($synthetic ? 'Stale prior synthetic ' : 'Stale prior provider ').$record['last_success']['operation'].' observation · '
                         .gmdate('c',$record['last_success']['observed_at'])).'</p>';
+                    $displayOperation = $record['last_success']['operation'];
                     $data = $record['last_success']['data'];
                 }
                 if ($data !== null) {
-                    self::renderOrder($receipt['operation'],$data);
+                    self::renderOrder($displayOperation,$data);
                     echo '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'.\esc_html(json_encode($data, JSON_PRETTY_PRINT | JSON_INVALID_UTF8_SUBSTITUTE)).'</pre>';
                 }
                 if (!empty($record['history'])) {
@@ -129,12 +141,23 @@ final class ProtectedGetPanel
                     }
                     echo '</ol></details>';
                     self::renderEvidence($record['history']);
+                    self::renderProvenance($record['provenance']);
+                    $archive=ProtectedGetWorkspace::archivedProvenance($scope,$direct);
+                    if ($archive!==[]) {
+                        echo '<details><summary>Archived read digests</summary><textarea readonly rows="6" style="width:100%" aria-label="Archived read digests (JSON)">'
+                            .\esc_textarea(json_encode($archive,JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)).'</textarea></details>';
+                    }
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
         }
+        echo '<details><summary>Read availability and qualification</summary><p>'
+            .'Catalog, product, and order selectors below use a protected GET contract.'
+            .' Fixture results are synthetic. Hosted and live qualification require separate evidence.'
+            .' Production mutation, credential custody, and independent recovery remain held.'
+            .'</p></details>';
         echo '<form method="post"><input type="hidden" name="'.self::ACTION.'" value="1">';
-        foreach (array_keys(self::FIELDS) as $operation) {
+        foreach (array_keys(ProtectedGet::OPERATOR_FIELDS) as $operation) {
             \wp_nonce_field(self::ACTION.':'.$operation, 'df_printify_get_nonce['.$operation.']', false);
         }
         echo '<input type="hidden" name="df_printify_get_revision" value="'.\esc_attr($revision).'">';
@@ -142,7 +165,7 @@ final class ProtectedGetPanel
             echo '<input type="hidden" name="df_printify_get_workspace" value="'.\esc_attr($workspace['revision']).'">';
         }
         echo '<label>Read operation <select style="max-width:100%" name="df_printify_get_operation">';
-        foreach (self::FIELDS as $operation => $fields) {
+        foreach (ProtectedGet::OPERATOR_FIELDS as $operation => $fields) {
             echo '<option value="'.\esc_attr($operation).'">'.\esc_html($operation).'</option>';
         }
         echo '</select></label><p>Fill only the fields needed by the operation. Product detail uses the catalog selection and comma-separated variant IDs. SKU lookup uses the exact product, blueprint, provider and literal SKU. Artwork lookup uses the product detail fields plus the linked image ID.</p>';
@@ -158,12 +181,23 @@ final class ProtectedGetPanel
         if (!in_array($operation,['PRODUCTS_READ','ORDERS_READ'],true)) return;
         $current = $data['current_page'] ?? null;
         $page = $data['next_page']['page'] ?? null;
-        if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE) return;
-        self::renderReadAction($operation,['page'=>$page],$profile,$workspace,'Read next page');
+        $limit = $data['next_page']['limit'] ?? null;
+        if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE
+            || !is_int($limit) || $limit < 1 || $limit > 10) return;
+        $filters=is_array($data['filters']??null) ? array_intersect_key($data['filters'],['status'=>true,'sku'=>true]) : [];
+        self::renderReadAction($operation,['page'=>$page,'limit'=>$limit]+$filters,$profile,$workspace,'Read next page');
     }
 
     private static function renderNavigation(string $operation,array $data,string $profile,string $workspace): void
     {
+        if ($operation==='ORDER_READ' && is_string($data['id']??null)) {
+            self::renderReadAction('SUPPORT_LIST',['order_id'=>$data['id']],$profile,$workspace,'Read order support requests');
+        }
+        if ($operation === 'SUPPORT_LIST' && $data['support_requests'] !== []) {
+            self::renderReadAction('SUPPORT_DETAIL',['order_id'=>$data['order_id']],$profile,$workspace,
+                'Read selected support request',['support_request_id',$data['support_requests']]);
+        }
+
         if ($operation === 'PRODUCTS_READ') {
             foreach ($data['data'] as $product) {
                 $fields = self::productSelection($product);
@@ -174,6 +208,7 @@ final class ProtectedGetPanel
         if ($operation === 'PRODUCT_READ') {
             $fields = self::productSelection($data);
             if ($fields === null) return;
+            self::renderReadAction('PRODUCT_GPSR_READ',$fields,$profile,$workspace,'Read product safety information');
             $images = [];
             foreach ($data['print_areas'] as $area) {
                 foreach ($area['placeholders'] as $position) {
@@ -229,7 +264,9 @@ final class ProtectedGetPanel
         }
         if ($selection !== null) {
             [$field,$rows] = $selection;
-            echo '<label>'.\esc_html(ucfirst(str_replace('_id','',$field))).' <select style="max-width:100%" name="df_printify_get['.\esc_attr($field).']">';
+            $fieldLabel = ucfirst(str_replace('_',' ',str_replace('_id','',$field)));
+            echo '<label>'.\esc_html($fieldLabel).' <select aria-label="'.\esc_attr($fieldLabel)
+                .'" style="max-width:100%" name="df_printify_get['.\esc_attr($field).']">';
             foreach ($rows as $row) {
                 $id = (string)$row['id'];
                 echo '<option value="'.\esc_attr($id).'">'.\esc_html(($row['title'] ?? $id).' · '.$id).'</option>';
@@ -245,6 +282,16 @@ final class ProtectedGetPanel
         if ($evidence === false) return;
         echo '<details><summary>Copy redacted evidence</summary><label>Current session outcomes (JSON)'
             .'<textarea readonly rows="6" style="width:100%">'.\esc_textarea($evidence).'</textarea></label></details>';
+    }
+
+    private static function renderProvenance(array $records): void
+    {
+        if ($records===[]) return;
+        $json=json_encode(['schema'=>'DF_READ_PROVENANCE_1','observations'=>$records],JSON_PRETTY_PRINT);
+        if ($json===false) return;
+        echo '<details><summary>Copy read provenance</summary><p>Digests identify retained observations. A cached observation does not verify current provider data.</p>'
+            .'<label>Read provenance (JSON)<textarea readonly rows="6" style="width:100%">'
+            .\esc_textarea($json).'</textarea></label></details>';
     }
 
     private static function renderOrder(string $operation,array $data): void
@@ -268,8 +315,8 @@ final class ProtectedGetPanel
         $denied = ProtectedGet::denied();
         $operation = $post['df_printify_get_operation'] ?? null;
         $nonces = $post['df_printify_get_nonce'] ?? null;
-        if (!\current_user_can('manage_options') || !is_string($operation) || !isset(self::FIELDS[$operation])
-            || !is_array($nonces) || count($nonces) > count(self::FIELDS)
+        if (!\current_user_can('manage_options') || !is_string($operation) || !isset(ProtectedGet::OPERATOR_FIELDS[$operation])
+            || !is_array($nonces) || count($nonces) > count(ProtectedGet::OPERATOR_FIELDS)
             || !is_string($nonces[$operation] ?? null)
             || !\wp_verify_nonce($nonces[$operation], self::ACTION.':'.$operation)) {
             return ['reason'=>'OPERATOR_DENIED'] + $denied;
@@ -292,7 +339,7 @@ final class ProtectedGetPanel
                     continue;
                 }
                 $maxLength = $name === 'variant_ids' ? self::MAX_VARIANT_SELECTOR_BYTES : 200;
-                if (!in_array($name, self::FIELDS[$operation], true) || !is_string($value) || strlen($value) > $maxLength) {
+                if (!in_array($name, ProtectedGet::OPERATOR_FIELDS[$operation], true) || !is_string($value) || strlen($value) > $maxLength) {
                     throw new \InvalidArgumentException('Unexpected selection.');
                 }
                 if ($name === 'variant_ids') {
@@ -301,7 +348,7 @@ final class ProtectedGetPanel
                         throw new \InvalidArgumentException('Too many variant IDs.');
                     }
                     $selection[$name] = array_map(self::positiveInteger(...), $ids);
-                } elseif (in_array($name, ['blueprint_id','provider_id','variant_id','page'], true)) {
+                } elseif (in_array($name, ['blueprint_id','provider_id','variant_id','page','limit'], true)) {
                     $selection[$name] = self::positiveInteger($value);
                 } else {
                     $selection[$name] = $value;
@@ -330,13 +377,28 @@ final class ProtectedGetPanel
     private static function refresh(array $request, mixed $revision, string $session): array
     {
         $blocked = ProtectedGet::denied();
-        $scope = $request['scope'];
         $direct = DirectGet::selected();
+        if (ProtectedGetWorkspace::snapshot($direct) === null) return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
+        return ProtectedGetWorkspace::withArchiveAdmission($direct,
+            static fn(): array => self::refreshUnderAdmission($request, $revision, $session, $direct),
+            ['reason'=>'ARCHIVE_BUSY'] + $blocked);
+    }
+
+    private static function refreshUnderAdmission(array $request, mixed $revision, string $session, bool $direct): array
+    {
+        $blocked = ProtectedGet::denied();
+        $scope = $request['scope'];
         $snapshot = ProtectedGetWorkspace::snapshot($direct);
         if ($snapshot === null || $snapshot['revision'] !== $revision) {
             return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
         }
         if (!self::currentSession($scope['actor'], $session)) return $blocked;
+        $archiveStatus = ProtectedGetWorkspace::archiveStatus($direct);
+        if ($archiveStatus !== 'ARCHIVE_READY') return ['reason'=>$archiveStatus] + $blocked;
+        if ($request['operation']==='LINKED_IMAGE_METADATA_READ'
+            && !ProtectedGetWorkspace::linkedArtwork($scope,$request['selection'],$direct)) {
+            return ['reason'=>'LINKED_ARTWORK_REQUIRED']+$blocked;
+        }
         $key = defined('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY') ? DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY : null;
         if (!$direct && (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/D', $key))) {
             return $blocked;
@@ -347,6 +409,7 @@ final class ProtectedGetPanel
             if ($direct) {
                 $result = DirectGet::execute($request, static fn(): bool =>
                     ProtectedGetWorkspace::reserveDirect($scope,$revision)
+                    && ProtectedGetWorkspace::ownsArchiveAdmission(true)
                     && AccountProfile::revisionToken() === $scope['revision']
                     && \current_user_can('digiforge_printify_review_shop_'.$scope['shop'])
                     && self::currentSession($scope['actor'],$session));
@@ -378,8 +441,10 @@ final class ProtectedGetPanel
         if ($result['state'] === 'OBSERVED') {
             $receipt += array_intersect_key($result, array_flip(['source','observed_at','response_sha256','data']));
         }
+        if (isset($result['http_status'])) $receipt['http_status'] = $result['http_status'];
         if (isset($result['retry_after_seconds'])) $receipt['retry_after_seconds'] = $result['retry_after_seconds'];
-        if (!ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {
+        if (!ProtectedGetWorkspace::ownsArchiveAdmission($direct)
+            || !ProtectedGetWorkspace::persist($scope, $revision, $receipt,$direct)) {
             return ['reason'=>'OBSERVATION_NOT_COMMITTED'] + $blocked;
         }
         return ['state'=>$receipt['state'],'reason'=>$reason] + $blocked;

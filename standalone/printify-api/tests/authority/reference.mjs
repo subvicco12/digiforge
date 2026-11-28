@@ -179,10 +179,14 @@ export class FixtureSequencer {
   close() { this.db.close(); }
 }
 
-export async function sendSynthetic(wire, pin, clock, sequencer, sink) {
+export async function sendSynthetic(wire, pin, clock, sequencer, sink, payload) {
+  const manifest = await verifyEnvelope(wire, pin, clock());
+  insist(typeof payload === 'string' && Buffer.byteLength(payload) <= 262144, 'PAYLOAD_BINDING');
+  const submittedDigest = Buffer.from(await crypto.subtle.digest('SHA-256', Buffer.from(payload))).toString('hex');
+  insist(submittedDigest === manifest.payload_digest, 'PAYLOAD_BINDING');
   const receipt = await sequencer.admit(wire, clock, pin);
   try {
-    await sink();
+    await sink(payload);
   } finally {
     sequencer.quarantine(receipt);
   }

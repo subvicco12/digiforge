@@ -25,7 +25,23 @@ $orderInput = ['external_id'=>'fixture','line_items'=>[['product_id'=>'product-1
 $order = ['id'=>'order-1','shop_id'=>107,'external_id'=>'fixture','status'=>'on-hold',
     'line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]];
 
+$shipped = ['carrier'=>'FixtureCarrier','number'=>'tracking-1','url'=>'https://tracking.example.invalid/a'];
+$split = ['status'=>'partially-fulfilled',
+    'line_items'=>[['id'=>'line-1','product_id'=>'product-1','variant_id'=>9,'quantity'=>2]],
+    'shipments'=>[
+        $shipped+['line_item_ids'=>['line-1']],
+        ['number'=>'tracking-2','delivered_at'=>'2026-11-19T12:00:00Z']+$shipped+['line_item_ids'=>['line-1']],
+    ],
+]+$order;
+$orderProjection = $project->invoke($client,'ORDER_READ',$orderId,[],$split,200);
+if (count($orderProjection['shipments'])!==2
+    || array_column($orderProjection['shipments'],'delivered_at')!==[null,'2026-11-19T12:00:00Z']
+    || str_contains(json_encode($orderProjection, JSON_THROW_ON_ERROR),'tracking.example.invalid')) {
+    throw new RuntimeException('Split shipment evidence lost delivery state or leaked a URL');
+}
+
 $cases = [
+    ['SHOPS_READ', [], [['id'=>107,'title'=>'Fixture','sales_channel'=>'api']], ['method'=>'GET'], 201],
     ['SHOPS_READ', [], [['id'=>108,'title'=>'Other','sales_channel'=>'api']]],
     ['BLUEPRINT_READ', ['blueprint_id'=>42], ['id'=>43,'title'=>'Wrong blueprint']],
     ['BLUEPRINTS_READ', [], [['id'=>null,'title'=>'No identity']]],
@@ -44,19 +60,46 @@ $cases = [
     ['PRODUCT_READ', $catalog+$productId+['variant_ids'=>[9]], ['print_areas'=>[
         ['variant_ids'=>[10],'placeholders'=>[]],
     ]]+$product],
+    ['MOCKUP_SELECTION_READ', $productId, [[
+        'mockup_id'=>'mockup-1','src'=>'http://images.example.invalid/fixture.png',
+        'type'=>'GENERATED','selected'=>true,'variant_ids'=>[9],
+    ]]],
+    ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], ['unexpected'=>true], [], 204],
+    ['MOCKUP_SELECTION_UPDATE', $productId+['selection_sha256'=>str_repeat('a',64)], [], [], 200],
+    ['PRODUCT_CREATE', [], ['title'=>'Changed in response']+$product, ['body'=>['title'=>'Approved title']], 201],
+    ['PRODUCT_UPDATE', $productId, ['description'=>'Different artwork description','synthetic_version'=>2]+$product,
+        ['expected_version'=>1,'body'=>['description'=>'Approved description']]],
+    ['ORDERS_READ', [], ['shop_id'=>108,'data'=>[],'current_page'=>1]],
+    ['ORDER_READ', $orderId, ['shipments'=>[[
+        'carrier'=>'Fixture','number'=>'fixture-tracking','url'=>'https://tracking.example.invalid/one','line_item_ids'=>['foreign-line'],
+    ]], 'line_items'=>[['id'=>'line-1','product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]]+$order],
+    ['ORDER_READ', $orderId, ['shipments'=>[[
+        'carrier'=>'Fixture','number'=>'fixture-tracking','url'=>'https://tracking.example.invalid/one','line_item_ids'=>['line-1','line-1'],
+    ]], 'line_items'=>[['id'=>'line-1','product_id'=>'product-1','variant_id'=>9,'quantity'=>2]]]+$order],
     ['PRODUCT_CREATE', [], ['id'=>'product-1'], ['body'=>[]], 201],
     ['PRODUCT_CREATE', [], $product, ['body'=>['blueprint_id'=>43]], 201],
     ['PRODUCT_UPDATE', $productId, $product, ['expected_version'=>1,'body'=>[]]],
     ['PRODUCT_PUBLISH', $productId, ['unexpected'=>true]],
     ['PRODUCT_PUBLISH_SUCCEEDED', $productId, [], [], 202],
     ['PRODUCT_PUBLISH_FAILED', $productId, ['id'=>'product-1']],
+    ['PRODUCT_PUBLISH_SUCCEEDED', $productId, ['product_id'=>'product-foreign']],
+    ['PRODUCT_PUBLISH_FAILED', $productId, []],
     ['PRODUCT_UNPUBLISH_NOTIFY', $productId, [], [], 201],
     ['ORDER_SHIPPING_QUOTE', [], ['express'=>100,'priority'=>200]],
     ['ORDER_SHIPPING_QUOTE', [], ['standard'=>-1]],
+    ['ORDER_SHIPPING_QUOTE', [], ['standard'=>100], [], 201],
+    ['ORDER_SHIPPING_QUOTE', [], ['standard'=>100], [], 202],
     ['ORDER_CREATE', $orderInput, ['line_items'=>[['product_id'=>'product-1','variant_id'=>9,'quantity'=>1]]]+$order, [], 201],
     ['ORDER_CREATE', $orderInput, ['external_id'=>'different']+$order, [], 201],
     ['ORDER_SEND_TO_PRODUCTION', $orderId, $order],
+    ['ORDER_CANCEL', $orderId, ['status'=>'canceled']+$order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json'], 202],
     ['ORDER_CANCEL', $orderId, $order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json']],
+    ['ORDER_CANCEL', $orderId, ['id'=>'other-order','status'=>'canceled']+$order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json']],
+    ['ORDER_CANCEL', $orderId, ['status'=>'canceled','shipments'=>[$shipped]]+$order, ['endpoint'=>'/v1/shops/107/orders/order-1/cancel.json']],
+    ['LINE_ITEM_CANCEL', [], [], ['endpoint'=>'/v1/shops/107/orders/order-1/line_items/line-1/cancel.json'], 200],
+    ['ORDER_READ', $orderId, ['shipments'=>[$shipped,$shipped]]+$split],
+    ['ORDER_READ', $orderId, ['shipments'=>[['url'=>'file:///synthetic-tracking']+$shipped]]+$split],
+    ['ORDER_READ', $orderId, ['shipments'=>[['line_item_ids'=>['foreign-line']]+$shipped]]+$split],
     ['LINE_ITEM_CANCEL', [], ['bad'=>true], ['endpoint'=>'/v1/shops/107/orders/order-1/line_items/line-1/cancel.json'], 204],
 ];
 $webhook = ['id'=>'webhook-1','topic'=>'order:created','shop_id'=>107,'url'=>'https://webhooks.example.invalid/printify'];
