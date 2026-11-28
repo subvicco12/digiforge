@@ -227,6 +227,31 @@ final class SyntheticWorkspace
         return ['resource_id'=>$id,'projection_sha256'=>hash('sha256', json_encode($read['data'], JSON_THROW_ON_ERROR))];
     }
 
+    private static function quoteIntent(SyntheticPrintifyTransport $transport,array $order,string $profileRevision): ?string
+    {
+        if (!is_array($order['line_items']??null) || !is_array($order['address_to']??null)
+            || !in_array($order['shipping_method']??null,[1,2,3,4],true)) return null;
+        $items=[];
+        foreach ($order['line_items'] as $line) {
+            $id=$line['product_id']??null;
+            $version=is_string($id)?$transport->fixtureProductRevision($id):null;
+            if ($version===null) return null;
+            $items[]=['line'=>$line,'product_revision'=>$version];
+        }
+        $address=$order['address_to'];
+        ksort($address);
+        $intent=['items'=>$items,'address_sha256'=>hash_hmac('sha256',json_encode($address,JSON_THROW_ON_ERROR),\wp_salt('auth')),
+            'shipping_method'=>$order['shipping_method'],'express'=>$order['is_printify_express']??false,
+            'economy'=>$order['is_economy_shipping']??false,'profile_revision'=>$profileRevision];
+        return hash_hmac('sha256',json_encode($intent,JSON_THROW_ON_ERROR),\wp_salt('auth'));
+    }
+
+    private static function quoteMatches(mixed $quote,?string $intent,int $now): bool
+    {
+        return is_array($quote) && $intent!==null && ($quote['intent_sha256']??null)===$intent
+            && is_int($quote['quoted_at']??null) && $quote['quoted_at']<=$now && $now-$quote['quoted_at']<300;
+    }
+
     private static function reviewProposal(array $audit, array $input, ?array $scope, int $revision): array
     {
         $id = $input['proposal_id'] ?? null;
@@ -406,6 +431,11 @@ final class SyntheticWorkspace
                 hash_hmac('sha256', json_encode($input, JSON_THROW_ON_ERROR), \wp_salt('auth')))) {
                 return ['state'=>'DENIED','reason'=>'FIXTURE_CREATE_INTENT_MISMATCH']+$flags;
             }
+            if ($correlatedCreate && $operation==='ORDER_CREATE'
+                && !self::quoteMatches($edited['quote_binding']??null,
+                    self::quoteIntent($transport,$input,(string)$profileRevision),time())) {
+                return ['state'=>'DENIED','reason'=>'FIXTURE_QUOTE_MISSING_STALE_OR_CHANGED']+$flags;
+            }
             $baseline = null;
             if ($preview && in_array($operation, self::APPROVED_TRANSITIONS, true)) {
                 $resource = $input['product_id'] ?? $input['order_id'] ?? null;
@@ -447,6 +477,7 @@ final class SyntheticWorkspace
                         'source'=>'SYNTHETIC_PRINTIFY','intent_sha256'=>$edited['intent_sha256'],
                         'correlation_id'=>$operationId,'outcome'=>'VERIFIED_FIXTURE_CREATION',
                     ];
+                    if ($operation==='ORDER_CREATE') $edited['creation_receipt']['quote_id']=$edited['quote_binding']['quote_id'];
                 } else {
                     $edited['state'] = in_array($result['state'], ['SYNTHETIC_OBSERVED','UNKNOWN'], true) ? 'UNKNOWN' : 'BLOCKED';
                 }
@@ -497,6 +528,20 @@ final class SyntheticWorkspace
                     }
                     if ($ready && $operation === 'ORDER_SHIPPING_QUOTE') {
                         $result['proposal']['quote_projection'] = $result['data'];
+                        $intent=self::quoteIntent($transport,$input['order'],(string)$profileRevision);
+                        if ($intent!==null) $result['proposal']['quote_binding']=[
+                            'quote_id'=>$operationId,'intent_sha256'=>$intent,'quoted_at'=>time(),
+                        ];
+                    }
+                    if ($ready && $operation==='ORDER_CREATE') {
+                        $intent=self::quoteIntent($transport,$input,(string)$profileRevision);
+                        foreach (array_reverse(self::proposals($row['audit'],$proposalScope)) as $previous) {
+                            if ($previous['operation']==='ORDER_SHIPPING_QUOTE' && $previous['state']==='PENDING_APPROVAL'
+                                && self::quoteMatches($previous['quote_binding']??null,$intent,time())) {
+                                $result['proposal']['quote_binding']=$previous['quote_binding'];
+                                break;
+                            }
+                        }
                     }
                 }
             }

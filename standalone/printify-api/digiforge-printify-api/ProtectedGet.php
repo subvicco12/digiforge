@@ -27,7 +27,7 @@ final class ProtectedGet
     public const OPERATOR_FIELDS = [
         'SHOPS_READ'=>[], 'BLUEPRINTS_READ'=>[], 'BLUEPRINT_READ'=>['blueprint_id'], 'BLUEPRINT_SIZE_GUIDE_READ'=>['blueprint_id'],
         'BLUEPRINT_PROVIDERS_READ'=>['blueprint_id'], 'BLUEPRINT_PROVIDER_READ'=>['blueprint_id','provider_id'], 'PROVIDERS_READ'=>[], 'PROVIDER_READ'=>['provider_id'],
-        'VARIANTS_READ'=>['blueprint_id','provider_id'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id'],
+        'VARIANTS_READ'=>['blueprint_id','provider_id','show-out-of-stock'], 'VARIANT_READ'=>['blueprint_id','provider_id','variant_id','show-out-of-stock'],
         'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],

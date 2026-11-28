@@ -305,12 +305,28 @@ if ($phase === 'write') {
     };
     foreach (['PRODUCT_CREATE'=>['title'=>'Correlated fixture product']+$product,
         'ORDER_CREATE'=>['external_id'=>'correlated-cp5-order']+$order] as $op=>$payload) {
+        if ($op==='ORDER_CREATE') {
+            $quote=$submit('ORDER_SHIPPING_QUOTE',['order'=>$payload],true);
+            requireFixture(isset($quote['proposal']['quote_binding']), 'Exact order quote was not bound');
+        }
         $pending = $submit($op,$payload,true)['proposal'];
         requireFixture($pending['resource_id'] === null && $create($op,$payload,$pending)['reason']
             === 'PROPOSAL_SCOPE_OR_STALE_REVISION', 'Held approval was bypassed');
         $approved = $review($pending,'approve')['proposal'];
         $changed = $op === 'PRODUCT_CREATE' ? ['title'=>'Wrong revised product']+$payload : ['external_id'=>'wrong-order']+$payload;
         requireFixture($create($op,$changed,$approved)['reason']==='FIXTURE_CREATE_INTENT_MISMATCH', 'Substituted creation intent admitted');
+        $field=$op==='PRODUCT_CREATE'?'print_areas':'line_items';
+        requireFixture($create($op,[$field=>[]]+$payload,$approved)['reason']==='FIXTURE_CREATE_INTENT_MISMATCH',
+            'Modified artwork or variants passed an approved payload binding');
+        if ($op==='ORDER_CREATE') {
+            requireFixture($create($op,['shipping_method'=>4]+$payload,$approved)['reason']==='FIXTURE_CREATE_INTENT_MISMATCH'
+                && $create($op,['address_to'=>['country'=>'CA']+$payload['address_to']]+$payload,$approved)['reason']==='FIXTURE_CREATE_INTENT_MISMATCH',
+                'Changed destination or shipping reused approval');
+            $expiry=new ReflectionMethod($workspace,'quoteMatches');
+            $binding=$approved['quote_binding'];
+            requireFixture(!$expiry->invoke(null,$binding,$binding['intent_sha256'],$binding['quoted_at']+300),
+                'Expired quote was accepted');
+        }
         requireFixture($review($approved,'reconcile_create')['reason']==='PROPOSAL_TRANSITION_DENIED', 'Creation reconciled without a receipt');
         $made = $create($op,$payload,$approved);
         $creation = $made['proposal']['creation_receipt'] ?? [];
@@ -327,6 +343,8 @@ if ($phase === 'write') {
             'Duplicate creation reconciliation admitted');
     }
     $fields = ['external_id'=>'operator-correlated-order'] + $formOrder;
+    $operatorQuote=$operationResult($send('ORDER_SHIPPING_QUOTE',$fields,true));
+    requireFixture(isset($operatorQuote['proposal']['quote_binding']),'Operator quote did not bind address and lines');
     $operatorDraft = $operationResult($send('ORDER_CREATE',$fields,true))['proposal'];
     $operatorApproved = $review($operatorDraft,'approve')['proposal'];
     $originalCap = wp_get_current_user();

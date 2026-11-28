@@ -147,6 +147,12 @@ final class SyntheticPrintifyTransport
         ];
     }
 
+    public function fixtureProductRevision(string $id): ?int
+    {
+        $product=$this->availableProducts()[$id]??null;
+        return is_int($product['synthetic_version']??null)?$product['synthetic_version']:null;
+    }
+
     /** Return only a fixture-issued reference already bound by the validated order projection. */
     public function fixtureTrackingReference(string $orderId, string $trackingHash): ?string
     {

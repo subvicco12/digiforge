@@ -171,7 +171,7 @@ final class SyntheticWorkspacePanel
                 $creation = $proposal['creation_receipt'];
                 echo '<p>'.\esc_html('Local fixture creation: '.$creation['resource_id'].' · correlation '.$creation['correlation_id']).'</p>';
             } elseif ($state === 'APPROVED_HELD' && in_array($proposal['operation'], SyntheticWorkspace::CORRELATED_CREATE_OPERATIONS, true)) {
-                echo '<p>Re-enter the exact draft fields in the create form. Use the proposal ID and revision above, then choose Create correlated fixture record.</p>';
+                echo '<p>Re-enter the exact draft fields with the proposal ID and revision. For orders, first obtain a matching synthetic quote, then preview and approve the order within five minutes.</p>';
             }
             if (isset($proposal['receipt_id'])) {
                 echo '<p>Fixture receipt <code>'.\esc_html($proposal['receipt_id']).'</code></p>';
