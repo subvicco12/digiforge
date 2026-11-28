@@ -119,6 +119,7 @@ final class ProtectedGetPanel
                     }
                     echo '</ol></details>';
                     self::renderEvidence($record['history']);
+                    self::renderProvenance($record['provenance']);
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
@@ -235,6 +236,16 @@ final class ProtectedGetPanel
         if ($evidence === false) return;
         echo '<details><summary>Copy redacted evidence</summary><label>Current session outcomes (JSON)'
             .'<textarea readonly rows="6" style="width:100%">'.\esc_textarea($evidence).'</textarea></label></details>';
+    }
+
+    private static function renderProvenance(array $records): void
+    {
+        if ($records===[]) return;
+        $json=json_encode(['schema'=>'DF_READ_PROVENANCE_1','observations'=>$records],JSON_PRETTY_PRINT);
+        if ($json===false) return;
+        echo '<details><summary>Copy read provenance</summary><p>Digests identify retained observations. A cached observation does not verify current provider data.</p>'
+            .'<label>Read provenance (JSON)<textarea readonly rows="6" style="width:100%">'
+            .\esc_textarea($json).'</textarea></label></details>';
     }
 
     private static function renderOrder(string $operation,array $data): void

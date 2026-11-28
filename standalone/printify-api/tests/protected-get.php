@@ -32,6 +32,21 @@ $scope = ['site'=>'fixture-site','actor'=>1,'session'=>str_repeat('e', 64),'revi
     'account'=>'acct','shop'=>'107','integration'=>'fixture','custody'=>'custody-ref:fixture'];
 $now = 2000;
 $request = ProtectedGet::request($scope, 'SHOPS_READ', []);
+foreach ([
+    ['SHOPS_READ',['shop'=>'108']],
+    ['ORDER_READ',['order_id'=>'order-1','page'=>1]],
+    ['PRODUCTS_READ',['page'=>1,'unexpected'=>'value']],
+    ['BLUEPRINTS_READ',['kind'=>'provider']],
+] as [$operation,$selection]) {
+    try {
+        ProtectedGet::request($scope,$operation,$selection);
+        throw new RuntimeException('Unexpected selector was admitted');
+    } catch (InvalidArgumentException $expected) {
+    }
+}
+check(ProtectedGet::request($scope,'PRODUCTS_READ',['page'=>2,'limit'=>3])['selection']['limit']===3,
+    'Explicit bounded API page size was lost');
+echo "Shared selector map rejects extraneous fields and preserves bounded API pagination.\n";
 $grant = ['issuer'=>'fixture-custodian','audience'=>ProtectedGet::VERSION,'request_digest'=>ProtectedGet::digest($request),
     'issued_at'=>$now,'expires_at'=>$now+30,'policy_revision'=>1,'id'=>str_repeat('4', 32)];
 $sign = static fn(array $data): string => bin2hex(sodium_crypto_sign_detached(ProtectedGet::digest($data), $key));

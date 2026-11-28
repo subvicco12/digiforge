@@ -170,5 +170,20 @@ $html = ob_get_clean();
 verify(str_contains($html,'partially-fulfilled') && str_contains($html,'tracking_hash') && str_contains($html,'Recent fixture')
     && (!$direct || (str_contains($html,'tracking_reference') && str_contains($html,'Stale prior synthetic'))),
     'Stored observation not shown');
+$scope = $profile + ['site'=>'wp-'.hash('sha256',home_url('/')), 'actor'=>1,
+    'session'=>hash_hmac('sha256',wp_get_session_token(),wp_salt('auth')), 'revision'=>AccountProfile::revisionToken()];
+$observation = ProtectedGetWorkspace::visible($scope,$direct);
+$provenance = $observation['provenance'] ?? [];
+verify(count($provenance)===($direct?7:8), 'Bounded provenance did not survive reopening');
+$last=$provenance[array_key_last($provenance)];
+verify($last['operation']==='ORDER_READ'
+    && $last['response_sha256']===($direct?$observation['last_success']['response_sha256']:$observation['receipt']['response_sha256'])
+    && $last['observation_sha256']===DigiForgePrintifyApi\ProtectedGet::digest(array_diff_key($last,['observation_sha256'=>true])),
+    'Observation digest did not bind retained source and projection');
+verify(ProtectedGetWorkspace::visible(array_replace($scope,['session'=>str_repeat('f',64)]),$direct)===null,
+    'Another session accessed provenance');
+verify(str_contains($html,'DF_READ_PROVENANCE_1') && !str_contains(json_encode($provenance,JSON_THROW_ON_ERROR),'fixture-tracking-1'),
+    'Operator provenance missing or leaked payload');
+echo "Bounded scope-fenced read provenance rendered; original metadata survived replay-safe reopening.\n";
 verify(get_option('active_plugins')===['digiforge-printify-api/digiforge-printify-api.php'],'Unexpected active plugin');
 echo $phase.': standalone-only WordPress panel rendered persisted synthetic observation; provider HTTP trapped.'.PHP_EOL;

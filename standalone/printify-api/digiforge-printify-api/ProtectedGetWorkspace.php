@@ -66,7 +66,10 @@ final class ProtectedGetWorkspace
             return null;
         }
         $row['workspace_revision'] = $snapshot['revision'];
-        $row['history'] = self::recentReceipts($row['history'] ?? [],time());
+        $history = self::recentReceipts($row['history'] ?? [],time());
+        $row['history'] = array_map(static fn(array $item): array => array_intersect_key($item,
+            ['at'=>true,'operation'=>true,'state'=>true,'reason'=>true]),$history);
+        $row['provenance'] = array_values(array_column($history,'provenance'));
         return $row;
     }
 
@@ -80,8 +83,39 @@ final class ProtectedGetWorkspace
                 && is_string($entry['reason']) && preg_match('/^[A-Z_]{1,60}$/D',$entry['reason'])
                 && in_array($entry['state'],['OBSERVED','UNAVAILABLE','BLOCKED','DENIED'],true);
         });
-        return array_values(array_map(static fn(array $entry): array => array_intersect_key($entry,
-            ['at'=>true,'operation'=>true,'state'=>true,'reason'=>true]), $valid));
+        return array_values(array_map(static function(array $entry): array {
+            $record = array_intersect_key($entry,['at'=>true,'operation'=>true,'state'=>true,'reason'=>true]);
+            $provenance = self::readProvenance($entry['provenance'] ?? null);
+            if ($record['state']==='OBSERVED' && $provenance!==null
+                && $provenance['operation']===$record['operation'] && $provenance['observed_at']<=$record['at']) {
+                $record['provenance']=$provenance;
+            }
+            return $record;
+        },$valid));
+    }
+
+    private static function readProvenance(mixed $value): ?array
+    {
+        $fields=['operation','source','observed_at','request_sha256','response_sha256','projection_sha256','observation_sha256'];
+        if (!is_array($value) || array_keys($value)!==$fields
+            || !is_string($value['operation']) || !isset(ProtectedGet::OPERATOR_FIELDS[$value['operation']])
+            || !in_array($value['source'],['SYNTHETIC_PRINTIFY','SYNTHETIC_DIRECT_PRINTIFY','PRINTIFY_HTTPS_GET'],true)
+            || !is_int($value['observed_at']) || $value['observed_at']<1) return null;
+        foreach (array_slice($fields,3) as $key) {
+            if (!is_string($value[$key]) || !preg_match('/^[a-f0-9]{64}$/D',$value[$key])) return null;
+        }
+        $identity=array_diff_key($value,['observation_sha256'=>true]);
+        return hash_equals($value['observation_sha256'],ProtectedGet::digest($identity))?$value:null;
+    }
+
+    private static function observationProvenance(array $receipt,int $storedAt): ?array
+    {
+        if (!is_array($receipt['data']??null) || !is_int($receipt['observed_at']??null)
+            || $receipt['observed_at']>$storedAt || $receipt['observed_at']<$storedAt-self::TTL) return null;
+        $record=['operation'=>$receipt['operation']??null,'source'=>$receipt['source']??null,
+            'observed_at'=>$receipt['observed_at'],'request_sha256'=>$receipt['request_digest']??null,
+            'response_sha256'=>$receipt['response_sha256']??null,'projection_sha256'=>ProtectedGet::digest($receipt['data'])];
+        return self::readProvenance($record+['observation_sha256'=>ProtectedGet::digest($record)]);
     }
 
     public static function persist(array $scope, string $revision, array $receipt, bool $direct = false): bool
@@ -104,8 +138,14 @@ final class ProtectedGetWorkspace
             $previous = $snapshot['data'] ?? null;
             $sameScope = ($previous['scope_digest'] ?? null) === $row['scope_digest'];
             $history = $sameScope ? self::recentReceipts($previous['history'] ?? [],$row['stored_at']) : [];
-            $history[] = ['at'=>$row['stored_at']] + array_intersect_key($receipt,
+            $entry = ['at'=>$row['stored_at']] + array_intersect_key($receipt,
                 ['operation'=>true,'state'=>true,'reason'=>true]);
+            if (($receipt['state']??null)==='OBSERVED') {
+                $provenance=self::observationProvenance($receipt,$row['stored_at']);
+                if ($provenance===null) return false;
+                $entry['provenance']=$provenance;
+            }
+            $history[]=$entry;
             $row['history'] = array_slice($history,-self::HISTORY_LIMIT);
             if ($direct && $receipt['state'] !== 'OBSERVED' && $sameScope) {
                 $success = ($previous['receipt']['state'] ?? null) === 'OBSERVED'
