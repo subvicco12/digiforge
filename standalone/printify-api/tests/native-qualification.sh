@@ -3,6 +3,8 @@ set -euo pipefail
 [[ "$#" == 5 ]] || { echo 'Usage: MODE INPUT_DIR COMMIT TREE ZIP_SHA256' >&2; exit 64; }
 output=$(realpath "$2")
 cd "$(git rev-parse --show-toplevel)"
+git_dir=$(git rev-parse --absolute-git-dir)
+work_tree=$PWD
 case "$1" in
     0|1|lifecycle|approval|workspace|structured|upgrade|support) ;;
     *) exit 64 ;;
@@ -60,6 +62,8 @@ while IFS= read -r -d '' record; do
     git cat-file blob "$blob" > "$file"
     [[ "$(git hash-object --no-filters "$file")" == "$blob" ]] || exit 65
 done < "$tmp/git-inputs"
+echo 'VERIFY package bytes against the approved commit'
+GIT_DIR="$git_dir" GIT_WORK_TREE="$work_tree" /usr/bin/python3     "$tmp/source/standalone/printify-api/package.py" --verify "$d/standalone.zip" --source "$3"
 tests="$tmp/source/standalone/printify-api/tests"
 [[ -s "$tests/protected-get-worker.php" && -s "$tests/batch2-approval-wordpress.php" ]] || exit 65
 find "$tests" -type f -print0 | sort -z | xargs -0 sha256sum

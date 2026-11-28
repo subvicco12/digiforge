@@ -157,7 +157,7 @@ final class ProtectedGet
                 }
             }
             $contract = PrintifySupportContract::prepare($operation,$shop,$selection);
-            return PrintifySupportContract::project($contract,$data,200);
+            return self::checkedSupportProjection(PrintifySupportContract::project($contract,$data,200));
         }
         if ($operation==='LINKED_IMAGE_METADATA_READ') {
             if (($data['id']??null)!==$selection['image_id']
@@ -263,6 +263,24 @@ final class ProtectedGet
         if (($projection['next_page']['page'] ?? 0) > self::MAX_PAGE) {
             $projection['next_page'] = null;
             $projection['page_window_exhausted'] = true;
+        }
+        return $projection;
+    }
+
+    /** The shared support parser supplies only typed, redacted data. Fence calendar rollover and time ordering. */
+    public static function checkedSupportProjection(array $projection): array
+    {
+        $items = $projection['support_requests'] ?? (isset($projection['support_request']) ? [$projection['support_request']] : []);
+        foreach ($items as $item) {
+            foreach (['created_at','updated_at'] as $field) {
+                $parsed = date_parse($item[$field]);
+                if ($parsed['warning_count'] !== 0 || $parsed['error_count'] !== 0) {
+                    throw new \InvalidArgumentException('Invalid support observation calendar date.');
+                }
+            }
+            if (new \DateTimeImmutable($item['updated_at']) < new \DateTimeImmutable($item['created_at'])) {
+                throw new \InvalidArgumentException('Support observation predates creation.');
+            }
         }
         return $projection;
     }

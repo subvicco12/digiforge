@@ -4,9 +4,17 @@ declare(strict_types=1);
 /** Check the reviewed endpoint matrix against the extracted fixture transport's route gate. */
 use DigiForgePrintifyApi\SyntheticPrintifyTransport;
 
+$path = $argv[2] ?? null;
+$input = is_string($path) && is_file($path) && !is_link($path) ? file_get_contents($path,false,null,0,1048577) : false;
+if (!is_string($input) || strlen($input)>1048576
+    || !hash_equals('c96a1a14159e37ca1c8d88082fdf1ccd00287d944e2b93d44c62f1e8bc462062',hash('sha256',$input))) {
+    throw new RuntimeException('Unapproved documented-route registry digest');
+}
+$matrix = fopen('php://memory','w+b');
+fwrite($matrix,$input);
+rewind($matrix);
 define('ABSPATH', __DIR__.'/fixture-wordpress/');
 require $argv[1].'/SyntheticPrintifyTransport.php';
-$matrix = fopen($argv[2] ?? 'php://memory', 'rb');
 $header = $matrix === false ? [] : fgetcsv($matrix, 0, "\t", '"', '');
 if (!is_array($header) || array_slice($header, 0, 4)!==['method','exact_path','capability_family','selector']) {
     throw new RuntimeException('Reviewed 55-operation registry required');

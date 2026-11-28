@@ -228,6 +228,9 @@ final class SyntheticPrintifyClient
     private function projectExpress(array $input,array $body): array
     {
         $rows=$body['data']??null;
+        if (array_key_exists('shop_id',$body) && !self::matchesShop($body['shop_id'],$this->shop)) {
+            throw new \InvalidArgumentException('Mismatched Express response envelope shop.');
+        }
         if (!is_array($rows)||!array_is_list($rows)||$rows===[]||count($rows)>2) {
             throw new \InvalidArgumentException('Malformed Express order response.');
         }
@@ -358,7 +361,8 @@ final class SyntheticPrintifyClient
         }
         if (str_starts_with($operation,'SUPPORT_')) {
             unset($plan['provider_shop_id']);
-            return PrintifySupportContract::project($plan,$body,$status);
+            require_once __DIR__.'/ProtectedGet.php';
+            return ProtectedGet::checkedSupportProjection(PrintifySupportContract::project($plan,$body,$status));
         }
         if ($operation==='CATALOG_SHIPPING_V1_READ') {
             return self::projectLegacyShipping($body);

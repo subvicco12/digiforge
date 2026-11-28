@@ -49,6 +49,8 @@ foreach ([
     [$supportDetail,['data'=>['id'=>'support-other']+$support]],
     [$supportDetail,['data'=>['order_id'=>'order-other']+$support]],
     [$supportDetail,['data'=>['shop_id'=>108]+$support]],
+    [$supportDetail,['data'=>['created_at'=>'2026-11-31T00:00:00Z']+$support]],
+    [$supportDetail,['data'=>['updated_at'=>'2026-11-18T00:00:00Z']+$support]],
 ] as [$plan,$body]) {
     try {
         ProtectedGet::project($plan,json_encode($body,JSON_THROW_ON_ERROR));
@@ -56,7 +58,7 @@ foreach ([
     } catch (InvalidArgumentException $expected) {
     }
 }
-echo "Scoped support list and detail, redaction, and four denial cases passed.\n";
+echo "Scoped support list and detail, redaction, and six denial cases passed.\n";
 foreach ([
     array_replace($catalogPlan, ['method'=>'POST']),
     array_replace($catalogPlan, ['path'=>'/v1/shops.json']),
