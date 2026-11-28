@@ -97,6 +97,9 @@ foreach ([
 $draft=$send('MOCKUP_SELECTION_UPDATE',$request,true)['proposal'];
 $check($draft['state']==='PENDING_APPROVAL' && isset($draft['mockup_expected_sha256']),'No exact mockup preview');
 $approved=$review($draft,'approve')['proposal'];
+$generic=$send('FIXTURE_PROPOSAL_REVIEW',['proposal_id'=>$approved['id'],'proposal_revision'=>$approved['revision'],
+    'decision'=>'reconcile','receipt_id'=>str_repeat('a',64)]);
+$check($generic['reason']==='PROPOSAL_TRANSITION_DENIED','Generic receipt bypassed exact mockup readback');
 $claim=['revision'=>$workspace->inspect()['revision'],'input'=>[
     'proposal_id'=>$approved['id'],'proposal_revision'=>$approved['revision'],'decision'=>'simulate_held',
 ]];

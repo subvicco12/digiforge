@@ -267,7 +267,7 @@ final class SyntheticWorkspace
             'cancel' => in_array($current['state'], ['PENDING_APPROVAL','APPROVED_HELD','BLOCKED'], true) ? 'CANCELLED' : null,
             'refer_unknown' => $current['state'] === 'UNKNOWN' && !isset($current['referral']) ? 'UNKNOWN' : null,
             'reconcile_create' => $current['state'] === 'FIXTURE_CREATE_RECORDED' ? 'RECONCILED_FIXTURE_CREATION' : null,
-            'reconcile' => $current['state'] === 'APPROVED_HELD' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
+            'reconcile' => $current['state'] === 'APPROVED_HELD' && $current['operation']!=='MOCKUP_SELECTION_UPDATE' ? 'RECONCILED_FIXTURE_OBSERVATION' : null,
             default => null,
         };
         if ($state === null || ($decision !== 'reconcile' && isset($input['receipt_id']))) {

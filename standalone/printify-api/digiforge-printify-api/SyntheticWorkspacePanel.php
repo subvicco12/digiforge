@@ -197,6 +197,7 @@ final class SyntheticWorkspacePanel
                 'UNKNOWN'=>isset($proposal['referral']) ? [] : ['refer_unknown'=>'Refer for manual reconciliation'],
                 default=>[],
             };
+            if ($proposal['operation']==='MOCKUP_SELECTION_UPDATE') unset($decisions['reconcile']);
             if ($state==='UNKNOWN' && $proposal['operation']==='MOCKUP_SELECTION_UPDATE') {
                 $decisions['reconcile_mockup']='Reconcile exact mockup fixture readback';
             }

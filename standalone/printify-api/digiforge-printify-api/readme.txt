@@ -207,3 +207,22 @@ observations, not proof of a specific token, scope, account or host fault.
 The pilot uses the explicit DigiForge Printify API application User-Agent.
 Receipts omit provider bodies, headers, request identifiers and WordPress
 error details. Every admitted attempt still consumes the one-use grant.
+
+= Standalone integration read archive and fixture proposals =
+
+Protected read workspaces retain up to 64 successful observations and 4 MiB
+per transport workspace. Archive records retain the validated projection
+and chained digests, while the admin export shows digests only for the exact
+session and profile. No automatic pruning is performed. A full archive
+stops new reads. Review retention separately before authorizing cleanup.
+Local hashes detect inconsistent records and do not constitute a trusted
+timestamp or protection against a privileged database rewrite.
+
+Mockup GET and linked image metadata use separate typed selectors. No
+returned URL is rendered or followed. Linked image metadata requires a
+fresh product-artwork read for the same product, image and profile session.
+Quote calculation is separate from order creation. An approved correlated
+fixture order requires a matching quote under five minutes old. Mockup
+replacement is synthetic-only, requires the complete known selection and
+prior revision, and uses a held proposal. UNKNOWN requires exact mockup
+readback and cannot be submitted again.
