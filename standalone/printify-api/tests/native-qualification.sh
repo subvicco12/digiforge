@@ -56,6 +56,9 @@ if [[ "$1" == native-receipt ]]; then
     [[ -f "$output/core-native.zip" && ! -L "$output/core-native.zip" ]] || exit 65
     cp -- "$output/core-native.zip" "$d/core-native.zip"
     printf '%s  %s\n' 63c68ebfeab54754dbda2d32f0fd267bc52d608c79097f6eaae2a674ca6b3d2b "$d/core-native.zip" | sha256sum --strict -c -
+    [[ -f "$output/companion.zip" && ! -L "$output/companion.zip" ]] || exit 65
+    cp -- "$output/companion.zip" "$d/companion.zip"
+    printf '%s  %s\n' f06dd80e3bd064450cb29d71283a6261685befb3deb7e6811f597d8568f30e5d "$d/companion.zip" | sha256sum --strict -c -
 fi
 git ls-tree -r -z "$3" standalone/printify-api > "$tmp/git-inputs"
 while IFS= read -r -d '' record; do
@@ -158,6 +161,7 @@ if [[ "$1" == upgrade ]]; then
 elif [[ "$1" == native-receipt ]]; then
     mkdir "$wp/wp-content/plugins/digiforge"
     unzip -q "$d/core-native.zip" -d "$wp/wp-content/plugins/digiforge"
+    unzip -q "$d/companion.zip" -d "$wp/wp-content/plugins"
     guarded php "$tests/native-receipt-wordpress.php"
 elif [[ "$1" == support ]]; then
     guarded php "$tests/support-read-wordpress.php"

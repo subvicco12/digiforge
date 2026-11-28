@@ -20,7 +20,7 @@ require_once ABSPATH.'wp-admin/includes/plugin.php';
 $core=WP_PLUGIN_DIR.'/digiforge';
 foreach (['MutationCoreInterface','MutationInspectionCoreInterface','PublishingCoreInterface',
     'WorkflowCoreInterface','OperationsCoreInterface','NativeCorePortInterface'] as $interface) {
-    require "$core/tests/fixtures/native-printify-companion/$interface.php";
+    require WP_PLUGIN_DIR."/digiforge-printify-connector/Preparation/$interface.php";
 }
 require "$core/tests/wordpress/fixtures/PrintifyApiApprovalFixture.php";
 require "$core/tests/support/NativePrintifyContractFixture.php";
@@ -45,7 +45,9 @@ global $wpdb;
 foreach (NativeHeldJournalSchema::statements() as $sql) {
     $checked($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
 }
+$payload = '{"operation":"inert-native-fixture"}';
 $binding=array_replace(NativePrintifyContractFixture::binding(),[
+    'payload_fingerprint'=>hash('sha256',$payload),
     'operation_id'=>hash('sha256',wp_generate_uuid4()),'scope_fingerprint'=>$scope->fingerprint(),
     'integration_id'=>$scope->integrationId,'credential_reference'=>$scope->integrationId,
     'provider_shop_id'=>'12','environment'=>'test','authorization_revision'=>$scope->revision,
@@ -75,6 +77,39 @@ foreach ([
 ] as $wrong) {
     $check(Runtime::prepareNativeMutation('12',$account,$wrong+$request)['state']==='DENIED','Substituted receipt accepted');
 }
+require_once WP_PLUGIN_DIR.'/digiforge-printify-api/HeldAuthorityAdapter.php';
+$keys=sodium_crypto_sign_seed_keypair(str_repeat('B',32));
+$pin=['key_id'=>'fixture-v1','issuer'=>'fixture-witness','audience'=>'fixture-sender',
+    'public_key'=>sodium_crypto_sign_publickey($keys),'revoked'=>false];
+$now=1700000000;
+$identity=['operation_id'=>$binding['operation_id'],'shop'=>'12','account'=>$account,
+    'integration'=>(string)$binding['integration_id'],'actor'=>1,'authorization_revision'=>$scope->revision,
+    'payload_digest'=>hash('sha256',$payload),'idempotency_id'=>$key,'event_hash'=>$entry['event_hash'],
+    'journal_revision'=>$entry['record']['revision'],'correlation_id'=>str_repeat('a',64),
+    'session_generation'=>1,'policy_revision'=>1,'sequence'=>1,'epoch'=>str_repeat('e',64)];
+$manifest=$identity+['version'=>1,'issuer'=>$pin['issuer'],'audience'=>$pin['audience'],'phase'=>'SEND_ADMISSION',
+    'issued'=>$now,'expires'=>$now+15];
+ksort($manifest,SORT_STRING);
+$json=static fn(array $value): string=>json_encode($value,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+$signed=['key_id'=>$pin['key_id'],'manifest'=>$manifest];
+$wire=$json($signed+['signature'=>base64_encode(sodium_crypto_sign_detached($json($signed),sodium_crypto_sign_secretkey($keys)))]);
+$review=static fn(string $value,array $current,array $trust,int $credential): array=>
+    DigiForgePrintifyApi\HeldAuthorityAdapter::reviewSenderEvidence('12',$account,$request,$credential,$value,$wire,$trust,$current,$now);
+$valid=$review($payload,$identity,$pin,$scope->integrationId);
+$check($valid['state']==='UNKNOWN' && $valid['sender_evidence_verified'] && !$valid['dispatch_receipt_verified']
+    && !$valid['independent_floor_verified'] && !$valid['retry_permitted'] && !$valid['provider_execution_authorized']
+    && $valid['local_receipt_reference']===$entry['event_hash'],'Valid inert evidence changed the hold or lost receipt identity');
+foreach ([
+    $review($payload.' ',$identity,$pin,$scope->integrationId),
+    $review($payload,$identity,['revoked'=>true]+$pin,$scope->integrationId),
+    $review($payload,$identity,$pin,$scope->integrationId+1),
+    $review($payload,['journal_revision'=>1]+$identity,$pin,$scope->integrationId),
+    $review($payload,['epoch'=>str_repeat('d',64)]+$identity,$pin,$scope->integrationId),
+] as $denied) {
+    $check($denied['state']==='UNKNOWN' && !$denied['sender_evidence_verified'] && !$denied['retry_permitted'],
+        'Stale evidence changed quarantine or admitted sender evidence');
+}
+echo "Native UNKNOWN and inert signed sender join PASS: payload, custody reference, revocation, restored revision and epoch\n";
 $port=$checked(NativeBridge::connect('1.0.0'));
 $actions=['AUTHORIZE','REGISTER','CLAIM','RECOVER','CANCEL','RECONCILE','OUTCOME'];
 foreach ($actions as $action) {
@@ -95,6 +130,8 @@ foreach ($actions as $action) {
 $check($checked($journal->read($binding['operation_id'],'personalized_pod',1))===$entry,
     'Held or denied actions changed Core journal history');
 WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());
+$check(!$review($payload,$identity,$pin,$scope->integrationId)['sender_evidence_verified'],
+    'Destroyed native session admitted sender evidence');
 $check(Runtime::prepareNativeMutation('12',$account,$request)['state']==='DENIED','Destroyed session admitted native receipt read');
 foreach ($actions as $action) {
     $check(Runtime::prepareNativeMutation('12',$account,['action'=>$action,'data'=>[]]+$request)['state']==='DENIED',
