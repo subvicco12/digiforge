@@ -27,6 +27,11 @@ $paths=[];
 $foreign=false;
 add_filter('digiforge_printify_direct_fixture_response',static function ($previous,array $request) use (&$paths,&$foreign): array {
     $paths[]=$request['path'];
+    if ($request['operation']==='PRODUCT_GPSR_READ') {
+        $text=$foreign?'https://unsupported.example.invalid/link':'Fixture product safety text';
+        return ['response'=>['code'=>200],'headers'=>['content-type'=>'application/json'],
+            'body'=>json_encode([['title'=>'Fixture instructions','text'=>$text]],JSON_THROW_ON_ERROR)];
+    }
     $item=['id'=>'support-1','order_id'=>$foreign?'foreign-order':'order-1','type'=>'order_refund',
         'status'=>'resolved','outcome'=>'positive','line_item_ids'=>['line-1'],
         'created_at'=>'2026-11-19T00:00:00Z','updated_at'=>'2026-11-20T00:00:00Z',
@@ -56,3 +61,16 @@ $check($paths===['/v1/shops/107/orders/order-1/support-requests',
     '/v1/shops/107/orders/order-1/support-requests/support-1',
     '/v1/shops/107/orders/order-1/support-requests/support-1'],'Unexpected fixture routes or automatic retry');
 echo "Installed WordPress support list/detail, scoped navigation, redaction and foreign order denial PASS\n";
+$foreign=false;
+$gpsr=['product_id'=>'product-1','blueprint_id'=>'42','provider_id'=>'7','variant_ids'=>'9'];
+$check($read('PRODUCT_GPSR_READ',$gpsr)['state']==='OBSERVED','Scoped product safety evidence failed');
+ob_start();
+ProtectedGetPanel::render([]);
+$html=ob_get_clean();
+$check(str_contains($html,'Fixture product safety text') && str_contains($html,'supplier_certified'),
+    'Product safety provenance was not rendered');
+$foreign=true;
+$check($read('PRODUCT_GPSR_READ',$gpsr)['state']==='UNAVAILABLE','Unsafe GPSR text passed validation');
+$check(array_slice($paths,-2)===array_fill(0,2,'/v1/shops/107/products/product-1/gpsr.json'),
+    'Product safety request escaped the scoped endpoint');
+echo "Installed WordPress protected product safety evidence and unsafe response denial PASS\n";

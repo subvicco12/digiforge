@@ -128,6 +128,36 @@ final class NativeHeldInspection
         }
     }
 
+    /** Read recovery readiness through the reviewed local Core port. No caller receipt is accepted. */
+    public static function recoveryStatus(string $shop,string $account,mixed $scope): array
+    {
+        $held = self::result('BLOCKED','INDEPENDENT_RECOVERY_FLOOR_REQUIRED');
+        try {
+            if (!Runtime::permitsFixtureAccount($shop,$account) || !$scope instanceof ShopBinding
+                || $scope->providerShopId !== $shop || $scope->environment !== 'test') {
+                return self::result('DENIED','NATIVE_BINDING');
+            }
+            if (self::companionStatus() !== 'NATIVE_COMPANION_INTERFACE_COMPATIBLE') {
+                return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+            }
+            $actor = \get_current_user_id();
+            $current = NativeAuthorityAdapter::scope($scope,$actor,['manage_digiforge_pod']);
+            if (!is_array($current) || ($current['scope']['external_account_reference'] ?? null) !== $account) {
+                return self::result('DENIED','NATIVE_ACCOUNT_OR_SESSION');
+            }
+            $port = NativeBridge::connect('1.0.0');
+            if (!$port instanceof NativeCorePort) return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+            $result = $port->recovery($scope,$actor,['action'=>'INSPECT']);
+            if ($result instanceof \WP_Error
+                && $result->get_error_code()==='printify_native_independent_checkpoint_and_drain_required') {
+                return $held;
+            }
+            return self::result('BLOCKED','NATIVE_RECOVERY_UNVERIFIED');
+        } catch (\Throwable) {
+            return self::result('BLOCKED','NATIVE_RECOVERY_CONTRACT_UNAVAILABLE');
+        }
+    }
+
     /** Check the canonical request for handoff only. No Core writer is invoked. */
     public static function prepareMutation(string $shop,string $account,array $request): array
     {

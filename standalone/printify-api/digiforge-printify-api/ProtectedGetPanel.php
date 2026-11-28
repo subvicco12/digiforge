@@ -210,6 +210,7 @@ final class ProtectedGetPanel
         if ($operation === 'PRODUCT_READ') {
             $fields = self::productSelection($data);
             if ($fields === null) return;
+            self::renderReadAction('PRODUCT_GPSR_READ',$fields,$profile,$workspace,'Read product safety information');
             $images = [];
             foreach ($data['print_areas'] as $area) {
                 foreach ($area['placeholders'] as $position) {

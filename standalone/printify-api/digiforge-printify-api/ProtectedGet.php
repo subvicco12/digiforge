@@ -32,6 +32,7 @@ final class ProtectedGet
         'CATALOG_SHIPPING_READ'=>['blueprint_id','provider_id'],
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page','limit'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
+        'PRODUCT_GPSR_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
         'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
         'MOCKUP_SELECTION_READ'=>['product_id'], 'LINKED_IMAGE_METADATA_READ'=>['product_id','image_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],

@@ -161,7 +161,13 @@ foreach ($actions as $action) {
 }
 $check($checked($journal->read($binding['operation_id'],'personalized_pod',1))===$entry,
     'Held or denied actions changed Core journal history');
+$recoveryStatus=static fn(string $ref): array=>
+    DigiForgePrintifyApi\NativeHeldInspection::recoveryStatus('12',$ref,$scope);
+$rec=$recoveryStatus($account);
+$check($rec['reason']==='INDEPENDENT_RECOVERY_FLOOR_REQUIRED' && !$rec['provider_execution_authorized']
+    && $recoveryStatus('foreign-account')['state']==='DENIED','Pinned INSPECT recovery failed to preserve floor or scope denial');
 WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());
+$check($recoveryStatus($account)['state']==='DENIED','Destroyed session admitted recovery inspection');
 $check(!$review($payload,$identity,$pin,$scope->integrationId)['sender_evidence_verified'],
     'Destroyed native session admitted sender evidence');
 $check(Runtime::prepareNativeMutation('12',$account,$request)['state']==='DENIED','Destroyed session admitted native receipt read');
