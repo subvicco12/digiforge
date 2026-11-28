@@ -9,6 +9,9 @@ if (!defined('ABSPATH')) exit;
 final class ManagedConnection
 {
     private const CREDENTIAL = 'credential.json';
+    private const PENDING = 'credential-save.pending';
+    private const UNCERTAIN = 'CREDENTIAL_SAVE_UNCERTAIN';
+    private const SAVE_FAILED = 'CREDENTIAL_SAVE_FAILED';
     private const ACTION = 'df_printify_managed_connection';
     private const MAX_WINDOW = 300;
 
@@ -79,15 +82,34 @@ final class ManagedConnection
         try { return @fsync($handle); } finally { fclose($handle); }
     }
 
-    private static function replace(string $dir,string $path,string $data): bool
+    private static function pending(string $dir): bool
+    {
+        clearstatcache(true,$dir.'/'.self::PENDING);
+        return @lstat($dir.'/'.self::PENDING)!==false;
+    }
+
+    private static function replace(string $dir,string $path,string $data): string
     {
         $tmp=$dir.'/.pending-'.bin2hex(random_bytes(16));
         $file=self::create($tmp);
-        if ($file===false) return false;
+        if ($file===false) return self::SAVE_FAILED;
+        $marker=$dir.'/'.self::PENDING;
         try {
             $stat=self::safeFile($tmp,$dir);
-            return $stat!==null && self::matches($file,$stat) && fwrite($file,$data)===strlen($data)
-                && fflush($file) && fsync($file) && @rename($tmp,$path) && self::syncDir($dir);
+            if ($stat===null || !self::matches($file,$stat) || fwrite($file,$data)!==strlen($data)
+                || !fflush($file) || !fsync($file)) return self::SAVE_FAILED;
+
+            // Commit the deny marker before attempting to publish new credential bytes.
+            if (!self::writeMarker($dir,$marker)) return self::SAVE_FAILED;
+            if (!@rename($tmp,$path)) {
+                @unlink($marker);
+                return self::SAVE_FAILED;
+            }
+            if (!self::syncDir($dir) || !@unlink($marker)) return self::UNCERTAIN;
+
+            // The credential rename is already durable. Losing the marker removal
+            // in a crash can only return the connection to quarantine.
+            return 'CREDENTIAL_SAVED_HELD';
         } finally {
             fclose($file);
             if (is_file($tmp)) @unlink($tmp);
@@ -99,15 +121,16 @@ final class ManagedConnection
         return is_string($token) && preg_match('/^[A-Za-z0-9._~-]{16,512}$/D',$token)===1;
     }
 
-    public static function save(array $scope,string $token,?\Closure $valid=null): bool
+    public static function save(array $scope,string $token,?\Closure $valid=null): string
     {
-        if (!self::tokenValid($token)) return false;
+        if (!self::tokenValid($token)) return self::SAVE_FAILED;
         return self::locked(static function(string $dir) use ($scope,$token,$valid): string {
-            if ($valid!==null && !$valid()) return 'FAILED';
+            if ($valid!==null && !$valid()) return self::SAVE_FAILED;
+            if (self::pending($dir)) return self::UNCERTAIN;
             $path=$dir.'/'.self::CREDENTIAL;
-            if (@lstat($path)!==false && self::safeFile($path,$dir)===null) return 'FAILED';
-            return self::replace($dir,$path,json_encode(['scope'=>$scope,'token'=>$token],JSON_THROW_ON_ERROR))?'OK':'FAILED';
-        },'FAILED')==='OK';
+            if (@lstat($path)!==false && self::safeFile($path,$dir)===null) return self::SAVE_FAILED;
+            return self::replace($dir,$path,json_encode(['scope'=>$scope,'token'=>$token],JSON_THROW_ON_ERROR));
+        },self::SAVE_FAILED);
     }
 
     public static function remove(?\Closure $valid=null): bool
@@ -121,12 +144,16 @@ final class ManagedConnection
             foreach ($paths as $file) {
                 if (self::safeFile($file,$dir)===null || !@unlink($file)) return 'FAILED';
             }
-            return self::syncDir($dir)?'OK':'FAILED';
+            if (!self::syncDir($dir)) return 'FAILED';
+            $marker=$dir.'/'.self::PENDING;
+            if (!self::pending($dir)) return 'OK';
+            return self::safeFile($marker,$dir)!==null && @unlink($marker)?'OK':'FAILED';
         },'FAILED')==='OK';
     }
 
     private static function token(string $dir,array $scope): ?string
     {
+        if (self::pending($dir)) return null;
         $path=$dir.'/'.self::CREDENTIAL;
         $stat=self::safeFile($path,$dir);
         if ($stat===null || ($file=@fopen($path,'rb'))===false) return null;
@@ -141,8 +168,8 @@ final class ManagedConnection
 
     public static function state(array $scope): string
     {
-        return self::locked(static fn(string $dir): string=>self::token($dir,$scope)===null
-            ? 'CREDENTIAL_MISSING_OR_INVALID':'CREDENTIAL_HELD','PRIVATE_STORAGE_UNAVAILABLE');
+        return self::locked(static fn(string $dir): string=>self::pending($dir) ? self::UNCERTAIN
+            : (self::token($dir,$scope)===null ? 'CREDENTIAL_MISSING_OR_INVALID':'CREDENTIAL_HELD'),'PRIVATE_STORAGE_UNAVAILABLE');
     }
 
     private static function approval(array $scope,int $actor): ?array
@@ -163,7 +190,11 @@ final class ManagedConnection
 
     private static function claim(string $dir,string $id): bool
     {
-        $path=$dir.'/used-'.$id;
+        return self::writeMarker($dir,$dir.'/used-'.$id);
+    }
+
+    private static function writeMarker(string $dir,string $path): bool
+    {
         $file=self::create($path);
         if ($file===false) return false;
         try {
@@ -186,6 +217,7 @@ final class ManagedConnection
         return self::locked(static function(string $dir) use ($profile,$revision,$actor,$session,$id): string {
             $approval=self::approval($profile,$actor);
             if (($approval['id']??null)!==$id) return 'PILOT_EXPIRED_OR_UNAPPROVED';
+            if (self::pending($dir)) return self::UNCERTAIN;
             $token=self::token($dir,$profile);
             if ($token===null) return 'CREDENTIAL_MISSING_OR_INVALID';
             $credential=self::safeFile($dir.'/'.self::CREDENTIAL,$dir);
@@ -254,7 +286,7 @@ final class ManagedConnection
                 $valid=static fn(): bool=>self::authorized($profile,$revision,$actor,$session);
                 if ($action==='save') {
                     $token=$post[self::ACTION.'_token']??null;
-                    $result=is_string($token) && self::save($profile,$token,$valid)?'CREDENTIAL_SAVED_HELD':'CREDENTIAL_SAVE_FAILED';
+                    $result=is_string($token)?self::save($profile,$token,$valid):self::SAVE_FAILED;
                     unset($token);
                 } elseif ($action==='disconnect') {
                     $result=self::remove($valid)?'CREDENTIAL_REMOVED':'CREDENTIAL_REMOVE_FAILED';
@@ -293,7 +325,8 @@ final class ManagedConnection
             'CREDENTIAL_HELD','CREDENTIAL_SAVED_HELD'=>'Token stored privately. Connection held.',
             'CREDENTIAL_MISSING_OR_INVALID'=>'No valid token is stored for this shop profile.',
             'CREDENTIAL_REMOVED'=>'Local token removed. Revoke it in Printify.',
-            'CREDENTIAL_SAVE_FAILED'=>'Token was not confirmed saved. Check the token format and private storage permissions.',
+            self::SAVE_FAILED=>'Token was not saved. Check the token format and private storage permissions.',
+            self::UNCERTAIN=>'Token persistence is uncertain. Tests and replacement are blocked. Disconnect, remove the server approval, and revoke this token in Printify before setting up again.',
             'CREDENTIAL_REMOVE_FAILED'=>'Token cleanup could not be confirmed. Revoke it in Printify and check private storage.',
             'PILOT_SHOP_CONFIRMED'=>'Printify returned the assigned shop. The connection is held again.',
             'PILOT_PROVIDER_DENIED'=>'Printify denied the token or its scope. Revoke or replace the token. The connection is held.',

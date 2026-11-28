@@ -17,7 +17,7 @@ final class Status
     {
         return [
             'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-            'version' => '0.15.1',
+            'version' => '0.15.2',
             'mode' => 'PASSIVE_OFFLINE',
             'capabilities' => [],
             'stop_all' => true,

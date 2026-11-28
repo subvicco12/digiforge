@@ -1,7 +1,7 @@
 === DigiForge Printify API ===
 Requires at least: 7.1
 Requires PHP: 8.3
-Stable tag: 0.15.1
+Stable tag: 0.15.2
 
 The Tools menu displays local diagnostics to WordPress administrators.
 Offline catalog validation additionally requires an exact configured shop
@@ -190,3 +190,10 @@ credential and approval configuration before serving traffic. Treat any restored
 used-grant state as untrusted; require a fresh approval ID and do not restore or
 replay a prior grant. If that custody policy cannot be accepted, keep managed
 configuration absent and the connection held.
+
+If the panel reports uncertain token persistence, the attempted replacement
+may be present on disk. The connection is quarantined. Do not delete the
+quarantine marker by hand. Disconnect to clean up, remove the server approval
+and revoke the submitted PAT at Printify. If cleanup cannot be confirmed,
+keep managed reads held and ask the hosting operator to inspect the private
+directory. Use a new token and fresh grant only after cleanup and revocation.

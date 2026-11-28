@@ -10,15 +10,15 @@ use DigiForgePrintifyApi\ManagedConnection;
 function check(bool $ok): void { if (!$ok) throw new RuntimeException('Managed connection assertion failed'); }
 try {
     $scope=['shop'=>'107','account'=>'fixture-account','integration'=>'fixture-read','custody'=>'custody-ref:fixture'];
-    check(ManagedConnection::save($scope,'fixture-managed-token-01'));
+    check(ManagedConnection::save($scope,'fixture-managed-token-01')==='CREDENTIAL_SAVED_HELD');
     check((fileperms($dir.'/credential.json')&0777)===0600);
     clearstatcache();
     $inode=fileinode($dir.'/credential.json');
-    check(ManagedConnection::save($scope,'fixture-managed-token-02'));
+    check(ManagedConnection::save($scope,'fixture-managed-token-02')==='CREDENTIAL_SAVED_HELD');
     clearstatcache();
     check(fileinode($dir.'/credential.json')!==$inode);
-    check(!ManagedConnection::save($scope,"bad\nvalue"));
-    check(!ManagedConnection::save($scope,'fixture-managed-token-03',static fn()=>false));
+    check(ManagedConnection::save($scope,"bad\nvalue")==='CREDENTIAL_SAVE_FAILED');
+    check(ManagedConnection::save($scope,'fixture-managed-token-03',static fn()=>false)==='CREDENTIAL_SAVE_FAILED');
     check(!ManagedConnection::remove(static fn()=>false));
     check(ManagedConnection::state($scope)==='CREDENTIAL_HELD');
     check(ManagedConnection::remove());
