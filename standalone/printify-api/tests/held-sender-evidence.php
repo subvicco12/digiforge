@@ -20,7 +20,9 @@ $verify=static fn(string $bytes,string $sender='fixture-sender',bool $revoked=fa
         sodium_crypto_sign_publickey($key),$revoked,$now,$expected+$identity);
 if (!$verify($payload) || $verify($payload.' ') || $verify($payload,'other-sender')
     || $verify($payload,'fixture-sender',true) || $verify($payload,'fixture-sender',false,1700000030)
-    || $verify($payload,'fixture-sender',false,1700000000,['sequence'=>$identity['sequence']+1])) {
+    || $verify($payload,'fixture-sender',false,1700000000,['sequence'=>$identity['sequence']+1])
+    || $verify($payload,'fixture-sender',false,1700000000,['authorization_revision'=>$identity['authorization_revision']+1])
+    || $verify($payload,'fixture-sender',false,1700000000,['epoch'=>str_repeat('7',64)])) {
     throw new RuntimeException('Held sender evidence binding failed');
 }
-echo "Signed inert payload evidence PASS: modified bytes, foreign sender, revocation, expiry and stale sequence denied\n";
+echo "Signed inert payload evidence PASS: modified bytes, foreign sender, revocation, expiry and stale sequence, authorization revision and epoch denied\n";

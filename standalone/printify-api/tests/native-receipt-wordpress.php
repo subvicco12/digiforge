@@ -76,9 +76,28 @@ foreach ([
     $check(Runtime::prepareNativeMutation('12',$account,$wrong+$request)['state']==='DENIED','Substituted receipt accepted');
 }
 $port=$checked(NativeBridge::connect('1.0.0'));
-$claim=$port->exchange(['action'=>'CLAIM','data'=>[]]+$request);
-$check(is_wp_error($claim)&&$claim->get_error_code()==='printify_native_journal_and_independent_checkpoint_required',
-    'Native claim failed to hold');
+$actions=['AUTHORIZE','REGISTER','CLAIM','RECOVER','CANCEL','RECONCILE','OUTCOME'];
+foreach ($actions as $action) {
+    $candidate=['action'=>$action,'data'=>[]]+$request;
+    $check(DigiForge\Connector\Printify\NativePortContract::valid('mutation_request',$candidate),'Action grammar invalid: '.$action);
+    $denial=$port->exchange($candidate);
+    $check(is_wp_error($denial)
+        && $denial->get_error_code()==='printify_native_journal_and_independent_checkpoint_required'
+        && ($denial->get_error_data()['network_request_attempted']??null)===false,
+        'Native independent-checkpoint denial changed for '.$action);
+    $projection=Runtime::prepareNativeMutation('12',$account,$candidate);
+    $check($projection['state']==='BLOCKED' && ($projection['canonical_action']??null)===$action
+        && !$projection['provider_execution_authorized'] && !$projection['retry_permitted'], 'Standalone did not hold '.$action);
+    $stale=['context'=>['authorization_revision'=>$binding['authorization_revision']+1]+$candidate['context']]+$candidate;
+    $check(Runtime::prepareNativeMutation('12',$account,$stale)['state']==='DENIED','Revision substitution admitted for '.$action);
+    echo "$action ".$denial->get_error_code()."\n";
+}
+$check($checked($journal->read($binding['operation_id'],'personalized_pod',1))===$entry,
+    'Held or denied actions changed Core journal history');
 WP_Session_Tokens::get_instance(1)->destroy(wp_get_session_token());
 $check(Runtime::prepareNativeMutation('12',$account,$request)['state']==='DENIED','Destroyed session admitted native receipt read');
-echo "Pinned Core receipt read PASS: UNKNOWN, duplicate-key/event/payload substitution, missing independent claim floor, revoked session\n";
+foreach ($actions as $action) {
+    $check(Runtime::prepareNativeMutation('12',$account,['action'=>$action,'data'=>[]]+$request)['state']==='DENIED',
+        'Destroyed session admitted '.$action);
+}
+echo "Pinned Core eight-action conformance PASS: UNKNOWN, duplicate-key/event/payload substitution, missing independent claim floor, revoked session\n";

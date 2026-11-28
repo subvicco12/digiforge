@@ -116,7 +116,7 @@ final class NativeHeldInspection
     {
         $binding = $request['binding'] ?? null;
         if (!Runtime::permitsFixtureAccount($shop, $account)
-            || !in_array($request['action'] ?? null, ['AUTHORIZE', 'REGISTER', 'CLAIM', 'RECEIPT_READ'], true)
+            || !in_array($request['action'] ?? null, ['AUTHORIZE','REGISTER','CLAIM','RECOVER','CANCEL','RECEIPT_READ','RECONCILE','OUTCOME'], true)
             || !is_array($binding)
             || ($binding['provider_shop_id'] ?? null) !== $shop
             || ($binding['environment'] ?? null) !== 'test') {

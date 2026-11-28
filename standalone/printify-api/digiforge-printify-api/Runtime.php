@@ -66,8 +66,17 @@ final class Runtime
             echo '<p>Native Core build: ' . \esc_html($readiness['native_mutation']['core_build']) . '</p>';
             echo '<p>Held authority interface: ' . \esc_html($readiness['native_mutation']['handoff_contract'])
                 . ' (execution disabled)</p>';
-            echo '<p>Native UNKNOWN readback requires the reviewed Core and a current scope. '
-                . 'Trusted sender, production credential custody and independent recovery remain held.</p>';
+            echo '<h2>Native readiness</h2><dl>';
+            foreach ([
+                'Held receipt readback'=>'Requires reviewed Core and current operator scope',
+                'Trusted final sender'=>'Held · authenticated sender admission required',
+                'Production custody'=>'Held · independent custody and provider revocation evidence required',
+                'Recovery and consumed-operation floor'=>'Held · independent witness evidence required',
+                'Provider execution'=>'Held · no live qualification in this package',
+            ] as $label=>$value) {
+                echo '<dt>'.\esc_html($label).'</dt><dd>'.\esc_html($value).'</dd>';
+            }
+            echo '</dl>';
         }
         $catalogScopes = self::syntheticModulesAvailable() ? self::workspaceScopes() : [];
         if ($catalogScopes !== []) {
