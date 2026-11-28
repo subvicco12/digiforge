@@ -66,6 +66,8 @@ final class Runtime
             echo '<p>Native Core build: ' . \esc_html($readiness['native_mutation']['core_build']) . '</p>';
             echo '<p>Held authority interface: ' . \esc_html($readiness['native_mutation']['handoff_contract'])
                 . ' (execution disabled)</p>';
+            echo '<p>Native UNKNOWN readback requires the reviewed Core and a current scope. '
+                . 'Trusted sender, production credential custody and independent recovery remain held.</p>';
         }
         $catalogScopes = self::syntheticModulesAvailable() ? self::workspaceScopes() : [];
         if ($catalogScopes !== []) {

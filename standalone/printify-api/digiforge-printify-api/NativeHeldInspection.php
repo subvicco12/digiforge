@@ -149,7 +149,7 @@ final class NativeHeldInspection
             if (!is_array($current) || ($current['scope']['external_account_reference'] ?? null) !== $account) {
                 return self::result('DENIED', 'NATIVE_ACCOUNT_OR_SESSION');
             }
-            if ($request['action'] === 'AUTHORIZE') {
+            if (in_array($request['action'], ['AUTHORIZE','RECEIPT_READ'], true)) {
                 if ((new \ReflectionClass(NativeBridge::class))->getFileName() !== $directory . '/NativeBridge.php'
                     || (new \ReflectionClass(NativeCorePort::class))->getFileName() !== $directory . '/NativeCorePort.php') {
                     return self::result('BLOCKED', 'NATIVE_BUILD_INCOMPATIBLE');
@@ -158,10 +158,25 @@ final class NativeHeldInspection
                 if (!$core instanceof NativeCorePort) {
                     return self::result('BLOCKED', 'NATIVE_COMPANION_INCOMPATIBLE');
                 }
-                // AUTHORIZE inspects current local evidence. No writer, claim or provider call is delegated.
+                // Both actions inspect current local evidence. The writer is never delegated.
                 $decision = $core->exchange($request);
                 if (!$decision instanceof \WP_Error) {
                     return self::result('BLOCKED', 'UNEXPECTED_NATIVE_AUTHORITY_RESULT');
+                }
+                if ($request['action'] === 'RECEIPT_READ') {
+                    $evidence = $decision->get_error_data();
+                    if ($decision->get_error_code() !== 'printify_native_held_outcome_unknown' || !is_array($evidence)
+                        || ($evidence['outcome'] ?? null) !== 'UNKNOWN'
+                        || ($evidence['provider_receipt_verified'] ?? null) !== false
+                        || ($evidence['retry_permitted'] ?? null) !== false
+                        || ($evidence['external_execution_authorized'] ?? null) !== false
+                        || !is_int($evidence['journal_revision'] ?? null) || $evidence['journal_revision'] < 1) {
+                        return self::result('DENIED', 'NATIVE_RECEIPT_UNAVAILABLE');
+                    }
+                    return self::result('UNKNOWN', 'NATIVE_HELD_OUTCOME_UNKNOWN') + [
+                        'canonical_action'=>'RECEIPT_READ','canonical_request_shape_verified'=>true,
+                        'journal_revision'=>$evidence['journal_revision'],'provider_receipt_verified'=>false,
+                    ];
                 }
                 if (!in_array($decision->get_error_code(), [
                     'printify_native_journal_and_independent_checkpoint_required',

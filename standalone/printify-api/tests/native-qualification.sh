@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)"
 git_dir=$(git rev-parse --absolute-git-dir)
 work_tree=$PWD
 case "$1" in
-    0|1|lifecycle|approval|workspace|structured|upgrade|support) ;;
+    0|1|lifecycle|approval|workspace|structured|upgrade|support|native-receipt) ;;
     *) exit 64 ;;
 esac
 if [[ "$(git rev-parse HEAD)" != "$3" || "$(git rev-parse HEAD^{tree})" != "$4"
@@ -51,6 +51,11 @@ e12c923d6e8342570506a4f20ff3b4ba4b6f67e39bbee7e313c9e87aad1e8aa0  digiforge.zip
 c36cfd01f5de69ce36e0024c97c4109bee972a6be3a27e89bc762383aad02157  shipping.zip
 DIGESTS
     )
+fi
+if [[ "$1" == native-receipt ]]; then
+    [[ -f "$output/core-native.zip" && ! -L "$output/core-native.zip" ]] || exit 65
+    cp -- "$output/core-native.zip" "$d/core-native.zip"
+    printf '%s  %s\n' 63c68ebfeab54754dbda2d32f0fd267bc52d608c79097f6eaae2a674ca6b3d2b "$d/core-native.zip" | sha256sum --strict -c -
 fi
 git ls-tree -r -z "$3" standalone/printify-api > "$tmp/git-inputs"
 while IFS= read -r -d '' record; do
@@ -150,6 +155,10 @@ if [[ "$1" == upgrade ]]; then
     inventory > "$output/incumbents-after.sha256"
     cmp "$output/incumbents-before.sha256" "$output/incumbents-after.sha256"
     echo 'Incumbent files remain byte-identical.'
+elif [[ "$1" == native-receipt ]]; then
+    mkdir "$wp/wp-content/plugins/digiforge"
+    unzip -q "$d/core-native.zip" -d "$wp/wp-content/plugins/digiforge"
+    guarded php "$tests/native-receipt-wordpress.php"
 elif [[ "$1" == support ]]; then
     guarded php "$tests/support-read-wordpress.php"
 elif [[ "$1" == lifecycle ]]; then
