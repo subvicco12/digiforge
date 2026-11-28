@@ -44,9 +44,11 @@ check(ob_get_clean() === '', 'Bootstrap emitted output');
 check(spl_autoload_functions() === $autoloaders, 'Bootstrap registered an autoloader');
 check(!class_exists('DigiForge\\Core\\Plugin', false), 'Bootstrap loaded Core');
 $status = DigiForgePrintifyApi\Status::snapshot();
+check(preg_match('/^ \* Version: ([0-9]+\.[0-9]+\.[0-9]+)$/m',(string)file_get_contents($plugin),$version)===1,
+    'Plugin header is missing a semantic version');
 check($status === [
     'schema' => 'DF_STANDALONE_PRINTIFY_STATUS_1',
-    'version' => '0.15.0',
+    'version' => $version[1],
     'mode' => 'PASSIVE_OFFLINE',
     'capabilities' => [],
     'stop_all' => true,
