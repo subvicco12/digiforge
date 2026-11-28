@@ -31,6 +31,23 @@ final class NativeHeldInspection
         }
     }
 
+    /** Resolve the reviewed versioned interface without accessing a provider. */
+    public static function companionStatus(): string
+    {
+        try {
+            $directory = self::reviewedDirectory();
+            if ($directory === null
+                || (new \ReflectionClass(NativeBridge::class))->getFileName() !== $directory.'/NativeBridge.php'
+                || (new \ReflectionClass(NativeCorePort::class))->getFileName() !== $directory.'/NativeCorePort.php') {
+                return 'NATIVE_CONTRACT_UNAVAILABLE';
+            }
+            return NativeBridge::connect('1.0.0') instanceof NativeCorePort
+                ? 'NATIVE_COMPANION_INTERFACE_COMPATIBLE' : 'NATIVE_COMPANION_UNAVAILABLE_OR_INCOMPATIBLE';
+        } catch (\Throwable) {
+            return 'NATIVE_CONTRACT_UNAVAILABLE';
+        }
+    }
+
     private static function reviewedDirectory(): ?string
     {
         if (!class_exists(NativePortContract::class)) {

@@ -68,6 +68,7 @@ final class Runtime
                 . ' (execution disabled)</p>';
             echo '<h2>Native readiness</h2><dl>';
             foreach ([
+                'Companion interface'=>$readiness['native_mutation']['companion_contract'],
                 'Held receipt readback'=>'Requires reviewed Core and current operator scope',
                 'Trusted final sender'=>'Held · authenticated sender admission required',
                 'Production custody'=>'Held · independent custody and provider revocation evidence required',
@@ -382,10 +383,12 @@ final class Runtime
         $blocked='BLOCKED_EXTERNAL';
         $disabled='DISABLED_BY_POLICY';
         $nativeBuild = 'STANDALONE_ADAPTER_UNAVAILABLE';
+        $companion = 'NATIVE_CONTRACT_UNAVAILABLE';
         $adapter = __DIR__ . '/NativeHeldInspection.php';
         if (is_readable($adapter)) {
             require_once $adapter;
             $nativeBuild = NativeHeldInspection::buildStatus();
+            $companion = NativeHeldInspection::companionStatus();
         }
         return [
             'provider_read'=>[
@@ -393,7 +396,7 @@ final class Runtime
                 'hosted'=>$blocked,'provider'=>$blocked,'dispatch'=>$disabled,
             ],
             'native_mutation'=>['admission'=>$blocked,'dispatch'=>$disabled,
-                'core_build'=>$nativeBuild,'handoff_contract'=>self::heldAuthorityContract()],
+                'core_build'=>$nativeBuild,'companion_contract'=>$companion,'handoff_contract'=>self::heldAuthorityContract()],
         ];
     }
 

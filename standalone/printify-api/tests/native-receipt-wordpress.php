@@ -18,16 +18,21 @@ if (DB_HOST!=='localhost:'.$socket || DB_NAME!=='printify_fixture' || wp_get_env
     || !WP_HTTP_BLOCK_EXTERNAL) throw new RuntimeException('Native fixture requires isolated WordPress');
 require_once ABSPATH.'wp-admin/includes/plugin.php';
 $core=WP_PLUGIN_DIR.'/digiforge';
-foreach (['MutationCoreInterface','MutationInspectionCoreInterface','PublishingCoreInterface',
-    'WorkflowCoreInterface','OperationsCoreInterface','NativeCorePortInterface'] as $interface) {
-    require WP_PLUGIN_DIR."/digiforge-printify-connector/Preparation/$interface.php";
-}
 require "$core/tests/wordpress/fixtures/PrintifyApiApprovalFixture.php";
 require "$core/tests/support/NativePrintifyContractFixture.php";
 $check=static function(bool $ok,string $reason):void {if (!$ok) throw new RuntimeException($reason);};
 add_filter('pre_http_request',static fn()=>throw new RuntimeException('Provider HTTP denied'),PHP_INT_MAX);
 add_filter('pre_wp_mail',static fn()=>true);
 $check(activate_plugin('digiforge/digiforge.php')===null,'Pinned Core activation failed');
+$companion='digiforge-printify-connector/digiforge-printify-connector.php';
+$check(activate_plugin($companion)===null && is_plugin_active($companion),'Disposable Companion activation failed');
+$companionState=DigiForgePrintifyConnector\Plugin::status();
+$manifest=DigiForgePrintifyConnector\Plugin::nativePort()->contractManifest();
+$check($manifest['core_source_sha']==='2c9fcca6e14fbf64f94414661d42d85715039070'
+    && $companionState['read_only'] && !$companionState['provider_execution_authorized']
+    && !$companionState['credential_storage'] && !$companionState['scheduling'],
+    'Companion activation changed authority or contacted an incompatible Core');
+
 $fixture=new PrintifyApiApprovalFixture();
 $fixture->boot();
 wp_get_current_user()->add_cap('digiforge_printify_review_shop_12');
@@ -41,6 +46,10 @@ $scope=new ShopBinding(2,'personalized_pod',$fixture->integration,'12',$v['envir
     new CredentialReference($fixture->integration),$v['binding_hash'],$v['expires_at']);
 $account=$checked(NativeAuthorityAdapter::scope($scope,1))['scope']['external_account_reference'];
 define('DIGIFORGE_PRINTIFY_OFFLINE_ACCOUNT',$account);
+$ready=Runtime::integrationReadiness('12',$account);
+$check($ready['native_mutation']['core_build']==='REVIEWED_BUILD_PRESENT'
+    && $ready['native_mutation']['companion_contract']==='NATIVE_COMPANION_INTERFACE_COMPATIBLE'
+    && $ready['native_mutation']['admission']==='BLOCKED_EXTERNAL','Native readiness overstated or lost dependency identity');
 global $wpdb;
 foreach (NativeHeldJournalSchema::statements() as $sql) {
     $checked($wpdb->query(preg_replace('/^CREATE TABLE /','CREATE TABLE IF NOT EXISTS ',$sql)));
@@ -109,6 +118,29 @@ foreach ([
     $check($denied['state']==='UNKNOWN' && !$denied['sender_evidence_verified'] && !$denied['retry_permitted'],
         'Stale evidence changed quarantine or admitted sender evidence');
 }
+$hash = DigiForge\Connector\Printify\NativePortContract::hash(...);
+$dispatch=['schema'=>'DF_PRINTIFY_RECEIPT_1','event_id'=>str_repeat('a',64),'fence_id'=>str_repeat('b',64),
+    'recovery_epoch'=>$identity['epoch'],'sequence'=>$identity['sequence'],'kind'=>'UNKNOWN','http_status'=>0,
+    'sent_at'=>$now-2,'received_at'=>$now-1,'body'=>[]]+array_intersect_key($binding,array_flip([
+        'operation_id','payload_fingerprint','intent_fingerprint','scope_fingerprint','approval_reference',
+        'shop_key','integration_id','credential_reference','provider_shop_id','authorization_revision','product_version']));
+$recovery=['schema'=>'DF_NATIVE_RECOVERY_1','scope_fingerprint'=>$binding['scope_fingerprint'],'actor_id'=>1,
+    'journal_state'=>'UNKNOWN','generation'=>1,'checkpoint_generation'=>1,'recovery_epoch'=>$identity['epoch'],
+    'checkpoint_epoch'=>$identity['epoch'],'emergency_requested'=>true,'emergency_acknowledged'=>true,
+    'pending_leases'=>0,'recovery_required'=>true,'stop_all'=>true,'external_lock'=>true,'automation'=>false,
+    'release_hold'=>true,'read_only'=>true,'external_execution_authorized'=>false];
+$contractReview=static fn(array $d,array $r): array=>DigiForgePrintifyApi\HeldAuthorityAdapter::reviewSenderEvidence(
+    '12',$account,$request,$scope->integrationId,$payload,$wire,$pin,$identity,$now,
+    $d+['receipt_hash'=>$hash($d)],$r+['receipt_hash'=>$hash($r)]);
+$joined=$contractReview($dispatch,$recovery);
+$check($joined['dispatch_contract_matches'] && $joined['recovery_contract_matches']
+    && !$joined['dispatch_receipt_verified'] && !$joined['independent_floor_verified']
+    && !$joined['provider_execution_authorized'] && !$joined['retry_permitted'],
+    'Matching receipt shapes conferred authority or failed the reviewed contract: '.json_encode($joined));
+$wrong=$contractReview(['credential_reference'=>$scope->integrationId+1]+$dispatch,['checkpoint_generation'=>2]+$recovery);
+$check(!$wrong['dispatch_contract_matches'] && !$wrong['recovery_contract_matches']
+    && $wrong['state']==='UNKNOWN' && !$wrong['retry_permitted'],'Substitute custody or recovery generation admitted');
+echo "Core dispatch/recovery receipt schema join PASS while external verification remains denied\n";
 echo "Native UNKNOWN and inert signed sender join PASS: payload, custody reference, revocation, restored revision and epoch\n";
 $port=$checked(NativeBridge::connect('1.0.0'));
 $actions=['AUTHORIZE','REGISTER','CLAIM','RECOVER','CANCEL','RECONCILE','OUTCOME'];
@@ -138,3 +170,4 @@ foreach ($actions as $action) {
         'Destroyed session admitted '.$action);
 }
 echo "Pinned Core eight-action conformance PASS: UNKNOWN, duplicate-key/event/payload substitution, missing independent claim floor, revoked session\n";
+echo "Exact retained Companion 0.7.6 activated with pinned Core and held native authority\n";

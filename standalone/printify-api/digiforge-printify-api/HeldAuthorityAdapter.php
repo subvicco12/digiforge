@@ -48,13 +48,15 @@ final class HeldAuthorityAdapter
      */
     public static function reviewSenderEvidence(
         string $shop, string $account, array $receipt, int $credentialReference,
-        string $payload, string $wire, array $pin, array $expected, int $now
+        string $payload, string $wire, array $pin, array $expected, int $now,
+        ?array $dispatchReceipt = null, ?array $recoveryReceipt = null
     ): array {
         $held = [
             'schema'=>'DF_STANDALONE_HELD_SENDER_REVIEW_1',
             'state'=>'HELD', 'reason'=>'NATIVE_RECEIPT_OR_SCOPE_UNAVAILABLE',
             'sender_evidence_verified'=>false, 'local_receipt_reference'=>null,
             'dispatch_receipt_verified'=>false, 'independent_floor_verified'=>false,
+            'dispatch_contract_matches'=>false, 'recovery_contract_matches'=>false,
             'provider_execution_authorized'=>false, 'retry_permitted'=>false,
         ];
         if (($receipt['action'] ?? null) !== 'RECEIPT_READ') return $held;
@@ -90,9 +92,44 @@ final class HeldAuthorityAdapter
         require_once __DIR__.'/HeldSignedEvidence.php';
         if (!HeldSignedEvidence::matchesPayload($payload,$wire,$pin['key_id'],$pin['issuer'],$pin['audience'],
             $pin['public_key'],false,$now,$expected)) return $held;
-        return [
-            'reason'=>'INDEPENDENT_SENDER_AND_FLOOR_REQUIRED','sender_evidence_verified'=>true,
-        ] + $held;
+        try {
+            $held['dispatch_contract_matches'] = $dispatchReceipt !== null
+                && self::matchesDispatchContract($dispatchReceipt,$binding,$expected);
+            $held['recovery_contract_matches'] = $recoveryReceipt !== null
+                && self::matchesRecoveryContract($recoveryReceipt,$binding,$expected);
+        } catch (\Throwable) {
+            $held['dispatch_contract_matches'] = $held['recovery_contract_matches'] = false;
+        }
+        return ['reason'=>'INDEPENDENT_SENDER_AND_FLOOR_REQUIRED','sender_evidence_verified'=>true] + $held;
+    }
+
+    private static function matchesDispatchContract(array $receipt,array $binding,array $expected): bool
+    {
+        if (!NativePortContract::valid('provider_receipt',$receipt)
+            || $receipt['kind'] !== 'UNKNOWN' || $receipt['http_status'] !== 0 || $receipt['body'] !== []
+            || $receipt['sent_at'] > $receipt['received_at'] || $receipt['recovery_epoch'] !== $expected['epoch']
+            || $receipt['sequence'] !== $expected['sequence']) return false;
+        foreach (['operation_id','payload_fingerprint','intent_fingerprint','scope_fingerprint','approval_reference',
+            'shop_key','integration_id','credential_reference','provider_shop_id','authorization_revision','product_version'] as $field) {
+            if ($receipt[$field] !== $binding[$field]) return false;
+        }
+        return self::matchesReceiptDigest($receipt);
+    }
+
+    private static function matchesRecoveryContract(array $receipt,array $binding,array $expected): bool
+    {
+        return NativePortContract::valid('recovery_receipt',$receipt)
+            && $receipt['scope_fingerprint'] === $binding['scope_fingerprint'] && $receipt['actor_id'] === $binding['actor_id']
+            && $receipt['journal_state'] === 'UNKNOWN' && $receipt['recovery_required']
+            && $receipt['recovery_epoch'] === $expected['epoch'] && $receipt['checkpoint_epoch'] === $expected['epoch']
+            && $receipt['generation'] === $receipt['checkpoint_generation']
+            && (!$receipt['emergency_acknowledged'] || ($receipt['emergency_requested'] && $receipt['pending_leases'] === 0))
+            && self::matchesReceiptDigest($receipt);
+    }
+
+    private static function matchesReceiptDigest(array $receipt): bool
+    {
+        return hash_equals($receipt['receipt_hash'],NativePortContract::hash(array_diff_key($receipt,['receipt_hash'=>true])));
     }
 
     /** Final boundary has no independently qualified registrar or sender. */
