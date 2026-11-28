@@ -32,8 +32,9 @@ final class ProtectedGet
         'CATALOG_SHIPPING_METHOD_READ'=>['blueprint_id','provider_id','method'],
         'PRODUCTS_READ'=>['page'],'PRODUCT_READ'=>['product_id','blueprint_id','provider_id','variant_ids'],
         'PRODUCT_ARTWORK_READ'=>['product_id','blueprint_id','provider_id','variant_ids','image_id'],
+        'MOCKUP_SELECTION_READ'=>['product_id'],
         'PRODUCT_SKU_READ'=>['product_id','blueprint_id','provider_id','sku'],
-        'ORDERS_READ'=>['page'],'ORDER_READ'=>['order_id'],
+        'ORDERS_READ'=>['page','status','sku'],'ORDER_READ'=>['order_id'],
     ];
 
     private const CATALOG = [
@@ -69,7 +70,14 @@ final class ProtectedGet
         }
 
         if (isset(self::CATALOG[$operation])) {
-            $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + $selection);
+            $path = PrintifyCatalogReadContract::endpoint(['kind'=>self::CATALOG[$operation]] + array_diff_key($selection,['show-out-of-stock'=>true]));
+            if (array_key_exists('show-out-of-stock',$selection)) {
+                if (!in_array($selection['show-out-of-stock'],['0','1'],true)) throw new \InvalidArgumentException('Invalid availability selection.');
+                $path.='?show-out-of-stock='.$selection['show-out-of-stock'];
+            }
+        } elseif ($operation === 'MOCKUP_SELECTION_READ') {
+            self::requirePattern($selection['product_id']??null,'/^[A-Za-z0-9_-]{1,160}$/D');
+            $path='/v1/shops/'.$scope['shop'].'/products/'.$selection['product_id'].'/mockup-selection.json';
         } elseif ($operation === 'PRODUCT_ARTWORK_READ') {
             self::requirePattern($selection['image_id'] ?? null, '/^[A-Za-z0-9_-]{1,160}$/D');
             $path = PrintifyApiRequest::prepare('PRODUCT_READ', $scope['shop'],
@@ -94,7 +102,16 @@ final class ProtectedGet
                     throw new \InvalidArgumentException('Page is outside the read window.');
                 }
             }
-            $path = PrintifyApiRequest::prepare($operation, $scope['shop'], $selection)['endpoint'];
+            $filters=[];
+            if ($operation==='ORDERS_READ') {
+                foreach (['status'=>'/^[a-z][a-z0-9-]{0,59}$/D','sku'=>'/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/D'] as $key=>$rule) {
+                    if (!array_key_exists($key,$selection)) continue;
+                    self::requirePattern($selection[$key],$rule);
+                    $filters[$key]=$selection[$key];
+                }
+            }
+            $path = PrintifyApiRequest::prepare($operation, $scope['shop'], array_diff_key($selection,$filters))['endpoint'];
+            foreach ($filters as $key=>$value) $path.='&'.$key.'='.rawurlencode($value);
         }
         return ['version'=>self::VERSION,'method'=>'GET','scope'=>$scope,'operation'=>$operation,
             'selection'=>$selection,'path'=>$path];
@@ -117,8 +134,14 @@ final class ProtectedGet
         $operation = $request['operation'];
         $selection = $request['selection'];
         $shop = $request['scope']['shop'];
+        if ($operation==='MOCKUP_SELECTION_READ') {
+            if ($request!==self::request($request['scope'],$operation,$selection)) {
+                throw new \InvalidArgumentException('Mockup request binding mismatch.');
+            }
+            return ['shop_id'=>$shop,'product_id'=>$selection['product_id'],'mockups'=>self::mockupRows($data)];
+        }
         if (isset(self::CATALOG[$operation])) {
-            $catalog = PrintifyCatalogReadContract::select($data, ['kind'=>self::CATALOG[$operation]] + $selection);
+            $catalog = PrintifyCatalogReadContract::select($data, ['kind'=>self::CATALOG[$operation]] + array_diff_key($selection,['show-out-of-stock'=>true]));
             $summary = static fn(array $row): array => ['id'=>$row['id'],'title'=>$row['title'] ?? null];
             return match ($operation) {
                 'BLUEPRINTS_READ' => array_map($summary, $catalog),
@@ -159,6 +182,15 @@ final class ProtectedGet
                     && ((!is_int($row['shop_id']) && !is_string($row['shop_id'])) || (string)$row['shop_id'] !== $shop))) {
                     throw new \InvalidArgumentException('Response scope mismatch.');
                 }
+                if ($operation==='ORDERS_READ') {
+                    if (isset($selection['status']) && ($row['status']??null)!==$selection['status']) {
+                        throw new \InvalidArgumentException('Order status filter mismatch.');
+                    }
+                    if (isset($selection['sku']) && (!is_array($row['line_items']??null)
+                        || !in_array($selection['sku'],array_column($row['line_items'],'sku'),true))) {
+                        throw new \InvalidArgumentException('Order SKU filter unavailable or mismatched.');
+                    }
+                }
             }
         }
         if ($operation === 'PRODUCT_SKU_READ') {
@@ -171,6 +203,10 @@ final class ProtectedGet
             return self::linkedArtwork($product,$selection['image_id']);
         }
         $projection = PrintifyApiReadEvidence::project($operation, $data, $shop, $selection);
+        if ($operation==='ORDERS_READ') {
+            $filters=array_intersect_key($selection,['status'=>true,'sku'=>true]);
+            if ($filters!==[]) $projection['filters']=$filters;
+        }
         if ($operation === 'PRODUCT_READ') {
             self::attachArtworkMetadata($projection, $data);
         }
@@ -272,6 +308,42 @@ final class ProtectedGet
         }
     }
 
+    /** Typed rows from the exact scoped GET. Source URLs are validated and discarded. */
+    public static function mockupRows(array $rows): array
+    {
+        if (!array_is_list($rows) || count($rows)>200) throw new \InvalidArgumentException('Invalid mockup response.');
+        $output=[];
+        $seen=[];
+        foreach ($rows as $row) {
+            if (!is_array($row) || count($row)!==5 || !is_bool($row['selected']??null)
+                || !in_array($row['type']??null,['GENERATED','UPLOADED'],true)
+                || !is_array($row['variant_ids']??null) || !array_is_list($row['variant_ids'])
+                || count($row['variant_ids'])>1000 || ($row['type']==='GENERATED' && $row['variant_ids']===[])) {
+                throw new \InvalidArgumentException('Invalid mockup row.');
+            }
+            $id=$row['mockup_id']??null;
+            self::requirePattern($id,'/^[A-Za-z0-9_-]{1,200}$/D');
+            if (isset($seen[$id])) throw new \InvalidArgumentException('Duplicate mockup identity.');
+            $seen[$id]=true;
+            $variants=[];
+            foreach ($row['variant_ids'] as $variant) {
+                if (!is_int($variant) || $variant<1 || $variant>2147483647 || isset($variants[$variant])) {
+                    throw new \InvalidArgumentException('Invalid mockup variant reference.');
+                }
+                $variants[$variant]=true;
+            }
+            $url=$row['src']??null;
+            $parts=is_string($url) && strlen($url)<=2048 && !preg_match('~[\x00-\x20\x7f<>\\\\]~',$url)?parse_url($url):false;
+            if (!is_array($parts) || ($parts['scheme']??null)!=='https'
+                || !preg_match('/^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/D',$parts['host']??'')
+                || isset($parts['user']) || isset($parts['pass']) || isset($parts['port']) || !str_starts_with($parts['path']??'','/')) {
+                throw new \InvalidArgumentException('Unsafe mockup URL.');
+            }
+            $output[]=['mockup_id'=>$id,'type'=>$row['type'],'variant_ids'=>$row['variant_ids'],'selected'=>$row['selected']];
+        }
+        return $output;
+    }
+
     private static function variant(array $row): array
     {
         $options = $row['options'] ?? null;
@@ -287,7 +359,8 @@ final class ProtectedGet
                 }
             }
         }
-        return ['id'=>$row['id'],'title'=>$row['title'] ?? null,'options'=>$options === [] ? null : $options];
+        return ['id'=>$row['id'],'title'=>$row['title'] ?? null,'options'=>$options === [] ? null : $options]
+            + array_intersect_key($row,['is_available'=>true]);
     }
 
     public static function verifyReply(array $request, string $grantId, array $reply, string $key, int $now): array

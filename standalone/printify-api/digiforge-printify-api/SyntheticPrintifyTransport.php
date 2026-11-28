@@ -285,7 +285,7 @@ final class SyntheticPrintifyTransport
             'BLUEPRINT_PROVIDERS_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers\.json'],
             'PROVIDER_READ' => ['GET', '/v1/catalog/print_providers/7\.json'],
             'BLUEPRINT_PROVIDER_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7\.json'],
-            'VARIANTS_READ', 'VARIANT_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/variants\.json'],
+            'VARIANTS_READ', 'VARIANT_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/variants\.json(?:\?show-out-of-stock=[01])?'],
             'SIZE_GUIDE_READ' => ['GET', '/v1/catalog/blueprints/42/size_guide\.json'],
             'CATALOG_SHIPPING_V1_READ' => ['GET', '/v1/catalog/blueprints/42/print_providers/7/shipping\.json'],
             'CATALOG_SHIPPING_READ' => ['GET', '/v2/catalog/blueprints/42/print_providers/7/shipping\.json'],
@@ -300,6 +300,7 @@ final class SyntheticPrintifyTransport
             'PREVIEW_CREATE' => ['POST', $shopRoot.'/products/'.$id.'/personalization_previews\.json'],
             'PREVIEW_READ' => ['GET', $shopRoot.'/products/'.$id.'/personalization_previews/tasks/'.$id.'\.json'],
             'PRODUCT_GPSR_READ' => ['GET', $shopRoot.'/products/'.$id.'/gpsr\.json'],
+            'MOCKUP_SELECTION_READ' => ['GET', $shopRoot.'/products/'.$id.'/mockup-selection\.json'],
             'PRODUCT_READ' => ['GET', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_UPDATE' => ['PUT', $shopRoot.'/products/'.$id.'\.json'],
             'PRODUCT_DELETE' => ['DELETE', $shopRoot.'/products/'.$id.'\.json'],
@@ -311,7 +312,7 @@ final class SyntheticPrintifyTransport
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => ['POST', $shopRoot.'/orders/shipping\.json'],
             'ORDER_CREATE', 'ORDER_SUBMIT' => ['POST', $shopRoot.'/orders\.json'],
             'ORDER_READ' => ['GET', $shopRoot.'/orders/'.$id.'\.json'],
-            'ORDERS_READ' => ['GET', $shopRoot.'/orders\.json'.$paging],
+            'ORDERS_READ' => ['GET', $shopRoot.'/orders\.json(?:\?page=([1-9][0-9]{0,9})&limit=([1-9]|10)(?:&status=([a-z][a-z0-9-]{0,59}))?(?:&sku=([A-Za-z0-9][A-Za-z0-9._-]{0,159}))?)?'],
             'LINE_ITEM_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/line_items/'.$id.'/cancel\.json'],
             'ORDER_CANCEL' => ['POST', $shopRoot.'/orders/'.$id.'/cancel\.json'],
             'ORDER_ADDRESS_CHANGE' => ['POST', $shopRoot.'/orders/'.$id.'/address_change\.json'],
@@ -370,6 +371,7 @@ final class SyntheticPrintifyTransport
                 => $this->personalization($operation,$route,$body),
             'PRODUCT_GPSR_READ' => isset($this->availableProducts()[$route[0]])
                 ? self::response(200, []) : self::error(404, 'fixture_resource_not_found'),
+            'MOCKUP_SELECTION_READ' => $this->mockupSelection($route[0]),
             'PRODUCT_READ' => self::lookup($this->availableProducts(true), $route[0]),
             'PRODUCT_UPDATE' => $this->updateProduct($route[0], $body, $version),
             'PRODUCTS_READ' => self::page($this->availableProducts(true), $route),
@@ -380,7 +382,9 @@ final class SyntheticPrintifyTransport
             'ORDER_SHIPPING_QUOTE', 'SHIPPING_QUOTE' => $this->quote($body),
             'ORDER_CREATE', 'ORDER_SUBMIT' => $this->createOrder($body),
             'ORDER_READ' => self::lookup($this->orders, $route[0]),
-            'ORDERS_READ' => self::page($this->orders, $route),
+            'ORDERS_READ' => self::page(array_filter($this->orders,static fn(array $order): bool =>
+                (($route[2]??'')==='' || $order['status']===$route[2])
+                && (($route[3]??'')==='' || in_array($route[3],array_column($order['line_items'],'sku'),true))),$route),
             'LINE_ITEM_CANCEL' => $body === [] ? $this->cancelLine($route[0],$route[1]) : self::error(422,'cancel_body'),
             'ORDER_CANCEL' => $this->cancel($route[0]),
             'ORDER_ADDRESS_CHANGE' => $this->changeOrderAddress($route[0],$body),
@@ -609,6 +613,19 @@ final class SyntheticPrintifyTransport
     {
         $rows=array_filter($this->images,static fn(array $image):bool=>($image['archived']??false)!==true);
         return $project?array_map(static fn(array $row):array=>array_diff_key($row,['render_png'=>true]),$rows):$rows;
+    }
+
+    private function mockupSelection(string $id): array
+    {
+        $product=$this->availableProducts()[$id]??null;
+        if ($product===null) return self::error(404,'fixture_resource_not_found');
+        if (isset($product['mockup_selection'])) return self::response(200,$product['mockup_selection']);
+        $variants=array_column($product['variants'],'id');
+        if ($variants===[]) return self::response(200,[]);
+        return self::response(200,[
+            ['mockup_id'=>$id.'_front','type'=>'GENERATED','src'=>'https://images.printify.com/mockup/fixture-front.jpg','variant_ids'=>$variants,'selected'=>true],
+            ['mockup_id'=>$id.'_back','type'=>'GENERATED','src'=>'https://images.printify.com/mockup/fixture-back.jpg','variant_ids'=>$variants,'selected'=>false],
+        ]);
     }
 
     private function availableProducts(bool $project=false): array

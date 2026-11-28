@@ -185,5 +185,20 @@ verify(ProtectedGetWorkspace::visible(array_replace($scope,['session'=>str_repea
 verify(str_contains($html,'DF_READ_PROVENANCE_1') && !str_contains(json_encode($provenance,JSON_THROW_ON_ERROR),'fixture-tracking-1'),
     'Operator provenance missing or leaked payload');
 echo "Bounded scope-fenced read provenance rendered; original metadata survived replay-safe reopening.\n";
+$archive=ProtectedGetWorkspace::archivedProvenance($scope,$direct);
+verify(count($archive)===10 && str_contains($html,'Archived read digests'), 'Append-only archive lost rolled-off history or operator view');
+verify(ProtectedGetWorkspace::archivedProvenance(array_replace($scope,['session'=>str_repeat('f',64)]),$direct)===[],
+    'Another session accessed archive');
+if ($phase==='write') {
+    $archiveOption=$direct?'digiforge_printify_direct_observation_v1_archive':'digiforge_printify_get_observation_v1_archive';
+    $bytes=get_option($archiveOption);
+    $corrupt=json_decode($bytes,true,32,JSON_THROW_ON_ERROR);
+    $corrupt['records'][0]['projection']['tampered']=true;
+    update_option($archiveOption,json_encode($corrupt,JSON_THROW_ON_ERROR));
+    verify(!ProtectedGetWorkspace::canArchive($direct) && ProtectedGetWorkspace::archivedProvenance($scope,$direct)===[],
+        'Archive accepted changed projection');
+    update_option($archiveOption,$bytes);
+}
+echo "Ten append-only records, scope isolation and tamper denial PASS\n";
 verify(get_option('active_plugins')===['digiforge-printify-api/digiforge-printify-api.php'],'Unexpected active plugin');
 echo $phase.': standalone-only WordPress panel rendered persisted synthetic observation; provider HTTP trapped.'.PHP_EOL;

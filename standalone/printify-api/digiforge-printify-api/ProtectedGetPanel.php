@@ -17,7 +17,7 @@ final class ProtectedGetPanel
 {
     private const MAX_VARIANT_IDS = 1000;
     private const MAX_VARIANT_SELECTOR_BYTES = self::MAX_VARIANT_IDS * 11 - 1;
-    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id'];
+    private const INPUT_FIELDS = ['blueprint_id','provider_id','variant_id','method','page','product_id','variant_ids','sku','image_id','order_id','show-out-of-stock','status'];
     private const ACTION = 'df_printify_protected_get_v1';
 
 
@@ -47,7 +47,7 @@ final class ProtectedGetPanel
             echo '<p role="status">'.\esc_html($result['reason']).'</p>';
             $advice = match ($result['reason']) {
                 'OPERATOR_DENIED','SCOPE_OR_REVISION_UNAVAILABLE' => 'Reopen the panel and verify the operator session and assigned shop.',
-                'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel to load the current observation before a new manual read.',
+                'WORKSPACE_UNAVAILABLE_OR_STALE','OBSERVATION_NOT_COMMITTED' => 'Reopen the panel. If storage is full or unavailable, preserve the archive and ask the operator to review it before another read.',
                 'PROVIDER_SCOPE_OR_CREDENTIAL_DENIED' => 'Ask the approved custodian to verify the credential and its read scope.',
                 'PROVIDER_RATE_LIMITED','LOCAL_BUDGET_OR_STORAGE_UNAVAILABLE' => 'Wait for the indicated provider delay or local quota window before a new manual read.',
                 'DIRECT_READ_UNAVAILABLE' => 'Check the selected IDs and connection status. Use Shops Read for a scoped manual diagnostic.',
@@ -97,6 +97,10 @@ final class ProtectedGetPanel
                 if ($currentData && ($data['data'] ?? null) === []) {
                     echo '<p>No records were returned for this page.</p>';
                 }
+                if ($currentData && $receipt['operation']==='PRODUCT_READ' && is_string($data['id']??null)
+                    && time()-$record['stored_at'] <= 60) {
+                    self::renderReadAction('MOCKUP_SELECTION_READ',['product_id'=>$data['id']],$revision,$record['workspace_revision'],'Read selected product mockups');
+                }
                 if ($currentData && time()-$record['stored_at'] <= 60) {
                     self::renderContinuation($receipt['operation'],$data,$revision,$record['workspace_revision']);
                     self::renderNavigation($receipt['operation'],$data,$revision,$record['workspace_revision']);
@@ -120,6 +124,11 @@ final class ProtectedGetPanel
                     echo '</ol></details>';
                     self::renderEvidence($record['history']);
                     self::renderProvenance($record['provenance']);
+                    $archive=ProtectedGetWorkspace::archivedProvenance($scope,$direct);
+                    if ($archive!==[]) {
+                        echo '<details><summary>Archived read digests</summary><textarea readonly rows="6" style="width:100%" aria-label="Archived read digests (JSON)">'
+                            .\esc_textarea(json_encode($archive,JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)).'</textarea></details>';
+                    }
                 }
             }
             $workspace = ProtectedGetWorkspace::snapshot($direct);
@@ -150,7 +159,8 @@ final class ProtectedGetPanel
         $current = $data['current_page'] ?? null;
         $page = $data['next_page']['page'] ?? null;
         if (!is_int($current) || !is_int($page) || $current<1 || $page!==$current+1 || $page>ProtectedGet::MAX_PAGE) return;
-        self::renderReadAction($operation,['page'=>$page],$profile,$workspace,'Read next page');
+        $filters=is_array($data['filters']??null) ? array_intersect_key($data['filters'],['status'=>true,'sku'=>true]) : [];
+        self::renderReadAction($operation,['page'=>$page]+$filters,$profile,$workspace,'Read next page');
     }
 
     private static function renderNavigation(string $operation,array $data,string $profile,string $workspace): void
@@ -338,6 +348,7 @@ final class ProtectedGetPanel
             return ['reason'=>'WORKSPACE_UNAVAILABLE_OR_STALE'] + $blocked;
         }
         if (!self::currentSession($scope['actor'], $session)) return $blocked;
+        if (!ProtectedGetWorkspace::canArchive($direct)) return ['reason'=>'OBSERVATION_NOT_COMMITTED']+$blocked;
         $key = defined('DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY') ? DIGIFORGE_PRINTIFY_FIXTURE_REPLY_KEY : null;
         if (!$direct && (!is_string($key) || !preg_match('/^[a-f0-9]{64}$/D', $key))) {
             return $blocked;

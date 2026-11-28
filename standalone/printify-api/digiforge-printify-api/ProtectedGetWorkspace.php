@@ -22,6 +22,8 @@ final class ProtectedGetWorkspace
     private const TTL = 3600;
     private const MAX_BYTES = 524288;
     private const HISTORY_LIMIT = 8;
+    private const ARCHIVE_LIMIT = 64;
+    private const ARCHIVE_BYTES = 4194304;
 
     public static function available(bool $direct = false): bool
     {
@@ -118,6 +120,71 @@ final class ProtectedGetWorkspace
         return self::readProvenance($record+['observation_sha256'=>ProtectedGet::digest($record)]);
     }
 
+    private static function archived(bool $direct,bool $lock=false): ?array
+    {
+        global $wpdb;
+        $name=self::observationOption($direct).'_archive';
+        $raw=$wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name=%s"
+            .($lock?' FOR UPDATE':''),$name));
+        if ($wpdb->last_error!=='' || ($raw!==null && (!is_string($raw) || strlen($raw)>self::ARCHIVE_BYTES))) return null;
+        if ($raw===null) return [];
+        try {
+            $archive=json_decode($raw,true,32,JSON_THROW_ON_ERROR);
+            if (($archive['version']??null)!==1 || !is_array($archive['records']??null)
+                || !array_is_list($archive['records']) || count($archive['records'])>self::ARCHIVE_LIMIT) return null;
+            $previous=null;
+            foreach ($archive['records'] as $record) {
+                $evidence=self::readProvenance($record['provenance']??null);
+                if (array_keys($record)!==['scope_sha256','stored_at','previous_sha256','provenance','projection','record_sha256']
+                    || !is_string($record['scope_sha256']) || !preg_match('/^[a-f0-9]{64}$/D',$record['scope_sha256'])
+                    || !is_int($record['stored_at']) || $record['stored_at']<1 || $record['previous_sha256']!==$previous
+                    || $evidence===null || $evidence['observed_at']>$record['stored_at']
+                    || !is_array($record['projection']) || $evidence['projection_sha256']!==ProtectedGet::digest($record['projection'])
+                    || $record['record_sha256']!==ProtectedGet::digest(array_diff_key($record,['record_sha256'=>true]))) return null;
+                $previous=$record['record_sha256'];
+            }
+            return $archive['records'];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public static function canArchive(bool $direct): bool
+    {
+        $records=self::archived($direct);
+        return $records!==null && count($records)<self::ARCHIVE_LIMIT;
+    }
+
+    public static function archivedProvenance(array $scope,bool $direct=false): array
+    {
+        if (!self::available($direct) || ($direct && !DirectGet::gatesOpen())) return [];
+        $scopeDigest=ProtectedGet::digest($scope);
+        $result=[];
+        foreach (self::archived($direct)??[] as $record) {
+            if ($record['scope_sha256']!==$scopeDigest || $record['stored_at']>time()) continue;
+            $result[]=$record['provenance']+['record_sha256'=>$record['record_sha256']];
+        }
+        return $result;
+    }
+
+    private static function appendObservation(array $scope,array $receipt,array $provenance,int $storedAt,bool $direct,int $connection): bool
+    {
+        global $wpdb;
+        $records=self::archived($direct,true);
+        if ($records===null || count($records)>=self::ARCHIVE_LIMIT) return false;
+        $record=['scope_sha256'=>ProtectedGet::digest($scope),'stored_at'=>$storedAt,
+            'previous_sha256'=>$records[array_key_last($records)]['record_sha256']??null,
+            'provenance'=>$provenance,'projection'=>$receipt['data']];
+        $records[]=$record+['record_sha256'=>ProtectedGet::digest($record)];
+        $payload=json_encode(['version'=>1,'records'=>$records],JSON_THROW_ON_ERROR);
+        if (strlen($payload)>self::ARCHIVE_BYTES) return false;
+        $changed=$wpdb->query($wpdb->prepare("INSERT INTO {$wpdb->options} (option_name,option_value,autoload)
+            SELECT %s,%s,'no' FROM DUAL WHERE CONNECTION_ID()=%d AND @@session.in_transaction=1
+            ON DUPLICATE KEY UPDATE option_value=VALUES(option_value),autoload='no'",
+            self::observationOption($direct).'_archive',$payload,$connection));
+        return is_int($changed) && $changed>0;
+    }
+
     public static function persist(array $scope, string $revision, array $receipt, bool $direct = false): bool
     {
         global $wpdb;
@@ -142,7 +209,7 @@ final class ProtectedGetWorkspace
                 ['operation'=>true,'state'=>true,'reason'=>true]);
             if (($receipt['state']??null)==='OBSERVED') {
                 $provenance=self::observationProvenance($receipt,$row['stored_at']);
-                if ($provenance===null) return false;
+                if ($provenance===null || !self::appendObservation($scope,$receipt,$provenance,$row['stored_at'],$direct,$connection)) return false;
                 $entry['provenance']=$provenance;
             }
             $history[]=$entry;
